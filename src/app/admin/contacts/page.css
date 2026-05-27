@@ -1,0 +1,107 @@
+.contactsAdminPage h1 {
+  font-size: 1.75rem;
+  color: #1A2E1F;
+  margin: 0 0 1.5rem 0;
+}
+
+.tableContainer {
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E2E8E4;
+  overflow-x: auto;
+}
+
+.contactsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.contactsTable th {
+  background: #F1F5F3;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5A6B5E;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #E2E8E4;
+}
+
+.contactsTable td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #F1F5F3;
+  font-size: 0.9rem;
+  color: #1A2E1F;
+}
+
+.contactsTable tr:last-child td {
+  border-bottom: none;
+}
+
+.contactsTable tr:hover {
+  background: #F8FAF9;
+}
+
+.unreadRow {
+  background: #FFFBEB;
+}
+
+.unreadRow:hover {
+  background: #FEF3C7 !important;
+}
+
+.messageCell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.readBadge,
+.unreadBadge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.readBadge {
+  background: #F1F5F3;
+  color: #5A6B5E;
+}
+
+.unreadBadge {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.markReadButton {
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: #E8F5E9;
+  color: #0D7446;
+  transition: all 0.2s;
+}
+
+.markReadButton:hover {
+  background: #C8E6C9;
+}
+
+.emptyState {
+  text-align: center;
+  color: #5A6B5E;
+  padding: 3rem;
+}
+
+.loadingState {
+  text-align: center;
+  color: #5A6B5E;
+  padding: 3rem;
+}

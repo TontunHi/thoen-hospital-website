@@ -1,0 +1,110 @@
+.dashboardPage h1 {
+  font-size: 1.75rem;
+  color: #1A2E1F;
+  margin-bottom: 0.25rem;
+}
+
+.dashboardPage > p {
+  color: #5A6B5E;
+  margin-bottom: 2rem;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E2E8E4;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.statIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  background: #E8F5E9;
+}
+
+.statInfo h3 {
+  font-size: 0.8rem;
+  color: #5A6B5E;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.25rem 0;
+  font-weight: 600;
+}
+
+.statInfo .statNumber {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1A2E1F;
+  margin: 0;
+}
+
+.recentSection {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E2E8E4;
+}
+
+.recentSection h2 {
+  font-size: 1.1rem;
+  color: #1A2E1F;
+  margin: 0 0 1rem 0;
+}
+
+.recentList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recentItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #F1F5F3;
+}
+
+.recentItem:last-child {
+  border-bottom: none;
+}
+
+.recentItem .itemTitle {
+  color: #1A2E1F;
+  font-weight: 500;
+}
+
+.recentItem .itemDate {
+  color: #5A6B5E;
+  font-size: 0.85rem;
+}
+
+.emptyState {
+  text-align: center;
+  color: #5A6B5E;
+  padding: 2rem;
+}
+
+.loadingState {
+  text-align: center;
+  color: #5A6B5E;
+  padding: 3rem;
+  font-size: 1rem;
+}

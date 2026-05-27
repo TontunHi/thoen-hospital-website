@@ -1,0 +1,127 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import './page.css'
+
+interface NewsItem {
+  id: number
+  title: string
+  isPublished: boolean
+  publishedAt: string
+  createdAt: string
+}
+
+export default function AdminNewsPage() {
+  const [news, setNews] = useState<NewsItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchNews = async () => {
+    try {
+      const res = await fetch('/api/news?all=true&limit=100')
+      const data = await res.json()
+      setNews(data.news || [])
+    } catch (error) {
+      console.error('Failed to fetch news:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchNews()
+  }, [])
+
+  const handleDelete = async (id: number, title: string) => {
+    if (!confirm(`ต้องการลบข่าว "${title}" หรือไม่?`)) return
+
+    try {
+      const res = await fetch(`/api/news/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setNews(news.filter((n) => n.id !== id))
+      } else {
+        alert('เกิดข้อผิดพลาดในการลบข่าว')
+      }
+    } catch {
+      alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+    }
+  }
+
+  if (loading) {
+    return <div className="loadingState">กำลังโหลดข้อมูล...</div>
+  }
+
+  return (
+    <div className="newsAdminPage">
+      <div className="pageHeader">
+        <h1>📰 จัดการข่าวสาร</h1>
+        <Link href="/admin/news/create" className="createButton">
+          ➕ เพิ่มข่าวใหม่
+        </Link>
+      </div>
+
+      <div className="tableContainer">
+        {news.length > 0 ? (
+          <table className="newsTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>หัวข้อ</th>
+                <th>สถานะ</th>
+                <th>วันที่เผยแพร่</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {news.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.id}</td>
+                  <td className="newsTitle">{item.title}</td>
+                  <td>
+                    <span
+                      className={`statusBadge ${
+                        item.isPublished ? 'statusPublished' : 'statusDraft'
+                      }`}
+                    >
+                      {item.isPublished ? 'เผยแพร่' : 'ฉบับร่าง'}
+                    </span>
+                  </td>
+                  <td>
+                    {new Date(item.publishedAt).toLocaleDateString('th-TH', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </td>
+                  <td>
+                    <div className="actionButtons">
+                      <Link
+                        href={`/admin/news/${item.id}/edit`}
+                        className="editButton"
+                      >
+                        ✏️ แก้ไข
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(item.id, item.title)}
+                        className="deleteButton"
+                      >
+                        🗑️ ลบ
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="emptyState">
+            <p>ยังไม่มีข่าวสาร</p>
+            <Link href="/admin/news/create" className="createButton" style={{ marginTop: '1rem', display: 'inline-flex' }}>
+              ➕ เพิ่มข่าวแรก
+            </Link>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

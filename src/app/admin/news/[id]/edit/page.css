@@ -1,0 +1,152 @@
+.newsFormPage h1 {
+  font-size: 1.75rem;
+  color: #1A2E1F;
+  margin: 0 0 1.5rem 0;
+}
+
+.formCard {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #E2E8E4;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formGroup label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1A2E1F;
+  margin-bottom: 0.5rem;
+}
+
+.formInput,
+.formTextarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid #E2E8E4;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #1A2E1F;
+  background: #F8FAF9;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  font-family: inherit;
+}
+
+.formInput:focus,
+.formTextarea:focus {
+  border-color: #0D7446;
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.1);
+  background: #FFFFFF;
+}
+
+.formTextarea {
+  min-height: 200px;
+  resize: vertical;
+}
+
+.imagePreview {
+  margin-top: 0.5rem;
+}
+
+.imagePreview img {
+  max-width: 300px;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 1px solid #E2E8E4;
+}
+
+.uploadProgress {
+  margin-top: 0.5rem;
+  color: #5A6B5E;
+  font-size: 0.85rem;
+}
+
+.checkboxGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkboxGroup input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #0D7446;
+}
+
+.formActions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #E2E8E4;
+}
+
+.submitButton {
+  padding: 0.75rem 2rem;
+  background: #0D7446;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.submitButton:hover {
+  background: #095C38;
+}
+
+.submitButton:disabled {
+  background: #5A6B5E;
+  cursor: not-allowed;
+}
+
+.cancelButton {
+  padding: 0.75rem 2rem;
+  background: #F1F5F3;
+  color: #1A2E1F;
+  border: 1px solid #E2E8E4;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.cancelButton:hover {
+  background: #E2E8E4;
+}
+
+.successMessage {
+  background: #E8F5E9;
+  color: #0D7446;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  border: 1px solid #C8E6C9;
+}
+
+.errorMessage {
+  background: #FEF2F2;
+  color: #DC2626;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  border: 1px solid #FECACA;
+}
+
+.loadingState {
+  text-align: center;
+  color: #5A6B5E;
+  padding: 3rem;
+}
