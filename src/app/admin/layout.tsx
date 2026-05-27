@@ -28,8 +28,6 @@ export default function AdminLayout({
 
   const navItems = [
     { href: '/admin', label: 'แดชบอร์ด', icon: '📊' },
-    { href: '/admin/slideshow', label: 'จัดการสไลด์โชว์', icon: '🖼️' },
-    { href: '/admin/banner', label: 'จัดการแบนเนอร์', icon: '🎏' },
     { href: '/admin/news', label: 'ข่าวสาร', icon: '📰' },
     { href: '/admin/contacts', label: 'ข้อความติดต่อ', icon: '✉️' },
   ]

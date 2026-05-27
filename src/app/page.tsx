@@ -24,29 +24,7 @@ async function getLatestNews() {
   }
 }
 
-async function getActiveSlideshows() {
-  try {
-    const slides = await prisma.slideshow.findMany({
-      where: { isActive: true },
-      orderBy: { order: 'asc' },
-    });
-    return slides;
-  } catch {
-    return [] as any[];
-  }
-}
 
-async function getActiveBanners() {
-  try {
-    const banners = await prisma.banner.findMany({
-      where: { isActive: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return banners;
-  } catch {
-    return [] as any[];
-  }
-}
 
 const services = [
   {
@@ -123,14 +101,6 @@ const services = [
 
 export default async function HomePage() {
   const latestNews = await getLatestNews();
-  const slideshows = await getActiveSlideshows();
-  const banners = await getActiveBanners();
-
-  // Determine active slide/banner for the Hero section
-  const hasSlides = slideshows.length > 0;
-  const heroImage = hasSlides ? slideshows[0].imageUrl : '/images/main-banner.webp';
-  const heroTitle = hasSlides ? slideshows[0].title : 'โรงพยาบาลเถิน';
-  const heroSubTitle = hasSlides ? (slideshows[0].description || 'จังหวัดลำปาง') : 'จังหวัดลำปาง';
 
   return (
     <div className="home">
@@ -138,7 +108,7 @@ export default async function HomePage() {
       <section className="hero">
         <div className="hero__bg">
           <Image
-            src={heroImage}
+            src="/images/main-banner.webp"
             alt="โรงพยาบาลเถิน จังหวัดลำปาง"
             fill
             priority
@@ -155,15 +125,13 @@ export default async function HomePage() {
             ดูแลสุขภาพชุมชน ด้วยหัวใจ
           </div>
           <h1 className="hero__title">
-            {heroTitle}
-            {heroSubTitle && <span className="hero__title-sub">{heroSubTitle}</span>}
+            โรงพยาบาลเถิน
+            <span className="hero__title-sub">จังหวัดลำปาง</span>
           </h1>
-          {!hasSlides && (
-            <p className="hero__desc">
-              ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ
-              <br />พร้อมดูแลสุขภาพของประชาชนในพื้นที่ด้วยมาตรฐานความปลอดภัย
-            </p>
-          )}
+          <p className="hero__desc">
+            ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ
+            <br />พร้อมดูแลสุขภาพของประชาชนในพื้นที่ด้วยมาตรฐานความปลอดภัย
+          </p>
           <div className="hero__actions">
             <Link href="/about" className="btn btn-white btn-lg">
               เกี่ยวกับเรา
@@ -321,48 +289,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ===== SPECIAL BANNERS SECTION ===== */}
-      {banners.length > 0 && (
-        <section className="section banners-section bg-gray-50">
-          <div className="container">
-            <div className="section-header">
-              <h2>ประชาสัมพันธ์พิเศษ</h2>
-              <p>ข่าวสาร กิจกรรม หรือบริการแนะนำพิเศษจากโรงพยาบาลเถิน</p>
-            </div>
-            <div className="home-banners-grid">
-              {banners.map((banner: any) => {
-                const content = (
-                  <div className="home-banner-card card">
-                    <div className="home-banner-card__image">
-                      <Image
-                        src={banner.imageUrl}
-                        alt={banner.title}
-                        fill
-                        style={{ objectFit: 'cover' }}
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                      />
-                    </div>
-                    <div className="home-banner-card__body">
-                      <h3>{banner.title}</h3>
-                      {banner.subtitle && <p>{banner.subtitle}</p>}
-                    </div>
-                  </div>
-                );
-                
-                if (banner.linkUrl) {
-                  return (
-                    <a key={banner.id} href={banner.linkUrl} target={banner.linkUrl.startsWith('http') ? '_blank' : '_self'} rel="noopener noreferrer">
-                      {content}
-                    </a>
-                  );
-                }
-                
-                return <div key={banner.id}>{content}</div>;
-              })}
-            </div>
-          </div>
-        </section>
-      )}
+
 
       {/* ===== QUICK CONTACT SECTION ===== */}
       <section className="cta-section">
