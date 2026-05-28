@@ -1,0 +1,153 @@
+import Link from 'next/link'
+import Image from 'next/image'
+import { prisma } from '@/lib/prisma'
+import './page.css'
+
+export const revalidate = 60 // Cache for 60 seconds
+
+async function getNewsList(page: number, limit: number) {
+  try {
+    const skip = (page - 1) * limit
+    const now = new Date()
+
+    const [news, total] = await Promise.all([
+      prisma.news.findMany({
+        where: {
+          status: 'PUBLISHED',
+          publishedAt: {
+            lte: now
+          }
+        },
+        orderBy: { publishedAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          images: {
+            orderBy: { order: 'asc' },
+            take: 1
+          }
+        }
+      }),
+      prisma.news.count({
+        where: {
+          status: 'PUBLISHED',
+          publishedAt: {
+            lte: now
+          }
+        }
+      })
+    ])
+
+    return { news, total }
+  } catch (error) {
+    console.error('Fetch news error:', error)
+    return { news: [], total: 0 }
+  }
+}
+
+// Next.js 16 requires searchParams to be a Promise
+export default async function NewsListPage(props: {
+  searchParams: Promise<{ page?: string }>
+}) {
+  const searchParams = await props.searchParams
+  const page = parseInt(searchParams.page || '1')
+  const limit = 9
+  
+  const { news, total } = await getNewsList(page, limit)
+  const totalPages = Math.ceil(total / limit)
+
+  return (
+    <div className="container newsListPage">
+      <div className="newsListHeader">
+        <h1>📰 ข่าวประชาสัมพันธ์</h1>
+        <p>ติดตามข่าวสารกิจกรรม ผลงาน และข้อมูลข่าวประชาสัมพันธ์ล่าสุดจากโรงพยาบาลเถิน</p>
+      </div>
+
+      {news.length > 0 ? (
+        <>
+          <div className="newsListGrid">
+            {news.map((item: any) => {
+              const coverImage = item.images.length > 0 ? item.images[0].imageUrl : null
+              return (
+                <Link key={item.id} href={`/news/${item.slug}`} className="publicNewsCard card">
+                  <div className="newsCardImage">
+                    {coverImage ? (
+                      <Image
+                        src={coverImage}
+                        alt={item.title}
+                        fill
+                        style={{ objectFit: 'cover' }}
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                      />
+                    ) : (
+                      <div className="newsCardPlaceholder">
+                        {item.pdfUrl ? (
+                          <div className="pdfPlaceholderContent">
+                            <span className="placeholderIcon">📄</span>
+                            <span className="placeholderText">ข่าวแนบเอกสาร PDF</span>
+                          </div>
+                        ) : (
+                          <span className="placeholderIcon">📰</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="newsCardBody">
+                    <div className="newsCardMeta">
+                      <time>
+                        {new Date(item.publishedAt).toLocaleDateString('th-TH', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </time>
+                      <span className="viewsCount">👁️ {item.views} วิว</span>
+                    </div>
+
+                    <h2 className="newsCardTitle">{item.title}</h2>
+                    <p className="newsCardExcerpt">
+                      {item.excerpt || (item.content ? item.content.substring(0, 120) + '...' : 'ข่าวสารประชาสัมพันธ์รายละเอียดแนบไฟล์')}
+                    </p>
+
+                    <span className="newsCardLink">
+                      อ่านรายละเอียด
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14"/>
+                        <path d="m12 5 7 7-7 7"/>
+                      </svg>
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="pagination">
+              {Array.from({ length: totalPages }).map((_, i) => {
+                const pageNum = i + 1
+                const isActive = pageNum === page
+                return (
+                  <Link
+                    key={pageNum}
+                    href={`/news?page=${pageNum}`}
+                    className={`pageButton ${isActive ? 'pageButtonActive' : ''}`}
+                  >
+                    {pageNum}
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="newsEmptyState">
+          <span className="emptyIcon">📭</span>
+          <h3>ยังไม่มีข่าวประชาสัมพันธ์</h3>
+          <p>ในขณะนี้ยังไม่มีข้อมูลข่าวสารเผยแพร่ กรุณากลับมาติดตามข่าวสารใหม่ในภายหลัง</p>
+        </div>
+      )}
+    </div>
+  )
+}

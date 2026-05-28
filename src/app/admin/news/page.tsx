@@ -7,7 +7,7 @@ import './page.css'
 interface NewsItem {
   id: number
   title: string
-  isPublished: boolean
+  status: string
   publishedAt: string
   createdAt: string
 }
@@ -47,6 +47,19 @@ export default function AdminNewsPage() {
     }
   }
 
+  const getStatusInfo = (status: string) => {
+    switch (status) {
+      case 'PUBLISHED':
+        return { label: 'ลงข่าว', className: 'statusPublished' }
+      case 'DRAFT':
+        return { label: 'ฉบับร่าง', className: 'statusDraft' }
+      case 'ARCHIVED':
+        return { label: 'เก็บในคลัง', className: 'statusArchived' }
+      default:
+        return { label: 'ไม่ทราบสถานะ', className: 'statusDraft' }
+    }
+  }
+
   if (loading) {
     return <div className="loadingState">กำลังโหลดข้อมูล...</div>
   }
@@ -73,44 +86,51 @@ export default function AdminNewsPage() {
               </tr>
             </thead>
             <tbody>
-              {news.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td className="newsTitle">{item.title}</td>
-                  <td>
-                    <span
-                      className={`statusBadge ${
-                        item.isPublished ? 'statusPublished' : 'statusDraft'
-                      }`}
-                    >
-                      {item.isPublished ? 'เผยแพร่' : 'ฉบับร่าง'}
-                    </span>
-                  </td>
-                  <td>
-                    {new Date(item.publishedAt).toLocaleDateString('th-TH', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </td>
-                  <td>
-                    <div className="actionButtons">
-                      <Link
-                        href={`/admin/news/${item.id}/edit`}
-                        className="editButton"
-                      >
-                        ✏️ แก้ไข
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(item.id, item.title)}
-                        className="deleteButton"
-                      >
-                        🗑️ ลบ
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {news.map((item) => {
+                const statusInfo = getStatusInfo(item.status)
+                const isScheduled = new Date(item.publishedAt) > new Date()
+                return (
+                  <tr key={item.id}>
+                    <td>{item.id}</td>
+                    <td className="newsTitle">
+                      {item.title}
+                      {isScheduled && item.status === 'PUBLISHED' && (
+                        <span className="scheduledTip" title="จะแสดงบนเว็บเมื่อถึงเวลา"> ⏰ ตั้งเวลาล่วงหน้า</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className={`statusBadge ${statusInfo.className}`}>
+                        {statusInfo.label}
+                      </span>
+                    </td>
+                    <td>
+                      {new Date(item.publishedAt).toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })} น.
+                    </td>
+                    <td>
+                      <div className="actionButtons">
+                        <Link
+                          href={`/admin/news/${item.id}/edit`}
+                          className="editButton"
+                        >
+                          ✏️ แก้ไข
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(item.id, item.title)}
+                          className="deleteButton"
+                        >
+                          🗑️ ลบ
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         ) : (

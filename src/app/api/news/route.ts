@@ -21,7 +21,14 @@ export async function GET(request: Request) {
     const all = searchParams.get('all') === 'true'
     const skip = (page - 1) * limit
 
-    const where = all ? {} : { isPublished: true }
+    const where = all 
+      ? {} 
+      : { 
+          status: 'PUBLISHED',
+          publishedAt: {
+            lte: new Date()
+          }
+        }
 
     const [news, total] = await Promise.all([
       prisma.news.findMany({
@@ -29,6 +36,11 @@ export async function GET(request: Request) {
         orderBy: { publishedAt: 'desc' },
         skip,
         take: limit,
+        include: {
+          images: {
+            orderBy: { order: 'asc' }
+          }
+        }
       }),
       prisma.news.count({ where }),
     ])
@@ -62,27 +74,43 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { title, excerpt, content, image, isPublished } = body
+    const { title, excerpt, content, youtubeUrl, pdfUrl, status, publishedAt, images } = body
 
-    if (!title || !excerpt || !content) {
+    if (!title) {
       return NextResponse.json(
-        { error: 'กรุณากรอกข้อมูลให้ครบถ้วน (หัวข้อ, บทคัดย่อ, เนื้อหา)' },
+        { error: 'กรุณากรอกหัวข้อข่าว' },
         { status: 400 }
       )
     }
 
     const slug = generateSlug(title)
 
+    // Parse published date or default to now
+    const pubDate = publishedAt ? new Date(publishedAt) : new Date()
+
+    // Determine status
+    const newsStatus = status || 'DRAFT'
+
     const news = await prisma.news.create({
       data: {
         title,
         slug,
-        excerpt,
-        content,
-        image: image || null,
-        isPublished: isPublished !== false,
-        publishedAt: new Date(),
+        excerpt: excerpt || null,
+        content: content || null,
+        youtubeUrl: youtubeUrl || null,
+        pdfUrl: pdfUrl || null,
+        status: newsStatus,
+        publishedAt: pubDate,
+        images: {
+          create: (images || []).map((url: string, index: number) => ({
+            imageUrl: url,
+            order: index
+          }))
+        }
       },
+      include: {
+        images: true
+      }
     })
 
     return NextResponse.json({ success: true, news }, { status: 201 })

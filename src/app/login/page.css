@@ -22,8 +22,9 @@
 }
 
 .loginLogo {
-  font-size: 3rem;
-  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
 }
 
 .loginHeader h1 {

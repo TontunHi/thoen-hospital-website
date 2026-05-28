@@ -1,25 +1,38 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useState, useEffect, use } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import './page.css'
 
-export default function EditNewsPage() {
+interface ImageItem {
+  id: number
+  imageUrl: string
+  order: number
+}
+
+// Next.js 16 requires dynamic params to be treated as a Promise or unwrapped with React.use()
+export default function EditNewsPage(props: any) {
   const router = useRouter()
-  const params = useParams()
-  const id = params.id as string
+  // Unwrap parameters using React.use()
+  const resolvedParams = use(props.params) as { id: string }
+  const id = resolvedParams.id
 
   const [title, setTitle] = useState('')
   const [excerpt, setExcerpt] = useState('')
   const [content, setContent] = useState('')
-  const [image, setImage] = useState('')
-  const [isPublished, setIsPublished] = useState(true)
-  const [uploading, setUploading] = useState(false)
+  const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [pdfUrl, setPdfUrl] = useState('')
+  const [status, setStatus] = useState('DRAFT') // DRAFT, PUBLISHED, ARCHIVED
+  const [publishedAt, setPublishedAt] = useState('') // datetime-local string
+  const [images, setImages] = useState<string[]>([]) // multiple images array
+  
+  const [fetching, setFetching] = useState(true)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingPdf, setUploadingPdf] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const [fetching, setFetching] = useState(true)
 
   useEffect(() => {
     async function fetchNews() {
@@ -29,10 +42,26 @@ export default function EditNewsPage() {
 
         if (res.ok && data.news) {
           setTitle(data.news.title)
-          setExcerpt(data.news.excerpt)
-          setContent(data.news.content)
-          setImage(data.news.image || '')
-          setIsPublished(data.news.isPublished)
+          setExcerpt(data.news.excerpt || '')
+          setContent(data.news.content || '')
+          setYoutubeUrl(data.news.youtubeUrl || '')
+          setPdfUrl(data.news.pdfUrl || '')
+          setStatus(data.news.status || 'DRAFT')
+          
+          if (data.news.publishedAt) {
+            // Format to YYYY-MM-DDTHH:MM for datetime-local input
+            const d = new Date(data.news.publishedAt)
+            const year = d.getFullYear()
+            const month = String(d.getMonth() + 1).padStart(2, '0')
+            const day = String(d.getDate()).padStart(2, '0')
+            const hours = String(d.getHours()).padStart(2, '0')
+            const minutes = String(d.getMinutes()).padStart(2, '0')
+            setPublishedAt(`${year}-${month}-${day}T${hours}:${minutes}`)
+          }
+          
+          if (Array.isArray(data.news.images)) {
+            setImages(data.news.images.map((img: ImageItem) => img.imageUrl))
+          }
         } else {
           setError('ไม่พบข่าวที่ต้องการแก้ไข')
         }
@@ -46,11 +75,47 @@ export default function EditNewsPage() {
     fetchNews()
   }, [id])
 
+  // Handle uploading multiple images
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingImage(true)
+    setError('')
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const formData = new FormData()
+      formData.append('file', file)
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await res.json()
+        if (res.ok) {
+          setImages((prev) => [...prev, data.url])
+        } else {
+          setError(data.error || 'อัปโหลดไฟล์ภาพไม่สำเร็จ')
+          break
+        }
+      } catch {
+        setError('ไม่สามารถอัปโหลดไฟล์ภาพได้')
+        break
+      }
+    }
+    setUploadingImage(false)
+    e.target.value = '' // Clear input
+  }
+
+  // Handle PDF upload
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setUploading(true)
+    setUploadingPdf(true)
+    setError('')
     const formData = new FormData()
     formData.append('file', file)
 
@@ -61,15 +126,20 @@ export default function EditNewsPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        setImage(data.url)
+        setPdfUrl(data.url)
       } else {
-        setError(data.error || 'อัปโหลดไฟล์ไม่สำเร็จ')
+        setError(data.error || 'อัปโหลดเอกสาร PDF ไม่สำเร็จ')
       }
     } catch {
-      setError('ไม่สามารถอัปโหลดไฟล์ได้')
+      setError('ไม่สามารถอัปโหลดเอกสาร PDF ได้')
     } finally {
-      setUploading(false)
+      setUploadingPdf(false)
+      e.target.value = '' // Clear input
     }
+  }
+
+  const removeImage = (indexToRemove: number) => {
+    setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,17 +149,28 @@ export default function EditNewsPage() {
     setLoading(true)
 
     try {
+      const payload = {
+        title,
+        excerpt: excerpt || null,
+        content: content || null,
+        youtubeUrl: youtubeUrl || null,
+        pdfUrl: pdfUrl || null,
+        status,
+        publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
+        images,
+      }
+
       const res = await fetch(`/api/news/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, excerpt, content, image, isPublished }),
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
 
       if (res.ok) {
-        setSuccess('บันทึกข่าวเรียบร้อยแล้ว')
-        setTimeout(() => router.push('/admin/news'), 1500)
+        setSuccess('บันทึกการแก้ไขเรียบร้อยแล้ว')
+        setTimeout(() => router.push('/admin/news'), 1200)
       } else {
         setError(data.error || 'เกิดข้อผิดพลาด')
       }
@@ -101,7 +182,7 @@ export default function EditNewsPage() {
   }
 
   if (fetching) {
-    return <div className="loadingState">กำลังโหลดข้อมูล...</div>
+    return <div className="loadingState">กำลังโหลดข้อมูลข่าว...</div>
   }
 
   return (
@@ -121,66 +202,125 @@ export default function EditNewsPage() {
               className="formInput"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="กรอกหัวข้อข่าว"
+              placeholder="กรอกหัวข้อข่าวประชาสัมพันธ์"
               required
             />
           </div>
 
           <div className="formGroup">
-            <label htmlFor="excerpt">บทคัดย่อ *</label>
+            <label htmlFor="excerpt">บทคัดย่อ (ย่อหน้าสั้นแสดงในรายการข่าว)</label>
             <textarea
               id="excerpt"
               className="formTextarea"
               value={excerpt}
               onChange={(e) => setExcerpt(e.target.value)}
-              placeholder="กรอกบทคัดย่อข่าว"
-              required
-              style={{ minHeight: '100px' }}
+              placeholder="กรอกรายละเอียดสั้นๆ (ถ้าไม่กรอกระบบจะดึงจากเนื้อหาหลัก)"
+              style={{ minHeight: '80px' }}
             />
           </div>
 
           <div className="formGroup">
-            <label htmlFor="content">เนื้อหา *</label>
+            <label htmlFor="content">เนื้อหาข่าวฉบับเต็ม</label>
             <textarea
               id="content"
               className="formTextarea"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="กรอกเนื้อหาข่าวฉบับเต็ม"
-              required
+              placeholder="เขียนเนื้อหาข่าวได้ที่นี่ (สามารถเว้นว่างได้หากแนบเอกสาร PDF หรือรูปภาพแทน)"
+              style={{ minHeight: '200px' }}
             />
           </div>
 
+          <div className="formRow">
+            <div className="formGroup col-6">
+              <label htmlFor="youtubeUrl">ลิงก์วิดีโอ YouTube (ถ้ามี)</label>
+              <input
+                id="youtubeUrl"
+                type="url"
+                className="formInput"
+                value={youtubeUrl}
+                onChange={(e) => setYoutubeUrl(e.target.value)}
+                placeholder="เช่น https://www.youtube.com/watch?v=..."
+              />
+            </div>
+
+            <div className="formGroup col-6">
+              <label htmlFor="pdfFile">แนบเอกสาร PDF (ถ้ามี)</label>
+              <input
+                id="pdfFile"
+                type="file"
+                className="formInput"
+                accept="application/pdf"
+                onChange={handlePdfUpload}
+              />
+              {uploadingPdf && <div className="uploadProgress">กำลังอัปโหลด PDF...</div>}
+              {pdfUrl && (
+                <div className="pdfUploadedInfo">
+                  <span>📎 เอกสารที่แนบ: </span>
+                  <a href={pdfUrl} target="_blank" rel="noopener noreferrer">ดูเอกสาร</a>
+                  <button type="button" className="removeFileBtn" onClick={() => setPdfUrl('')}>ลบ</button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="formGroup">
-            <label htmlFor="image">รูปภาพประกอบ</label>
+            <label>รูปภาพประกอบข่าว (อัปโหลดเพิ่มได้หลายรูปภาพ)</label>
             <input
-              id="image"
               type="file"
               className="formInput"
               accept="image/jpeg,image/png,image/gif,image/webp"
+              multiple
               onChange={handleImageUpload}
             />
-            {uploading && (
-              <div className="uploadProgress">กำลังอัปโหลด...</div>
-            )}
-            {image && (
-              <div className="imagePreview">
-                <img src={image} alt="Preview" />
+            {uploadingImage && <div className="uploadProgress">กำลังอัปโหลดรูปภาพ...</div>}
+            
+            {images.length > 0 && (
+              <div className="imagesPreviewGrid">
+                {images.map((url, idx) => (
+                  <div key={idx} className="imagePreviewCard">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Preview ${idx + 1}`} />
+                    <button
+                      type="button"
+                      className="imageDeleteBtn"
+                      onClick={() => removeImage(idx)}
+                      title="ลบรูปภาพนี้"
+                    >
+                      ✕
+                    </button>
+                    <span className="imageOrderBadge">รูปที่ {idx + 1}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          <div className="formGroup">
-            <div className="checkboxGroup">
+          <div className="formRow">
+            <div className="formGroup col-6">
+              <label htmlFor="publishedAt">เวลาเผยแพร่ข่าวสาร (เลือกเวลาล่วงหน้าได้)</label>
               <input
-                id="isPublished"
-                type="checkbox"
-                checked={isPublished}
-                onChange={(e) => setIsPublished(e.target.checked)}
+                id="publishedAt"
+                type="datetime-local"
+                className="formInput"
+                value={publishedAt}
+                onChange={(e) => setPublishedAt(e.target.value)}
               />
-              <label htmlFor="isPublished" style={{ margin: 0 }}>
-                เผยแพร่
-              </label>
+              <span className="fieldTip">เว้นว่างไว้หากต้องการเผยแพร่ทันที (ตามเวลาปัจจุบัน)</span>
+            </div>
+
+            <div className="formGroup col-6">
+              <label htmlFor="status">สถานะข่าวประชาสัมพันธ์</label>
+              <select
+                id="status"
+                className="formInput"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="PUBLISHED">ลงข่าว (เผยแพร่ต่อสาธารณะ)</option>
+                <option value="DRAFT">ดราฟ (บันทึกร่างไว้แก้ไขต่อ)</option>
+                <option value="ARCHIVED">เก็บข่าวลงคลัง (ไม่แสดงบนเว็บหลัก)</option>
+              </select>
             </div>
           </div>
 
@@ -188,7 +328,7 @@ export default function EditNewsPage() {
             <button
               type="submit"
               className="submitButton"
-              disabled={loading || uploading}
+              disabled={loading || uploadingImage || uploadingPdf}
             >
               {loading ? 'กำลังบันทึก...' : '💾 บันทึกการแก้ไข'}
             </button>

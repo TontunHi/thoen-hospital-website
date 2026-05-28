@@ -18,18 +18,47 @@ model Admin {
 }
 
 model News {
-  id          Int      @id @default(autoincrement())
-  title       String   @db.VarChar(500)
-  slug        String   @unique @db.VarChar(500)
-  excerpt     String   @db.Text
-  content     String   @db.LongText
-  image       String?  @db.VarChar(500)
-  isPublished Boolean  @default(true) @map("is_published")
-  publishedAt DateTime @default(now()) @map("published_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id          Int         @id @default(autoincrement())
+  title       String      @db.VarChar(500)
+  slug        String      @unique @db.VarChar(500)
+  excerpt     String?     @db.Text
+  content     String?     @db.LongText
+  youtubeUrl  String?     @map("youtube_url") @db.VarChar(500)
+  pdfUrl      String?     @map("pdf_url") @db.VarChar(500)
+  status      String      @default("DRAFT") @db.VarChar(50) // DRAFT, PUBLISHED, ARCHIVED
+  views       Int         @default(0)
+  publishedAt DateTime    @default(now()) @map("published_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  
+  images      NewsImage[]
+  viewLogs    NewsView[]
 
   @@map("news")
+}
+
+model NewsImage {
+  id        Int      @id @default(autoincrement())
+  newsId    Int      @map("news_id")
+  imageUrl  String   @map("image_url") @db.VarChar(500)
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  news      News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
+
+  @@map("news_images")
+}
+
+model NewsView {
+  id        Int      @id @default(autoincrement())
+  newsId    Int      @map("news_id")
+  ip        String   @db.VarChar(100)
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+
+  news      News     @relation(fields: [newsId], references: [id], onDelete: Cascade)
+
+  @@index([newsId, ip])
+  @@map("news_views")
 }
 
 model Contact {
@@ -44,29 +73,4 @@ model Contact {
   @@map("contacts")
 }
 
-model Banner {
-  id          Int      @id @default(autoincrement())
-  title       String   @db.VarChar(200)
-  subtitle    String?  @db.VarChar(500)
-  imageUrl    String   @map("image_url") @db.VarChar(500)
-  linkUrl     String?  @map("link_url") @db.VarChar(500)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("banners")
-}
-
-model Slideshow {
-  id          Int      @id @default(autoincrement())
-  title       String   @db.VarChar(200)
-  description String?  @db.VarChar(500)
-  imageUrl    String   @map("image_url") @db.VarChar(500)
-  order       Int      @default(0)
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("slideshows")
-}
 

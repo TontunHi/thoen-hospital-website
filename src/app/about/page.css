@@ -1,0 +1,175 @@
+.aboutPage {
+  padding-top: calc(var(--navbar-height) + 3rem);
+  padding-bottom: 5rem;
+}
+
+.aboutHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.aboutHeader h1 {
+  font-size: 2.5rem;
+  color: var(--primary);
+  margin-bottom: 0.75rem;
+}
+
+.aboutHeader p {
+  color: var(--gray-600);
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.aboutGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+@media (max-width: 768px) {
+  .aboutGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.aboutCard {
+  background: var(--white);
+  padding: 2.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200);
+}
+
+.aboutCard h2 {
+  font-size: 1.5rem;
+  color: var(--gray-900);
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--primary-light);
+  padding-bottom: 0.5rem;
+}
+
+.aboutCard p {
+  line-height: 1.8;
+  color: var(--gray-600);
+  margin-bottom: 1rem;
+}
+
+.bg-primary-light {
+  background: var(--primary-light);
+  border-color: #C8E6C9;
+}
+
+.visionSection {
+  margin-bottom: 1.5rem;
+}
+
+.visionSection h3,
+.missionSection h3 {
+  font-size: 1.1rem;
+  color: var(--primary-dark);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.visionSection blockquote {
+  font-size: 1.15rem;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--primary);
+  border-left: 3px solid var(--accent-gold);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+.missionSection ul {
+  padding-left: 1.25rem;
+  line-height: 1.7;
+  color: var(--gray-700);
+}
+
+.missionSection li {
+  margin-bottom: 0.5rem;
+}
+
+/* Director Profile Card */
+.directorProfileCard {
+  background: var(--white);
+  padding: 3rem;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200);
+}
+
+.directorProfileGrid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .directorProfileGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    text-align: center;
+  }
+  
+  .directorProfileImage {
+    margin: 0 auto;
+  }
+}
+
+.directorProfileImage {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.profileBadge {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.directorProfileContent h2 {
+  font-size: 1.8rem;
+  color: var(--gray-900);
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.profileTitle {
+  color: var(--primary);
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+}
+
+.profileQuote {
+  border-left: 3px solid var(--accent-gold);
+  padding-left: 1.5rem;
+  color: var(--gray-600);
+  line-height: 1.9;
+  font-size: 1.05rem;
+}
+
+.profileQuote p {
+  margin-bottom: 1rem;
+}
+
+.profileQuote p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .profileQuote {
+    border-left: none;
+    padding-left: 0;
+  }
+}

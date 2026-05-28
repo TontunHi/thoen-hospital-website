@@ -95,6 +95,21 @@
   color: #92400E;
 }
 
+.statusArchived {
+  background: #F1F5F3;
+  color: #5A6B5E;
+}
+
+.scheduledTip {
+  background: #E0F2FE;
+  color: #0369A1;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  margin-left: 0.5rem;
+  font-weight: bold;
+}
+
 .actionButtons {
   display: flex;
   gap: 0.5rem;

@@ -23,18 +23,19 @@ export async function POST(request: Request) {
       )
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+    const isPdf = file.type === 'application/pdf'
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf']
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'รองรับเฉพาะไฟล์ภาพ (JPEG, PNG, GIF, WebP)' },
+        { error: 'รองรับเฉพาะไฟล์ภาพ (JPEG, PNG, GIF, WebP) และเอกสาร PDF' },
         { status: 400 }
       )
     }
 
-    const maxSize = 5 * 1024 * 1024 // 5MB
+    const maxSize = isPdf ? 15 * 1024 * 1024 : 5 * 1024 * 1024 // 15MB for PDF, 5MB for images
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: 'ขนาดไฟล์ต้องไม่เกิน 5MB' },
+        { error: `ขนาดไฟล์ต้องไม่เกิน ${isPdf ? '15MB' : '5MB'}` },
         { status: 400 }
       )
     }
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     const url = `/uploads/${filename}`
 
     return NextResponse.json(
-      { success: true, url, filename },
+      { success: true, url, filename, isPdf },
       { status: 201 }
     )
   } catch (error) {

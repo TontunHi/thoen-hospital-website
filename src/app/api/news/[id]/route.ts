@@ -20,6 +20,11 @@ export async function GET(
 
     const news = await prisma.news.findUnique({
       where: { id: newsId },
+      include: {
+        images: {
+          orderBy: { order: 'asc' }
+        }
+      }
     })
 
     if (!news) {
@@ -63,7 +68,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { title, excerpt, content, image, isPublished } = body
+    const { title, excerpt, content, youtubeUrl, pdfUrl, status, publishedAt, images } = body
 
     const existing = await prisma.news.findUnique({
       where: { id: newsId },
@@ -76,15 +81,42 @@ export async function PUT(
       )
     }
 
-    const news = await prisma.news.update({
-      where: { id: newsId },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(excerpt !== undefined && { excerpt }),
-        ...(content !== undefined && { content }),
-        ...(image !== undefined && { image: image || null }),
-        ...(isPublished !== undefined && { isPublished }),
-      },
+    // Prepare transaction to update news and update its images
+    const news = await prisma.$transaction(async (tx: any) => {
+      // If images array is provided, clear old images and create new ones
+      if (images !== undefined) {
+        await tx.newsImage.deleteMany({
+          where: { newsId }
+        })
+
+        if (Array.isArray(images) && images.length > 0) {
+          await tx.newsImage.createMany({
+            data: images.map((url: string, index: number) => ({
+              newsId,
+              imageUrl: url,
+              order: index
+            }))
+          })
+        }
+      }
+
+      const pubDate = publishedAt ? new Date(publishedAt) : undefined
+
+      return tx.news.update({
+        where: { id: newsId },
+        data: {
+          ...(title !== undefined && { title }),
+          excerpt: excerpt !== undefined ? excerpt : undefined,
+          content: content !== undefined ? content : undefined,
+          youtubeUrl: youtubeUrl !== undefined ? youtubeUrl : undefined,
+          pdfUrl: pdfUrl !== undefined ? pdfUrl : undefined,
+          ...(status !== undefined && { status }),
+          ...(pubDate !== undefined && { publishedAt: pubDate }),
+        },
+        include: {
+          images: true
+        }
+      })
     })
 
     return NextResponse.json({ success: true, news })

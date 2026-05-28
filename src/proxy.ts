@@ -5,7 +5,7 @@ export function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get('admin_session')
 
   if (!sessionCookie?.value) {
-    const loginUrl = new URL('/admin/login', request.url)
+    const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }
 

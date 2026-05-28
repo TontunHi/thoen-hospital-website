@@ -6,17 +6,20 @@ import './page.css';
 async function getLatestNews() {
   try {
     const news = await prisma.news.findMany({
-      where: { isPublished: true },
+      where: {
+        status: 'PUBLISHED',
+        publishedAt: {
+          lte: new Date()
+        }
+      },
       orderBy: { publishedAt: 'desc' },
       take: 3,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        excerpt: true,
-        image: true,
-        publishedAt: true,
-      },
+      include: {
+        images: {
+          orderBy: { order: 'asc' },
+          take: 1
+        }
+      }
     });
     return news;
   } catch {
@@ -225,38 +228,43 @@ export default async function HomePage() {
           {latestNews.length > 0 ? (
             <>
               <div className="news-grid">
-                {latestNews.map((item: any) => (
-                  <Link key={item.id} href={`/news/${item.slug}`} className="news-card card">
-                    <div className="news-card__image">
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.title}
-                          fill
-                          style={{ objectFit: 'cover' }}
-                          sizes="(max-width: 768px) 100vw, 33vw"
-                        />
-                      ) : (
-                        <div className="news-card__placeholder">
-                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <rect x="3" y="3" width="18" height="18" rx="2"/>
-                            <path d="m3 16 5-5c.928-.893 2.072-.893 3 0l5 5"/>
-                            <path d="m14 14 1-1c.928-.893 2.072-.893 3 0l3 3"/>
-                            <circle cx="15.5" cy="8.5" r="1.5"/>
-                          </svg>
+                {latestNews.map((item: any) => {
+                  const coverImage = item.images && item.images.length > 0 ? item.images[0].imageUrl : null
+                  return (
+                    <Link key={item.id} href={`/news/${item.slug}`} className="news-card card">
+                      <div className="news-card__image">
+                        {coverImage ? (
+                          <Image
+                            src={coverImage}
+                            alt={item.title}
+                            fill
+                            style={{ objectFit: 'cover' }}
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                          />
+                        ) : (
+                          <div className="news-card__placeholder">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <rect x="3" y="3" width="18" height="18" rx="2"/>
+                              <path d="m3 16 5-5c.928-.893 2.072-.893 3 0l5 5"/>
+                              <path d="m14 14 1-1c.928-.893 2.072-.893 3 0l3 3"/>
+                              <circle cx="15.5" cy="8.5" r="1.5"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="news-card__body">
+                        <div className="news-card__meta" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '0.5rem', fontWeight: 600 }}>
+                          <time className="news-card__date" style={{ margin: 0 }}>
+                            {new Date(item.publishedAt).toLocaleDateString('th-TH', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </time>
+                          <span>👁️ {item.views} วิว</span>
                         </div>
-                      )}
-                    </div>
-                    <div className="news-card__body">
-                      <time className="news-card__date">
-                        {new Date(item.publishedAt).toLocaleDateString('th-TH', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </time>
-                      <h3 className="news-card__title">{item.title}</h3>
-                      <p className="news-card__excerpt">{item.excerpt}</p>
+                        <h3 className="news-card__title">{item.title}</h3>
+                        <p className="news-card__excerpt">{item.excerpt || (item.content ? item.content.substring(0, 100) + '...' : '')}</p>
                       <span className="news-card__link">
                         อ่านต่อ
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -266,7 +274,8 @@ export default async function HomePage() {
                       </span>
                     </div>
                   </Link>
-                ))}
+                )})
+                }
               </div>
               <div className="news-section__more">
                 <Link href="/news" className="btn btn-outline">

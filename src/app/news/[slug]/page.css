@@ -1,0 +1,180 @@
+.newsDetailPage {
+  padding-top: calc(var(--navbar-height) + 2.5rem);
+  padding-bottom: 5rem;
+  max-width: 900px;
+}
+
+.newsDetailBack {
+  margin-bottom: 1.5rem;
+}
+
+.backLink {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.newsContentCard {
+  background: var(--white);
+  padding: 3rem;
+  border-radius: 16px;
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 768px) {
+  .newsContentCard {
+    padding: 1.5rem;
+  }
+}
+
+.newsDetailHeader {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--gray-200);
+  padding-bottom: 1.5rem;
+}
+
+.newsDetailTitle {
+  font-size: 2rem;
+  color: var(--gray-900);
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  .newsDetailTitle {
+    font-size: 1.5rem;
+  }
+}
+
+.newsDetailMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--gray-600);
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.viewsBadge {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+}
+
+.newsDetailBody {
+  font-size: 1.05rem;
+  line-height: 1.9;
+  color: var(--gray-900);
+  margin-bottom: 2.5rem;
+}
+
+.newsDetailBody p {
+  margin-bottom: 1.25rem;
+}
+
+/* YouTube wrapper */
+.youtubeSection {
+  margin-top: 3rem;
+  margin-bottom: 2.5rem;
+}
+
+.youtubeSection h3,
+.pdfSection h3 {
+  font-size: 1.25rem;
+  color: var(--gray-900);
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.youtubeWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.youtubeWrapper iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* PDF Section */
+.pdfSection {
+  margin-top: 3rem;
+  border-top: 2px dashed var(--gray-200);
+  padding-top: 2rem;
+}
+
+.pdfHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pdfHeader h3 {
+  margin: 0;
+}
+
+.pdfActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.pdfEmbedWrapper {
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--gray-100);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-outline {
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  background: transparent;
+}
+
+.btn-outline:hover {
+  background: var(--primary-light);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--white);
+  border: 1px solid var(--primary);
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+}

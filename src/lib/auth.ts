@@ -3,7 +3,7 @@ import crypto from 'crypto'
 
 const SECRET = process.env.ADMIN_SECRET || 'fallback-secret-key'
 const COOKIE_NAME = 'admin_session'
-const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 days in seconds
+const SESSION_MAX_AGE = 60 * 60 * 6 // 6 hours in seconds
 
 function sign(value: string): string {
   const hmac = crypto.createHmac('sha256', SECRET)

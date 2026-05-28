@@ -25,7 +25,8 @@
 }
 
 .formInput,
-.formTextarea {
+.formTextarea,
+.formSelect {
   width: 100%;
   padding: 0.75rem 1rem;
   border: 2px solid #E2E8E4;
@@ -39,7 +40,8 @@
 }
 
 .formInput:focus,
-.formTextarea:focus {
+.formTextarea:focus,
+.formSelect:focus {
   border-color: #0D7446;
   box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.1);
   background: #FFFFFF;
@@ -50,33 +52,135 @@
   resize: vertical;
 }
 
-.imagePreview {
-  margin-top: 0.5rem;
+.formRow {
+  display: flex;
+  gap: 1.5rem;
 }
 
-.imagePreview img {
-  max-width: 300px;
-  max-height: 200px;
-  border-radius: 8px;
-  border: 1px solid #E2E8E4;
+.col-6 {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .formRow {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+.fieldTip {
+  display: block;
+  font-size: 0.8rem;
+  color: #5A6B5E;
+  margin-top: 0.35rem;
 }
 
 .uploadProgress {
   margin-top: 0.5rem;
-  color: #5A6B5E;
+  color: #0D7446;
+  font-weight: 600;
   font-size: 0.85rem;
 }
 
-.checkboxGroup {
+/* PDF info */
+.pdfUploadedInfo {
+  margin-top: 0.75rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #E8F5E9;
+  border: 1px solid #C8E6C9;
+  border-radius: 6px;
+  font-size: 0.9rem;
 }
 
-.checkboxGroup input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: #0D7446;
+.pdfUploadedInfo a {
+  color: #0D7446;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.removeFileBtn {
+  margin-left: auto;
+  border: none;
+  background: #FFEBEE;
+  color: #C62828;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.removeFileBtn:hover {
+  background: #FFCDD2;
+}
+
+/* Multiple Images Preview Grid */
+.imagesPreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #F8FAF9;
+  border: 1px dashed #E2E8E4;
+  border-radius: 8px;
+}
+
+.imagePreviewCard {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #E2E8E4;
+  background: #FFFFFF;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.imagePreviewCard img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.imageDeleteBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(198, 40, 40, 0.9);
+  color: #FFFFFF;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: background 0.2s;
+}
+
+.imageDeleteBtn:hover {
+  background: rgba(198, 40, 40, 1);
+}
+
+.imageOrderBadge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(13, 116, 70, 0.9);
+  color: #FFFFFF;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
 }
 
 .formActions {
@@ -143,10 +247,4 @@
   font-size: 0.875rem;
   margin-bottom: 1rem;
   border: 1px solid #FECACA;
-}
-
-.loadingState {
-  text-align: center;
-  color: #5A6B5E;
-  padding: 3rem;
 }

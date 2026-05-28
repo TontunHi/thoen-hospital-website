@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import './page.css'
 
 export default function AdminLoginPage() {
@@ -41,7 +42,16 @@ export default function AdminLoginPage() {
     <div className="loginPage">
       <div className="loginCard">
         <div className="loginHeader">
-          <div className="loginLogo">🏥</div>
+          <div className="loginLogo">
+            <Image
+              src="/images/logo-website.webp"
+              alt="โลโก้โรงพยาบาลเถิน"
+              width={100}
+              height={100}
+              priority
+              style={{ objectFit: 'contain' }}
+            />
+          </div>
           <h1>โรงพยาบาลเถิน</h1>
           <p>เข้าสู่ระบบจัดการเว็บไซต์</p>
         </div>
