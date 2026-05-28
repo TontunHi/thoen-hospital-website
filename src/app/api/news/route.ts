@@ -19,9 +19,10 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
     const all = searchParams.get('all') === 'true'
+    const category = searchParams.get('category')
     const skip = (page - 1) * limit
 
-    const where = all 
+    const where: any = all 
       ? {} 
       : { 
           status: 'PUBLISHED',
@@ -29,6 +30,10 @@ export async function GET(request: Request) {
             lte: new Date()
           }
         }
+
+    if (category) {
+      where.category = category
+    }
 
     const [news, total] = await Promise.all([
       prisma.news.findMany({
@@ -74,7 +79,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { title, excerpt, content, youtubeUrl, pdfUrl, status, publishedAt, images } = body
+    const { title, excerpt, content, youtubeUrl, pdfUrl, status, category, publishedAt, images } = body
 
     if (!title) {
       return NextResponse.json(
@@ -100,6 +105,7 @@ export async function POST(request: Request) {
         youtubeUrl: youtubeUrl || null,
         pdfUrl: pdfUrl || null,
         status: newsStatus,
+        category: category || 'PR',
         publishedAt: pubDate,
         images: {
           create: (images || []).map((url: string, index: number) => ({

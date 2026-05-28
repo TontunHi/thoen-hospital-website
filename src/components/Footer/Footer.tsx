@@ -31,7 +31,7 @@ export default function Footer() {
                 </div>
               </div>
               <p className="footer__desc">
-                โรงพยาบาลชุมชนขนาด 60 เตียง ให้บริการด้านสุขภาพอย่างครบวงจร
+                โรงพยาบาลชุมชนขนาด 90 เตียง ให้บริการด้านสุขภาพอย่างครบวงจร
                 แก่ประชาชนในอำเภอเถินและพื้นที่ใกล้เคียง จังหวัดลำปาง
               </p>
             </div>
@@ -87,7 +87,7 @@ export default function Footer() {
 
               <div className="footer__social">
                 <a
-                  href="https://www.facebook.com/โรงพยาบาลเถิน-ลำปาง"
+                  href="https://www.facebook.com/ThoenHospital1669"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="footer__social-link"

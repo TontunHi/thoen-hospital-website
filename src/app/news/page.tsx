@@ -5,19 +5,25 @@ import './page.css'
 
 export const revalidate = 60 // Cache for 60 seconds
 
-async function getNewsList(page: number, limit: number) {
+async function getNewsList(page: number, limit: number, category?: string) {
   try {
     const skip = (page - 1) * limit
     const now = new Date()
 
+    const where: any = {
+      status: 'PUBLISHED',
+      publishedAt: {
+        lte: now
+      }
+    }
+
+    if (category) {
+      where.category = category
+    }
+
     const [news, total] = await Promise.all([
       prisma.news.findMany({
-        where: {
-          status: 'PUBLISHED',
-          publishedAt: {
-            lte: now
-          }
-        },
+        where,
         orderBy: { publishedAt: 'desc' },
         skip,
         take: limit,
@@ -29,12 +35,7 @@ async function getNewsList(page: number, limit: number) {
         }
       }),
       prisma.news.count({
-        where: {
-          status: 'PUBLISHED',
-          publishedAt: {
-            lte: now
-          }
-        }
+        where
       })
     ])
 
@@ -47,19 +48,32 @@ async function getNewsList(page: number, limit: number) {
 
 // Next.js 16 requires searchParams to be a Promise
 export default async function NewsListPage(props: {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; category?: string }>
 }) {
   const searchParams = await props.searchParams
   const page = parseInt(searchParams.page || '1')
+  const category = searchParams.category
   const limit = 9
   
-  const { news, total } = await getNewsList(page, limit)
+  const { news, total } = await getNewsList(page, limit, category)
   const totalPages = Math.ceil(total / limit)
+
+  const getCategoryTitle = (cat?: string) => {
+    switch (cat) {
+      case 'PR': return 'ข่าวสารประชาสัมพันธ์'
+      case 'TRAINING': return 'ข่าวประชุมอบรม / สัมมนา'
+      case 'JOBS': return 'ข่าวประกาศรับสมัครงาน'
+      case 'KNOWLEDGE': return 'ข่าวสารความรู้'
+      default: return 'ข่าวสารประชาสัมพันธ์ทั้งหมด'
+    }
+  }
+
+  const categoryTitle = getCategoryTitle(category)
 
   return (
     <div className="container newsListPage">
       <div className="newsListHeader">
-        <h1>📰 ข่าวประชาสัมพันธ์</h1>
+        <h1>📰 {categoryTitle}</h1>
         <p>ติดตามข่าวสารกิจกรรม ผลงาน และข้อมูลข่าวประชาสัมพันธ์ล่าสุดจากโรงพยาบาลเถิน</p>
       </div>
 
@@ -102,7 +116,7 @@ export default async function NewsListPage(props: {
                           day: 'numeric',
                         })}
                       </time>
-                      <span className="viewsCount">👁️ {item.views} วิว</span>
+                      
                     </div>
 
                     <h2 className="newsCardTitle">{item.title}</h2>
@@ -131,7 +145,7 @@ export default async function NewsListPage(props: {
                 return (
                   <Link
                     key={pageNum}
-                    href={`/news?page=${pageNum}`}
+                    href={`/news?page=${pageNum}${category ? `&category=${category}` : ''}`}
                     className={`pageButton ${isActive ? 'pageButtonActive' : ''}`}
                   >
                     {pageNum}

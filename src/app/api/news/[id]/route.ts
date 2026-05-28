@@ -68,7 +68,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { title, excerpt, content, youtubeUrl, pdfUrl, status, publishedAt, images } = body
+    const { title, excerpt, content, youtubeUrl, pdfUrl, status, category, publishedAt, images } = body
 
     const existing = await prisma.news.findUnique({
       where: { id: newsId },
@@ -111,6 +111,7 @@ export async function PUT(
           youtubeUrl: youtubeUrl !== undefined ? youtubeUrl : undefined,
           pdfUrl: pdfUrl !== undefined ? pdfUrl : undefined,
           ...(status !== undefined && { status }),
+          ...(category !== undefined && { category }),
           ...(pubDate !== undefined && { publishedAt: pubDate }),
         },
         include: {

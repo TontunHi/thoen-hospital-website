@@ -17,9 +17,10 @@ function getYouTubeId(url: string): string | null {
 
 async function getNewsBySlug(slug: string) {
   try {
+    const decodedSlug = decodeURIComponent(slug)
     // Only allow active published news
     return await prisma.news.findUnique({
-      where: { slug },
+      where: { slug: decodedSlug },
       include: {
         images: {
           orderBy: { order: 'asc' }
@@ -88,16 +89,27 @@ export default async function NewsDetailPage(
                 minute: '2-digit'
               })} น.
             </time>
-            <span className="viewsBadge">👁️ {news.views} ผู้เข้าชม</span>
+            
           </div>
         </header>
 
-        {/* 1. Image Gallery Carousel */}
-        {news.images.length > 0 && (
-          <ImageGallery images={news.images} />
+        {/* 1. Excerpt (บทคัดย่อ) */}
+        {news.excerpt && (
+          <div className="newsDetailExcerpt" style={{
+            fontSize: '1.15rem',
+            lineHeight: '1.7',
+            color: 'var(--text-color)',
+            opacity: 0.85,
+            fontWeight: '600',
+            borderLeft: '4px solid var(--primary)',
+            paddingLeft: '1rem',
+            margin: '1.5rem 0'
+          }}>
+            <p>{news.excerpt}</p>
+          </div>
         )}
 
-        {/* 2. Full Article text */}
+        {/* 2. Content (เนื้อหา) */}
         {news.content && (
           <div className="newsDetailBody">
             {news.content.split('\n').map((paragraph: string, idx: number) => (
@@ -106,23 +118,7 @@ export default async function NewsDetailPage(
           </div>
         )}
 
-        {/* 3. YouTube Embed section */}
-        {youtubeId && (
-          <div className="youtubeSection">
-            <h3>🎥 วิดีโอที่เกี่ยวข้อง</h3>
-            <div className="youtubeWrapper">
-              <iframe
-                src={`https://www.youtube.com/embed/${youtubeId}`}
-                title="YouTube video player"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                style={{ border: 'none', borderRadius: '8px' }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* 4. PDF Embedded Reader & Controls */}
+        {/* 3. PDF (เอกสารแนบ PDF) */}
         {news.pdfUrl && (
           <div className="pdfSection">
             <div className="pdfHeader">
@@ -153,6 +149,27 @@ export default async function NewsDetailPage(
                 height="550px"
                 style={{ border: 'none', borderRadius: '8px' }}
                 title="PDF Document Viewer"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* 4. Images (รูป) */}
+        {news.images.length > 0 && (
+          <ImageGallery images={news.images} />
+        )}
+
+        {/* 5. Video (vdo - YouTube) */}
+        {youtubeId && (
+          <div className="youtubeSection">
+            <h3>🎥 วิดีโอที่เกี่ยวข้อง</h3>
+            <div className="youtubeWrapper">
+              <iframe
+                src={`https://www.youtube.com/embed/${youtubeId}`}
+                title="YouTube video player"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                style={{ border: 'none', borderRadius: '8px' }}
               />
             </div>
           </div>

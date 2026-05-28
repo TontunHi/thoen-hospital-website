@@ -1,0 +1,440 @@
+.erStatusPage {
+  padding-top: calc(var(--navbar-height) + 2rem);
+  padding-bottom: 4rem;
+  background-color: var(--gray-50);
+  transition: all 0.3s ease;
+  min-height: 100vh;
+}
+
+.erContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Header & Controls */
+.erHeaderCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem 2rem;
+}
+
+.erTitleSection h1 {
+  font-size: 2rem;
+  color: var(--gray-900);
+  margin-bottom: 0.25rem;
+}
+
+.erSubtitle {
+  color: var(--gray-600);
+  font-size: 0.95rem;
+}
+
+.erControls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.tvToggleBtn {
+  background: var(--primary);
+  color: var(--white);
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.2s, transform 0.2s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.tvToggleBtn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.lastUpdateText {
+  font-size: 0.9rem;
+  color: var(--gray-500);
+}
+
+/* Alert Banner */
+.erAlertBanner {
+  background: #ffebee;
+  border: 2px solid #ef5350;
+  border-radius: 12px;
+  padding: 1.25rem 2rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  animation: pulseBg 2s infinite ease-in-out;
+}
+
+.alertIcon {
+  font-size: 2.5rem;
+  animation: bounceAlert 1s infinite alternate;
+}
+
+.alertMsg {
+  color: #c62828;
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+  flex: 1;
+}
+
+/* Summary Grid */
+.erSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.erStatCard {
+  text-align: center;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: var(--white);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s;
+}
+
+.erStatCard:hover {
+  transform: translateY(-2px);
+}
+
+.statVal {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--gray-900);
+  margin-bottom: 0.25rem;
+}
+
+.statLabel {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gray-600);
+}
+
+/* Severity specific counters */
+.erStatCard.criticalCard { border-left: 5px solid #d32f2f; }
+.erStatCard.criticalCard .statVal { color: #d32f2f; }
+
+.erStatCard.emergencyCard { border-left: 5px solid #f57c00; }
+.erStatCard.emergencyCard .statVal { color: #f57c00; }
+
+.erStatCard.urgencyCard { border-left: 5px solid #fbc02d; }
+.erStatCard.urgencyCard .statVal { color: #fbc02d; }
+
+.erStatCard.semiUrgencyCard { border-left: 5px solid #388e3c; }
+.erStatCard.semiUrgencyCard .statVal { color: #388e3c; }
+
+/* Patient List Table */
+.patientsListCard {
+  padding: 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.patientsTableWrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--gray-200);
+}
+
+.patientsTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.patientsTable th {
+  background: var(--gray-100);
+  color: var(--gray-800);
+  font-weight: 700;
+  padding: 1rem 1.25rem;
+  font-size: 0.95rem;
+  border-bottom: 2px solid var(--gray-200);
+}
+
+.patientsTable td {
+  padding: 1.1rem 1.25rem;
+  font-size: 1rem;
+  color: var(--gray-900);
+  border-bottom: 1px solid var(--gray-200);
+  vertical-align: middle;
+}
+
+/* Severity background styling */
+.patientsTable tr.level-1 { background-color: #ffebee; } /* Resuscitate */
+.patientsTable tr.level-2 { background-color: #fff3e0; } /* Emergency */
+.patientsTable tr.level-3 { background-color: #fffde7; } /* Urgency */
+.patientsTable tr.level-4 { background-color: #e8f5e9; } /* Semi Urgency */
+.patientsTable tr.level-5 { background-color: var(--white); } /* Non Urgency */
+
+.severityPill {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.severityPill.pill-1 { background: #d32f2f; color: var(--white); animation: blinkAlert 1.5s infinite; }
+.severityPill.pill-2 { background: #f57c00; color: var(--white); }
+.severityPill.pill-3 { background: #fbc02d; color: var(--gray-900); }
+.severityPill.pill-4 { background: #388e3c; color: var(--white); }
+.severityPill.pill-5 { background: var(--gray-200); color: var(--gray-800); }
+
+/* Observe badge */
+.observeBadge {
+  background: #e0f2f1;
+  color: #00796b;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* Monthly Stats Grid */
+.erMonthlyStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2rem;
+}
+
+.statsTableCard h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--primary-light);
+  padding-bottom: 0.5rem;
+}
+
+.statsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.statsList li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 0.95rem;
+}
+
+.statsList li:last-child {
+  border-bottom: none;
+}
+
+.statsCount {
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+/* TV Dashboard Mode Override */
+.tvModeActive {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  background-color: var(--gray-50) !important; /* Light background */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999; /* Cover everything including navbars */
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 1.5rem !important;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  color: var(--gray-900);
+}
+
+.tvModeActive .erContainer {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 0 !important;
+}
+
+.tvModeActive .card {
+  background: var(--white) !important; /* Light card background */
+  border: 1px solid var(--gray-200) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+}
+
+.tvModeActive .erHeaderCard {
+  background: var(--white) !important;
+  color: var(--gray-900);
+  padding: 1rem 2rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.tvModeActive .erTitleSection h1 {
+  color: var(--gray-900) !important;
+  font-size: 2.5rem !important;
+  font-weight: 900;
+}
+
+.tvModeActive .erSubtitle {
+  color: var(--gray-600) !important;
+  font-size: 1.1rem !important;
+}
+
+.tvModeActive .statLabel {
+  color: var(--gray-600) !important;
+  font-size: 1.2rem !important;
+}
+
+.tvModeActive .statVal {
+  font-size: 4rem !important;
+}
+
+.tvModeActive .patientsListCard {
+  padding: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.tvModeActive .patientsTable th {
+  background: var(--gray-100) !important;
+  color: var(--gray-800) !important;
+  font-size: 1.4rem !important;
+  padding: 1.25rem !important;
+  border-bottom: 3px solid var(--gray-200) !important;
+}
+
+.tvModeActive .patientsTable td {
+  font-size: 1.6rem !important; /* Very large text for TV visibility */
+  padding: 1.5rem !important;
+  color: var(--gray-900) !important;
+  border-bottom: 1px solid var(--gray-200) !important;
+}
+
+/* TV Severity Level Highlights - Light Mode (Pastel backgrounds) */
+.tvModeActive .patientsTable tr.level-1 { background-color: #ffebee !important; } /* Light Red */
+.tvModeActive .patientsTable tr.level-2 { background-color: #fff3e0 !important; } /* Light Orange */
+.tvModeActive .patientsTable tr.level-3 { background-color: #fffde7 !important; } /* Light Yellow */
+.tvModeActive .patientsTable tr.level-4 { background-color: #e8f5e9 !important; } /* Light Green */
+.tvModeActive .patientsTable tr.level-5 { background-color: var(--white) !important; } /* White */
+
+.tvModeActive .severityPill {
+  font-size: 1.3rem !important;
+  padding: 0.5rem 1rem !important;
+}
+
+.tvModeActive .observeBadge {
+  font-size: 1.2rem !important;
+  background: #e0f2f1 !important;
+  color: #00796b !important;
+}
+
+/* Hide Monthly statistics on TV Dashboard (focused on real-time) */
+.tvModeActive .erMonthlyStatsGrid {
+  display: none !important;
+}
+
+/* Alert Banner in TV Mode */
+.tvModeActive .erAlertBanner {
+  background: #ffebee !important;
+  border: 4px solid #ef5350 !important;
+  padding: 1.5rem 3rem !important;
+  animation: pulseBg 1.5s infinite ease-in-out;
+}
+
+.tvModeActive .alertMsg {
+  font-size: 2rem !important;
+  color: #c62828 !important;
+}
+
+.tvModeActive .alertIcon {
+  font-size: 4rem !important;
+}
+
+/* Animations */
+@keyframes pulseBg {
+  0% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 83, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0); }
+}
+
+@keyframes pulseTvAlert {
+  0% { border-color: #f44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.6); }
+  50% { border-color: #b71c1c; box-shadow: 0 0 35px rgba(183, 28, 28, 0.9); }
+  100% { border-color: #f44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.6); }
+}
+
+@keyframes bounceAlert {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.2); }
+}
+
+@keyframes blinkAlert {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* Loading display styling */
+.erLoadingPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem;
+  gap: 1.5rem;
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+.erLoadingPanel .spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border-left-color: var(--primary);
+  animation: spin 1s linear infinite;
+}
+
+.emptyPatientsMessage {
+  text-align: center;
+  padding: 3rem;
+  color: var(--gray-500);
+  font-size: 1.1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsiveness adjustments for smaller devices */
+@media (max-width: 768px) {
+  .erHeaderCard {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+  }
+  .erTitleSection h1 {
+    font-size: 1.6rem;
+  }
+  .erControls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

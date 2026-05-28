@@ -40,18 +40,49 @@ export async function POST(request: Request) {
       )
     }
 
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
+    const title = formData.get('title') as string || ''
+    const publishedAt = formData.get('publishedAt') as string || ''
+
+    // Format date folder as DD-MM-YYYY
+    let dateStr = ''
+    if (publishedAt) {
+      const d = new Date(publishedAt)
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0')
+        const month = String(d.getMonth() + 1).padStart(2, '0')
+        const year = d.getFullYear()
+        dateStr = `${day}-${month}-${year}`
+      }
+    }
+    if (!dateStr) {
+      const d = new Date()
+      const day = String(d.getDate()).padStart(2, '0')
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const year = d.getFullYear()
+      dateStr = `${day}-${month}-${year}`
+    }
+
+    // Cleanse title to be safe as folder/file name
+    const cleanTitle = title
+      ? title.replace(/[\\\/:\*\?"<>\|]/g, '_').trim()
+      : 'untitled'
+
+    // Directory path: public/uploads/DD-MM-YYYY/cleanTitle/
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', dateStr, cleanTitle)
     await mkdir(uploadsDir, { recursive: true })
 
     const ext = path.extname(file.name) || '.jpg'
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`
+    // Name the file starting with cleanTitle plus timestamp to avoid duplicates
+    const fileUniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
+    const filename = `${cleanTitle}-${fileUniqueSuffix}${ext}`
     const filepath = path.join(uploadsDir, filename)
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
     await writeFile(filepath, buffer)
 
-    const url = `/uploads/${filename}`
+    // Using forward slashes for the public URL path
+    const url = `/uploads/${dateStr}/${cleanTitle}/${filename}`
 
     return NextResponse.json(
       { success: true, url, filename, isPdf },

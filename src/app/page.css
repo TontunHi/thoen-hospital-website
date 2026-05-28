@@ -561,3 +561,47 @@
   color: var(--gray-600);
   line-height: 1.6;
 }
+
+/* ===== SOCIAL & MAPS SECTION ===== */
+.social-map-section {
+  background: var(--gray-50);
+}
+
+.social-map-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-8);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .social-map-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+}
+
+.section-sub {
+  font-size: var(--font-size-sm);
+  color: var(--gray-600);
+  margin-top: calc(-1 * var(--space-2));
+  margin-bottom: var(--space-6);
+}
+
+.facebook-wrapper {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--gray-200);
+  background: #f8fafc;
+}
+
+.map-wrapper {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--gray-200);
+}
+

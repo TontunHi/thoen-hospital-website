@@ -82,3 +82,140 @@
 .thumbActive {
   border-color: var(--primary);
 }
+
+/* Lightbox Modal CSS */
+.lightboxModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.25s ease-out;
+}
+
+.lightboxClose {
+  position: absolute;
+  top: 1.5rem;
+  right: 2rem;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 2.5rem;
+  cursor: pointer;
+  z-index: 10001;
+  transition: color 0.2s, transform 0.2s;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightboxClose:hover {
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.lightboxContent {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 90%;
+  max-height: 85vh;
+}
+
+.lightboxImg {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  user-select: none;
+}
+
+
+.lightboxNavBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-size: 2.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  transition: background 0.2s, transform 0.2s, border-color 0.2s;
+}
+
+.lightboxNavBtn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: #ffffff;
+}
+
+.lightboxNavBtn.prev {
+  left: -1rem;
+}
+
+.lightboxNavBtn.next {
+  right: -1rem;
+}
+
+.lightboxCounter {
+  position: absolute;
+  bottom: -2.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  padding: 0.35rem 1rem;
+  border-radius: 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  z-index: 10000;
+}
+
+@media (max-width: 768px) {
+  .lightboxContent {
+    width: 95vw;
+    height: 70vh;
+  }
+
+  .lightboxNavBtn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.8rem;
+  }
+
+  .lightboxNavBtn.prev {
+    left: 0.5rem;
+  }
+
+  .lightboxNavBtn.next {
+    right: 0.5rem;
+  }
+
+  .lightboxClose {
+    top: 1rem;
+    right: 1rem;
+    font-size: 2rem;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+

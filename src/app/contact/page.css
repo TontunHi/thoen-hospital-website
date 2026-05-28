@@ -195,3 +195,42 @@
   color: #0D7446;
   border: 1px solid #C8E6C9;
 }
+
+/* Social & Maps Section */
+.socialMapSection {
+  margin-top: 3.5rem;
+  background: var(--white);
+}
+
+.socialMapGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .socialMapGrid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
+}
+
+.sectionSub {
+  font-size: 0.9rem;
+  color: var(--gray-600);
+  margin-top: -1rem;
+  margin-bottom: 1.5rem;
+}
+
+.facebookWrapper {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--gray-200);
+  background: #f8fafc;
+}
+

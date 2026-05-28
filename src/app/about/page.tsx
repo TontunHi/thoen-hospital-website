@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import './page.css'
 
 export const metadata = {
@@ -17,9 +18,13 @@ export default function AboutPage() {
       <div className="aboutGrid">
         {/* History card */}
         <div className="aboutCard card">
-          <h2>📜 ประวัติความเป็นมา</h2>
+          <Link href="/about/history" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <h2 className="hover-link-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              📜 ประวัติความเป็นมา <span style={{ fontSize: '1rem', color: 'var(--primary)' }}>➔</span>
+            </h2>
+          </Link>
           <p>
-            โรงพยาบาลเถิน จังหวัดลำปาง ตั้งอยู่ในอำเภอเถิน เป็นโรงพยาบาลชุมชนขนาด 60 เตียง สังกัดกระทรวงสาธารณสุข 
+            โรงพยาบาลเถิน จังหวัดลำปาง ตั้งอยู่ในอำเภอเถิน เป็นโรงพยาบาลชุมชนขนาด 90 เตียง สังกัดกระทรวงสาธารณสุข 
             ให้บริการครอบคลุมพื้นที่การแพทย์และการสาธารณสุขแก่ประชาชนอำเภอเถินและพื้นที่เขตติดต่อใกล้เคียง
           </p>
           <p>
@@ -34,7 +39,7 @@ export default function AboutPage() {
           <div className="visionSection">
             <h3>วิสัยทัศน์ (Vision)</h3>
             <blockquote>
-              "เป็นโรงพยาบาลคุณภาพของชุมชน ให้บริการที่ปลอดภัย ประชาชนไว้วางใจ และบุคลากรมีความสุข"
+              "เป็นโรงพยาบาลชุมชนเข้มแข็ง ที่มีคุณภาพมาตรฐาน ประชาชนไว้วางใจ บุคลากรมีความสุข ในปี 2571"
             </blockquote>
           </div>
           <div className="missionSection">
@@ -45,6 +50,11 @@ export default function AboutPage() {
               <li>พัฒนาศักยภาพบุคลากรและระบบทำงานด้วยความสุขและมีคุณธรรม</li>
               <li>ส่งเสริมและสนับสนุนเครือข่ายสุขภาพในท้องถิ่นให้เข้มแข็ง</li>
             </ul>
+          </div>
+          <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
+            <Link href="/about/vision-mission" className="btn btn-primary btn-sm">
+              ดูวิสัยทัศน์ ค่านิยม T-H-O-E-N แบบเต็ม ➔
+            </Link>
           </div>
         </div>
       </div>
@@ -61,6 +71,11 @@ export default function AboutPage() {
               style={{ objectFit: 'cover', borderRadius: '12px' }}
               priority
             />
+            <div style={{ marginTop: '1.25rem' }}>
+              <Link href="/about/board" className="btn btn-outline btn-sm" style={{ display: 'block', textAlign: 'center', width: '100%', padding: '0.6rem' }}>
+                👥 คณะกรรมการบริหารโรงพยาบาล
+              </Link>
+            </div>
           </div>
           <div className="directorProfileContent">
             <span className="profileBadge">ผู้อำนวยการโรงพยาบาล</span>

@@ -26,6 +26,7 @@ model News {
   youtubeUrl  String?     @map("youtube_url") @db.VarChar(500)
   pdfUrl      String?     @map("pdf_url") @db.VarChar(500)
   status      String      @default("DRAFT") @db.VarChar(50) // DRAFT, PUBLISHED, ARCHIVED
+  category    String      @default("PR") @db.VarChar(100) // PR, TRAINING, JOBS, KNOWLEDGE
   views       Int         @default(0)
   publishedAt DateTime    @default(now()) @map("published_at")
   createdAt   DateTime    @default(now()) @map("created_at")

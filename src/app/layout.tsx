@@ -3,6 +3,7 @@ import { IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar/Navbar";
 import Footer from "@/components/Footer/Footer";
+import { Suspense } from "react";
 
 const ibmPlexSansThai = IBM_Plex_Sans_Thai({
   variable: "--font-ibm-plex-sans-thai",
@@ -32,6 +33,11 @@ export const metadata: Metadata = {
     locale: "th_TH",
     type: "website",
   },
+  icons: {
+    icon: "/images/logo-website.webp",
+    shortcut: "/images/logo-website.webp",
+    apple: "/images/logo-website.webp",
+  },
 };
 
 export default function RootLayout({
@@ -42,7 +48,9 @@ export default function RootLayout({
   return (
     <html lang="th" className={ibmPlexSansThai.variable}>
       <body style={{ fontFamily: "var(--font-family)" }}>
-        <Navbar />
+        <Suspense fallback={<nav className="navbar" style={{ height: "var(--navbar-height)" }}></nav>}>
+          <Navbar />
+        </Suspense>
         <main>{children}</main>
         <Footer />
       </body>

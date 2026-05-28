@@ -1,54 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import './page.css'
 
 export default function ContactPage() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [message, setMessage] = useState('')
-  
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setSuccess('')
-    setLoading(true)
-
-    try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, message }),
-      })
-
-      const data = await res.json()
-
-      if (res.ok) {
-        setSuccess('ส่งข้อความสำเร็จ! เจ้าหน้าที่จะดำเนินการตรวจสอบข้อมูลของคุณโดยเร็วที่สุด')
-        setName('')
-        setEmail('')
-        setPhone('')
-        setMessage('')
-      } else {
-        setError(data.error || 'เกิดข้อผิดพลาดในการส่งข้อความ')
-      }
-    } catch {
-      setError('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="container contactPage">
       <div className="contactHeader">
         <h1>📞 ติดต่อเรา</h1>
-        <p>คุณสามารถติดต่อสอบถามข้อมูลการบริการ หรือส่งข้อความถึงโรงพยาบาลเถินได้ผ่านช่องทางด้านล่าง</p>
+        <p>คุณสามารถติดต่อสอบถามข้อมูลการบริการ หรือส่งข้อคิดเห็น/ข้อร้องเรียนถึงโรงพยาบาลเถินได้ผ่านช่องทางด้านล่าง</p>
       </div>
 
       <div className="contactGrid">
@@ -87,15 +46,61 @@ export default function ContactPage() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Map wrapper */}
-          <div className="mapCard card">
-            <h2>🗺️ แผนที่การเดินทาง</h2>
+        {/* Contact form side (Replaced with Google Form for complaints) */}
+        <div className="contactFormSection card" style={{ padding: '2rem 1rem' }}>
+          <h2>✉️ ส่งเรื่องร้องเรียน / ข้อเสนอแนะ</h2>
+          <p className="formSubtitle" style={{ marginBottom: '1.5rem', paddingLeft: '1rem' }}>
+            กรอกข้อมูลลงในแบบฟอร์มร้องเรียนด้านล่างเพื่อส่งข้อมูลตรงถึงผู้บริหาร
+          </p>
+          
+          <div style={{ width: '100%', overflow: 'hidden', borderRadius: '8px' }}>
+            <iframe
+              src="https://docs.google.com/forms/d/e/1FAIpQLSekKnRyhF09oqU1s4CThb4x99VJ3ZOaP2r7RWQ6Ey0LkMWahg/viewform?embedded=true"
+              width="100%"
+              height="750"
+              frameBorder="0"
+              marginHeight={0}
+              marginWidth={0}
+              style={{ border: 'none', background: 'transparent' }}
+              title="แบบฟอร์มร้องเรียน โรงพยาบาลเถิน"
+            >
+              กำลังโหลด…
+            </iframe>
+          </div>
+        </div>
+      </div>
+
+      {/* Social & Maps Section */}
+      <div className="socialMapSection card">
+        <div className="socialMapGrid">
+          <div className="facebookEmbedCard">
+            <h2>📱 ติดตามเราบน Facebook</h2>
+            <p className="sectionSub">เกาะติดข่าวสารและกิจกรรมผ่าน Facebook Fanpage</p>
+            <div className="facebookWrapper">
+              <iframe
+                src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FThoenHospital1669&tabs=timeline&width=500&height=450&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
+                width="100%"
+                height="450"
+                style={{ border: 'none', overflow: 'hidden', borderRadius: '8px' }}
+                scrolling="no"
+                frameBorder="0"
+                allowFullScreen={true}
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                title="Facebook Page - โรงพยาบาลเถิน"
+              />
+            </div>
+          </div>
+
+          <div className="googleMapEmbedCard">
+            <h2>🗺️ แผนที่และการเดินทาง</h2>
+            <p className="sectionSub">แผนที่แสดงพิกัดนำทางโรงพยาบาลเถิน จังหวัดลำปาง</p>
             <div className="mapWrapper">
               <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3790.312965383568!2d99.2155700759495!3d18.195034682830386!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x30d9518d6a8ddda5%3A0xe54e60655c65f1e!2sThoen%20Hospital!5e0!3m2!1sen!2sth!4v1716888495000!5m2!1sen!2sth"
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3765.2312965383568!2d99.2379647!3d17.6371055!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x30dea78c00000001%3A0xcab5fbfb134039ab!2sThoen%20Hospital!5e0!3m2!1sth!2sth!4v1716888495000!5m2!1sth!2sth"
                 width="100%"
-                height="320"
+                height="450"
                 style={{ border: 0, borderRadius: '8px' }}
                 allowFullScreen
                 loading="lazy"
@@ -104,72 +109,6 @@ export default function ContactPage() {
               />
             </div>
           </div>
-        </div>
-
-        {/* Contact form side */}
-        <div className="contactFormSection card">
-          <h2>✉️ ส่งข้อความถึงเรา</h2>
-          <p className="formSubtitle">กรอกข้อมูลลงในแบบฟอร์มด้านล่างเพื่อติดต่อสอบถามหรือให้ข้อเสนอแนะ</p>
-          
-          {error && <div className="contactAlert alert-danger">{error}</div>}
-          {success && <div className="contactAlert alert-success">{success}</div>}
-
-          <form onSubmit={handleSubmit}>
-            <div className="formGroup">
-              <label htmlFor="name">ชื่อ - นามสกุล *</label>
-              <input
-                id="name"
-                type="text"
-                className="formInput"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="กรอกชื่อและนามสกุลของคุณ"
-                required
-              />
-            </div>
-
-            <div className="formGroup">
-              <label htmlFor="email">อีเมลติดต่อ *</label>
-              <input
-                id="email"
-                type="email"
-                className="formInput"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="กรอกอีเมลของคุณ เช่น example@domain.com"
-                required
-              />
-            </div>
-
-            <div className="formGroup">
-              <label htmlFor="phone">เบอร์โทรศัพท์</label>
-              <input
-                id="phone"
-                type="tel"
-                className="formInput"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="กรอกเบอร์โทรศัพท์เพื่อการติดต่อกลับ"
-              />
-            </div>
-
-            <div className="formGroup">
-              <label htmlFor="message">ข้อความของคุณ *</label>
-              <textarea
-                id="message"
-                className="formTextarea"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="พิมพ์ข้อความของคุณที่นี่..."
-                required
-                style={{ minHeight: '150px' }}
-              />
-            </div>
-
-            <button type="submit" className="contactSubmitBtn" disabled={loading}>
-              {loading ? 'กำลังส่งข้อมูล...' : '✉️ ส่งข้อความ'}
-            </button>
-          </form>
         </div>
       </div>
     </div>

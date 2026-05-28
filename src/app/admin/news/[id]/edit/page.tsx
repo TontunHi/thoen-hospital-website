@@ -24,6 +24,7 @@ export default function EditNewsPage(props: any) {
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [pdfUrl, setPdfUrl] = useState('')
   const [status, setStatus] = useState('DRAFT') // DRAFT, PUBLISHED, ARCHIVED
+  const [category, setCategory] = useState('PR') // PR, TRAINING, JOBS, KNOWLEDGE
   const [publishedAt, setPublishedAt] = useState('') // datetime-local string
   const [images, setImages] = useState<string[]>([]) // multiple images array
   
@@ -47,6 +48,7 @@ export default function EditNewsPage(props: any) {
           setYoutubeUrl(data.news.youtubeUrl || '')
           setPdfUrl(data.news.pdfUrl || '')
           setStatus(data.news.status || 'DRAFT')
+          setCategory(data.news.category || 'PR')
           
           if (data.news.publishedAt) {
             // Format to YYYY-MM-DDTHH:MM for datetime-local input
@@ -87,6 +89,8 @@ export default function EditNewsPage(props: any) {
       const file = files[i]
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('title', title)
+      formData.append('publishedAt', publishedAt)
 
       try {
         const res = await fetch('/api/upload', {
@@ -118,6 +122,8 @@ export default function EditNewsPage(props: any) {
     setError('')
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('title', title)
+    formData.append('publishedAt', publishedAt)
 
     try {
       const res = await fetch('/api/upload', {
@@ -156,6 +162,7 @@ export default function EditNewsPage(props: any) {
         youtubeUrl: youtubeUrl || null,
         pdfUrl: pdfUrl || null,
         status,
+        category,
         publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
         images,
       }
@@ -309,6 +316,24 @@ export default function EditNewsPage(props: any) {
               <span className="fieldTip">เว้นว่างไว้หากต้องการเผยแพร่ทันที (ตามเวลาปัจจุบัน)</span>
             </div>
 
+            <div className="formGroup col-6">
+              <label htmlFor="category">ประเภทข่าวสาร *</label>
+              <select
+                id="category"
+                className="formInput"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                required
+              >
+                <option value="PR">ข่าวสารประชาสัมพันธ์</option>
+                <option value="TRAINING">ประชุมอบรม / สัมมนา</option>
+                <option value="JOBS">ประกาศรับสมัครงาน</option>
+                <option value="KNOWLEDGE">ข่าวสารความรู้</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="formRow">
             <div className="formGroup col-6">
               <label htmlFor="status">สถานะข่าวประชาสัมพันธ์</label>
               <select
