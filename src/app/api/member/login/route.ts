@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server'
 import { queryMemberDb } from '@/lib/memberDb'
 import { createMemberSession } from '@/lib/memberAuth'
+import { memberLoginSchema } from '@/lib/schemas/member'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
   try {
+    const rateCheck = await checkRateLimit({ key: 'member-login', maxAttempts: 5, windowSeconds: 900 })
+    if (!rateCheck.allowed) return rateCheck.response!
+
     const body = await request.json()
     const { username, email, otp } = body
 
-    if (!username || !email || !otp) {
+    const parsed = memberLoginSchema.safeParse({ username, email, otp })
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'กรุณากรอกข้อมูลให้ครบถ้วน รวมถึงรหัส OTP' },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       )
     }

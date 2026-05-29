@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifySession } from '@/lib/auth'
+import { requireRole } from '@/lib/roles'
+import { newsCreateSchema } from '@/lib/schemas/news'
 
 function generateSlug(title: string): string {
   return title
@@ -119,23 +120,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await verifySession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
-    }
+    const authResult = await requireRole(['admin', 'editor'])
+    if (authResult.error) return authResult.error
 
     const body = await request.json()
-    const { title, youtubeUrl, pdfUrl, status, category, publishedAt, expiredAt, images } = body
 
-    if (!title) {
+    const parsed = newsCreateSchema.safeParse(body)
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'กรุณากรอกหัวข้อข่าว' },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       )
     }
+
+    const { title, youtubeUrl, pdfUrl, status, category, publishedAt, expiredAt, images } = body
 
     const slug = generateSlug(title)
 

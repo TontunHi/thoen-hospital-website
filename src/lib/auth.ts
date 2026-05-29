@@ -1,55 +1,66 @@
 import { cookies } from 'next/headers'
 import crypto from 'crypto'
 
-const SECRET = process.env.ADMIN_SECRET || 'fallback-secret-key'
+function getSecret(): string {
+  const secret = process.env.ADMIN_SECRET
+  if (!secret) {
+    throw new Error('ADMIN_SECRET environment variable is required')
+  }
+  return secret
+}
+
 const COOKIE_NAME = 'admin_session'
-const SESSION_MAX_AGE = 60 * 60 * 6 // 6 hours in seconds
+const SESSION_MAX_AGE = 1800 // 30 minutes in seconds
 
 function sign(value: string): string {
-  const hmac = crypto.createHmac('sha256', SECRET)
+  const hmac = crypto.createHmac('sha256', getSecret())
   hmac.update(value)
   return hmac.digest('hex')
 }
 
-function createToken(adminId: number): string {
-  const payload = JSON.stringify({ adminId, exp: Date.now() + SESSION_MAX_AGE * 1000 })
+function createToken(adminId: number, role: string): string {
+  const payload = JSON.stringify({ adminId, role, exp: Date.now() + SESSION_MAX_AGE * 1000 })
   const encoded = Buffer.from(payload).toString('base64url')
   const signature = sign(encoded)
   return `${encoded}.${signature}`
 }
 
-function verifyToken(token: string): { adminId: number } | null {
+function verifyToken(token: string): { adminId: number; role: string } | null {
   try {
     const [encoded, signature] = token.split('.')
     if (!encoded || !signature) return null
 
     const expectedSignature = sign(encoded)
-    if (signature !== expectedSignature) return null
+
+    const sigBuffer = Buffer.from(signature, 'hex')
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+    if (sigBuffer.length !== expectedBuffer.length) return null
+    if (!crypto.timingSafeEqual(sigBuffer, expectedBuffer)) return null
 
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
 
     if (payload.exp < Date.now()) return null
 
-    return { adminId: payload.adminId }
+    return { adminId: payload.adminId, role: payload.role }
   } catch {
     return null
   }
 }
 
-export async function createSession(adminId: number): Promise<void> {
-  const token = createToken(adminId)
+export async function createSession(adminId: number, role: string): Promise<void> {
+  const token = createToken(adminId, role)
   const cookieStore = await cookies()
 
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: false, // Set to false to allow login via HTTP on local network (intranet IP)
-    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
     path: '/',
     maxAge: SESSION_MAX_AGE,
   })
 }
 
-export async function verifySession(): Promise<{ adminId: number } | null> {
+export async function verifySession(): Promise<{ adminId: number; role: string } | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE_NAME)?.value
 

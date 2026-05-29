@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server'
 import { querySalaryDb } from '@/lib/salaryDb'
 import { cookies } from 'next/headers'
+import { salaryLoginSchema } from '@/lib/schemas/salary'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
   try {
-    const { username, password } = await request.json()
+    const rateCheck = await checkRateLimit({ key: 'salary-login', maxAttempts: 5, windowSeconds: 900 })
+    if (!rateCheck.allowed) return rateCheck.response!
 
-    if (!username || !password) {
+    const body = await request.json()
+    const { username, password } = body
+
+    const parsed = salaryLoginSchema.safeParse({ username, password })
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน' },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       )
     }
@@ -46,8 +53,9 @@ export async function POST(request: Request) {
     }), {
       path: '/',
       httpOnly: true,
-      secure: false, // Set to false to allow login via HTTP on local network (intranet IP)
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 1800,
     })
 
     return NextResponse.json({ success: true, name: user.name || user.user_name })

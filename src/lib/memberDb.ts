@@ -4,8 +4,8 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
   const connection = await mysql.createConnection({
     host: process.env.MEMBER_DB_HOST || '192.168.1.7',
     port: parseInt(process.env.MEMBER_DB_PORT || '3306'),
-    user: process.env.MEMBER_DB_USER || 'prnew',
-    password: process.env.MEMBER_DB_PASSWORD || 'PRnew11152@',
+    user: process.env.MEMBER_DB_USER,
+    password: process.env.MEMBER_DB_PASSWORD,
     database: process.env.MEMBER_DB_NAME || 'thoen_hospital_website',
     connectTimeout: 5000,
   })

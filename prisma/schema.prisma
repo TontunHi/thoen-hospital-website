@@ -53,4 +53,8 @@ model Attachment {
 enum Role {
   admin
   editor
+  patient
+  doctor
+  nurse
+  hr
 }

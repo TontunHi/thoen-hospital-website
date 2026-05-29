@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifySession } from '@/lib/auth'
+import { requireRole } from '@/lib/roles'
+import { newsCreateSchema } from '@/lib/schemas/news'
 
 export async function GET(
   _req: NextRequest,
@@ -87,13 +88,8 @@ export async function PUT(
   ctx: RouteContext<'/api/news/[id]'>
 ) {
   try {
-    const session = await verifySession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
-    }
+    const authResult = await requireRole(['admin', 'editor'])
+    if (authResult.error) return authResult.error
 
     const { id } = await ctx.params
     const newsId = parseInt(id)
@@ -106,6 +102,15 @@ export async function PUT(
     }
 
     const body = await request.json()
+
+    const parsed = newsCreateSchema.partial().safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0].message },
+        { status: 400 }
+      )
+    }
+
     const { title, youtubeUrl, pdfUrl, status, category, publishedAt, expiredAt, images } = body
 
     const existing = await prisma.news.findUnique({
@@ -253,13 +258,8 @@ export async function DELETE(
   ctx: RouteContext<'/api/news/[id]'>
 ) {
   try {
-    const session = await verifySession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
-    }
+    const authResult = await requireRole(['admin', 'editor'])
+    if (authResult.error) return authResult.error
 
     const { id } = await ctx.params
     const newsId = parseInt(id)

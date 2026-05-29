@@ -33,8 +33,6 @@ export async function GET() {
       member: {
         username: user.username,
         email: user.email,
-        salary_user: user.salary_user,
-        salary_pass: user.salary_pass,
         hasSalaryCredentials: !!(user.salary_user && user.salary_pass),
       },
     })

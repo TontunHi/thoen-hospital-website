@@ -1,12 +1,19 @@
 import { cookies } from 'next/headers'
 import crypto from 'crypto'
 
-const SECRET = process.env.MEMBER_SESSION_SECRET || 'thoen-hospital-member-session-secret-2026'
+function getSecret(): string {
+  const secret = process.env.MEMBER_SESSION_SECRET
+  if (!secret) {
+    throw new Error('MEMBER_SESSION_SECRET environment variable is required')
+  }
+  return secret
+}
+
 const COOKIE_NAME = 'member_session'
-const SESSION_MAX_AGE = 60 * 60 * 24 * 7 // 7 days in seconds
+const SESSION_MAX_AGE = 1800 // 30 minutes in seconds
 
 function sign(value: string): string {
-  const hmac = crypto.createHmac('sha256', SECRET)
+  const hmac = crypto.createHmac('sha256', getSecret())
   hmac.update(value)
   return hmac.digest('hex')
 }
@@ -24,7 +31,11 @@ function verifyToken(token: string): { username: string; email: string } | null 
     if (!encoded || !signature) return null
 
     const expectedSignature = sign(encoded)
-    if (signature !== expectedSignature) return null
+
+    const sigBuffer = Buffer.from(signature, 'hex')
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+    if (sigBuffer.length !== expectedBuffer.length) return null
+    if (!crypto.timingSafeEqual(sigBuffer, expectedBuffer)) return null
 
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
 
@@ -42,8 +53,8 @@ export async function createMemberSession(username: string, email: string): Prom
 
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: false, // Allow HTTP on LAN / Intranet
-    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
     path: '/',
     maxAge: SESSION_MAX_AGE,
   })

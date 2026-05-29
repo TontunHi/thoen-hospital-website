@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server'
-import { verifySession } from '@/lib/auth'
+import { requireRole } from '@/lib/roles'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
 export async function POST(request: Request) {
   try {
-    const session = await verifySession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
-    }
+    const authResult = await requireRole(['admin', 'editor'])
+    if (authResult.error) return authResult.error
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null

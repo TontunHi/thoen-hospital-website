@@ -1,16 +1,21 @@
+import crypto from 'crypto'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { createSession } from '@/lib/auth'
+import { createRefreshToken } from '@/lib/refreshToken'
 import nodemailer from 'nodemailer'
+import { adminLoginSchema, adminOtpVerifySchema } from '@/lib/schemas/auth'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 // Global or module-scoped temp storage for pending 2FA attempts
 // In production, redis or a database table is preferred, but memory works for this setup.
 const pendingAttempts = new Map<string, {
   userId: number;
+  userRole: string;
   otp: string;
   expiresAt: number;
-}>();
+}>()
 
 // Configure Gmail transporter
 const transporter = nodemailer.createTransport({
@@ -19,15 +24,23 @@ const transporter = nodemailer.createTransport({
     user: process.env.OTP_EMAIL_USER,
     pass: process.env.OTP_EMAIL_PASS,
   },
-});
+})
 
 export async function POST(request: Request) {
   try {
+    const rateCheck = await checkRateLimit({ key: 'auth-login', maxAttempts: 5, windowSeconds: 900 })
+    if (!rateCheck.allowed) return rateCheck.response!
+
     const body = await request.json()
     const { username, password, otp, tempToken: requestTempToken } = body
 
     // === STEP 2: OTP Verification ===
     if (otp && requestTempToken) {
+      const parsed = adminOtpVerifySchema.safeParse({ otp, tempToken: requestTempToken })
+      if (!parsed.success) {
+        return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
+      }
+
       const attempt = pendingAttempts.get(requestTempToken)
 
       if (!attempt || attempt.expiresAt < Date.now()) {
@@ -49,7 +62,8 @@ export async function POST(request: Request) {
       pendingAttempts.delete(requestTempToken)
 
       // Create session and log in
-      await createSession(attempt.userId)
+      await createSession(attempt.userId, attempt.userRole || 'admin')
+      await createRefreshToken(attempt.userId, attempt.userRole || 'admin')
 
       return NextResponse.json({
         success: true,
@@ -58,11 +72,9 @@ export async function POST(request: Request) {
     }
 
     // === STEP 1: Credentials Check & OTP Generation ===
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน' },
-        { status: 400 }
-      )
+    const parsed = adminLoginSchema.safeParse({ username, password })
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
     }
 
     const user = await prisma.user.findUnique({
@@ -86,7 +98,7 @@ export async function POST(request: Request) {
     }
 
     // Generate 6-digit OTP
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString()
+    const generatedOtp = crypto.randomInt(100000, 999999).toString()
 
     // Log the OTP as requested
     console.log(`[OTP DEBUG] User: ${username}, OTP: ${generatedOtp}, Sent To: ${user.email}`)
@@ -116,11 +128,12 @@ export async function POST(request: Request) {
       )
     }
 
-    const tempToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+    const tempToken = crypto.randomUUID()
     
     // Store pending attempt (expires in 5 minutes)
     pendingAttempts.set(tempToken, {
       userId: user.id,
+      userRole: user.role || 'admin',
       otp: generatedOtp,
       expiresAt: Date.now() + 5 * 60 * 1000,
     })

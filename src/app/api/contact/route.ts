@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
 import { verifySession } from '@/lib/auth'
+import { requireRole } from '@/lib/roles'
+import { contactCreateSchema, contactUpdateSchema } from '@/lib/schemas/contact'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 const CONTACTS_FILE = path.join(process.cwd(), 'contacts.json')
 
@@ -43,15 +46,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const all = searchParams.get('all') === 'true'
     
-    // Check session for admin view
+    // Check session and role for admin view
     if (all) {
-      const session = await verifySession()
-      if (!session) {
-        return NextResponse.json(
-          { error: 'กรุณาเข้าสู่ระบบ' },
-          { status: 401 }
-        )
-      }
+      const authResult = await requireRole(['admin'])
+      if (authResult.error) return authResult.error
     }
 
     const contacts = readContacts()
@@ -73,20 +71,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const rateCheck = await checkRateLimit({ key: 'contact-form', maxAttempts: 5, windowSeconds: 900 })
+    if (!rateCheck.allowed) return rateCheck.response!
+
     const body = await request.json()
     const { name, email, phone, message } = body
 
-    if (!name || !email || !message) {
+    const parsed = contactCreateSchema.safeParse({ name, email, phone, message })
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'กรุณากรอกข้อมูลให้ครบถ้วน (ชื่อ, อีเมล, ข้อความ)' },
-        { status: 400 }
-      )
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: 'รูปแบบอีเมลไม่ถูกต้อง' },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       )
     }
@@ -123,20 +117,16 @@ export async function POST(request: Request) {
 // PUT to mark as read or update status
 export async function PUT(request: Request) {
   try {
-    const session = await verifySession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
-    }
+    const authResult = await requireRole(['admin'])
+    if (authResult.error) return authResult.error
 
     const body = await request.json()
     const { id, isRead } = body
 
-    if (id === undefined) {
+    const parsed = contactUpdateSchema.safeParse({ id, isRead })
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'กรุณาระบุ ID ของข้อความ' },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       )
     }
@@ -167,13 +157,8 @@ export async function PUT(request: Request) {
 // DELETE to remove a contact message
 export async function DELETE(request: Request) {
   try {
-    const session = await verifySession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'กรุณาเข้าสู่ระบบ' },
-        { status: 401 }
-      )
-    }
+    const authResult = await requireRole(['admin'])
+    if (authResult.error) return authResult.error
 
     const { searchParams } = new URL(request.url)
     const idStr = searchParams.get('id')

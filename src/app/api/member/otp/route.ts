@@ -1,23 +1,30 @@
+import crypto from 'crypto'
 import { NextResponse } from 'next/server'
 import { queryMemberDb } from '@/lib/memberDb'
 import nodemailer from 'nodemailer'
+import { memberOtpRequestSchema } from '@/lib/schemas/member'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.MEMBER_OTP_EMAIL_USER || 'pisutyimkuson@gmail.com',
-    pass: process.env.MEMBER_OTP_EMAIL_PASS || 'wioj qozz rwhy kwip',
+    user: process.env.MEMBER_OTP_EMAIL_USER!,
+    pass: process.env.MEMBER_OTP_EMAIL_PASS!,
   },
 })
 
 export async function POST(request: Request) {
   try {
+    const rateCheck = await checkRateLimit({ key: 'member-otp', maxAttempts: 3, windowSeconds: 900 })
+    if (!rateCheck.allowed) return rateCheck.response!
+
     const body = await request.json()
     const { username, email } = body
 
-    if (!username || !email) {
+    const parsed = memberOtpRequestSchema.safeParse({ username, email })
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'กรุณากรอกชื่อผู้ใช้งานและอีเมล' },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       )
     }
@@ -43,7 +50,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otp = crypto.randomInt(100000, 999999).toString()
 
     if (users && users.length > 0) {
       // Update existing user with new OTP using DB-native server time

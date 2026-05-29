@@ -1,8 +1,30 @@
 import { NextResponse } from 'next/server'
 import { queryErDb } from '@/lib/erDb'
+import { verifySession } from '@/lib/auth'
+import { verifyMemberSession } from '@/lib/memberAuth'
 
 export async function GET() {
   try {
+    const adminSession = await verifySession()
+    const memberSession = await verifyMemberSession()
+
+    if (!adminSession && !memberSession) {
+      return NextResponse.json(
+        { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
+        { status: 401 }
+      )
+    }
+
+    if (adminSession) {
+      const allowedRoles = ['doctor', 'nurse', 'admin']
+      if (!allowedRoles.includes(adminSession.role)) {
+        return NextResponse.json(
+          { error: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
+          { status: 403 }
+        )
+      }
+    }
+
     // 1. Fetch current active ER patients
     const activePatientsQuery = `
       SELECT 
