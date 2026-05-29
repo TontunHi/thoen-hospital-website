@@ -1,0 +1,273 @@
+.healthCheckPage {
+  padding-bottom: 5rem;
+  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
+  min-height: 100vh;
+}
+
+.healthHero {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 3rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.healthHero__bg {
+  position: relative;
+  width: 100%;
+  height: 380px;
+}
+
+.healthHero__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(17, 94, 89, 0.95) 0%, rgba(13, 148, 136, 0.7) 100%);
+}
+
+.healthHero__content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem;
+  color: #ffffff;
+}
+
+.healthHero__badge {
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+  padding: 6px 16px;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  align-self: flex-start;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.healthHero__title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+.healthHero__slogan {
+  font-size: 1.4rem;
+  font-weight: 500;
+  opacity: 0.95;
+  color: #ccfbf1;
+}
+
+/* Content Layout */
+.healthGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+}
+
+.healthInfoCard {
+  padding: 2.5rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(204, 251, 241, 0.8);
+  box-shadow: 0 4px 20px rgba(13, 148, 136, 0.05);
+}
+
+.healthInfoCard h2 {
+  color: #0f766e;
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  padding-bottom: 0.5rem;
+}
+
+.healthInfoCard h2::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 60px;
+  height: 4px;
+  background: #0d9488;
+  border-radius: 2px;
+}
+
+/* Pricing Table Styling */
+.tableContainer {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  margin-top: 1.5rem;
+}
+
+.pricingTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.pricingTable th {
+  background: #0f766e;
+  color: #ffffff;
+  padding: 16px 20px;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.pricingTable td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.pricingTable tbody tr {
+  transition: all 0.2s ease;
+}
+
+.pricingTable tbody tr:hover {
+  background-color: #f0fdfa;
+}
+
+.pricingTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Checkmarks and Badges */
+.checkIcon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  background-color: #e6fffa;
+  color: #0d9488;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.dashIcon {
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.priceBadge {
+  background: #f0fdfa;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  display: inline-block;
+}
+
+.priceFree {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fde68a;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: inline-block;
+}
+
+.remarkBadge {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.remarkFemale {
+  background: #fdf2f8;
+  color: #db2777;
+  border: 1px solid #fbcfe8;
+}
+
+.remarkClaimable {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+/* Disclaimer / Info Notes */
+.healthNotes {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border-left: 4px solid #0d9488;
+}
+
+.healthNotes h3 {
+  color: #1e293b;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+}
+
+.healthNotes ul {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.healthNotes li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.healthNotes li::before {
+  content: "•";
+  color: #0d9488;
+  font-weight: bold;
+  font-size: 1.2rem;
+  position: absolute;
+  left: 0;
+  top: -2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .healthHero__bg {
+    height: 250px;
+  }
+  
+  .healthHero__content {
+    padding: 1.5rem;
+  }
+  
+  .healthHero__title {
+    font-size: 1.8rem;
+  }
+  
+  .healthHero__slogan {
+    font-size: 1.1rem;
+  }
+  
+  .healthInfoCard {
+    padding: 1.5rem;
+  }
+  
+  .pricingTable th, .pricingTable td {
+    padding: 12px 10px;
+    font-size: 0.9rem;
+  }
+}

@@ -120,7 +120,8 @@ const services = [
   {
     title: 'โปรแกรมตรวจสุขภาพ รู้ผลได้ใน 1 วัน',
     desc: 'บริการตรวจสุขภาพประจำปี ตรวจวิเคราะห์รวดเร็ว แม่นยำ และทราบผลการตรวจภายในวันเดียว',
-    icon: HeartPulse
+    icon: HeartPulse,
+    link: '/package/health-check-1day'
   },
   {
     title: 'คลินิกเฉพาะทาง',
@@ -216,14 +217,28 @@ export default async function HomePage() {
           <div className="services-grid">
             {services.map((service, i) => {
               const IconComponent = service.icon;
-              return (
-                <div key={i} className="service-card card-glass">
+              const CardContent = (
+                <>
                   <div className="service-card__accent" />
                   <div className="service-card__icon-container">
                     <IconComponent className="service-card__icon" size={28} />
                   </div>
                   <h3 className="service-card__title">{service.title}</h3>
                   <p className="service-card__desc">{service.desc}</p>
+                </>
+              )
+
+              if (service.link) {
+                return (
+                  <Link href={service.link} key={i} className="service-card card-glass" style={{ textDecoration: 'none', display: 'flex', cursor: 'pointer' }}>
+                    {CardContent}
+                  </Link>
+                );
+              }
+
+              return (
+                <div key={i} className="service-card card-glass">
+                  {CardContent}
                 </div>
               );
             })}

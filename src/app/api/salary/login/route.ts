@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { querySalaryDb } from '@/lib/salaryDb'
-import { cookies } from 'next/headers'
 import { salaryLoginSchema } from '@/lib/schemas/salary'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { createSalarySession } from '@/lib/salaryAuth'
 
 export async function POST(request: Request) {
   try {
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     } catch (dbError: any) {
       console.error('Salary DB Connection Error:', dbError)
       return NextResponse.json(
-        { error: `ไม่สามารถเชื่อมต่อฐานข้อมูลระบบเงินเดือนได้ (192.168.1.4): ${dbError.message || dbError}` },
+        { error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลระบบเงินเดือนได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' },
         { status: 500 }
       )
     }
@@ -45,18 +45,8 @@ export async function POST(request: Request) {
 
     const user = rows[0]
 
-    // Set browser session cookie
-    const cookieStore = await cookies()
-    cookieStore.set('salary_user_session', JSON.stringify({
-      username: user.user_name,
-      name: user.name || user.user_name // Fallback to username if name is empty
-    }), {
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 1800,
-    })
+    // Set secure signed browser session cookie
+    await createSalarySession(user.user_name, user.name || user.user_name)
 
     return NextResponse.json({ success: true, name: user.name || user.user_name })
   } catch (error: any) {
@@ -67,3 +57,4 @@ export async function POST(request: Request) {
     )
   }
 }
+

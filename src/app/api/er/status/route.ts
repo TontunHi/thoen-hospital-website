@@ -121,8 +121,9 @@ export async function GET() {
   } catch (error: any) {
     console.error('ER Status API Error:', error)
     return NextResponse.json(
-      { error: `ไม่สามารถดึงข้อมูลสถานะห้องฉุกเฉินได้: ${error.message || error}` },
+      { error: 'ไม่สามารถดึงข้อมูลสถานะห้องฉุกเฉินได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' },
       { status: 500 }
     )
   }
 }
+

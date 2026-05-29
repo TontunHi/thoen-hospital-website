@@ -86,12 +86,10 @@ export default function Navbar() {
   const navLinks = [
     { href: '/', label: 'หน้าแรก' },
     {
-      label: 'เกี่ยวกับเรา',
+      label: 'การบริการ',
+      href: '/package',
       submenu: [
-        { href: '/about', label: 'ผู้บริหารโรงพยาบาล' },
-        { href: '/about/history', label: 'ประวัติความเป็นมา' },
-        { href: '/about/vision-mission', label: 'วิสัยทัศน์ ค่านิยม พันธกิจ' },
-        { href: '/about/board', label: 'คณะกรรมการบริหาร' },
+        { href: '/package/health-check-1day', label: 'โปรแกรมตรวจสุขภาพ 1 วัน' }
       ]
     },
     {
@@ -104,10 +102,18 @@ export default function Navbar() {
         { href: '/news?category=KNOWLEDGE', label: 'ข่าวสารความรู้' },
       ]
     },
+    { href: '/systems', label: 'ระบบสารสนเทศ' },
+    {
+      label: 'เกี่ยวกับเรา',
+      submenu: [
+        { href: '/about', label: 'ผู้บริหารโรงพยาบาล' },
+        { href: '/about/history', label: 'ประวัติความเป็นมา' },
+        { href: '/about/vision-mission', label: 'วิสัยทัศน์ ค่านิยม พันธกิจ' },
+        { href: '/about/board', label: 'คณะกรรมการบริหาร' },
+      ]
+    },
+    { href: '/contact', label: 'ติดต่อเรา' },
   ];
-
-  navLinks.push({ href: '/systems', label: 'ระบบสารสนเทศ' });
-  navLinks.push({ href: '/contact', label: 'ติดต่อเรา' });
 
   if (member) {
     navLinks.push({ href: '/service', label: 'ระบบงานภายใน' });
@@ -134,11 +140,23 @@ export default function Navbar() {
           {navLinks.map((link) => {
             if (link.submenu) {
               const isSubActive = link.submenu.some((sub) => isActiveLink(sub.href));
+              const hasHeaderLink = !!link.href;
               return (
                 <li key={link.label} className="navbar__dropdown">
-                  <span className={`navbar__link navbar__dropdown-toggle ${isSubActive ? 'navbar__link--active' : ''}`}>
-                    {link.label} <span className="dropdown-arrow">▼</span>
-                  </span>
+                  {hasHeaderLink ? (
+                    <Link
+                      href={link.href!}
+                      className={`navbar__link navbar__dropdown-toggle ${
+                        isSubActive || isActiveLink(link.href!) ? 'navbar__link--active' : ''
+                      }`}
+                    >
+                      {link.label} <span className="dropdown-arrow">▼</span>
+                    </Link>
+                  ) : (
+                    <span className={`navbar__link navbar__dropdown-toggle ${isSubActive ? 'navbar__link--active' : ''}`}>
+                      {link.label} <span className="dropdown-arrow">▼</span>
+                    </span>
+                  )}
                   <ul className="navbar__submenu">
                     {link.submenu.map((sub) => (
                       <li key={sub.href}>
@@ -172,9 +190,12 @@ export default function Navbar() {
           })}
           {/* Member link inside mobile menu */}
           <li className="navbar__cta-mobile">
+            <Link href="/check-date" className="btn btn-outline" style={{ display: 'flex', justifyContent: 'center', borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+              ตรวจสอบนัดหมาย
+            </Link>
             {member ? (
               <Link href="/member" className="btn btn-primary">
-                ระบบสมาชิก ({member.username})
+                ระบบสมาชิก ({member.username.length === 13 && /^\d+$/.test(member.username) ? `${member.username.substring(0, 3)}...${member.username.substring(10)}` : member.username})
               </Link>
             ) : (
               <Link href="/member/login" className="btn btn-outline">
@@ -186,11 +207,18 @@ export default function Navbar() {
 
         <div className="navbar__actions">
           {/* Member status on desktop */}
-          <div className="navbar__cta-desktop">
+          <div className="navbar__cta-desktop" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <Link href="/check-date" className="navbar__login-btn" style={{ borderColor: '#0d9488', color: '#0d9488' }}>
+              ตรวจสอบนัดหมาย
+            </Link>
             {member ? (
               <Link href="/member" className="navbar__member-btn">
                 <span className="navbar__member-icon">👤</span>
-                <span className="navbar__member-name">{member.username}</span>
+                <span className="navbar__member-name">
+                  {member.username.length === 13 && /^\d+$/.test(member.username)
+                    ? `${member.username.substring(0, 3)}...${member.username.substring(10)}`
+                    : member.username}
+                </span>
               </Link>
             ) : (
               <Link href="/member/login" className="navbar__login-btn">

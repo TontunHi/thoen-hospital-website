@@ -74,6 +74,32 @@ function verifyMemberTokenInProxy(token: string): { username: string; email: str
   }
 }
 
+function verifySalaryTokenInProxy(token: string): { username: string; name: string } | null {
+  try {
+    const secret = process.env.SALARY_SESSION_SECRET || process.env.MEMBER_SESSION_SECRET
+    if (!secret) return null
+
+    const [encoded, signature] = token.split('.')
+    if (!encoded || !signature) return null
+
+    const hmac = crypto.createHmac('sha256', secret)
+    hmac.update(encoded)
+    const expectedSignature = hmac.digest('hex')
+
+    const sigBuffer = Buffer.from(signature, 'hex')
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+    if (sigBuffer.length !== expectedBuffer.length) return null
+    if (!crypto.timingSafeEqual(sigBuffer, expectedBuffer)) return null
+
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
+    if (payload.exp < Date.now()) return null
+
+    return { username: payload.username, name: payload.name }
+  } catch {
+    return null
+  }
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -88,6 +114,8 @@ export function proxy(request: NextRequest) {
     '/member/login',
     '/systems',
     '/unauthorized',
+    '/package',
+    '/check-date',
   ]
 
   // Check if path is public (exact match or starts with public prefix)
@@ -108,6 +136,7 @@ export function proxy(request: NextRequest) {
     '/api/member/me',
     '/api/salary/login',
     '/api/salary/logout',
+    '/api/appointment',
   ]
 
   const isPublicApi = publicApiPaths.some(p =>
@@ -162,12 +191,16 @@ export function proxy(request: NextRequest) {
     const memberCookie = request.cookies.get('member_session')
     const salaryCookie = request.cookies.get('salary_user_session')
 
-    if (!memberCookie?.value && !salaryCookie?.value) {
+    const hasValidMember = memberCookie?.value ? verifyMemberTokenInProxy(memberCookie.value) !== null : false
+    const hasValidSalary = salaryCookie?.value ? verifySalaryTokenInProxy(salaryCookie.value) !== null : false
+
+    if (!hasValidMember && !hasValidSalary) {
       return NextResponse.redirect(new URL('/member/login', request.url))
     }
 
     return NextResponse.next()
   }
+
 
   // ─── Protected: /api/er/** → doctor, nurse, admin OR member ───
   if (pathname.startsWith('/api/er')) {

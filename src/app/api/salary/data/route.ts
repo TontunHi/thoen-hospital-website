@@ -1,26 +1,14 @@
 import { NextResponse } from 'next/server'
 import { querySalaryDb } from '@/lib/salaryDb'
-import { cookies } from 'next/headers'
+import { verifySalarySession } from '@/lib/salaryAuth'
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate user from session cookie
-    const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get('salary_user_session')
-
-    if (!sessionCookie || !sessionCookie.value) {
-      return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 })
-    }
-
-    let user: { username: string; name: string } | null = null
-    try {
-      user = JSON.parse(sessionCookie.value)
-    } catch {
-      return NextResponse.json({ error: 'เซสชันไม่ถูกต้อง' }, { status: 401 })
-    }
+    // 1. Authenticate user from signed session cookie
+    const user = await verifySalarySession()
 
     if (!user || !user.username) {
-      return NextResponse.json({ error: 'เซสชันไม่ถูกต้อง' }, { status: 401 })
+      return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 })
     }
 
     const username = user.username // Citizen ID (matches c2 in salary and ot)
@@ -45,10 +33,11 @@ export async function GET(request: Request) {
     } catch (dbError: any) {
       console.error('Database connection/query failed:', dbError)
       return NextResponse.json(
-        { error: `ไม่สามารถเชื่อมต่อฐานข้อมูลได้: ${dbError.message || dbError}` },
+        { error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลเงินเดือนได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' },
         { status: 500 }
       )
     }
+
 
     // 3. Map periods for each record in-memory
     const periods = new Set<string>()

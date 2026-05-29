@@ -1,0 +1,147 @@
+.packagePage {
+  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
+  min-height: 100vh;
+}
+
+.packageHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.packageBadge {
+  background: rgba(13, 148, 136, 0.1);
+  color: #0f766e;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+.packageHeader h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #0f766e;
+  margin-bottom: 0.75rem;
+}
+
+.packageHeader p {
+  font-size: 1.1rem;
+  color: #64748b;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Grid Layout */
+.packageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 2.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.packageCard {
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid rgba(13, 148, 136, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+  background: #ffffff;
+}
+
+.packageCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(13, 148, 136, 0.08);
+}
+
+.packageCard__image {
+  position: relative;
+  height: 220px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.packageCard__body {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  position: relative;
+}
+
+.packageCard__icon {
+  position: absolute;
+  top: -24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  background: #0d9488;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.3);
+}
+
+.packageCard__body h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f766e;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.packageCard__body p {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  flex-grow: 1;
+}
+
+.packageCard__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1.25rem;
+}
+
+.packageCard__price {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #b45309;
+}
+
+.packageCard__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0d9488;
+  text-decoration: none;
+  transition: gap 0.2s ease;
+}
+
+.packageCard__btn:hover {
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .packageHeader h1 {
+    font-size: 1.8rem;
+  }
+  
+  .packageGrid {
+    grid-template-columns: 1fr;
+  }
+}
