@@ -2,12 +2,12 @@ import mysql from 'mysql2/promise'
 
 export async function queryErDb(sql: string, params: any[] = []) {
   const connection = await mysql.createConnection({
-    host: '192.168.1.4',
-    port: 3306,
-    user: 'guest',
-    password: 'guest',
-    database: 'hos',
-    charset: 'tis620',
+    host: process.env.ER_DB_HOST,
+    port: parseInt(process.env.ER_DB_PORT || '3306'),
+    user: process.env.ER_DB_USER,
+    password: process.env.ER_DB_PASSWORD,
+    database: process.env.ER_DB_NAME,
+    charset: process.env.ER_DB_CHARSET || 'tis620',
     connectTimeout: 5000, // 5 seconds timeout
   })
 

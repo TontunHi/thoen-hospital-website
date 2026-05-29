@@ -1,0 +1,262 @@
+.memberLoginContainer {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  font-family: var(--font-ibm-thai), sans-serif;
+}
+
+/* Background elements for depth */
+.memberLoginContainer::before {
+  content: '';
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
+  top: 10%;
+  left: 10%;
+  z-index: 1;
+}
+
+.memberLoginContainer::after {
+  content: '';
+  position: absolute;
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+  bottom: 10%;
+  right: 10%;
+  z-index: 1;
+}
+
+.memberLoginCard {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  position: relative;
+  animation: slideUp 0.6s ease-out;
+}
+
+.memberLoginLogo {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.memberLoginLogo img {
+  display: block;
+  margin: 0 auto 15px auto;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
+}
+
+.memberLoginLogo h2 {
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  letter-spacing: 0.5px;
+}
+
+.memberLoginLogo p {
+  color: #a7f3d0;
+  font-size: 14px;
+  margin: 0;
+  opacity: 0.85;
+}
+
+.memberAlert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+.alert-danger {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.alert-success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #a7f3d0;
+}
+
+.memberLoginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.formInput {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #ffffff;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.formInput:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #34d399;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
+}
+
+.formInput:disabled {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.otpSection {
+  animation: slideUp 0.4s ease-out;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  padding-top: 20px;
+  margin-top: 5px;
+}
+
+.otpActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 5px;
+}
+
+.resendBtn {
+  background: none;
+  border: none;
+  color: #6ee7b7;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 5px 0;
+  transition: color 0.2s ease;
+  font-family: inherit;
+}
+
+.resendBtn:hover:not(:disabled) {
+  color: #34d399;
+  text-decoration: underline;
+}
+
+.resendBtn:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.editInfoBtn {
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 5px 0;
+  transition: color 0.2s ease;
+  font-family: inherit;
+}
+
+.editInfoBtn:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.memberSubmitBtn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  font-family: inherit;
+}
+
+.memberSubmitBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+}
+
+.memberSubmitBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.memberSubmitBtn:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.memberLoginFooter {
+  text-align: center;
+  margin-top: 25px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 20px;
+}
+
+.memberLoginFooter a {
+  color: #a7f3d0;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.memberLoginFooter a:hover {
+  color: #ffffff;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

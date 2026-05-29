@@ -6,46 +6,7 @@ import Link from 'next/link'
 import './page.css'
 
 export default function SystemsPage() {
-  const [activeTab, setActiveTab] = useState<'internal' | 'moph' | 'dashboard'>('internal')
-
-  const internalSystems = [
-    {
-      title: 'โปรแกรมเงินเดือน',
-      desc: 'เข้าสู่ระบบเพื่อดูสลิปเงินเดือนและข้อมูลการจ่ายประจำเดือนสำหรับบุคลากรโรงพยาบาลเถิน',
-      link: '/salary/login',
-      btnText: 'ไปยังโปรแกรมเงินเดือน',
-    },
-    {
-      title: 'สถานะห้องฉุกเฉิน',
-      desc: 'แสดงข้อมูลและสถิติสถานะผู้ป่วยในห้องฉุกเฉินแบบเรียลไทม์ (รองรับการแสดงผลหน้าจอทีวี มือถือ และคอมพิวเตอร์)',
-      link: '/systems/er-status',
-      btnText: 'เปิดดูสถานะห้องฉุกเฉิน',
-    },
-    {
-      title: 'โปรแกรมโพสข่าวประชาสัมพันธ์',
-      desc: 'ระบบจัดการข่าวประชาสัมพันธ์ ข่าวรับสมัครงาน และข่าวกิจกรรมบนเว็บไซต์โรงพยาบาลเถิน',
-      link: '/admin',
-      btnText: 'จัดการข่าวประชาสัมพันธ์',
-    },
-    {
-      title: 'โปรแกรม COC Lampang',
-      desc: 'เชื่อมต่อระบบ COC โรงพยาบาลลำปาง สำหรับจัดการข้อมูลและการติดตามดูแลผู้ป่วยต่อเนื่อง',
-      link: 'http://coc.lph.go.th/',
-      btnText: 'ไปยังโปรแกรม COC Lampang',
-    },
-    {
-      title: 'ระบบ Back Office',
-      desc: 'เชื่อมต่อระบบ Back Office โรงพยาบาลเถิน สำหรับงานสารบรรณ พัสดุ ทรัพยากรบุคคล และการติดตามงาน',
-      link: 'https://11152.gtwoffice.com/',
-      btnText: 'ไปยังระบบ Back Office',
-    },
-    {
-      title: 'HDC Lampang',
-      desc: 'เชื่อมต่อคลังข้อมูลบริการสาธารณสุข (Health Data Center) จังหวัดลำปาง เพื่อการวิเคราะห์ข้อมูลและติดตามงาน',
-      link: 'https://hdc.moph.go.th/lpg/public/main',
-      btnText: 'ไปยัง HDC Lampang',
-    },
-  ]
+  const [activeTab, setActiveTab] = useState<'moph' | 'dashboard'>('moph')
 
   const mophServices = [
     {
@@ -128,6 +89,11 @@ export default function SystemsPage() {
       link: 'https://app.powerbi.com/view?r=eyJrIjoiNjUwYjIyZTgtYzllMC00YTM0LWJhNTItOTA2ZTY1OGJlOGVkIiwidCI6ImI3NmEyM2QzLThjZGYtNDNjMC1hNTNiLTYwYmNkMjM3OTg5NSIsImMiOjEwfQ%3D%3D',
     },
     {
+      title: 'สถานะห้องฉุกเฉิน (ภายนอก)',
+      desc: 'แสดงข้อมูลรายงานสถิติสถานะห้องฉุกเฉินสำหรับผู้รับบริการภายนอกโรงพยาบาลเถิน',
+      link: '/systems/er-out-status',
+    },
+    {
       title: 'ใบรับรองแพทย์ Digital',
       desc: 'ระบบแดชบอร์ดข้อมูลการออกเอกสารใบรับรองแพทย์ดิจิทัลอิเล็กทรอนิกส์',
       link: 'https://app.powerbi.com/view?r=eyJrIjoiM2Y0MTAwZjItZDYwNC00MmUyLTlmZjktM2I1MWM3YjY3MjRmIiwidCI6ImI3NmEyM2QzLThjZGYtNDNjMC1hNTNiLTYwYmNkMjM3OTg5NSIsImMiOjEwfQ%3D%3D',
@@ -177,61 +143,28 @@ export default function SystemsPage() {
   return (
     <div className="container systemsPage">
       <div className="systemsHeader">
-        <h1>💻 ระบบสารสนเทศ</h1>
+        <h1>ระบบสารสนเทศ</h1>
         <p>ศูนย์รวมลิงก์ระบบงานบริการสาธารณสุข และเครื่องมือสารสนเทศสำหรับบุคลากรโรงพยาบาลเถิน</p>
       </div>
 
       {/* Tabs Controller */}
       <div className="systemsTabs">
         <button 
-          className={`tabBtn ${activeTab === 'internal' ? 'active' : ''}`}
-          onClick={() => setActiveTab('internal')}
-        >
-          📂 ระบบงานภายใน
-        </button>
-        <button 
           className={`tabBtn ${activeTab === 'moph' ? 'active' : ''}`}
           onClick={() => setActiveTab('moph')}
         >
-          🏥 รวมบริการ MOPH
+          รวมบริการ MOPH
         </button>
         <button 
           className={`tabBtn ${activeTab === 'dashboard' ? 'active' : ''}`}
           onClick={() => setActiveTab('dashboard')}
         >
-          📊 DashBoard
+          DashBoard
         </button>
       </div>
 
       {/* Tab Contents */}
       <div className="tabContent">
-        
-        {/* 1. INTERNAL SYSTEMS */}
-        {activeTab === 'internal' && (
-          <div className="systemsGrid">
-            {internalSystems.map((sys, idx) => (
-              <div key={idx} className="systemCard card">
-                <div className="cardHeader">
-                  <div className="iconWrapper">
-                    <Image
-                      src="/images/logo-website.webp"
-                      alt="Logo"
-                      width={40}
-                      height={40}
-                    />
-                  </div>
-                  <h3>{sys.title}</h3>
-                </div>
-                <p>{sys.desc}</p>
-                <div className="cardActions">
-                  <a href={sys.link} target={sys.link.startsWith('http') ? '_blank' : '_self'} rel="noopener noreferrer" className="btn btn-primary btn-sm">
-                    {sys.btnText}
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* 2. MOPH SERVICES */}
         {activeTab === 'moph' && (
@@ -278,9 +211,15 @@ export default function SystemsPage() {
                 </div>
                 <p>{sys.desc}</p>
                 <div className="cardActions">
-                  <a href={sys.link} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
-                    เปิดดู Dashboard ↗
-                  </a>
+                  {sys.link.startsWith('http') ? (
+                    <a href={sys.link} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
+                      เปิดดู Dashboard ↗
+                    </a>
+                  ) : (
+                    <Link href={sys.link} className="btn btn-outline btn-sm">
+                      เปิดดู Dashboard ↗
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}

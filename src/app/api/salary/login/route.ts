@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     }), {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Set to false to allow login via HTTP on local network (intranet IP)
       sameSite: 'lax',
     })
 

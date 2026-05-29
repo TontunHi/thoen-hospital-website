@@ -172,6 +172,16 @@
   vertical-align: middle;
 }
 
+/* Patient table column widths optimization */
+.patientsTable th:nth-child(1), .patientsTable td:nth-child(1) { width: 90px; text-align: center; } /* เวลาที่เข้า */
+.patientsTable th:nth-child(2), .patientsTable td:nth-child(2) { width: 100px; text-align: center; } /* HN */
+.patientsTable th:nth-child(3), .patientsTable td:nth-child(3) { width: 220px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* ชื่อผู้ป่วย */
+.patientsTable th:nth-child(4), .patientsTable td:nth-child(4) { width: 80px; text-align: center; } /* อายุ */
+.patientsTable th:nth-child(5), .patientsTable td:nth-child(5) { width: 140px; text-align: center; } /* เตียงสังเกตอาการ */
+.patientsTable th:nth-child(6), .patientsTable td:nth-child(6) { width: 220px; text-align: center; } /* ระดับความเร่งด่วน */
+.patientsTable th:nth-child(7), .patientsTable td:nth-child(7) { width: 160px; text-align: center; } /* เตียงสังเกต (Observe) */
+
+
 /* Severity background styling */
 .patientsTable tr.level-1 { background-color: #ffebee; } /* Resuscitate */
 .patientsTable tr.level-2 { background-color: #fff3e0; } /* Emergency */
@@ -208,41 +218,92 @@
 .erMonthlyStatsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 2rem;
+  gap: 2.5rem;
+}
+
+.statsTableCard {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  padding: 2.25rem 2.5rem !important; /* Increased padding to move text away from the border */
+}
+
+.statsTableCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
 .statsTableCard h3 {
-  font-size: 1.2rem;
-  margin-bottom: 1.25rem;
-  border-bottom: 2px solid var(--primary-light);
-  padding-bottom: 0.5rem;
+  font-size: 1.25rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--gray-200);
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+/* Card specific top borders */
+.cardTypeGreen::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary);
+}
+.cardTypeRed::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #e53e3e;
+}
+.cardTypeTeal::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #008080;
 }
 
 .statsList {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .statsList li {
   display: flex;
   justify-content: space-between;
-  padding: 0.75rem 0;
+  align-items: center;
+  padding: 0.875rem 0.5rem; /* Increased padding inside items */
   border-bottom: 1px solid var(--gray-100);
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .statsList li:last-child {
   border-bottom: none;
 }
 
+.statsItemName {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
 .statsCount {
   font-weight: 700;
   color: var(--primary);
   background: var(--primary-light);
-  padding: 0.2rem 0.6rem;
+  padding: 0.35rem 0.85rem; /* Increased padding inside badges */
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
+}
+
+.statusLevelCount {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.statusDchCount {
+  background: #e0f2f1;
+  color: #00695c;
+}
+
+.noStatsText {
+  color: var(--gray-400);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 2rem 0;
 }
 
 /* TV Dashboard Mode Override */

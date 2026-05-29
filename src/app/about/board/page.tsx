@@ -182,9 +182,9 @@ export default function BoardOfDirectorsPage() {
           </div>
 
           <div className="policyFocusGrid">
-            <div className="focusBadge">✨ คุณภาพบริการ</div>
-            <div className="focusBadge">🛡️ ความปลอดภัยผู้ป่วย</div>
-            <div className="focusBadge">⚖️ ธรรมาภิบาล</div>
+            <div className="focusBadge">คุณภาพบริการ</div>
+            <div className="focusBadge">ความปลอดภัยผู้ป่วย</div>
+            <div className="focusBadge">ธรรมาภิบาล</div>
           </div>
 
           <div className="policyCardsGrid">
@@ -208,21 +208,21 @@ export default function BoardOfDirectorsPage() {
           <div className="policyGuidelines">
             <h3>แนวทางการปฏิบัติเพื่อขับเคลื่อนนโยบาย</h3>
             <ul className="guidelinesList">
-              <li>
-                <span className="guidelineBullet">❤️</span>
-                <p>บริการด้วยหัวใจและความเข้าใจ ให้ความสำคัญกับผู้ป่วยและญาติเป็นอันดับแรก</p>
+              <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span className="badge-number">1</span>
+                <p style={{ margin: 0 }}>บริการด้วยหัวใจและความเข้าใจ ให้ความสำคัญกับผู้ป่วยและญาติเป็นอันดับแรก</p>
               </li>
-              <li>
-                <span className="guidelineBullet">👥</span>
-                <p>ทำงานเป็นทีม สื่อสารชัดเจน เคารพบทบาทซึ่งกันและกัน</p>
+              <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span className="badge-number">2</span>
+                <p style={{ margin: 0 }}>ทำงานเป็นทีม สื่อสารชัดเจน เคารพบทบาทซึ่งกันและกัน</p>
               </li>
-              <li>
-                <span className="guidelineBullet">📊</span>
-                <p>ใช้ข้อมูลและเทคโนโลยีสนับสนุนการตัดสินใจอย่างแม่นยำ</p>
+              <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span className="badge-number">3</span>
+                <p style={{ margin: 0 }}>ใช้ข้อมูลและเทคโนโลยีสนับสนุนการตัดสินใจอย่างแม่นยำ</p>
               </li>
-              <li>
-                <span className="guidelineBullet">📈</span>
-                <p>ติดตามผลลัพธ์การให้บริการและพัฒนาปรับปรุงอย่างต่อเนื่อง</p>
+              <li style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span className="badge-number">4</span>
+                <p style={{ margin: 0 }}>ติดตามผลลัพธ์การให้บริการและพัฒนาปรับปรุงอย่างต่อเนื่อง</p>
               </li>
             </ul>
           </div>

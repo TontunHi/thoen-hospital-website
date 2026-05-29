@@ -35,18 +35,10 @@
   }
 }
 
-.contactInfoSection {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
 .card {
-  background: var(--white);
   padding: 2.5rem;
   border-radius: 12px;
   border: 1px solid var(--gray-200);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
 }
 
 @media (max-width: 768px) {
@@ -55,37 +47,78 @@
   }
 }
 
-.card h2 {
-  font-size: 1.4rem;
-  color: var(--gray-900);
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid var(--primary-light);
-  padding-bottom: 0.5rem;
+.contactInfoSection {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  animation: slideInLeft 0.8s ease forwards;
 }
 
-.addressText {
-  font-size: 1.05rem;
-  line-height: 1.7;
-  color: var(--gray-700);
-  margin-bottom: 1.5rem;
+.contactFormSection {
+  border-left: 5px solid var(--accent-gold);
+  background: linear-gradient(135deg, var(--white) 0%, var(--gray-50) 100%);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition), box-shadow var(--transition);
+  animation: slideInRight 0.8s ease forwards;
+}
+
+.contactFormSection:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.infoCard {
+  border-left: 5px solid var(--primary);
+  background: linear-gradient(135deg, var(--white) 0%, var(--gray-50) 100%);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.infoCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
 .infoItems {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .infoItem {
   display: flex;
-  gap: 1rem;
-  align-items: start;
+  gap: 1.25rem;
+  align-items: center;
+  padding: var(--space-4);
+  background: var(--white);
+  border-radius: 8px;
+  border: 1px solid var(--gray-100);
+  transition: all var(--transition);
+}
+
+.infoItem:hover {
+  transform: translateX(4px);
+  border-color: var(--primary-light);
+  box-shadow: var(--shadow-sm);
 }
 
 .infoIcon {
-  font-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary) !important;
+  padding: 10px;
   flex-shrink: 0;
-  margin-top: 0.1rem;
+  transition: all var(--transition);
+}
+
+.infoItem:hover .infoIcon {
+  background: var(--primary);
+  color: var(--white) !important;
 }
 
 .infoItem strong {
@@ -110,10 +143,10 @@
 
 /* Form Styles */
 .formSubtitle {
-  color: var(--gray-600);
+  color: var(--gray-500);
   font-size: 0.95rem;
-  margin-top: -1rem;
-  margin-bottom: 2rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
 }
 
 .formGroup {
@@ -197,40 +230,119 @@
 }
 
 /* Social & Maps Section */
-.socialMapSection {
-  margin-top: 3.5rem;
-  background: var(--white);
-}
-
 .socialMapGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  align-items: start;
+  gap: 2.5rem;
+  align-items: stretch;
 }
 
 @media (max-width: 900px) {
   .socialMapGrid {
     grid-template-columns: 1fr;
-    gap: 2.5rem;
+    gap: 2rem;
   }
+}
+
+.facebookEmbedCard,
+.googleMapEmbedCard {
+  padding: 2.5rem;
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-spring), box-shadow var(--transition-spring), border-color var(--transition-spring);
+}
+
+.facebookEmbedCard::before,
+.googleMapEmbedCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  transition: height var(--transition);
+}
+
+.facebookEmbedCard::before {
+  background: linear-gradient(90deg, #1877F2, #0d5dd6);
+}
+
+.googleMapEmbedCard::before {
+  background: linear-gradient(90deg, var(--accent-gold), var(--primary));
+}
+
+.facebookEmbedCard:hover,
+.googleMapEmbedCard:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--gray-300);
+}
+
+.facebookEmbedCard:hover::before,
+.googleMapEmbedCard:hover::before {
+  height: 6px;
+}
+
+.card-header-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.facebookEmbedCard .card-header-with-icon .text-primary {
+  color: #1877F2 !important;
+}
+
+.googleMapEmbedCard .card-header-with-icon .text-primary {
+  color: var(--accent-gold) !important;
+}
+
+.card-header-with-icon h2 {
+  font-size: 1.4rem;
+  color: var(--gray-900);
+  font-weight: 700;
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
 .sectionSub {
   font-size: 0.9rem;
-  color: var(--gray-600);
-  margin-top: -1rem;
-  margin-bottom: 1.5rem;
+  color: var(--gray-500);
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
 }
 
-.facebookWrapper {
+.facebookWrapper,
+.mapWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: 100%;
-  max-width: 500px;
-  margin: 0 auto;
+  height: 450px;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--gray-200);
-  background: #f8fafc;
+  border: 1px solid var(--gray-100);
+  background: #fbfcfb;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  flex-grow: 1;
+  transition: border-color var(--transition);
+}
+
+.facebookEmbedCard:hover .facebookWrapper {
+  border-color: #1877F240;
+}
+
+.googleMapEmbedCard:hover .mapWrapper {
+  border-color: var(--accent-gold-light);
 }
 

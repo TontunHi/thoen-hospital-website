@@ -6,8 +6,6 @@ import ImageGallery from '@/components/ImageGallery'
 import ViewCounter from '@/components/ViewCounter'
 import './page.css'
 
-export const revalidate = 60 // Cache page for 60 seconds
-
 // Extract YouTube ID from various YouTube URL formats
 function getYouTubeId(url: string): string | null {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
@@ -18,15 +16,54 @@ function getYouTubeId(url: string): string | null {
 async function getNewsBySlug(slug: string) {
   try {
     const decodedSlug = decodeURIComponent(slug)
-    // Only allow active published news
-    return await prisma.news.findUnique({
+    // Query from the new schema
+    const news = await prisma.news.findUnique({
       where: { slug: decodedSlug },
       include: {
-        images: {
-          orderBy: { order: 'asc' }
-        }
+        attachments: true
       }
     })
+
+    if (!news) return null
+
+    // Adapt structure for the views compatibility
+    const now = new Date()
+    const imageAttachments = news.attachments.filter((att: any) => 
+      att.fileType && att.fileType.startsWith('image/')
+    )
+    const images = imageAttachments.map((att: any) => ({
+      id: att.id,
+      imageUrl: att.filePath,
+      order: 0
+    }))
+
+    const pdfAttachment = news.attachments.find((att: any) => 
+      att.fileType === 'application/pdf'
+    )
+
+    let status = 'PUBLISHED'
+    if (news.startDate > now) {
+      status = 'DRAFT'
+    } else if (news.endDate < now) {
+      status = 'ARCHIVED'
+    }
+
+    return {
+      id: news.id,
+      title: news.title,
+      slug: news.slug,
+      excerpt: '',
+      content: '', // No content field in DB
+      youtubeUrl: news.youtubeLink,
+      pdfUrl: pdfAttachment ? pdfAttachment.filePath : null,
+      status,
+      category: news.category,
+      views: news.viewCount || 0,
+      publishedAt: news.startDate,
+      createdAt: news.createdAt,
+      updatedAt: news.updatedAt,
+      images
+    }
   } catch (error) {
     console.error('Failed to get news detail:', error)
     return null
@@ -93,22 +130,6 @@ export default async function NewsDetailPage(
           </div>
         </header>
 
-        {/* 1. Excerpt (บทคัดย่อ) */}
-        {news.excerpt && (
-          <div className="newsDetailExcerpt" style={{
-            fontSize: '1.15rem',
-            lineHeight: '1.7',
-            color: 'var(--text-color)',
-            opacity: 0.85,
-            fontWeight: '600',
-            borderLeft: '4px solid var(--primary)',
-            paddingLeft: '1rem',
-            margin: '1.5rem 0'
-          }}>
-            <p>{news.excerpt}</p>
-          </div>
-        )}
-
         {/* 2. Content (เนื้อหา) */}
         {news.content && (
           <div className="newsDetailBody">
@@ -122,7 +143,7 @@ export default async function NewsDetailPage(
         {news.pdfUrl && (
           <div className="pdfSection">
             <div className="pdfHeader">
-              <h3>📄 เอกสารแนบประชาสัมพันธ์ (PDF)</h3>
+              <h3>เอกสารแนบประชาสัมพันธ์ (PDF)</h3>
               <div className="pdfActions">
                 <a
                   href={news.pdfUrl}
@@ -130,14 +151,14 @@ export default async function NewsDetailPage(
                   rel="noopener noreferrer"
                   className="btn btn-outline btn-sm"
                 >
-                  🌐 เปิดอ่านแยกหน้า
+                  เปิดอ่านแยกหน้า
                 </a>
                 <a
                   href={news.pdfUrl}
                   download
                   className="btn btn-primary btn-sm"
                 >
-                  📥 ดาวน์โหลด PDF
+                  ดาวน์โหลด PDF
                 </a>
               </div>
             </div>
@@ -162,7 +183,7 @@ export default async function NewsDetailPage(
         {/* 5. Video (vdo - YouTube) */}
         {youtubeId && (
           <div className="youtubeSection">
-            <h3>🎥 วิดีโอที่เกี่ยวข้อง</h3>
+            <h3>วิดีโอที่เกี่ยวข้อง</h3>
             <div className="youtubeWrapper">
               <iframe
                 src={`https://www.youtube.com/embed/${youtubeId}`}

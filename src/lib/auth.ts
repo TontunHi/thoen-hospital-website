@@ -42,7 +42,7 @@ export async function createSession(adminId: number): Promise<void> {
 
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to false to allow login via HTTP on local network (intranet IP)
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_MAX_AGE,

@@ -11,18 +11,14 @@ export default function AboutPage() {
   return (
     <div className="container aboutPage">
       <div className="aboutHeader">
-        <h1>🏥 เกี่ยวกับเรา</h1>
+        <h1>เกี่ยวกับเรา</h1>
         <p>โรงพยาบาลเถิน มุ่งมั่นให้บริการด้านการแพทย์และส่งเสริมสุขภาพอย่างมีมาตรฐานเพื่อประชาชน</p>
       </div>
 
       <div className="aboutGrid">
         {/* History card */}
         <div className="aboutCard card">
-          <Link href="/about/history" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <h2 className="hover-link-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-              📜 ประวัติความเป็นมา <span style={{ fontSize: '1rem', color: 'var(--primary)' }}>➔</span>
-            </h2>
-          </Link>
+          <h2>ประวัติความเป็นมา</h2>
           <p>
             โรงพยาบาลเถิน จังหวัดลำปาง ตั้งอยู่ในอำเภอเถิน เป็นโรงพยาบาลชุมชนขนาด 90 เตียง สังกัดกระทรวงสาธารณสุข 
             ให้บริการครอบคลุมพื้นที่การแพทย์และการสาธารณสุขแก่ประชาชนอำเภอเถินและพื้นที่เขตติดต่อใกล้เคียง
@@ -31,11 +27,16 @@ export default function AboutPage() {
             เรามีการพัฒนาโครงสร้างพื้นฐาน บริการทางการแพทย์เฉพาะทาง ระบบการส่งต่อผู้ป่วยฉุกเฉินที่มีประสิทธิภาพ 
             และการขยายเครือข่ายความร่วมมือกับ รพ.สต. และหน่วยงานท้องถิ่นอย่างต่อเนื่อง เพื่อให้ตอบสนองต่อทุกมิติทางด้านสุขภาพของพี่น้องประชาชนในพื้นที่
           </p>
+          <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
+            <Link href="/about/history" className="btn btn-primary btn-sm">
+              อ่านประวัติความเป็นมา
+            </Link>
+          </div>
         </div>
 
         {/* Vision & Mission card */}
         <div className="aboutCard card bg-primary-light">
-          <h2>🎯 วิสัยทัศน์ & พันธกิจ</h2>
+          <h2>วิสัยทัศน์ & พันธกิจ</h2>
           <div className="visionSection">
             <h3>วิสัยทัศน์ (Vision)</h3>
             <blockquote>
@@ -53,7 +54,7 @@ export default function AboutPage() {
           </div>
           <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
             <Link href="/about/vision-mission" className="btn btn-primary btn-sm">
-              ดูวิสัยทัศน์ ค่านิยม T-H-O-E-N แบบเต็ม ➔
+              ดูวิสัยทัศน์ ค่านิยม T-H-O-E-N แบบเต็ม
             </Link>
           </div>
         </div>
@@ -71,11 +72,6 @@ export default function AboutPage() {
               style={{ objectFit: 'cover', borderRadius: '12px' }}
               priority
             />
-            <div style={{ marginTop: '1.25rem' }}>
-              <Link href="/about/board" className="btn btn-outline btn-sm" style={{ display: 'block', textAlign: 'center', width: '100%', padding: '0.6rem' }}>
-                👥 คณะกรรมการบริหารโรงพยาบาล
-              </Link>
-            </div>
           </div>
           <div className="directorProfileContent">
             <span className="profileBadge">ผู้อำนวยการโรงพยาบาล</span>
@@ -90,6 +86,11 @@ export default function AboutPage() {
                 "ทีมสหสาขาวิชาชีพพร้อมให้บริการด้วยมาตรฐานความปลอดภัย พร้อมขยายเครือข่ายความร่วมมือกับหน่วยงานท้องถิ่น 
                 เพื่อยกระดับคุณภาพชีวิตของประชาชนในพื้นที่"
               </p>
+            </div>
+            <div style={{ marginTop: '1.5rem', textAlign: 'right' }}>
+              <Link href="/about/board" className="btn btn-outline btn-sm">
+                คณะกรรมการบริหารโรงพยาบาล
+              </Link>
             </div>
           </div>
         </div>

@@ -341,3 +341,66 @@
     border-radius: var(--radius-md);
   }
 }
+
+/* Member Login & Status styles */
+.navbar__login-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary, #059669);
+  background: var(--white, #ffffff);
+  border: 1.5px solid var(--primary, #059669);
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.navbar__login-btn:hover {
+  background: var(--primary, #059669);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.2);
+  transform: translateY(-1px);
+}
+
+.navbar__member-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  border-radius: 50px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.15);
+}
+
+.navbar__member-btn:hover {
+  background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+  transform: translateY(-1px);
+  color: #ffffff;
+}
+
+.navbar__member-icon {
+  font-size: 14px;
+}
+
+.navbar__member-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .navbar__cta-desktop {
+    display: none;
+  }
+}
+

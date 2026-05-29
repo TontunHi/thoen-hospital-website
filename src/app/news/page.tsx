@@ -1,45 +1,27 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { prisma } from '@/lib/prisma'
 import './page.css'
-
-export const revalidate = 60 // Cache for 60 seconds
 
 async function getNewsList(page: number, limit: number, category?: string) {
   try {
-    const skip = (page - 1) * limit
-    const now = new Date()
-
-    const where: any = {
-      status: 'PUBLISHED',
-      publishedAt: {
-        lte: now
-      }
+    // Call the adapted API route instead of directly querying the DB with outdated columns
+    // We fetch using the full URL protocol + host to ensure it runs correctly on SSR
+    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+    const host = process.env.HOST || 'localhost:3000'
+    const catQuery = category ? `&category=${category}` : ''
+    const res = await fetch(`${protocol}://${host}/api/news?page=${page}&limit=${limit}${catQuery}`, {
+      next: { revalidate: 60 }
+    })
+    
+    if (!res.ok) {
+      throw new Error('Failed to fetch news from API')
     }
 
-    if (category) {
-      where.category = category
+    const data = await res.json()
+    return {
+      news: data.news || [],
+      total: data.pagination?.total || 0
     }
-
-    const [news, total] = await Promise.all([
-      prisma.news.findMany({
-        where,
-        orderBy: { publishedAt: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          images: {
-            orderBy: { order: 'asc' },
-            take: 1
-          }
-        }
-      }),
-      prisma.news.count({
-        where
-      })
-    ])
-
-    return { news, total }
   } catch (error) {
     console.error('Fetch news error:', error)
     return { news: [], total: 0 }
@@ -73,7 +55,7 @@ export default async function NewsListPage(props: {
   return (
     <div className="container newsListPage">
       <div className="newsListHeader">
-        <h1>📰 {categoryTitle}</h1>
+        <h1>{categoryTitle}</h1>
         <p>ติดตามข่าวสารกิจกรรม ผลงาน และข้อมูลข่าวประชาสัมพันธ์ล่าสุดจากโรงพยาบาลเถิน</p>
       </div>
 
@@ -97,11 +79,11 @@ export default async function NewsListPage(props: {
                       <div className="newsCardPlaceholder">
                         {item.pdfUrl ? (
                           <div className="pdfPlaceholderContent">
-                            <span className="placeholderIcon">📄</span>
+                            <span className="placeholderIcon">PDF</span>
                             <span className="placeholderText">ข่าวแนบเอกสาร PDF</span>
                           </div>
                         ) : (
-                          <span className="placeholderIcon">📰</span>
+                          <span className="placeholderIcon">ข่าว</span>
                         )}
                       </div>
                     )}
@@ -157,7 +139,6 @@ export default async function NewsListPage(props: {
         </>
       ) : (
         <div className="newsEmptyState">
-          <span className="emptyIcon">📭</span>
           <h3>ยังไม่มีข่าวประชาสัมพันธ์</h3>
           <p>ในขณะนี้ยังไม่มีข้อมูลข่าวสารเผยแพร่ กรุณากลับมาติดตามข่าวสารใหม่ในภายหลัง</p>
         </div>

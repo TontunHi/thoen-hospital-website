@@ -371,6 +371,27 @@ a:hover {
   color: var(--accent-gold-dark);
 }
 
+.badge-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  margin-right: var(--space-2);
+  flex-shrink: 0;
+}
+
+.header-accent {
+  position: relative;
+  padding-left: var(--space-4);
+  border-left: 4px solid var(--primary);
+}
+
 /* Text utilities */
 .text-primary { color: var(--primary); }
 .text-gold { color: var(--accent-gold); }

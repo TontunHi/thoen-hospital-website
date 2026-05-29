@@ -1,26 +1,82 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { 
+  Activity, 
+  Stethoscope, 
+  HeartPulse, 
+  Smile, 
+  Accessibility, 
+  FlaskConical,
+  Phone,
+  MessageSquare,
+  MapPin,
+  Newspaper
+} from 'lucide-react';
 import './page.css';
+
+const FacebookIcon = (props: React.SVGProps<SVGSVGElement> & { size?: number }) => (
+  <svg 
+    width={props.size || 24} 
+    height={props.size || 24} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    {...props}
+  >
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+  </svg>
+);
 
 async function getLatestNews() {
   try {
-    const newsList = await prisma.news.findMany({
+    const now = new Date()
+    const news = await prisma.news.findMany({
       where: {
-        status: 'PUBLISHED',
-        publishedAt: {
-          lte: new Date()
-        }
+        startDate: { lte: now },
+        endDate: { gte: now }
       },
-      orderBy: { publishedAt: 'desc' },
+      orderBy: { startDate: 'desc' },
       take: 20,
       include: {
-        images: {
-          orderBy: { order: 'asc' },
-          take: 1
-        }
+        attachments: true
       }
-    });
+    })
+
+    const newsList = news.map((item: any) => {
+      const imageAttachments = item.attachments.filter((att: any) => 
+        att.fileType && att.fileType.startsWith('image/')
+      )
+      const images = imageAttachments.map((att: any) => ({
+        id: att.id,
+        imageUrl: att.filePath,
+        order: 0
+      }))
+
+      const pdfAttachment = item.attachments.find((att: any) => 
+        att.fileType === 'application/pdf'
+      )
+
+      return {
+        id: item.id,
+        title: item.title,
+        slug: item.slug,
+        excerpt: '',
+        content: '',
+        youtubeUrl: item.youtubeLink,
+        pdfUrl: pdfAttachment ? pdfAttachment.filePath : null,
+        status: 'PUBLISHED',
+        category: item.category,
+        views: item.viewCount || 0,
+        publishedAt: item.startDate,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        images
+      }
+    })
 
     const selected: typeof newsList = [];
     const usedCategories = new Set<string>();
@@ -49,8 +105,9 @@ async function getLatestNews() {
     }
 
     return selected;
-  } catch {
-    return [] as any[];
+  } catch (error) {
+    console.error('Fetch news error:', error)
+    return [];
   }
 }
 
@@ -60,72 +117,32 @@ const services = [
   {
     title: 'ห้องฉุกเฉิน',
     desc: 'ให้บริการ 24 ชั่วโมง พร้อมทีมแพทย์และพยาบาลเฉพาะทาง',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 19H5c-1 0-2-1-2-2V7c0-1 1-2 2-2h14c1 0 2 1 2 2v10c0 1-1 2-2 2h-3"/>
-        <path d="M12 4v4"/>
-        <path d="M10 6h4"/>
-        <path d="M9 19l3-3 3 3"/>
-        <rect x="8" y="15" width="8" height="6" rx="1"/>
-      </svg>
-    ),
+    icon: Activity
   },
   {
     title: 'คลินิกเฉพาะทาง',
     desc: 'ตรวจรักษาโดยแพทย์ผู้เชี่ยวชาญเฉพาะทางหลากหลายสาขา',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
-        <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/>
-        <circle cx="20" cy="10" r="2"/>
-      </svg>
-    ),
+    icon: Stethoscope
   },
   {
     title: 'ส่งเสริมสุขภาพ',
     desc: 'บริการตรวจสุขภาพ สร้างเสริมภูมิคุ้มกัน และให้ความรู้ด้านสุขภาพ',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-        <path d="M12 5v6"/>
-        <path d="M9 8h6"/>
-      </svg>
-    ),
+    icon: HeartPulse
   },
   {
     title: 'ทันตกรรม',
     desc: 'บริการทันตกรรมครบวงจร ทั้งอุดฟัน ถอนฟัน ขูดหินปูน และทันตกรรมเด็ก',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 5.5C10 3 7.5 2.5 6 3c-2.4.8-3.5 3.5-2 7 1 2.5 2 4.5 2.5 7.5.3 1.5.5 3 1.5 3s1.5-1.5 2-3c.3-1 .5-1.5 1-1.5h2c.5 0 .7.5 1 1.5.5 1.5 1 3 2 3s1.2-1.5 1.5-3c.5-3 1.5-5 2.5-7.5 1.5-3.5.4-6.2-2-7-.5-.2-1-.2-1.5-.1"/>
-      </svg>
-    ),
+    icon: Smile
   },
   {
     title: 'กายภาพบำบัด',
     desc: 'ฟื้นฟูสมรรถภาพร่างกาย โดยนักกายภาพบำบัดผู้เชี่ยวชาญ',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="5" r="3"/>
-        <path d="M12 8v4"/>
-        <path d="M8 12h8"/>
-        <path d="M10 16l-2 6"/>
-        <path d="M14 16l2 6"/>
-        <path d="M8 12l-4 3"/>
-        <path d="M16 12l4 3"/>
-      </svg>
-    ),
+    icon: Accessibility
   },
   {
     title: 'ห้องปฏิบัติการ',
     desc: 'ตรวจวิเคราะห์ทางห้องปฏิบัติการด้วยเครื่องมือที่ทันสมัย',
-    icon: (
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 2h6"/>
-        <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
-        <path d="M8.5 14.5h7"/>
-      </svg>
-    ),
+    icon: FlaskConical
   },
 ];
 
@@ -149,9 +166,6 @@ export default async function HomePage() {
         </div>
         <div className="container hero__content">
           <div className="hero__badge">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-            </svg>
             ดูแลสุขภาพชุมชน ด้วยหัวใจ
           </div>
           <h1 className="hero__title">
@@ -197,13 +211,19 @@ export default async function HomePage() {
             <p>เรามุ่งเน้นให้บริการสุขภาพที่ครอบคลุมทุกด้าน เพื่อคุณภาพชีวิตที่ดีของชุมชน</p>
           </div>
           <div className="services-grid">
-            {services.map((service, i) => (
-              <div key={i} className="service-card card-glass">
-                <div className="service-card__icon">{service.icon}</div>
-                <h3 className="service-card__title">{service.title}</h3>
-                <p className="service-card__desc">{service.desc}</p>
-              </div>
-            ))}
+            {services.map((service, i) => {
+              const IconComponent = service.icon;
+              return (
+                <div key={i} className="service-card card-glass">
+                  <div className="service-card__accent" />
+                  <div className="service-card__icon-container">
+                    <IconComponent className="service-card__icon" size={28} />
+                  </div>
+                  <h3 className="service-card__title">{service.title}</h3>
+                  <p className="service-card__desc">{service.desc}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -229,9 +249,6 @@ export default async function HomePage() {
               <h2 className="director__name">พญ.นฤนาท จอมภาปิน</h2>
               <p className="director__position">ผู้อำนวยการโรงพยาบาลเถิน</p>
               <blockquote className="director__quote">
-                <svg className="director__quote-icon" width="40" height="40" viewBox="0 0 24 24" fill="currentColor" opacity="0.15">
-                  <path d="M11.3 3.3a1 1 0 0 0-1.4 0l-6.6 6.6a1 1 0 0 0 0 1.4l.3.3c.2.2.5.3.7.3H8v5a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1H7.4l4.2-4.2a1 1 0 0 0-.3-1.4zm8 0a1 1 0 0 0-1.4 0l-6.6 6.6a1 1 0 0 0 0 1.4l.3.3c.2.2.5.3.7.3H16v5a2 2 0 0 0 2 2h1a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1h-3.6l4.2-4.2a1 1 0 0 0-.3-1.4z"/>
-                </svg>
                 <p>
                   โรงพยาบาลเถินมุ่งเน้นการพัฒนาระบบบริการให้ประชาชนได้รับการดูแลอย่างทั่วถึงและรวดเร็ว
                   ทั้งด้านการส่งต่อผู้ป่วยฉุกเฉิน การดูแลผู้ป่วยเรื้อรัง และการส่งเสริมสุขภาพในชุมชน
@@ -332,7 +349,10 @@ export default async function HomePage() {
         <div className="container">
           <div className="social-map-grid">
             <div className="facebook-embed-card card">
-              <h2>📱 ติดตามเราบน Facebook</h2>
+              <div className="card-header-with-icon">
+                <FacebookIcon className="text-primary" size={24} />
+                <h2>ติดตามเราบน Facebook</h2>
+              </div>
               <p className="section-sub">เกาะติดข่าวสารและกิจกรรมผ่าน Facebook Fanpage</p>
               <div className="facebook-wrapper">
                 <iframe
@@ -350,7 +370,10 @@ export default async function HomePage() {
             </div>
 
             <div className="google-map-embed-card card">
-              <h2>🗺️ แผนที่และการเดินทาง</h2>
+              <div className="card-header-with-icon">
+                <MapPin className="text-primary" size={24} />
+                <h2>แผนที่และการเดินทาง</h2>
+              </div>
               <p className="section-sub">แผนที่แสดงพิกัดนำทางโรงพยาบาลเถิน จังหวัดลำปาง</p>
               <div className="map-wrapper">
               <iframe
@@ -379,12 +402,11 @@ export default async function HomePage() {
           </p>
           <div className="cta__actions">
             <a href="tel:054292016" className="btn btn-white btn-lg">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-              </svg>
+              <Phone size={20} />
               โทร 054-292016
             </a>
             <Link href="/contact" className="btn btn-gold btn-lg">
+              <MessageSquare size={20} />
               ส่งข้อความถึงเรา
             </Link>
           </div>

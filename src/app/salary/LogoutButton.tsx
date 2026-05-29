@@ -27,7 +27,7 @@ export default function LogoutButton() {
       className="btn btn-outline btn-sm salaryLogoutBtn"
       disabled={loading}
     >
-      {loading ? 'กำลังออก...' : '🚪 ออกจากระบบ'}
+      {loading ? 'กำลังออก...' : 'ออกจากระบบ'}
     </button>
   )
 }

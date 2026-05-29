@@ -2,6 +2,8 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
+import { LayoutDashboard, Newspaper, Mail, ArrowLeft, LogOut } from 'lucide-react'
 import './layout.css'
 
 export default function AdminLayout({
@@ -18,6 +20,7 @@ export default function AdminLayout({
   }
 
   const handleLogout = async () => {
+    if (!confirm('ยืนยันว่าต้องการออกจากระบบใช่หรือไม่?')) return
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
       router.push('/login')
@@ -27,17 +30,27 @@ export default function AdminLayout({
   }
 
   const navItems = [
-    { href: '/admin', label: 'แดชบอร์ด', icon: '📊' },
-    { href: '/admin/news', label: 'ข่าวสาร', icon: '📰' },
-    { href: '/admin/contacts', label: 'ข้อความติดต่อ', icon: '✉️' },
+    { href: '/admin', label: 'แดชบอร์ด', icon: LayoutDashboard },
+    { href: '/admin/news', label: 'ข่าวสาร', icon: Newspaper },
   ]
 
   return (
     <div className="adminLayout">
       <aside className="sidebar">
         <div className="sidebarHeader">
-          <h2>🏥 รพ.เถิน</h2>
-          <p>ระบบจัดการเว็บไซต์</p>
+          <div className="sidebarLogoContainer">
+            <Image
+              src="/images/logo-website.webp"
+              alt="โรงพยาบาลเถิน"
+              width={64}
+              height={64}
+              className="sidebarLogo"
+              priority
+            />
+            <div className="sidebarHospitalName">โรงพยาบาลเถิน</div>
+          </div>
+          <h2>ระบบจัดการเว็บไซต์</h2>
+          <p>Thoen Hospital Admin Panel</p>
         </div>
 
         <nav className="sidebarNav">
@@ -46,36 +59,39 @@ export default function AdminLayout({
               item.href === '/admin'
                 ? pathname === '/admin'
                 : pathname.startsWith(item.href)
+            const Icon = item.icon
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`navLink ${isActive ? 'navLinkActive' : ''}`}
               >
-                <span className="navIcon">{item.icon}</span>
-                {item.label}
+                <Icon size={18} className="navIcon" />
+                <span>{item.label}</span>
               </Link>
             )
           })}
 
           <div className="navDivider" />
 
-          <Link href="/" className="navLink">
-            <span className="navIcon">🌐</span>
-            กลับหน้าเว็บ
+          <Link href="/" className="navLink navLinkBack">
+            <ArrowLeft size={18} className="navIcon" />
+            <span>กลับหน้าเว็บหลัก</span>
           </Link>
         </nav>
 
         <div className="sidebarFooter">
           <button onClick={handleLogout} className="logoutButton">
-            <span className="navIcon">🚪</span>
-            ออกจากระบบ
+            <LogOut size={18} className="navIcon" />
+            <span>ออกจากระบบ</span>
           </button>
         </div>
       </aside>
 
       <main className="mainContent">
-        {children}
+        <div className="mainContentWrapper">
+          {children}
+        </div>
       </main>
     </div>
   )

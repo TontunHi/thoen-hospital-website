@@ -115,9 +115,9 @@ export default function SalaryDashboardPage() {
           <div className="salaryUserPanel">
             <div className="salaryUserInfo">
               <h2>ยินดีต้อนรับเข้าสู่ระบบข้อมูลเงินเดือน</h2>
-              <h1 className="salaryUserName">คุณ {displayName}</h1>
+              <h1 className="salaryUserName">{displayName}</h1>
               <p className="salaryUserRole">
-                🏥 บัญชีธนาคารเลขที่: <span className="highlight-text">{displayAccount}</span>
+                บัญชีธนาคารเลขที่: <span className="highlight-text">{displayAccount}</span>
                 {paymentDate && (
                   <> | วันที่เงินโอนเข้า: <span className="highlight-text">{formatThaiDate(paymentDate)}</span></>
                 )}
@@ -131,7 +131,7 @@ export default function SalaryDashboardPage() {
 
         {/* Filters Panel */}
         <section className="salaryFiltersCard card">
-          <h3>📅 เลือกช่วงเวลาตรวจสอบสลิป</h3>
+          <h3>เลือกช่วงเวลาตรวจสอบสลิป</h3>
           <div className="filtersGrid">
             <div className="filterGroup">
               <label htmlFor="yearFilter">ประจำปี พ.ศ.</label>
@@ -175,13 +175,13 @@ export default function SalaryDashboardPage() {
             className={`tabBtn ${activeTab === 'salary' ? 'active' : ''}`}
             onClick={() => setActiveTab('salary')}
           >
-            💰 รายละเอียดเงินเดือน
+            รายละเอียดเงินเดือน
           </button>
           <button 
             className={`tabBtn ${activeTab === 'ot' ? 'active' : ''}`}
             onClick={() => setActiveTab('ot')}
           >
-            ⏰ รายละเอียดค่าล่วงเวลา (OT)
+            รายละเอียดค่าล่วงเวลา (OT)
           </button>
         </div>
 
@@ -205,7 +205,7 @@ export default function SalaryDashboardPage() {
                   {/* Earnings Card */}
                   <div className="slipCard card earningCard">
                     <div className="slipCardHeader">
-                      <h3>📈 รายรับ (Earnings)</h3>
+                      <h3>รายรับ (Earnings)</h3>
                       <span className="totalPill totalEarning">+{salaryData.c11} บาท</span>
                     </div>
                     <ul className="slipList">
@@ -227,7 +227,7 @@ export default function SalaryDashboardPage() {
                   {/* Deductions Card */}
                   <div className="slipCard card deductionCard">
                     <div className="slipCardHeader">
-                      <h3>📉 รายจ่าย (Deductions)</h3>
+                      <h3>รายจ่าย (Deductions)</h3>
                       <span className="totalPill totalDeduction">-{salaryData.c25} บาท</span>
                     </div>
                     <ul className="slipList">
@@ -257,7 +257,7 @@ export default function SalaryDashboardPage() {
                 </div>
               ) : (
                 <div className="salaryEmptyPanel card">
-                  <div className="emptyIcon">📭</div>
+                  <div className="emptyIcon"></div>
                   <h3>ไม่พบข้อมูลสลิปเงินเดือน</h3>
                   <p>ไม่พบรายการข้อมูลเงินเดือนในช่วงเวลาประจำเดือน {selectedMonth} ปี พ.ศ. {selectedYear}</p>
                 </div>
@@ -272,7 +272,7 @@ export default function SalaryDashboardPage() {
                   {/* Earnings Card */}
                   <div className="slipCard card earningCard">
                     <div className="slipCardHeader">
-                      <h3>📈 รายรับ (Earnings)</h3>
+                      <h3>รายรับ (Earnings)</h3>
                       <span className="totalPill totalEarning">+{otData.c15} บาท</span>
                     </div>
                     <ul className="slipList">
@@ -298,7 +298,7 @@ export default function SalaryDashboardPage() {
                   {/* Deductions Card */}
                   <div className="slipCard card deductionCard">
                     <div className="slipCardHeader">
-                      <h3>📉 รายจ่าย (Deductions)</h3>
+                      <h3>รายจ่าย (Deductions)</h3>
                       <span className="totalPill totalDeduction">-{otData.c22} บาท</span>
                     </div>
                     <ul className="slipList">
@@ -331,7 +331,7 @@ export default function SalaryDashboardPage() {
                 </div>
               ) : (
                 <div className="salaryEmptyPanel card">
-                  <div className="emptyIcon">📭</div>
+                  <div className="emptyIcon"></div>
                   <h3>ไม่พบข้อมูลสลิปค่าล่วงเวลา (OT)</h3>
                   <p>ไม่พบรายการข้อมูลค่าล่วงเวลาในช่วงเวลาประจำเดือน {selectedMonth} ปี พ.ศ. {selectedYear}</p>
                 </div>

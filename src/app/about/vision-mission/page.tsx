@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import { Eye } from 'lucide-react'
 import './page.css'
 
 export const metadata: Metadata = {
@@ -16,16 +17,16 @@ export default function VisionMissionPage() {
   ]
 
   const missions = [
-    { label: 'Service', desc: 'พัฒนาระบบบริการสุขภาพตอบสนองความต้องการ 4 มิติ', icon: '🏥' },
-    { label: 'Quality', desc: 'พัฒนาคุณภาพการให้บริการทางคลินิก ลดแผนผังคลินิก และมาตรการที่เพิ่มขึ้น ด้านความปลอดภัยในโรงพยาบาล', icon: '🛡️' },
-    { label: 'Community', desc: 'ส่งเสริมระบบเครือข่ายชุมชนและประชาสังคม ให้มีส่วนร่วม ในสุขภาวะชุมชน', icon: '🤝' },
-    { label: 'Governance', desc: 'บริหารงานคลินิก โดยบุคลากรมีความสุข', icon: '⚖️' },
+    { label: 'Service', desc: 'พัฒนาระบบบริการสุขภาพตอบสนองความต้องการ 4 มิติ', icon: '' },
+    { label: 'Quality', desc: 'พัฒนาคุณภาพการให้บริการทางคลินิก ลดแผนผังคลินิก และมาตรการที่เพิ่มขึ้น ด้านความปลอดภัยในโรงพยาบาล', icon: '' },
+    { label: 'Community', desc: 'ส่งเสริมระบบเครือข่ายชุมชนและประชาสังคม ให้มีส่วนร่วม ในสุขภาวะชุมชน', icon: '' },
+    { label: 'Governance', desc: 'บริหารงานคลินิก โดยบุคลากรมีความสุข', icon: '' },
   ]
 
   const excellentPillars = [
     {
       title: 'PP&P Excellent',
-      icon: '🌱',
+      icon: '',
       items: [
         'ประชาชนมีสุขภาพดี มีสมรรถภาพด้านสุขภาพ',
         'เครื่องมือทางสุขภาพ ชุมชน และประชาสังคมเข้มแข็งในการสร้างเสริมสุขภาพ',
@@ -34,7 +35,7 @@ export default function VisionMissionPage() {
     },
     {
       title: 'Service Excellent',
-      icon: '✨',
+      icon: '',
       items: [
         'ระบบบริการสุขภาพมีคุณภาพ มาตรฐานและปลอดภัย',
         'บุคลากรมีทักษะและสมรรถนะที่จำเป็น มีอุปกรณ์ทางการแพทย์ครบถ้วน ปลอดภัย ไว้ใจได้',
@@ -43,7 +44,7 @@ export default function VisionMissionPage() {
     },
     {
       title: 'People Excellent',
-      icon: '👥',
+      icon: '',
       items: [
         'บุคลากรมีขีดสมรรถนะและสมรรถภาพตามมาตรฐานวิชาชีพ',
         'องค์กรแห่งความสุขและการใช้ชีวิตอย่างสมดุล (Happy Organization & Living)'
@@ -51,7 +52,7 @@ export default function VisionMissionPage() {
     },
     {
       title: 'Governance Excellent',
-      icon: '🏛️',
+      icon: '',
       items: [
         'บริหารจัดการด้วยข้อมูล (Data-driven)',
         'คุณธรรมและธรรมาภิบาลการบริหาร',
@@ -76,7 +77,9 @@ export default function VisionMissionPage() {
         {/* Core Vision & Mission */}
         <section className="sectionMain">
           <div className="visionCard">
-            <div className="visionIcon">👁️‍🗨️</div>
+            <div className="visionIcon">
+              <Eye size={36} style={{ color: 'var(--primary)' }} />
+            </div>
             <div className="visionContent">
               <h2>วิสัยทัศน์ (Vision)</h2>
               <p className="highlightText">
@@ -93,7 +96,7 @@ export default function VisionMissionPage() {
             <div className="missionGrid">
               {missions.map((m, idx) => (
                 <div key={idx} className="missionCard card">
-                  <div className="mIcon">{m.icon}</div>
+
                   <div className="mContent">
                     <h3>{m.label}</h3>
                     <p>{m.desc}</p>
@@ -139,11 +142,11 @@ export default function VisionMissionPage() {
                 <span className="targetGoal">สร้างความเชื่อมั่นและความสุขร่วมกัน</span>
               </div>
               <div className="pointsGrid">
-                <div className="pointItem">✨ บริการเป็นเลิศ</div>
-                <div className="pointItem">🌳 ชุมชนเข้มแข็ง</div>
-                <div className="pointItem">🏆 มาตรฐานคุณภาพ</div>
-                <div className="pointItem">❤️ บุคลากรมีความสุข</div>
-                <div className="pointItem">🚀 เป้าหมายระยะยาว</div>
+                <div className="pointItem">บริการเป็นเลิศ</div>
+                <div className="pointItem">ชุมชนเข้มแข็ง</div>
+                <div className="pointItem">มาตรฐานคุณภาพ</div>
+                <div className="pointItem">บุคลากรมีความสุข</div>
+                <div className="pointItem">เป้าหมายระยะยาว</div>
               </div>
             </div>
 
@@ -155,7 +158,6 @@ export default function VisionMissionPage() {
                 {excellentPillars.map((p, idx) => (
                   <div key={idx} className="accItem">
                     <div className="accHeader">
-                      <span className="accIcon">{p.icon}</span>
                       <h4>{p.title}</h4>
                     </div>
                     <ul className="accList">
@@ -174,7 +176,7 @@ export default function VisionMissionPage() {
         <section className="sectionDetailsGrid">
           <div className="detailBox card">
             <div className="boxHeader">
-              <span className="boxIcon">🗺️</span>
+
               <h3>แผนพัฒนา</h3>
             </div>
             <div className="boxContent">
@@ -195,7 +197,7 @@ export default function VisionMissionPage() {
 
           <div className="detailBox card">
             <div className="boxHeader">
-              <span className="boxIcon">🎯</span>
+
               <h3>เข็มมุ่งความปลอดภัย</h3>
             </div>
             <div className="boxContent">

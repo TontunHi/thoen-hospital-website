@@ -8,13 +8,12 @@ import './page.css'
 export default function CreateNewsPage() {
   const router = useRouter()
   const [title, setTitle] = useState('')
-  const [excerpt, setExcerpt] = useState('')
-  const [content, setContent] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [pdfUrl, setPdfUrl] = useState('')
-  const [status, setStatus] = useState('DRAFT') // DRAFT, PUBLISHED, ARCHIVED
+  const [status, setStatus] = useState('PUBLISHED') 
   const [category, setCategory] = useState('PR') // PR, TRAINING, JOBS, KNOWLEDGE
   const [publishedAt, setPublishedAt] = useState('') // datetime-local string
+  const [expiredAt, setExpiredAt] = useState('') // datetime-local string
   const [images, setImages] = useState<string[]>([]) // multiple images array
   
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -101,13 +100,12 @@ export default function CreateNewsPage() {
     try {
       const payload = {
         title,
-        excerpt: excerpt || null,
-        content: content || null,
         youtubeUrl: youtubeUrl || null,
         pdfUrl: pdfUrl || null,
         status,
         category,
         publishedAt: publishedAt ? new Date(publishedAt).toISOString() : null,
+        expiredAt: expiredAt ? new Date(expiredAt).toISOString() : null,
         images,
       }
 
@@ -133,7 +131,7 @@ export default function CreateNewsPage() {
 
   return (
     <div className="newsFormPage">
-      <h1>➕ เพิ่มข่าวใหม่</h1>
+      <h1>เพิ่มข่าวใหม่</h1>
 
       {error && <div className="errorMessage">{error}</div>}
 
@@ -152,29 +150,7 @@ export default function CreateNewsPage() {
             />
           </div>
 
-          <div className="formGroup">
-            <label htmlFor="excerpt">บทคัดย่อ (ย่อหน้าสั้นแสดงในรายการข่าว)</label>
-            <textarea
-              id="excerpt"
-              className="formTextarea"
-              value={excerpt}
-              onChange={(e) => setExcerpt(e.target.value)}
-              placeholder="กรอกรายละเอียดสั้นๆ (ถ้าไม่กรอกระบบจะดึงจากเนื้อหาหลัก)"
-              style={{ minHeight: '80px' }}
-            />
-          </div>
-
-          <div className="formGroup">
-            <label htmlFor="content">เนื้อหาข่าวฉบับเต็ม</label>
-            <textarea
-              id="content"
-              className="formTextarea"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="เขียนเนื้อหาข่าวได้ที่นี่ (สามารถเว้นว่างได้หากแนบเอกสาร PDF หรือรูปภาพแทน)"
-              style={{ minHeight: '200px' }}
-            />
-          </div>
+          {/* Excerpt and Content inputs removed */}
 
           <div className="formRow">
             <div className="formGroup col-6">
@@ -201,7 +177,7 @@ export default function CreateNewsPage() {
               {uploadingPdf && <div className="uploadProgress">กำลังอัปโหลด PDF...</div>}
               {pdfUrl && (
                 <div className="pdfUploadedInfo">
-                  <span>📎 อัปโหลดสำเร็จ: </span>
+                  <span>อัปโหลดสำเร็จ: </span>
                   <a href={pdfUrl} target="_blank" rel="noopener noreferrer">ดูเอกสารที่แนบ</a>
                   <button type="button" className="removeFileBtn" onClick={() => setPdfUrl('')}>ลบ</button>
                 </div>
@@ -243,7 +219,7 @@ export default function CreateNewsPage() {
 
           <div className="formRow">
             <div className="formGroup col-6">
-              <label htmlFor="publishedAt">เวลาเผยแพร่ข่าวสาร (เลือกเวลาล่วงหน้าได้)</label>
+              <label htmlFor="publishedAt">เวลาเริ่มเผยแพร่ข่าวสาร (เริ่มแสดงผล)</label>
               <input
                 id="publishedAt"
                 type="datetime-local"
@@ -254,6 +230,21 @@ export default function CreateNewsPage() {
               <span className="fieldTip">เว้นว่างไว้หากต้องการเผยแพร่ทันที (ตามเวลาปัจจุบัน)</span>
             </div>
 
+            <div className="formGroup col-6">
+              <label htmlFor="expiredAt">เวลาสิ้นสุดการเผยแพร่ (วันหมดอายุข่าว) *</label>
+              <input
+                id="expiredAt"
+                type="datetime-local"
+                className="formInput"
+                value={expiredAt}
+                onChange={(e) => setExpiredAt(e.target.value)}
+                required
+              />
+              <span className="fieldTip">ข่าวจะหยุดแสดงผลหลังจากถึงช่วงเวลาที่ระบุนี้</span>
+            </div>
+          </div>
+
+          <div className="formRow">
             <div className="formGroup col-6">
               <label htmlFor="category">ประเภทข่าวสาร *</label>
               <select
@@ -269,9 +260,7 @@ export default function CreateNewsPage() {
                 <option value="KNOWLEDGE">ข่าวสารความรู้</option>
               </select>
             </div>
-          </div>
 
-          <div className="formRow">
             <div className="formGroup col-6">
               <label htmlFor="status">สถานะข่าวประชาสัมพันธ์</label>
               <select
@@ -282,7 +271,7 @@ export default function CreateNewsPage() {
               >
                 <option value="PUBLISHED">ลงข่าว (เผยแพร่ต่อสาธารณะ)</option>
                 <option value="DRAFT">ดราฟ (บันทึกร่างไว้แก้ไขต่อ)</option>
-                <option value="ARCHIVED">เก็บข่าวลงคลัง (ไม่แสดงบนเว็บหลัก)</option>
+                <option value="ARCHIVED">เก็บเข้าคลัง (ไม่แสดงบนหน้าเว็บหลัก)</option>
               </select>
             </div>
           </div>
@@ -293,7 +282,7 @@ export default function CreateNewsPage() {
               className="submitButton"
               disabled={loading || uploadingImage || uploadingPdf}
             >
-              {loading ? 'กำลังบันทึก...' : '💾 บันทึกข่าว'}
+              {loading ? 'กำลังบันทึก...' : 'บันทึกข่าว'}
             </button>
             <Link href="/admin/news" className="cancelButton">
               ยกเลิก

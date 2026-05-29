@@ -37,7 +37,7 @@ interface ERData {
   }
 }
 
-export default function ErStatusPage() {
+export default function ErInStatusPage() {
   const [data, setData] = useState<ERData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -71,16 +71,6 @@ export default function ErStatusPage() {
 
     return () => clearInterval(interval)
   }, [])
-
-  // Helper to format date/time
-  const getThaiDateTimeString = () => {
-    const d = new Date()
-    const months = [
-      'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-    ]
-    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear() + 543} เวลา ${d.toTimeString().split(' ')[0].substring(0, 5)} น.`
-  }
 
   // Toggle TV mode
   const toggleTvMode = () => {
@@ -120,12 +110,12 @@ export default function ErStatusPage() {
         {/* Dashboard Header */}
         <header className="erHeaderCard card">
           <div className="erTitleSection">
-            <h1>🚨 ระบบแสดงผลสถานะห้องฉุกเฉิน (ER Live Status)</h1>
+            <h1>ระบบแสดงผลสถานะห้องฉุกเฉิน (ER Live Status)</h1>
             <p className="erSubtitle">ข้อมูลอัปเดตเรียลไทม์เพื่อบริหารจัดการผู้ป่วย ณ จุดบริการฉุกเฉิน</p>
           </div>
           <div className="erControls">
             <button onClick={toggleTvMode} className="tvToggleBtn">
-              {isTvMode ? '📺 ปิดจอโหมดทีวี (TV Mode)' : '📺 เปิดจอโหมดทีวี (TV Mode)'}
+              {isTvMode ? 'ปิดจอโหมดทีวี (TV Mode)' : 'เปิดจอโหมดทีวี (TV Mode)'}
             </button>
           </div>
         </header>
@@ -133,9 +123,9 @@ export default function ErStatusPage() {
         {/* Critical Alert Warning Alert */}
         {hasCritical && (
           <section className="erAlertBanner">
-            <span className="alertIcon">🚨</span>
+            <span className="alertIcon"></span>
             <div className="alertMsg">
-              ⚠️ คำเตือน: ขณะนี้มีผู้ป่วยวิกฤตฉุกเฉินกู้ชีพ (Resuscitate Red Level) จำนวน {data?.summary.critical} ราย กำลังรับการช่วยเหลือ!
+              คำเตือน: ขณะนี้มีผู้ป่วยวิกฤตฉุกเฉินกู้ชีพ (Resuscitate Red Level) จำนวน {data?.summary.critical} ราย กำลังรับการช่วยเหลือ!
               <br />
               <span style={{ fontSize: '1rem', fontWeight: 'normal', opacity: 0.9 }}>
                 ทีมแพทย์และพยาบาลกำลังระดมกำลังให้การกู้ชีพอย่างเร่งด่วนที่สุด
@@ -175,11 +165,11 @@ export default function ErStatusPage() {
         {/* Active Patients Live Queue */}
         <section className="patientsListCard card">
           <h2 style={{ fontSize: '1.4rem', borderBottom: '2px solid var(--primary-light)', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>
-            👥 รายชื่อผู้ป่วยที่กำลังตรวจรักษาในห้องฉุกเฉิน ({activePatients.length} ราย)
+            รายชื่อผู้ป่วยที่กำลังตรวจรักษาในห้องฉุกเฉิน ({activePatients.length} ราย)
           </h2>
           
           {activePatients.length === 0 ? (
-            <p className="emptyPatientsMessage">📭 ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</p>
+            <p className="emptyPatientsMessage">ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</p>
           ) : (
             <div className="patientsTableWrapper">
               <table className="patientsTable">
@@ -237,44 +227,50 @@ export default function ErStatusPage() {
           <section className="erMonthlyStatsGrid">
             
             {/* 1. Monthly Pt Types */}
-            <div className="statsTableCard card">
-              <h3>📊 ประเภทผู้ป่วย (ประจำเดือนนี้)</h3>
+            <div className="statsTableCard card cardTypeGreen">
+              <h3>ประเภทผู้ป่วย (ประจำเดือนนี้)</h3>
               <ul className="statsList">
                 {data?.stats.ptTypes.map((pt, idx) => (
                   <li key={idx}>
-                    <span>{pt.name || 'ไม่ระบุประเภท'}</span>
+                    <span className="statsItemName">{pt.name || 'ไม่ระบุประเภท'}</span>
                     <span className="statsCount">{pt.v} ราย</span>
                   </li>
                 ))}
-                {data?.stats.ptTypes.length === 0 && <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>ไม่มีข้อมูลในเดือนนี้</p>}
+                {data?.stats.ptTypes.length === 0 && (
+                  <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+                )}
               </ul>
             </div>
 
             {/* 2. Monthly Emergency Levels */}
-            <div className="statsTableCard card">
-              <h3>🚨 สัดส่วนความรุนแรงผู้ป่วย (ประจำเดือนนี้)</h3>
+            <div className="statsTableCard card cardTypeRed">
+              <h3>สัดส่วนความรุนแรงผู้ป่วย (ประจำเดือนนี้)</h3>
               <ul className="statsList">
                 {data?.stats.emergencyLevels.map((el, idx) => (
                   <li key={idx}>
-                    <span>{el.er_emergency_level_name || 'ไม่ระบุความรุนแรง'}</span>
-                    <span className="statsCount" style={{ background: '#ffebee', color: '#c62828' }}>{el.v} ราย</span>
+                    <span className="statsItemName">{el.er_emergency_level_name || 'ไม่ระบุความรุนแรง'}</span>
+                    <span className="statsCount statusLevelCount">{el.v} ราย</span>
                   </li>
                 ))}
-                {data?.stats.emergencyLevels.length === 0 && <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>ไม่มีข้อมูลในเดือนนี้</p>}
+                {data?.stats.emergencyLevels.length === 0 && (
+                  <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+                )}
               </ul>
             </div>
 
             {/* 3. Monthly Discharge Types */}
-            <div className="statsTableCard card">
-              <h3>🏥 สถานะหลังออกจากห้องฉุกเฉิน (ประจำเดือนนี้)</h3>
+            <div className="statsTableCard card cardTypeTeal">
+              <h3>สถานะหลังออกจากห้องฉุกเฉิน (ประจำเดือนนี้)</h3>
               <ul className="statsList">
                 {data?.stats.dischargeTypes.map((dt, idx) => (
                   <li key={idx}>
-                    <span>{dt.name || 'ไม่ระบุการจำหน่าย'}</span>
-                    <span className="statsCount" style={{ background: '#e0f2f1', color: '#00695c' }}>{dt.v} ราย</span>
+                    <span className="statsItemName">{dt.name || 'ไม่ระบุการจำหน่าย'}</span>
+                    <span className="statsCount statusDchCount">{dt.v} ราย</span>
                   </li>
                 ))}
-                {data?.stats.dischargeTypes.length === 0 && <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>ไม่มีข้อมูลในเดือนนี้</p>}
+                {data?.stats.dischargeTypes.length === 0 && (
+                  <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+                )}
               </ul>
             </div>
             

@@ -1,0 +1,48 @@
+import { NextResponse } from 'next/server'
+import { verifyMemberSession } from '@/lib/memberAuth'
+import { queryMemberDb } from '@/lib/memberDb'
+
+export async function GET() {
+  try {
+    const session = await verifyMemberSession()
+
+    if (!session) {
+      return NextResponse.json(
+        { authenticated: false, error: 'ไม่ได้เข้าสู่ระบบหรือเซสชันหมดอายุ' },
+        { status: 401 }
+      )
+    }
+
+    // Retrieve fresh info from database (including salary credentials status)
+    const users = await queryMemberDb(
+      'SELECT username, email, salary_user, salary_pass FROM members WHERE username = ? AND email = ?',
+      [session.username, session.email]
+    )
+
+    if (!users || users.length === 0) {
+      return NextResponse.json(
+        { authenticated: false, error: 'ไม่พบข้อมูลผู้ใช้งานในระบบ' },
+        { status: 401 }
+      )
+    }
+
+    const user = users[0]
+
+    return NextResponse.json({
+      authenticated: true,
+      member: {
+        username: user.username,
+        email: user.email,
+        salary_user: user.salary_user,
+        salary_pass: user.salary_pass,
+        hasSalaryCredentials: !!(user.salary_user && user.salary_pass),
+      },
+    })
+  } catch (error: any) {
+    console.error('Member me route error:', error)
+    return NextResponse.json(
+      { error: 'เกิดข้อผิดพลาดในการตรวจสอบเซสชัน' },
+      { status: 500 }
+    )
+  }
+}

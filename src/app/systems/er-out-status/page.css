@@ -1,0 +1,265 @@
+.erStatusPage {
+  padding-top: calc(var(--navbar-height) + 2rem);
+  padding-bottom: 4rem;
+  background-color: var(--gray-50);
+  transition: all 0.3s ease;
+  min-height: 100vh;
+}
+
+.erContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Header & Controls */
+.erHeaderCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem 2rem;
+}
+
+.erTitleSection h1 {
+  font-size: 2rem;
+  color: var(--gray-900);
+  margin-bottom: 0.25rem;
+}
+
+.erSubtitle {
+  color: var(--gray-600);
+  font-size: 0.95rem;
+}
+
+.erControls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.lastUpdateText {
+  font-size: 0.9rem;
+  color: var(--gray-500);
+}
+
+/* Alert Banner */
+.erAlertBanner {
+  background: #ffebee;
+  border: 2px solid #ef5350;
+  border-radius: 12px;
+  padding: 1.25rem 2rem;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  animation: pulseBg 2s infinite ease-in-out;
+}
+
+.alertIcon {
+  font-size: 2.5rem;
+  animation: bounceAlert 1s infinite alternate;
+}
+
+.alertMsg {
+  color: #c62828;
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0;
+  flex: 1;
+}
+
+/* Summary Grid */
+.erSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.erStatCard {
+  text-align: center;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: var(--white);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s;
+}
+
+.erStatCard:hover {
+  transform: translateY(-2px);
+}
+
+.statVal {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--gray-900);
+  margin-bottom: 0.25rem;
+}
+
+.statLabel {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gray-600);
+}
+
+/* Severity specific counters */
+.erStatCard.criticalCard { border-left: 5px solid #d32f2f; }
+.erStatCard.criticalCard .statVal { color: #d32f2f; }
+
+.erStatCard.emergencyCard { border-left: 5px solid #f57c00; }
+.erStatCard.emergencyCard .statVal { color: #f57c00; }
+
+.erStatCard.urgencyCard { border-left: 5px solid #fbc02d; }
+.erStatCard.urgencyCard .statVal { color: #fbc02d; }
+
+.erStatCard.semiUrgencyCard { border-left: 5px solid #388e3c; }
+.erStatCard.semiUrgencyCard .statVal { color: #388e3c; }
+
+/* Monthly Stats Grid */
+.erMonthlyStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2.5rem;
+}
+
+.statsTableCard {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  padding: 2.25rem 2.5rem !important;
+}
+
+.statsTableCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.statsTableCard h3 {
+  font-size: 1.25rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--gray-200);
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+/* Card specific top borders */
+.cardTypeGreen::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary);
+}
+.cardTypeRed::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #e53e3e;
+}
+.cardTypeTeal::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #008080;
+}
+
+.statsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.statsList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 0.5rem;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 1rem;
+}
+
+.statsList li:last-child {
+  border-bottom: none;
+}
+
+.statsItemName {
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.statsCount {
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+}
+
+.statusLevelCount {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.statusDchCount {
+  background: #e0f2f1;
+  color: #00695c;
+}
+
+.noStatsText {
+  color: var(--gray-400);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+/* Animations */
+@keyframes pulseBg {
+  0% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 83, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0); }
+}
+
+@keyframes bounceAlert {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.2); }
+}
+
+/* Loading display styling */
+.erLoadingPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem;
+  gap: 1.5rem;
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+.erLoadingPanel .spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border-left-color: var(--primary);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Responsiveness adjustments for smaller devices */
+@media (max-width: 768px) {
+  .erHeaderCard {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+  }
+  .erTitleSection h1 {
+    font-size: 1.6rem;
+  }
+  .erControls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

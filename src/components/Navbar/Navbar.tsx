@@ -6,34 +6,11 @@ import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 import './Navbar.css';
 
-const navLinks = [
-  { href: '/', label: 'หน้าแรก' },
-  {
-    label: 'เกี่ยวกับเรา',
-    submenu: [
-      { href: '/about', label: 'ผู้บริหารโรงพยาบาล' },
-      { href: '/about/history', label: 'ประวัติความเป็นมา' },
-      { href: '/about/vision-mission', label: 'วิสัยทัศน์ ค่านิยม พันธกิจ' },
-      { href: '/about/board', label: 'คณะกรรมการบริหาร' },
-    ]
-  },
-  {
-    label: 'ข่าวสาร',
-    submenu: [
-      { href: '/news', label: 'ข่าวสารทั้งหมด' },
-      { href: '/news?category=PR', label: 'ข่าวสารประชาสัมพันธ์' },
-      { href: '/news?category=TRAINING', label: 'ประชุมอบรม / สัมมนา' },
-      { href: '/news?category=JOBS', label: 'ประกาศรับสมัครงาน' },
-      { href: '/news?category=KNOWLEDGE', label: 'ข่าวสารความรู้' },
-    ]
-  },
-  { href: '/systems', label: 'ระบบสารสนเทศ' },
-  { href: '/contact', label: 'ติดต่อเรา' },
-];
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [member, setMember] = useState<{ username: string } | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
@@ -48,6 +25,33 @@ export default function Navbar() {
 
   useEffect(() => {
     setIsOpen(false);
+  }, [pathname]);
+
+  // Check if member is logged in
+  useEffect(() => {
+    async function checkMember() {
+      try {
+        const res = await fetch('/api/member/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            setMember(data.member);
+          } else {
+            setMember(null);
+          }
+        } else {
+          setMember(null);
+        }
+      } catch (err) {
+        console.error('Failed to verify member session in navbar:', err);
+        setMember(null);
+      }
+    }
+    
+    // Only check if it's not administrative or salary systems
+    if (pathname && !pathname.startsWith('/admin') && !pathname.startsWith('/login') && !pathname.startsWith('/salary')) {
+      checkMember();
+    }
   }, [pathname]);
 
   useEffect(() => {
@@ -74,6 +78,40 @@ export default function Navbar() {
     }
     return !categoryParam;
   };
+
+  if (pathname && (pathname.startsWith('/admin') || pathname.startsWith('/salary'))) {
+    return null;
+  }
+
+  const navLinks = [
+    { href: '/', label: 'หน้าแรก' },
+    {
+      label: 'เกี่ยวกับเรา',
+      submenu: [
+        { href: '/about', label: 'ผู้บริหารโรงพยาบาล' },
+        { href: '/about/history', label: 'ประวัติความเป็นมา' },
+        { href: '/about/vision-mission', label: 'วิสัยทัศน์ ค่านิยม พันธกิจ' },
+        { href: '/about/board', label: 'คณะกรรมการบริหาร' },
+      ]
+    },
+    {
+      label: 'ข่าวสาร',
+      submenu: [
+        { href: '/news', label: 'ข่าวสารทั้งหมด' },
+        { href: '/news?category=PR', label: 'ข่าวสารประชาสัมพันธ์' },
+        { href: '/news?category=TRAINING', label: 'ประชุมอบรม / สัมมนา' },
+        { href: '/news?category=JOBS', label: 'ประกาศรับสมัครงาน' },
+        { href: '/news?category=KNOWLEDGE', label: 'ข่าวสารความรู้' },
+      ]
+    },
+  ];
+
+  navLinks.push({ href: '/systems', label: 'ระบบสารสนเทศ' });
+  navLinks.push({ href: '/contact', label: 'ติดต่อเรา' });
+
+  if (member) {
+    navLinks.push({ href: '/service', label: 'Service' });
+  }
 
   return (
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
@@ -132,9 +170,35 @@ export default function Navbar() {
               </li>
             );
           })}
+          {/* Member link inside mobile menu */}
+          <li className="navbar__cta-mobile">
+            {member ? (
+              <Link href="/member" className="btn btn-primary">
+                ระบบสมาชิก ({member.username})
+              </Link>
+            ) : (
+              <Link href="/member/login" className="btn btn-outline">
+                เข้าสู่ระบบสมาชิก
+              </Link>
+            )}
+          </li>
         </ul>
 
         <div className="navbar__actions">
+          {/* Member status on desktop */}
+          <div className="navbar__cta-desktop">
+            {member ? (
+              <Link href="/member" className="navbar__member-btn">
+                <span className="navbar__member-icon">👤</span>
+                <span className="navbar__member-name">{member.username}</span>
+              </Link>
+            ) : (
+              <Link href="/member/login" className="navbar__login-btn">
+                เข้าสู่ระบบสมาชิก
+              </Link>
+            )}
+          </div>
+
           <button
             className={`navbar__burger ${isOpen ? 'navbar__burger--active' : ''}`}
             onClick={() => setIsOpen(!isOpen)}

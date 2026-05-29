@@ -136,28 +136,47 @@
 }
 
 .service-card {
-  padding: var(--space-8);
+  position: relative;
+  padding: var(--space-10) var(--space-6) var(--space-6);
   text-align: center;
   cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
 }
 
-.service-card__icon {
+.service-card__accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: var(--gray-200);
+  transition: background var(--transition);
+}
+
+.service-card:hover .service-card__accent {
+  background: var(--primary);
+}
+
+.service-card__icon-container {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
-  background: linear-gradient(135deg, var(--primary-light), rgba(13, 116, 70, 0.08));
-  border-radius: var(--radius-xl);
+  width: 60px;
+  height: 60px;
+  background: var(--primary-light);
+  border-radius: 50%;
   color: var(--primary);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
   transition: all var(--transition);
 }
 
-.service-card:hover .service-card__icon {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+.service-card:hover .service-card__icon-container {
+  background: var(--primary);
   color: var(--white);
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .service-card__title {
@@ -472,18 +491,26 @@
   }
 
   .service-card {
-    padding: var(--space-6);
+    padding: var(--space-6) var(--space-6) var(--space-6) var(--space-8);
     display: flex;
+    flex-direction: row;
     align-items: center;
     gap: var(--space-4);
     text-align: left;
   }
 
-  .service-card__icon {
+  .service-card__accent {
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+  }
+
+  .service-card__icon-container {
     margin-bottom: 0;
     flex-shrink: 0;
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
   }
 
   .director {
@@ -564,44 +591,128 @@
 
 /* ===== SOCIAL & MAPS SECTION ===== */
 .social-map-section {
-  background: var(--gray-50);
+  background: linear-gradient(180deg, var(--gray-50) 0%, var(--white) 100%);
+  padding: var(--space-16) 0;
 }
 
 .social-map-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-8);
-  align-items: start;
+  gap: var(--space-10);
+  align-items: stretch;
 }
 
 @media (max-width: 900px) {
   .social-map-grid {
     grid-template-columns: 1fr;
-    gap: var(--space-6);
+    gap: var(--space-8);
   }
+}
+
+.facebook-embed-card,
+.google-map-embed-card {
+  padding: var(--space-10);
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-spring), box-shadow var(--transition-spring), border-color var(--transition-spring);
+}
+
+.facebook-embed-card::before,
+.google-map-embed-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  transition: height var(--transition);
+}
+
+.facebook-embed-card::before {
+  background: linear-gradient(90deg, #1877F2, #0d5dd6);
+}
+
+.google-map-embed-card::before {
+  background: linear-gradient(90deg, var(--accent-gold), var(--primary));
+}
+
+.facebook-embed-card:hover,
+.google-map-embed-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--gray-300);
+}
+
+.facebook-embed-card:hover::before,
+.google-map-embed-card:hover::before {
+  height: 6px;
+}
+
+.card-header-with-icon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.card-header-with-icon .text-primary {
+  color: var(--primary) !important;
+  flex-shrink: 0;
+}
+
+.facebook-embed-card .card-header-with-icon .text-primary {
+  color: #1877F2 !important;
+}
+
+.google-map-embed-card .card-header-with-icon .text-primary {
+  color: var(--accent-gold) !important;
+}
+
+.card-header-with-icon h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 
 .section-sub {
   font-size: var(--font-size-sm);
-  color: var(--gray-600);
-  margin-top: calc(-1 * var(--space-2));
+  color: var(--gray-500);
+  margin-top: 0;
   margin-bottom: var(--space-6);
+  line-height: 1.5;
 }
 
-.facebook-wrapper {
-  width: 100%;
-  max-width: 500px;
-  margin: 0 auto;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--gray-200);
-  background: #f8fafc;
-}
-
+.facebook-wrapper,
 .map-wrapper {
-  border-radius: var(--radius-lg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 450px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--gray-100);
+  background: #fbfcfb;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  flex-grow: 1;
+  transition: border-color var(--transition);
+}
+
+.facebook-embed-card:hover .facebook-wrapper {
+  border-color: #1877F240;
+}
+
+.google-map-embed-card:hover .map-wrapper {
+  border-color: var(--accent-gold-light);
 }
 

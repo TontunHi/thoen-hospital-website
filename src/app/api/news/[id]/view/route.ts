@@ -17,48 +17,18 @@ export async function POST(
       )
     }
 
-    // 1. Get Client IP Address
-    const xForwardedFor = request.headers.get('x-forwarded-for')
-    const ip = xForwardedFor 
-      ? xForwardedFor.split(',')[0].trim() 
-      : (request.headers.get('x-real-ip') || '127.0.0.1')
-
-    // 2. Check for existing view from this IP in the last 1 hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
-    
-    const recentView = await prisma.newsView.findFirst({
-      where: {
-        newsId,
-        ip,
-        viewedAt: {
-          gt: oneHourAgo
+    // In the new schema (hospital_news database), there is no newsView table to record IP logs.
+    // We will just directly increment view_count on the news table when called.
+    await prisma.news.update({
+      where: { id: newsId },
+      data: {
+        viewCount: {
+          increment: 1
         }
       }
     })
 
-    if (!recentView) {
-      // Record view log and increment view count in a transaction
-      await prisma.$transaction([
-        prisma.newsView.create({
-          data: {
-            newsId,
-            ip
-          }
-        }),
-        prisma.news.update({
-          where: { id: newsId },
-          data: {
-            views: {
-              increment: 1
-            }
-          }
-        })
-      ])
-
-      return NextResponse.json({ success: true, incremented: true })
-    }
-
-    return NextResponse.json({ success: true, incremented: false })
+    return NextResponse.json({ success: true, incremented: true })
   } catch (error) {
     console.error('Increment view error:', error)
     return NextResponse.json(

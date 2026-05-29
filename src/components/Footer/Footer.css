@@ -104,6 +104,12 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+.footer__contact-label {
+  font-weight: 600;
+  color: var(--accent-gold);
+  min-width: 60px;
+}
+
 .footer__contact svg {
   flex-shrink: 0;
   margin-top: 2px;

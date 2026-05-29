@@ -1,0 +1,107 @@
+.servicePage {
+  padding-top: calc(var(--navbar-height) + 3rem);
+  padding-bottom: 5rem;
+  font-family: var(--font-ibm-thai), sans-serif;
+}
+
+.serviceHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.serviceHeader h1 {
+  font-size: 2.5rem;
+  color: var(--primary);
+  margin-bottom: 0.75rem;
+}
+
+.serviceHeader p {
+  color: var(--gray-600);
+  font-size: 1.1rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.serviceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2rem;
+  animation: slideUp 0.4s ease-out;
+}
+
+.serviceCard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 2rem;
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.serviceCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #E8F5E9;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--primary-light);
+}
+
+.cardHeader h3 {
+  font-size: 1.15rem;
+  color: var(--gray-900);
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.serviceCard p {
+  font-size: 0.95rem;
+  color: var(--gray-600);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  flex-grow: 1;
+}
+
+.cardActions {
+  margin-top: auto;
+}
+
+.cardActions a {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  font-weight: 600;
+  padding: 0.6rem 1rem;
+  text-decoration: none;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
