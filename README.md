@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏥 Thoen Hospital Website (เว็บไซต์โรงพยาบาลเถิน)
 
-## Getting Started
+ระบบเว็บไซต์สารสนเทศและบริการอิเล็กทรอนิกส์สำหรับประชาชนและบุคลากร **โรงพยาบาลเถิน จังหวัดลำปาง** พัฒนาขึ้นโดยเน้นประสิทธิภาพ ความปลอดภัยของข้อมูลคนไข้/เจ้าหน้าที่ และการออกแบบ UI/UX ที่ทันสมัยและตอบสนองการใช้งานได้อย่างลื่นไหล (Modern, Beautiful & Premium Experience)
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🛠️ เทคโนโลยีที่ใช้ (Tech Stack)
+
+- **Frontend & Routing**: [Next.js 16 (App Router)](https://nextjs.org/) + TypeScript
+- **Styling**: Vanilla CSS (ออกแบบสไตล์ตาม Design Tokens เฉพาะตัว ไม่ใช้ CSS Framework เพื่อประสิทธิภาพสูงสุดและขนาดดาวน์โหลดที่เบาที่สุด)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Database ORM**: [Prisma Client](https://www.prisma.io/)
+- **Database Engines**:
+  - MySQL / MariaDB (ระบบหลังบ้านหลัก และระบบสมาชิกบุคลากร)
+  - เชื่อมโยงฐานข้อมูลภายนอก (ระบบสลิปเงินเดือนภายนอก และระบบห้องฉุกเฉินดึงจาก LIS/HIS)
+- **API Validation**: [Zod](https://zod.dev/)
+- **Authentication**: HMAC-SHA256 Signed Secure Cookies (HTTPOnly, SameSite: Strict)
+
+---
+
+## ✨ คุณลักษณะเด่นของระบบ (Key Features)
+
+### 👥 บริการสำหรับประชาชนทั่วไป
+1. **ระบบข้อมูลประชาสัมพันธ์**: แสดงข่าวสารกิจกรรม ประกาศรับสมัครงาน และบทความความรู้ด้านสุขภาพ (ดึงข้อมูลผ่าน Prisma จากฐานข้อมูล)
+2. **แพ็กเกจตรวจสุขภาพ**: แนะนำโปรแกรมตรวจสุขภาพต่าง ๆ ของโรงพยาบาล
+3. **ระบบตรวจสอบตารางนัดหมายแพทย์ (/check-date)**: ค้นหาและดูเวลาการเข้ารับการตรวจรักษาด้วยเลขบัตรประชาชน 13 หลัก 
+   - *Security Feature*: มีระบบจำกัดคำขอสแปม (Rate Limiter) ป้องกันการสุ่มขโมยข้อมูล และปกปิดบางหลักของรหัสเพื่อความเป็นส่วนตัว
+
+### 🧑‍⚕️ ระบบบริการบุคลากรภายใน (Member Portal)
+1. **ระบบลงทะเบียนและเข้าใช้งานด้วยรหัสผ่าน OTP**: ตรวจสอบและอนุมัติการล็อกอินผ่านรหัสผ่านครั้งเดียวที่ส่งไปทางอีเมล
+2. **ระบบสลิปเงินเดือนและโอทีออนไลน์ (/salary)**: สำหรับให้เจ้าหน้าที่เข้าดูรายละเอียดรายรับ รายจ่าย ค่าเวรล่วงเวลา (OT) และสลิปคงเหลือสุทธิ
+   - *Security Feature*: คุ้กกี้เซสชันถูกเข้ารหัสด้วย HMAC-SHA256 ป้องกันการปลอมแปลงคุ้กกี้เพื่อแอบดูข้อมูลผู้อื่น (Anti-Cookie Tampering)
+3. **ระบบรายงานสถานะห้องฉุกเฉินเรียลไทม์ (ER Live Status)**: แสดงผลสถานะผู้ป่วยฉุกเฉิน ความเร่งด่วน ระดับสีเตียง และสถิติภาพรวมประจำเดือน
+   - **TV Mode**: หน้าแสดงผลแบบพิเศษแยกสำหรับขึ้นจอทีวีในแผนกโดยเฉพาะ (ไม่มีส่วนหัว/Navbar บังสายตา และอัปเดตข้อมูลอัตโนมัติ)
+
+### 🔑 ระบบจัดการหลังบ้านสำหรับผู้ดูแลระบบ (Admin Panel)
+- จัดการและแก้ไขบทความ ข้อมูลข่าวสารประชาสัมพันธ์
+- ดูข้อมูลและข้อความติดต่อสอบถามจากผู้ใช้ทั่วไปผ่านแบบฟอร์มหน้าเว็บ
+
+---
+
+## 🔒 มาตรการความปลอดภัยขั้นสูง (Security Hardening)
+
+- **Cookie Validation ใน Proxy**: ระบบกรองสิทธิ์ Middleware ชั้นนอกสุด (`src/proxy.ts`) จะแกะลายเซ็นดิจิทัลของคุ้กกี้ทุกตัวที่ส่งมา หากแฮกเกอร์เขียนคุ้กกี้ปลอมขึ้นมาเองจะถูกระบบดีดกลับไปหน้าล็อกอินทันที
+- **SQL Injection Prevention**: ใช้คำสั่งแบบ Prepared Statement ทั้งหมดผ่านตัวแปร Parameters ในตัวดึงข้อมูล SQL ป้องกัน SQL Injection 100%
+- **Information Leakage Prevention**: ซ่อนข้อความ Error ดั้งเดิมของเซิร์ฟเวอร์และฐานข้อมูลไม่ให้ส่งกลับไปยังหน้าผู้ใช้งานเพื่อป้องกันโครงสร้างสคีมารั่วไหล (แสดงเพียงข้อความทั่วไปที่ปลอดภัย และบันทึกรายละเอียดข้อผิดพลาดไว้ที่หน้าคอนโซลฝั่ง Server)
+
+---
+
+## 📂 โครงสร้างโฟลเดอร์หลัก (Project Structure)
+
+```text
+├── prisma/                 # Prisma database schema และไฟล์ Seed ข้อมูลเริ่มต้น
+├── public/                 # ไฟล์มีเดีย รูปภาพ โลโก้ และไฟล์อัปโหลดข่าวสาร
+├── src/
+│   ├── app/                # Next.js Pages และ API Routes
+│   │   ├── api/            # API Handlers (ระบบนัดหมาย, สมาชิก, เงินเดือน, ER)
+│   │   ├── admin/          # หน้าผู้ดูแลระบบจัดการข่าวสารและบริการ
+│   │   ├── check-date/     # หน้าตรวจสอบนัดหมายคนไข้
+│   │   ├── salary/         # หน้าระบบเงินเดือนบุคลากร
+│   │   └── service/        # หน้าบริการและรายงานสถานะห้องฉุกเฉิน (ER Status)
+│   ├── components/         # UI Components เช่น Navbar, Footer, UI Buttons
+│   ├── lib/                # ไฟล์ singleton prisma, โมดูลยืนยันตัวตน, อัตรา Rate limit
+│   └── proxy.ts            # Next.js Custom Middleware สำหรับตรวจสอบสิทธิ์เข้าถึงเส้นทาง
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 วิธีเริ่มต้นพัฒนาระบบต่อ (Getting Started)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. ติดตั้ง Dependencies
+```bash
+npm install
+```
 
-## Learn More
+### 2. ตั้งค่าไฟล์ Environment (.env)
+คัดลอกและสร้างไฟล์ `.env` ไว้ที่ Root directory แล้วกำหนดค่าการเชื่อมต่อฐานข้อมูลและรหัสลับระบบ:
+```env
+# ฐานข้อมูลหลัก (Prisma)
+DATABASE_URL="mysql://username:password@localhost:3306/thoen_hospital_website"
 
-To learn more about Next.js, take a look at the following resources:
+# ฐานข้อมูลอื่น (ระบบนัดหมาย, ห้องฉุกเฉิน, เงินเดือน)
+APPOINTMENT_DB_HOST="..."
+ER_DB_HOST="..."
+SALARY_DB_HOST="..."
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# คีย์รหัสลับระบบสำหรับการทำ Session Signature
+ADMIN_SECRET="สร้างคีย์แบบยาวและปลอดภัยที่นี่"
+MEMBER_SESSION_SECRET="สร้างคีย์สมาชิกยาวๆ ที่นี่"
+SALARY_SESSION_SECRET="สร้างคีย์เงินเดือนยาวๆ ที่นี่"
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. ซิงค์ตารางฐานข้อมูลและตั้งค่าข้อมูลจำลอง (Prisma Migration & Seed)
+```bash
+# ซิงค์สคีมาเข้ากับฐานข้อมูล
+npx prisma db push
 
-## Deploy on Vercel
+# รัน Script สำหรับสร้างผู้ดูแลระบบคนแรกและข้อมูลข่าวสารตัวอย่าง
+npm run seed
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. รันระบบในโหมดพัฒนา (Development Mode)
+```bash
+npm run dev
+```
+เปิดบราวเซอร์ไปที่ [http://localhost:3000](http://localhost:3000)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 5. Build สำหรับ Production
+```bash
+npm run build
+npm run start
+```
+---
