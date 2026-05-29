@@ -15,22 +15,25 @@ export default function SalaryLoginPage() {
   const router = useRouter()
 
   useEffect(() => {
-    async function autofillFromMember() {
+    async function checkMemberSession() {
       try {
         const res = await fetch('/api/member/me')
-        if (res.ok) {
-          const data = await res.json()
-          if (data.authenticated && data.member.salary_user && data.member.salary_pass) {
-            setUsername(data.member.salary_user)
-            setPassword(data.member.salary_pass)
-            setAutofilled(true)
-          }
+        const data = await res.json()
+        if (!res.ok || !data.authenticated) {
+          window.location.href = '/member/login'
+          return
+        }
+        if (data.member.salary_user && data.member.salary_pass) {
+          setUsername(data.member.salary_user)
+          setPassword(data.member.salary_pass)
+          setAutofilled(true)
         }
       } catch (err) {
-        console.error('Failed to autofill salary credentials from member session:', err)
+        console.error('Failed to verify member session in salary login:', err)
+        window.location.href = '/member/login'
       }
     }
-    autofillFromMember()
+    checkMemberSession()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

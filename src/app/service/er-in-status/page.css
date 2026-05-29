@@ -181,7 +181,6 @@
 .patientsTable th:nth-child(6), .patientsTable td:nth-child(6) { width: 220px; text-align: center; } /* ระดับความเร่งด่วน */
 .patientsTable th:nth-child(7), .patientsTable td:nth-child(7) { width: 160px; text-align: center; } /* เตียงสังเกต (Observe) */
 
-
 /* Severity background styling */
 .patientsTable tr.level-1 { background-color: #ffebee; } /* Resuscitate */
 .patientsTable tr.level-2 { background-color: #fff3e0; } /* Emergency */
@@ -225,7 +224,7 @@
   transition: transform 0.25s ease, box-shadow 0.25s ease;
   position: relative;
   overflow: hidden;
-  padding: 2.25rem 2.5rem !important; /* Increased padding to move text away from the border */
+  padding: 2.25rem 2.5rem !important;
 }
 
 .statsTableCard:hover {
@@ -266,7 +265,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.875rem 0.5rem; /* Increased padding inside items */
+  padding: 0.875rem 0.5rem;
   border-bottom: 1px solid var(--gray-100);
   font-size: 1rem;
 }
@@ -284,7 +283,7 @@
   font-weight: 700;
   color: var(--primary);
   background: var(--primary-light);
-  padding: 0.35rem 0.85rem; /* Increased padding inside badges */
+  padding: 0.35rem 0.85rem;
   border-radius: 20px;
   font-size: 0.875rem;
 }
@@ -304,149 +303,6 @@
   font-size: 0.95rem;
   text-align: center;
   padding: 2rem 0;
-}
-
-/* TV Dashboard Mode Override */
-.tvModeActive {
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  background-color: var(--gray-50) !important; /* Light background */
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 99999; /* Cover everything including navbars */
-  overflow-y: auto;
-  box-sizing: border-box;
-  padding: 1.5rem !important;
-  font-family: 'Outfit', 'Inter', sans-serif;
-  color: var(--gray-900);
-}
-
-.tvModeActive .erContainer {
-  max-width: 100% !important;
-  width: 100% !important;
-  padding: 0 !important;
-}
-
-.tvModeActive .card {
-  background: var(--white) !important; /* Light card background */
-  border: 1px solid var(--gray-200) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
-}
-
-.tvModeActive .erHeaderCard {
-  background: var(--white) !important;
-  color: var(--gray-900);
-  padding: 1rem 2rem !important;
-  margin-bottom: 1.5rem !important;
-}
-
-.tvModeActive .erTitleSection h1 {
-  color: var(--gray-900) !important;
-  font-size: 2.5rem !important;
-  font-weight: 900;
-}
-
-.tvModeActive .erSubtitle {
-  color: var(--gray-600) !important;
-  font-size: 1.1rem !important;
-}
-
-.tvModeActive .statLabel {
-  color: var(--gray-600) !important;
-  font-size: 1.2rem !important;
-}
-
-.tvModeActive .statVal {
-  font-size: 4rem !important;
-}
-
-.tvModeActive .patientsListCard {
-  padding: 1.5rem !important;
-  margin-bottom: 1.5rem !important;
-}
-
-.tvModeActive .patientsTable th {
-  background: var(--gray-100) !important;
-  color: var(--gray-800) !important;
-  font-size: 1.4rem !important;
-  padding: 1.25rem !important;
-  border-bottom: 3px solid var(--gray-200) !important;
-}
-
-.tvModeActive .patientsTable td {
-  font-size: 1.6rem !important; /* Very large text for TV visibility */
-  padding: 1.5rem !important;
-  color: var(--gray-900) !important;
-  border-bottom: 1px solid var(--gray-200) !important;
-}
-
-/* TV Severity Level Highlights - Light Mode (Pastel backgrounds) */
-.tvModeActive .patientsTable tr.level-1 { background-color: #ffebee !important; } /* Light Red */
-.tvModeActive .patientsTable tr.level-2 { background-color: #fff3e0 !important; } /* Light Orange */
-.tvModeActive .patientsTable tr.level-3 { background-color: #fffde7 !important; } /* Light Yellow */
-.tvModeActive .patientsTable tr.level-4 { background-color: #e8f5e9 !important; } /* Light Green */
-.tvModeActive .patientsTable tr.level-5 { background-color: var(--white) !important; } /* White */
-
-.tvModeActive .severityPill {
-  font-size: 1.3rem !important;
-  padding: 0.5rem 1rem !important;
-}
-
-.tvModeActive .observeBadge {
-  font-size: 1.2rem !important;
-  background: #e0f2f1 !important;
-  color: #00796b !important;
-}
-
-/* Hide Monthly statistics on TV Dashboard (focused on real-time) */
-.tvModeActive .erMonthlyStatsGrid {
-  display: none !important;
-}
-
-/* Alert Banner in TV Mode */
-.tvModeActive .erAlertBanner {
-  background: #ffebee !important;
-  border: 4px solid #ef5350 !important;
-  padding: 1.5rem 3rem !important;
-  animation: pulseBg 1.5s infinite ease-in-out;
-}
-
-.tvModeActive .alertMsg {
-  font-size: 2rem !important;
-  color: #c62828 !important;
-}
-
-.tvModeActive .alertIcon {
-  font-size: 4rem !important;
-}
-
-/* Animations */
-@keyframes pulseBg {
-  0% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(239, 83, 80, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 83, 80, 0); }
-}
-
-@keyframes pulseTvAlert {
-  0% { border-color: #f44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.6); }
-  50% { border-color: #b71c1c; box-shadow: 0 0 35px rgba(183, 28, 28, 0.9); }
-  100% { border-color: #f44336; box-shadow: 0 0 15px rgba(244, 67, 54, 0.6); }
-}
-
-@keyframes bounceAlert {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.2); }
-}
-
-@keyframes blinkAlert {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
 }
 
 /* Loading display styling */

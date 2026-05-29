@@ -79,7 +79,7 @@ export default function Navbar() {
     return !categoryParam;
   };
 
-  if (pathname && (pathname.startsWith('/admin') || pathname.startsWith('/salary'))) {
+  if (pathname && (pathname.startsWith('/admin') || pathname.includes('/tv-mode'))) {
     return null;
   }
 
@@ -110,7 +110,7 @@ export default function Navbar() {
   navLinks.push({ href: '/contact', label: 'ติดต่อเรา' });
 
   if (member) {
-    navLinks.push({ href: '/service', label: 'Service' });
+    navLinks.push({ href: '/service', label: 'ระบบงานภายใน' });
   }
 
   return (

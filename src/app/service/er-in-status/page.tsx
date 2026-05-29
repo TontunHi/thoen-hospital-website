@@ -18,6 +18,7 @@ interface Patient {
   dch_type_name: string | null
   wardname: string | null
   hosname: string | null
+  hosname_dest: string | null
 }
 
 interface ERData {
@@ -41,9 +42,28 @@ export default function ErInStatusPage() {
   const [data, setData] = useState<ERData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [isTvMode, setIsTvMode] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
 
-  // 1. Fetch function
+  // 1. Verify Member Auth
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/member/me')
+        const result = await res.json()
+        if (res.ok && result.authenticated) {
+          setAuthenticated(true)
+          fetchStatus()
+        } else {
+          window.location.href = '/member/login'
+        }
+      } catch {
+        window.location.href = '/member/login'
+      }
+    }
+    checkAuth()
+  }, [])
+
+  // 2. Fetch function
   const fetchStatus = async () => {
     try {
       const res = await fetch('/api/er/status')
@@ -61,29 +81,24 @@ export default function ErInStatusPage() {
     }
   }
 
-  // 2. Fetch initially and start interval
+  // 3. Set interval after authentication
   useEffect(() => {
-    fetchStatus()
+    if (!authenticated) return
 
     const interval = setInterval(() => {
       fetchStatus()
     }, 15000) // Auto-refresh every 15 seconds
 
     return () => clearInterval(interval)
-  }, [])
+  }, [authenticated])
 
-  // Toggle TV mode
-  const toggleTvMode = () => {
-    setIsTvMode(!isTvMode)
-  }
-
-  if (loading && !data) {
+  if (!authenticated || (loading && !data)) {
     return (
       <div className="erStatusPage">
         <div className="container erContainer">
           <div className="erLoadingPanel card">
             <div className="spinner"></div>
-            <h3>กำลังเปิดเชื่อมต่อฐานข้อมูล HOSxP โรงพยาบาลเถิน...</h3>
+            <h3>กำลังเชื่อมต่อฐานข้อมูล HOSxP โรงพยาบาลเถิน...</h3>
             <p>เพื่อดึงสถิติและรายชื่อผู้ป่วยที่เข้ารักษาในห้องฉุกเฉินวันนี้</p>
           </div>
         </div>
@@ -95,17 +110,15 @@ export default function ErInStatusPage() {
   const activePatients = data?.activePatients || []
 
   return (
-    <div className={`erStatusPage ${isTvMode ? 'tvModeActive' : ''}`}>
+    <div className="erStatusPage">
       <div className="container erContainer">
         
-        {/* Navigation back when not in TV mode */}
-        {!isTvMode && (
-          <div style={{ marginBottom: '1.5rem' }}>
-            <Link href="/systems" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
-              ← กลับไปหน้าระบบสารสนเทศ
-            </Link>
-          </div>
-        )}
+        {/* Navigation back */}
+        <div style={{ marginBottom: '1.5rem' }}>
+          <Link href="/service" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
+            ← กลับไปหน้าระบบงานภายใน
+          </Link>
+        </div>
 
         {/* Dashboard Header */}
         <header className="erHeaderCard card">
@@ -114,9 +127,9 @@ export default function ErInStatusPage() {
             <p className="erSubtitle">ข้อมูลอัปเดตเรียลไทม์เพื่อบริหารจัดการผู้ป่วย ณ จุดบริการฉุกเฉิน</p>
           </div>
           <div className="erControls">
-            <button onClick={toggleTvMode} className="tvToggleBtn">
-              {isTvMode ? 'ปิดจอโหมดทีวี (TV Mode)' : 'เปิดจอโหมดทีวี (TV Mode)'}
-            </button>
+            <Link href="/service/er-in-status/tv-mode" target="_blank" className="tvToggleBtn" style={{ textDecoration: 'none' }}>
+              เปิดจอโหมดทีวี (TV Mode)
+            </Link>
           </div>
         </header>
 
@@ -222,60 +235,58 @@ export default function ErInStatusPage() {
           )}
         </section>
 
-        {/* Monthly statistics (Hidden on TV view mode to focus on realtime queue) */}
-        {!isTvMode && (
-          <section className="erMonthlyStatsGrid">
-            
-            {/* 1. Monthly Pt Types */}
-            <div className="statsTableCard card cardTypeGreen">
-              <h3>ประเภทผู้ป่วย (ประจำเดือนนี้)</h3>
-              <ul className="statsList">
-                {data?.stats.ptTypes.map((pt, idx) => (
-                  <li key={idx}>
-                    <span className="statsItemName">{pt.name || 'ไม่ระบุประเภท'}</span>
-                    <span className="statsCount">{pt.v} ราย</span>
-                  </li>
-                ))}
-                {data?.stats.ptTypes.length === 0 && (
-                  <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
-                )}
-              </ul>
-            </div>
+        {/* Monthly statistics */}
+        <section className="erMonthlyStatsGrid">
+          
+          {/* 1. Monthly Pt Types */}
+          <div className="statsTableCard card cardTypeGreen">
+            <h3>ประเภทผู้ป่วย (ประจำเดือนนี้)</h3>
+            <ul className="statsList">
+              {data?.stats.ptTypes.map((pt, idx) => (
+                <li key={idx}>
+                  <span className="statsItemName">{pt.name || 'ไม่ระบุประเภท'}</span>
+                  <span className="statsCount">{pt.v} ราย</span>
+                </li>
+              ))}
+              {data?.stats.ptTypes.length === 0 && (
+                <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+              )}
+            </ul>
+          </div>
 
-            {/* 2. Monthly Emergency Levels */}
-            <div className="statsTableCard card cardTypeRed">
-              <h3>สัดส่วนความรุนแรงผู้ป่วย (ประจำเดือนนี้)</h3>
-              <ul className="statsList">
-                {data?.stats.emergencyLevels.map((el, idx) => (
-                  <li key={idx}>
-                    <span className="statsItemName">{el.er_emergency_level_name || 'ไม่ระบุความรุนแรง'}</span>
-                    <span className="statsCount statusLevelCount">{el.v} ราย</span>
-                  </li>
-                ))}
-                {data?.stats.emergencyLevels.length === 0 && (
-                  <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
-                )}
-              </ul>
-            </div>
+          {/* 2. Monthly Emergency Levels */}
+          <div className="statsTableCard card cardTypeRed">
+            <h3>สัดส่วนความรุนแรงผู้ป่วย (ประจำเดือนนี้)</h3>
+            <ul className="statsList">
+              {data?.stats.emergencyLevels.map((el, idx) => (
+                <li key={idx}>
+                  <span className="statsItemName">{el.er_emergency_level_name || 'ไม่ระบุความรุนแรง'}</span>
+                  <span className="statsCount statusLevelCount">{el.v} ราย</span>
+                </li>
+              ))}
+              {data?.stats.emergencyLevels.length === 0 && (
+                <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+              )}
+            </ul>
+          </div>
 
-            {/* 3. Monthly Discharge Types */}
-            <div className="statsTableCard card cardTypeTeal">
-              <h3>สถานะหลังออกจากห้องฉุกเฉิน (ประจำเดือนนี้)</h3>
-              <ul className="statsList">
-                {data?.stats.dischargeTypes.map((dt, idx) => (
-                  <li key={idx}>
-                    <span className="statsItemName">{dt.name || 'ไม่ระบุการจำหน่าย'}</span>
-                    <span className="statsCount statusDchCount">{dt.v} ราย</span>
-                  </li>
-                ))}
-                {data?.stats.dischargeTypes.length === 0 && (
-                  <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
-                )}
-              </ul>
-            </div>
-            
-          </section>
-        )}
+          {/* 3. Monthly Discharge Types */}
+          <div className="statsTableCard card cardTypeTeal">
+            <h3>สถานะหลังออกจากห้องฉุกเฉิน (ประจำเดือนนี้)</h3>
+            <ul className="statsList">
+              {data?.stats.dischargeTypes.map((dt, idx) => (
+                <li key={idx}>
+                  <span className="statsItemName">{dt.name || 'ไม่ระบุการจำหน่าย'}</span>
+                  <span className="statsCount statusDchCount">{dt.v} ราย</span>
+                </li>
+              ))}
+              {data?.stats.dischargeTypes.length === 0 && (
+                <p className="noStatsText">ไม่มีข้อมูลในเดือนนี้</p>
+              )}
+            </ul>
+          </div>
+          
+        </section>
 
       </div>
     </div>

@@ -10,7 +10,7 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   const pathname = usePathname();
 
-  if (pathname && (pathname.startsWith('/admin') || pathname.startsWith('/login') || pathname.startsWith('/salary'))) {
+  if (pathname && (pathname.startsWith('/admin') || pathname.startsWith('/login') || pathname.startsWith('/salary') || pathname.includes('/tv-mode'))) {
     return null;
   }
 
@@ -60,11 +60,12 @@ export default function Footer() {
             <div className="footer__col">
               <h4 className="footer__heading">บริการของเรา</h4>
               <ul className="footer__links">
-                <li><span>ห้องฉุกเฉิน 24 ชม.</span></li>
+                <li><span>โปรแกรมตรวจสุขภาพ 1 วัน</span></li>
                 <li><span>คลินิกเฉพาะทาง</span></li>
-                <li><span>ส่งเสริมสุขภาพ</span></li>
                 <li><span>ทันตกรรม</span></li>
-                <li><span>กายภาพบำบัด</span></li>
+                <li><span>แพทย์แผนไทย</span></li>
+                <li><span>อัตราค่าบริการห้องพิเศษ</span></li>
+                <li><span>สูตินรีเวชกรรม</span></li>
               </ul>
             </div>
 

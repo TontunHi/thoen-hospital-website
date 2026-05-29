@@ -21,7 +21,7 @@ export default async function ServicePage() {
     {
       title: 'สถานะห้องฉุกเฉิน',
       desc: 'แสดงข้อมูลและสถิติสถานะผู้ป่วยในห้องฉุกเฉินแบบเรียลไทม์ (รองรับการแสดงผลหน้าจอทีวี มือถือ และคอมพิวเตอร์)',
-      link: '/systems/er-in-status',
+      link: '/service/er-in-status',
       btnText: 'เปิดดูสถานะห้องฉุกเฉิน',
     },
     {
@@ -53,7 +53,7 @@ export default async function ServicePage() {
   return (
     <div className="container servicePage">
       <div className="serviceHeader">
-        <h1>ระบบงานภายใน (Service)</h1>
+        <h1>ระบบงานภายใน</h1>
         <p>ศูนย์รวมลิงก์ระบบสารสนเทศและเครื่องมือภายในสำหรับบุคลากรโรงพยาบาลเถิน</p>
       </div>
 
