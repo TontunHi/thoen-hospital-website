@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, UserPlus, Edit3, Trash2, Key, Mail, Shield, User, X, Check, Loader2, AlertCircle } from 'lucide-react'
+import { Search, UserPlus, Edit3, Trash2, Key, Mail, Shield, User, X, Check, Loader2, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import './page.css'
 
 interface Member {
@@ -27,6 +27,10 @@ export default function MembersAdminPage() {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | 'member' | 'admin'>('all')
+
+  // Sort State
+  const [sortField, setSortField] = useState<'id' | 'username' | 'email' | 'name' | 'department' | 'role'>('id')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -198,6 +202,41 @@ export default function MembersAdminPage() {
     return matchesSearch && matchesRole
   })
 
+  // Sort function
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  // Sorted members list
+  const sortedMembers = [...filteredMembers].sort((a, b) => {
+    let aVal = a[sortField]
+    let bVal = b[sortField]
+
+    if (aVal === null || aVal === undefined) aVal = ''
+    if (bVal === null || bVal === undefined) bVal = ''
+
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase()
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase()
+
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+    return 0
+  })
+
+  const renderSortIcon = (field: typeof sortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={13} className="sortIcon sortIconInactive" />
+    }
+    return sortDirection === 'asc' ? 
+      <ArrowUp size={13} className="sortIcon sortIconActive" /> : 
+      <ArrowDown size={13} className="sortIcon sortIconActive" />
+  }
+
   return (
     <div className="membersDashboardPage">
       <div className="container">
@@ -257,72 +296,84 @@ export default function MembersAdminPage() {
             <Loader2 size={36} className="spinner" />
             <p>กำลังโหลดรายชื่อสมาชิก...</p>
           </div>
-        ) : filteredMembers.length > 0 ? (
+        ) : sortedMembers.length > 0 ? (
           <div className="tableCard card">
             <div className="tableResponsive">
               <table className="membersTable">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>ชื่อผู้ใช้</th>
-                    <th>อีเมลติดต่อ</th>
-                    <th>ชื่อ-นามสกุล</th>
-                    <th>กลุ่มงาน/แผนก</th>
-                    <th>บัญชีเงินเดือน (User)</th>
-                    <th>รหัสผ่านเงินเดือน (Pass)</th>
-                    <th>สิทธิ์การเข้าถึง (Role)</th>
-                    <th style={{ textAlign: 'center' }}>การจัดการ</th>
+                    <th onClick={() => handleSort('id')} className="sortableHeader col-id">
+                      <div className="headerFlex">ID {renderSortIcon('id')}</div>
+                    </th>
+                    <th onClick={() => handleSort('username')} className="sortableHeader col-user">
+                      <div className="headerFlex">ชื่อผู้ใช้ {renderSortIcon('username')}</div>
+                    </th>
+                    <th onClick={() => handleSort('email')} className="sortableHeader col-email">
+                      <div className="headerFlex">อีเมล {renderSortIcon('email')}</div>
+                    </th>
+                    <th onClick={() => handleSort('name')} className="sortableHeader col-name">
+                      <div className="headerFlex">ชื่อ-นามสกุล {renderSortIcon('name')}</div>
+                    </th>
+                    <th onClick={() => handleSort('department')} className="sortableHeader col-dept">
+                      <div className="headerFlex">กลุ่มงาน/แผนก {renderSortIcon('department')}</div>
+                    </th>
+                    <th className="col-salary-user">เงินเดือน (User)</th>
+                    <th className="col-salary-pass">เงินเดือน (Pass)</th>
+                    <th onClick={() => handleSort('role')} className="sortableHeader col-role">
+                      <div className="headerFlex">สิทธิ์ {renderSortIcon('role')}</div>
+                    </th>
+                    <th style={{ textAlign: 'center' }} className="col-actions">การจัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMembers.map((member) => {
+                  {sortedMembers.map((member) => {
                     const isSelf = currentUser && member.username === currentUser.username;
                     return (
                       <tr key={member.id} className={isSelf ? 'rowSelf' : ''}>
-                        <td className="memberId">#{member.id}</td>
-                        <td className="memberUser">
+                        <td className="memberId col-id" title={`#${member.id}`}>#{member.id}</td>
+                        <td className="memberUser col-user" title={member.username}>
                           <div className="userFlex">
-                            <User size={16} className="userIcon" />
-                            <span>{member.username}</span>
+                            <User size={14} className="userIcon" style={{ flexShrink: 0 }} />
+                            <span className="truncate">{member.username}</span>
                           </div>
                         </td>
-                        <td className="memberEmail">{member.email}</td>
-                        <td>{member.name || '-'}</td>
-                        <td>{member.department || '-'}</td>
-                        <td className="memberSalary">
+                        <td className="memberEmail col-email" title={member.email}>{member.email}</td>
+                        <td className="col-name" title={member.name || '-'}>{member.name || '-'}</td>
+                        <td className="col-dept" title={member.department || '-'}>{member.department || '-'}</td>
+                        <td className="memberSalary col-salary-user" title={member.salary_user || 'ไม่ได้ตั้งค่า'}>
                           {member.salary_user ? (
                             <span className="salaryBadge">
-                              <Key size={12} style={{ marginRight: '4px' }} />
-                              {member.salary_user}
+                              <Key size={10} style={{ marginRight: '3px', flexShrink: 0 }} />
+                              <span className="truncate">{member.salary_user}</span>
                             </span>
                           ) : (
-                            <span className="noSalaryBadge">ไม่ได้ตั้งค่า</span>
+                            <span className="noSalaryBadge">ไม่มี</span>
                           )}
                         </td>
-                        <td className="memberSalary">
+                        <td className="memberSalary col-salary-pass" title={member.salary_pass || 'ไม่ได้ตั้งค่า'}>
                           {member.salary_pass ? (
                             <span className="salaryBadge" style={{ backgroundColor: 'rgba(2, 132, 199, 0.08)', color: '#0284c7' }}>
-                              <Key size={12} style={{ marginRight: '4px' }} />
-                              {member.salary_pass}
+                              <Key size={10} style={{ marginRight: '3px', flexShrink: 0 }} />
+                              <span className="truncate">{member.salary_pass}</span>
                             </span>
                           ) : (
-                            <span className="noSalaryBadge">ไม่ได้ตั้งค่า</span>
+                            <span className="noSalaryBadge">ไม่มี</span>
                           )}
                         </td>
-                        <td>
+                        <td className="col-role">
                           <span className={`roleBadge ${member.role}`}>
-                            <Shield size={12} style={{ marginRight: '4px' }} />
+                            <Shield size={10} style={{ marginRight: '3px', flexShrink: 0 }} />
                             {member.role === 'admin' ? 'แอดมิน' : 'ทั่วไป'}
                           </span>
                         </td>
-                        <td className="memberActions">
+                        <td className="memberActions col-actions">
                           <button
                             className="actionBtn editBtn"
                             title={isSelf ? "ไม่สามารถแก้ไขบัญชีตนเองผ่านหน้านี้ได้" : "แก้ไขข้อมูลสมาชิก"}
                             disabled={!!isSelf}
                             onClick={() => handleEditClick(member)}
                           >
-                            <Edit3 size={16} />
+                            <Edit3 size={14} />
                           </button>
                           <button
                             className="actionBtn deleteBtn"
@@ -330,7 +381,7 @@ export default function MembersAdminPage() {
                             disabled={!!isSelf}
                             onClick={() => handleDelete(member.id, member.username)}
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </button>
                         </td>
                       </tr>

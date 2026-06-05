@@ -157,35 +157,39 @@
   border: 1px solid var(--gray-200);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
 }
-
 .tableResponsive {
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .membersTable {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  table-layout: fixed;
 }
 
 .membersTable th {
   background-color: var(--gray-50);
   color: var(--gray-700);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 1.1rem 1.5rem;
+  letter-spacing: 0.03em;
+  padding: 0.85rem 0.6rem;
   border-bottom: 2px solid var(--gray-200);
+  white-space: nowrap;
 }
 
 .membersTable td {
-  padding: 1.25rem 1.5rem;
+  padding: 0.85rem 0.6rem;
   border-bottom: 1px solid var(--gray-200);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   color: var(--gray-800);
   vertical-align: middle;
   transition: background-color 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .membersTable tr.rowSelf td {
@@ -196,6 +200,55 @@
   background-color: rgba(13, 116, 70, 0.04);
 }
 
+/* Custom column widths to fit everything without scrolling */
+.col-id { width: 45px; text-align: center; }
+.col-user { width: 14%; }
+.col-email { width: 18%; }
+.col-name { width: 16%; }
+.col-dept { width: 15%; }
+.col-salary-user { width: 12%; }
+.col-salary-pass { width: 12%; }
+.col-role { width: 85px; }
+.col-actions { width: 85px; }
+
+/* Interactive sorting headers */
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sortableHeader:hover {
+  background-color: var(--gray-100);
+  color: var(--primary);
+}
+
+.headerFlex {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.sortIcon {
+  flex-shrink: 0;
+}
+
+.sortIconInactive {
+  color: var(--gray-300);
+}
+
+.sortIconActive {
+  color: var(--primary);
+}
+
+/* Text Truncation */
+.truncate {
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .memberId {
   font-weight: 700;
   color: var(--gray-500);

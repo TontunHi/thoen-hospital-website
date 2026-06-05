@@ -19,12 +19,6 @@ export default async function ServicePage() {
       btnText: 'ไปยังโปรแกรมเงินเดือน',
     },
     {
-      title: 'สถานะห้องฉุกเฉิน',
-      desc: 'แสดงข้อมูลและสถิติสถานะผู้ป่วยในห้องฉุกเฉินแบบเรียลไทม์ (รองรับการแสดงผลหน้าจอทีวี มือถือ และคอมพิวเตอร์)',
-      link: '/service/er-in-status',
-      btnText: 'เปิดดูสถานะห้องฉุกเฉิน',
-    },
-    {
       title: 'ค้นหาผลแลป & ประวัติการรักษา',
       desc: 'ระบบค้นหาประวัติการรักษาพยาบาล รายการยา และรายงานผลการตรวจ LAB (Outpatient / Inpatient) ของโรงพยาบาลเถิน',
       link: '/service/lab',
@@ -37,16 +31,22 @@ export default async function ServicePage() {
       btnText: 'ติดตามผลแลปวันนี้',
     },
     {
-      title: 'ระบบลงทะเบียนหนังสือส่งออก Online',
-      desc: 'ระบบสืบค้นและลงทะเบียนหนังสือส่งออกทางราชการของโรงพยาบาลเถิน แยกตามปีงบประมาณ',
-      link: '/service/outgoing-document',
-      btnText: 'ลงทะเบียนหนังสือส่งออก',
-    },
-    {
       title: 'โปรแกรมโพสข่าวประชาสัมพันธ์',
       desc: 'ระบบจัดการข่าวประชาสัมพันธ์ ข่าวรับสมัครงาน และข่าวกิจกรรมบนเว็บไซต์โรงพยาบาลเถิน',
       link: '/admin-news',
       btnText: 'จัดการข่าวประชาสัมพันธ์',
+    },
+    {
+      title: 'สถานะห้องฉุกเฉิน',
+      desc: 'แสดงข้อมูลและสถิติสถานะผู้ป่วยในห้องฉุกเฉินแบบเรียลไทม์ (รองรับการแสดงผลหน้าจอทีวี มือถือ และคอมพิวเตอร์)',
+      link: '/service/er-in-status',
+      btnText: 'เปิดดูสถานะห้องฉุกเฉิน',
+    },
+    {
+      title: 'ระบบลงทะเบียนหนังสือส่งออก Online',
+      desc: 'ระบบสืบค้นและลงทะเบียนหนังสือส่งออกทางราชการของโรงพยาบาลเถิน แยกตามปีงบประมาณ',
+      link: '/service/outgoing-document',
+      btnText: 'ลงทะเบียนหนังสือส่งออก',
     },
     {
       title: 'โปรแกรม COC Lampang',
@@ -70,7 +70,7 @@ export default async function ServicePage() {
 
   // Add Member management only if session.role is admin
   if (session && session.role === 'admin') {
-    internalSystems.splice(3, 0, {
+    internalSystems.splice(5, 0, {
       title: 'แดชบอร์ดสมาชิก',
       desc: 'ระบบตรวจสอบรายชื่อสมาชิกทั้งหมด แก้ไขข้อมูล บัญชีเงินเดือน และจัดการสิทธิ์การเข้าใช้งานภายใน (เฉพาะแอดมิน)',
       link: '/service/members',
