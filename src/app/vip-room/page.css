@@ -1,0 +1,336 @@
+/* ═══════════════════════════════════════════
+   VIP Room Page — page.css
+   โรงพยาบาลเถิน
+═══════════════════════════════════════════ */
+
+/* ── Hero ── */
+.vip-hero {
+  position: relative;
+  padding: 5rem 1.5rem 4rem;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0d7446 0%, #064e30 60%, #0a3d24 100%);
+  color: #fff;
+  text-align: center;
+}
+
+.vip-hero__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 80% 20%, rgba(200, 168, 53, 0.18) 0%, transparent 60%),
+    radial-gradient(ellipse at 10% 80%, rgba(255,255,255,0.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.vip-hero__eyebrow {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.7);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.vip-hero__title {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1.25rem;
+  background: linear-gradient(135deg, #fff 40%, #C8A835 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.vip-hero__desc {
+  max-width: 700px;
+  margin: 0 auto;
+  font-size: 1rem;
+  line-height: 1.75;
+  color: rgba(255,255,255,0.85);
+}
+
+/* ── Content wrapper ── */
+.vip-content {
+  padding-top: 3.5rem;
+  padding-bottom: 4rem;
+}
+
+/* ── Room Section ── */
+.room-section {
+  margin-bottom: 4rem;
+}
+
+.room-section__badge {
+  display: inline-block;
+  padding: 0.5rem 1.5rem;
+  border-radius: 999px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  letter-spacing: 0.02em;
+}
+
+.vip-badge {
+  background: linear-gradient(135deg, #0d7446, #064e30);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(13, 116, 70, 0.3);
+}
+
+.single-badge {
+  background: linear-gradient(135deg, #1a6fad, #0e4a77);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(26, 111, 173, 0.3);
+}
+
+.room-section__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.room-section__grid--reverse {
+  direction: rtl;
+}
+
+.room-section__grid--reverse > * {
+  direction: ltr;
+}
+
+/* ── Room Image ── */
+.room-section__images {
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.12);
+}
+
+.room-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+.room-img {
+  border-radius: 20px;
+  transition: transform 0.4s ease;
+}
+
+.room-img-wrap:hover .room-img {
+  transform: scale(1.03);
+}
+
+/* ── Price Card ── */
+.room-price-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.vip-price {
+  background: linear-gradient(135deg, #0d7446 0%, #064e30 100%);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(13, 116, 70, 0.25);
+}
+
+.single-price {
+  background: linear-gradient(135deg, #1a6fad 0%, #0e4a77 100%);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(26, 111, 173, 0.25);
+}
+
+.room-price-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.85;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.room-price-value {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #C8A835;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.room-price-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+}
+
+/* ── Room Description ── */
+.room-desc {
+  font-size: 0.975rem;
+  color: var(--gray-600, #4b5563);
+  line-height: 1.75;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Amenities ── */
+.amenities-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gray-800, #1f2937);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(13, 116, 70, 0.15);
+}
+
+.amenities-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem 1rem;
+}
+
+.amenities-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--gray-700, #374151);
+}
+
+.amenities-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: #0d7446;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Notice ── */
+.vip-notice {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-left: 4px solid #f59e0b;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 3.5rem;
+}
+
+.vip-notice__icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.vip-notice strong {
+  font-size: 0.95rem;
+  color: #92400e;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.vip-notice__list {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.vip-notice__list li {
+  font-size: 0.9rem;
+  color: #78350f;
+  line-height: 1.6;
+  margin-bottom: 0.25rem;
+}
+
+/* ── Contact Section ── */
+.vip-contact {
+  text-align: center;
+}
+
+.vip-contact__title {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 700;
+  color: var(--gray-800, #1f2937);
+  margin-bottom: 2rem;
+}
+
+.vip-contact__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.vip-contact__card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 16px;
+  border: 1px solid rgba(13, 116, 70, 0.12);
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+}
+
+.vip-contact__card:hover {
+  border-color: #0d7446;
+  box-shadow: 0 8px 24px rgba(13, 116, 70, 0.12);
+  transform: translateY(-3px);
+}
+
+.vip-contact__card-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.vip-contact__card-label {
+  font-size: 0.8rem;
+  color: var(--gray-500, #6b7280);
+  margin-bottom: 0.2rem;
+}
+
+.vip-contact__card-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--primary, #0d7446);
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .room-section__grid,
+  .room-section__grid--reverse {
+    grid-template-columns: 1fr;
+    direction: ltr;
+  }
+
+  .amenities-list {
+    grid-template-columns: 1fr;
+  }
+
+  .vip-contact__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  .vip-hero {
+    padding: 4rem 1rem 3rem;
+  }
+
+  .room-price-value {
+    font-size: 2.75rem;
+  }
+}

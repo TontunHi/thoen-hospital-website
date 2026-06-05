@@ -105,7 +105,8 @@ export default function Navbar() {
       href: '/package',
       submenu: [
         { href: '/package/health-check-1day', label: 'โปรแกรมตรวจสุขภาพ 1 วัน' },
-        { href: '/package/dentistry', label: 'บริการด้านทันตกรรม' }
+        { href: '/package/dentistry', label: 'บริการด้านทันตกรรม' },
+        { href: '/vip-room', label: 'ห้องพิเศษ VIP' },
       ]
     },
     {
