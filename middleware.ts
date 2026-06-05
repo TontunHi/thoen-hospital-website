@@ -8,10 +8,9 @@ export async function middleware(request: NextRequest) {
 
   const isDashboard = pathname.startsWith('/dashboard')
   const isAdmin = pathname.startsWith('/admin')
-  const isSalary = pathname.startsWith('/salary')
   const isEr = pathname.startsWith('/er')
 
-  if (isDashboard || isAdmin || isSalary || isEr) {
+  if (isDashboard || isAdmin || isEr) {
     if (!token) {
       const url = new URL('/news-login', request.url)
       return NextResponse.redirect(url)
@@ -20,10 +19,6 @@ export async function middleware(request: NextRequest) {
     const role = token.role as string
 
     if (isAdmin && role !== 'admin') {
-      return NextResponse.redirect(new URL('/unauthorized', request.url))
-    }
-
-    if (isSalary && role !== 'admin' && role !== 'hr') {
       return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
 
@@ -39,7 +34,6 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/admin/:path*',
-    '/salary/:path*',
     '/er/:path*',
   ],
 }
