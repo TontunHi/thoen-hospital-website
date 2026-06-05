@@ -73,6 +73,35 @@ export default function PackagePage() {
               </div>
             </div>
           </div>
+          {/* Card 3: VIP Room */}
+          <div className="packageCard card-glass">
+            <div className="packageCard__image">
+              <Image
+                src="/images/vip_room_1.webp"
+                alt="ห้องพิเศษ VIP โรงพยาบาลเถิน"
+                fill
+                style={{ objectFit: 'cover' }}
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            </div>
+            <div className="packageCard__body">
+              <div className="packageCard__icon">
+                <Sparkles size={24} />
+              </div>
+              <h3>ห้องพิเศษ VIP และห้องพิเศษเดี่ยว</h3>
+              <p>
+                ห้องพักฟื้นระดับพรีเมียม ตกแต่งอย่างอบอุ่น พร้อมสิ่งอำนวยความสะดวกครบครัน
+                รองรับทั้งผู้ใหญ่และเด็ก เพื่อความเป็นส่วนตัวตลอดช่วงเวลาการพักฟื้น
+              </p>
+              <div className="packageCard__footer">
+                <span className="packageCard__price">เริ่มต้น 1,200 บาท / วัน</span>
+                <Link href="/package/vip-room" className="packageCard__btn">
+                  ดูรายละเอียด
+                  <ChevronRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
 
         </div>
 

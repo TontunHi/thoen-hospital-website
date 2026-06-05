@@ -10,23 +10,27 @@ export const metadata: Metadata = {
 }
 
 const vipAmenities = [
-  'เครื่องปรับอากาศ และ พัดลม',
-  'โทรทัศน์',
+  'เครื่องปรับอากาศ',
+  'ห้องน้ำส่วนตัว',
   'ตู้เย็น',
+  'เครื่องทำน้ำอุ่น',
+  'พัดลม',
+  'โซฟา',
+  'โทรทัศน์',
   'ไมโครเวฟ',
-  'กาน้ำร้อน',
-  'โซฟารับแขก',
   'โต๊ะอาหาร',
-  'ห้องน้ำส่วนตัว พร้อมเครื่องทำน้ำอุ่น',
+  'กาน้ำร้อน',
 ]
 
 const singleAmenities = [
-  'เครื่องปรับอากาศ และ พัดลม',
-  'โทรทัศน์',
+  'เครื่องปรับอากาศ',
+  'ห้องน้ำส่วนตัว',
   'ตู้เย็น',
-  'โซฟารับแขก',
+  'เครื่องทำน้ำอุ่น',
+  'พัดลม',
+  'โซฟา',
+  'โทรทัศน์',
   'โต๊ะอาหาร',
-  'ห้องน้ำส่วนตัว พร้อมเครื่องทำน้ำอุ่น',
 ]
 
 export default function VipRoomPage() {
@@ -36,11 +40,10 @@ export default function VipRoomPage() {
       <section className="vip-hero">
         <div className="vip-hero__bg" aria-hidden="true" />
         <div className="container vip-hero__content">
-          <p className="vip-hero__eyebrow">โรงพยาบาลเถิน · Thoen Hospital</p>
           <h1 className="vip-hero__title">อัตราค่าบริการห้องพิเศษ</h1>
           <p className="vip-hero__desc">
-            โรงพยาบาลเถินมุ่งมั่นให้บริการดูแลคุณและคนที่คุณรัก ด้วยมาตรฐานโรงพยาบาลและบริการสุขภาพ
-            พรั่งพร้อมด้วยสิ่งอำนวยความสะดวกครบครัน เพื่อความสะดวกสบายและความเป็นส่วนตัวตลอดช่วงเวลาการพักฟื้น
+            โรงพยาบาลเถินมุ่งมั่นให้บริการดูแลคุณและคนที่คุณรัก ด้วยมาตรฐานโรงพยาบาลและบริการสุขภาพ<br />
+            พร้อมด้วยสิ่งอำนวยความสะดวกครบครัน และความเป็นส่วนตัวตลอดช่วงเวลาการพักฟื้น
           </p>
         </div>
       </section>
@@ -58,9 +61,9 @@ export default function VipRoomPage() {
                 <Image
                   src="/images/vip_room_1.webp"
                   alt="ห้องพิเศษ VIP โรงพยาบาลเถิน"
-                  fill
-                  sizes="(max-width:768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
+                  width={800}
+                  height={600}
+                  style={{ width: '100%', height: 'auto', display: 'block' }}
                   className="room-img"
                   priority
                 />
@@ -128,9 +131,9 @@ export default function VipRoomPage() {
                 <Image
                   src="/images/vip_room_2.webp"
                   alt="ห้องพิเศษเดี่ยว และห้องพิเศษเด็ก โรงพยาบาลเถิน"
-                  fill
-                  sizes="(max-width:768px) 100vw, 50vw"
-                  style={{ objectFit: 'cover' }}
+                  width={800}
+                  height={600}
+                  style={{ width: '100%', height: 'auto', display: 'block' }}
                   className="room-img"
                 />
               </div>
@@ -149,40 +152,6 @@ export default function VipRoomPage() {
             </ul>
           </div>
         </div>
-
-        {/* ─── ติดต่อสอบถาม ─── */}
-        <section className="vip-contact">
-          <h2 className="vip-contact__title">ช่องทางการติดต่อและสอบถามข้อมูลเพิ่มเติม</h2>
-          <div className="vip-contact__grid">
-            <a href="tel:054291585" className="vip-contact__card" id="vip-contact-phone">
-              <span className="vip-contact__card-icon">📞</span>
-              <div>
-                <div className="vip-contact__card-label">โทรศัพท์ (ระบบอัตโนมัติ)</div>
-                <div className="vip-contact__card-value">054-291585</div>
-              </div>
-            </a>
-            <a
-              href="https://www.facebook.com/thoenhospital"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="vip-contact__card"
-              id="vip-contact-facebook"
-            >
-              <span className="vip-contact__card-icon">📘</span>
-              <div>
-                <div className="vip-contact__card-label">Facebook Page</div>
-                <div className="vip-contact__card-value">โรงพยาบาลเถิน ลำปาง</div>
-              </div>
-            </a>
-            <Link href="/contact" className="vip-contact__card" id="vip-contact-website">
-              <span className="vip-contact__card-icon">🌐</span>
-              <div>
-                <div className="vip-contact__card-label">ติดต่อเรา</div>
-                <div className="vip-contact__card-value">โรงพยาบาลเถิน</div>
-              </div>
-            </Link>
-          </div>
-        </section>
 
       </div>
     </div>

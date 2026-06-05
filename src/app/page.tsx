@@ -160,7 +160,8 @@ const services = [
   {
     title: 'อัตราการบริการห้องพิเศษ',
     desc: 'ข้อมูลค่าบริการห้องพักพิเศษ สิ่งอำนวยความสะดวกครบครัน และการดูแลระดับพรีเมียม',
-    icon: BedDouble
+    icon: BedDouble,
+    link: '/package/vip-room'
   },
   {
     title: 'สูตินรีเวชกรรม',
