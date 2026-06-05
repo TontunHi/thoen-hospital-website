@@ -6,12 +6,11 @@ export const dynamic = 'force-dynamic'
 
 async function getNewsList(page: number, limit: number, category?: string) {
   try {
-    // Call the adapted API route instead of directly querying the DB with outdated columns
-    // We fetch using the full URL protocol + host to ensure it runs correctly on SSR
-    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
-    const host = process.env.HOST || 'localhost:3000'
+    // Use NEXTAUTH_URL as the canonical base URL for internal SSR fetches.
+    // This works for both development (http://localhost:3000) and production (http://192.168.1.142:6060).
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
     const catQuery = category ? `&category=${category}` : ''
-    const res = await fetch(`${protocol}://${host}/api/news?page=${page}&limit=${limit}${catQuery}`, {
+    const res = await fetch(`${baseUrl}/api/news?page=${page}&limit=${limit}${catQuery}`, {
       cache: 'no-store'
     })
     
