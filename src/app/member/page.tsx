@@ -26,10 +26,6 @@ export default async function MemberDashboardPage() {
 
   const roleTranslation: Record<string, string> = {
     admin: 'ผู้ดูแลระบบ (Admin)',
-    hr: 'เจ้าหน้าที่ฝ่ายบุคคล (HR)',
-    doctor: 'นายแพทย์ / แพทย์หญิง (Doctor)',
-    nurse: 'พยาบาล (Nurse)',
-    patient: 'ผู้ป่วย / บุคคลทั่วไป (Patient)',
     member: 'สมาชิกทั่วไป (Member)'
   }
   const displayRole = roleTranslation[member.role] || member.role || 'สมาชิกทั่วไป'
