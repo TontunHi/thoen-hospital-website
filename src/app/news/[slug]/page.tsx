@@ -2,6 +2,8 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+
+export const dynamic = 'force-dynamic'
 import ImageGallery from '@/components/ImageGallery'
 import ViewCounter from '@/components/ViewCounter'
 import './page.css'

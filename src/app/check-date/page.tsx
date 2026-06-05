@@ -93,13 +93,7 @@ export default function CheckDatePage() {
     <div className="appointPage">
       <div className="container">
         
-        {/* Navigation Breadcrumb */}
-        <div className="breadcrumbWrapper animate-fadeIn">
-          <Link href="/" className="backHomeLink">
-            <ChevronRight size={16} className="rotate180" />
-            <span>กลับไปหน้าแรก</span>
-          </Link>
-        </div>
+
 
         <div className="appointCard animate-fadeInUp">
           <div className="cardDecorativeHeader"></div>

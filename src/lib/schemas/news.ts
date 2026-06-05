@@ -39,7 +39,10 @@ export const newsCreateSchema = z.object({
     .nullable(),
   images: z
     .array(
-      z.string().url('รูปแบบ URL รูปภาพไม่ถูกต้อง').max(500)
+      z.string().max(500).refine(
+        (val) => val.startsWith('/') || val.startsWith('http://') || val.startsWith('https://'),
+        { message: 'รูปแบบ URL รูปภาพไม่ถูกต้อง' }
+      )
     )
     .max(20, 'รูปภาพต้องไม่เกิน 20 รูป')
     .optional(),

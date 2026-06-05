@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import HeroSlideshow from '@/components/HeroSlideshow';
 import { 
   Activity, 
   Stethoscope, 
@@ -114,6 +115,23 @@ async function getLatestNews() {
   }
 }
 
+async function getActiveSlides() {
+  try {
+    const now = new Date()
+    const slides = await prisma.heroSlide.findMany({
+      where: {
+        startDate: { lte: now },
+        endDate: { gte: now }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    return slides
+  } catch (error) {
+    console.error('Fetch active slides error:', error)
+    return []
+  }
+}
+
 
 
 const services = [
@@ -131,7 +149,8 @@ const services = [
   {
     title: 'ทันตกรรม',
     desc: 'บริการทันตกรรมครบวงจร ดูแลสุขภาพฟัน ขูดหินปูน อุดฟัน ถอนฟัน และทันตกรรมเด็ก',
-    icon: Smile
+    icon: Smile,
+    link: '/package/dentistry'
   },
   {
     title: 'แพทย์แผนไทย',
@@ -150,61 +169,33 @@ const services = [
   },
 ];
 
+const relatedOrgs = [
+  { name: 'สสจ.ลำปาง', url: 'https://www.lpho.go.th/' },
+  { name: 'สสอ.เถิน', url: 'https://www.thoenhealth.go.th/index.php' },
+  { name: 'รพ.มะเร็งลำปาง', url: 'https://www.lpch.go.th/lpch/' },
+  { name: 'รพ.ศูนย์ลำปาง', url: 'https://www.lph.go.th/lpweb/' },
+  { name: 'รพ.เกาะคา', url: 'https://www.kokhahospital.go.th/' },
+  { name: 'รพ.งาว', url: 'https://www.ngaohospital.com/' },
+  { name: 'รพ.แจ้ห่ม', url: 'https://chaehomlampang.wordpress.com/' },
+  { name: 'รพ.เมืองปาน', url: 'https://muangpan.moph.go.th/newsportal/' },
+  { name: 'รพ.แม่ทะ', url: 'https://maethahospital.com/' },
+  { name: 'รพ.แม่พริก', url: 'http://61.19.35.172/webmaeprik/' },
+  { name: 'รพ.แม่เมาะ', url: 'http://maemohhealth.moph.go.th/maemohhospital/index.php' },
+  { name: 'รพ.วังเหนือ', url: 'http://www.wangnueahospital.com/' },
+  { name: 'รพ.สบปราบ', url: 'https://www.sopprabhospital.go.th/' },
+  { name: 'รพ.เสริมงาม', url: 'http://www.soemngamhospital.go.th/index.php?page=intro&language=th' },
+  { name: 'รพ.ห้างฉัตร', url: 'https://www.hangchathospital.com/' },
+];
+
 export default async function HomePage() {
   const latestNews = await getLatestNews();
+  const activeSlides = await getActiveSlides();
 
   return (
     <div className="home">
       {/* ===== HERO SECTION ===== */}
       <section className="hero">
-        <div className="hero__bg">
-          <Image
-            src="/images/main-banner.webp"
-            alt="โรงพยาบาลเถิน จังหวัดลำปาง"
-            fill
-            priority
-            style={{ objectFit: 'cover' }}
-            sizes="100vw"
-          />
-          <div className="hero__overlay" />
-        </div>
-        <div className="container hero__content">
-          <div className="hero__badge">
-            ดูแลสุขภาพชุมชน ด้วยหัวใจ
-          </div>
-          <h1 className="hero__title">
-            โรงพยาบาลเถิน
-            <span className="hero__title-sub">จังหวัดลำปาง</span>
-          </h1>
-          <p className="hero__desc">
-            ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ
-            <br />พร้อมดูแลสุขภาพของประชาชนในพื้นที่ด้วยมาตรฐานความปลอดภัย
-          </p>
-          <div className="hero__actions">
-            <Link href="/about" className="btn btn-white btn-lg">
-              เกี่ยวกับเรา
-            </Link>
-            <Link href="/contact" className="btn btn-outline btn-lg hero__btn-outline">
-              ติดต่อเรา
-            </Link>
-          </div>
-          <div className="hero__stats">
-            <div className="hero__stat">
-              <span className="hero__stat-num">90</span>
-              <span className="hero__stat-label">เตียง</span>
-            </div>
-            <div className="hero__stat-divider" />
-            <div className="hero__stat">
-              <span className="hero__stat-num">24</span>
-              <span className="hero__stat-label">ชม. ฉุกเฉิน</span>
-            </div>
-            <div className="hero__stat-divider" />
-            <div className="hero__stat">
-              <span className="hero__stat-num">50+</span>
-              <span className="hero__stat-label">บุคลากร</span>
-            </div>
-          </div>
-        </div>
+        <HeroSlideshow slides={activeSlides} />
       </section>
 
       {/* ===== SERVICES SECTION ===== */}
@@ -406,6 +397,42 @@ export default async function HomePage() {
               />
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== RELATED ORGANIZATIONS SECTION ===== */}
+      <section className="section related-orgs-section bg-gray-50">
+        <div className="container">
+          <div className="section-header">
+            <h2>หน่วยงานที่เกี่ยวข้อง</h2>
+            <p>ลิงก์เชื่อมโยงไปยังหน่วยงานราชการและสถานพยาบาลเครือข่ายที่เกี่ยวข้อง</p>
+          </div>
+          <div className="related-orgs-grid">
+            {relatedOrgs.map((org, index) => {
+              if (org.url) {
+                return (
+                  <a 
+                    key={index} 
+                    href={org.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="org-link-badge card"
+                  >
+                    {org.name}
+                  </a>
+                );
+              }
+              return (
+                <span 
+                  key={index} 
+                  className="org-link-badge card disabled"
+                  title="ยังไม่มีลิงก์เชื่อมโยง"
+                >
+                  {org.name}
+                </span>
+              );
+            })}
           </div>
         </div>
       </section>

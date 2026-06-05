@@ -19,12 +19,22 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
         email VARCHAR(100) NOT NULL UNIQUE,
         salary_user VARCHAR(100) NULL,
         salary_pass VARCHAR(100) NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'member',
         otp_code VARCHAR(10) NULL,
         otp_expiry DATETIME NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
+
+    // Safely add column if the table already exists
+    try {
+      await connection.execute(`
+        ALTER TABLE members ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'member'
+      `)
+    } catch (alterError) {
+      // Ignored if column already exists
+    }
 
     const [results] = await connection.execute(sql, params)
     return results as any[]

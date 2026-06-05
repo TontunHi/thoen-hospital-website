@@ -25,10 +25,7 @@ export default function UnauthorizedPage() {
         <h1>ไม่มีสิทธิ์เข้าถึง</h1>
         <p>คุณไม่มีสิทธิ์เข้าถึงหน้านี้ กรุณาติดต่อผู้ดูแลระบบหากคุณเชื่อว่านี่คือข้อผิดพลาด</p>
         <div className="unauthorizedActions">
-          <Link href="/" className="btnPrimary">
-            กลับหน้าหลัก
-          </Link>
-          <Link href="/login" className="btnSecondary">
+          <Link href="/news-login" className="btnPrimary">
             เข้าสู่ระบบ
           </Link>
         </div>

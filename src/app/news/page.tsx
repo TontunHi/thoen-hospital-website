@@ -2,6 +2,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import './page.css'
 
+export const dynamic = 'force-dynamic'
+
 async function getNewsList(page: number, limit: number, category?: string) {
   try {
     // Call the adapted API route instead of directly querying the DB with outdated columns
@@ -10,7 +12,7 @@ async function getNewsList(page: number, limit: number, category?: string) {
     const host = process.env.HOST || 'localhost:3000'
     const catQuery = category ? `&category=${category}` : ''
     const res = await fetch(`${protocol}://${host}/api/news?page=${page}&limit=${limit}${catQuery}`, {
-      next: { revalidate: 60 }
+      cache: 'no-store'
     })
     
     if (!res.ok) {

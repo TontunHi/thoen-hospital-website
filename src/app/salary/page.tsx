@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import LogoutButton from './LogoutButton'
 import './page.css'
 
 export default function SalaryDashboardPage() {
@@ -30,7 +29,35 @@ export default function SalaryDashboardPage() {
       try {
         const dataRes = await fetch('/api/salary/data')
         if (dataRes.status === 401) {
-          window.location.href = '/salary/login'
+          // Attempt auto-login using SSO
+          const ssoRes = await fetch('/api/salary/login')
+          const ssoData = await ssoRes.json()
+          
+          if (ssoRes.ok && ssoData.success) {
+            // SSO success, retry fetching data
+            const retryRes = await fetch('/api/salary/data')
+            if (retryRes.ok) {
+              const data = await retryRes.json()
+              setYears(data.years || [])
+              setSelectedYear(data.selectedYear || '')
+              setSelectedMonth(data.selectedMonth || '')
+              setSalaryData(data.salary)
+              setOtData(data.ot)
+              setName(data.userName || '')
+              setLoading(false)
+              return
+            }
+          }
+          
+          // If SSO fails or not authenticated
+          if (ssoData.authenticated === false) {
+            window.location.href = '/member/login'
+          } else if (ssoData.hasSalaryCredentials === false) {
+            setError('คุณยังไม่ได้ผูกข้อมูลระบบเงินเดือน กรุณาผูกข้อมูลในหน้าระบบสมาชิกก่อน')
+          } else {
+            setError(ssoData.error || 'การเข้าสู่ระบบเงินเดือนอัตโนมัติล้มเหลว')
+          }
+          setLoading(false)
           return
         }
 
@@ -62,7 +89,26 @@ export default function SalaryDashboardPage() {
     try {
       const res = await fetch(`/api/salary/data?year=${year}&month=${month}`)
       if (res.status === 401) {
-        window.location.href = '/salary/login'
+        // Attempt SSO auto-login
+        const ssoRes = await fetch('/api/salary/login')
+        const ssoData = await ssoRes.json()
+        if (ssoRes.ok && ssoData.success) {
+          const retryRes = await fetch(`/api/salary/data?year=${year}&month=${month}`)
+          if (retryRes.ok) {
+            const data = await retryRes.json()
+            setSalaryData(data.salary)
+            setOtData(data.ot)
+            setLoading(false)
+            return
+          }
+        }
+        
+        if (ssoData.authenticated === false) {
+          window.location.href = '/member/login'
+        } else {
+          setError(ssoData.error || 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบหลักใหม่')
+        }
+        setLoading(false)
         return
       }
       const data = await res.json()
@@ -124,9 +170,7 @@ export default function SalaryDashboardPage() {
               </p>
             </div>
           </div>
-          <div className="salaryHeaderActions">
-            <LogoutButton />
-          </div>
+          {/* Removed LogoutButton as per user request */}
         </header>
 
         {/* Filters Panel */}

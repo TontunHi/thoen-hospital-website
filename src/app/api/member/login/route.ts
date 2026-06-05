@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     )
 
     // 4. Create member session cookie
-    await createMemberSession(trimmedUsername, trimmedEmail)
+    await createMemberSession(trimmedUsername, trimmedEmail, user.role || 'member')
 
     return NextResponse.json({
       success: true,
@@ -69,6 +69,7 @@ export async function POST(request: Request) {
       member: {
         username: trimmedUsername,
         email: trimmedEmail,
+        role: user.role || 'member',
       },
     })
   } catch (error: any) {

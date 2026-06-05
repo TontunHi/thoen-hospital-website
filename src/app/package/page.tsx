@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { HeartPulse, ChevronRight } from 'lucide-react'
+import { HeartPulse, ChevronRight, Sparkles } from 'lucide-react'
 import './page.css'
 
 export default function PackagePage() {
@@ -38,6 +38,35 @@ export default function PackagePage() {
               <div className="packageCard__footer">
                 <span className="packageCard__price">เริ่มต้น 50.- บาท</span>
                 <Link href="/package/health-check-1day" className="packageCard__btn">
+                  ดูรายละเอียด
+                  <ChevronRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Dentistry Services */}
+          <div className="packageCard card-glass">
+            <div className="packageCard__image">
+              <Image
+                src="/images/dentistry.webp"
+                alt="บริการด้านทันตกรรม โรงพยาบาลเถิน"
+                fill
+                style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            </div>
+            <div className="packageCard__body">
+              <div className="packageCard__icon">
+                <Sparkles size={24} />
+              </div>
+              <h3>บริการด้านทันตกรรม (Dental Care)</h3>
+              <p>
+                บริการตรวจสุขภาพฟัน อุดฟัน ขูดหินปูน ถอนฟัน รักษารากฟัน ผ่าฟันคุด ทำฟันปลอม และครอบฟัน โดยทีมทันตแพทย์ผู้เชี่ยวชาญพร้อมอุปกรณ์มาตรฐานสากล
+              </p>
+              <div className="packageCard__footer">
+                <span className="packageCard__price">เริ่มตั้งแต่วันที่ 1 เม.ย. 67</span>
+                <Link href="/package/dentistry" className="packageCard__btn">
                   ดูรายละเอียด
                   <ChevronRight size={16} />
                 </Link>

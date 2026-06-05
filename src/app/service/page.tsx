@@ -15,7 +15,7 @@ export default async function ServicePage() {
     {
       title: 'โปรแกรมเงินเดือน',
       desc: 'เข้าสู่ระบบเพื่อดูสลิปเงินเดือนและข้อมูลการจ่ายประจำเดือนสำหรับบุคลากรโรงพยาบาลเถิน',
-      link: '/salary/login',
+      link: '/salary',
       btnText: 'ไปยังโปรแกรมเงินเดือน',
     },
     {
@@ -25,9 +25,27 @@ export default async function ServicePage() {
       btnText: 'เปิดดูสถานะห้องฉุกเฉิน',
     },
     {
+      title: 'ค้นหาผลแลป & ประวัติการรักษา',
+      desc: 'ระบบค้นหาประวัติการรักษาพยาบาล รายการยา และรายงานผลการตรวจ LAB (Outpatient / Inpatient) ของโรงพยาบาลเถิน',
+      link: '/service/lab',
+      btnText: 'ค้นหาประวัติและผลแลป',
+    },
+    {
+      title: 'รพ.สต. ติดตามผลแลป',
+      desc: 'ระบบติดตามความคืบหน้าการส่งตรวจ LAB ประจำวัน จำแนกตามรายชื่อแพทย์และเจ้าหน้าที่ผู้สั่งตรวจสำหรับเครือข่าย รพ.สต.',
+      link: '/service/lab-tracker',
+      btnText: 'ติดตามผลแลปวันนี้',
+    },
+    {
+      title: 'ระบบลงทะเบียนหนังสือส่งออก Online',
+      desc: 'ระบบสืบค้นและลงทะเบียนหนังสือส่งออกทางราชการของโรงพยาบาลเถิน แยกตามปีงบประมาณ',
+      link: '/service/outgoing-document',
+      btnText: 'ลงทะเบียนหนังสือส่งออก',
+    },
+    {
       title: 'โปรแกรมโพสข่าวประชาสัมพันธ์',
       desc: 'ระบบจัดการข่าวประชาสัมพันธ์ ข่าวรับสมัครงาน และข่าวกิจกรรมบนเว็บไซต์โรงพยาบาลเถิน',
-      link: '/admin',
+      link: '/admin-news',
       btnText: 'จัดการข่าวประชาสัมพันธ์',
     },
     {
@@ -49,6 +67,16 @@ export default async function ServicePage() {
       btnText: 'ไปยัง HDC Lampang',
     },
   ]
+
+  // Add Member management only if session.role is admin
+  if (session && session.role === 'admin') {
+    internalSystems.splice(3, 0, {
+      title: 'แดชบอร์ดสมาชิก',
+      desc: 'ระบบตรวจสอบรายชื่อสมาชิกทั้งหมด แก้ไขข้อมูล บัญชีเงินเดือน และจัดการสิทธิ์การเข้าใช้งานภายใน (เฉพาะแอดมิน)',
+      link: '/service/members',
+      btnText: 'จัดการสมาชิก',
+    })
+  }
 
   return (
     <div className="container servicePage">

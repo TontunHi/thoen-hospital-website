@@ -49,7 +49,7 @@ export default function Navbar() {
     }
     
     // Only check if it's not administrative or salary systems
-    if (pathname && !pathname.startsWith('/admin') && !pathname.startsWith('/login') && !pathname.startsWith('/salary')) {
+    if (pathname && !pathname.startsWith('/admin-news') && !pathname.startsWith('/news-login') && !pathname.startsWith('/salary')) {
       checkMember();
     }
   }, [pathname]);
@@ -79,7 +79,7 @@ export default function Navbar() {
     return !categoryParam;
   };
 
-  if (pathname && (pathname.startsWith('/admin') || pathname.includes('/tv-mode'))) {
+  if (pathname && pathname.includes('/tv-mode')) {
     return null;
   }
 
@@ -89,7 +89,8 @@ export default function Navbar() {
       label: 'การบริการ',
       href: '/package',
       submenu: [
-        { href: '/package/health-check-1day', label: 'โปรแกรมตรวจสุขภาพ 1 วัน' }
+        { href: '/package/health-check-1day', label: 'โปรแกรมตรวจสุขภาพ 1 วัน' },
+        { href: '/package/dentistry', label: 'บริการด้านทันตกรรม' }
       ]
     },
     {
@@ -103,6 +104,25 @@ export default function Navbar() {
       ]
     },
     { href: '/systems', label: 'ระบบสารสนเทศ' },
+    {
+      label: 'ชมรมจริยธรรม',
+      submenu: [
+        { href: '/ethics?year=2569', label: 'จริยธรรมปีงบประมาณ 2569' },
+        { href: '/ethics?year=2568', label: 'จริยธรรมปีงบประมาณ 2568' },
+        { href: '/ethics?year=2567', label: 'จริยธรรมปีงบประมาณ 2567' },
+      ]
+    },
+    {
+      label: 'ITA',
+      submenu: [
+        { href: '/ita', label: 'ITA ทั้งหมด' },
+        { href: 'https://sites.google.com/thoenhospital.com/ita-2569-11152/ita', label: 'ITA 2569' },
+        { href: 'https://sites.google.com/thoenhospital.com/ita-11152/ita', label: 'ITA 2568' },
+        { href: 'http://www.thlp.moph.go.th/11152/ITA/2567/index.php', label: 'ITA 2567' },
+        { href: 'http://www.thlp.moph.go.th/11152/ITA/2567/index.php', label: 'ITA 2566' },
+        { href: 'http://www.thlp.moph.go.th/11152/ITA/2565/index.php', label: 'ITA 2565' },
+      ]
+    },
     {
       label: 'เกี่ยวกับเรา',
       submenu: [
@@ -158,16 +178,27 @@ export default function Navbar() {
                     </span>
                   )}
                   <ul className="navbar__submenu">
-                    {link.submenu.map((sub) => (
-                      <li key={sub.href}>
-                        <Link
-                          href={sub.href}
-                          className={`navbar__submenu-link ${
-                            isActiveLink(sub.href) ? 'navbar__submenu-link--active' : ''
-                          }`}
-                        >
-                          {sub.label}
-                        </Link>
+                    {link.submenu.map((sub, idx) => (
+                      <li key={`${sub.label}-${idx}`}>
+                        {sub.href.startsWith('http') ? (
+                          <a
+                            href={sub.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="navbar__submenu-link"
+                          >
+                            {sub.label}
+                          </a>
+                        ) : (
+                          <Link
+                            href={sub.href}
+                            className={`navbar__submenu-link ${
+                              isActiveLink(sub.href) ? 'navbar__submenu-link--active' : ''
+                            }`}
+                          >
+                            {sub.label}
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ul>

@@ -27,6 +27,8 @@ const requiredEnvVars = [
   'MEMBER_OTP_EMAIL_USER',
   'MEMBER_OTP_EMAIL_PASS',
   'MEMBER_SESSION_SECRET',
+  'NEXTAUTH_SECRET',
+  'NEXTAUTH_URL',
 ] as const
 
 /**

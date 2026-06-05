@@ -111,7 +111,7 @@ export async function PUT(
       )
     }
 
-    const { title, youtubeUrl, pdfUrl, status, category, publishedAt, expiredAt, images } = body
+    const { title, youtubeUrl, pdfUrl, status, category, publishedAt, expiredAt, images } = parsed.data
 
     const existing = await prisma.news.findUnique({
       where: { id: newsId },

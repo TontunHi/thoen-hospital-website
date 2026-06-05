@@ -1,10 +1,20 @@
 /* ===== HERO SECTION ===== */
 .hero {
   position: relative;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
+  width: calc(100% - (var(--container-padding) * 2));
+  max-width: var(--container-max);
+  margin: var(--space-6) auto;
+  height: 280px; /* Mobile height */
+  border-radius: var(--radius-xl);
   overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+@media (min-width: 768px) {
+  .hero {
+    height: 480px;
+    margin: var(--space-8) auto;
+  }
 }
 
 .hero__bg {
@@ -462,16 +472,6 @@
 }
 
 @media (max-width: 768px) {
-  .hero {
-    min-height: auto;
-    padding-bottom: var(--space-10);
-  }
-
-  .hero__content {
-    padding-top: calc(var(--navbar-height) + var(--space-10));
-    padding-bottom: var(--space-8);
-  }
-
   .hero__desc br {
     display: none;
   }
@@ -714,5 +714,58 @@
 
 .google-map-embed-card:hover .map-wrapper {
   border-color: var(--accent-gold-light);
+}
+
+/* ===== RELATED ORGANIZATIONS SECTION ===== */
+.related-orgs-section {
+  padding: var(--space-16) 0;
+  background-color: var(--white);
+}
+
+.related-orgs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.org-link-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-4) var(--space-5);
+  background-color: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  color: var(--gray-700);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.org-link-badge:hover {
+  background-color: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.org-link-badge.disabled {
+  background-color: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--gray-400);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.org-link-badge.disabled:hover {
+  transform: none;
+  background-color: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--gray-400);
+  box-shadow: none;
 }
 

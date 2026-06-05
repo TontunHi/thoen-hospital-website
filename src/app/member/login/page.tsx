@@ -43,7 +43,7 @@ export default function MemberLoginPage() {
 
       if (res.ok) {
         setStep(2)
-        setSuccess('รหัส OTP ถูกส่งไปยังอีเมลของคุณเรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย')
+        setSuccess(`รหัส OTP ถูกส่งไปยังอีเมล ${email} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย`)
         setCountdown(60) // Cooldown 60s
       } else {
         setError(data.error || 'ไม่สามารถขอรหัส OTP ได้ในขณะนี้')
@@ -103,7 +103,7 @@ export default function MemberLoginPage() {
             height={80}
             priority
           />
-          <h2>ระบบสมาชิก</h2>
+          <h2>เข้าสู่ระบบ</h2>
           <p>โรงพยาบาลเถิน จังหวัดลำปาง</p>
         </div>
 
@@ -188,9 +188,7 @@ export default function MemberLoginPage() {
           </button>
         </form>
 
-        <div className="memberLoginFooter">
-          <Link href="/systems">← กลับไปหน้าระบบสารสนเทศ</Link>
-        </div>
+
       </div>
     </div>
   )

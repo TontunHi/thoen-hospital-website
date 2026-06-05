@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/roles'
-import { writeFile, mkdir } from 'fs/promises'
+import { writeFile, mkdir, unlink } from 'fs/promises'
 import path from 'path'
 
 export async function POST(request: Request) {
@@ -66,7 +66,15 @@ export async function POST(request: Request) {
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads', dateStr, cleanTitle)
     await mkdir(uploadsDir, { recursive: true })
 
-    const ext = path.extname(file.name) || '.jpg'
+    const ext = (path.extname(file.name) || '.jpg').toLowerCase()
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf']
+    if (!allowedExtensions.includes(ext)) {
+      return NextResponse.json(
+        { error: 'รองรับเฉพาะไฟล์รูปภาพหลักและไฟล์ PDF เท่านั้น (ไม่รับนามสกุลไฟล์แปลกปลอม)' },
+        { status: 400 }
+      )
+    }
+
     // Name the file starting with cleanTitle plus timestamp to avoid duplicates
     const fileUniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
     const filename = `${cleanTitle}-${fileUniqueSuffix}${ext}`
@@ -87,6 +95,41 @@ export async function POST(request: Request) {
     console.error('Upload error:', error)
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const authResult = await requireRole(['admin', 'editor'])
+    if (authResult.error) return authResult.error
+
+    const { searchParams } = new URL(request.url)
+    const filePath = searchParams.get('path')
+
+    if (!filePath) {
+      return NextResponse.json({ error: 'ไม่ระบุพาธของไฟล์' }, { status: 400 })
+    }
+
+    // Security Check: enforce starting with /uploads/ and forbid path traversal
+    if (!filePath.startsWith('/uploads/') || filePath.includes('..')) {
+      return NextResponse.json({ error: 'พาธของไฟล์ไม่ถูกต้อง' }, { status: 400 })
+    }
+
+    const absolutePath = path.join(process.cwd(), 'public', filePath)
+
+    try {
+      await unlink(absolutePath)
+      return NextResponse.json({ success: true, message: 'ลบไฟล์เรียบร้อยแล้ว' })
+    } catch (fsError: any) {
+      console.warn('File to delete not found on disk:', fsError.message)
+      return NextResponse.json({ success: true, message: 'ไม่พบไฟล์บนระบบดิสก์ แต่อ้างอิงถูกลบแล้ว' })
+    }
+  } catch (error: any) {
+    console.error('Delete upload error:', error)
+    return NextResponse.json(
+      { error: 'เกิดข้อผิดพลาดในการลบไฟล์อัปโหลด' },
       { status: 500 }
     )
   }

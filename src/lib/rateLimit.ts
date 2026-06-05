@@ -81,6 +81,14 @@ interface RateLimitResult {
  * ```
  */
 export async function checkRateLimit(options: RateLimitOptions): Promise<RateLimitResult> {
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      allowed: true,
+      remaining: options.maxAttempts,
+      resetTime: Date.now() + options.windowSeconds * 1000,
+    }
+  }
+
   cleanupExpiredEntries()
 
   const clientIp = await getClientIp()

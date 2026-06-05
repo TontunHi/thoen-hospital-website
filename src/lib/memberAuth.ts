@@ -18,14 +18,14 @@ function sign(value: string): string {
   return hmac.digest('hex')
 }
 
-function createToken(payloadData: { username: string; email: string }): string {
+function createToken(payloadData: { username: string; email: string; role: string }): string {
   const payload = JSON.stringify({ ...payloadData, exp: Date.now() + SESSION_MAX_AGE * 1000 })
   const encoded = Buffer.from(payload).toString('base64url')
   const signature = sign(encoded)
   return `${encoded}.${signature}`
 }
 
-function verifyToken(token: string): { username: string; email: string } | null {
+function verifyToken(token: string): { username: string; email: string; role: string } | null {
   try {
     const [encoded, signature] = token.split('.')
     if (!encoded || !signature) return null
@@ -41,14 +41,14 @@ function verifyToken(token: string): { username: string; email: string } | null 
 
     if (payload.exp < Date.now()) return null
 
-    return { username: payload.username, email: payload.email }
+    return { username: payload.username, email: payload.email, role: payload.role || 'member' }
   } catch {
     return null
   }
 }
 
-export async function createMemberSession(username: string, email: string): Promise<void> {
-  const token = createToken({ username, email })
+export async function createMemberSession(username: string, email: string, role: string): Promise<void> {
+  const token = createToken({ username, email, role })
   const cookieStore = await cookies()
 
   cookieStore.set(COOKIE_NAME, token, {
@@ -60,7 +60,7 @@ export async function createMemberSession(username: string, email: string): Prom
   })
 }
 
-export async function verifyMemberSession(): Promise<{ username: string; email: string } | null> {
+export async function verifyMemberSession(): Promise<{ username: string; email: string; role: string } | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE_NAME)?.value
 

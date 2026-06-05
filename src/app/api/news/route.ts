@@ -133,7 +133,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { title, youtubeUrl, pdfUrl, status, category, publishedAt, expiredAt, images } = body
+    const { title, youtubeUrl, pdfUrl, status, category, publishedAt, expiredAt, images } = parsed.data
 
     const slug = generateSlug(title)
 

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['172.16.0.117', '172.16.0.117:8080'],
   async headers() {
     return [
       {
@@ -32,7 +33,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https:",
               "font-src 'self' https://fonts.gstatic.com",
               "frame-src 'self' https://app.powerbi.com https://*.moph.go.th https://www.youtube.com https://youtube.com https://docs.google.com https://www.facebook.com https://facebook.com https://www.google.com https://google.com",
-              "connect-src 'self'",
+              "connect-src 'self' ws: wss:",
               "media-src 'self'",
               "object-src 'none'",
               "base-uri 'self'",
@@ -55,3 +56,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+

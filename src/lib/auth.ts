@@ -60,16 +60,25 @@ export async function createSession(adminId: number, role: string): Promise<void
   })
 }
 
-export async function verifySession(): Promise<{ adminId: number; role: string } | null> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get(COOKIE_NAME)?.value
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "./authOptions"
 
-  if (!token) return null
-
-  return verifyToken(token)
+export async function verifySession(): Promise<{ adminId: number; role: string; username?: string } | null> {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session || !session.user) return null
+    return {
+      adminId: parseInt((session.user as any).id) || 0,
+      role: (session.user as any).role || 'patient',
+      username: (session.user as any).username || '',
+    }
+  } catch (error) {
+    console.error('verifySession error:', error)
+    return null
+  }
 }
 
 export async function destroySession(): Promise<void> {
-  const cookieStore = await cookies()
-  cookieStore.delete(COOKIE_NAME)
+  // Session is managed by NextAuth
 }
+

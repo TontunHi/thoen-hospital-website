@@ -162,12 +162,7 @@ export default function HealthCheckPage() {
     <div className="healthCheckPage">
       <div className="container" style={{ paddingTop: '2rem' }}>
         
-        {/* Navigation Breadcrumb */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <Link href="/" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
-            ← กลับไปหน้าแรก
-          </Link>
-        </div>
+
 
         {/* Hero Section */}
         <section className="healthHero">
@@ -270,6 +265,22 @@ export default function HealthCheckPage() {
                 <li>สิทธิ์ในการเบิกสวัสดิการข้าราชการหรือสิทธิ์ประกันสังคม สามารถติดต่อเจ้าหน้าที่ฝ่ายการเงินเพื่อสอบถามรายละเอียดเพิ่มเติม</li>
                 <li>กรุณานำบัตรประจำตัวประชาชนตัวจริงมาเพื่อแสดงตนเข้ารับบริการ</li>
               </ul>
+            </div>
+
+            {/* QR Code and Contact Image Section */}
+            <div className="healthContactSection" style={{ marginTop: '2.5rem', textAlign: 'center' }}>
+              <h3 style={{ color: '#0f766e', fontSize: '1.2rem', marginBottom: '1rem', fontWeight: 700 }}>
+                สอบถามข้อมูลเพิ่มเติมเกี่ยวกับโปรแกรมตรวจสุขภาพ
+              </h3>
+              <div className="healthQrcodeWrapper" style={{ maxWidth: '480px', margin: '0 auto', overflow: 'hidden', borderRadius: '16px', boxShadow: '0 8px 30px rgba(13, 148, 136, 0.08)', border: '1px solid rgba(204, 251, 241, 0.5)' }}>
+                <Image
+                  src="/images/health-check-qrcode.webp"
+                  alt="สอบถามข้อมูลเพิ่มเติมและสแกนคิวอาร์โค้ดติดต่อแผนกตรวจสุขภาพ โรงพยาบาลเถิน"
+                  width={500}
+                  height={500}
+                  style={{ width: '100%', height: 'auto', display: 'block' }}
+                />
+              </div>
             </div>
           </section>
         </div>

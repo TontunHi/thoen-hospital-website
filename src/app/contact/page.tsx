@@ -19,6 +19,24 @@ const FacebookIcon = (props: React.SVGProps<SVGSVGElement> & { size?: number }) 
   </svg>
 );
 
+const relatedOrgs = [
+  { name: 'สสจ.ลำปาง', url: 'https://www.lpho.go.th/' },
+  { name: 'สสอ.เถิน', url: 'https://www.thoenhealth.go.th/index.php' },
+  { name: 'รพ.มะเร็งลำปาง', url: 'https://www.lpch.go.th/lpch/' },
+  { name: 'รพ.ศูนย์ลำปาง', url: 'https://www.lph.go.th/lpweb/' },
+  { name: 'รพ.เกาะคา', url: 'https://www.kokhahospital.go.th/' },
+  { name: 'รพ.งาว', url: 'https://www.ngaohospital.com/' },
+  { name: 'รพ.แจ้ห่ม', url: 'https://chaehomlampang.wordpress.com/' },
+  { name: 'รพ.เมืองปาน', url: 'https://muangpan.moph.go.th/newsportal/' },
+  { name: 'รพ.แม่ทะ', url: 'https://maethahospital.com/' },
+  { name: 'รพ.แม่พริก', url: 'http://61.19.35.172/webmaeprik/' },
+  { name: 'รพ.แม่เมาะ', url: 'http://maemohhealth.moph.go.th/maemohhospital/index.php' },
+  { name: 'รพ.วังเหนือ', url: 'http://www.wangnueahospital.com/' },
+  { name: 'รพ.สบปราบ', url: 'https://www.sopprabhospital.go.th/' },
+  { name: 'รพ.เสริมงาม', url: 'http://www.soemngamhospital.go.th/index.php?page=intro&language=th' },
+  { name: 'รพ.ห้างฉัตร', url: 'https://www.hangchathospital.com/' },
+];
+
 export default function ContactPage() {
   return (
     <div className="container contactPage">
@@ -136,6 +154,42 @@ export default function ContactPage() {
               title="Google Maps - โรงพยาบาลเถิน"
             />
           </div>
+        </div>
+      </div>
+
+      {/* ===== RELATED ORGANIZATIONS SECTION ===== */}
+      <div className="relatedOrgsSection" style={{ marginTop: '3.5rem' }}>
+        <div className="sectionHeader" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--gray-900)' }}>หน่วยงานที่เกี่ยวข้อง</h2>
+          <p style={{ color: 'var(--gray-500)', fontSize: '0.95rem', marginTop: '0.5rem' }}>
+            ลิงก์เชื่อมโยงไปยังหน่วยงานราชการและสถานพยาบาลเครือข่ายที่เกี่ยวข้อง
+          </p>
+        </div>
+        <div className="relatedOrgsGrid">
+          {relatedOrgs.map((org, index) => {
+            if (org.url) {
+              return (
+                <a 
+                  key={index} 
+                  href={org.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="orgLinkBadge card"
+                >
+                  {org.name}
+                </a>
+              );
+            }
+            return (
+              <span 
+                key={index} 
+                className="orgLinkBadge card disabled"
+                title="ยังไม่มีลิงก์เชื่อมโยง"
+              >
+                {org.name}
+              </span>
+            );
+          })}
         </div>
       </div>
     </div>

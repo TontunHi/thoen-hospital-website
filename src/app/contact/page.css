@@ -72,6 +72,7 @@
   background: linear-gradient(135deg, var(--white) 0%, var(--gray-50) 100%);
   box-shadow: var(--shadow-md);
   transition: transform var(--transition), box-shadow var(--transition);
+  text-align: left;
 }
 
 .infoCard:hover {
@@ -94,6 +95,7 @@
   border-radius: 8px;
   border: 1px solid var(--gray-100);
   transition: all var(--transition);
+  text-align: left;
 }
 
 .infoItem:hover {
@@ -344,5 +346,61 @@
 
 .googleMapEmbedCard:hover .mapWrapper {
   border-color: var(--accent-gold-light);
+}
+
+/* ===== RELATED ORGANIZATIONS SECTION ===== */
+.relatedOrgsSection {
+  background-color: var(--white);
+  padding: 2.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow-md);
+}
+
+.relatedOrgsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+.orgLinkBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-4) var(--space-5);
+  background-color: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  color: var(--gray-700);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.orgLinkBadge:hover:not(.disabled) {
+  background-color: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.orgLinkBadge.disabled {
+  background-color: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--gray-400);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.orgLinkBadge.disabled:hover {
+  transform: none;
+  background-color: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--gray-400);
+  box-shadow: none;
 }
 

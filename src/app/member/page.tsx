@@ -13,7 +13,7 @@ export default async function MemberDashboardPage() {
 
   // Fetch complete member profile from separate DB
   const users = await queryMemberDb(
-    'SELECT username, email, salary_user, salary_pass FROM members WHERE username = ? AND email = ?',
+    'SELECT username, email, salary_user, role, created_at FROM members WHERE username = ? AND email = ?',
     [session.username, session.email]
   )
 
@@ -23,7 +23,26 @@ export default async function MemberDashboardPage() {
   }
 
   const member = users[0]
-  const hasSalaryCredentials = !!(member.salary_user && member.salary_pass)
+
+  const roleTranslation: Record<string, string> = {
+    admin: 'ผู้ดูแลระบบ (Admin)',
+    hr: 'เจ้าหน้าที่ฝ่ายบุคคล (HR)',
+    doctor: 'นายแพทย์ / แพทย์หญิง (Doctor)',
+    nurse: 'พยาบาล (Nurse)',
+    patient: 'ผู้ป่วย / บุคคลทั่วไป (Patient)',
+    member: 'สมาชิกทั่วไป (Member)'
+  }
+  const displayRole = roleTranslation[member.role] || member.role || 'สมาชิกทั่วไป'
+
+  const registrationDate = member.created_at
+    ? new Date(member.created_at).toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    : '-'
 
   return (
     <div className="memberDashboardContainer">
@@ -49,30 +68,17 @@ export default async function MemberDashboardPage() {
                 <span className="label">อีเมลติดต่อ (Email)</span>
                 <span className="value">{member.email}</span>
               </div>
-            </div>
-          </div>
-
-          {/* Future Integration Panel */}
-          <div className="featureSection">
-            <div>
-              <h3>ฟังก์ชันและการเชื่อมต่อระบบ</h3>
-              <div className="futureBadge">กำลังพัฒนาเพิ่มเติมในอนาคต</div>
-              <div className="featureContent">
-                <p>
-                  ระบบสมาชิกนี้ใช้สำหรับผูกเชื่อมโยงสิทธิ์การใช้งานเข้ากับบริการต่าง ๆ ภายในเว็บไซต์โรงพยาบาลเถิน
-                  เช่น ระบบข้อมูลเงินเดือนและโอที (Salary & OT) ข้อมูลประกาศภายใน และสิทธิ์ผู้ใช้งานเฉพาะส่วน
-                </p>
+              <div className="infoItem">
+                <span className="label">สิทธิ์การใช้งาน (Role)</span>
+                <span className="value">{displayRole}</span>
               </div>
-            </div>
-
-            <div className="salaryCredentialsCard">
-              <p>สถานะการเชื่อมต่อข้อมูลเงินเดือน (Salary Credentials):</p>
-              <div className="credentialStatus">
-                {hasSalaryCredentials ? (
-                  <span className="status-linked">● เชื่อมต่อข้อมูลสำเร็จ (salary_user: {member.salary_user})</span>
-                ) : (
-                  <span className="status-notlinked">● ยังไม่ได้เชื่อมต่อข้อมูลเงินเดือน</span>
-                )}
+              <div className="infoItem">
+                <span className="label">รหัสผูกบัญชีเงินเดือน (Salary Linked ID)</span>
+                <span className="value">{member.salary_user || 'ยังไม่ได้ผูกบัญชีเงินเดือน'}</span>
+              </div>
+              <div className="infoItem">
+                <span className="label">วันที่ลงทะเบียน (Registered Date)</span>
+                <span className="value">{registrationDate}</span>
               </div>
             </div>
           </div>

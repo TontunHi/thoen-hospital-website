@@ -590,6 +590,10 @@
 
 /* Empty State */
 .emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   padding: var(--space-12) var(--space-4);
   color: var(--gray-400);
