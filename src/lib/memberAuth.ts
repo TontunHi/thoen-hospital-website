@@ -53,8 +53,10 @@ export async function createMemberSession(username: string, email: string, role:
 
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    // COOKIE_SECURE=true only when serving over HTTPS.
+    // Internal hospital network uses plain HTTP → must be false.
+    secure: process.env.COOKIE_SECURE === 'true',
+    sameSite: 'lax',
     path: '/',
     maxAge: SESSION_MAX_AGE,
   })
