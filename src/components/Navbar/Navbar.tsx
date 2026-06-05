@@ -10,10 +10,25 @@ import './Navbar.css';
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [member, setMember] = useState<{ username: string } | null>(null);
+  const [member, setMember] = useState<{ username: string; name?: string | null } | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
+
+  const getDisplayName = () => {
+    if (!member) return '';
+    if (member.name) {
+      const parts = member.name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return parts[1]; // First name only
+      }
+      return parts[0];
+    }
+    if (member.username.length === 13 && /^\d+$/.test(member.username)) {
+      return `${member.username.substring(0, 3)}...${member.username.substring(10)}`;
+    }
+    return member.username;
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -226,7 +241,7 @@ export default function Navbar() {
             </Link>
             {member ? (
               <Link href="/member" className="btn btn-primary">
-                ระบบสมาชิก ({member.username.length === 13 && /^\d+$/.test(member.username) ? `${member.username.substring(0, 3)}...${member.username.substring(10)}` : member.username})
+                ระบบสมาชิก ({getDisplayName()})
               </Link>
             ) : (
               <Link href="/member/login" className="btn btn-outline">
@@ -246,9 +261,7 @@ export default function Navbar() {
               <Link href="/member" className="navbar__member-btn">
                 <span className="navbar__member-icon">👤</span>
                 <span className="navbar__member-name">
-                  {member.username.length === 13 && /^\d+$/.test(member.username)
-                    ? `${member.username.substring(0, 3)}...${member.username.substring(10)}`
-                    : member.username}
+                  {getDisplayName()}
                 </span>
               </Link>
             ) : (

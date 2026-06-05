@@ -34,7 +34,7 @@ export async function GET() {
     }
 
     const members = await queryMemberDb(
-      'SELECT id, username, email, salary_user, salary_pass, role, created_at, updated_at FROM members ORDER BY created_at DESC'
+      'SELECT id, username, email, name, department, salary_user, salary_pass, role, created_at, updated_at FROM members ORDER BY created_at DESC'
     )
 
     return NextResponse.json({ success: true, members })
@@ -56,7 +56,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { id, username, email, salary_user, salary_pass, role } = body
+    const { id, username, email, name, department, salary_user, salary_pass, role } = body
 
     if (!id || !username || !email || !role) {
       return NextResponse.json(
@@ -96,11 +96,13 @@ export async function PUT(request: Request) {
     // Update member details
     await queryMemberDb(
       `UPDATE members 
-       SET username = ?, email = ?, salary_user = ?, salary_pass = ?, role = ?
+       SET username = ?, email = ?, name = ?, department = ?, salary_user = ?, salary_pass = ?, role = ?
        WHERE id = ?`,
       [
         username.trim(),
         email.trim(),
+        name ? name.trim() : null,
+        department ? department.trim() : null,
         salary_user ? salary_user.trim() : null,
         salary_pass ? salary_pass.trim() : null,
         role,
@@ -162,7 +164,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { username, email, salary_user, salary_pass, role } = body
+    const { username, email, name, department, salary_user, salary_pass, role } = body
 
     if (!username || !email || !role) {
       return NextResponse.json(
@@ -193,11 +195,13 @@ export async function POST(request: Request) {
 
     // Insert new member
     await queryMemberDb(
-      `INSERT INTO members (username, email, salary_user, salary_pass, role) 
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO members (username, email, name, department, salary_user, salary_pass, role) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         username.trim(),
         email.trim(),
+        name ? name.trim() : null,
+        department ? department.trim() : null,
         salary_user ? salary_user.trim() : null,
         salary_pass ? salary_pass.trim() : null,
         role

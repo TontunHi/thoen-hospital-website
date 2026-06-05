@@ -8,6 +8,8 @@ interface Member {
   id: number
   username: string
   email: string
+  name: string | null
+  department: string | null
   salary_user: string | null
   salary_pass: string | null
   role: 'member' | 'admin'
@@ -34,6 +36,8 @@ export default function MembersAdminPage() {
   // Form Fields
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [department, setDepartment] = useState('')
   const [salaryUser, setSalaryUser] = useState('')
   const [salaryPass, setSalaryPass] = useState('')
   const [role, setRole] = useState<'member' | 'admin'>('member')
@@ -79,6 +83,8 @@ export default function MembersAdminPage() {
     setEditingMember(null)
     setUsername('')
     setEmail('')
+    setName('')
+    setDepartment('')
     setSalaryUser('')
     setSalaryPass('')
     setRole('member')
@@ -95,6 +101,8 @@ export default function MembersAdminPage() {
     setEditingMember(member)
     setUsername(member.username)
     setEmail(member.email)
+    setName(member.name || '')
+    setDepartment(member.department || '')
     setSalaryUser(member.salary_user || '')
     setSalaryPass(member.salary_pass || '')
     setRole(member.role)
@@ -111,6 +119,8 @@ export default function MembersAdminPage() {
     const payload = {
       username,
       email,
+      name: name || null,
+      department: department || null,
       salary_user: salaryUser || null,
       salary_pass: salaryPass || null,
       role,
@@ -181,7 +191,9 @@ export default function MembersAdminPage() {
   const filteredMembers = members.filter((member) => {
     const matchesSearch =
       member.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchQuery.toLowerCase())
+      member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (member.name && member.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (member.department && member.department.toLowerCase().includes(searchQuery.toLowerCase()))
     const matchesRole = roleFilter === 'all' || member.role === roleFilter
     return matchesSearch && matchesRole
   })
@@ -254,6 +266,8 @@ export default function MembersAdminPage() {
                     <th>ID</th>
                     <th>ชื่อผู้ใช้</th>
                     <th>อีเมลติดต่อ</th>
+                    <th>ชื่อ-นามสกุล</th>
+                    <th>กลุ่มงาน/แผนก</th>
                     <th>บัญชีเงินเดือน (User)</th>
                     <th>รหัสผ่านเงินเดือน (Pass)</th>
                     <th>สิทธิ์การเข้าถึง (Role)</th>
@@ -273,6 +287,8 @@ export default function MembersAdminPage() {
                           </div>
                         </td>
                         <td className="memberEmail">{member.email}</td>
+                        <td>{member.name || '-'}</td>
+                        <td>{member.department || '-'}</td>
                         <td className="memberSalary">
                           {member.salary_user ? (
                             <span className="salaryBadge">
@@ -374,6 +390,34 @@ export default function MembersAdminPage() {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="เช่น รหัสบัตรประชาชน หรือ ชื่อล็อกอิน"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="formGroup">
+                  <label>ชื่อ-นามสกุล *</label>
+                  <div className="inputWrapper">
+                    <User size={16} className="inputIcon" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="เช่น นาย พิสุทธิ์ ยิ้มกุศล"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="formGroup">
+                  <label>กลุ่มงาน / แผนก *</label>
+                  <div className="inputWrapper">
+                    <User size={16} className="inputIcon" />
+                    <input
+                      type="text"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      placeholder="เช่น กลุ่มงานดิจิทัลทางการแพทย์"
                       required
                     />
                   </div>

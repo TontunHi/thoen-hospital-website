@@ -13,7 +13,7 @@ export default async function MemberDashboardPage() {
 
   // Fetch complete member profile from separate DB
   const users = await queryMemberDb(
-    'SELECT username, email, salary_user, role, created_at FROM members WHERE username = ? AND email = ?',
+    'SELECT username, email, name, department, salary_user, role, created_at FROM members WHERE username = ? AND email = ?',
     [session.username, session.email]
   )
 
@@ -60,6 +60,14 @@ export default async function MemberDashboardPage() {
           <div className="profileSection">
             <h3>ข้อมูลโปรไฟล์ของท่าน</h3>
             <div className="infoList">
+              <div className="infoItem">
+                <span className="label">ชื่อ-นามสกุล (Name)</span>
+                <span className="value">{member.name || '-'}</span>
+              </div>
+              <div className="infoItem">
+                <span className="label">กลุ่มงาน / แผนก (Department)</span>
+                <span className="value">{member.department || '-'}</span>
+              </div>
               <div className="infoItem">
                 <span className="label">ชื่อผู้ใช้งาน (Username)</span>
                 <span className="value">{member.username}</span>
