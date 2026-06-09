@@ -200,6 +200,17 @@
   border-radius: 10px;
   overflow: hidden;
   background: var(--gray-50);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.slideItemCard:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.slideItemCard.dragging {
+  opacity: 0.4;
+  border: 2px dashed var(--primary);
+  background: var(--primary-light);
 }
 
 @media (min-width: 640px) {

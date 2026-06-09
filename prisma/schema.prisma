@@ -60,14 +60,15 @@ enum Role {
 }
 
 model HeroSlide {
-  id        Int      @id @default(autoincrement())
-  imagePath String   @map("image_path") @db.VarChar(255)
-  title     String?  @db.VarChar(255)
-  linkUrl   String?  @map("link_url") @db.VarChar(255)
-  startDate DateTime @map("start_date") @db.DateTime(0)
-  endDate   DateTime @map("end_date") @db.DateTime(0)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(0)
+  id           Int      @id @default(autoincrement())
+  imagePath    String   @map("image_path") @db.VarChar(255)
+  title        String?  @db.VarChar(255)
+  linkUrl      String?  @map("link_url") @db.VarChar(255)
+  startDate    DateTime @map("start_date") @db.DateTime(0)
+  endDate      DateTime @map("end_date") @db.DateTime(0)
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(0)
 
   @@map("hero_slides")
 }

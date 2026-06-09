@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Plus, Trash2, Calendar, Link as LinkIcon, Image as ImageIcon, Eye, Clock } from 'lucide-react'
+import { Plus, Trash2, Calendar, Link as LinkIcon, Image as ImageIcon, Eye, Clock, Edit2, ArrowUpDown } from 'lucide-react'
 import './page.css'
 
 interface SlideItem {
@@ -12,6 +12,7 @@ interface SlideItem {
   linkUrl: string | null
   startDate: string
   endDate: string
+  displayOrder: number
 }
 
 export default function AdminSlidesPage() {
@@ -26,6 +27,10 @@ export default function AdminSlidesPage() {
   const [linkUrl, setLinkUrl] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [displayOrder, setDisplayOrder] = useState<number>(0)
+  
+  // Edit State
+  const [editingId, setEditingId] = useState<number | null>(null)
 
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -50,12 +55,51 @@ export default function AdminSlidesPage() {
     fetchSlides()
   }, [])
 
+  const formatToDatetimeLocal = (isoString: string) => {
+    if (!isoString) return ''
+    const d = new Date(isoString)
+    if (isNaN(d.getTime())) return ''
+    const tzoffset = d.getTimezoneOffset() * 60000 // offset in milliseconds
+    const localISOTime = (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16)
+    return localISOTime
+  }
+
+  const handleEdit = (slide: SlideItem) => {
+    setEditingId(slide.id)
+    setImagePath(slide.imagePath)
+    setLocalPreviewUrl(slide.imagePath)
+    setTitle(slide.title || '')
+    setLinkUrl(slide.linkUrl || '')
+    setStartDate(formatToDatetimeLocal(slide.startDate))
+    setEndDate(formatToDatetimeLocal(slide.endDate))
+    setDisplayOrder(slide.displayOrder || 0)
+    setError('')
+    setSuccess('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setImagePath('')
+    setLocalPreviewUrl('')
+    setTitle('')
+    setLinkUrl('')
+    setStartDate('')
+    setEndDate('')
+    setDisplayOrder(0)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+    setError('')
+    setSuccess('')
+  }
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // If there is an existing uploaded temp image, delete it first
-    if (imagePath) {
+    // If there is an existing uploaded temp image (and we aren't in editing mode representing database record), delete it first
+    if (imagePath && !editingId) {
       try {
         await fetch(`/api/upload?path=${encodeURIComponent(imagePath)}`, {
           method: 'DELETE',
@@ -108,7 +152,8 @@ export default function AdminSlidesPage() {
       fileInputRef.current.value = ''
     }
 
-    if (pathToClean) {
+    // Only delete from disk if we aren't editing an existing slide (where it's already a saved slide path)
+    if (pathToClean && !editingId) {
       try {
         await fetch(`/api/upload?path=${encodeURIComponent(pathToClean)}`, {
           method: 'DELETE',
@@ -132,8 +177,11 @@ export default function AdminSlidesPage() {
     }
 
     try {
-      const res = await fetch('/api/hero-slides', {
-        method: 'POST',
+      const url = editingId ? `/api/hero-slides/${editingId}` : '/api/hero-slides'
+      const method = editingId ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imagePath,
@@ -141,19 +189,22 @@ export default function AdminSlidesPage() {
           linkUrl: linkUrl || null,
           startDate: new Date(startDate).toISOString(),
           endDate: new Date(endDate).toISOString(),
+          displayOrder: Number(displayOrder) || 0,
         }),
       })
 
       const data = await res.json()
       if (res.ok) {
-        setSuccess('บันทึกสไลด์โชว์เรียบร้อยแล้ว')
+        setSuccess(editingId ? 'แก้ไขข้อมูลสไลด์ภาพเรียบร้อยแล้ว' : 'บันทึกสไลด์โชว์เรียบร้อยแล้ว')
         // Reset form
+        setEditingId(null)
         setImagePath('')
         setLocalPreviewUrl('')
         setTitle('')
         setLinkUrl('')
         setStartDate('')
         setEndDate('')
+        setDisplayOrder(0)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
@@ -176,6 +227,9 @@ export default function AdminSlidesPage() {
       if (res.ok) {
         setSlides(slides.filter((slide) => slide.id !== id))
         setSuccess('ลบสไลด์ภาพเรียบร้อยแล้ว')
+        if (editingId === id) {
+          handleCancelEdit()
+        }
       } else {
         const data = await res.json()
         setError(data.error || 'ลบไม่สำเร็จ')
@@ -184,6 +238,8 @@ export default function AdminSlidesPage() {
       setError('เกิดข้อผิดพลาดในการติดต่อระบบ')
     }
   }
+
+  const [draggedItem, setDraggedItem] = useState<SlideItem | null>(null)
 
   const getSlideStatus = (startStr: string, endStr: string) => {
     const now = new Date()
@@ -196,6 +252,73 @@ export default function AdminSlidesPage() {
       return { label: 'หมดอายุ (Expired)', className: 'status-expired' }
     } else {
       return { label: 'กำลังแสดงผล (Active)', className: 'status-active' }
+    }
+  }
+
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, slide: SlideItem) => {
+    setDraggedItem(slide)
+    e.dataTransfer.effectAllowed = 'move'
+    // For Firefox compatibility
+    e.dataTransfer.setData('text/plain', slide.id.toString())
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+  }
+
+  const handleDragEnter = (e: React.DragEvent, targetIndex: number) => {
+    if (!draggedItem) return
+    const draggedIndex = slides.findIndex((item) => item.id === draggedItem.id)
+    if (draggedIndex === targetIndex) return
+
+    const newSlides = [...slides]
+    // Reorder array locally
+    newSlides.splice(draggedIndex, 1)
+    newSlides.splice(targetIndex, 0, draggedItem)
+
+    // Reactively update temporary order for preview
+    const reorderedSlides = newSlides.map((slide, idx) => ({
+      ...slide,
+      displayOrder: idx
+    }))
+
+    setSlides(reorderedSlides)
+  }
+
+  const handleDragEnd = async () => {
+    setDraggedItem(null)
+    
+    // Save new orders to Database
+    try {
+      setError('')
+      const updates = slides.map((slide, idx) => ({
+        id: slide.id,
+        displayOrder: idx
+      }))
+
+      // Send new ordering to a batch API or update them individually
+      // In our Next.js backend, let's update them via loop or add a batch endpoint.
+      // Since we want to be safe, we can trigger PUT calls to update displayOrder, or we can send to a single endpoint.
+      // Let's call PUT for each changed slide to prevent adding new routes.
+      const savePromises = updates.map(update => 
+        fetch(`/api/hero-slides/${update.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            // Get original slide values to pass Zod schema verification
+            ...slides.find(s => s.id === update.id),
+            displayOrder: update.displayOrder
+          })
+        })
+      )
+
+      await Promise.all(savePromises)
+      setSuccess('จัดเรียงลำดับสไลด์ใหม่เรียบร้อยแล้ว')
+      fetchSlides()
+    } catch (err) {
+      console.error('Failed to save slide order:', err)
+      setError('เกิดข้อผิดพลาดในการจัดเก็บลำดับสไลด์ใหม่')
     }
   }
 
@@ -221,9 +344,9 @@ export default function AdminSlidesPage() {
       {success && <div className="slidesAlert alert-success">{success}</div>}
 
       <div className="slidesGrid">
-        {/* Creation Form */}
+        {/* Creation / Edit Form */}
         <div className="formSection card">
-          <h2>เพิ่มสไลด์ใหม่</h2>
+          <h2>{editingId ? 'แก้ไขข้อมูลสไลด์' : 'เพิ่มสไลด์ใหม่'}</h2>
           <form onSubmit={handleSubmit}>
             <div className="formGroup">
               <label>อัปโหลดรูปภาพสไลด์ * (แนะนำขนาด 1920x800px)</label>
@@ -295,28 +418,67 @@ export default function AdminSlidesPage() {
               </div>
             </div>
 
-            <button type="submit" className="submitBtn" disabled={submitting || uploading}>
-              {submitting ? 'กำลังบันทึก...' : 'บันทึกและเปิดใช้งานตั้งเวลา'}
-            </button>
+            <div className="formGroup">
+              <label htmlFor="displayOrder">ลำดับการแสดงผล (แนะให้ใช้การลากวางที่แถบด้านขวา)</label>
+              <input
+                id="displayOrder"
+                type="number"
+                min="0"
+                className="formInput"
+                value={displayOrder}
+                onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
+                placeholder="ระบุตัวเลข เช่น 0, 1, 2"
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {editingId && (
+                <button type="button" className="submitBtn" style={{ backgroundColor: '#64748b' }} onClick={handleCancelEdit}>
+                  ยกเลิก
+                </button>
+              )}
+              <button type="submit" className="submitBtn" style={{ flex: 1 }} disabled={submitting || uploading}>
+                {submitting ? 'กำลังบันทึก...' : (editingId ? 'บันทึกการแก้ไข' : 'บันทึกและเปิดใช้งานตั้งเวลา')}
+              </button>
+            </div>
           </form>
         </div>
 
         {/* Existing List */}
         <div className="listSection card">
           <h2>รายการสไลด์ทั้งหมด ({slides.length})</h2>
+          <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <ArrowUpDown size={14} /> สามารถคลิกค้างแล้วลากวางเพื่อสลับลำดับการแสดงผลได้ทันที (บนสุดแสดงเป็นอันดับแรก)
+          </p>
           {slides.length > 0 ? (
             <div className="slidesList">
-              {slides.map((slide) => {
+              {slides.map((slide, index) => {
                 const status = getSlideStatus(slide.startDate, slide.endDate)
+                const isDraggingThis = draggedItem?.id === slide.id
                 return (
-                  <div key={slide.id} className="slideItemCard">
+                  <div 
+                    key={slide.id} 
+                    className={`slideItemCard ${isDraggingThis ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, slide)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragEnter={(e) => handleDragEnter(e, index)}
+                    onDragEnd={handleDragEnd}
+                    style={{ cursor: 'grab' }}
+                  >
                     <div className="slideImgWrapper">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={slide.imagePath} alt={slide.title || 'Slide Image'} />
+                      <img src={slide.imagePath} alt={slide.title || 'Slide Image'} draggable={false} />
                     </div>
                     <div className="slideItemDetails">
                       <div className="slideItemTitle">
-                        {slide.title ? <h3>{slide.title}</h3> : <p className="noTitle">ไม่มีหัวข้อคำอธิบาย</p>}
+                        <div>
+                          {slide.title ? <h3>{slide.title}</h3> : <p className="noTitle">ไม่มีหัวข้อคำอธิบาย</p>}
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#0d9488', fontWeight: 'bold', marginTop: '4px' }}>
+                            <ArrowUpDown size={12} />
+                            <span>ลำดับที่: {slide.displayOrder}</span>
+                          </div>
+                        </div>
                         <span className={`statusPill ${status.className}`}>{status.label}</span>
                       </div>
                       
@@ -336,14 +498,17 @@ export default function AdminSlidesPage() {
                         {slide.linkUrl && (
                           <div className="metaRow urlRow">
                             <LinkIcon size={14} />
-                            <a href={slide.linkUrl} target="_blank" rel="noopener noreferrer">ลิงก์: {slide.linkUrl}</a>
+                            <a href={slide.linkUrl} target="_blank" rel="noopener noreferrer" draggable={false}>ลิงก์: {slide.linkUrl}</a>
                           </div>
                         )}
                       </div>
 
-                      <div className="slideItemActions">
-                        <button type="button" onClick={() => handleDelete(slide.id)} className="deleteSlideBtn">
-                          <Trash2 size={16} /> ลบสไลด์
+                      <div className="slideItemActions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button type="button" onClick={() => handleEdit(slide)} className="deleteSlideBtn" style={{ color: '#0f766e', borderColor: '#ccfbf1' }} draggable={false}>
+                          <Edit2 size={14} /> แก้ไขข้อมูล
+                        </button>
+                        <button type="button" onClick={() => handleDelete(slide.id)} className="deleteSlideBtn" draggable={false}>
+                          <Trash2 size={14} /> ลบสไลด์
                         </button>
                       </div>
                     </div>

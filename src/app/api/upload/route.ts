@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
-import { requireRole } from '@/lib/roles'
+import { requireMemberAdmin } from '@/lib/memberAuth'
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import path from 'path'
 
 export async function POST(request: Request) {
   try {
-    const authResult = await requireRole(['admin', 'editor'])
+    const authResult = await requireMemberAdmin()
     if (authResult.error) return authResult.error
 
     const formData = await request.formData()
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const authResult = await requireRole(['admin', 'editor'])
+    const authResult = await requireMemberAdmin()
     if (authResult.error) return authResult.error
 
     const { searchParams } = new URL(request.url)

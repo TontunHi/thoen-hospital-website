@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireRole } from '@/lib/roles'
+import { requireMemberAdmin } from '@/lib/memberAuth'
 import { heroSlideSchema } from '@/lib/schemas/heroSlide'
 
 export async function GET(request: Request) {
@@ -10,9 +10,12 @@ export async function GET(request: Request) {
 
     let slides
     if (all) {
-      // For Admin: fetch all slides ordered by creation date
+      // For Admin: fetch all slides ordered by displayOrder then creation date
       slides = await prisma.heroSlide.findMany({
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { displayOrder: 'asc' },
+          { createdAt: 'desc' },
+        ],
       })
     } else {
       // For Public: fetch only scheduled/active slides
@@ -22,7 +25,10 @@ export async function GET(request: Request) {
           startDate: { lte: now },
           endDate: { gte: now },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { displayOrder: 'asc' },
+          { createdAt: 'desc' },
+        ],
       })
     }
 
@@ -39,7 +45,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     // Validate role
-    const authResult = await requireRole(['admin', 'editor'])
+    const authResult = await requireMemberAdmin()
     if (authResult.error) return authResult.error
 
     const body = await request.json()
@@ -51,7 +57,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { imagePath, title, linkUrl, startDate, endDate } = parsed.data
+    const { imagePath, title, linkUrl, startDate, endDate, displayOrder } = parsed.data
 
     const start = new Date(startDate)
     const end = new Date(endDate)
@@ -63,6 +69,7 @@ export async function POST(request: Request) {
         linkUrl: linkUrl || null,
         startDate: start,
         endDate: end,
+        displayOrder: displayOrder || 0,
       },
     })
 

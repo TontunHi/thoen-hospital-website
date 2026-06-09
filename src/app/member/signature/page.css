@@ -1,26 +1,27 @@
 .signatureContainer {
+
   max-width: 900px;
   margin: 0 auto;
   padding: 24px;
 }
+.signatureContainer .signatureHeader {
 
-.signatureHeader {
   margin-bottom: 32px;
 }
+.signatureContainer .signatureHeader h1 {
 
-.signatureHeader h1 {
   font-size: 28px;
   color: #1e293b;
   margin-bottom: 8px;
   font-weight: 700;
 }
+.signatureContainer .signatureHeader p {
 
-.signatureHeader p {
   color: #64748b;
   font-size: 15px;
 }
+.signatureContainer .backButton {
 
-.backButton {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -31,32 +32,30 @@
   margin-bottom: 20px;
   transition: color 0.2s ease;
 }
+.signatureContainer .backButton:hover {
 
-.backButton:hover {
   color: #0369a1;
 }
+.signatureContainer .signatureGrid {
 
-.signatureGrid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 24px;
 }
-
 @media (min-width: 768px) {
-  .signatureGrid {
-    grid-template-columns: 350px 1fr;
-  }
+.signatureContainer .signatureGrid {
 }
+}
+.signatureContainer .signatureCard {
 
-.signatureCard {
   background: #ffffff;
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   border: 1px solid #f1f5f9;
 }
+.signatureContainer .cardTitle {
 
-.cardTitle {
   font-size: 18px;
   color: #0f172a;
   font-weight: 600;
@@ -65,8 +64,8 @@
   align-items: center;
   gap: 8px;
 }
+.signatureContainer .currentSignatureWrapper {
 
-.currentSignatureWrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -77,8 +76,8 @@
   border: 2px dashed #e2e8f0;
   min-height: 180px;
 }
+.signatureContainer .transparentPattern {
 
-.transparentPattern {
   background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
                     linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
                     linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
@@ -87,20 +86,20 @@
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
   background-color: #fafafa;
 }
+.signatureContainer .signatureImage {
 
-.signatureImage {
   max-width: 100%;
   max-height: 120px;
   object-fit: contain;
 }
+.signatureContainer .noSignatureText {
 
-.noSignatureText {
   color: #94a3b8;
   font-size: 14px;
   text-align: center;
 }
+.signatureContainer .tabButtons {
 
-.tabButtons {
   display: flex;
   gap: 8px;
   background-color: #f1f5f9;
@@ -108,8 +107,8 @@
   border-radius: 8px;
   margin-bottom: 20px;
 }
+.signatureContainer .tabButton {
 
-.tabButton {
   flex: 1;
   padding: 10px 14px;
   border: none;
@@ -121,30 +120,30 @@
   cursor: pointer;
   transition: all 0.2s ease;
 }
+.signatureContainer .tabButtonActive {
 
-.tabButtonActive {
   background-color: #ffffff;
   color: #0f172a;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 }
+.signatureContainer .canvasWrapper {
 
-.canvasWrapper {
   position: relative;
   border: 2px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 16px;
 }
+.signatureContainer .drawingCanvas {
 
-.drawingCanvas {
   display: block;
   width: 100%;
   height: 250px;
   cursor: crosshair;
   touch-action: none;
 }
+.signatureContainer .previewContainer {
 
-.previewContainer {
   position: relative;
   border: 2px solid #e2e8f0;
   border-radius: 12px;
@@ -155,21 +154,21 @@
   align-items: center;
   justify-content: center;
 }
+.signatureContainer .previewImage {
 
-.previewImage {
   max-width: 90%;
   max-height: 80%;
   object-fit: contain;
 }
+.signatureContainer .canvasToolbar {
 
-.canvasToolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
 }
+.signatureContainer .button {
 
-.button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -181,37 +180,37 @@
   cursor: pointer;
   transition: all 0.2s ease;
 }
+.signatureContainer .buttonPrimary {
 
-.buttonPrimary {
   background-color: #0284c7;
   color: #ffffff;
   border: none;
 }
+.signatureContainer .buttonPrimary:hover:not(:disabled) {
 
-.buttonPrimary:hover:not(:disabled) {
   background-color: #0369a1;
 }
+.signatureContainer .buttonPrimary:disabled {
 
-.buttonPrimary:disabled {
   background-color: #93c5fd;
   cursor: not-allowed;
 }
+.signatureContainer .buttonSecondary {
 
-.buttonSecondary {
   background-color: #f1f5f9;
   color: #475569;
   border: 1px solid #e2e8f0;
 }
+.signatureContainer .buttonSecondary:hover {
 
-.buttonSecondary:hover {
   background-color: #e2e8f0;
 }
+.signatureContainer .uploadInput {
 
-.uploadInput {
   display: none;
 }
+.signatureContainer .uploadLabel {
 
-.uploadLabel {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -224,30 +223,30 @@
   background-color: #f8fafc;
   transition: all 0.2s ease;
 }
+.signatureContainer .uploadLabel:hover {
 
-.uploadLabel:hover {
   border-color: #0284c7;
   background-color: #f0f9ff;
 }
+.signatureContainer .uploadIcon {
 
-.uploadIcon {
   color: #0284c7;
   margin-bottom: 12px;
 }
+.signatureContainer .uploadText {
 
-.uploadText {
   font-size: 14px;
   color: #475569;
   font-weight: 500;
   margin-bottom: 4px;
 }
+.signatureContainer .uploadSubtext {
 
-.uploadSubtext {
   font-size: 12px;
   color: #94a3b8;
 }
+.signatureContainer .statusMessage {
 
-.statusMessage {
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;
@@ -256,14 +255,14 @@
   align-items: center;
   gap: 8px;
 }
+.signatureContainer .statusSuccess {
 
-.statusSuccess {
   background-color: #f0fdf4;
   color: #166534;
   border: 1px solid #bbf7d0;
 }
+.signatureContainer .statusError {
 
-.statusError {
   background-color: #fef2f2;
   color: #991b1b;
   border: 1px solid #fecaca;

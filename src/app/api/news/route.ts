@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireRole } from '@/lib/roles'
+import { requireMemberAdmin } from '@/lib/memberAuth'
 import { newsCreateSchema } from '@/lib/schemas/news'
 
 function generateSlug(title: string): string {
@@ -16,11 +16,10 @@ function generateSlug(title: string): string {
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
-    const all = searchParams.get('all') === 'true'
-    const category = searchParams.get('category')
+    const page = parseInt(new URL(request.url).searchParams.get('page') || '1')
+    const limit = parseInt(new URL(request.url).searchParams.get('limit') || '10')
+    const all = new URL(request.url).searchParams.get('all') === 'true'
+    const category = new URL(request.url).searchParams.get('category')
     const skip = (page - 1) * limit
     const now = new Date()
 
@@ -120,7 +119,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const authResult = await requireRole(['admin', 'editor'])
+    const authResult = await requireMemberAdmin()
     if (authResult.error) return authResult.error
 
     const body = await request.json()

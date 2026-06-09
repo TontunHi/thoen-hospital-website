@@ -123,7 +123,10 @@ async function getActiveSlides() {
         startDate: { lte: now },
         endDate: { gte: now }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: [
+        { displayOrder: 'asc' },
+        { createdAt: 'desc' }
+      ]
     })
     return slides
   } catch (error) {

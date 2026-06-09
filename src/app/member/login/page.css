@@ -1,4 +1,5 @@
 .memberLoginContainer {
+
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -9,9 +10,8 @@
   padding: 20px;
   font-family: var(--font-ibm-thai), sans-serif;
 }
-
-/* Background elements for depth */
 .memberLoginContainer::before {
+
   content: '';
   position: absolute;
   width: 350px;
@@ -21,8 +21,8 @@
   left: 10%;
   z-index: 1;
 }
-
 .memberLoginContainer::after {
+
   content: '';
   position: absolute;
   width: 450px;
@@ -32,8 +32,8 @@
   right: 10%;
   z-index: 1;
 }
+.memberLoginContainer .memberLoginCard {
 
-.memberLoginCard {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -47,34 +47,34 @@
   position: relative;
   animation: slideUp 0.6s ease-out;
 }
+.memberLoginContainer .memberLoginLogo {
 
-.memberLoginLogo {
   text-align: center;
   margin-bottom: 30px;
 }
+.memberLoginContainer .memberLoginLogo img {
 
-.memberLoginLogo img {
   display: block;
   margin: 0 auto 15px auto;
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
 }
+.memberLoginContainer .memberLoginLogo h2 {
 
-.memberLoginLogo h2 {
   color: #ffffff;
   font-size: 24px;
   font-weight: 700;
   margin: 0 0 8px 0;
   letter-spacing: 0.5px;
 }
+.memberLoginContainer .memberLoginLogo p {
 
-.memberLoginLogo p {
   color: #a7f3d0;
   font-size: 14px;
   margin: 0;
   opacity: 0.85;
 }
+.memberLoginContainer .memberAlert {
 
-.memberAlert {
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -85,38 +85,38 @@
   gap: 8px;
   animation: fadeIn 0.3s ease;
 }
+.memberLoginContainer .alert-danger {
 
-.alert-danger {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
 }
+.memberLoginContainer .alert-success {
 
-.alert-success {
   background: rgba(16, 185, 129, 0.15);
   border: 1px solid rgba(16, 185, 129, 0.3);
   color: #a7f3d0;
 }
+.memberLoginContainer .memberLoginForm {
 
-.memberLoginForm {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
+.memberLoginContainer .formGroup {
 
-.formGroup {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+.memberLoginContainer .formGroup label {
 
-.formGroup label {
   color: #e2e8f0;
   font-size: 14px;
   font-weight: 500;
 }
+.memberLoginContainer .formInput {
 
-.formInput {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
@@ -125,36 +125,36 @@
   font-size: 15px;
   transition: all 0.3s ease;
 }
+.memberLoginContainer .formInput:focus {
 
-.formInput:focus {
   outline: none;
   background: rgba(255, 255, 255, 0.1);
   border-color: #34d399;
   box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
 }
+.memberLoginContainer .formInput:disabled {
 
-.formInput:disabled {
   background: rgba(255, 255, 255, 0.02);
   border-color: rgba(255, 255, 255, 0.08);
   color: #94a3b8;
   cursor: not-allowed;
 }
+.memberLoginContainer .otpSection {
 
-.otpSection {
   animation: slideUp 0.4s ease-out;
   border-top: 1px dashed rgba(255, 255, 255, 0.15);
   padding-top: 20px;
   margin-top: 5px;
 }
+.memberLoginContainer .otpActions {
 
-.otpActions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-top: 5px;
 }
+.memberLoginContainer .resendBtn {
 
-.resendBtn {
   background: none;
   border: none;
   color: #6ee7b7;
@@ -164,18 +164,18 @@
   transition: color 0.2s ease;
   font-family: inherit;
 }
+.memberLoginContainer .resendBtn:hover:not(:disabled) {
 
-.resendBtn:hover:not(:disabled) {
   color: #34d399;
   text-decoration: underline;
 }
+.memberLoginContainer .resendBtn:disabled {
 
-.resendBtn:disabled {
   color: #94a3b8;
   cursor: not-allowed;
 }
+.memberLoginContainer .editInfoBtn {
 
-.editInfoBtn {
   background: none;
   border: none;
   color: #cbd5e1;
@@ -185,13 +185,13 @@
   transition: color 0.2s ease;
   font-family: inherit;
 }
+.memberLoginContainer .editInfoBtn:hover {
 
-.editInfoBtn:hover {
   color: #ffffff;
   text-decoration: underline;
 }
+.memberLoginContainer .memberSubmitBtn {
 
-.memberSubmitBtn {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: none;
   border-radius: 8px;
@@ -205,58 +205,66 @@
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
   font-family: inherit;
 }
+.memberLoginContainer .memberSubmitBtn:hover:not(:disabled) {
 
-.memberSubmitBtn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
   background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
 }
+.memberLoginContainer .memberSubmitBtn:active:not(:disabled) {
 
-.memberSubmitBtn:active:not(:disabled) {
   transform: translateY(0);
 }
+.memberLoginContainer .memberSubmitBtn:disabled {
 
-.memberSubmitBtn:disabled {
   background: rgba(255, 255, 255, 0.1);
   color: #94a3b8;
   cursor: not-allowed;
   box-shadow: none;
 }
+.memberLoginContainer .memberLoginFooter {
 
-.memberLoginFooter {
   text-align: center;
   margin-top: 25px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 20px;
 }
+.memberLoginContainer .memberLoginFooter a {
 
-.memberLoginFooter a {
   color: #a7f3d0;
   text-decoration: none;
   font-size: 14px;
   transition: color 0.2s ease;
 }
+.memberLoginContainer .memberLoginFooter a:hover {
 
-.memberLoginFooter a:hover {
   color: #ffffff;
 }
-
 @keyframes slideUp {
-  from {
+
+  from  {
+
     opacity: 0;
     transform: translateY(20px);
   }
-  to {
+
+  to  {
+
     opacity: 1;
     transform: translateY(0);
   }
-}
 
+}
 @keyframes fadeIn {
-  from {
+
+  from  {
+
     opacity: 0;
   }
-  to {
+
+  to  {
+
     opacity: 1;
   }
+
 }

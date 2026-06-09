@@ -1,32 +1,26 @@
 body:has(.prRequestsContainer) {
+
   background: #f1f5f9 !important;
   color: #000000 !important;
 }
-
 .prRequestsContainer {
+
   max-width: 1000px;
   margin: 0 auto;
   padding: 40px 20px;
   font-family: var(--font-ibm-thai), sans-serif;
   color: #000000 !important;
 }
+.prRequestsContainer h1, .prRequestsContainer h2, .prRequestsContainer h3, .prRequestsContainer p:not(.pageSubtitle):not(.docNotesList li), .prRequestsContainer label, .prRequestsContainer span:not(.urgencyBadge):not(.costBadge):not(.requestStatusTag):not(.progressBar):not(.docCheckBox):not(.docSigRejected), .prRequestsContainer input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]), .prRequestsContainer textarea {
 
-.prRequestsContainer h1,
-.prRequestsContainer h2,
-.prRequestsContainer h3,
-.prRequestsContainer p:not(.pageSubtitle):not(.docNotesList li),
-.prRequestsContainer label,
-.prRequestsContainer span:not(.urgencyBadge):not(.costBadge):not(.requestStatusTag):not(.progressBar):not(.docCheckBox):not(.docSigRejected),
-.prRequestsContainer input:not([type="submit"]):not([type="button"]):not([type="checkbox"]):not([type="radio"]),
-.prRequestsContainer textarea {
   color: #000000 !important;
 }
-
 .prRequestsContainer .pageSubtitle {
+
   color: #475569 !important;
 }
+.prRequestsContainer .backLink {
 
-.backLink {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -37,12 +31,12 @@ body:has(.prRequestsContainer) {
   margin-bottom: 24px;
   transition: color 0.2s;
 }
+.prRequestsContainer .backLink:hover {
 
-.backLink:hover {
   color: #0d9488;
 }
+.prRequestsContainer .pageHeader {
 
-.pageHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -50,21 +44,21 @@ body:has(.prRequestsContainer) {
   flex-wrap: wrap;
   gap: 20px;
 }
+.prRequestsContainer .pageHeader h1 {
 
-.pageHeader h1 {
   font-size: 28px;
   color: #000000;
   margin: 0 0 8px 0;
   font-weight: 800;
 }
+.prRequestsContainer .pageSubtitle {
 
-.pageSubtitle {
   color: #475569;
   font-size: 15px;
   margin: 0;
 }
+.prRequestsContainer .newRequestBtn {
 
-.newRequestBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -77,20 +71,19 @@ body:has(.prRequestsContainer) {
   box-shadow: 0 4px 14px rgba(13, 148, 136, 0.2);
   transition: all 0.2s;
 }
+.prRequestsContainer .newRequestBtn:hover {
 
-.newRequestBtn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(13, 148, 136, 0.3);
 }
+.prRequestsContainer .requestsGrid {
 
-/* Request Cards List */
-.requestsGrid {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
+.prRequestsContainer .requestItemCard {
 
-.requestItemCard {
   background: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 16px;
@@ -103,51 +96,51 @@ body:has(.prRequestsContainer) {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   transition: all 0.2s;
 }
+.prRequestsContainer .requestItemCard:hover {
 
-.requestItemCard:hover {
   background: #f8fafc;
   border-color: #94a3b8;
   transform: translateY(-1px);
 }
+.prRequestsContainer .requestInfo {
 
-.requestInfo {
   flex: 1;
   min-width: 250px;
 }
+.prRequestsContainer .requestMetaHeader {
 
-.requestMetaHeader {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
 }
+.prRequestsContainer .urgencyBadge {
 
-.urgencyBadge {
   font-size: 11px;
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 20px;
 }
+.prRequestsContainer .urgencyBadge.critical {
 
-.urgencyBadge.critical {
   background-color: rgba(239, 68, 68, 0.1);
   color: #b91c1c;
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
+.prRequestsContainer .urgencyBadge.urgent {
 
-.urgencyBadge.urgent {
   background-color: rgba(245, 158, 11, 0.1);
   color: #b45309;
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
+.prRequestsContainer .urgencyBadge.normal {
 
-.urgencyBadge.normal {
   background-color: rgba(148, 163, 184, 0.1);
   color: #475569;
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
+.prRequestsContainer .costBadge {
 
-.costBadge {
   font-size: 11px;
   font-weight: 700;
   padding: 4px 10px;
@@ -156,86 +149,86 @@ body:has(.prRequestsContainer) {
   color: #047857;
   border: 1px solid rgba(16, 185, 129, 0.2);
 }
+.prRequestsContainer .costBadge.free {
 
-.costBadge.free {
   background-color: rgba(2, 132, 199, 0.1);
   color: #0369a1;
   border: 1px solid rgba(2, 132, 199, 0.2);
 }
+.prRequestsContainer .requestTitle {
 
-.requestTitle {
   font-size: 18px;
   font-weight: 700;
   color: #000000;
   margin: 0 0 6px 0;
 }
+.prRequestsContainer .requestDate {
 
-.requestDate {
   font-size: 13px;
   color: #475569;
 }
+.prRequestsContainer .requestProgress {
 
-.requestProgress {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
   min-width: 150px;
 }
+.prRequestsContainer .progressText {
 
-.progressText {
   font-size: 13px;
   font-weight: 600;
   color: #000000;
 }
+.prRequestsContainer .progressTrack {
 
-.progressTrack {
   width: 100%;
   height: 6px;
   background-color: #e2e8f0;
   border-radius: 10px;
   overflow: hidden;
 }
+.prRequestsContainer .progressBar {
 
-.progressBar {
   height: 100%;
   background: linear-gradient(90deg, #34d399 0%, #059669 100%);
   border-radius: 10px;
   transition: width 0.3s ease;
 }
+.prRequestsContainer .requestStatusTag {
 
-.requestStatusTag {
   font-size: 12px;
   font-weight: 700;
   padding: 6px 12px;
   border-radius: 30px;
   text-transform: uppercase;
 }
+.prRequestsContainer .requestStatusTag.PENDING {
 
-.requestStatusTag.PENDING {
   background-color: rgba(251, 191, 36, 0.15);
   color: #b45309;
   border: 1px solid rgba(251, 191, 36, 0.25);
 }
+.prRequestsContainer .requestStatusTag.APPROVED {
 
-.requestStatusTag.APPROVED {
   background-color: rgba(52, 211, 153, 0.15);
   color: #047857;
   border: 1px solid rgba(52, 211, 153, 0.25);
 }
+.prRequestsContainer .requestStatusTag.REJECTED {
 
-.requestStatusTag.REJECTED {
   background-color: rgba(239, 68, 68, 0.15);
   color: #b91c1c;
   border: 1px solid rgba(239, 68, 68, 0.25);
 }
+.prRequestsContainer .requestActions {
 
-.requestActions {
   display: flex;
   gap: 8px;
 }
+.prRequestsContainer .actionBtn {
 
-.actionBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -246,40 +239,40 @@ body:has(.prRequestsContainer) {
   cursor: pointer;
   transition: all 0.2s;
 }
+.prRequestsContainer .actionBtn.viewBtn {
 
-.actionBtn.viewBtn {
   background-color: #f1f5f9;
   color: #000000;
   border: 1px solid #cbd5e1;
 }
+.prRequestsContainer .actionBtn.viewBtn:hover {
 
-.actionBtn.viewBtn:hover {
   background-color: #e2e8f0;
 }
+.prRequestsContainer .actionBtn.editBtn {
 
-.actionBtn.editBtn {
   background-color: rgba(245, 158, 11, 0.1);
   color: #b45309;
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
+.prRequestsContainer .actionBtn.editBtn:hover {
 
-.actionBtn.editBtn:hover {
   background-color: #b45309;
   color: #ffffff !important;
 }
+.prRequestsContainer .actionBtn.printBtn {
 
-.actionBtn.printBtn {
   background-color: rgba(14, 165, 233, 0.1);
   color: #0284c7;
   border: 1px solid rgba(14, 165, 233, 0.2);
 }
+.prRequestsContainer .actionBtn.printBtn:hover {
 
-.actionBtn.printBtn:hover {
   background-color: #0284c7;
   color: #ffffff;
 }
+.prRequestsContainer .emptyState {
 
-.emptyState {
   background: #ffffff;
   border: 1px dashed #cbd5e1;
   border-radius: 20px;
@@ -287,36 +280,35 @@ body:has(.prRequestsContainer) {
   text-align: center;
   color: #475569;
 }
+.prRequestsContainer .emptyIcon {
 
-.emptyIcon {
   display: block;
   margin: 0 auto 16px;
   color: #64748b;
 }
+.prRequestsContainer .emptyState h3 {
 
-.emptyState h3 {
   color: #000000;
   margin: 0 0 6px 0;
   font-weight: 700;
 }
+.prRequestsContainer .formCard {
 
-/* Premium Form Wizard */
-.formCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 24px;
   padding: 32px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
+.prRequestsContainer .typeSelectorGrid {
 
-.typeSelectorGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   margin-bottom: 32px;
 }
+.prRequestsContainer .typeSelectCard {
 
-.typeSelectCard {
   background: #f8fafc;
   border: 2px solid #e2e8f0;
   border-radius: 16px;
@@ -330,51 +322,51 @@ body:has(.prRequestsContainer) {
   gap: 12px;
   color: #000000;
 }
+.prRequestsContainer .typeSelectCard:hover {
 
-.typeSelectCard:hover {
   background: #f1f5f9;
   border-color: #0d9488;
   transform: translateY(-2px);
 }
+.prRequestsContainer .typeSelectCard.active {
 
-.typeSelectCard.active {
   background: rgba(13, 148, 136, 0.08);
   border-color: #0d9488;
   box-shadow: 0 0 16px rgba(13, 148, 136, 0.1);
 }
+.prRequestsContainer .typeSelectCard h3 {
 
-.typeSelectCard h3 {
   margin: 0;
   font-size: 18px;
   color: #000000;
   font-weight: 700;
 }
+.prRequestsContainer .typeSelectCard p {
 
-.typeSelectCard p {
   margin: 0;
   font-size: 13px;
   color: #475569;
 }
+.prRequestsContainer .formGrid {
 
-.formGrid {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
+.prRequestsContainer .formGroup {
 
-.formGroup {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+.prRequestsContainer .formGroup label {
 
-.formGroup label {
   font-size: 14px;
   font-weight: 700;
   color: #000000;
 }
+.prRequestsContainer .inputField, .prRequestsContainer .textareaField {
 
-.inputField, .textareaField {
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
@@ -385,24 +377,22 @@ body:has(.prRequestsContainer) {
   font-family: inherit;
   transition: border-color 0.2s;
 }
+.prRequestsContainer .inputField:focus, .prRequestsContainer .textareaField:focus {
 
-.inputField:focus, .textareaField:focus {
   border-color: #0d9488;
 }
+.prRequestsContainer .rowGrid {
 
-.rowGrid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 20px;
 }
-
 @media (min-width: 640px) {
-  .rowGrid {
-    grid-template-columns: 1fr 1fr;
-  }
+.prRequestsContainer .rowGrid {
 }
+}
+.prRequestsContainer .checkboxGroup {
 
-.checkboxGroup {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
@@ -411,14 +401,12 @@ body:has(.prRequestsContainer) {
   border-radius: 12px;
   border: 1px solid #e2e8f0;
 }
-
 @media (min-width: 640px) {
-  .checkboxGroup {
-    grid-template-columns: 1fr 1fr;
-  }
+.prRequestsContainer .checkboxGroup {
 }
+}
+.prRequestsContainer .checkboxLabel {
 
-.checkboxLabel {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -426,19 +414,19 @@ body:has(.prRequestsContainer) {
   color: #000000;
   cursor: pointer;
 }
+.prRequestsContainer .checkboxLabel input {
 
-.checkboxLabel input {
   accent-color: #0d9488;
   width: 16px;
   height: 16px;
 }
+.prRequestsContainer .radioGroup {
 
-.radioGroup {
   display: flex;
   gap: 16px;
 }
+.prRequestsContainer .radioLabel {
 
-.radioLabel {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -446,14 +434,14 @@ body:has(.prRequestsContainer) {
   color: #000000;
   cursor: pointer;
 }
+.prRequestsContainer .radioLabel input {
 
-.radioLabel input {
   accent-color: #0d9488;
   width: 16px;
   height: 16px;
 }
+.prRequestsContainer .formPrefilledArea {
 
-.formPrefilledArea {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
@@ -462,31 +450,29 @@ body:has(.prRequestsContainer) {
   border-radius: 12px;
   border: 1px solid #e2e8f0;
 }
-
 @media (min-width: 640px) {
-  .formPrefilledArea {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.prRequestsContainer .formPrefilledArea {
 }
+}
+.prRequestsContainer .prefilledItem {
 
-.prefilledItem {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
+.prRequestsContainer .prefilledLabel {
 
-.prefilledLabel {
   font-size: 12px;
   color: #475569;
 }
+.prRequestsContainer .prefilledVal {
 
-.prefilledVal {
   font-size: 14px;
   font-weight: 600;
   color: #000000;
 }
+.prRequestsContainer .formActions {
 
-.formActions {
   display: flex;
   justify-content: flex-end;
   gap: 16px;
@@ -494,8 +480,8 @@ body:has(.prRequestsContainer) {
   border-top: 1px solid #e2e8f0;
   padding-top: 24px;
 }
+.prRequestsContainer .submitBtn {
 
-.submitBtn {
   background: linear-gradient(135deg, #0d9488 0%, #059669 100%);
   color: #ffffff;
   padding: 12px 28px;
@@ -506,21 +492,20 @@ body:has(.prRequestsContainer) {
   transition: all 0.2s;
   box-shadow: 0 4px 14px rgba(13, 148, 136, 0.2);
 }
+.prRequestsContainer .submitBtn:hover {
 
-.submitBtn:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(13, 148, 136, 0.3);
 }
+.prRequestsContainer .submitBtn:disabled {
 
-.submitBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
+.prRequestsContainer .modalOverlay {
 
-/* Modal View style */
-.modalOverlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -534,8 +519,8 @@ body:has(.prRequestsContainer) {
   z-index: 1000;
   padding: 20px;
 }
+.prRequestsContainer .modalContentCard {
 
-.modalContentCard {
   background-color: #f1f5f9;
   width: 100%;
   max-width: 860px;
@@ -546,8 +531,8 @@ body:has(.prRequestsContainer) {
   display: flex;
   flex-direction: column;
 }
+.prRequestsContainer .modalHeader {
 
-.modalHeader {
   padding: 18px 24px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
@@ -556,15 +541,15 @@ body:has(.prRequestsContainer) {
   background: #ffffff;
   border-radius: 20px 20px 0 0;
 }
+.prRequestsContainer .modalHeader h2 {
 
-.modalHeader h2 {
   font-size: 18px;
   font-weight: 800;
   color: #0f172a;
   margin: 0 0 2px 0;
 }
+.prRequestsContainer .closeBtn {
 
-.closeBtn {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   color: #475569;
@@ -577,13 +562,13 @@ body:has(.prRequestsContainer) {
   justify-content: center;
   transition: all 0.2s;
 }
+.prRequestsContainer .closeBtn:hover {
 
-.closeBtn:hover {
   background: #e2e8f0;
   color: #0f172a;
 }
+.prRequestsContainer .printModalBtn {
 
-.printModalBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -598,23 +583,23 @@ body:has(.prRequestsContainer) {
   transition: all 0.2s;
   font-family: inherit;
 }
+.prRequestsContainer .printModalBtn:hover {
 
-.printModalBtn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
 }
+.prRequestsContainer .modalBody {
 
-.modalBody {
   padding: 24px;
   flex: 1;
   overflow-y: auto;
 }
+.prRequestsContainer .printTemplate, .prRequestsContainer .printTemplate * {
 
-/* ===== PREMIUM DOCUMENT TEMPLATE (A4-optimized) ===== */
-.printTemplate, .printTemplate * {
   font-family: 'TH Sarabun New', sans-serif !important;
 }
-.printTemplate {
+.prRequestsContainer .printTemplate {
+
   background-color: #ffffff;
   border-radius: 0;
   padding: 10mm 12mm;
@@ -626,17 +611,12 @@ body:has(.prRequestsContainer) {
   margin: 0 auto;
   box-sizing: border-box;
 }
-
 @media (max-width: 880px) {
-  .printTemplate {
-    width: 100%;
-    min-height: auto;
-    padding: 15px;
-  }
+.prRequestsContainer .printTemplate {
 }
+}
+.prRequestsContainer .docHeader {
 
-/* Document Header */
-.docHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -644,73 +624,71 @@ body:has(.prRequestsContainer) {
   flex-wrap: wrap;
   gap: 10px;
 }
+.prRequestsContainer .docHeaderLeft {
 
-.docHeaderLeft {
   display: flex;
   align-items: center;
   gap: 14px;
 }
+.prRequestsContainer .docHospitalLogo {
 
-.docHospitalLogo {
   width: 48px;
   height: 48px;
   object-fit: contain;
   flex-shrink: 0;
   filter: grayscale(100%);
 }
+.prRequestsContainer .docHospitalName {
 
-.docHospitalName {
   font-size: 24px;
   font-weight: 800;
   color: #000000;
   line-height: 1.2;
 }
+.prRequestsContainer .docHospitalSub {
 
-.docHospitalSub {
   font-size: 18px;
   color: #000000;
   margin-top: 2px;
 }
+.prRequestsContainer .docHeaderRight {
 
-.docHeaderRight {
   text-align: right;
 }
+.prRequestsContainer .docDocTitle {
 
-.docDocTitle {
   font-size: 23px;
   font-weight: 800;
   color: #000000;
   line-height: 1.2;
 }
+.prRequestsContainer .docDocId {
 
-.docDocId {
   font-size: 18px;
   color: #000000;
   font-weight: 700;
   margin-top: 4px;
 }
+.prRequestsContainer .docDocDate {
 
-.docDocDate {
   font-size: 18px;
   color: #000000;
 }
+.prRequestsContainer .docDividerThick {
 
-/* Dividers */
-.docDividerThick {
   height: 0;
   border-top: 1px solid #000000;
   margin: 6px 0;
   border-radius: 0;
 }
+.prRequestsContainer .docDivider {
 
-.docDivider {
   height: 0;
   border-top: 1px solid #000000;
   margin: 6px 0;
 }
+.prRequestsContainer .docMetaRow {
 
-/* Meta row: urgency + cost */
-.docMetaRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -722,21 +700,21 @@ body:has(.prRequestsContainer) {
   border-radius: 0;
   border: none;
 }
+.prRequestsContainer .docUrgencyGroup {
 
-.docUrgencyGroup {
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
 }
+.prRequestsContainer .docFieldLabel {
 
-.docFieldLabel {
   font-weight: 700;
   font-size: 19px;
   color: #000000;
 }
+.prRequestsContainer .docCostTag {
 
-.docCostTag {
   font-size: 19px;
   font-weight: 700;
   padding: 4px 0;
@@ -745,25 +723,24 @@ body:has(.prRequestsContainer) {
   background: #ffffff;
   color: #000000;
 }
+.prRequestsContainer .docCostTag.cost {
 
-.docCostTag.cost {
   background-color: #ffffff;
   color: #000000;
   border: none;
 }
+.prRequestsContainer .docCostTag.free {
 
-.docCostTag.free {
   background-color: #ffffff;
   color: #000000;
   border: none;
 }
+.prRequestsContainer .docSection {
 
-/* Sections */
-.docSection {
   margin-bottom: 6px;
 }
+.prRequestsContainer .docSectionLabel {
 
-.docSectionLabel {
   font-size: 17px;
   font-weight: bold !important;
   color: #000000 !important;
@@ -771,14 +748,14 @@ body:has(.prRequestsContainer) {
   letter-spacing: 0.06em;
   margin-bottom: 4px;
 }
+.prRequestsContainer .docSectionContent {
 
-.docSectionContent {
   font-size: 20px;
   font-weight: 500;
   color: #0f172a;
 }
+.prRequestsContainer .docSubjectText {
 
-.docSubjectText {
   font-size: 22px;
   font-weight: 500;
   color: #000000;
@@ -786,29 +763,27 @@ body:has(.prRequestsContainer) {
   background: transparent;
   border: none;
 }
+.prRequestsContainer .docTwoCol {
 
-/* Column layouts */
-.docTwoCol {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+.prRequestsContainer .docThreeCol {
 
-.docThreeCol {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 16px;
 }
+.prRequestsContainer .docCheckGrid {
 
-/* Check items */
-.docCheckGrid {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   margin-top: 4px;
 }
+.prRequestsContainer .docCheckItem {
 
-.docCheckItem {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -819,15 +794,15 @@ body:has(.prRequestsContainer) {
   border: none;
   background: #ffffff;
 }
+.prRequestsContainer .docCheckItem.checked {
 
-.docCheckItem.checked {
   color: #000000;
   border-color: transparent;
   background: #ffffff;
   font-weight: normal;
 }
+.prRequestsContainer .docCheckBox {
 
-.docCheckBox {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -842,17 +817,16 @@ body:has(.prRequestsContainer) {
   flex-shrink: 0;
   line-height: 1;
 }
+.prRequestsContainer .docCheckItem.checked .docCheckBox {
 
-.docCheckItem.checked .docCheckBox {
   border-color: #000000;
   background: #ffffff;
   color: #000000;
   font-weight: 900;
   font-size: 10px;
 }
+.prRequestsContainer .docDetailsBox {
 
-/* Details box */
-.docDetailsBox {
   margin-top: 4px;
   padding: 4px 0;
   background: #ffffff;
@@ -864,9 +838,8 @@ body:has(.prRequestsContainer) {
   min-height: 24px;
   line-height: 1.4;
 }
+.prRequestsContainer .docSigTitle {
 
-/* Signature area */
-.docSigTitle {
   font-size: 18px;
   font-weight: bold !important;
   color: #000000;
@@ -874,14 +847,14 @@ body:has(.prRequestsContainer) {
   letter-spacing: 0.06em;
   margin-bottom: 16px;
 }
+.prRequestsContainer .docSignatureRow {
 
-.docSignatureRow {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
+.prRequestsContainer .docSigBox {
 
-.docSigBox {
   border: none;
   border-radius: 0;
   padding: 6px 8px;
@@ -892,18 +865,18 @@ body:has(.prRequestsContainer) {
   text-align: center;
   min-height: 110px;
 }
+.prRequestsContainer .docSigBox.signed {
 
-.docSigBox.signed {
   border: none;
   background: #ffffff;
 }
+.prRequestsContainer .docSigBox.rejected {
 
-.docSigBox.rejected {
   border: none;
   background: #ffffff;
 }
+.prRequestsContainer .docSigStep {
 
-.docSigStep {
   font-size: 10px;
   font-weight: 700;
   color: #000000;
@@ -916,70 +889,69 @@ body:has(.prRequestsContainer) {
   border-radius: 0;
   align-self: flex-start;
 }
+.prRequestsContainer .docSigImageArea {
 
-.docSigImageArea {
   display: flex;
   align-items: flex-end;
   justify-content: center;
   width: 100%;
   height: 50px;
 }
+.prRequestsContainer .docSigImage {
 
-.docSigImage {
   width: 100%;
   height: 100%;
   object-fit: contain;
   transform: scale(1.35);
   transform-origin: bottom center;
 }
+.prRequestsContainer .docSigEmpty {
 
-.docSigEmpty {
   width: 100%;
   height: 30px;
 }
+.prRequestsContainer .docSigRejected {
 
-.docSigRejected {
   font-size: 19px;
   font-weight: 700;
   color: #000000;
 }
+.prRequestsContainer .docSigApproved {
 
-.docSigApproved {
   font-size: 19px;
   font-weight: 700;
   color: #000000;
 }
+.prRequestsContainer .docSigLine {
 
-.docSigLine {
   width: 100%;
   height: 0;
   border-top: 1px solid #000000;
   margin: 8px 0;
 }
+.prRequestsContainer .docSigName {
 
-.docSigName {
   font-size: 18px;
   font-weight: 500;
   color: #000000;
   word-break: break-word;
 }
+.prRequestsContainer .docSigPosition {
 
-.docSigPosition {
   font-size: 17px;
   color: #000000;
   margin-top: 4px;
   word-break: break-word;
 }
+.prRequestsContainer .docSigDate {
 
-.docSigDate {
   font-size: 16px;
   color: #000000;
   margin-top: 4px;
   font-weight: 600;
 }
+.prRequestsContainer .docFooterNotes {
 
-/* Footer notes */
-.docFooterNotes {
   margin-top: 6px;
   padding: 4px 0;
   background: #ffffff;
@@ -989,25 +961,24 @@ body:has(.prRequestsContainer) {
   color: #000000;
   line-height: 1.4;
 }
+.prRequestsContainer .docNotesTitle {
 
-.docNotesTitle {
   font-weight: 700;
   color: #000000;
   margin-bottom: 6px;
 }
+.prRequestsContainer .docNotesList {
 
-.docNotesList {
   margin: 0;
   padding-left: 20px;
   color: #000000;
 }
+.prRequestsContainer .docNotesList li {
 
-.docNotesList li {
   margin-bottom: 4px;
 }
+.prRequestsContainer .modalFooter {
 
-/* Modal footer buttons */
-.modalFooter {
   padding: 16px 24px;
   border-top: 1px solid #e2e8f0;
   display: flex;
@@ -1016,8 +987,8 @@ body:has(.prRequestsContainer) {
   background: #ffffff;
   border-radius: 0 0 20px 20px;
 }
+.prRequestsContainer .modalCloseBtn {
 
-.modalCloseBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1032,13 +1003,13 @@ body:has(.prRequestsContainer) {
   font-family: inherit;
   font-size: 14px;
 }
+.prRequestsContainer .modalCloseBtn:hover {
 
-.modalCloseBtn:hover {
   background: #e2e8f0;
   color: #0f172a;
 }
+.prRequestsContainer .modalPrintBtn {
 
-.modalPrintBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1054,16 +1025,15 @@ body:has(.prRequestsContainer) {
   font-size: 14px;
   box-shadow: 0 4px 14px rgba(13, 148, 136, 0.25);
 }
+.prRequestsContainer .modalPrintBtn:hover {
 
-.modalPrintBtn:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(13, 148, 136, 0.35);
 }
+.prRequestsContainer .modalPrintBtn:disabled {
 
-.modalPrintBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
-

@@ -211,7 +211,6 @@ export default function ApprovalsInboxClient() {
         <div className="cardBody">
           <div className="approvalMetaHeader">
             <span className="positionTag">
-              {t.assigned_position !== 'นักประชาสัมพันธ์' && <Shield size={10} />}
               {t.assigned_position}
             </span>
             <span className="stepTag">ขั้นที่ {t.step_number}</span>
@@ -293,7 +292,6 @@ export default function ApprovalsInboxClient() {
         <div className="histCardBody">
           <div className="histMetaRow">
             <span className="positionTag">
-              {t.assigned_position !== 'นักประชาสัมพันธ์' && <Shield size={10} />}
               {t.assigned_position}
             </span>
             <span className="stepTag">ขั้นที่ {t.step_number}</span>

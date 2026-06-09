@@ -86,7 +86,7 @@ export const authOptions: NextAuthOptions = {
     }
   },
   pages: {
-    signIn: "/news-login",
+    signIn: "/member/login",
     error: "/unauthorized",
   },
   cookies: {

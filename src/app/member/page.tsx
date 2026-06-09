@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import MemberLogoutButton from './LogoutButton'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Briefcase, Calendar, Lock, Image } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Briefcase, Calendar, Lock, Image, ClipboardCheck } from 'lucide-react'
 import './page.css'
 
 export default async function MemberDashboardPage() {
@@ -49,6 +49,9 @@ export default async function MemberDashboardPage() {
 
   return (
     <div className="memberDashboardContainer">
+      <div className="glowOrb glowOrb1"></div>
+      <div className="glowOrb glowOrb2"></div>
+      <div className="glowOrb glowOrb3"></div>
       <div className="dashboardWrapper">
         
         {/* Banner Section / Profile Card */}
@@ -74,10 +77,6 @@ export default async function MemberDashboardPage() {
                 <div className="userDetailItem">
                   <Shield size={16} className="detailIcon" />
                   <span>แผนก/กลุ่มงาน: <strong>{member.department || 'ไม่ได้ระบุ'}</strong></span>
-                </div>
-                <div className="userDetailItem">
-                  <Calendar size={16} className="detailIcon" />
-                  <span>เป็นสมาชิกเมื่อ: {registrationDate}</span>
                 </div>
               </div>
             </div>
@@ -177,9 +176,9 @@ export default async function MemberDashboardPage() {
           <Link href="/member/approvals" className="serviceCard">
             <div className="serviceCardHeader">
               <div className="serviceIconWrapper docIcon">
-                <Shield size={24} />
+                <ClipboardCheck size={24} />
               </div>
-              <div className="statusIndicator success" style={{ backgroundColor: 'rgba(192, 132, 252, 0.12)', color: '#c084fc', border: '1px solid rgba(192, 132, 252, 0.2)' }}>
+              <div className="statusIndicator success">
                 <span>เปิดใช้งาน</span>
               </div>
             </div>

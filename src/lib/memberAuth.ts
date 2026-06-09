@@ -75,3 +75,33 @@ export async function destroyMemberSession(): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.delete(COOKIE_NAME)
 }
+
+import { NextResponse } from 'next/server'
+
+export async function requireMemberAdmin(): Promise<
+  { session: { username: string; email: string; role: string }; error?: never } |
+  { session?: never; error: NextResponse }
+> {
+  const session = await verifyMemberSession()
+
+  if (!session) {
+    return {
+      error: NextResponse.json(
+        { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
+        { status: 401 }
+      ),
+    }
+  }
+
+  if (session.role !== 'admin') {
+    return {
+      error: NextResponse.json(
+        { error: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return { session }
+}
+

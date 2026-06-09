@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireRole } from '@/lib/roles'
+import { requireMemberAdmin } from '@/lib/memberAuth'
 import { newsCreateSchema } from '@/lib/schemas/news'
 
 export async function GET(
@@ -88,7 +88,7 @@ export async function PUT(
   ctx: RouteContext<'/api/news/[id]'>
 ) {
   try {
-    const authResult = await requireRole(['admin', 'editor'])
+    const authResult = await requireMemberAdmin()
     if (authResult.error) return authResult.error
 
     const { id } = await ctx.params
@@ -258,7 +258,7 @@ export async function DELETE(
   ctx: RouteContext<'/api/news/[id]'>
 ) {
   try {
-    const authResult = await requireRole(['admin', 'editor'])
+    const authResult = await requireMemberAdmin()
     if (authResult.error) return authResult.error
 
     const { id } = await ctx.params

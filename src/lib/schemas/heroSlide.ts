@@ -6,6 +6,7 @@ export const heroSlideSchema = z.object({
   linkUrl: z.string().url('รูปแบบ URL ไม่ถูกต้อง').or(z.literal('')).or(z.literal(null)).optional().nullable(),
   startDate: z.string().min(1, 'กรุณาระบุเวลาที่เริ่มแสดง'),
   endDate: z.string().min(1, 'กรุณาระบุเวลาสิ้นสุด'),
+  displayOrder: z.number().int().optional().default(0),
 }).refine((data) => {
   const start = new Date(data.startDate)
   const end = new Date(data.endDate)
