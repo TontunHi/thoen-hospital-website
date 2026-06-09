@@ -70,6 +70,7 @@ export default function ApprovalsInboxClient() {
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [comments, setComments] = useState<Record<number, string>>({})
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [userPosition, setUserPosition] = useState<string>('')
 
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -96,6 +97,7 @@ export default function ApprovalsInboxClient() {
       if (data.success) {
         setTickets(data.tickets || [])
         setHistory(data.history || [])
+        setUserPosition(data.position || '')
       }
     } catch (err) {
       console.error(err)
@@ -190,9 +192,14 @@ export default function ApprovalsInboxClient() {
     return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear() + 543}`
   }
 
-  const parseJsonList = (jsonStr: string | null): string[] => {
+  const parseJsonList = (jsonStr: any): string[] => {
     if (!jsonStr) return []
-    try { return JSON.parse(jsonStr) } catch { return [] }
+    if (Array.isArray(jsonStr)) return jsonStr
+    try {
+      return typeof jsonStr === 'string' ? JSON.parse(jsonStr) : []
+    } catch {
+      return []
+    }
   }
 
   // ---- Pending Card ----
@@ -203,7 +210,10 @@ export default function ApprovalsInboxClient() {
         <div className={`cardBand ${urgencyClass}`} />
         <div className="cardBody">
           <div className="approvalMetaHeader">
-            <span className="positionTag"><Shield size={10} />{t.assigned_position}</span>
+            <span className="positionTag">
+              {t.assigned_position !== 'นักประชาสัมพันธ์' && <Shield size={10} />}
+              {t.assigned_position}
+            </span>
             <span className="stepTag">ขั้นที่ {t.step_number}</span>
             <span className={`urgencyBadge ${urgencyClass}`}>{t.req_urgency}</span>
             <span className={`costBadge ${t.has_cost ? 'hasCost' : 'noCost'}`}>
@@ -234,16 +244,34 @@ export default function ApprovalsInboxClient() {
           </div>
         </div>
         <div className="cardFooter">
-          <button className="detailBtn" onClick={() => openDetail(t.source_id)}>
-            <Eye size={14} />ดูรายละเอียด
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="detailBtn" onClick={() => openDetail(t.source_id)}>
+              <Eye size={14} />ดูรายละเอียด
+            </button>
+            {t.assigned_position === 'นักประชาสัมพันธ์' && t.step_number === 1 && (
+              <Link 
+                href={`/member/pr-requests/${t.source_id}/edit`}
+                className="detailBtn" 
+                style={{ 
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)', 
+                  color: '#b45309', 
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  textDecoration: 'none'
+                }}
+              >
+                แก้ไขรายละเอียด
+              </Link>
+            )}
+          </div>
           <div className="actionBtns">
             <button onClick={() => handleAction(t.id, 'REJECTED')} disabled={processingId !== null} className="rejectBtn">
               <X size={15} />ปฏิเสธ
             </button>
             <button onClick={() => handleAction(t.id, 'APPROVED')} disabled={processingId !== null} className="approveBtn">
               {processingId === t.id ? <Loader2 className="animate-spin" size={15} /> : <Check size={15} />}
-              ลงนามอนุมัติ
+              {t.assigned_position === 'นักประชาสัมพันธ์' ? 'อนุมัติ' : 'ลงนามอนุมัติ'}
             </button>
           </div>
         </div>
@@ -264,7 +292,10 @@ export default function ApprovalsInboxClient() {
         </div>
         <div className="histCardBody">
           <div className="histMetaRow">
-            <span className="positionTag"><Shield size={10} />{t.assigned_position}</span>
+            <span className="positionTag">
+              {t.assigned_position !== 'นักประชาสัมพันธ์' && <Shield size={10} />}
+              {t.assigned_position}
+            </span>
             <span className="stepTag">ขั้นที่ {t.step_number}</span>
             <span className={`urgencyBadge ${urgencyClass}`}>{t.req_urgency}</span>
             <span className={`histStatusBadge ${isApproved ? 'approved' : 'rejected'}`}>
@@ -303,7 +334,7 @@ export default function ApprovalsInboxClient() {
 
       <div className="pageHeader">
         <div className="pageHeaderText">
-          <h1>กล่องงานอนุมัติ</h1>
+          <h1>กล่องงานรอการอนุมัติ</h1>
           <p className="pageSubtitle">รายการเอกสารที่รอลายเซ็นดิจิทัลของคุณ</p>
         </div>
         {!loading && tickets.length > 0 && (
@@ -353,7 +384,7 @@ export default function ApprovalsInboxClient() {
           <div className="emptyState">
             <div className="emptyIconWrap"><Shield size={32} /></div>
             <h3>ไม่มีเอกสารรออนุมัติ</h3>
-            <p>กล่องงานอนุมัติว่างเปล่า ขณะนี้ไม่มีรายการที่รอการลงนามของคุณ</p>
+            <p>กล่องงานรอการอนุมัติว่างเปล่า ขณะนี้ไม่มีรายการที่รอการลงนามของคุณ</p>
           </div>
         )
       ) : (
@@ -532,30 +563,36 @@ export default function ApprovalsInboxClient() {
                   <div className="docDividerThick"></div>
                   <div className="docSigTitle">การลงนามอนุมัติ</div>
                   <div className="docSignatureRow">
-                    {detailApprovals.map((step, idx) => {
-                      const isSigned = step.status === 'APPROVED' && step.signature_path
+                    {detailApprovals
+                      .filter(step => !step.assigned_position.includes('นักประชาสัมพันธ์'))
+                      .map((step, idx) => {
+                      const isApproved = step.status === 'APPROVED'
+                      const isSigned = isApproved && step.signature_path
                       const isRejected = step.status === 'REJECTED'
-                      const isPending = step.status === 'PENDING'
                       return (
                         <div key={step.id} className={`docSigBox ${isSigned ? 'signed' : ''} ${isRejected ? 'rejected' : ''}`}>
                           <div className="docSigImageArea">
                             {isSigned ? (
                               <img src={`/api/signatures/image?userId=${step.current_approver_id}&t=${Date.now()}`} alt="ลายเซ็น" className="docSigImage" />
+                            ) : isApproved ? (
+                              <div className="docSigApproved">✓ อนุมัติแล้ว</div>
                             ) : isRejected ? (
                               <div className="docSigRejected">✕ ไม่อนุมัติ</div>
-                            ) : isPending ? (
-                              <div className="docSigPending"><Clock size={20} style={{ color: '#94a3b8' }} /></div>
                             ) : (
                               <div className="docSigEmpty"></div>
                             )}
                           </div>
                           <div className="docSigLine"></div>
                           <div className="docSigName">
-                            {step.approver_name ? `( ${step.approver_name} )` : '(............................................)'}
+                            {step.approver_name ? `( ${step.approver_name} )` : '(...........................)'}
                           </div>
-                          <div className="docSigPosition">ตำแหน่ง {step.assigned_position}</div>
+                          <div
+                            className="docSigPosition"
+                            style={step.assigned_position === 'ผู้อำนวยการโรงพยาบาลเถิน' ? { whiteSpace: 'nowrap', wordBreak: 'keep-all' } : {}}
+                          >
+                            ตำแหน่ง {step.assigned_position}
+                          </div>
                           {step.approved_at && <div className="docSigDate">วันที่: {formatDateShort(step.approved_at)}</div>}
-                          {isPending && <div className="docSigPendingLabel">รอลงนาม</div>}
                         </div>
                       )
                     })}

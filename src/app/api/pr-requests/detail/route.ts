@@ -29,7 +29,44 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'ไม่พบรายละเอียดรายการ' }, { status: 404 })
     }
 
-    const prRequest = requests[0]
+    const rawRequest = requests[0]
+    let formData: any = {}
+    if (rawRequest.form_data) {
+      try {
+        formData = typeof rawRequest.form_data === 'string' ? JSON.parse(rawRequest.form_data) : rawRequest.form_data
+      } catch (e) {
+        console.error('Failed to parse form_data JSON for request detail ID', rawRequest.id, e)
+      }
+    }
+
+    const { form_data, ...rest } = rawRequest
+    const orderDate = formData.order_date || formData.orderDate || rawRequest.order_date
+    const targetDate = formData.target_date || formData.targetDate || rawRequest.target_date
+    const jobType = formData.job_type || formData.jobType || rawRequest.job_type
+    const jobTypeOther = formData.job_type_other || formData.jobTypeOther || rawRequest.job_type_other
+    const details = formData.details || rawRequest.details
+    const channels = formData.channels || rawRequest.channels
+    const phone = formData.phone || rawRequest.phone
+    const urgency = formData.urgency || rawRequest.urgency
+
+    const prRequest = {
+      ...rest,
+      ...formData,
+      // Snake case for print preview / details list
+      order_date: orderDate,
+      target_date: targetDate,
+      job_type: jobType,
+      job_type_other: jobTypeOther,
+      details: details,
+      channels: channels,
+      phone: phone,
+      urgency: urgency,
+      // Camel case for edit form prefill
+      orderDate: orderDate,
+      targetDate: targetDate,
+      jobType: jobType,
+      jobTypeOther: jobTypeOther
+    }
 
     // Get approval history steps
     const approvals = await queryMemberDb(

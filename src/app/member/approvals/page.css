@@ -736,14 +736,16 @@
 }
 
 /* ===== PRINT TEMPLATE (reused in both pages) ===== */
+.printTemplate, .printTemplate * {
+  font-family: 'TH Sarabun New', sans-serif !important;
+}
 .printTemplate {
   background-color: #ffffff;
   border-radius: 0;
-  padding: 20mm 15mm;
-  font-family: 'TH Sarabun New', 'THSarabunNew', 'Sarabun', var(--font-ibm-thai), sans-serif;
+  padding: 10mm 12mm;
   color: #000000;
   line-height: 1.5;
-  font-size: 14px;
+  font-size: 20px;
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
@@ -758,7 +760,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -777,23 +779,23 @@
   filter: grayscale(100%);
 }
 
-.docHospitalName { font-size: 15px; font-weight: 800; color: #000; line-height: 1.2; }
-.docHospitalSub  { font-size: 12px; color: #000; margin-top: 2px; }
+.docHospitalName { font-size: 24px; font-weight: 800; color: #000; line-height: 1.2; }
+.docHospitalSub  { font-size: 18px; color: #000; margin-top: 2px; }
 .docHeaderRight  { text-align: right; }
-.docDocTitle     { font-size: 14px; font-weight: 800; color: #000; line-height: 1.2; }
-.docDocId        { font-size: 12px; color: #000; font-weight: 700; margin-top: 4px; }
-.docDocDate      { font-size: 12px; color: #000; }
+.docDocTitle     { font-size: 23px; font-weight: 800; color: #000; line-height: 1.2; }
+.docDocId        { font-size: 18px; color: #000; font-weight: 700; margin-top: 4px; }
+.docDocDate      { font-size: 18px; color: #000; }
 
 .docDividerThick {
   height: 0;
   border-top: 1px solid #000;
-  margin: 10px 0;
+  margin: 6px 0;
 }
 
 .docDivider {
   height: 0;
   border-top: 1px solid #000;
-  margin: 10px 0;
+  margin: 6px 0;
 }
 
 .docMetaRow {
@@ -802,17 +804,17 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 10px;
-  padding: 8px 0;
+  margin-bottom: 4px;
+  padding: 4px 0;
   background: #fff;
   border: none;
 }
 
 .docUrgencyGroup { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.docFieldLabel   { font-weight: 700; font-size: 13px; color: #000; }
+.docFieldLabel   { font-weight: 700; font-size: 19px; color: #000; }
 
 .docCostTag {
-  font-size: 12px;
+  font-size: 19px;
   font-weight: 700;
   padding: 4px 0;
   border: none;
@@ -820,13 +822,13 @@
   color: #000;
 }
 
-.docSection      { margin-bottom: 10px; }
-.docSectionLabel { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
-.docSectionContent { font-size: 13px; font-weight: 500; color: #000; }
+.docSection      { margin-bottom: 6px; }
+.docSectionLabel { font-size: 17px; font-weight: bold !important; color: #000 !important; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.docSectionContent { font-size: 20px; font-weight: 500; color: #000; }
 
 .docSubjectText {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 500;
   color: #000;
   padding: 4px 0;
   background: transparent;
@@ -847,14 +849,14 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 19px;
   color: #000;
   padding: 3px 0;
   background: #fff;
   border: none;
 }
 
-.docCheckItem.checked { font-weight: 600; }
+.docCheckItem.checked { font-weight: normal; }
 
 .docCheckBox {
   display: inline-flex;
@@ -863,28 +865,30 @@
   width: 14px;
   height: 14px;
   border: 1.5px solid #000;
-  font-size: 10px;
+  border-radius: 50%;
+  font-size: 8px;
   font-weight: 900;
   color: #000;
   background: #fff;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .docDetailsBox {
   margin-top: 4px;
-  padding: 8px 0;
+  padding: 4px 0;
   background: #fff;
   border: none;
-  font-size: 12px;
+  font-size: 20px;
   color: #000;
   white-space: pre-line;
-  min-height: 36px;
-  line-height: 1.6;
+  min-height: 24px;
+  line-height: 1.4;
 }
 
 .docSigTitle {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: bold !important;
   color: #000;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -899,13 +903,13 @@
 
 .docSigBox {
   border: none;
-  padding: 10px 8px;
+  padding: 6px 8px;
   background: #fff;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  min-height: 150px;
+  min-height: 110px;
 }
 
 .docSigStep {
@@ -923,43 +927,50 @@
 
 .docSigImageArea {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   width: 100%;
-  height: 90px;
+  height: 50px;
 }
 
-.docSigImage   { width: 100%; height: 100%; object-fit: contain; }
-.docSigEmpty   { width: 100%; height: 55px; }
-.docSigRejected { font-size: 13px; font-weight: 700; color: #000; }
+.docSigImage   {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scale(1.35);
+  transform-origin: bottom center;
+}
+.docSigEmpty   { width: 100%; height: 30px; }
+.docSigRejected { font-size: 19px; font-weight: 700; color: #000; }
+.docSigApproved { font-size: 19px; font-weight: 700; color: #000; }
 
 .docSigPending {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 55px;
+  height: 30px;
   opacity: 0.4;
 }
 
 .docSigPendingLabel {
-  font-size: 10px;
+  font-size: 16px;
   color: #64748b;
   margin-top: 2px;
 }
 
 .docSigLine     { width: 100%; height: 0; border-top: 1px solid #000; margin: 6px 0; }
-.docSigName     { font-size: 11px; font-weight: 600; color: #000; word-break: break-word; }
-.docSigPosition { font-size: 10px; color: #000; margin-top: 4px; word-break: break-word; }
-.docSigDate     { font-size: 10px; color: #000; margin-top: 4px; font-weight: 600; }
+.docSigName     { font-size: 18px; font-weight: 500; color: #000; word-break: break-word; }
+.docSigPosition { font-size: 17px; color: #000; margin-top: 4px; word-break: break-word; }
+.docSigDate     { font-size: 16px; color: #000; margin-top: 4px; font-weight: 600; }
 
 .docFooterNotes {
-  margin-top: 14px;
-  padding: 10px 14px;
+  margin-top: 6px;
+  padding: 4px 0;
   background: #fff;
-  border: 1px solid #000;
-  font-size: 12px;
+  border: none;
+  font-size: 18px;
   color: #000;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .docNotesTitle { font-weight: 700; color: #000; margin-bottom: 6px; }

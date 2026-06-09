@@ -103,6 +103,61 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
       `)
     } catch (alterError) {}
 
+    // Add form_data column to pr_requests if it doesn't exist
+    try {
+      await connection.execute(`
+        ALTER TABLE pr_requests ADD COLUMN form_data JSON NULL
+      `)
+    } catch (alterError) {}
+
+    // Automatically migrate legacy columns to form_data JSON
+    try {
+      const [nullRows] = await connection.execute(
+        `SELECT id, urgency, order_date, target_date, job_type, job_type_other, details, channels, phone 
+         FROM pr_requests 
+         WHERE form_data IS NULL`
+      )
+      const rows = nullRows as any[]
+      if (rows && rows.length > 0) {
+        const formatDateString = (val: any) => {
+          if (!val) return null
+          if (val instanceof Date) return val.toISOString().split('T')[0]
+          if (typeof val === 'string') return val.split('T')[0]
+          return String(val)
+        }
+        const parseSafeJson = (val: any) => {
+          if (!val) return []
+          if (typeof val === 'string') {
+            try {
+              return JSON.parse(val)
+            } catch {
+              return [val]
+            }
+          }
+          return val
+        }
+
+        for (const row of rows) {
+          const formData = {
+            urgency: row.urgency || 'ไม่ด่วน',
+            orderDate: formatDateString(row.order_date),
+            targetDate: formatDateString(row.target_date),
+            jobType: parseSafeJson(row.job_type),
+            jobTypeOther: row.job_type_other || null,
+            details: row.details || null,
+            channels: parseSafeJson(row.channels),
+            phone: row.phone || null
+          }
+          await connection.execute(
+            'UPDATE pr_requests SET form_data = ? WHERE id = ?',
+            [JSON.stringify(formData), row.id]
+          )
+        }
+      }
+    } catch (migrateError) {
+      console.error('Failed to migrate pr_requests to form_data JSON:', migrateError)
+    }
+
     const [results] = await connection.execute(sql, params)
     return results as any[]
   } finally {

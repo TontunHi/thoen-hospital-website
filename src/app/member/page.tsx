@@ -184,11 +184,11 @@ export default async function MemberDashboardPage() {
               </div>
             </div>
             <div className="serviceCardBody">
-              <h4>กล่องงานอนุมัติสำหรับหัวหน้า</h4>
+              <h4>กล่องงานรอการอนุมัติ</h4>
               <p>กล่องงานตรวจสอบใบคำขอและเอกสารต่างๆ ที่ส่งเสนอเข้ามา และอนุมัติออนไลน์ด้วยลายเซ็นของคุณ</p>
             </div>
             <div className="serviceCardFooter">
-              <span className="actionText">เข้าสู่กล่องงานอนุมัติ</span>
+              <span className="actionText">เข้าสู่กล่องงานรอการอนุมัติ</span>
               <ChevronRight size={16} className="chevronIcon" />
             </div>
           </Link>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { Plus, ArrowLeft, Image, Clock, CheckCircle, X, Printer, Loader2, Info } from 'lucide-react'
+import { Plus, ArrowLeft, Image, Clock, CheckCircle, X, Printer, Loader2, Info, Edit } from 'lucide-react'
 import Link from 'next/link'
 import './page.css'
 
@@ -108,10 +108,11 @@ export default function PRRequestsDashboard() {
 
 
 
-  const parseJsonList = (jsonStr: string | null): string[] => {
+  const parseJsonList = (jsonStr: any): string[] => {
     if (!jsonStr) return []
+    if (Array.isArray(jsonStr)) return jsonStr
     try {
-      return JSON.parse(jsonStr)
+      return typeof jsonStr === 'string' ? JSON.parse(jsonStr) : []
     } catch {
       return []
     }
@@ -200,6 +201,15 @@ export default function PRRequestsDashboard() {
               </div>
 
               <div className="requestActions">
+                {req.status === 'PENDING' && (
+                  <Link 
+                    href={`/member/pr-requests/${req.id}/edit`} 
+                    className="actionBtn editBtn"
+                    title="แก้ไขใบคำขอ"
+                  >
+                    <Edit size={18} />
+                  </Link>
+                )}
                 <button 
                   onClick={() => handleViewDetails(req)} 
                   className="actionBtn viewBtn"
@@ -409,8 +419,11 @@ export default function PRRequestsDashboard() {
                   {/* Signature section */}
                   <div className="docSigTitle">การลงนามอนุมัติ</div>
                   <div className="docSignatureRow">
-                    {approvals.map((step, idx) => {
-                      const isSigned = step.status === 'APPROVED' && step.signature_path
+                    {approvals
+                      .filter(step => !step.assigned_position.includes('นักประชาสัมพันธ์'))
+                      .map((step, idx) => {
+                      const isApproved = step.status === 'APPROVED'
+                      const isSigned = isApproved && step.signature_path
                       const isRejected = step.status === 'REJECTED'
                       return (
                         <div key={step.id} className={`docSigBox ${isSigned ? 'signed' : ''} ${isRejected ? 'rejected' : ''}`}>
@@ -421,6 +434,8 @@ export default function PRRequestsDashboard() {
                                 alt="ลายเซ็น"
                                 className="docSigImage"
                               />
+                            ) : isApproved ? (
+                              <div className="docSigApproved">✓ อนุมัติแล้ว</div>
                             ) : isRejected ? (
                               <div className="docSigRejected">✕ ไม่อนุมัติ</div>
                             ) : (
@@ -429,9 +444,14 @@ export default function PRRequestsDashboard() {
                           </div>
                           <div className="docSigLine"></div>
                           <div className="docSigName">
-                            {step.approver_name ? `( ${step.approver_name} )` : '(............................................)'}
+                            {step.approver_name ? `( ${step.approver_name} )` : '(...........................)'}
                           </div>
-                          <div className="docSigPosition">ตำแหน่ง {step.assigned_position}</div>
+                          <div
+                            className="docSigPosition"
+                            style={step.assigned_position === 'ผู้อำนวยการโรงพยาบาลเถิน' ? { whiteSpace: 'nowrap', wordBreak: 'keep-all' } : {}}
+                          >
+                            ตำแหน่ง {step.assigned_position}
+                          </div>
                           {step.approved_at && (
                             <div className="docSigDate">วันที่: {formatDate(step.approved_at)}</div>
                           )}
