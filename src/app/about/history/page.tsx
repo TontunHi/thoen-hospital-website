@@ -88,7 +88,7 @@ export default function HospitalHistoryPage() {
 
             <div className="introImageWrapper">
               <Image
-                src="/images/about-history-1.webp"
+                src="/images/about/history/about-history-1.webp"
                 alt="ประวัติโรงพยาบาลเถิน"
                 width={600}
                 height={400}
@@ -136,7 +136,7 @@ export default function HospitalHistoryPage() {
           <div className="serviceGrid">
             <div className="serviceImageWrapper">
               <Image
-                src="/images/about-history-2.webp"
+                src="/images/about/history/about-history-2.webp"
                 alt="บทบาทและภารกิจการรักษา"
                 width={600}
                 height={400}

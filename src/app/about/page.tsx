@@ -65,7 +65,7 @@ export default function AboutPage() {
         <div className="directorProfileGrid">
           <div className="directorProfileImage">
             <Image
-              src="/images/ceo-thoen.webp"
+              src="/images/about/board/ceo-thoen.webp"
               alt="พญ.นฤนาท จอมภาปิน ผู้อำนวยการโรงพยาบาลเถิน"
               width={300}
               height={380}

@@ -91,7 +91,7 @@ export default async function ServicePage() {
             <div className="cardHeader">
               <div className="iconWrapper">
                 <Image
-                  src="/images/logo-website.webp"
+                  src="/images/common/logo-website.webp"
                   alt="Logo"
                   width={40}
                   height={40}

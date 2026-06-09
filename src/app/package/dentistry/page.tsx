@@ -23,7 +23,7 @@ export default function DentistryPage() {
         <section className="dentalHero">
           <div className="dentalHero__bg">
             <Image
-              src="/images/dentistry.webp"
+              src="/images/package/dentistry/dentistry.webp"
               alt="บริการทันตกรรม โรงพยาบาลเถิน"
               fill
               priority
@@ -132,7 +132,7 @@ export default function DentistryPage() {
               <div className="dentalQrcodeDisplay" style={{ textAlign: 'center' }}>
                 <div className="dentalLargeImageWrapper" style={{ maxWidth: '680px', margin: '0 auto', overflow: 'hidden', borderRadius: '16px', boxShadow: '0 8px 30px rgba(8, 145, 178, 0.08)', border: '1px solid rgba(207, 250, 254, 0.5)' }}>
                   <Image
-                    src="/images/dentistry.webp"
+                    src="/images/package/dentistry/dentistry.webp"
                     alt="ตารางและช่องทางนัดหมายติดต่อทันตกรรม โรงพยาบาลเถิน"
                     width={720}
                     height={720}

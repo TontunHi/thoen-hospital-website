@@ -1,7 +1,9 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import MemberLogoutButton from './LogoutButton'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Briefcase, Calendar, Lock, Image } from 'lucide-react'
 import './page.css'
 
 export default async function MemberDashboardPage() {
@@ -11,14 +13,13 @@ export default async function MemberDashboardPage() {
     redirect('/member/login')
   }
 
-  // Fetch complete member profile from separate DB
+  // Fetch complete member profile including position and signature_path
   const users = await queryMemberDb(
-    'SELECT username, email, name, department, salary_user, role, created_at FROM members WHERE username = ? AND email = ?',
+    'SELECT id, username, email, name, department, position, salary_user, role, created_at, signature_path FROM members WHERE username = ? AND email = ?',
     [session.username, session.email]
   )
 
   if (!users || users.length === 0) {
-    // If not found in DB but session exists (unexpected), clear and redirect
     redirect('/member/login')
   }
 
@@ -34,59 +35,166 @@ export default async function MemberDashboardPage() {
     ? new Date(member.created_at).toLocaleDateString('th-TH', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        day: 'numeric'
       })
     : '-'
 
+  const hasSignature = !!member.signature_path
+  const hasSalary = !!member.salary_user
+
+  // Get user avatar initials
+  const initials = member.name 
+    ? member.name.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('')
+    : member.username.substring(0, 2).toUpperCase()
+
   return (
     <div className="memberDashboardContainer">
-      <div className="memberDashboardCard">
-        <div className="memberHeader">
-          <div className="memberTitle">
-            <h1>ระบบสมาชิกผู้ใช้งาน</h1>
-            <p>โรงพยาบาลเถิน จังหวัดลำปาง</p>
-          </div>
-          <MemberLogoutButton />
-        </div>
+      <div className="dashboardWrapper">
+        
+        {/* Banner Section / Profile Card */}
+        <div className="profileBannerCard">
+          <div className="bannerBackground"></div>
+          <div className="profileBannerContent">
+            <div className="avatarWrapper">
+              <div className="userAvatar">{initials}</div>
+              <div className="userRoleBadge">{displayRole}</div>
+            </div>
+            
+            <div className="userInfoGroup">
+              <div className="userNameArea">
+                <h2>{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
+                <span className="usernameTag">@{member.username}</span>
+              </div>
+              
+              <div className="userDetailsGrid">
+                <div className="userDetailItem">
+                  <Briefcase size={16} className="detailIcon" />
+                  <span>ตำแหน่ง: <strong>{member.position || 'ไม่ได้ระบุ'}</strong></span>
+                </div>
+                <div className="userDetailItem">
+                  <Shield size={16} className="detailIcon" />
+                  <span>แผนก/กลุ่มงาน: <strong>{member.department || 'ไม่ได้ระบุ'}</strong></span>
+                </div>
+                <div className="userDetailItem">
+                  <Calendar size={16} className="detailIcon" />
+                  <span>เป็นสมาชิกเมื่อ: {registrationDate}</span>
+                </div>
+              </div>
+            </div>
 
-        <div className="memberGrid">
-          {/* Profile Details */}
-          <div className="profileSection">
-            <h3>ข้อมูลโปรไฟล์ของท่าน</h3>
-            <div className="infoList">
-              <div className="infoItem">
-                <span className="label">ชื่อ-นามสกุล (Name)</span>
-                <span className="value">{member.name || '-'}</span>
-              </div>
-              <div className="infoItem">
-                <span className="label">กลุ่มงาน / แผนก (Department)</span>
-                <span className="value">{member.department || '-'}</span>
-              </div>
-              <div className="infoItem">
-                <span className="label">ชื่อผู้ใช้งาน (Username)</span>
-                <span className="value">{member.username}</span>
-              </div>
-              <div className="infoItem">
-                <span className="label">อีเมลติดต่อ (Email)</span>
-                <span className="value">{member.email}</span>
-              </div>
-              <div className="infoItem">
-                <span className="label">สิทธิ์การใช้งาน (Role)</span>
-                <span className="value">{displayRole}</span>
-              </div>
-              <div className="infoItem">
-                <span className="label">รหัสผูกบัญชีเงินเดือน (Salary Linked ID)</span>
-                <span className="value">{member.salary_user || 'ยังไม่ได้ผูกบัญชีเงินเดือน'}</span>
-              </div>
-              <div className="infoItem">
-                <span className="label">วันที่ลงทะเบียน (Registered Date)</span>
-                <span className="value">{registrationDate}</span>
-              </div>
+            <div className="logoutButtonWrapper">
+              <MemberLogoutButton />
             </div>
           </div>
         </div>
+
+        {/* Services / Features Grid */}
+        <h3 className="sectionTitle">บริการและฟังก์ชันการใช้งานภายใน</h3>
+        
+        <div className="servicesGrid">
+          
+          {/* Card 1: Digital Signature */}
+          <Link href="/member/signature" className="serviceCard">
+            <div className="serviceCardHeader">
+              <div className="serviceIconWrapper signatureIcon">
+                <PenTool size={24} />
+              </div>
+              <div className={`statusIndicator ${hasSignature ? 'success' : 'warning'}`}>
+                {hasSignature ? (
+                  <>
+                    <CheckCircle size={14} />
+                    <span>ตั้งค่าแล้ว</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={14} />
+                    <span>ยังไม่ตั้งค่า</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="serviceCardBody">
+              <h4>จัดการลายเซ็นดิจิทัล</h4>
+              <p>ลงทะเบียน วาดลายเส้น หรืออัปโหลดรูปภาพลายเซ็นของคุณสำหรับใช้ลงนามอนุมัติเอกสารภายในโรงพยาบาล</p>
+            </div>
+            <div className="serviceCardFooter">
+              <span className="actionText">ตั้งค่าลายเซ็น</span>
+              <ChevronRight size={16} className="chevronIcon" />
+            </div>
+          </Link>
+
+          {/* Card 2: Salary Slip */}
+          <Link href="/salary" className="serviceCard">
+            <div className="serviceCardHeader">
+              <div className="serviceIconWrapper salaryIcon">
+                <FileText size={24} />
+              </div>
+              <div className={`statusIndicator ${hasSalary ? 'success' : 'error'}`}>
+                {hasSalary ? (
+                  <>
+                    <CheckCircle size={14} />
+                    <span>ผูกบัญชีแล้ว</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={14} />
+                    <span>ยังไม่ได้ผูก</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="serviceCardBody">
+              <h4>ระบบสลิปเงินเดือนออนไลน์</h4>
+              <p>เรียกดูข้อมูลสลิปเงินเดือน ประวัติรายได้ประจำเดือน และข้อมูลสวัสดิการของทางโรงพยาบาล</p>
+            </div>
+            <div className="serviceCardFooter">
+              <span className="actionText">เข้าสู่ระบบสลิปเงินเดือน</span>
+              <ChevronRight size={16} className="chevronIcon" />
+            </div>
+          </Link>
+
+          {/* Card 3: PR Media Production */}
+          <Link href="/member/pr-requests" className="serviceCard">
+            <div className="serviceCardHeader">
+              <div className="serviceIconWrapper prIcon">
+                <Image size={24} />
+              </div>
+              <div className="statusIndicator success">
+                <span>เปิดใช้งาน</span>
+              </div>
+            </div>
+            <div className="serviceCardBody">
+              <h4>ร้องขอผลิตสื่อประชาสัมพันธ์</h4>
+              <p>ระบบจัดทำฟอร์มขอผลิตสื่อ ไวนิล โปสเตอร์ และอนุมัติใบงานประชาสัมพันธ์ด้วยลายเซ็นดิจิทัล</p>
+            </div>
+            <div className="serviceCardFooter">
+              <span className="actionText">ส่งใบคำขอผลิตสื่อ</span>
+              <ChevronRight size={16} className="chevronIcon" />
+            </div>
+          </Link>
+
+          {/* Card 4: Unified Approvals Inbox */}
+          <Link href="/member/approvals" className="serviceCard">
+            <div className="serviceCardHeader">
+              <div className="serviceIconWrapper docIcon">
+                <Shield size={24} />
+              </div>
+              <div className="statusIndicator success" style={{ backgroundColor: 'rgba(192, 132, 252, 0.12)', color: '#c084fc', border: '1px solid rgba(192, 132, 252, 0.2)' }}>
+                <span>เปิดใช้งาน</span>
+              </div>
+            </div>
+            <div className="serviceCardBody">
+              <h4>กล่องงานอนุมัติสำหรับหัวหน้า</h4>
+              <p>กล่องงานตรวจสอบใบคำขอและเอกสารต่างๆ ที่ส่งเสนอเข้ามา และอนุมัติออนไลน์ด้วยลายเซ็นของคุณ</p>
+            </div>
+            <div className="serviceCardFooter">
+              <span className="actionText">เข้าสู่กล่องงานอนุมัติ</span>
+              <ChevronRight size={16} className="chevronIcon" />
+            </div>
+          </Link>
+
+        </div>
+
       </div>
     </div>
   )

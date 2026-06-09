@@ -41,7 +41,7 @@ export default function AdminLayout({
         <div className="sidebarHeader">
           <div className="sidebarLogoContainer">
             <Image
-              src="/images/logo-website.webp"
+              src="/images/common/logo-website.webp"
               alt="โรงพยาบาลเถิน"
               width={64}
               height={64}

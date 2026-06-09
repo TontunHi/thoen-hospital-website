@@ -71,7 +71,7 @@ export default function AdminLoginPage() {
         <div className="loginHeader">
           <div className="loginLogo">
             <Image
-              src="/images/logo-website.webp"
+              src="/images/common/logo-website.webp"
               alt="โลโก้โรงพยาบาลเถิน"
               width={100}
               height={100}

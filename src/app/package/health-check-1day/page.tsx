@@ -168,7 +168,7 @@ export default function HealthCheckPage() {
         <section className="healthHero">
           <div className="healthHero__bg">
             <Image
-              src="/images/health-check.webp"
+              src="/images/package/health-check-1day/health-check.webp"
               alt="โปรแกรมตรวจสุขภาพ รู้ผลได้ใน 1 วัน"
               fill
               priority
@@ -274,7 +274,7 @@ export default function HealthCheckPage() {
               </h3>
               <div className="healthQrcodeWrapper" style={{ maxWidth: '480px', margin: '0 auto', overflow: 'hidden', borderRadius: '16px', boxShadow: '0 8px 30px rgba(13, 148, 136, 0.08)', border: '1px solid rgba(204, 251, 241, 0.5)' }}>
                 <Image
-                  src="/images/health-check-qrcode.webp"
+                  src="/images/package/health-check-1day/health-check-qrcode.webp"
                   alt="สอบถามข้อมูลเพิ่มเติมและสแกนคิวอาร์โค้ดติดต่อแผนกตรวจสุขภาพ โรงพยาบาลเถิน"
                   width={500}
                   height={500}

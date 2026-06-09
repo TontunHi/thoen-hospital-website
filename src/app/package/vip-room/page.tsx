@@ -59,7 +59,7 @@ export default function VipRoomPage() {
             <div className="room-section__images">
               <div className="room-img-wrap">
                 <Image
-                  src="/images/vip_room_1.webp"
+                  src="/images/package/vip-room/vip_room_1.webp"
                   alt="ห้องพิเศษ VIP โรงพยาบาลเถิน"
                   width={800}
                   height={600}
@@ -129,7 +129,7 @@ export default function VipRoomPage() {
             <div className="room-section__images">
               <div className="room-img-wrap">
                 <Image
-                  src="/images/vip_room_2.webp"
+                  src="/images/package/vip-room/vip_room_2.webp"
                   alt="ห้องพิเศษเดี่ยว และห้องพิเศษเด็ก โรงพยาบาลเถิน"
                   width={800}
                   height={600}

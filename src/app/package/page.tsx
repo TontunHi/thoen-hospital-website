@@ -20,7 +20,7 @@ export default function PackagePage() {
           <div className="packageCard card-glass">
             <div className="packageCard__image">
               <Image
-                src="/images/health-check.webp"
+                src="/images/package/health-check-1day/health-check.webp"
                 alt="โปรแกรมตรวจสุขภาพ รู้ผลได้ใน 1 วัน"
                 fill
                 style={{ objectFit: 'cover' }}
@@ -49,7 +49,7 @@ export default function PackagePage() {
           <div className="packageCard card-glass">
             <div className="packageCard__image">
               <Image
-                src="/images/dentistry.webp"
+                src="/images/package/dentistry/dentistry.webp"
                 alt="บริการด้านทันตกรรม โรงพยาบาลเถิน"
                 fill
                 style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
@@ -77,7 +77,7 @@ export default function PackagePage() {
           <div className="packageCard card-glass">
             <div className="packageCard__image">
               <Image
-                src="/images/vip_room_1.webp"
+                src="/images/package/vip-room/vip_room_1.webp"
                 alt="ห้องพิเศษ VIP โรงพยาบาลเถิน"
                 fill
                 style={{ objectFit: 'cover' }}

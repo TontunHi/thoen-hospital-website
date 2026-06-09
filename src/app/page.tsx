@@ -245,7 +245,7 @@ export default async function HomePage() {
             <div className="director__image-wrapper">
               <div className="director__image-frame">
                 <Image
-                  src="/images/ceo-thoen.webp"
+                  src="/images/about/board/ceo-thoen.webp"
                   alt="พญ.นฤนาท จอมภาปิน ผู้อำนวยการโรงพยาบาลเถิน"
                   width={400}
                   height={500}

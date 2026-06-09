@@ -71,4 +71,3 @@ model HeroSlide {
 
   @@map("hero_slides")
 }
-

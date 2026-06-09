@@ -1,0 +1,68 @@
+import { NextResponse } from 'next/server'
+import { verifyMemberSession } from '@/lib/memberAuth'
+import { queryMemberDb } from '@/lib/memberDb'
+import fs from 'fs'
+import path from 'path'
+
+export async function GET(request: Request) {
+  try {
+    const session = await verifyMemberSession()
+    if (!session) {
+      return NextResponse.json(
+        { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
+        { status: 401 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const queryUserId = searchParams.get('userId')
+
+    let targetUsername = session.username
+
+    // If queryUserId is provided, we fetch that user's signature path
+    if (queryUserId) {
+      const users = await queryMemberDb('SELECT username FROM members WHERE id = ? LIMIT 1', [queryUserId])
+      if (users.length > 0) {
+        targetUsername = users[0].username
+      } else {
+        return NextResponse.json({ error: 'ไม่พบผู้ใช้ที่ระบุ' }, { status: 404 })
+      }
+    }
+
+    const members = await queryMemberDb(
+      'SELECT signature_path FROM members WHERE username = ? LIMIT 1',
+      [targetUsername]
+    )
+
+    if (members.length === 0 || !members[0].signature_path) {
+      return NextResponse.json(
+        { error: 'ไม่พบลายเซ็นดิจิทัล' },
+        { status: 404 }
+      )
+    }
+
+    const filepath = path.join(process.cwd(), members[0].signature_path)
+
+    if (!fs.existsSync(filepath)) {
+      return NextResponse.json(
+        { error: 'ไม่พบไฟล์ลายเซ็นบนเซิร์ฟเวอร์' },
+        { status: 404 }
+      )
+    }
+
+    const fileBuffer = await fs.promises.readFile(filepath)
+
+    return new Response(fileBuffer, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'no-store, max-age=0'
+      }
+    })
+  } catch (error) {
+    console.error('Serve signature image error:', error)
+    return NextResponse.json(
+      { error: 'เกิดข้อผิดพลาดในการดึงรูปภาพลายเซ็น' },
+      { status: 500 }
+    )
+  }
+}

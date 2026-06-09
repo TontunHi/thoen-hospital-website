@@ -47,7 +47,7 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
     return (
       <div className="hero__bg">
         <Image
-          src="/images/main-banner.webp"
+          src="/images/home/main-banner.webp"
           alt="โรงพยาบาลเถิน จังหวัดลำปาง"
           fill
           priority

@@ -174,7 +174,7 @@ export default function SystemsPage() {
                 <div className="cardHeader">
                   <div className="iconWrapper mophIcon">
                     <Image
-                      src="/images/logo-website.webp"
+                      src="/images/common/logo-website.webp"
                       alt="MOPH Logo"
                       width={40}
                       height={40}
@@ -201,7 +201,7 @@ export default function SystemsPage() {
                 <div className="cardHeader">
                   <div className="iconWrapper" style={{ backgroundColor: '#E0F2F1', borderColor: '#26A69A' }}>
                     <Image
-                      src="/images/logo-website.webp"
+                      src="/images/common/logo-website.webp"
                       alt="Logo"
                       width={40}
                       height={40}

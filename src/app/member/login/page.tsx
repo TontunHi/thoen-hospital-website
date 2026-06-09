@@ -97,7 +97,7 @@ export default function MemberLoginPage() {
       <div className="memberLoginCard">
         <div className="memberLoginLogo">
           <Image
-            src="/images/logo-website.webp"
+            src="/images/common/logo-website.webp"
             alt="โรงพยาบาลเถิน"
             width={80}
             height={80}

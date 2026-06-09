@@ -34,7 +34,7 @@ export async function GET() {
     }
 
     const members = await queryMemberDb(
-      'SELECT id, username, email, name, department, salary_user, salary_pass, role, created_at, updated_at FROM members ORDER BY created_at DESC'
+      'SELECT id, username, email, name, department, position, salary_user, salary_pass, role, created_at, updated_at FROM members ORDER BY created_at DESC'
     )
 
     return NextResponse.json({ success: true, members })
@@ -56,7 +56,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { id, username, email, name, department, salary_user, salary_pass, role } = body
+    const { id, username, email, name, department, position, salary_user, salary_pass, role } = body
 
     if (!id || !username || !email || !role) {
       return NextResponse.json(
@@ -65,15 +65,16 @@ export async function PUT(request: Request) {
       )
     }
 
-    // Prevent admin from editing themselves
+    let finalRole = role
     if (auth.session.username) {
-      const targetUser = await queryMemberDb('SELECT username FROM members WHERE id = ?', [id])
+      const targetUser = await queryMemberDb('SELECT username, role FROM members WHERE id = ?', [id])
       if (targetUser && targetUser.length > 0 && targetUser[0].username === auth.session.username) {
-        return NextResponse.json({ error: 'ไม่สามารถแก้ไขข้อมูลบัญชีของตัวเองผ่านระบบนี้ได้' }, { status: 400 })
+        // Force role to remain unchanged when editing self
+        finalRole = targetUser[0].role
       }
     }
 
-    if (role !== 'member' && role !== 'admin') {
+    if (finalRole !== 'member' && finalRole !== 'admin') {
       return NextResponse.json(
         { error: 'สิทธิ์การใช้งานไม่ถูกต้อง' },
         { status: 400 }
@@ -96,16 +97,17 @@ export async function PUT(request: Request) {
     // Update member details
     await queryMemberDb(
       `UPDATE members 
-       SET username = ?, email = ?, name = ?, department = ?, salary_user = ?, salary_pass = ?, role = ?
+       SET username = ?, email = ?, name = ?, department = ?, position = ?, salary_user = ?, salary_pass = ?, role = ?
        WHERE id = ?`,
       [
         username.trim(),
         email.trim(),
         name ? name.trim() : null,
         department ? department.trim() : null,
+        position ? position.trim() : null,
         salary_user ? salary_user.trim() : null,
         salary_pass ? salary_pass.trim() : null,
-        role,
+        finalRole,
         id
       ]
     )
@@ -164,7 +166,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { username, email, name, department, salary_user, salary_pass, role } = body
+    const { username, email, name, department, position, salary_user, salary_pass, role } = body
 
     if (!username || !email || !role) {
       return NextResponse.json(
@@ -195,13 +197,14 @@ export async function POST(request: Request) {
 
     // Insert new member
     await queryMemberDb(
-      `INSERT INTO members (username, email, name, department, salary_user, salary_pass, role) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO members (username, email, name, department, position, salary_user, salary_pass, role) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         username.trim(),
         email.trim(),
         name ? name.trim() : null,
         department ? department.trim() : null,
+        position ? position.trim() : null,
         salary_user ? salary_user.trim() : null,
         salary_pass ? salary_pass.trim() : null,
         role

@@ -22,7 +22,7 @@ export default function BoardOfDirectorsPage() {
       name: 'แพทย์หญิงนฤณาท จอมภาปิน',
       position: 'ผู้อำนวยการโรงพยาบาลเถิน',
       department: 'คณะกรรมการบริหาร โรงพยาบาลเถิน',
-      image: '/images/ceo-thoen.webp' // Existing CEO image
+      image: '/images/about/board/ceo-thoen.webp' // Existing CEO image
     },
     {
       id: 2,

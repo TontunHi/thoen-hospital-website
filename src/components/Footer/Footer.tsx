@@ -29,7 +29,7 @@ export default function Footer() {
             <div className="footer__col footer__col--info">
               <div className="footer__brand">
                 <Image
-                  src="/images/logo-website.webp"
+                  src="/images/common/logo-website.webp"
                   alt="โรงพยาบาลเถิน"
                   width={50}
                   height={50}

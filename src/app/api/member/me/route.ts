@@ -9,7 +9,7 @@ export async function GET() {
     if (!session) {
       return NextResponse.json(
         { authenticated: false, error: 'ไม่ได้เข้าสู่ระบบหรือเซสชันหมดอายุ' },
-        { status: 401 }
+        { status: 200 }
       )
     }
 
@@ -22,7 +22,7 @@ export async function GET() {
     if (!users || users.length === 0) {
       return NextResponse.json(
         { authenticated: false, error: 'ไม่พบข้อมูลผู้ใช้งานในระบบ' },
-        { status: 401 }
+        { status: 200 }
       )
     }
 

@@ -18,6 +18,7 @@ You are acting as a Senior Software Engineer and Solution Architect. Every piece
 - **Zero Hardcoding:** NEVER hardcode sensitive data including Domain Names, IP addresses, Ports, API Keys, Passwords, or JWT Secrets.
 - **Environment Variables:** All configuration must look up values from Environment Variables or centralized Config Files. Always provide equivalent declarations in `.env.example`.
 - **Input Validation:** Implement rigid validation for all user inputs, API payloads, and query parameters before processing or execution.
+- **Defensive Page Authentication Check:** When creating any page route or component that requires authentication (e.g. `/member/signature`), NEVER rely solely on client-side state or API response codes. You MUST enforce server-side session authentication checks (e.g., `verifyMemberSession`) and trigger server-side redirects (e.g., `redirect('/member/login')`) to prevent unauthorized users from viewing the protected UI by copying the URL.
 
 ### 3. Error Handling & Reliability
 - **Graceful Error Handling:** Ensure all asynchronous functions, API routes, and network requests are safely wrapped in try-catch blocks with appropriate fallback UI states.

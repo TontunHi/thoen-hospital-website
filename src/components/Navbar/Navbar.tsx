@@ -160,7 +160,7 @@ export default function Navbar() {
       <div className="navbar__container container">
         <Link href="/" className="navbar__logo">
           <Image
-            src="/images/logo-website.webp"
+            src="/images/common/logo-website.webp"
             alt="โรงพยาบาลเถิน"
             width={50}
             height={50}

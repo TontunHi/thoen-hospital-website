@@ -10,6 +10,7 @@ interface Member {
   email: string
   name: string | null
   department: string | null
+  position: string | null
   salary_user: string | null
   salary_pass: string | null
   role: 'member' | 'admin'
@@ -42,6 +43,7 @@ export default function MembersAdminPage() {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [department, setDepartment] = useState('')
+  const [position, setPosition] = useState('')
   const [salaryUser, setSalaryUser] = useState('')
   const [salaryPass, setSalaryPass] = useState('')
   const [role, setRole] = useState<'member' | 'admin'>('member')
@@ -89,6 +91,7 @@ export default function MembersAdminPage() {
     setEmail('')
     setName('')
     setDepartment('')
+    setPosition('')
     setSalaryUser('')
     setSalaryPass('')
     setRole('member')
@@ -97,16 +100,13 @@ export default function MembersAdminPage() {
   }
 
   const handleEditClick = (member: Member) => {
-    if (currentUser && member.username === currentUser.username) {
-      alert('คุณไม่สามารถแก้ไขข้อมูลบัญชีของตัวเองผ่านส่วนนี้ได้')
-      return
-    }
     setIsCreateMode(false)
     setEditingMember(member)
     setUsername(member.username)
     setEmail(member.email)
     setName(member.name || '')
     setDepartment(member.department || '')
+    setPosition(member.position || '')
     setSalaryUser(member.salary_user || '')
     setSalaryPass(member.salary_pass || '')
     setRole(member.role)
@@ -125,6 +125,7 @@ export default function MembersAdminPage() {
       email,
       name: name || null,
       department: department || null,
+      position: position || null,
       salary_user: salaryUser || null,
       salary_pass: salaryPass || null,
       role,
@@ -197,7 +198,8 @@ export default function MembersAdminPage() {
       member.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (member.name && member.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (member.department && member.department.toLowerCase().includes(searchQuery.toLowerCase()))
+      (member.department && member.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (member.position && member.position.toLowerCase().includes(searchQuery.toLowerCase()))
     const matchesRole = roleFilter === 'all' || member.role === roleFilter
     return matchesSearch && matchesRole
   })
@@ -317,8 +319,6 @@ export default function MembersAdminPage() {
                     <th onClick={() => handleSort('department')} className="sortableHeader col-dept">
                       <div className="headerFlex">กลุ่มงาน/แผนก {renderSortIcon('department')}</div>
                     </th>
-                    <th className="col-salary-user">เงินเดือน (User)</th>
-                    <th className="col-salary-pass">เงินเดือน (Pass)</th>
                     <th onClick={() => handleSort('role')} className="sortableHeader col-role">
                       <div className="headerFlex">สิทธิ์ {renderSortIcon('role')}</div>
                     </th>
@@ -338,28 +338,15 @@ export default function MembersAdminPage() {
                           </div>
                         </td>
                         <td className="memberEmail col-email" title={member.email}>{member.email}</td>
-                        <td className="col-name" title={member.name || '-'}>{member.name || '-'}</td>
+                        <td className="col-name" title={member.name || '-'}>
+                          <div>{member.name || '-'}</div>
+                          {member.position && (
+                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                              {member.position}
+                            </div>
+                          )}
+                        </td>
                         <td className="col-dept" title={member.department || '-'}>{member.department || '-'}</td>
-                        <td className="memberSalary col-salary-user" title={member.salary_user || 'ไม่ได้ตั้งค่า'}>
-                          {member.salary_user ? (
-                            <span className="salaryBadge">
-                              <Key size={10} style={{ marginRight: '3px', flexShrink: 0 }} />
-                              <span className="truncate">{member.salary_user}</span>
-                            </span>
-                          ) : (
-                            <span className="noSalaryBadge">ไม่มี</span>
-                          )}
-                        </td>
-                        <td className="memberSalary col-salary-pass" title={member.salary_pass || 'ไม่ได้ตั้งค่า'}>
-                          {member.salary_pass ? (
-                            <span className="salaryBadge" style={{ backgroundColor: 'rgba(2, 132, 199, 0.08)', color: '#0284c7' }}>
-                              <Key size={10} style={{ marginRight: '3px', flexShrink: 0 }} />
-                              <span className="truncate">{member.salary_pass}</span>
-                            </span>
-                          ) : (
-                            <span className="noSalaryBadge">ไม่มี</span>
-                          )}
-                        </td>
                         <td className="col-role">
                           <span className={`roleBadge ${member.role}`}>
                             <Shield size={10} style={{ marginRight: '3px', flexShrink: 0 }} />
@@ -369,8 +356,7 @@ export default function MembersAdminPage() {
                         <td className="memberActions col-actions">
                           <button
                             className="actionBtn editBtn"
-                            title={isSelf ? "ไม่สามารถแก้ไขบัญชีตนเองผ่านหน้านี้ได้" : "แก้ไขข้อมูลสมาชิก"}
-                            disabled={!!isSelf}
+                            title="แก้ไขข้อมูลสมาชิก"
                             onClick={() => handleEditClick(member)}
                           >
                             <Edit3 size={14} />
@@ -475,6 +461,19 @@ export default function MembersAdminPage() {
                 </div>
 
                 <div className="formGroup">
+                  <label>ตำแหน่ง</label>
+                  <div className="inputWrapper">
+                    <User size={16} className="inputIcon" />
+                    <input
+                      type="text"
+                      value={position}
+                      onChange={(e) => setPosition(e.target.value)}
+                      placeholder="เช่น หัวหน้ากลุ่มงาน, นักวิชาการคอมพิวเตอร์"
+                    />
+                  </div>
+                </div>
+
+                <div className="formGroup">
                   <label>อีเมลติดต่อ (Email) *</label>
                   <div className="inputWrapper">
                     <Mail size={16} className="inputIcon" />
@@ -533,6 +532,7 @@ export default function MembersAdminPage() {
                     <select
                       value={role}
                       onChange={(e) => setRole(e.target.value as 'member' | 'admin')}
+                      disabled={!isCreateMode && editingMember?.username === currentUser?.username}
                     >
                       <option value="member">สมาชิกทั่วไป (Member) - สามารถดูสลิปเงินเดือนตนเองได้</option>
                       <option value="admin">ผู้ดูแลระบบสมาชิก (Admin) - จัดการสมาชิกและระบบหลังบ้านได้</option>
