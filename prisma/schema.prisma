@@ -7,17 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           Int      @id @default(autoincrement())
-  username     String   @unique(map: "username") @db.VarChar(50)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  email        String   @db.VarChar(100)
-  role         Role?    @default(admin)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(0)
 
-  @@map("users")
-}
 
 model News {
   id          Int          @id @default(autoincrement())
