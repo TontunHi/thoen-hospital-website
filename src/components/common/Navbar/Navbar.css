@@ -400,6 +400,30 @@
   transform: translateY(-1px);
 }
 
+.navbar__check-date-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0d9488;
+  background: var(--white, #ffffff);
+  border: 1.5px solid #0d9488;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navbar__check-date-btn:hover {
+  background: #0d9488;
+  color: #ffffff !important;
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.2);
+  transform: translateY(-1px);
+}
+
+
 .navbar__member-btn {
   display: inline-flex;
   align-items: center;
@@ -439,4 +463,3 @@
     display: none;
   }
 }
-

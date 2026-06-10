@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(
   request: NextRequest,
-  ctx: RouteContext<'/api/news/[id]/view'>
+  ctx: { params: Promise<{ id: string }> }
+
 ) {
   try {
     const { id } = await ctx.params

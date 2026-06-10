@@ -4,9 +4,10 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
-import ImageGallery from '@/components/ImageGallery'
-import ViewCounter from '@/components/ViewCounter'
+import ImageGallery from '@/features/news/components/ImageGallery'
+import ViewCounter from '@/features/news/components/ViewCounter'
 import './page.css'
+import { DbNews, DbAttachment } from '@/types/news'
 
 // Extract YouTube ID from various YouTube URL formats
 function getYouTubeId(url: string): string | null {
@@ -30,18 +31,19 @@ async function getNewsBySlug(slug: string) {
 
     // Adapt structure for the views compatibility
     const now = new Date()
-    const imageAttachments = news.attachments.filter((att: any) => 
+    const imageAttachments = (news.attachments as unknown as DbAttachment[]).filter((att) => 
       att.fileType && att.fileType.startsWith('image/')
     )
-    const images = imageAttachments.map((att: any) => ({
+    const images = imageAttachments.map((att) => ({
       id: att.id,
       imageUrl: att.filePath,
       order: 0
     }))
 
-    const pdfAttachment = news.attachments.find((att: any) => 
+    const pdfAttachment = (news.attachments as unknown as DbAttachment[]).find((att) => 
       att.fileType === 'application/pdf'
     )
+
 
     let status = 'PUBLISHED'
     if (news.startDate > now) {
@@ -49,6 +51,7 @@ async function getNewsBySlug(slug: string) {
     } else if (news.endDate < now) {
       status = 'ARCHIVED'
     }
+
 
     return {
       id: news.id,

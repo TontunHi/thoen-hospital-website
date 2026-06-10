@@ -1,41 +1,19 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import HeroSlideshow from '@/components/HeroSlideshow';
+import HeroSlideshow from '@/components/common/HeroSlideshow';
+
 import { 
-  Activity, 
-  Stethoscope, 
-  HeartPulse, 
-  Smile, 
-  Accessibility, 
-  FlaskConical,
   Phone,
   MessageSquare,
-  MapPin,
-  Newspaper,
-  Leaf,
-  BedDouble,
-  Baby
+  MapPin
 } from 'lucide-react';
 import './page.css';
+import { FacebookIcon } from '@/components/common/Icons';
+import { services, relatedOrgs } from '@/config/home';
+import { DbNews, DbAttachment, NewsListItem } from '@/types/news';
 
-const FacebookIcon = (props: React.SVGProps<SVGSVGElement> & { size?: number }) => (
-  <svg 
-    width={props.size || 24} 
-    height={props.size || 24} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    {...props}
-  >
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-  </svg>
-);
-
-async function getLatestNews() {
+async function getLatestNews(): Promise<NewsListItem[]> {
   try {
     const now = new Date()
     const news = await prisma.news.findMany({
@@ -50,17 +28,17 @@ async function getLatestNews() {
       }
     })
 
-    const newsList = news.map((item: any) => {
-      const imageAttachments = item.attachments.filter((att: any) => 
+    const newsList: NewsListItem[] = (news as unknown as (DbNews & { attachments: DbAttachment[] })[]).map((item) => {
+      const imageAttachments = item.attachments.filter((att) => 
         att.fileType && att.fileType.startsWith('image/')
       )
-      const images = imageAttachments.map((att: any) => ({
+      const images = imageAttachments.map((att) => ({
         id: att.id,
         imageUrl: att.filePath,
         order: 0
       }))
 
-      const pdfAttachment = item.attachments.find((att: any) => 
+      const pdfAttachment = item.attachments.find((att) => 
         att.fileType === 'application/pdf'
       )
 
@@ -82,7 +60,7 @@ async function getLatestNews() {
       }
     })
 
-    const selected: typeof newsList = [];
+    const selected: NewsListItem[] = [];
     const usedCategories = new Set<string>();
 
     // Select 1 latest from each category
@@ -99,7 +77,7 @@ async function getLatestNews() {
     // Fallback: if we have fewer than 3 unique categories, fill with remaining latest news
     if (selected.length < 3) {
       for (const item of newsList) {
-        if (!selected.some((s: any) => s.id === item.id)) {
+        if (!selected.some((s) => s.id === item.id)) {
           selected.push(item);
         }
         if (selected.length === 3) {
@@ -135,61 +113,6 @@ async function getActiveSlides() {
   }
 }
 
-
-
-const services = [
-  {
-    title: 'โปรแกรมตรวจสุขภาพ รู้ผลได้ใน 1 วัน',
-    desc: 'บริการตรวจสุขภาพประจำปี ตรวจวิเคราะห์รวดเร็ว แม่นยำ และทราบผลการตรวจภายในวันเดียว',
-    icon: HeartPulse,
-    link: '/package/health-check-1day'
-  },
-  {
-    title: 'คลินิกเฉพาะทาง',
-    desc: 'ตรวจรักษาโดยแพทย์ผู้เชี่ยวชาญเฉพาะทางหลากหลายสาขา ครอบคลุมโรคเฉพาะโรค',
-    icon: Stethoscope
-  },
-  {
-    title: 'ทันตกรรม',
-    desc: 'บริการทันตกรรมครบวงจร ดูแลสุขภาพฟัน ขูดหินปูน อุดฟัน ถอนฟัน และทันตกรรมเด็ก',
-    icon: Smile,
-    link: '/package/dentistry'
-  },
-  {
-    title: 'แพทย์แผนไทย',
-    desc: 'บริการนวดรักษา ประคบสมุนไพร อบไอน้ำสมุนไพร และการฟื้นฟูสุขภาพด้วยศาสตร์แพทย์แผนไทย',
-    icon: Leaf
-  },
-  {
-    title: 'อัตราการบริการห้องพิเศษ',
-    desc: 'ข้อมูลค่าบริการห้องพักพิเศษ สิ่งอำนวยความสะดวกครบครัน และการดูแลระดับพรีเมียม',
-    icon: BedDouble,
-    link: '/package/vip-room'
-  },
-  {
-    title: 'สูตินรีเวชกรรม',
-    desc: 'บริการดูแลคุณแม่ตั้งครรภ์ ฝากครรภ์ คลอดบุตร และตรวจรักษาโรคทางนรีเวชอย่างอบอุ่นและปลอดภัย',
-    icon: Baby
-  },
-];
-
-const relatedOrgs = [
-  { name: 'สสจ.ลำปาง', url: 'https://www.lpho.go.th/' },
-  { name: 'สสอ.เถิน', url: 'https://www.thoenhealth.go.th/index.php' },
-  { name: 'รพ.มะเร็งลำปาง', url: 'https://www.lpch.go.th/lpch/' },
-  { name: 'รพ.ศูนย์ลำปาง', url: 'https://www.lph.go.th/lpweb/' },
-  { name: 'รพ.เกาะคา', url: 'https://www.kokhahospital.go.th/' },
-  { name: 'รพ.งาว', url: 'https://www.ngaohospital.com/' },
-  { name: 'รพ.แจ้ห่ม', url: 'https://chaehomlampang.wordpress.com/' },
-  { name: 'รพ.เมืองปาน', url: 'https://muangpan.moph.go.th/newsportal/' },
-  { name: 'รพ.แม่ทะ', url: 'https://maethahospital.com/' },
-  { name: 'รพ.แม่พริก', url: 'http://61.19.35.172/webmaeprik/' },
-  { name: 'รพ.แม่เมาะ', url: 'http://maemohhealth.moph.go.th/maemohhospital/index.php' },
-  { name: 'รพ.วังเหนือ', url: 'http://www.wangnueahospital.com/' },
-  { name: 'รพ.สบปราบ', url: 'https://www.sopprabhospital.go.th/' },
-  { name: 'รพ.เสริมงาม', url: 'http://www.soemngamhospital.go.th/index.php?page=intro&language=th' },
-  { name: 'รพ.ห้างฉัตร', url: 'https://www.hangchathospital.com/' },
-];
 
 export default async function HomePage() {
   const latestNews = await getLatestNews();
@@ -285,8 +208,9 @@ export default async function HomePage() {
           {latestNews.length > 0 ? (
             <>
               <div className="news-grid">
-                {latestNews.map((item: any) => {
+                {latestNews.map((item: NewsListItem) => {
                   const coverImage = item.images && item.images.length > 0 ? item.images[0].imageUrl : null
+
                   return (
                     <Link key={item.id} href={`/news/${item.slug}`} className="news-card card">
                       <div className="news-card__image">

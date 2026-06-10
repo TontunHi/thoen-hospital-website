@@ -52,4 +52,3 @@ export default function ViewCounter({ newsId }: ViewCounterProps) {
 
   return null // Render nothing
 }
-

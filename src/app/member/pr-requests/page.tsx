@@ -64,10 +64,13 @@ export default function PRRequestsDashboard() {
           padding: 0 !important;
           margin: 0 !important;
           width: 100% !important;
+          min-height: auto !important;
+          height: auto !important;
         }
       }
     `,
   })
+
 
   useEffect(() => {
     fetchRequests()

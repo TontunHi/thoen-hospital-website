@@ -6,7 +6,7 @@ import { newsCreateSchema } from '@/lib/schemas/news'
 
 export async function GET(
   _req: NextRequest,
-  ctx: RouteContext<'/api/news/[id]'>
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await ctx.params
@@ -85,7 +85,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  ctx: RouteContext<'/api/news/[id]'>
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireMemberAdmin()
@@ -255,7 +255,7 @@ export async function PUT(
 
 export async function DELETE(
   _req: NextRequest,
-  ctx: RouteContext<'/api/news/[id]'>
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireMemberAdmin()

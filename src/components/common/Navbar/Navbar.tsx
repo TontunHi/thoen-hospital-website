@@ -255,9 +255,10 @@ export default function Navbar() {
         <div className="navbar__actions">
           {/* Member status on desktop */}
           <div className="navbar__cta-desktop" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <Link href="/check-date" className="navbar__login-btn" style={{ borderColor: '#0d9488', color: '#0d9488' }}>
+            <Link href="/check-date" className="navbar__check-date-btn">
               ตรวจสอบนัดหมาย
             </Link>
+
             {member ? (
               <Link href="/member" className="navbar__member-btn">
                 <span className="navbar__member-icon">👤</span>

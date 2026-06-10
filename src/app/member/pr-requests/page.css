@@ -594,11 +594,11 @@ body:has(.prRequestsContainer) {
   flex: 1;
   overflow-y: auto;
 }
-.prRequestsContainer .printTemplate, .prRequestsContainer .printTemplate * {
+.printTemplate, .printTemplate * {
 
   font-family: 'TH Sarabun New', sans-serif !important;
 }
-.prRequestsContainer .printTemplate {
+.printTemplate {
 
   background-color: #ffffff;
   border-radius: 0;
@@ -612,10 +612,10 @@ body:has(.prRequestsContainer) {
   box-sizing: border-box;
 }
 @media (max-width: 880px) {
-.prRequestsContainer .printTemplate {
+.printTemplate {
 }
 }
-.prRequestsContainer .docHeader {
+.printTemplate .docHeader {
 
   display: flex;
   justify-content: space-between;
@@ -624,13 +624,13 @@ body:has(.prRequestsContainer) {
   flex-wrap: wrap;
   gap: 10px;
 }
-.prRequestsContainer .docHeaderLeft {
+.printTemplate .docHeaderLeft {
 
   display: flex;
   align-items: center;
   gap: 14px;
 }
-.prRequestsContainer .docHospitalLogo {
+.printTemplate .docHospitalLogo {
 
   width: 48px;
   height: 48px;
@@ -638,56 +638,56 @@ body:has(.prRequestsContainer) {
   flex-shrink: 0;
   filter: grayscale(100%);
 }
-.prRequestsContainer .docHospitalName {
+.printTemplate .docHospitalName {
 
   font-size: 24px;
   font-weight: 800;
   color: #000000;
   line-height: 1.2;
 }
-.prRequestsContainer .docHospitalSub {
+.printTemplate .docHospitalSub {
 
   font-size: 18px;
   color: #000000;
   margin-top: 2px;
 }
-.prRequestsContainer .docHeaderRight {
+.printTemplate .docHeaderRight {
 
   text-align: right;
 }
-.prRequestsContainer .docDocTitle {
+.printTemplate .docDocTitle {
 
   font-size: 23px;
   font-weight: 800;
   color: #000000;
   line-height: 1.2;
 }
-.prRequestsContainer .docDocId {
+.printTemplate .docDocId {
 
   font-size: 18px;
   color: #000000;
   font-weight: 700;
   margin-top: 4px;
 }
-.prRequestsContainer .docDocDate {
+.printTemplate .docDocDate {
 
   font-size: 18px;
   color: #000000;
 }
-.prRequestsContainer .docDividerThick {
+.printTemplate .docDividerThick {
 
   height: 0;
   border-top: 1px solid #000000;
   margin: 6px 0;
   border-radius: 0;
 }
-.prRequestsContainer .docDivider {
+.printTemplate .docDivider {
 
   height: 0;
   border-top: 1px solid #000000;
   margin: 6px 0;
 }
-.prRequestsContainer .docMetaRow {
+.printTemplate .docMetaRow {
 
   display: flex;
   justify-content: space-between;
@@ -700,20 +700,20 @@ body:has(.prRequestsContainer) {
   border-radius: 0;
   border: none;
 }
-.prRequestsContainer .docUrgencyGroup {
+.printTemplate .docUrgencyGroup {
 
   display: flex;
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
 }
-.prRequestsContainer .docFieldLabel {
+.printTemplate .docFieldLabel {
 
   font-weight: 700;
   font-size: 19px;
   color: #000000;
 }
-.prRequestsContainer .docCostTag {
+.printTemplate .docCostTag {
 
   font-size: 19px;
   font-weight: 700;
@@ -723,23 +723,23 @@ body:has(.prRequestsContainer) {
   background: #ffffff;
   color: #000000;
 }
-.prRequestsContainer .docCostTag.cost {
+.printTemplate .docCostTag.cost {
 
   background-color: #ffffff;
   color: #000000;
   border: none;
 }
-.prRequestsContainer .docCostTag.free {
+.printTemplate .docCostTag.free {
 
   background-color: #ffffff;
   color: #000000;
   border: none;
 }
-.prRequestsContainer .docSection {
+.printTemplate .docSection {
 
   margin-bottom: 6px;
 }
-.prRequestsContainer .docSectionLabel {
+.printTemplate .docSectionLabel {
 
   font-size: 17px;
   font-weight: bold !important;
@@ -748,13 +748,13 @@ body:has(.prRequestsContainer) {
   letter-spacing: 0.06em;
   margin-bottom: 4px;
 }
-.prRequestsContainer .docSectionContent {
+.printTemplate .docSectionContent {
 
   font-size: 20px;
   font-weight: 500;
   color: #0f172a;
 }
-.prRequestsContainer .docSubjectText {
+.printTemplate .docSubjectText {
 
   font-size: 22px;
   font-weight: 500;
@@ -763,26 +763,26 @@ body:has(.prRequestsContainer) {
   background: transparent;
   border: none;
 }
-.prRequestsContainer .docTwoCol {
+.printTemplate .docTwoCol {
 
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
-.prRequestsContainer .docThreeCol {
+.printTemplate .docThreeCol {
 
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 16px;
 }
-.prRequestsContainer .docCheckGrid {
+.printTemplate .docCheckGrid {
 
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   margin-top: 4px;
 }
-.prRequestsContainer .docCheckItem {
+.printTemplate .docCheckItem {
 
   display: inline-flex;
   align-items: center;
@@ -794,38 +794,40 @@ body:has(.prRequestsContainer) {
   border: none;
   background: #ffffff;
 }
-.prRequestsContainer .docCheckItem.checked {
+.printTemplate .docCheckItem.checked {
 
   color: #000000;
   border-color: transparent;
   background: #ffffff;
   font-weight: normal;
 }
-.prRequestsContainer .docCheckBox {
+.printTemplate .docCheckBox {
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border: 1.5px solid #000000;
   border-radius: 50%;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   color: #000000;
   background: #ffffff;
   flex-shrink: 0;
-  line-height: 1;
+  line-height: 0;
+  padding: 0;
 }
-.prRequestsContainer .docCheckItem.checked .docCheckBox {
+.printTemplate .docCheckItem.checked .docCheckBox {
 
   border-color: #000000;
   background: #ffffff;
   color: #000000;
   font-weight: 900;
-  font-size: 10px;
+  font-size: 11px;
 }
-.prRequestsContainer .docDetailsBox {
+
+.printTemplate .docDetailsBox {
 
   margin-top: 4px;
   padding: 4px 0;
@@ -838,7 +840,7 @@ body:has(.prRequestsContainer) {
   min-height: 24px;
   line-height: 1.4;
 }
-.prRequestsContainer .docSigTitle {
+.printTemplate .docSigTitle {
 
   font-size: 18px;
   font-weight: bold !important;
@@ -847,13 +849,13 @@ body:has(.prRequestsContainer) {
   letter-spacing: 0.06em;
   margin-bottom: 16px;
 }
-.prRequestsContainer .docSignatureRow {
+.printTemplate .docSignatureRow {
 
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
-.prRequestsContainer .docSigBox {
+.printTemplate .docSigBox {
 
   border: none;
   border-radius: 0;
@@ -865,17 +867,17 @@ body:has(.prRequestsContainer) {
   text-align: center;
   min-height: 110px;
 }
-.prRequestsContainer .docSigBox.signed {
+.printTemplate .docSigBox.signed {
 
   border: none;
   background: #ffffff;
 }
-.prRequestsContainer .docSigBox.rejected {
+.printTemplate .docSigBox.rejected {
 
   border: none;
   background: #ffffff;
 }
-.prRequestsContainer .docSigStep {
+.printTemplate .docSigStep {
 
   font-size: 10px;
   font-weight: 700;
@@ -889,7 +891,7 @@ body:has(.prRequestsContainer) {
   border-radius: 0;
   align-self: flex-start;
 }
-.prRequestsContainer .docSigImageArea {
+.printTemplate .docSigImageArea {
 
   display: flex;
   align-items: flex-end;
@@ -897,7 +899,7 @@ body:has(.prRequestsContainer) {
   width: 100%;
   height: 50px;
 }
-.prRequestsContainer .docSigImage {
+.printTemplate .docSigImage {
 
   width: 100%;
   height: 100%;
@@ -905,52 +907,52 @@ body:has(.prRequestsContainer) {
   transform: scale(1.35);
   transform-origin: bottom center;
 }
-.prRequestsContainer .docSigEmpty {
+.printTemplate .docSigEmpty {
 
   width: 100%;
   height: 30px;
 }
-.prRequestsContainer .docSigRejected {
+.printTemplate .docSigRejected {
 
   font-size: 19px;
   font-weight: 700;
   color: #000000;
 }
-.prRequestsContainer .docSigApproved {
+.printTemplate .docSigApproved {
 
   font-size: 19px;
   font-weight: 700;
   color: #000000;
 }
-.prRequestsContainer .docSigLine {
+.printTemplate .docSigLine {
 
   width: 100%;
   height: 0;
   border-top: 1px solid #000000;
   margin: 8px 0;
 }
-.prRequestsContainer .docSigName {
+.printTemplate .docSigName {
 
   font-size: 18px;
   font-weight: 500;
   color: #000000;
   word-break: break-word;
 }
-.prRequestsContainer .docSigPosition {
+.printTemplate .docSigPosition {
 
   font-size: 17px;
   color: #000000;
   margin-top: 4px;
   word-break: break-word;
 }
-.prRequestsContainer .docSigDate {
+.printTemplate .docSigDate {
 
   font-size: 16px;
   color: #000000;
   margin-top: 4px;
   font-weight: 600;
 }
-.prRequestsContainer .docFooterNotes {
+.printTemplate .docFooterNotes {
 
   margin-top: 6px;
   padding: 4px 0;
@@ -961,19 +963,19 @@ body:has(.prRequestsContainer) {
   color: #000000;
   line-height: 1.4;
 }
-.prRequestsContainer .docNotesTitle {
+.printTemplate .docNotesTitle {
 
   font-weight: 700;
   color: #000000;
   margin-bottom: 6px;
 }
-.prRequestsContainer .docNotesList {
+.printTemplate .docNotesList {
 
   margin: 0;
   padding-left: 20px;
   color: #000000;
 }
-.prRequestsContainer .docNotesList li {
+.printTemplate .docNotesList li {
 
   margin-bottom: 4px;
 }
