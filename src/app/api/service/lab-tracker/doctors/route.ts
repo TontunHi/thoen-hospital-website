@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { verifySession } from '@/lib/auth'
 
 export async function GET() {
   try {
     // 1. Authenticate user
-    const adminSession = await verifySession()
     const memberSession = await verifyMemberSession()
 
-    if (!adminSession && !memberSession) {
+    if (!memberSession) {
       return NextResponse.json(
         { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
         { status: 401 }

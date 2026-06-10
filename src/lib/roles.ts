@@ -5,7 +5,7 @@
  * or requireRole() before processing. Never trust frontend-only checks.
  */
 
-import { verifySession } from './auth'
+import { verifyMemberSession } from './memberAuth'
 import { NextResponse } from 'next/server'
 
 // All valid roles in the system
@@ -41,10 +41,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
  * ```
  */
 export async function requireAuth(): Promise<
-  { session: { adminId: number; role: UserRole }; error?: never } |
+  { session: { username: string; email: string; role: UserRole }; error?: never } |
   { session?: never; error: NextResponse }
 > {
-  const session = await verifySession()
+  const session = await verifyMemberSession()
 
   if (!session) {
     return {
@@ -70,7 +70,7 @@ export async function requireAuth(): Promise<
  * ```
  */
 export async function requireRole(allowedRoles: UserRole[]): Promise<
-  { session: { adminId: number; role: UserRole }; error?: never } |
+  { session: { username: string; email: string; role: UserRole }; error?: never } |
   { session?: never; error: NextResponse }
 > {
   const authResult = await requireAuth()

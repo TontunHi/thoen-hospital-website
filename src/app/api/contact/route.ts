@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
-import { verifySession } from '@/lib/auth'
 import { requireRole } from '@/lib/roles'
 import { contactCreateSchema, contactUpdateSchema } from '@/lib/schemas/contact'
 import { checkRateLimit } from '@/lib/rateLimit'
