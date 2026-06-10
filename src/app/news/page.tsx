@@ -1,27 +1,82 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import './page.css'
+import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
 async function getNewsList(page: number, limit: number, category?: string) {
   try {
-    // Use NEXTAUTH_URL as the canonical base URL for internal SSR fetches.
-    // This works for both development (http://localhost:3000) and production (http://192.168.1.142:6060).
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    const catQuery = category ? `&category=${category}` : ''
-    const res = await fetch(`${baseUrl}/api/news?page=${page}&limit=${limit}${catQuery}`, {
-      cache: 'no-store'
-    })
-    
-    if (!res.ok) {
-      throw new Error('Failed to fetch news from API')
+    const skip = (page - 1) * limit
+    const now = new Date()
+
+    const where: any = {
+      startDate: { lte: now },
+      endDate: { gte: now }
     }
 
-    const data = await res.json()
+    if (category) {
+      where.category = category
+    }
+
+    const [news, total] = await Promise.all([
+      prisma.news.findMany({
+        where,
+        orderBy: { startDate: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          attachments: {
+            orderBy: { id: 'asc' }
+          }
+        }
+      }),
+      prisma.news.count({ where }),
+    ])
+
+    const adaptedNews = news.map((item: any) => {
+      const imageAttachments = item.attachments.filter((att: any) => 
+        att.fileType && att.fileType.startsWith('image/')
+      )
+      const images = imageAttachments.map((att: any) => ({
+        id: att.id,
+        imageUrl: att.filePath,
+        order: 0
+      }))
+
+      const pdfAttachment = item.attachments.find((att: any) => 
+        att.fileType === 'application/pdf'
+      )
+
+      let status = 'PUBLISHED'
+      if (item.startDate > now) {
+        status = 'DRAFT'
+      } else if (item.endDate < now) {
+        status = 'ARCHIVED'
+      }
+
+      return {
+        id: item.id,
+        title: item.title,
+        slug: item.slug,
+        excerpt: '',
+        content: '',
+        youtubeUrl: item.youtubeLink,
+        pdfUrl: pdfAttachment ? pdfAttachment.filePath : null,
+        status,
+        category: item.category,
+        views: item.viewCount || 0,
+        publishedAt: item.startDate,
+        expiredAt: item.endDate,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        images
+      }
+    })
+
     return {
-      news: data.news || [],
-      total: data.pagination?.total || 0
+      news: adaptedNews,
+      total
     }
   } catch (error) {
     console.error('Fetch news error:', error)

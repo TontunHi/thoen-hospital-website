@@ -46,7 +46,8 @@ export default function Navbar() {
   useEffect(() => {
     async function checkMember() {
       try {
-        const res = await fetch('/api/member/me');
+        const res = await fetch(`/api/member/me?t=${Date.now()}`, { cache: 'no-store' });
+
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated) {

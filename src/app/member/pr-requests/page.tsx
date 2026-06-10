@@ -404,7 +404,7 @@ export default function PRRequestsDashboard() {
                   {/* Requester info */}
                   <div className="docThreeCol">
                     <div className="docSection">
-                      <div className="docSectionLabel">ผู้ขอส่งงาน</div>
+                      <div className="docSectionLabel">ผู้ขอสั่งผลิต</div>
                       <div className="docSectionContent">{selectedRequest.requester_name || '—'}</div>
                     </div>
                     <div className="docSection">

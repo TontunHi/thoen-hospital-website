@@ -26,7 +26,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const newsRes = await fetch('/api/news?all=true&limit=100')
+        const newsRes = await fetch(`/api/news?all=true&limit=100&t=${Date.now()}`, { cache: 'no-store' })
+
         const newsData = await newsRes.json()
 
         const allNews = newsData.news || []

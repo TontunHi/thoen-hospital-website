@@ -151,7 +151,11 @@ body {
   font-size: var(--font-size-base);
   color: var(--gray-900);
   background-color: var(--white);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
+
 
 /* Headings */
 h1, h2, h3, h4, h5, h6 {
@@ -673,4 +677,6 @@ a:hover {
 /* Ensure main content offset from fixed navbar */
 main {
   padding-top: var(--navbar-height);
+  flex: 1 0 auto;
 }
+

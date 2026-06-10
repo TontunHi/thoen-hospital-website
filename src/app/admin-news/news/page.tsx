@@ -24,7 +24,8 @@ export default function AdminNewsPage() {
 
   const fetchNews = async () => {
     try {
-      const res = await fetch('/api/news?all=true&limit=100')
+      const res = await fetch(`/api/news?all=true&limit=100&t=${Date.now()}`, { cache: 'no-store' })
+
       const data = await res.json()
       setNews(data.news || [])
     } catch (error) {

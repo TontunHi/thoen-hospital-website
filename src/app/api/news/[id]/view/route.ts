@@ -18,8 +18,9 @@ export async function POST(
       )
     }
 
-    // In the new schema (hospital_news database), there is no newsView table to record IP logs.
-    // We will just directly increment view_count on the news table when called.
+    // In the new schema (thoen_hospital_website database), there is no newsView table to record IP logs.
+    // We will just directly increment viewCount on the news table when called.
+
     await prisma.news.update({
       where: { id: newsId },
       data: {
