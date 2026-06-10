@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Phone, Mail } from 'lucide-react';
 import { usePathname } from 'next/navigation';
@@ -45,29 +44,6 @@ export default function Footer() {
               </p>
             </div>
 
-            {/* Quick Links */}
-            <div className="footer__col">
-              <h4 className="footer__heading">ลิงก์ด่วน</h4>
-              <ul className="footer__links">
-                <li><Link href="/">หน้าแรก</Link></li>
-                <li><Link href="/about">เกี่ยวกับเรา</Link></li>
-                <li><Link href="/news">ข่าวสาร</Link></li>
-                <li><Link href="/contact">ติดต่อเรา</Link></li>
-              </ul>
-            </div>
-
-            {/* Services */}
-            <div className="footer__col">
-              <h4 className="footer__heading">บริการของเรา</h4>
-              <ul className="footer__links">
-                <li><span>โปรแกรมตรวจสุขภาพ 1 วัน</span></li>
-                <li><span>คลินิกเฉพาะทาง</span></li>
-                <li><span>ทันตกรรม</span></li>
-                <li><span>แพทย์แผนไทย</span></li>
-                <li><span>อัตราค่าบริการห้องพิเศษ</span></li>
-                <li><span>สูตินรีเวชกรรม</span></li>
-              </ul>
-            </div>
 
             {/* Contact */}
             <div className="footer__col">
