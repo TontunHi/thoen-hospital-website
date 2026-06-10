@@ -40,35 +40,25 @@ export async function POST(request: Request) {
     const user = users[0]
 
     // 2. Validate OTP code and check expiration
-    if (trimmedUsername === 'dev' || trimmedUsername === '3510101262116') {
-      if (trimmedOtp !== '111111') {
-        return NextResponse.json(
-          { error: 'รหัส OTP สำหรับ Dev ไม่ถูกต้อง' },
-          { status: 400 }
-        )
-      }
-      // Skip clearing OTP for dev so they can reuse it
-    } else {
-      if (!user.otp_code || user.otp_code !== trimmedOtp) {
-        return NextResponse.json(
-          { error: 'รหัส OTP ไม่ถูกต้อง' },
-          { status: 400 }
-        )
-      }
-
-      if (!user.is_valid) {
-        return NextResponse.json(
-          { error: 'รหัส OTP หมดอายุการใช้งานแล้ว กรุณาขอรหัสใหม่' },
-          { status: 400 }
-        )
-      }
-
-      // 3. OTP is valid, clear OTP from database to prevent reuse
-      await queryMemberDb(
-        'UPDATE members SET otp_code = NULL, otp_expiry = NULL WHERE id = ?',
-        [user.id]
+    if (!user.otp_code || user.otp_code !== trimmedOtp) {
+      return NextResponse.json(
+        { error: 'รหัส OTP ไม่ถูกต้อง' },
+        { status: 400 }
       )
     }
+
+    if (!user.is_valid) {
+      return NextResponse.json(
+        { error: 'รหัส OTP หมดอายุการใช้งานแล้ว กรุณาขอรหัสใหม่' },
+        { status: 400 }
+      )
+    }
+
+    // 3. OTP is valid, clear OTP from database to prevent reuse
+    await queryMemberDb(
+      'UPDATE members SET otp_code = NULL, otp_expiry = NULL WHERE id = ?',
+      [user.id]
+    )
 
     // 4. Create member session cookie
     await createMemberSession(trimmedUsername, trimmedEmail, user.role || 'member')
