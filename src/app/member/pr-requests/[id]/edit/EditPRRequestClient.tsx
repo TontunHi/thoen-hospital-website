@@ -1,11 +1,11 @@
 'use client'
-
+ 
 import React, { useState } from 'react'
-import { ArrowLeft, Check, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Check, AlertCircle, Loader2, X, Paperclip, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import '../../page.css'
-
+ 
 interface RequesterInfo {
   id: number
   name: string | null
@@ -13,7 +13,7 @@ interface RequesterInfo {
   position: string | null
   username: string
 }
-
+ 
 interface RequestDetail {
   id: number
   title: string
@@ -26,8 +26,9 @@ interface RequestDetail {
   channels?: string[]
   phone: string
   has_cost: number
+  attachments?: { url: string; filename: string }[]
 }
-
+ 
 export default function EditPRRequestClient({ 
   requester, 
   request 
@@ -54,6 +55,10 @@ export default function EditPRRequestClient({
   const [jobTypeOther, setJobTypeOther] = useState<string>(request.jobTypeOther || '')
   
   const [details, setDetails] = useState<string>(request.details || '')
+
+  // Attachments
+  const [attachments, setAttachments] = useState<{ url: string; filename: string }[]>(request.attachments || [])
+  const [uploading, setUploading] = useState<boolean>(false)
   
   // Channels checkboxes initialization
   const initialChannels = request.channels || []
@@ -70,7 +75,7 @@ export default function EditPRRequestClient({
   const [phone, setPhone] = useState<string>(request.phone)
   const [saving, setSaving] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-
+ 
   const handleJobTypeChange = (type: string) => {
     if (jobTypes.includes(type)) {
       setJobTypes(jobTypes.filter(t => t !== type))
@@ -78,7 +83,7 @@ export default function EditPRRequestClient({
       setJobTypes([...jobTypes, type])
     }
   }
-
+ 
   const handleChannelChange = (channel: string) => {
     if (channels.includes(channel)) {
       setChannels(channels.filter(c => c !== channel))
@@ -87,6 +92,60 @@ export default function EditPRRequestClient({
     }
   }
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploading(true)
+    setError(null)
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('title', title || 'pr-attachment')
+
+        const res = await fetch('/api/member/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await res.json()
+
+        if (res.ok && data.success) {
+          setAttachments(prev => [...prev, { url: data.url, filename: data.filename }])
+        } else {
+          setError(data.error || 'ไม่สามารถอัปโหลดไฟล์ได้')
+          break
+        }
+      }
+    } catch (err) {
+      console.error(err)
+      setError('เกิดข้อผิดพลาดในการอัปโหลดไฟล์')
+    } finally {
+      setUploading(false)
+      // reset file input
+      e.target.value = ''
+    }
+  }
+
+  const handleRemoveAttachment = async (index: number, path: string) => {
+    try {
+      const res = await fetch(`/api/member/upload?path=${encodeURIComponent(path)}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setAttachments(prev => prev.filter((_, i) => i !== index))
+      } else {
+        setError(data.error || 'ไม่สามารถลบไฟล์ได้')
+      }
+    } catch (err) {
+      console.error(err)
+      setError('เกิดข้อผิดพลาดในการลบไฟล์')
+    }
+  }
+ 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (jobTypes.length === 0 && !jobTypeOther) {
@@ -96,7 +155,7 @@ export default function EditPRRequestClient({
     
     setSaving(true)
     setError(null)
-
+ 
     const payload = {
       id: request.id,
       title,
@@ -108,9 +167,10 @@ export default function EditPRRequestClient({
       details,
       channels,
       phone,
-      hasCost
+      hasCost,
+      attachments
     }
-
+ 
     try {
       const res = await fetch('/api/pr-requests', {
         method: 'PUT',
@@ -317,6 +377,113 @@ export default function EditPRRequestClient({
               value={details}
               onChange={(e) => setDetails(e.target.value)}
             />
+          </div>
+
+          {/* Attachments */}
+          <div className="formGroup" style={{ marginTop: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              แนบไฟล์เพิ่มเติม (ภาพ หรือ PDF, สูงสุด 5MB สำหรับภาพ และ 15MB สำหรับ PDF)
+            </label>
+            
+            <div style={{
+              border: '2px dashed #cbd5e1',
+              borderRadius: '12px',
+              padding: '20px',
+              textAlign: 'center',
+              backgroundColor: '#f8fafc',
+              cursor: 'pointer',
+              position: 'relative',
+              transition: 'border-color 0.2s',
+            }}
+            onMouseOver={(e) => e.currentTarget.style.borderColor = '#0d9488'}
+            onMouseOut={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
+            onClick={() => document.getElementById('attachment-input')?.click()}
+            >
+              <input 
+                id="attachment-input"
+                type="file"
+                multiple
+                accept="image/*,application/pdf"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+                disabled={uploading}
+              />
+              {uploading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#0d9488' }}>
+                  <Loader2 className="animate-spin" size={24} />
+                  <span style={{ fontSize: '14px', fontWeight: 600 }}>กำลังอัปโหลดไฟล์...</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: '#64748b' }}>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#0f766e' }}>คลิกเพื่อเลือกไฟล์แนบ</span>
+                  <span style={{ fontSize: '12px' }}>รองรับไฟล์ .png, .jpg, .jpeg, .gif, .webp และ .pdf</span>
+                </div>
+              )}
+            </div>
+
+            {attachments.length > 0 && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                marginTop: '12px',
+                padding: '12px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px'
+              }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>ไฟล์แนบทั้งหมด ({attachments.length} ไฟล์):</span>
+                {attachments.map((file, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 12px',
+                    backgroundColor: '#f1f5f9',
+                    borderRadius: '8px',
+                    fontSize: '13px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                      <span style={{ color: '#0d9488', fontWeight: 'bold', flexShrink: 0 }}>
+                        {file.filename.endsWith('.pdf') ? '📄' : '🖼️'}
+                      </span>
+                      <span style={{
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 600,
+                        color: '#334155'
+                      }}>
+                        {file.filename}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleRemoveAttachment(idx, file.url)
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '4px',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Channels */}

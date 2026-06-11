@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     const requester = members[0]
 
     const body = await request.json()
-    const { title, urgency, orderDate, targetDate, jobType, jobTypeOther, details, channels, phone, hasCost } = body
+    const { title, urgency, orderDate, targetDate, jobType, jobTypeOther, details, channels, phone, hasCost, attachments } = body
 
     if (!title || !urgency || !orderDate || !targetDate || !phone) {
       return NextResponse.json({ error: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน' }, { status: 400 })
@@ -104,7 +104,8 @@ export async function POST(request: Request) {
       jobTypeOther: jobTypeOther || null,
       details: details || null,
       channels: channels || [],
-      phone
+      phone,
+      attachments: attachments || []
     }
 
     // Insert request using JSON document storage for form details
@@ -203,7 +204,7 @@ export async function PUT(request: Request) {
     const memberId = members[0].id
 
     const body = await request.json()
-    const { id, title, urgency, orderDate, targetDate, jobType, jobTypeOther, details, channels, phone, hasCost } = body
+    const { id, title, urgency, orderDate, targetDate, jobType, jobTypeOther, details, channels, phone, hasCost, attachments } = body
 
     if (!id || !title || !urgency || !orderDate || !targetDate || !phone) {
       return NextResponse.json({ error: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน' }, { status: 400 })
@@ -247,7 +248,8 @@ export async function PUT(request: Request) {
       job_type_other: jobTypeOther || null,
       details: details || null,
       channels: channels || [],
-      phone
+      phone,
+      attachments: attachments || []
     }
 
     // Update the pr_request record

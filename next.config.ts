@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['172.16.0.117', '172.16.0.117:8080', '172.16.0.181', '172.16.0.181:3000', '192.168.1.142', '192.168.1.142:6060', '172.16.0.221', '172.16.0.221:3000', '172.16.0.46', '172.16.0.46:3000'],
+  allowedDevOrigins: [
+    '172.16.0.32', '172.16.0.32:3000',
+    '172.16.0.117', '172.16.0.117:8080',
+    '172.16.0.181', '172.16.0.181:3000',
+    '192.168.1.142', '192.168.1.142:6060',
+    '172.16.0.221', '172.16.0.221:3000',
+    '172.16.0.46', '172.16.0.46:3000'
+  ],
   async headers() {
     return [
       {
@@ -38,7 +45,7 @@ const nextConfig: NextConfig = {
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
-              "frame-ancestors 'none'",
+              "frame-ancestors 'self'",
             ].join('; '),
           },
           {

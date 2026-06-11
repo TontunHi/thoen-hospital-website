@@ -27,6 +27,7 @@ interface PRRequest {
   requester_signature_path?: string | null
   requester_id?: number
   department?: string
+  attachments?: { url: string; filename: string }[]
 }
 
 interface ApprovalStep {
@@ -66,6 +67,15 @@ export default function PRRequestsDashboard() {
           width: 100% !important;
           min-height: auto !important;
           height: auto !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+        .only-print {
+          display: block !important;
+        }
+        .only-print-block {
+          display: block !important;
         }
       }
     `,
@@ -360,6 +370,40 @@ export default function PRRequestsDashboard() {
                     <div className="docDetailsBox">{selectedRequest.details || 'ไม่ได้ระบุรายละเอียดเพิ่มเติม'}</div>
                   </div>
 
+                  {selectedRequest.attachments && selectedRequest.attachments.length > 0 && (
+                    <div className="docSection no-print" style={{ marginTop: '8px' }}>
+                      <div className="docSectionLabel">ไฟล์แนบเพิ่มเติม</div>
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        marginTop: '4px',
+                        padding: '10px 14px',
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '8px'
+                      }}>
+                        {selectedRequest.attachments.map((file, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
+                            <span>{file.filename.endsWith('.pdf') ? '📄' : '🖼️'}</span>
+                            <a
+                              href={file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: '#0d9488',
+                                textDecoration: 'underline',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {file.filename}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="docDivider"></div>
 
                   {/* Channels */}
@@ -470,6 +514,7 @@ export default function PRRequestsDashboard() {
                       <li>กรุณากรอกแบบฟอร์มรายละเอียดให้ครบถ้วนเพื่อความรวดเร็วในการผลิต</li>
                     </ol>
                   </div>
+
                 </div>
               )}
             </div>
