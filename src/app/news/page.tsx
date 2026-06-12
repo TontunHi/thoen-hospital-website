@@ -101,7 +101,7 @@ export default async function NewsListPage(props: {
       case 'PR': return 'ข่าวสารประชาสัมพันธ์'
       case 'TRAINING': return 'ข่าวประชุมอบรม / สัมมนา'
       case 'JOBS': return 'ข่าวประกาศรับสมัครงาน'
-      case 'KNOWLEDGE': return 'ข่าวสารความรู้'
+      case 'KNOWLEDGE': return 'ประกาศ'
       default: return 'ข่าวสารประชาสัมพันธ์ทั้งหมด'
     }
   }

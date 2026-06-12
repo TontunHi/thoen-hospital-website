@@ -259,7 +259,7 @@ export default function CreateNewsPage() {
                 <option value="PR">ข่าวสารประชาสัมพันธ์</option>
                 <option value="TRAINING">ประชุมอบรม / สัมมนา</option>
                 <option value="JOBS">ประกาศรับสมัครงาน</option>
-                <option value="KNOWLEDGE">ข่าวสารความรู้</option>
+                <option value="KNOWLEDGE">ประกาศ</option>
               </select>
             </div>
 

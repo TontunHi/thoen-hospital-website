@@ -117,7 +117,7 @@ export default function Navbar() {
         { href: '/news?category=PR', label: 'ข่าวสารประชาสัมพันธ์' },
         { href: '/news?category=TRAINING', label: 'ประชุมอบรม / สัมมนา' },
         { href: '/news?category=JOBS', label: 'ประกาศรับสมัครงาน' },
-        { href: '/news?category=KNOWLEDGE', label: 'ข่าวสารความรู้' },
+        { href: '/news?category=KNOWLEDGE', label: 'ประกาศ' },
       ]
     },
     { href: '/systems', label: 'ระบบสารสนเทศ' },
