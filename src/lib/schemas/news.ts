@@ -5,7 +5,7 @@ export const newsCreateSchema = z.object({
   title: z
     .string({ error: 'กรุณากรอกหัวข้อข่าว' })
     .min(1, 'กรุณากรอกหัวข้อข่าว')
-    .max(255, 'หัวข้อข่าวต้องไม่เกิน 255 ตัวอักษร')
+    .max(500, 'หัวข้อข่าวต้องไม่เกิน 500 ตัวอักษร')
     .trim(),
   youtubeUrl: z
     .string()

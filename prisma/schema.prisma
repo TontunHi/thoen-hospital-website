@@ -11,7 +11,7 @@ datasource db {
 
 model News {
   id          Int          @id @default(autoincrement())
-  title       String       @db.VarChar(255)
+  title       String       @db.VarChar(500)
   slug        String       @unique(map: "slug") @db.VarChar(255)
   category    String       @db.VarChar(100)
   youtubeLink String?      @map("youtube_link") @db.VarChar(255)
