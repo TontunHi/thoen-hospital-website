@@ -15,7 +15,7 @@ export const newsCreateSchema = z.object({
     .nullable(),
   pdfUrl: z
     .string()
-    .max(255, 'URL ต้องไม่เกิน 255 ตัวอักษร')
+    .max(1000, 'URL ต้องไม่เกิน 1000 ตัวอักษร')
     .optional()
     .nullable(),
   status: z
