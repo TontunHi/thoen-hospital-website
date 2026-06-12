@@ -11,7 +11,7 @@ export default function CreateNewsPage() {
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [pdfUrl, setPdfUrl] = useState('')
   const [status, setStatus] = useState('PUBLISHED') 
-  const [category, setCategory] = useState('PR') // PR, TRAINING, JOBS, KNOWLEDGE
+  const [category, setCategory] = useState('PR') // PR, TRAINING, JOBS, ANNOUNCEMENT
   const [publishedAt, setPublishedAt] = useState('') // datetime-local string
   const [expiredAt, setExpiredAt] = useState('') // datetime-local string
   const [images, setImages] = useState<string[]>([]) // multiple images array
@@ -259,7 +259,7 @@ export default function CreateNewsPage() {
                 <option value="PR">ข่าวสารประชาสัมพันธ์</option>
                 <option value="TRAINING">ประชุมอบรม / สัมมนา</option>
                 <option value="JOBS">ประกาศรับสมัครงาน</option>
-                <option value="KNOWLEDGE">ประกาศ</option>
+                <option value="ANNOUNCEMENT">ประกาศ</option>
               </select>
             </div>
 
