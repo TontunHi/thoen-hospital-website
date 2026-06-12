@@ -151,9 +151,14 @@ export async function PUT(
           }
         } else if (status === 'PUBLISHED') {
           // If restoring from draft (future startDate) or archived (past endDate)
-          if (startDate > new Date()) {
+          const fiveYears = new Date()
+          fiveYears.setFullYear(fiveYears.getFullYear() + 5)
+          if (startDate > fiveYears) {
+            startDate = new Date()
+          } else if (startDate > new Date()) {
             startDate = publishedAt ? new Date(publishedAt) : new Date()
           }
+          
           if (endDate < new Date()) {
             endDate = expiredAt ? new Date(expiredAt) : new Date()
             if (!expiredAt) {

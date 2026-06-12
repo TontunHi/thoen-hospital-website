@@ -50,11 +50,15 @@ export default function EditNewsPage(props: any) {
           if (data.news.publishedAt) {
             // Format to YYYY-MM-DDTHH:MM for datetime-local input
             const d = new Date(data.news.publishedAt)
-            const year = d.getFullYear()
-            const month = String(d.getMonth() + 1).padStart(2, '0')
-            const day = String(d.getDate()).padStart(2, '0')
-            const hours = String(d.getHours()).padStart(2, '0')
-            const minutes = String(d.getMinutes()).padStart(2, '0')
+            const fiveYears = new Date()
+            fiveYears.setFullYear(fiveYears.getFullYear() + 5)
+            
+            const targetDate = d > fiveYears ? new Date() : d
+            const year = targetDate.getFullYear()
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0')
+            const day = String(targetDate.getDate()).padStart(2, '0')
+            const hours = String(targetDate.getHours()).padStart(2, '0')
+            const minutes = String(targetDate.getMinutes()).padStart(2, '0')
             setPublishedAt(`${year}-${month}-${day}T${hours}:${minutes}`)
           }
 
