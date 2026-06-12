@@ -226,6 +226,7 @@ export default function CreateNewsPage() {
                 className="formInput"
                 value={publishedAt}
                 onChange={(e) => setPublishedAt(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
               />
               <span className="fieldTip">เว้นว่างไว้หากต้องการเผยแพร่ทันที (ตามเวลาปัจจุบัน)</span>
             </div>
@@ -238,6 +239,7 @@ export default function CreateNewsPage() {
                 className="formInput"
                 value={expiredAt}
                 onChange={(e) => setExpiredAt(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
                 required
               />
               <span className="fieldTip">ข่าวจะหยุดแสดงผลหลังจากถึงช่วงเวลาที่ระบุนี้</span>

@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import HeroSlideshow from '@/components/common/HeroSlideshow';
 
+export const dynamic = 'force-dynamic';
+
+
 import { 
   Phone,
   MessageSquare,

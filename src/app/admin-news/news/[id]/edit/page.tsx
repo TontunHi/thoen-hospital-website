@@ -296,6 +296,7 @@ export default function EditNewsPage(props: any) {
                 className="formInput"
                 value={publishedAt}
                 onChange={(e) => setPublishedAt(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
               />
               <span className="fieldTip">เวลาที่ข่าวประชาสัมพันธ์จะปรากฏบนเว็บไซต์</span>
             </div>
@@ -308,6 +309,7 @@ export default function EditNewsPage(props: any) {
                 className="formInput"
                 value={expiredAt}
                 onChange={(e) => setExpiredAt(e.target.value)}
+                onClick={(e) => e.currentTarget.showPicker?.()}
                 required
               />
               <span className="fieldTip">ข่าวจะหยุดแสดงผลหลังจากถึงช่วงเวลาที่ระบุนี้</span>

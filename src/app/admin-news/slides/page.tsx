@@ -401,6 +401,7 @@ export default function AdminSlidesPage() {
                   className="formInput"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
                   required
                 />
               </div>
@@ -413,6 +414,7 @@ export default function AdminSlidesPage() {
                   className="formInput"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
                   required
                 />
               </div>
