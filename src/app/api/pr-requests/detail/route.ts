@@ -40,14 +40,14 @@ export async function GET(request: Request) {
     }
 
     const { form_data, ...rest } = rawRequest
-    const orderDate = formData.order_date || formData.orderDate || rawRequest.order_date
-    const targetDate = formData.target_date || formData.targetDate || rawRequest.target_date
-    const jobType = formData.job_type || formData.jobType || rawRequest.job_type
-    const jobTypeOther = formData.job_type_other || formData.jobTypeOther || rawRequest.job_type_other
-    const details = formData.details || rawRequest.details
-    const channels = formData.channels || rawRequest.channels
-    const phone = formData.phone || rawRequest.phone
-    const urgency = formData.urgency || rawRequest.urgency
+    const orderDate = formData.order_date || formData.orderDate
+    const targetDate = formData.target_date || formData.targetDate
+    const jobType = formData.job_type || formData.jobType
+    const jobTypeOther = formData.job_type_other || formData.jobTypeOther
+    const details = formData.details
+    const channels = formData.channels
+    const phone = formData.phone
+    const urgency = formData.urgency
 
     const prRequest = {
       ...rest,

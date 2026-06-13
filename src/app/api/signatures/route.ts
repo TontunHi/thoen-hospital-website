@@ -67,15 +67,21 @@ export async function POST(request: Request) {
     const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '')
     const buffer = Buffer.from(base64Data, 'base64')
 
-    // Generate filename based on username (safe for OS filename)
+    // Generate directory based on username (safe for OS filename)
     const safeUsername = session.username.replace(/[^a-zA-Z0-9_-]/g, '_')
-    const filename = `member-${safeUsername}.png`
-    const filepath = path.join(SIGNATURE_DIR, filename)
+    const userDir = path.join(process.cwd(), 'storage', safeUsername)
+    
+    // Ensure user directory exists
+    if (!fs.existsSync(userDir)) {
+      fs.mkdirSync(userDir, { recursive: true })
+    }
+
+    const filepath = path.join(userDir, 'signature.png')
 
     // Save to server local storage
     await fs.promises.writeFile(filepath, buffer)
 
-    const relativePath = `storage/signatures/${filename}`
+    const relativePath = `storage/${safeUsername}/signature.png`
     
     // Update the member's signature path
     await queryMemberDb(

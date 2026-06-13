@@ -38,14 +38,14 @@ export async function GET(request: Request) {
       }
       
       const { form_data, ...rest } = r
-      const orderDate = formData.order_date || formData.orderDate || r.order_date
-      const targetDate = formData.target_date || formData.targetDate || r.target_date
-      const jobType = formData.job_type || formData.jobType || r.job_type
-      const jobTypeOther = formData.job_type_other || formData.jobTypeOther || r.job_type_other
-      const details = formData.details || r.details
-      const channels = formData.channels || r.channels
-      const phone = formData.phone || r.phone
-      const urgency = formData.urgency || r.urgency
+      const orderDate = formData.order_date || formData.orderDate
+      const targetDate = formData.target_date || formData.targetDate
+      const jobType = formData.job_type || formData.jobType
+      const jobTypeOther = formData.job_type_other || formData.jobTypeOther
+      const details = formData.details
+      const channels = formData.channels
+      const phone = formData.phone
+      const urgency = formData.urgency
 
       return {
         ...rest,

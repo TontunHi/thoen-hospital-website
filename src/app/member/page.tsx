@@ -2,7 +2,7 @@ import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import MemberLogoutButton from './LogoutButton'
+import ProfileBanner from './ProfileBanner'
 import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Briefcase, Calendar, Lock, Image, ClipboardCheck } from 'lucide-react'
 import './page.css'
 
@@ -13,9 +13,9 @@ export default async function MemberDashboardPage() {
     redirect('/member/login')
   }
 
-  // Fetch complete member profile including position and signature_path
+  // Fetch complete member profile including position, signature_path, and profile_path
   const users = await queryMemberDb(
-    'SELECT id, username, email, name, department, position, salary_user, role, created_at, signature_path FROM members WHERE username = ? AND email = ?',
+    'SELECT id, username, email, name, department, position, salary_user, role, created_at, signature_path, profile_path FROM members WHERE username = ? AND email = ?',
     [session.username, session.email]
   )
 
@@ -24,6 +24,13 @@ export default async function MemberDashboardPage() {
   }
 
   const member = users[0]
+
+  // Query pending approvals count for this member
+  const pendingApprovalsRes = await queryMemberDb(
+    "SELECT COUNT(*) as count FROM approval_tickets WHERE current_approver_id = ? AND status = 'PENDING'",
+    [member.id]
+  )
+  const pendingCount = pendingApprovalsRes[0]?.count || 0
 
   const roleTranslation: Record<string, string> = {
     admin: 'ผู้ดูแลระบบ (Admin)',
@@ -55,37 +62,7 @@ export default async function MemberDashboardPage() {
       <div className="dashboardWrapper">
         
         {/* Banner Section / Profile Card */}
-        <div className="profileBannerCard">
-          <div className="bannerBackground"></div>
-          <div className="profileBannerContent">
-            <div className="avatarWrapper">
-              <div className="userAvatar">{initials}</div>
-              <div className="userRoleBadge">{displayRole}</div>
-            </div>
-            
-            <div className="userInfoGroup">
-              <div className="userNameArea">
-                <h2>{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
-                <span className="usernameTag">@{member.username}</span>
-              </div>
-              
-              <div className="userDetailsGrid">
-                <div className="userDetailItem">
-                  <Briefcase size={16} className="detailIcon" />
-                  <span>ตำแหน่ง: <strong>{member.position || 'ไม่ได้ระบุ'}</strong></span>
-                </div>
-                <div className="userDetailItem">
-                  <Shield size={16} className="detailIcon" />
-                  <span>แผนก/กลุ่มงาน: <strong>{member.department || 'ไม่ได้ระบุ'}</strong></span>
-                </div>
-              </div>
-            </div>
-
-            <div className="logoutButtonWrapper">
-              <MemberLogoutButton />
-            </div>
-          </div>
-        </div>
+        <ProfileBanner member={member} initials={initials} displayRole={displayRole} />
 
         {/* Services / Features Grid */}
         <h3 className="sectionTitle">บริการและฟังก์ชันการใช้งานภายใน</h3>
@@ -175,11 +152,19 @@ export default async function MemberDashboardPage() {
           {/* Card 4: Unified Approvals Inbox */}
           <Link href="/member/approvals" className="serviceCard">
             <div className="serviceCardHeader">
-              <div className="serviceIconWrapper docIcon">
+              <div className="serviceIconWrapper docIcon" style={{ position: 'relative' }}>
                 <ClipboardCheck size={24} />
+                {pendingCount > 0 && <span className="card-badge-dot"></span>}
               </div>
-              <div className="statusIndicator success">
-                <span>เปิดใช้งาน</span>
+              <div className={`statusIndicator ${pendingCount > 0 ? 'error' : 'success'}`}>
+                {pendingCount > 0 ? (
+                  <>
+                    <AlertCircle size={14} className="pulseAnimation" />
+                    <span>มีงานค้าง {pendingCount} รายการ</span>
+                  </>
+                ) : (
+                  <span>ไม่มีงานค้าง</span>
+                )}
               </div>
             </div>
             <div className="serviceCardBody">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -11,6 +11,10 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [member, setMember] = useState<{ username: string; name?: string | null } | null>(null);
+  const [pendingCount, setPendingCount] = useState<number>(0);
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const prevCountRef = useRef<number>(0);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
@@ -19,10 +23,7 @@ export default function Navbar() {
     if (!member) return '';
     if (member.name) {
       const parts = member.name.trim().split(/\s+/);
-      if (parts.length >= 2) {
-        return parts[1]; // First name only
-      }
-      return parts[0];
+      return parts[0]; // First name
     }
     if (member.username.length === 13 && /^\d+$/.test(member.username)) {
       return `${member.username.substring(0, 3)}...${member.username.substring(10)}`;
@@ -41,6 +42,76 @@ export default function Navbar() {
   useEffect(() => {
     setIsOpen(false);
   }, [pathname]);
+
+  // Polling for pending approvals count
+  useEffect(() => {
+    if (!member) {
+      setPendingCount(0);
+      prevCountRef.current = 0;
+      return;
+    }
+
+    // Request notification permission if not yet decided
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    async function fetchCount() {
+      try {
+        const res = await fetch(`/api/member/approvals/count?t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            const count = data.count;
+            setPendingCount(count);
+            
+            // Trigger notification if count has increased
+            if (count > prevCountRef.current) {
+              setToastMessage(`คุณมีรายการงานอนุมัติใหม่ค้างอยู่ในระบบทั้งหมด ${count} รายการ`);
+              setShowToast(true);
+              
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
+                new Notification('มีงานอนุมัติใหม่เข้ามา 👤', {
+                  body: `คุณมีงานรออนุมัติค้างอยู่ในระบบทั้งหมด ${count} รายการ`,
+                  icon: '/images/common/logo-website.webp'
+                });
+              }
+            }
+            prevCountRef.current = count;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch approvals count:', err);
+      }
+    }
+
+    fetchCount(); // Initial fetch
+
+    const interval = setInterval(fetchCount, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [member]);
+
+  // Toast auto-hide
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => {
+        setShowToast(false);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
+
+  // Document Title Badge count update
+  useEffect(() => {
+    if (pendingCount > 0) {
+      document.title = `(${pendingCount}) งานรออนุมัติ | โรงพยาบาลเถิน`;
+    } else {
+      document.title = "โรงพยาบาลเถิน | Thoen Hospital ลำปาง";
+    }
+  }, [pendingCount]);
 
   // Check if member is logged in
   useEffect(() => {
@@ -242,8 +313,9 @@ export default function Navbar() {
               ตรวจสอบนัดหมาย
             </Link>
             {member ? (
-              <Link href="/member" className="btn btn-primary">
+              <Link href="/member" className="btn btn-primary" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 ระบบสมาชิก ({getDisplayName()})
+                {pendingCount > 0 && <span className="navbar__badge-mobile">{pendingCount}</span>}
               </Link>
             ) : (
               <Link href="/member/login" className="btn btn-outline">
@@ -255,24 +327,37 @@ export default function Navbar() {
 
         <div className="navbar__actions">
           {/* Member status on desktop */}
-          <div className="navbar__cta-desktop" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="navbar__cta-desktop" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <Link href="/check-date" className="navbar__check-date-btn">
               ตรวจสอบนัดหมาย
             </Link>
 
             {member ? (
-              <Link href="/member" className="navbar__member-btn">
-                <span className="navbar__member-icon">👤</span>
-                <span className="navbar__member-name">
-                  {getDisplayName()}
-                </span>
-              </Link>
+              <>
+                <Link href="/member" className="navbar__member-btn">
+                  <span className="navbar__member-icon">👤</span>
+                  <span className="navbar__member-name">
+                    {getDisplayName()}
+                  </span>
+                </Link>
+                <Link href="/member/approvals" className="navbar__bell-btn" title="กล่องงานรออนุมัติ">
+                  <span className="navbar__bell-icon">🔔</span>
+                  {pendingCount > 0 && <span className="navbar__bell-badge">{pendingCount}</span>}
+                </Link>
+              </>
             ) : (
               <Link href="/member/login" className="navbar__login-btn">
                 เข้าสู่ระบบสมาชิก
               </Link>
             )}
           </div>
+
+          {member && (
+            <Link href="/member/approvals" className="navbar__bell-btn navbar__bell-btn--mobile" title="กล่องงานรออนุมัติ">
+              <span className="navbar__bell-icon">🔔</span>
+              {pendingCount > 0 && <span className="navbar__bell-badge">{pendingCount}</span>}
+            </Link>
+          )}
 
           <button
             className={`navbar__burger ${isOpen ? 'navbar__burger--active' : ''}`}
@@ -287,6 +372,19 @@ export default function Navbar() {
         </div>
       </div>
       {isOpen && <div className="navbar__overlay" onClick={() => setIsOpen(false)} />}
+      
+      {showToast && (
+        <div className="navbar__toast">
+          <div className="navbar__toast-content">
+            <span className="navbar__toast-icon">🔔</span>
+            <div className="navbar__toast-text">
+              <div className="navbar__toast-title">มีงานรออนุมัติใหม่</div>
+              <div className="navbar__toast-desc">{toastMessage}</div>
+            </div>
+            <button className="navbar__toast-close" onClick={() => setShowToast(false)}>×</button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

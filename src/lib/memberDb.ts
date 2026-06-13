@@ -28,7 +28,8 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
         otp_code VARCHAR(10) NULL,
         otp_expiry DATETIME NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        profile_path VARCHAR(255) NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
 
@@ -37,18 +38,11 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
       CREATE TABLE IF NOT EXISTS pr_requests (
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
-        urgency VARCHAR(50) NOT NULL DEFAULT 'ไม่ด่วน',
-        order_date DATE NULL,
-        target_date DATE NULL,
-        job_type TEXT NULL,
-        job_type_other VARCHAR(255) NULL,
-        details TEXT NULL,
-        channels TEXT NULL,
-        phone VARCHAR(50) NULL,
         has_cost TINYINT(1) NOT NULL DEFAULT 0,
         requester_id INT NOT NULL,
         department VARCHAR(100) NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        form_data JSON NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (requester_id) REFERENCES members(id) ON DELETE CASCADE
@@ -102,61 +96,13 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
         ALTER TABLE members ADD COLUMN signature_path VARCHAR(255) NULL
       `)
     } catch (alterError) {}
-
-    // Add form_data column to pr_requests if it doesn't exist
     try {
       await connection.execute(`
-        ALTER TABLE pr_requests ADD COLUMN form_data JSON NULL
+        ALTER TABLE members ADD COLUMN profile_path VARCHAR(255) NULL
       `)
     } catch (alterError) {}
 
-    // Automatically migrate legacy columns to form_data JSON
-    try {
-      const [nullRows] = await connection.execute(
-        `SELECT id, urgency, order_date, target_date, job_type, job_type_other, details, channels, phone 
-         FROM pr_requests 
-         WHERE form_data IS NULL`
-      )
-      const rows = nullRows as any[]
-      if (rows && rows.length > 0) {
-        const formatDateString = (val: any) => {
-          if (!val) return null
-          if (val instanceof Date) return val.toISOString().split('T')[0]
-          if (typeof val === 'string') return val.split('T')[0]
-          return String(val)
-        }
-        const parseSafeJson = (val: any) => {
-          if (!val) return []
-          if (typeof val === 'string') {
-            try {
-              return JSON.parse(val)
-            } catch {
-              return [val]
-            }
-          }
-          return val
-        }
 
-        for (const row of rows) {
-          const formData = {
-            urgency: row.urgency || 'ไม่ด่วน',
-            orderDate: formatDateString(row.order_date),
-            targetDate: formatDateString(row.target_date),
-            jobType: parseSafeJson(row.job_type),
-            jobTypeOther: row.job_type_other || null,
-            details: row.details || null,
-            channels: parseSafeJson(row.channels),
-            phone: row.phone || null
-          }
-          await connection.execute(
-            'UPDATE pr_requests SET form_data = ? WHERE id = ?',
-            [JSON.stringify(formData), row.id]
-          )
-        }
-      }
-    } catch (migrateError) {
-      console.error('Failed to migrate pr_requests to form_data JSON:', migrateError)
-    }
 
     const [results] = await connection.execute(sql, params)
     return results as any[]
