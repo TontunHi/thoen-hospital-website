@@ -19,13 +19,44 @@ export async function GET(request: Request) {
 
     let targetUsername = session.username
 
-    // If queryUserId is provided, we fetch that user's signature path
+    // If queryUserId is provided, we fetch that user's signature path and verify authorization
     if (queryUserId) {
+      const sessionUsers = await queryMemberDb('SELECT id, role FROM members WHERE username = ? AND email = ? LIMIT 1', [session.username, session.email])
+      if (sessionUsers.length === 0) {
+        return NextResponse.json({ error: 'ไม่พบผู้ใช้ของคุณในระบบ' }, { status: 404 })
+      }
+      const currentUser = sessionUsers[0]
+      const targetUserIdParsed = parseInt(queryUserId, 10)
+
       const users = await queryMemberDb('SELECT username FROM members WHERE id = ? LIMIT 1', [queryUserId])
       if (users.length > 0) {
         targetUsername = users[0].username
       } else {
         return NextResponse.json({ error: 'ไม่พบผู้ใช้ที่ระบุ' }, { status: 404 })
+      }
+
+      // Authorization Check: Only allow if owner, admin, or related through PR/Approval tickets
+      const isOwner = currentUser.id === targetUserIdParsed
+      const isAdmin = currentUser.role === 'admin'
+      
+      let isRelated = false
+      if (!isOwner && !isAdmin) {
+        const relationship = await queryMemberDb(`
+          SELECT 1 FROM approval_tickets t 
+          JOIN pr_requests r ON t.source_id = r.id AND t.source_system = 'PR' 
+          WHERE (r.requester_id = ? AND t.current_approver_id = ?) 
+             OR (r.requester_id = ? AND t.current_approver_id = ?) 
+             OR (t.current_approver_id = ? AND EXISTS (
+                 SELECT 1 FROM approval_tickets t2 
+                 WHERE t2.source_id = r.id AND t2.source_system = 'PR' AND t2.current_approver_id = ?
+             ))
+          LIMIT 1
+        `, [currentUser.id, targetUserIdParsed, targetUserIdParsed, currentUser.id, currentUser.id, targetUserIdParsed])
+        isRelated = relationship.length > 0
+      }
+
+      if (!isOwner && !isAdmin && !isRelated) {
+        return NextResponse.json({ error: 'คุณไม่มีสิทธิ์เข้าถึงลายเซ็นของผู้ใช้นี้' }, { status: 403 })
       }
     }
 

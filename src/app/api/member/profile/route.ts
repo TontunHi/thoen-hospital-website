@@ -49,8 +49,15 @@ export async function POST(request: Request) {
       fs.mkdirSync(userDir, { recursive: true })
     }
 
-    // Use original file extension or fallback to png
-    const ext = file.name.split('.').pop() || 'png'
+    // Validate and extract file extension safely to prevent directory traversal
+    const originalExt = path.extname(file.name).toLowerCase()
+    let ext = 'png'
+    if (originalExt) {
+      const parsedExt = originalExt.slice(1) // Remove leading dot
+      if (/^[a-zA-Z0-9]{1,5}$/.test(parsedExt) && ['png', 'jpg', 'jpeg', 'webp'].includes(parsedExt)) {
+        ext = parsedExt
+      }
+    }
     const filename = `profile.${ext}`
     const filepath = path.join(userDir, filename)
 

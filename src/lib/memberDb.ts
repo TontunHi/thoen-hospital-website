@@ -1,20 +1,33 @@
 import mysql from 'mysql2/promise'
 
-export async function queryMemberDb(sql: string, params: any[] = []) {
-  const connection = await mysql.createConnection({
-    host: process.env.MEMBER_DB_HOST || '192.168.1.7',
-    port: parseInt(process.env.MEMBER_DB_PORT || '3306'),
-    user: process.env.MEMBER_DB_USER,
-    password: process.env.MEMBER_DB_PASSWORD,
-    database: process.env.MEMBER_DB_NAME || 'thoen_hospital_website',
-    connectTimeout: 5000,
-    charset: 'utf8mb4',
-  })
-  await connection.query("SET NAMES utf8mb4")
-  await connection.query("SET CHARACTER SET utf8mb4")
+let pool: mysql.Pool | null = null
+let initPromise: Promise<void> | null = null
 
+function getPool() {
+  if (!pool) {
+    pool = mysql.createPool({
+      host: process.env.MEMBER_DB_HOST || '192.168.1.7',
+      port: parseInt(process.env.MEMBER_DB_PORT || '3306'),
+      user: process.env.MEMBER_DB_USER,
+      password: process.env.MEMBER_DB_PASSWORD,
+      database: process.env.MEMBER_DB_NAME || 'thoen_hospital_website',
+      connectionLimit: 15,
+      waitForConnections: true,
+      queueLimit: 0,
+      connectTimeout: 5000,
+      charset: 'utf8mb4',
+    })
+  }
+  return pool
+}
+
+async function initializeDb(poolInstance: mysql.Pool) {
+  const connection = await poolInstance.getConnection()
   try {
-    // Automatically initialize/check table members on connection
+    await connection.query("SET NAMES utf8mb4")
+    await connection.query("SET CHARACTER SET utf8mb4")
+
+    // Automatically initialize/check table members
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS members (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -73,9 +86,7 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
       await connection.execute(`
         ALTER TABLE members ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'member'
       `)
-    } catch (alterError) {
-      // Ignored if column already exists
-    }
+    } catch (alterError) {}
     try {
       await connection.execute(`
         ALTER TABLE members ADD COLUMN name VARCHAR(255) NULL
@@ -101,12 +112,19 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
         ALTER TABLE members ADD COLUMN profile_path VARCHAR(255) NULL
       `)
     } catch (alterError) {}
-
-
-
-    const [results] = await connection.execute(sql, params)
-    return results as any[]
   } finally {
-    await connection.end()
+    connection.release()
   }
+}
+
+export async function queryMemberDb(sql: string, params: any[] = []) {
+  const currentPool = getPool()
+  
+  if (!initPromise) {
+    initPromise = initializeDb(currentPool)
+  }
+  await initPromise
+
+  const [results] = await currentPool.execute(sql, params)
+  return results as any[]
 }

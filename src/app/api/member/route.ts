@@ -34,7 +34,7 @@ export async function GET() {
     }
 
     const members = await queryMemberDb(
-      'SELECT id, username, email, name, department, position, salary_user, salary_pass, role, created_at, updated_at FROM members ORDER BY created_at DESC'
+      "SELECT id, username, email, name, department, position, salary_user, IF(salary_pass IS NULL OR salary_pass = '', NULL, '********') AS salary_pass, role, created_at, updated_at FROM members ORDER BY created_at DESC"
     )
 
     return NextResponse.json({ success: true, members })
@@ -94,23 +94,28 @@ export async function PUT(request: Request) {
       )
     }
 
+    // Retrieve existing salary password to preserve it if not changed (sent as '********')
+    const existing = await queryMemberDb('SELECT salary_pass FROM members WHERE id = ? LIMIT 1', [id])
+    const oldPass = existing.length > 0 ? existing[0].salary_pass : null
+    const finalSalaryPass = (salary_pass === '********') ? oldPass : (salary_pass ? salary_pass.trim() : null)
+
     // Update member details
     await queryMemberDb(
       `UPDATE members 
        SET username = ?, email = ?, name = ?, department = ?, position = ?, salary_user = ?, salary_pass = ?, role = ?
        WHERE id = ?`,
-      [
-        username.trim(),
-        email.trim(),
-        name ? name.trim() : null,
-        department ? department.trim() : null,
-        position ? position.trim() : null,
-        salary_user ? salary_user.trim() : null,
-        salary_pass ? salary_pass.trim() : null,
-        finalRole,
-        id
-      ]
-    )
+       [
+         username.trim(),
+         email.trim(),
+         name ? name.trim() : null,
+         department ? department.trim() : null,
+         position ? position.trim() : null,
+         salary_user ? salary_user.trim() : null,
+         finalSalaryPass,
+         finalRole,
+         id
+       ]
+     )
 
     return NextResponse.json({ success: true, message: 'แก้ไขข้อมูลสมาชิกเรียบร้อยแล้ว' })
   } catch (error: any) {
