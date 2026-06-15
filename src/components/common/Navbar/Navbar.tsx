@@ -23,7 +23,7 @@ export default function Navbar() {
     if (!member) return '';
     if (member.name) {
       const parts = member.name.trim().split(/\s+/);
-      return parts[0]; // First name
+      return parts[1] || parts[0];
     }
     if (member.username.length === 13 && /^\d+$/.test(member.username)) {
       return `${member.username.substring(0, 3)}...${member.username.substring(10)}`;
@@ -335,7 +335,6 @@ export default function Navbar() {
             {member ? (
               <>
                 <Link href="/member" className="navbar__member-btn">
-                  <span className="navbar__member-icon">👤</span>
                   <span className="navbar__member-name">
                     {getDisplayName()}
                   </span>

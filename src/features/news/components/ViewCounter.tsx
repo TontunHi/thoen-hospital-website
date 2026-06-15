@@ -50,5 +50,5 @@ export default function ViewCounter({ newsId }: ViewCounterProps) {
     }
   }, [newsId])
 
-  return null // Render nothing
+  return <span aria-live="polite" style={{ display: 'none' }}></span>
 }

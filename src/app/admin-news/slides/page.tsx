@@ -421,16 +421,67 @@ export default function AdminSlidesPage() {
             </div>
 
             <div className="formGroup">
-              <label htmlFor="displayOrder">ลำดับการแสดงผล (แนะให้ใช้การลากวางที่แถบด้านขวา)</label>
-              <input
-                id="displayOrder"
-                type="number"
-                min="0"
-                className="formInput"
-                value={displayOrder}
-                onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
-                placeholder="ระบุตัวเลข เช่น 0, 1, 2"
-              />
+              <label htmlFor="displayOrder">ลำดับการแสดงผล</label>
+              <div className="displayOrderWrapper" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setDisplayOrder(prev => Math.max(0, prev - 1))}
+                  className="counterBtn"
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#334155',
+                    fontSize: '1.25rem',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    userSelect: 'none'
+                  }}
+                >
+                  -
+                </button>
+                <input
+                  id="displayOrder"
+                  type="number"
+                  min="0"
+                  className="formInput"
+                  value={displayOrder}
+                  onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
+                  style={{
+                    textAlign: 'center',
+                    width: '80px',
+                    margin: 0
+                  }}
+                  placeholder="0"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDisplayOrder(prev => prev + 1)}
+                  className="counterBtn"
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#334155',
+                    fontSize: '1.25rem',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    userSelect: 'none'
+                  }}
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>

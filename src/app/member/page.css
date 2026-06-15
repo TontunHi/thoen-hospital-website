@@ -345,25 +345,11 @@
   transform: scale(1.1);
 }
 
-.memberDashboardContainer .signatureIcon {
-  background: #ecfdf5;
-  color: #10b981;
-  border: 1px solid #d1fae5;
-}
-
-.memberDashboardContainer .salaryIcon {
-  background: #ecfdf5;
-  color: #10b981;
-  border: 1px solid #d1fae5;
-}
-
-.memberDashboardContainer .prIcon {
-  background: #ecfdf5;
-  color: #10b981;
-  border: 1px solid #d1fae5;
-}
-
-.memberDashboardContainer .docIcon {
+.memberDashboardContainer .signatureIcon,
+.memberDashboardContainer .salaryIcon,
+.memberDashboardContainer .prIcon,
+.memberDashboardContainer .docIcon,
+.memberDashboardContainer .bookingIcon {
   background: #ecfdf5;
   color: #10b981;
   border: 1px solid #d1fae5;

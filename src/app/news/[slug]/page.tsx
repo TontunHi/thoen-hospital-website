@@ -113,7 +113,7 @@ export default async function NewsDetailPage(
       <ViewCounter newsId={news.id} />
 
       <div className="newsDetailBack">
-        <Link href="/news" className="backLink">
+        <Link href="/news" className="backLink" aria-label="กลับหน้ารายการข่าว">
           ‹ กลับไปหน้ารายการข่าว
         </Link>
       </div>
@@ -131,7 +131,9 @@ export default async function NewsDetailPage(
                 minute: '2-digit'
               })} น.
             </time>
-            
+            <span className="viewsBadge">
+              👁 {news.views.toLocaleString('th-TH')} ครั้ง
+            </span>
           </div>
         </header>
 
@@ -175,6 +177,7 @@ export default async function NewsDetailPage(
                 height="550px"
                 style={{ border: 'none', borderRadius: '8px' }}
                 title="PDF Document Viewer"
+                aria-label={`เอกสารแนบประชาสัมพันธ์ PDF: ${news.title}`}
               />
             </div>
           </div>
@@ -182,7 +185,10 @@ export default async function NewsDetailPage(
 
         {/* 4. Images (รูป) */}
         {news.images.length > 0 && (
-          <ImageGallery images={news.images} />
+          <div className="gallerySection">
+            <h3>รูปภาพประกอบ</h3>
+            <ImageGallery images={news.images} />
+          </div>
         )}
 
         {/* 5. Video (vdo - YouTube) */}

@@ -96,7 +96,6 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
               )}
             </div>
           </div>
-          <div className="userRoleBadge">{displayRole}</div>
           
           <input
             type="file"

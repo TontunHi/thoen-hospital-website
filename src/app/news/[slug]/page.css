@@ -84,18 +84,29 @@
   margin-bottom: 1.25rem;
 }
 
-/* YouTube wrapper */
-.youtubeSection {
+/* YouTube & Gallery wrapper */
+.youtubeSection,
+.gallerySection {
   margin-top: 3rem;
   margin-bottom: 2.5rem;
 }
 
 .youtubeSection h3,
-.pdfSection h3 {
+.pdfSection h3,
+.gallerySection h3 {
   font-size: 1.25rem;
   color: var(--gray-900);
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   font-weight: 700;
+  border-left: 4px solid var(--primary);
+  padding-left: 0.75rem;
+  line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+  .pdfEmbedWrapper {
+    display: none;
+  }
 }
 
 .youtubeWrapper {
@@ -118,8 +129,7 @@
 /* PDF Section */
 .pdfSection {
   margin-top: 3rem;
-  border-top: 2px dashed var(--gray-200);
-  padding-top: 2rem;
+  padding-top: 0;
 }
 
 .pdfHeader {

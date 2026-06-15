@@ -177,6 +177,48 @@ export default async function MemberDashboardPage() {
             </div>
           </Link>
 
+          {/* Card 5: Room Booking */}
+          <Link href="/member/room-bookings" className="serviceCard">
+            <div className="serviceCardHeader">
+              <div className="serviceIconWrapper bookingIcon">
+                <Calendar size={24} />
+              </div>
+              <div className="statusIndicator success">
+                <span>เปิดใช้งาน</span>
+              </div>
+            </div>
+            <div className="serviceCardBody">
+              <h4>ระบบจองห้องประชุม</h4>
+              <p>ตรวจสอบตารางปฏิทิน จองห้องประชุม และติดตามสถานะคำขอใช้ห้องประชุมของโรงพยาบาล</p>
+            </div>
+            <div className="serviceCardFooter">
+              <span className="actionText">เข้าสู่ระบบจองห้องประชุม</span>
+              <ChevronRight size={16} className="chevronIcon" />
+            </div>
+          </Link>
+
+          {/* Card 6: Room Booking Admin Settings (Visible to Admins only) */}
+          {member.role === 'admin' && (
+            <Link href="/member/room-bookings/admin" className="serviceCard">
+              <div className="serviceCardHeader">
+                <div className="serviceIconWrapper bookingIcon" style={{ backgroundColor: '#fff1f2', color: '#f43f5e', borderColor: '#ffe4e6' }}>
+                  <Shield size={24} />
+                </div>
+                <div className="statusIndicator error">
+                  <span>ผู้ดูแลระบบ</span>
+                </div>
+              </div>
+              <div className="serviceCardBody">
+                <h4>จัดการระบบห้องประชุม (แอดมิน)</h4>
+                <p>จัดการข้อมูลห้องประชุม อุปกรณ์อาหารเสิร์ฟ และตรวจสอบอนุมัติการจองห้องประชุมทั้งหมด</p>
+              </div>
+              <div className="serviceCardFooter">
+                <span className="actionText" style={{ color: '#e11d48' }}>เข้าสู่ระบบจัดการแอดมิน</span>
+                <ChevronRight size={16} className="chevronIcon" style={{ color: '#e11d48' }} />
+              </div>
+            </Link>
+          )}
+
         </div>
 
       </div>
