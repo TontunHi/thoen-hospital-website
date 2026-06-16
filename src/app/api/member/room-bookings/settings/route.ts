@@ -8,7 +8,7 @@ export async function GET() {
     if (!session) {
       return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 })
     }
-    const settings = await queryMemberDb('SELECT config_key, config_value FROM meeting_room_settings')
+    const settings = await queryMemberDb('SELECT config_key, config_value FROM member_system_settings')
     
     // Convert array to key-value object
     const config: Record<string, string> = {}
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     // Save each config key-value
     for (const key of Object.keys(body)) {
       await queryMemberDb(
-        `INSERT INTO meeting_room_settings (config_key, config_value) 
+        `INSERT INTO member_system_settings (config_key, config_value) 
          VALUES (?, ?) 
          ON DUPLICATE KEY UPDATE config_value = ?`,
         [key, body[key]?.toString() || '', body[key]?.toString() || '']

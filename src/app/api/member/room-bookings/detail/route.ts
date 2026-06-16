@@ -19,6 +19,8 @@ export async function GET(request: Request) {
     // Get booking details with requester info and room name
     const bookings = await queryMemberDb(
       `SELECT b.*, 
+              DATE_FORMAT(b.start_date, '%Y-%m-%d') as start_date,
+              DATE_FORMAT(b.end_date, '%Y-%m-%d') as end_date,
               r.name as room_name, 
               m.name as requester_name, 
               m.position as requester_position, 

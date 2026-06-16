@@ -521,3 +521,35 @@
     width: 100%;
   }
 }
+
+/* Extras tab design overrides */
+.extrasTabBar {
+  border-bottom: 2px solid #e2e8f0;
+  margin-bottom: 24px;
+}
+
+.extrasTabBtn {
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.extrasTabBtn:hover {
+  color: #0d9488 !important;
+}
+
+.extrasTabBtn.active {
+  color: #0d9488 !important;
+}
+
+.foodPeriodGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .foodPeriodGrid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+}

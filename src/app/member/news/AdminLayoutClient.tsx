@@ -25,9 +25,9 @@ export default function AdminLayoutClient({
   }
 
   const navItems = [
-    { href: '/admin-news', label: 'แดชบอร์ด', icon: LayoutDashboard },
-    { href: '/admin-news/news', label: 'ข่าวสาร', icon: Newspaper },
-    { href: '/admin-news/slides', label: 'สไลด์โชว์', icon: ImageIcon },
+    { href: '/member/news', label: 'แดชบอร์ด', icon: LayoutDashboard },
+    { href: '/member/news/news', label: 'ข่าวสาร', icon: Newspaper },
+    { href: '/member/news/slides', label: 'สไลด์โชว์', icon: ImageIcon },
   ]
 
   return (
@@ -52,8 +52,8 @@ export default function AdminLayoutClient({
         <nav className="sidebarNav">
           {navItems.map((item) => {
             const isActive =
-              item.href === '/admin-news'
-                ? pathname === '/admin-news'
+              item.href === '/member/news'
+                ? pathname === '/member/news'
                 : pathname.startsWith(item.href)
             const Icon = item.icon
             return (

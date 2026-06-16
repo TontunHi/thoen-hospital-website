@@ -13,7 +13,12 @@ export async function GET(request: Request) {
     const personalOnly = searchParams.get('personal') === 'true'
 
     let query = `
-      SELECT b.*, r.name as room_name, m.name as requester_name, m.department as requester_dept
+      SELECT b.*, 
+             DATE_FORMAT(b.start_date, '%Y-%m-%d') as start_date,
+             DATE_FORMAT(b.end_date, '%Y-%m-%d') as end_date,
+             r.name as room_name, 
+             m.name as requester_name, 
+             m.department as requester_dept
       FROM meeting_room_bookings b
       LEFT JOIN meeting_rooms r ON b.room_id = r.id
       LEFT JOIN members m ON b.requester_id = m.id

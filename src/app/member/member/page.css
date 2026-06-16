@@ -1,0 +1,801 @@
+/* ========================================================================
+   MEMBERS DIRECTORY ADMIN DASHBOARD - Premium Modern CSS
+   ======================================================================== */
+
+.membersDashboardPage {
+  min-height: calc(100vh - 60px);
+  padding: 40px 20px 80px;
+  background-color: #f8fafc; /* Slate-50 background */
+  background-image: radial-gradient(circle at 50% 0%, #ecfdf5 0%, #f8fafc 80%); /* Soft emerald-mint glow */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  font-family: var(--font-ibm-thai), sans-serif;
+  color: #0f172a;
+  position: relative;
+  overflow: hidden;
+}
+
+.membersDashboardPage .container {
+  width: 100%;
+  max-width: 1200px;
+  z-index: 10;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Background Glowing Orbs (Soft Watercolor Blurs) */
+.membersDashboardPage .glowOrb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+.membersDashboardPage .glowOrb1 {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, #d1fae5 0%, transparent 70%);
+  top: -100px;
+  right: 8%;
+  animation: orbFloat 14s ease-in-out infinite alternate;
+}
+
+.membersDashboardPage .glowOrb2 {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, #e0f2fe 0%, transparent 70%);
+  top: 35%;
+  left: -80px;
+  animation: orbFloat 18s ease-in-out infinite alternate-reverse;
+}
+
+.membersDashboardPage .glowOrb3 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, #faf5ff 0%, transparent 70%);
+  bottom: -100px;
+  right: 15%;
+  animation: orbFloat 22s ease-in-out infinite alternate;
+}
+
+@keyframes orbFloat {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(25px) scale(1.08); }
+}
+
+/* Header Section */
+.membersDashboardPage .pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.membersDashboardPage .headerText h1 {
+  font-size: 2.1rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #0d9488 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.membersDashboardPage .headerText p {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.membersDashboardPage .addMemberBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.membersDashboardPage .addMemberBtn:hover {
+  background-color: #1e293b;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
+}
+
+/* Stats summary Cards Grid */
+.membersDashboardPage .statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.membersDashboardPage .statCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.membersDashboardPage .statCard:hover {
+  transform: translateY(-4px);
+  border-color: #cbd5e1;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.04);
+}
+
+.membersDashboardPage .statCardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.membersDashboardPage .statLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.membersDashboardPage .statValue {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.membersDashboardPage .statCardIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.membersDashboardPage .statCardIcon.total {
+  background-color: #ecfdf5;
+  color: #0d9488;
+}
+
+.membersDashboardPage .statCardIcon.admins {
+  background-color: #f5f3ff;
+  color: #7c3aed;
+}
+
+.membersDashboardPage .statCardIcon.general {
+  background-color: #f0f9ff;
+  color: #0284c7;
+}
+
+/* Alerts banners */
+.membersDashboardPage .dashboardAlert {
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+.membersDashboardPage .alertDanger {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.membersDashboardPage .alertSuccess {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+/* Action Panel & Filtering */
+.membersDashboardPage .actionPanel {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.02);
+}
+
+.membersDashboardPage .searchWrapper {
+  position: relative;
+  flex: 1;
+  min-width: 300px;
+}
+
+.membersDashboardPage .searchWrapper input {
+  width: 100%;
+  padding: 12px 16px 12px 42px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #ffffff;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.membersDashboardPage .searchWrapper input:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.12);
+}
+
+.membersDashboardPage .searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.membersDashboardPage .filterGroup {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.membersDashboardPage .filterTab {
+  padding: 10px 20px;
+  border-radius: 12px;
+  background-color: #f1f5f9;
+  color: #475569;
+  border: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .filterTab:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.membersDashboardPage .filterTab.active {
+  background-color: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+}
+
+/* Members Table Card */
+.membersDashboardPage .tableCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  padding: 8px;
+  overflow: hidden;
+}
+
+.membersDashboardPage .tableResponsive {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.membersDashboardPage .membersTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  table-layout: auto;
+}
+
+.membersDashboardPage .membersTable th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 16px 20px;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.membersDashboardPage .membersTable td {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.92rem;
+  color: #334155;
+  vertical-align: middle;
+  transition: background-color 0.2s ease;
+}
+
+.membersDashboardPage .membersTable tr:last-child td {
+  border-bottom: none;
+}
+
+.membersDashboardPage .membersTable tr.rowSelf td {
+  background-color: rgba(13, 148, 136, 0.02);
+}
+
+.membersDashboardPage .membersTable tr:hover td {
+  background-color: #f8fafc;
+}
+
+/* Sorting Indicators */
+.membersDashboardPage .sortableHeader {
+  cursor: pointer;
+}
+
+.membersDashboardPage .sortableHeader:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.membersDashboardPage .headerFlex {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.membersDashboardPage .sortIcon {
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+.membersDashboardPage .sortIconActive {
+  opacity: 1;
+  color: #0d9488;
+}
+
+/* Text styles inside table */
+.membersDashboardPage .memberId {
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.membersDashboardPage .userFlex {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.membersDashboardPage .userIcon {
+  color: #0d9488;
+}
+
+.membersDashboardPage .memberEmail {
+  font-weight: 500;
+  color: #475569;
+}
+
+.membersDashboardPage .roleBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .roleBadge.admin {
+  background-color: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.membersDashboardPage .roleBadge.member {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+/* Table Column Widths */
+.membersDashboardPage .col-id { width: 60px; }
+.membersDashboardPage .col-user { min-width: 120px; }
+.membersDashboardPage .col-email { min-width: 160px; }
+.membersDashboardPage .col-name { min-width: 180px; }
+.membersDashboardPage .col-dept { min-width: 170px; }
+.membersDashboardPage .col-role { width: 120px; }
+.membersDashboardPage .col-actions { width: 110px; text-align: center; }
+
+/* Table Action Buttons */
+.membersDashboardPage .memberActions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.membersDashboardPage .actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.membersDashboardPage .actionBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.membersDashboardPage .editBtn {
+  background-color: #ecfdf5;
+  color: #0d9488;
+}
+
+.membersDashboardPage .editBtn:not(:disabled):hover {
+  background-color: #0d9488;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.membersDashboardPage .deleteBtn {
+  background-color: #fef2f2;
+  color: #ef4444;
+}
+
+.membersDashboardPage .deleteBtn:not(:disabled):hover {
+  background-color: #ef4444;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Loading & Empty States */
+.membersDashboardPage .loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: #64748b;
+  gap: 16px;
+}
+
+.membersDashboardPage .spinner {
+  animation: spin 1s linear infinite;
+  color: #0d9488;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.membersDashboardPage .emptyState {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.membersDashboardPage .emptyIcon {
+  color: #cbd5e1;
+  margin-bottom: 16px;
+}
+
+.membersDashboardPage .emptyState h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.membersDashboardPage .emptyState p {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ========================================================================
+   MODAL DIALOG - Premium Glassmorphism Redesign
+   ======================================================================== */
+
+.membersDashboardPage .modalOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.membersDashboardPage .premiumModal {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.15);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  animation: modalScaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.membersDashboardPage .modalHeader {
+  padding: 24px 32px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+}
+
+.membersDashboardPage .headerIconContainer {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #ecfdf5;
+  color: #0d9488;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.membersDashboardPage .modalHeader h2 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.membersDashboardPage .headerSubtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 4px 0 0 0;
+}
+
+.membersDashboardPage .closeBtn {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.membersDashboardPage .closeBtn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Modal form inputs & wrappers */
+.membersDashboardPage .modalBody {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.membersDashboardPage .sectionTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1.5px dashed #e2e8f0;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+}
+
+.membersDashboardPage .sectionTitleGroup.spacingTop {
+  margin-top: 14px;
+}
+
+.membersDashboardPage .sectionBadge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #0f172a;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.membersDashboardPage .sectionTitleGroup h3 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.membersDashboardPage .formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.membersDashboardPage .formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.membersDashboardPage .formGroup label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.membersDashboardPage .inputWrapper,
+.membersDashboardPage .selectWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.membersDashboardPage .inputWrapper input,
+.membersDashboardPage .selectWrapper select {
+  width: 100%;
+  padding: 11px 16px 11px 40px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #ffffff;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.membersDashboardPage .inputWrapper input:focus,
+.membersDashboardPage .selectWrapper select:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.12);
+}
+
+.membersDashboardPage .inputIcon {
+  position: absolute;
+  left: 14px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+/* Modal Actions Footer */
+.membersDashboardPage .modalFooter {
+  padding: 20px 32px;
+  border-top: 1px solid #f1f5f9;
+  background-color: #f8fafc;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.membersDashboardPage .cancelBtn {
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 1.5px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.membersDashboardPage .cancelBtn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.membersDashboardPage .saveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  border-radius: 12px;
+  border: none;
+  background-color: #0f172a;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  transition: all 0.2s;
+}
+
+.membersDashboardPage .saveBtn:hover {
+  background-color: #1e293b;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+}
+
+.membersDashboardPage .modalAlert {
+  margin: 16px 32px 0 32px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.membersDashboardPage .modalAlert.alertDanger {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+@media (max-width: 768px) {
+  .membersDashboardPage {
+    padding: 24px 12px 60px;
+  }
+  .membersDashboardPage .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .membersDashboardPage .addMemberBtn {
+    justify-content: center;
+  }
+  .membersDashboardPage .actionPanel {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+  }
+  .membersDashboardPage .searchWrapper {
+    min-width: 100%;
+  }
+  .membersDashboardPage .filterGroup {
+    width: 100%;
+  }
+  .membersDashboardPage .formRow {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .membersDashboardPage .modalHeader {
+    padding: 20px 24px;
+  }
+  .membersDashboardPage .modalBody {
+    padding: 20px 24px;
+  }
+  .membersDashboardPage .modalFooter {
+    padding: 16px 24px;
+  }
+}

@@ -112,6 +112,29 @@ async function initializeDb(poolInstance: mysql.Pool) {
         ALTER TABLE members ADD COLUMN profile_path VARCHAR(255) NULL
       `)
     } catch (alterError) {}
+
+    // Automatically initialize/check table member_system_settings
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS member_system_settings (
+        config_key VARCHAR(100) PRIMARY KEY,
+        config_value VARCHAR(255) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    // Seed default settings values if they don't already exist
+    const defaultSettings = [
+      { key: 'feature_signature', val: '1' },
+      { key: 'feature_salary', val: '1' },
+      { key: 'feature_pr_requests', val: '1' },
+      { key: 'feature_approvals', val: '1' },
+      { key: 'feature_room_booking', val: '1' }
+    ]
+    for (const setting of defaultSettings) {
+      await connection.execute(
+        'INSERT IGNORE INTO member_system_settings (config_key, config_value) VALUES (?, ?)',
+        [setting.key, setting.val]
+      )
+    }
   } finally {
     connection.release()
   }

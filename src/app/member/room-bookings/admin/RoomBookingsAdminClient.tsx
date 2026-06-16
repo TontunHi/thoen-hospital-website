@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Booking {
@@ -76,6 +76,16 @@ export default function RoomBookingsAdminClient({
 
   // Message notifications
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const tabParam = params.get('tab')
+      if (tabParam && ['bookings', 'rooms', 'equipment', 'food', 'foodPeriods', 'settings'].includes(tabParam)) {
+        setActiveTab(tabParam as any)
+      }
+    }
+  }, [])
 
   // Detail modal
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
@@ -346,17 +356,23 @@ export default function RoomBookingsAdminClient({
     }
   }
 
-  // --- Configurations / Settings ---
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const payload = {
+        default_fiscal_year: defaultFiscalYear
+      }
       const res = await fetch('/api/member/room-bookings/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ default_fiscal_year: defaultFiscalYear })
+        body: JSON.stringify(payload)
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด')
+      setSettings(prev => ({
+        ...prev,
+        ...payload
+      }))
       notify(data.message)
     } catch (err: any) {
       notify(err.message, 'error')
@@ -373,6 +389,21 @@ export default function RoomBookingsAdminClient({
   }
 
   const pendingCount = bookings.filter(b => b.status === 'PENDING').length
+
+  // Fiscal Year filter state
+  const [selectedFiscalYearFilter, setSelectedFiscalYearFilter] = useState<string>('ALL')
+
+  const uniqueFiscalYears = Array.from(new Set(bookings.map(b => b.fiscal_year))).filter(Boolean).sort()
+
+  const filteredBookings = bookings.filter(b => {
+    if (selectedFiscalYearFilter === 'ALL') return true
+    return b.fiscal_year === selectedFiscalYearFilter
+  })
+
+  const totalInYear = filteredBookings.length
+  const approvedInYear = filteredBookings.filter(b => b.status === 'APPROVED').length
+  const pendingInYear = filteredBookings.filter(b => b.status === 'PENDING').length
+  const rejectedInYear = filteredBookings.filter(b => b.status === 'REJECTED').length
 
   // Helper to parse food_json safely
   const parseFoodExtras = (foodJsonStr: string | null) => {
@@ -404,30 +435,30 @@ export default function RoomBookingsAdminClient({
     <div className="adminRoomClient">
       {message && (
         <div className={`notificationAlert ${message.type}`}>
-          {message.type === 'success' ? '✅' : '⚠️'} {message.text}
+          {message.text}
         </div>
       )}
 
       {/* Tabs */}
       <div className="adminTabs">
         <button className={activeTab === 'bookings' ? 'active' : ''} onClick={() => setActiveTab('bookings')}>
-          📥 คำขอจอง
+          คำขอจอง
           {pendingCount > 0 && <span className="tabBadge">{pendingCount}</span>}
         </button>
         <button className={activeTab === 'rooms' ? 'active' : ''} onClick={() => setActiveTab('rooms')}>
-          🚪 ห้องประชุม
+          ห้องประชุม
         </button>
         <button className={activeTab === 'equipment' ? 'active' : ''} onClick={() => setActiveTab('equipment')}>
-          🔧 อุปกรณ์
+          อุปกรณ์
         </button>
         <button className={activeTab === 'food' ? 'active' : ''} onClick={() => setActiveTab('food')}>
-          🍱 อาหาร / ของว่าง
+          อาหาร / ของว่าง
         </button>
         <button className={activeTab === 'foodPeriods' ? 'active' : ''} onClick={() => setActiveTab('foodPeriods')}>
-          🕐 ช่วงเวลาอาหาร
+          ช่วงเวลาอาหาร
         </button>
         <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>
-          ⚙️ ตั้งค่า
+          ตั้งค่า
         </button>
       </div>
 
@@ -437,98 +468,169 @@ export default function RoomBookingsAdminClient({
             ═══════════════════════════════════════════ */}
         {activeTab === 'bookings' && (
           <div className="card">
-            <h3>
-              <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)' }}>📥</span>
-              รายการคำขอจองห้องประชุมทั้งหมด
-              <span className="countBadge">{bookings.length} รายการ</span>
-            </h3>
+            <div className="bookingsHeaderContainer">
+              <h2 className="adminSectionHeading">รายการคำขอจองห้องประชุมทั้งหมด</h2>
+              
+              <div className="filterToolbar">
+                <div className="filterGroup">
+                  <label htmlFor="fiscal_year_filter" className="filterLabel">เลือกปีงบประมาณ</label>
+                  <select 
+                    id="fiscal_year_filter" 
+                    value={selectedFiscalYearFilter} 
+                    onChange={(e) => setSelectedFiscalYearFilter(e.target.value)}
+                    className="filterSelect"
+                  >
+                    <option value="ALL">แสดงทั้งหมด</option>
+                    {uniqueFiscalYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
 
-            {bookings.length > 0 ? (
+            {/* Summary cards for counts */}
+            <div className="bookingsSummaryBar">
+              <div className="summaryCard total">
+                <span className="summaryLabel">รายการคำขอทั้งหมด</span>
+                <span className="summaryValue">{totalInYear}</span>
+              </div>
+              <div className="summaryCard pending">
+                <span className="summaryLabel">รอพิจารณา</span>
+                <span className="summaryValue">{pendingInYear}</span>
+              </div>
+              <div className="summaryCard approved">
+                <span className="summaryLabel">อนุมัติแล้ว</span>
+                <span className="summaryValue">{approvedInYear}</span>
+              </div>
+              <div className="summaryCard rejected">
+                <span className="summaryLabel">ปฏิเสธแล้ว</span>
+                <span className="summaryValue">{rejectedInYear}</span>
+              </div>
+            </div>
+
+            {filteredBookings.length > 0 ? (
               <div className="bookingCardList">
-                {bookings.map(b => {
+                {filteredBookings.map(b => {
                   const eqItems = parseEquipmentExtras(b.equipment_json)
                   const { items: foodItems, periods: foodPeriodsData } = parseFoodExtras(b.food_json)
                   const hasExtras = eqItems.length > 0 || foodItems.length > 0 || foodPeriodsData.length > 0
 
                   return (
                     <div key={b.id} className={`bookingCard ${b.status.toLowerCase()}`}>
-                      {/* Header: Title + Status */}
+                      {/* Top Bar: Title & Badge */}
                       <div className="bookingCardHeader">
-                        <h4 className="bookingCardTitle">{b.topic}</h4>
-                        <span className={`bookingStatusBadge ${b.status.toLowerCase()}`}>
-                          {b.status === 'APPROVED' ? '✅ อนุมัติแล้ว' : b.status === 'REJECTED' ? '❌ ปฏิเสธ' : '⏳ รอพิจารณา'}
-                        </span>
-                      </div>
-
-                      {/* Meta Grid */}
-                      <div className="bookingCardMeta">
-                        <div className="bookingMetaItem">
-                          <span className="metaIcon">🚪</span>
-                          <strong>{b.room_name}</strong>
+                        <div className="titleAndStatus">
+                          <span className={`bookingStatusBadge ${b.status.toLowerCase()}`}>
+                            {b.status === 'APPROVED' ? 'อนุมัติแล้ว' : b.status === 'REJECTED' ? 'ปฏิเสธ' : 'รอพิจารณา'}
+                          </span>
+                          <h4 className="bookingCardTitle">{b.topic}</h4>
                         </div>
-                        <div className="bookingMetaItem">
-                          <span className="metaIcon">📅</span>
-                          <span>{b.start_date === b.end_date ? formatDate(b.start_date) : `${formatDate(b.start_date)} - ${formatDate(b.end_date)}`}</span>
-                        </div>
-                        <div className="bookingMetaItem">
-                          <span className="metaIcon">⏰</span>
-                          <span>{b.start_time} - {b.end_time} น.</span>
-                        </div>
-                        <div className="bookingMetaItem">
-                          <span className="metaIcon">👥</span>
-                          <span>{b.attendees_count} คน · {b.objective}</span>
-                        </div>
-                        <div className="bookingMetaItem">
-                          <span className="metaIcon">🎯</span>
-                          <span>{b.target_group}</span>
-                        </div>
-                        <div className="bookingMetaItem">
-                          <span className="metaIcon">👤</span>
-                          <span>{b.requester_name} · {b.requester_dept}</span>
-                        </div>
-                        <div className="bookingMetaItem">
-                          <span className="metaIcon">📞</span>
-                          <span>{b.contact_number}</span>
-                        </div>
-                        <div className="bookingMetaItem">
-                          <span className="metaIcon">📋</span>
-                          <span>{b.fiscal_year}</span>
+                        
+                        <div className="bookingCardActionsTop">
+                          <button className="btn-detail" onClick={() => setSelectedBooking(b)}>ดูรายละเอียด</button>
+                          {b.status === 'PENDING' && (
+                            <>
+                              <button className="btn-success" onClick={() => handleAction(b.id, 'APPROVED')}>อนุมัติ</button>
+                              <button className="btn-danger" onClick={() => handleAction(b.id, 'REJECTED')}>ปฏิเสธ</button>
+                            </>
+                          )}
+                          <button className="btn-delete" onClick={() => handleDeleteBooking(b.id)}>ลบ</button>
                         </div>
                       </div>
 
-                      {/* Details */}
-                      {b.details && (
-                        <div className="bookingMetaItem" style={{ marginBottom: '12px', fontSize: '0.85rem', color: '#64748b' }}>
-                          <span className="metaIcon">📝</span>
-                          <span>{b.details}</span>
-                        </div>
-                      )}
+                      <div className="bookingDivider"></div>
 
-                      {/* Extra tags: Equipment, Food, Periods */}
-                      {hasExtras && (
-                        <div className="bookingCardExtras">
-                          {eqItems.map((eq: any, i: number) => (
-                            <span key={`eq-${i}`} className="extraTag eq">🔧 {eq.name}</span>
-                          ))}
-                          {foodItems.map((fd: any, i: number) => (
-                            <span key={`fd-${i}`} className="extraTag food">🍽️ {fd.name}</span>
-                          ))}
-                          {foodPeriodsData.map((p: any, i: number) => (
-                            <span key={`p-${i}`} className="extraTag period">⏰ {p.name}</span>
-                          ))}
+                      {/* Content Grid: 3 Clean Columns */}
+                      <div className="bookingColumns">
+                        {/* Col 1: Meeting Info */}
+                        <div className="bookingCol">
+                          <h5 className="colHeading">ข้อมูลการใช้งานห้อง</h5>
+                          <div className="colField">
+                            <span className="fieldLabel">ห้องประชุม:</span>
+                            <span className="fieldVal highlight">{b.room_name}</span>
+                          </div>
+                          <div className="colField">
+                            <span className="fieldLabel">วันที่ใช้งาน:</span>
+                            <span className="fieldVal">{b.start_date === b.end_date ? formatDate(b.start_date) : `${formatDate(b.start_date)} - ${formatDate(b.end_date)}`}</span>
+                          </div>
+                          <div className="colField">
+                            <span className="fieldLabel">เวลาใช้งาน:</span>
+                            <span className="fieldVal">{b.start_time} - {b.end_time} น.</span>
+                          </div>
+                          <div className="colField">
+                            <span className="fieldLabel">ผู้เข้าร่วม:</span>
+                            <span className="fieldVal">{b.attendees_count} คน</span>
+                          </div>
                         </div>
-                      )}
 
-                      {/* Actions */}
-                      <div className="bookingCardActions">
-                        <button className="btn-detail" onClick={() => setSelectedBooking(b)}>🔍 ดูรายละเอียด</button>
-                        {b.status === 'PENDING' && (
-                          <>
-                            <button className="btn-success" onClick={() => handleAction(b.id, 'APPROVED')}>✔️ อนุมัติ</button>
-                            <button className="btn-danger" onClick={() => handleAction(b.id, 'REJECTED')}>✖️ ปฏิเสธ</button>
-                          </>
-                        )}
-                        <button className="btn-delete" onClick={() => handleDeleteBooking(b.id)} style={{ marginLeft: 'auto' }}>🗑️ ลบ</button>
+                        {/* Col 2: Objective & Requester */}
+                        <div className="bookingCol">
+                          <h5 className="colHeading">วัตถุประสงค์และผู้ขอจอง</h5>
+                          <div className="colField">
+                            <span className="fieldLabel">วัตถุประสงค์:</span>
+                            <span className="fieldVal">{b.objective}</span>
+                          </div>
+                          <div className="colField">
+                            <span className="fieldLabel">กลุ่มเป้าหมาย:</span>
+                            <span className="fieldVal">{b.target_group}</span>
+                          </div>
+                          <div className="colField">
+                            <span className="fieldLabel">ผู้จอง:</span>
+                            <span className="fieldVal">{b.requester_name} ({b.requester_dept})</span>
+                          </div>
+                          <div className="colField">
+                            <span className="fieldLabel">ปีงบประมาณ:</span>
+                            <span className="fieldVal strong">{b.fiscal_year}</span>
+                          </div>
+                        </div>
+
+                        {/* Col 3: Extras (Equipment/Catering) */}
+                        <div className="bookingCol">
+                          <h5 className="colHeading">บริการและอุปกรณ์ที่ขอเพิ่ม</h5>
+                          {hasExtras ? (
+                            <div className="colExtrasContainer">
+                              {eqItems.length > 0 && (
+                                <div className="extrasSubGroup">
+                                  <span className="extrasSubTitle">อุปกรณ์:</span>
+                                  <div className="extrasList">
+                                    {eqItems.map((eq: any, i: number) => (
+                                      <span key={`eq-${i}`} className="cleanExtraItem">
+                                        {eq.name} {eq.quantity ? `(${eq.quantity} ชิ้น)` : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {foodItems.length > 0 && (
+                                <div className="extrasSubGroup">
+                                  <span className="extrasSubTitle">อาหาร / ของว่าง:</span>
+                                  <div className="extrasList">
+                                    {foodItems.map((fd: any, i: number) => (
+                                      <span key={`fd-${i}`} className="cleanExtraItem">
+                                        {fd.name} {fd.quantity ? `(${fd.quantity} ชิ้น)` : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {foodPeriodsData.length > 0 && (
+                                <div className="extrasSubGroup">
+                                  <span className="extrasSubTitle">ช่วงเวลาเสิร์ฟ:</span>
+                                  <div className="extrasList">
+                                    {foodPeriodsData.map((p: any, i: number) => (
+                                      <span key={`p-${i}`} className="cleanExtraItem">{p.name}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="noExtrasText">ไม่มีการขออุปกรณ์หรือบริการเพิ่มเติม</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )
@@ -536,8 +638,7 @@ export default function RoomBookingsAdminClient({
               </div>
             ) : (
               <div className="emptyBookings">
-                <span className="emptyIcon">📭</span>
-                <span>ยังไม่มีรายการคำขอจองห้องประชุม</span>
+                <span>ไม่พบรายการคำขอจองห้องประชุมในปีงบประมาณนี้</span>
               </div>
             )}
           </div>
@@ -549,8 +650,7 @@ export default function RoomBookingsAdminClient({
         {activeTab === 'rooms' && (
           <div className="managementGrid">
             <div className="card formCard">
-              <h3>
-                <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)' }}>{editingRoomId ? '📝' : '➕'}</span>
+              <h3 className="adminSectionHeading">
                 {editingRoomId ? 'แก้ไขห้องประชุม' : 'เพิ่มห้องประชุมใหม่'}
               </h3>
               <form onSubmit={handleSaveRoom}>
@@ -569,14 +669,13 @@ export default function RoomBookingsAdminClient({
                   {editingRoomId && (
                     <button type="button" className="btn btn-outline" onClick={() => { setEditingRoomId(null); setRoomName(''); }}>ยกเลิก</button>
                   )}
-                  <button type="submit" className="btn btn-primary">💾 บันทึก</button>
+                  <button type="submit" className="btn btn-primary">บันทึก</button>
                 </div>
               </form>
             </div>
 
             <div className="card listCard">
-              <h3>
-                <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #dbeafe, #bfdbfe)' }}>🚪</span>
+              <h3 className="adminSectionHeading">
                 รายการห้องประชุม
                 <span className="countBadge">{rooms.length} ห้อง</span>
               </h3>
@@ -584,22 +683,21 @@ export default function RoomBookingsAdminClient({
                 {rooms.length > 0 ? rooms.map(room => (
                   <div key={room.id} className="itemRow">
                     <div className="itemRowName">
-                      <span className="itemRowIcon room">🚪</span>
                       {room.name}
                     </div>
                     <button 
                       className={`toggleStatusBtn ${room.is_active === 1 ? 'active' : ''}`}
                       onClick={() => handleToggleRoomActive(room)}
                     >
-                      {room.is_active === 1 ? '✅ เปิดใช้งาน' : '🚫 ปิดใช้งาน'}
+                      {room.is_active === 1 ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
                     </button>
                     <div className="itemRowActions">
-                      <button className="btn-edit" onClick={() => { setEditingRoomId(room.id); setRoomName(room.name); }}>📝 แก้ไข</button>
-                      <button className="btn-delete" onClick={() => handleDeleteRoom(room.id)}>🗑️ ลบ</button>
+                      <button className="btn-edit" onClick={() => { setEditingRoomId(room.id); setRoomName(room.name); }}>แก้ไข</button>
+                      <button className="btn-delete" onClick={() => handleDeleteRoom(room.id)}>ลบ</button>
                     </div>
                   </div>
                 )) : (
-                  <div className="emptyList">🚪 ยังไม่มีห้องประชุมในระบบ</div>
+                  <div className="emptyList">ยังไม่มีห้องประชุมในระบบ</div>
                 )}
               </div>
             </div>
@@ -612,8 +710,7 @@ export default function RoomBookingsAdminClient({
         {activeTab === 'equipment' && (
           <div className="managementGrid">
             <div className="card formCard">
-              <h3>
-                <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #ffedd5, #fed7aa)' }}>{editingEqId ? '📝' : '➕'}</span>
+              <h3 className="adminSectionHeading">
                 {editingEqId ? 'แก้ไขอุปกรณ์' : 'เพิ่มอุปกรณ์ใหม่'}
               </h3>
               <form onSubmit={handleSaveEquipment}>
@@ -632,14 +729,13 @@ export default function RoomBookingsAdminClient({
                   {editingEqId && (
                     <button type="button" className="btn btn-outline" onClick={() => { setEditingEqId(null); setEqName(''); }}>ยกเลิก</button>
                   )}
-                  <button type="submit" className="btn btn-primary">💾 บันทึก</button>
+                  <button type="submit" className="btn btn-primary">บันทึก</button>
                 </div>
               </form>
             </div>
 
             <div className="card listCard">
-              <h3>
-                <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #ffedd5, #fed7aa)' }}>🔧</span>
+              <h3 className="adminSectionHeading">
                 รายการอุปกรณ์อำนวยความสะดวก
                 <span className="countBadge">{equipment.length} รายการ</span>
               </h3>
@@ -647,16 +743,15 @@ export default function RoomBookingsAdminClient({
                 {equipment.length > 0 ? equipment.map(eq => (
                   <div key={eq.id} className="itemRow">
                     <div className="itemRowName">
-                      <span className="itemRowIcon eq">🔧</span>
                       {eq.name}
                     </div>
                     <div className="itemRowActions">
-                      <button className="btn-edit" onClick={() => { setEditingEqId(eq.id); setEqName(eq.name); }}>📝 แก้ไข</button>
-                      <button className="btn-delete" onClick={() => handleDeleteEquipment(eq.id)}>🗑️ ลบ</button>
+                      <button className="btn-edit" onClick={() => { setEditingEqId(eq.id); setEqName(eq.name); }}>แก้ไข</button>
+                      <button className="btn-delete" onClick={() => handleDeleteEquipment(eq.id)}>ลบ</button>
                     </div>
                   </div>
                 )) : (
-                  <div className="emptyList">🔧 ยังไม่มีอุปกรณ์ในระบบ</div>
+                  <div className="emptyList">ยังไม่มีอุปกรณ์ในระบบ</div>
                 )}
               </div>
             </div>
@@ -669,8 +764,7 @@ export default function RoomBookingsAdminClient({
         {activeTab === 'food' && (
           <div className="managementGrid">
             <div className="card formCard">
-              <h3>
-                <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)' }}>{editingFoodId ? '📝' : '➕'}</span>
+              <h3 className="adminSectionHeading">
                 {editingFoodId ? 'แก้ไขอาหาร/ของว่าง' : 'เพิ่มอาหาร/ของว่างใหม่'}
               </h3>
               <form onSubmit={handleSaveFood}>
@@ -689,14 +783,13 @@ export default function RoomBookingsAdminClient({
                   {editingFoodId && (
                     <button type="button" className="btn btn-outline" onClick={() => { setEditingFoodId(null); setFoodName(''); }}>ยกเลิก</button>
                   )}
-                  <button type="submit" className="btn btn-primary">💾 บันทึก</button>
+                  <button type="submit" className="btn btn-primary">บันทึก</button>
                 </div>
               </form>
             </div>
 
             <div className="card listCard">
-              <h3>
-                <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)' }}>🍱</span>
+              <h3 className="adminSectionHeading">
                 รายการอาหาร / ของว่างบริการผู้ประชุม
                 <span className="countBadge">{food.length} รายการ</span>
               </h3>
@@ -704,16 +797,15 @@ export default function RoomBookingsAdminClient({
                 {food.length > 0 ? food.map(fd => (
                   <div key={fd.id} className="itemRow">
                     <div className="itemRowName">
-                      <span className="itemRowIcon food">🍽️</span>
                       {fd.name}
                     </div>
                     <div className="itemRowActions">
-                      <button className="btn-edit" onClick={() => { setEditingFoodId(fd.id); setFoodName(fd.name); }}>📝 แก้ไข</button>
-                      <button className="btn-delete" onClick={() => handleDeleteFood(fd.id)}>🗑️ ลบ</button>
+                      <button className="btn-edit" onClick={() => { setEditingFoodId(fd.id); setFoodName(fd.name); }}>แก้ไข</button>
+                      <button className="btn-delete" onClick={() => handleDeleteFood(fd.id)}>ลบ</button>
                     </div>
                   </div>
                 )) : (
-                  <div className="emptyList">🍱 ยังไม่มีรายการอาหารในระบบ</div>
+                  <div className="emptyList">ยังไม่มีรายการอาหารในระบบ</div>
                 )}
               </div>
             </div>
@@ -726,8 +818,7 @@ export default function RoomBookingsAdminClient({
         {activeTab === 'foodPeriods' && (
           <div className="managementGrid">
             <div className="card formCard">
-              <h3>
-                <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #f3e8ff, #e9d5ff)' }}>{editingFoodPeriodId ? '📝' : '➕'}</span>
+              <h3 className="adminSectionHeading">
                 {editingFoodPeriodId ? 'แก้ไขช่วงเวลาอาหาร' : 'เพิ่มช่วงเวลาอาหารใหม่'}
               </h3>
               <form onSubmit={handleSaveFoodPeriod}>
@@ -746,14 +837,13 @@ export default function RoomBookingsAdminClient({
                   {editingFoodPeriodId && (
                     <button type="button" className="btn btn-outline" onClick={() => { setEditingFoodPeriodId(null); setFoodPeriodName(''); }}>ยกเลิก</button>
                   )}
-                  <button type="submit" className="btn btn-primary">💾 บันทึก</button>
+                  <button type="submit" className="btn btn-primary">บันทึก</button>
                 </div>
               </form>
             </div>
 
             <div className="card listCard">
-              <h3>
-                <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #f3e8ff, #e9d5ff)' }}>🕐</span>
+              <h3 className="adminSectionHeading">
                 ช่วงเวลาสำหรับจัดเสิร์ฟอาหาร/ของว่าง
                 <span className="countBadge">{foodPeriods.length} ช่วงเวลา</span>
               </h3>
@@ -761,16 +851,15 @@ export default function RoomBookingsAdminClient({
                 {foodPeriods.length > 0 ? foodPeriods.map(period => (
                   <div key={period.id} className="itemRow">
                     <div className="itemRowName">
-                      <span className="itemRowIcon period">⏰</span>
                       {period.name}
                     </div>
                     <div className="itemRowActions">
-                      <button className="btn-edit" onClick={() => { setEditingFoodPeriodId(period.id); setFoodPeriodName(period.name); }}>📝 แก้ไข</button>
-                      <button className="btn-delete" onClick={() => handleDeleteFoodPeriod(period.id)}>🗑️ ลบ</button>
+                      <button className="btn-edit" onClick={() => { setEditingFoodPeriodId(period.id); setFoodPeriodName(period.name); }}>แก้ไข</button>
+                      <button className="btn-delete" onClick={() => handleDeleteFoodPeriod(period.id)}>ลบ</button>
                     </div>
                   </div>
                 )) : (
-                  <div className="emptyList">🕐 ยังไม่มีช่วงเวลาอาหารในระบบ</div>
+                  <div className="emptyList">ยังไม่มีช่วงเวลาอาหารในระบบ</div>
                 )}
               </div>
             </div>
@@ -782,8 +871,7 @@ export default function RoomBookingsAdminClient({
             ═══════════════════════════════════════════ */}
         {activeTab === 'settings' && (
           <div className="card settingsCard">
-            <h3>
-              <span className="sectionBadge" style={{ background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)' }}>⚙️</span>
+            <h3 className="adminSectionHeading">
               การตั้งค่าระบบเริ่มต้น
             </h3>
             <form onSubmit={handleSaveSettings}>
@@ -799,7 +887,7 @@ export default function RoomBookingsAdminClient({
                 />
               </div>
               <div className="formActions" style={{ marginTop: '18px' }}>
-                <button type="submit" className="btn btn-primary">💾 บันทึกการตั้งค่า</button>
+                <button type="submit" className="btn btn-primary">บันทึกการตั้งค่า</button>
               </div>
             </form>
           </div>
@@ -821,7 +909,7 @@ export default function RoomBookingsAdminClient({
                 <div>
                   <h2 className="detailModalTitle">{sb.topic}</h2>
                   <span className={`bookingStatusBadge ${sb.status.toLowerCase()}`}>
-                    {sb.status === 'APPROVED' ? '✅ อนุมัติแล้ว' : sb.status === 'REJECTED' ? '❌ ปฏิเสธ' : '⏳ รอพิจารณา'}
+                    {sb.status === 'APPROVED' ? 'อนุมัติแล้ว' : sb.status === 'REJECTED' ? 'ปฏิเสธ' : 'รอพิจารณา'}
                   </span>
                 </div>
                 <button className="detailModalClose" onClick={() => setSelectedBooking(null)}>✕</button>
@@ -831,47 +919,47 @@ export default function RoomBookingsAdminClient({
               <div className="detailModalBody">
                 <div className="detailGrid">
                   <div className="detailGroup">
-                    <span className="detailLabel">🚪 ห้องประชุม</span>
+                    <span className="detailLabel">ห้องประชุม</span>
                     <span className="detailValue highlight">{sb.room_name}</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">📅 วันที่จอง</span>
+                    <span className="detailLabel">วันที่จอง</span>
                     <span className="detailValue">{sb.start_date === sb.end_date ? formatDate(sb.start_date) : `${formatDate(sb.start_date)} — ${formatDate(sb.end_date)}`}</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">⏰ เวลาใช้งาน</span>
+                    <span className="detailLabel">เวลาใช้งาน</span>
                     <span className="detailValue">{sb.start_time} - {sb.end_time} น.</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">📋 ปีงบประมาณ</span>
+                    <span className="detailLabel">ปีงบประมาณ</span>
                     <span className="detailValue">{sb.fiscal_year}</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">🎯 กลุ่มเป้าหมาย</span>
+                    <span className="detailLabel">กลุ่มเป้าหมาย</span>
                     <span className="detailValue">{sb.target_group}</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">👥 จำนวนผู้เข้าร่วม</span>
+                    <span className="detailLabel">จำนวนผู้เข้าร่วม</span>
                     <span className="detailValue">{sb.attendees_count} คน</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">📌 วัตถุประสงค์</span>
+                    <span className="detailLabel">วัตถุประสงค์</span>
                     <span className="detailValue">{sb.objective}</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">👤 ผู้จอง</span>
+                    <span className="detailLabel">ผู้จอง</span>
                     <span className="detailValue">{sb.requester_name}</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">🏢 หน่วยงาน</span>
+                    <span className="detailLabel">หน่วยงาน</span>
                     <span className="detailValue">{sb.requester_dept}</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">📞 เบอร์ติดต่อ</span>
+                    <span className="detailLabel">เบอร์ติดต่อ</span>
                     <span className="detailValue">{sb.contact_number}</span>
                   </div>
                   <div className="detailGroup">
-                    <span className="detailLabel">🕐 วันที่ส่งคำขอ</span>
+                    <span className="detailLabel">วันที่ส่งคำขอ</span>
                     <span className="detailValue">{formatDate(sb.created_at)}</span>
                   </div>
                 </div>
@@ -879,7 +967,7 @@ export default function RoomBookingsAdminClient({
                 {/* Details / Remarks */}
                 {sb.details && (
                   <div className="detailSection">
-                    <h4 className="detailSectionTitle">📝 รายละเอียดเพิ่มเติม / หมายเหตุ</h4>
+                    <h4 className="detailSectionTitle">รายละเอียดเพิ่มเติม / หมายเหตุ</h4>
                     <p className="detailText">{sb.details}</p>
                   </div>
                 )}
@@ -887,10 +975,12 @@ export default function RoomBookingsAdminClient({
                 {/* Equipment */}
                 {eqItems.length > 0 && (
                   <div className="detailSection">
-                    <h4 className="detailSectionTitle">🛠️ อุปกรณ์ที่ต้องการ</h4>
+                    <h4 className="detailSectionTitle">อุปกรณ์ที่ต้องการ</h4>
                     <div className="detailTagList">
                       {eqItems.map((eq: any, i: number) => (
-                        <span key={i} className="extraTag eq">🔧 {eq.name}</span>
+                        <span key={i} className="extraTag eq">
+                          {eq.name} {eq.quantity ? `(${eq.quantity} ชิ้น)` : ''}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -899,10 +989,12 @@ export default function RoomBookingsAdminClient({
                 {/* Food */}
                 {foodItems.length > 0 && (
                   <div className="detailSection">
-                    <h4 className="detailSectionTitle">🍱 รายการอาหาร / ของว่าง</h4>
+                    <h4 className="detailSectionTitle">รายการอาหาร / ของว่าง</h4>
                     <div className="detailTagList">
                       {foodItems.map((fd: any, i: number) => (
-                        <span key={i} className="extraTag food">🍽️ {fd.name}</span>
+                        <span key={i} className="extraTag food">
+                          {fd.name} {fd.quantity ? `(${fd.quantity} ชิ้น)` : ''}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -911,10 +1003,10 @@ export default function RoomBookingsAdminClient({
                 {/* Periods */}
                 {foodPeriodsData.length > 0 && (
                   <div className="detailSection">
-                    <h4 className="detailSectionTitle">🕐 ช่วงเวลาจัดเสิร์ฟ</h4>
+                    <h4 className="detailSectionTitle">ช่วงเวลาจัดเสิร์ฟ</h4>
                     <div className="detailTagList">
                       {foodPeriodsData.map((p: any, i: number) => (
-                        <span key={i} className="extraTag period">⏰ {p.name}</span>
+                        <span key={i} className="extraTag period">{p.name}</span>
                       ))}
                     </div>
                   </div>
@@ -925,11 +1017,11 @@ export default function RoomBookingsAdminClient({
               <div className="detailModalFooter">
                 {sb.status === 'PENDING' && (
                   <>
-                    <button className="btn-success" onClick={() => { handleAction(sb.id, 'APPROVED'); setSelectedBooking(null); }}>✔️ อนุมัติ</button>
-                    <button className="btn-danger" onClick={() => { handleAction(sb.id, 'REJECTED'); setSelectedBooking(null); }}>✖️ ปฏิเสธ</button>
+                    <button className="btn-success" onClick={() => { handleAction(sb.id, 'APPROVED'); setSelectedBooking(null); }}>อนุมัติ</button>
+                    <button className="btn-danger" onClick={() => { handleAction(sb.id, 'REJECTED'); setSelectedBooking(null); }}>ปฏิเสธ</button>
                   </>
                 )}
-                <button className="btn-delete" onClick={() => { handleDeleteBooking(sb.id); setSelectedBooking(null); }}>🗑️ ลบ</button>
+                <button className="btn-delete" onClick={() => { handleDeleteBooking(sb.id); setSelectedBooking(null); }}>ลบ</button>
                 <button className="detailModalCloseBtn" onClick={() => setSelectedBooking(null)}>ปิดหน้าต่าง</button>
               </div>
             </div>

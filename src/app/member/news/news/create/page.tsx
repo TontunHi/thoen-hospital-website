@@ -1,23 +1,12 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import './page.css'
 
-interface ImageItem {
-  id: number
-  imageUrl: string
-  order: number
-}
-
-// Next.js 16 requires dynamic params to be treated as a Promise or unwrapped with React.use()
-export default function EditNewsPage(props: any) {
+export default function CreateNewsPage() {
   const router = useRouter()
-  // Unwrap parameters using React.use()
-  const resolvedParams = use(props.params) as { id: string }
-  const id = resolvedParams.id
-
   const [title, setTitle] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [pdfUrl, setPdfUrl] = useState('')
@@ -27,68 +16,12 @@ export default function EditNewsPage(props: any) {
   const [expiredAt, setExpiredAt] = useState('') // datetime-local string
   const [images, setImages] = useState<string[]>([]) // multiple images array
   
-  const [fetching, setFetching] = useState(true)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingPdf, setUploadingPdf] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    async function fetchNews() {
-      try {
-        const res = await fetch(`/api/news/${id}`)
-        const data = await res.json()
-
-        if (res.ok && data.news) {
-          setTitle(data.news.title)
-          setYoutubeUrl(data.news.youtubeUrl || '')
-          setPdfUrl(data.news.pdfUrl || '')
-          setStatus(data.news.status || 'PUBLISHED')
-          setCategory(data.news.category || 'PR')
-          
-          if (data.news.publishedAt) {
-            // Format to YYYY-MM-DDTHH:MM for datetime-local input
-            const d = new Date(data.news.publishedAt)
-            const fiveYears = new Date()
-            fiveYears.setFullYear(fiveYears.getFullYear() + 5)
-            
-            const targetDate = d > fiveYears ? new Date() : d
-            const year = targetDate.getFullYear()
-            const month = String(targetDate.getMonth() + 1).padStart(2, '0')
-            const day = String(targetDate.getDate()).padStart(2, '0')
-            const hours = String(targetDate.getHours()).padStart(2, '0')
-            const minutes = String(targetDate.getMinutes()).padStart(2, '0')
-            setPublishedAt(`${year}-${month}-${day}T${hours}:${minutes}`)
-          }
-
-          if (data.news.expiredAt) {
-            const d = new Date(data.news.expiredAt)
-            const year = d.getFullYear()
-            const month = String(d.getMonth() + 1).padStart(2, '0')
-            const day = String(d.getDate()).padStart(2, '0')
-            const hours = String(d.getHours()).padStart(2, '0')
-            const minutes = String(d.getMinutes()).padStart(2, '0')
-            setExpiredAt(`${year}-${month}-${day}T${hours}:${minutes}`)
-          }
-          
-          if (Array.isArray(data.news.images)) {
-            setImages(data.news.images.map((img: ImageItem) => img.imageUrl))
-          }
-        } else {
-          setError('ไม่พบข่าวที่ต้องการแก้ไข')
-        }
-      } catch {
-        setError('ไม่สามารถโหลดข้อมูลข่าวได้')
-      } finally {
-        setFetching(false)
-      }
-    }
-
-    fetchNews()
-  }, [id])
-
-  // Handle uploading multiple images
+  // Handle uploading multiple images one by one or in batches
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -162,7 +95,6 @@ export default function EditNewsPage(props: any) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setSuccess('')
     setLoading(true)
 
     try {
@@ -177,8 +109,8 @@ export default function EditNewsPage(props: any) {
         images,
       }
 
-      const res = await fetch(`/api/news/${id}`, {
-        method: 'PUT',
+      const res = await fetch('/api/news', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
@@ -186,8 +118,7 @@ export default function EditNewsPage(props: any) {
       const data = await res.json()
 
       if (res.ok) {
-        setSuccess('บันทึกการแก้ไขเรียบร้อยแล้ว')
-        setTimeout(() => router.push('/admin-news/news'), 1200)
+        router.push('/member/news/news')
       } else {
         setError(data.error || 'เกิดข้อผิดพลาด')
       }
@@ -198,16 +129,11 @@ export default function EditNewsPage(props: any) {
     }
   }
 
-  if (fetching) {
-    return <div className="loadingState">กำลังโหลดข้อมูลข่าว...</div>
-  }
-
   return (
     <div className="newsFormPage">
-      <h1>แก้ไขข่าว</h1>
+      <h1>เพิ่มข่าวใหม่</h1>
 
       {error && <div className="errorMessage">{error}</div>}
-      {success && <div className="successMessage">{success}</div>}
 
       <div className="formCard">
         <form onSubmit={handleSubmit}>
@@ -224,7 +150,7 @@ export default function EditNewsPage(props: any) {
             />
           </div>
 
-          {/* Excerpt and content sections removed */}
+          {/* Excerpt and Content inputs removed */}
 
           <div className="formRow">
             <div className="formGroup col-6">
@@ -251,8 +177,8 @@ export default function EditNewsPage(props: any) {
               {uploadingPdf && <div className="uploadProgress">กำลังอัปโหลด PDF...</div>}
               {pdfUrl && (
                 <div className="pdfUploadedInfo">
-                  <span>เอกสารที่แนบ: </span>
-                  <a href={pdfUrl} target="_blank" rel="noopener noreferrer">ดูเอกสาร</a>
+                  <span>อัปโหลดสำเร็จ: </span>
+                  <a href={pdfUrl} target="_blank" rel="noopener noreferrer">ดูเอกสารที่แนบ</a>
                   <button type="button" className="removeFileBtn" onClick={() => setPdfUrl('')}>ลบ</button>
                 </div>
               )}
@@ -260,7 +186,7 @@ export default function EditNewsPage(props: any) {
           </div>
 
           <div className="formGroup">
-            <label>รูปภาพประกอบข่าว (อัปโหลดเพิ่มได้หลายรูปภาพ)</label>
+            <label>รูปภาพประกอบข่าว (อัปโหลดได้หลายรูปภาพ)</label>
             <input
               type="file"
               className="formInput"
@@ -302,7 +228,7 @@ export default function EditNewsPage(props: any) {
                 onChange={(e) => setPublishedAt(e.target.value)}
                 onClick={(e) => e.currentTarget.showPicker?.()}
               />
-              <span className="fieldTip">เวลาที่ข่าวประชาสัมพันธ์จะปรากฏบนเว็บไซต์</span>
+              <span className="fieldTip">เว้นว่างไว้หากต้องการเผยแพร่ทันที (ตามเวลาปัจจุบัน)</span>
             </div>
 
             <div className="formGroup col-6">
@@ -345,7 +271,7 @@ export default function EditNewsPage(props: any) {
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
-                <option value="PUBLISHED">ลงข่าว (เผยแพร่ตามเวลาเริ่ม-หมดอายุ)</option>
+                <option value="PUBLISHED">ลงข่าว (เผยแพร่ต่อสาธารณะ)</option>
                 <option value="DRAFT">ดราฟ (บันทึกร่างไว้แก้ไขต่อ)</option>
                 <option value="ARCHIVED">เก็บเข้าคลัง (ไม่แสดงบนหน้าเว็บหลัก)</option>
               </select>
@@ -358,9 +284,9 @@ export default function EditNewsPage(props: any) {
               className="submitButton"
               disabled={loading || uploadingImage || uploadingPdf}
             >
-              {loading ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+              {loading ? 'กำลังบันทึก...' : 'บันทึกข่าว'}
             </button>
-            <Link href="/admin-news/news" className="cancelButton">
+            <Link href="/member/news/news" className="cancelButton">
               ยกเลิก
             </Link>
           </div>

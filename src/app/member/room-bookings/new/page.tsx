@@ -13,6 +13,16 @@ export default async function NewBookingPage() {
     redirect('/member/login')
   }
 
+  const isAdmin = session.role === 'admin'
+
+  if (!isAdmin) {
+    const checkSetting = await queryMemberDb("SELECT config_value FROM member_system_settings WHERE config_key = 'feature_room_booking'")
+    const isEnabled = checkSetting.length === 0 || checkSetting[0].config_value !== '0'
+    if (!isEnabled) {
+      redirect('/unauthorized')
+    }
+  }
+
   // Fetch catalog data directly on the server
   const rooms = await queryMemberDb('SELECT * FROM meeting_rooms WHERE is_active = 1 ORDER BY name ASC')
   const equipment = await queryMemberDb('SELECT * FROM meeting_room_equipment ORDER BY name ASC')

@@ -241,19 +241,53 @@ export default function MembersAdminClient() {
 
   return (
     <div className="membersDashboardPage">
+      <div className="glowOrb glowOrb1"></div>
+      <div className="glowOrb glowOrb2"></div>
+      <div className="glowOrb glowOrb3"></div>
       <div className="container">
         
         {/* Header */}
         <header className="pageHeader">
           <div className="headerText">
-            <h1>แดชบอร์ดสมาชิก</h1>
-            <p>เรียกดู เพิ่มสมาชิกใหม่ แก้ไขสิทธิ์ และข้อมูลรหัสผ่านสำหรับเข้าตรวจสอบสลิปเงินเดือนของบุคลากร</p>
+            <h1>แดชบอร์ดจัดการสมาชิก</h1>
+            <p>เรียกดู เพิ่มสมาชิกใหม่ แก้ไขสิทธิ์การใช้งาน และข้อมูลรหัสผ่านบัญชีเงินเดือนของบุคลากรโรงพยาบาลเถิน</p>
           </div>
           <button className="addMemberBtn" onClick={handleCreateClick}>
             <UserPlus size={18} style={{ marginRight: '6px' }} />
             เพิ่มสมาชิกใหม่
           </button>
         </header>
+
+        {/* Stats Grid */}
+        <div className="statsGrid">
+          <div className="statCard total">
+            <div className="statCardInfo">
+              <span className="statLabel">บุคลากรทั้งหมด</span>
+              <span className="statValue">{members.length} คน</span>
+            </div>
+            <div className="statCardIcon total">
+              <User size={24} />
+            </div>
+          </div>
+          <div className="statCard admins">
+            <div className="statCardInfo">
+              <span className="statLabel">ผู้ดูแลระบบ (Admin)</span>
+              <span className="statValue">{members.filter(m => m.role === 'admin').length} คน</span>
+            </div>
+            <div className="statCardIcon admins">
+              <Shield size={24} />
+            </div>
+          </div>
+          <div className="statCard general">
+            <div className="statCardInfo">
+              <span className="statLabel">สมาชิกทั่วไป (Member)</span>
+              <span className="statValue">{members.filter(m => m.role === 'member').length} คน</span>
+            </div>
+            <div className="statCardIcon general">
+              <Mail size={24} />
+            </div>
+          </div>
+        </div>
 
         {error && <div className="dashboardAlert alertDanger">{error}</div>}
         {success && <div className="dashboardAlert alertSuccess">{success}</div>}
@@ -353,22 +387,24 @@ export default function MembersAdminClient() {
                             {member.role === 'admin' ? 'แอดมิน' : 'ทั่วไป'}
                           </span>
                         </td>
-                        <td className="memberActions col-actions">
-                          <button
-                            className="actionBtn editBtn"
-                            title="แก้ไขข้อมูลสมาชิก"
-                            onClick={() => handleEditClick(member)}
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                          <button
-                            className="actionBtn deleteBtn"
-                            title={isSelf ? "ไม่สามารถลบบัญชีตนเองได้" : "ลบสมาชิก"}
-                            disabled={!!isSelf}
-                            onClick={() => handleDelete(member.id, member.username)}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                        <td className="col-actions">
+                          <div className="memberActions">
+                            <button
+                              className="actionBtn editBtn"
+                              title="แก้ไขข้อมูลสมาชิก"
+                              onClick={() => handleEditClick(member)}
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                            <button
+                              className="actionBtn deleteBtn"
+                              title={isSelf ? "ไม่สามารถลบบัญชีตนเองได้" : "ลบสมาชิก"}
+                              disabled={!!isSelf}
+                              onClick={() => handleDelete(member.id, member.username)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

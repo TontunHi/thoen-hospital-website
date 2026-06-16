@@ -31,12 +31,6 @@ export default async function ServicePage() {
       btnText: 'ติดตามผลแลปวันนี้',
     },
     {
-      title: 'โปรแกรมโพสข่าวประชาสัมพันธ์',
-      desc: 'ระบบจัดการข่าวประชาสัมพันธ์ ข่าวรับสมัครงาน และข่าวกิจกรรมบนเว็บไซต์โรงพยาบาลเถิน',
-      link: '/admin-news',
-      btnText: 'จัดการข่าวประชาสัมพันธ์',
-    },
-    {
       title: 'สถานะห้องฉุกเฉิน',
       desc: 'แสดงข้อมูลและสถิติสถานะผู้ป่วยในห้องฉุกเฉินแบบเรียลไทม์ (รองรับการแสดงผลหน้าจอทีวี มือถือ และคอมพิวเตอร์)',
       link: '/service/er-in-status',
@@ -68,15 +62,7 @@ export default async function ServicePage() {
     },
   ]
 
-  // Add Member management only if session.role is admin
-  if (session && session.role === 'admin') {
-    internalSystems.splice(5, 0, {
-      title: 'แดชบอร์ดสมาชิก',
-      desc: 'ระบบตรวจสอบรายชื่อสมาชิกทั้งหมด แก้ไขข้อมูล บัญชีเงินเดือน และจัดการสิทธิ์การเข้าใช้งานภายใน (เฉพาะแอดมิน)',
-      link: '/service/members',
-      btnText: 'จัดการสมาชิก',
-    })
-  }
+
 
   return (
     <div className="container servicePage">

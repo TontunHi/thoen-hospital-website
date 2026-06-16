@@ -53,15 +53,20 @@ export default function NewBookingForm({ rooms, equipment, food, foodPeriods, de
 
   // Equipment picker state
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([])
+  const [equipmentQuantities, setEquipmentQuantities] = useState<Record<number, number>>({})
   const [currentSelectEq, setCurrentSelectEq] = useState<string>('')
 
   // Food picker state
   const [selectedFoodIds, setSelectedFoodIds] = useState<number[]>([])
+  const [foodQuantities, setFoodQuantities] = useState<Record<number, number>>({})
   const [currentSelectFood, setCurrentSelectFood] = useState<string>('')
 
   // Food periods picker state
   const [selectedFoodPeriodIds, setSelectedFoodPeriodIds] = useState<number[]>([])
   const [currentSelectPeriod, setCurrentSelectPeriod] = useState<string>('')
+
+  // Tab state for additional services
+  const [extrasTab, setExtrasTab] = useState<'equipment' | 'food'>('equipment')
 
   // Equipment handlers
   const handleAddEquipment = () => {
@@ -69,12 +74,23 @@ export default function NewBookingForm({ rooms, equipment, food, foodPeriods, de
     const id = parseInt(currentSelectEq)
     if (!selectedEquipmentIds.includes(id)) {
       setSelectedEquipmentIds([...selectedEquipmentIds, id])
+      setEquipmentQuantities(prev => ({ ...prev, [id]: 1 }))
     }
     setCurrentSelectEq('')
   }
 
   const handleRemoveEquipment = (id: number) => {
     setSelectedEquipmentIds(selectedEquipmentIds.filter((eqId) => eqId !== id))
+    setEquipmentQuantities(prev => {
+      const copy = { ...prev }
+      delete copy[id]
+      return copy
+    })
+  }
+
+  const handleUpdateEquipmentQty = (id: number, qty: number) => {
+    if (qty < 1) return
+    setEquipmentQuantities(prev => ({ ...prev, [id]: qty }))
   }
 
   // Food handlers
@@ -83,12 +99,23 @@ export default function NewBookingForm({ rooms, equipment, food, foodPeriods, de
     const id = parseInt(currentSelectFood)
     if (!selectedFoodIds.includes(id)) {
       setSelectedFoodIds([...selectedFoodIds, id])
+      setFoodQuantities(prev => ({ ...prev, [id]: 1 }))
     }
     setCurrentSelectFood('')
   }
 
   const handleRemoveFood = (id: number) => {
     setSelectedFoodIds(selectedFoodIds.filter((fId) => fId !== id))
+    setFoodQuantities(prev => {
+      const copy = { ...prev }
+      delete copy[id]
+      return copy
+    })
+  }
+
+  const handleUpdateFoodQty = (id: number, qty: number) => {
+    if (qty < 1) return
+    setFoodQuantities(prev => ({ ...prev, [id]: qty }))
   }
 
   // Food period handlers
@@ -115,7 +142,8 @@ export default function NewBookingForm({ rooms, equipment, food, foodPeriods, de
     const equipment_json = selectedEquipmentIds
       .map((id) => {
         const item = equipment.find((e) => e.id === id)
-        if (item) return { id, name: item.name }
+        const qty = equipmentQuantities[id] || 1
+        if (item) return { id, name: item.name, quantity: qty }
         return null
       })
       .filter(Boolean)
@@ -123,7 +151,8 @@ export default function NewBookingForm({ rooms, equipment, food, foodPeriods, de
     const foodItems = selectedFoodIds
       .map((id) => {
         const item = food.find((f) => f.id === id)
-        if (item) return { id, name: item.name }
+        const qty = foodQuantities[id] || 1
+        if (item) return { id, name: item.name, quantity: qty }
         return null
       })
       .filter(Boolean)
@@ -351,198 +380,303 @@ export default function NewBookingForm({ rooms, equipment, food, foodPeriods, de
         </div>
       </div>
 
-      {/* ─── Section 3: Equipment Picker ─── */}
-      <div className="formSection">
+      {/* ─── Tabbed Section: Additional Services & Extras ─── */}
+      <div className="formSection extrasSection">
         <h3>
-          <span className="sectionIcon orange">🛠️</span>
-          อุปกรณ์ที่ต้องการใช้งานเพิ่ม
-          {selectedEquipmentIds.length > 0 && (
-            <span className="pickerCounter">{selectedEquipmentIds.length} รายการ</span>
-          )}
+          <span className="sectionIcon orange">✨</span>
+          บริการและอุปกรณ์เพิ่มเติม (เลือกเพิ่มเติม)
         </h3>
-        {equipment.length > 0 ? (
-          <div className="pickerSection">
-            <p className="pickerDescription">เลือกอุปกรณ์จากรายการด้านล่าง แล้วกด &quot;เพิ่ม&quot; เพื่อเพิ่มเข้ารายการ</p>
-            <div className="pickerSelector">
-              <select
-                value={currentSelectEq}
-                onChange={(e) => setCurrentSelectEq(e.target.value)}
-                id="eq_picker_select"
-              >
-                <option value="">-- เลือกอุปกรณ์ --</option>
-                {availableEquipment.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="pickerAddBtn"
-                onClick={handleAddEquipment}
-                disabled={!currentSelectEq}
-              >
-                ＋ เพิ่ม
-              </button>
-            </div>
+        
+        <div className="extrasTabBar" style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: '24px', gap: '8px' }}>
+          <button
+            type="button"
+            className={`extrasTabBtn ${extrasTab === 'equipment' ? 'active' : ''}`}
+            onClick={() => setExtrasTab('equipment')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: extrasTab === 'equipment' ? '3px solid #0d9488' : '3px solid transparent',
+              color: extrasTab === 'equipment' ? '#0d9488' : '#64748b',
+              fontWeight: '700',
+              cursor: 'pointer',
+              fontSize: '0.92rem',
+              transition: 'all 0.2s',
+              outline: 'none'
+            }}
+          >
+            🛠️ อุปกรณ์โสตทัศนูปกรณ์
+            {selectedEquipmentIds.length > 0 && (
+              <span className="tabCounter" style={{ marginLeft: '8px', fontSize: '0.75rem', background: '#ccfbf1', color: '#0f766e', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                {selectedEquipmentIds.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            className={`extrasTabBtn ${extrasTab === 'food' ? 'active' : ''}`}
+            onClick={() => setExtrasTab('food')}
+            style={{
+              padding: '12px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: extrasTab === 'food' ? '3px solid #0d9488' : '3px solid transparent',
+              color: extrasTab === 'food' ? '#0d9488' : '#64748b',
+              fontWeight: '700',
+              cursor: 'pointer',
+              fontSize: '0.92rem',
+              transition: 'all 0.2s',
+              outline: 'none'
+            }}
+          >
+            🍱 อาหาร / ของว่าง และช่วงเวลาจัดเสิร์ฟ
+            {(selectedFoodIds.length > 0 || selectedFoodPeriodIds.length > 0) && (
+              <span className="tabCounter" style={{ marginLeft: '8px', fontSize: '0.75rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                {selectedFoodIds.length + selectedFoodPeriodIds.length}
+              </span>
+            )}
+          </button>
+        </div>
 
-            <div className="pickerList">
-              {selectedEquipmentIds.length > 0 ? (
-                selectedEquipmentIds.map((id) => {
-                  const item = equipment.find((e) => e.id === id)
-                  if (!item) return null
-                  return (
-                    <div key={id} className="pickerItem">
-                      <div className="pickerItemName">
-                        <span className="pickerItemIcon eq">🔧</span>
-                        {item.name}
-                      </div>
-                      <button
-                        type="button"
-                        className="pickerRemoveBtn"
-                        onClick={() => handleRemoveEquipment(id)}
-                        title="ลบรายการ"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                })
-              ) : (
-                <div className="pickerEmpty">📦 ยังไม่ได้เลือกอุปกรณ์ใดๆ</div>
-              )}
-            </div>
+        {/* Tab 1: Equipment */}
+        {extrasTab === 'equipment' && (
+          <div className="tabContent" style={{ animation: 'fadeSlideIn 0.3s ease' }}>
+            {equipment.length > 0 ? (
+              <div className="pickerSection">
+                <p className="pickerDescription">เลือกอุปกรณ์โสตทัศนูปกรณ์ที่ต้องการใช้งานเพิ่มเติม แล้วกด "เพิ่ม"</p>
+                <div className="pickerSelector">
+                  <select
+                    value={currentSelectEq}
+                    onChange={(e) => setCurrentSelectEq(e.target.value)}
+                    id="eq_picker_select"
+                  >
+                    <option value="">-- เลือกอุปกรณ์ --</option>
+                    {availableEquipment.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="pickerAddBtn"
+                    onClick={handleAddEquipment}
+                    disabled={!currentSelectEq}
+                  >
+                    ＋ เพิ่ม
+                  </button>
+                </div>
+
+                <div className="pickerList">
+                  {selectedEquipmentIds.length > 0 ? (
+                    selectedEquipmentIds.map((id) => {
+                      const item = equipment.find((e) => e.id === id)
+                      if (!item) return null
+                      const qty = equipmentQuantities[id] || 1
+                      return (
+                        <div key={id} className="pickerItem" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div className="pickerItemName" style={{ flex: 1 }}>
+                            <span className="pickerItemIcon eq">🔧</span>
+                            {item.name}
+                          </div>
+                          <div className="quantitySelector" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '12px' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateEquipmentQty(id, qty - 1)}
+                              disabled={qty <= 1}
+                              style={{ padding: '2px 8px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#f8fafc', cursor: qty <= 1 ? 'not-allowed' : 'pointer' }}
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              value={qty}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 1
+                                handleUpdateEquipmentQty(id, val < 1 ? 1 : val)
+                              }}
+                              style={{ width: '50px', textAlign: 'center', padding: '2px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                              min="1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateEquipmentQty(id, qty + 1)}
+                              style={{ padding: '2px 8px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#f8fafc', cursor: 'pointer' }}
+                            >
+                              +
+                            </button>
+                            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>ชิ้น</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="pickerRemoveBtn"
+                            onClick={() => handleRemoveEquipment(id)}
+                            title="ลบรายการ"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="pickerEmpty">📦 ยังไม่ได้เลือกอุปกรณ์โสตทัศนูปกรณ์ใดๆ</div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="noCatalogText">ไม่มีรายการอุปกรณ์ให้เลือกเพิ่มเติมในระบบ</p>
+            )}
           </div>
-        ) : (
-          <p className="noCatalogText">ไม่มีรายการอุปกรณ์ให้เลือกเพิ่มเติมในระบบ</p>
         )}
-      </div>
 
-      {/* ─── Section 4: Food Picker ─── */}
-      <div className="formSection">
-        <h3>
-          <span className="sectionIcon green">🍱</span>
-          รายการอาหาร / ของว่าง
-          {selectedFoodIds.length > 0 && (
-            <span className="pickerCounter">{selectedFoodIds.length} รายการ</span>
-          )}
-        </h3>
-        {food.length > 0 ? (
-          <div className="pickerSection">
-            <p className="pickerDescription">เลือกรายการอาหารหรือของว่างที่ต้องการ แล้วกด &quot;เพิ่ม&quot;</p>
-            <div className="pickerSelector">
-              <select
-                value={currentSelectFood}
-                onChange={(e) => setCurrentSelectFood(e.target.value)}
-                id="food_picker_select"
-              >
-                <option value="">-- เลือกรายการอาหาร / ของว่าง --</option>
-                {availableFood.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="pickerAddBtn"
-                onClick={handleAddFood}
-                disabled={!currentSelectFood}
-              >
-                ＋ เพิ่ม
-              </button>
+        {/* Tab 2: Food & Snack + Serving Periods (Combined in same tab) */}
+        {extrasTab === 'food' && (
+          <div className="tabContent foodPeriodGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', animation: 'fadeSlideIn 0.3s ease' }}>
+            {/* Food selection */}
+            <div className="foodSubsection">
+              <h4 style={{ fontSize: '0.92rem', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>🍱 รายการอาหาร / ของว่าง</h4>
+              {food.length > 0 ? (
+                <div className="pickerSection">
+                  <p className="pickerDescription">เลือกรายการอาหารหรือของว่างที่ต้องการ แล้วกด "เพิ่ม"</p>
+                  <div className="pickerSelector">
+                    <select
+                      value={currentSelectFood}
+                      onChange={(e) => setCurrentSelectFood(e.target.value)}
+                      id="food_picker_select"
+                    >
+                      <option value="">-- เลือกรายการอาหาร / ของว่าง --</option>
+                      {availableFood.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="pickerAddBtn"
+                      onClick={handleAddFood}
+                      disabled={!currentSelectFood}
+                    >
+                      ＋ เพิ่ม
+                    </button>
+                  </div>
+
+                  <div className="pickerList">
+                    {selectedFoodIds.length > 0 ? (
+                      selectedFoodIds.map((id) => {
+                        const item = food.find((f) => f.id === id)
+                        if (!item) return null
+                        const qty = foodQuantities[id] || 1
+                        return (
+                          <div key={id} className="pickerItem" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div className="pickerItemName" style={{ flex: 1 }}>
+                              <span className="pickerItemIcon food">🍽️</span>
+                              {item.name}
+                            </div>
+                            <div className="quantitySelector" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '12px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateFoodQty(id, qty - 1)}
+                                disabled={qty <= 1}
+                                style={{ padding: '2px 8px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#f8fafc', cursor: qty <= 1 ? 'not-allowed' : 'pointer' }}
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                value={qty}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 1
+                                  handleUpdateFoodQty(id, val < 1 ? 1 : val)
+                                }}
+                                style={{ width: '50px', textAlign: 'center', padding: '2px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                                min="1"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateFoodQty(id, qty + 1)}
+                                style={{ padding: '2px 8px', border: '1px solid #cbd5e1', borderRadius: '4px', background: '#f8fafc', cursor: 'pointer' }}
+                              >
+                                +
+                              </button>
+                              <span style={{ fontSize: '0.85rem', color: '#64748b' }}>ชิ้น</span>
+                            </div>
+                            <button
+                              type="button"
+                              className="pickerRemoveBtn"
+                              onClick={() => handleRemoveFood(id)}
+                              title="ลบรายการ"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )
+                      })
+                    ) : (
+                      <div className="pickerEmpty">🍱 ยังไม่ได้เลือกรายการอาหารใดๆ</div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="noCatalogText">ไม่มีรายการอาหาร / ของว่างในระบบ</p>
+              )}
             </div>
 
-            <div className="pickerList">
-              {selectedFoodIds.length > 0 ? (
-                selectedFoodIds.map((id) => {
-                  const item = food.find((f) => f.id === id)
-                  if (!item) return null
-                  return (
-                    <div key={id} className="pickerItem">
-                      <div className="pickerItemName">
-                        <span className="pickerItemIcon food">🍽️</span>
-                        {item.name}
-                      </div>
-                      <button
-                        type="button"
-                        className="pickerRemoveBtn"
-                        onClick={() => handleRemoveFood(id)}
-                        title="ลบรายการ"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                })
+            {/* Serving periods selection */}
+            <div className="periodSubsection">
+              <h4 style={{ fontSize: '0.92rem', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>🕐 ช่วงเวลาที่ต้องการให้จัดเสิร์ฟ</h4>
+              {foodPeriods.length > 0 ? (
+                <div className="pickerSection">
+                  <p className="pickerDescription">เลือกช่วงเวลาที่ต้องการให้จัดเสิร์ฟ แล้วกด "เพิ่ม"</p>
+                  <div className="pickerSelector">
+                    <select
+                      value={currentSelectPeriod}
+                      onChange={(e) => setCurrentSelectPeriod(e.target.value)}
+                      id="period_picker_select"
+                    >
+                      <option value="">-- เลือกช่วงเวลา --</option>
+                      {availablePeriods.map((period) => (
+                        <option key={period.id} value={period.id}>{period.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="pickerAddBtn"
+                      onClick={handleAddPeriod}
+                      disabled={!currentSelectPeriod}
+                    >
+                      ＋ เพิ่ม
+                    </button>
+                  </div>
+
+                  <div className="pickerList">
+                    {selectedFoodPeriodIds.length > 0 ? (
+                      selectedFoodPeriodIds.map((id) => {
+                        const period = foodPeriods.find((p) => p.id === id)
+                        if (!period) return null
+                        return (
+                          <div key={id} className="pickerItem">
+                            <div className="pickerItemName">
+                              <span className="pickerItemIcon period">⏰</span>
+                              {period.name}
+                            </div>
+                            <button
+                              type="button"
+                              className="pickerRemoveBtn"
+                              onClick={() => handleRemovePeriod(id)}
+                              title="ลบรายการ"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )
+                      })
+                    ) : (
+                      <div className="pickerEmpty">🕐 ยังไม่ได้เลือกช่วงเวลาใดๆ</div>
+                    )}
+                  </div>
+                </div>
               ) : (
-                <div className="pickerEmpty">🍱 ยังไม่ได้เลือกรายการอาหารใดๆ</div>
+                <p className="noCatalogText">ไม่มีรายการช่วงเวลาอาหารในระบบ</p>
               )}
             </div>
           </div>
-        ) : (
-          <p className="noCatalogText">ไม่มีรายการอาหาร / ของว่างในระบบ</p>
-        )}
-      </div>
-
-      {/* ─── Section 5: Food Periods Picker ─── */}
-      <div className="formSection">
-        <h3>
-          <span className="sectionIcon purple">🕐</span>
-          ช่วงเวลาที่ต้องการให้จัดเสิร์ฟ
-          {selectedFoodPeriodIds.length > 0 && (
-            <span className="pickerCounter">{selectedFoodPeriodIds.length} ช่วงเวลา</span>
-          )}
-        </h3>
-        {foodPeriods.length > 0 ? (
-          <div className="pickerSection">
-            <p className="pickerDescription">เลือกช่วงเวลาที่ต้องการให้จัดเตรียมอาหาร/ของว่าง แล้วกด &quot;เพิ่ม&quot;</p>
-            <div className="pickerSelector">
-              <select
-                value={currentSelectPeriod}
-                onChange={(e) => setCurrentSelectPeriod(e.target.value)}
-                id="period_picker_select"
-              >
-                <option value="">-- เลือกช่วงเวลา --</option>
-                {availablePeriods.map((period) => (
-                  <option key={period.id} value={period.id}>{period.name}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="pickerAddBtn"
-                onClick={handleAddPeriod}
-                disabled={!currentSelectPeriod}
-              >
-                ＋ เพิ่ม
-              </button>
-            </div>
-
-            <div className="pickerList">
-              {selectedFoodPeriodIds.length > 0 ? (
-                selectedFoodPeriodIds.map((id) => {
-                  const period = foodPeriods.find((p) => p.id === id)
-                  if (!period) return null
-                  return (
-                    <div key={id} className="pickerItem">
-                      <div className="pickerItemName">
-                        <span className="pickerItemIcon period">⏰</span>
-                        {period.name}
-                      </div>
-                      <button
-                        type="button"
-                        className="pickerRemoveBtn"
-                        onClick={() => handleRemovePeriod(id)}
-                        title="ลบรายการ"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                })
-              ) : (
-                <div className="pickerEmpty">🕐 ยังไม่ได้เลือกช่วงเวลาใดๆ</div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <p className="noCatalogText">ไม่มีรายการช่วงเวลาอาหารในระบบ</p>
         )}
       </div>
 

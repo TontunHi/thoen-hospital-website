@@ -709,3 +709,326 @@
   z-index: 3000 !important;
 }
 
+/* ========================================================================
+   ROOM USAGE STATISTICS DASHBOARD & CHARTS
+   ======================================================================== */
+
+.statsSection {
+  margin-top: 36px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+  padding: 32px;
+  animation: fadeIn 0.3s ease;
+}
+
+.statsHeaderContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 18px;
+  margin-bottom: 24px;
+}
+
+.statsHeading {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  position: relative;
+  padding-left: 12px;
+}
+
+.statsHeading::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 4px;
+  background: #0d9488;
+  border-radius: 4px;
+}
+
+.statsFilterGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.statsFilterLabel {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.statsFilterSelect {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  cursor: pointer;
+  outline: none;
+  min-width: 165px;
+  transition: all 0.2s ease;
+}
+
+.statsFilterSelect:focus {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+/* Summary Grid */
+.statsSummaryGrid {
+  display: flex;
+  margin-bottom: 28px;
+}
+
+.statsSummaryCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 280px;
+}
+
+.statsCardLabel {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statsCardValue {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.statsCardValue .statsUnit {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.statsCardSub {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0d9488;
+}
+
+/* Legend */
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-bottom: 32px;
+  padding: 16px 20px;
+  background-color: #f8fafc;
+  border-radius: 12px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendColorBox {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* Chart Container & Columns */
+.barChartContainer {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  padding: 10px 0;
+  position: relative;
+}
+
+.chartYAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding-bottom: 28px; /* Offset for month label height */
+  min-width: 24px;
+}
+
+.chartArea {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px;
+  align-items: end;
+  height: 220px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 4px;
+}
+
+.chartColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.barWrapper {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.barContainer {
+  width: 32px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column-reverse;
+  border-radius: 6px 6px 0 0;
+  overflow: visible;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.barContainer:hover {
+  transform: scaleX(1.05);
+}
+
+.barSegment {
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.barContainer > .barSegment:last-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.chartMonthLabel {
+  margin-top: 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+/* Hover Tooltip */
+.barTooltip {
+  position: absolute;
+  bottom: 105%;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 100;
+  min-width: 200px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.barContainer:hover .barTooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.tooltipMonth {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #38bdf8;
+  margin-bottom: 6px;
+}
+
+.tooltipDivider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.12);
+  margin: 6px 0;
+}
+
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.tooltipRow.total {
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: #38bdf8;
+}
+
+.tooltipColorDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tooltipRoomName {
+  flex: 1;
+  color: #cbd5e1;
+}
+
+.tooltipRoomCount {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Responsive stats */
+@media (max-width: 768px) {
+  .statsSummaryGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .statsSection {
+    padding: 20px 16px;
+  }
+
+  .chartArea {
+    gap: 4px;
+    height: 160px;
+  }
+
+  .barContainer {
+    width: 18px;
+  }
+
+  .chartMonthLabel {
+    font-size: 0.7rem;
+  }
+}
+

@@ -136,7 +136,7 @@ export default function Navbar() {
     }
     
     // Only check if it's not administrative or salary systems
-    if (pathname && !pathname.startsWith('/admin-news') && !pathname.startsWith('/news-login') && !pathname.startsWith('/salary')) {
+    if (pathname && !pathname.startsWith('/member/news') && !pathname.startsWith('/news-login') && !pathname.startsWith('/salary')) {
       checkMember();
     }
   }, [pathname]);

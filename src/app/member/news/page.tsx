@@ -144,7 +144,7 @@ export default function AdminDashboard() {
         <div className="recentSection card">
           <div className="sectionHeader">
             <h2>ข่าวประชาสัมพันธ์ล่าสุด</h2>
-            <Link href="/admin-news/news" className="btnText">ดูข่าวทั้งหมด →</Link>
+            <Link href="/member/news/news" className="btnText">ดูข่าวทั้งหมด →</Link>
           </div>
           {recentNews.length > 0 ? (
             <div className="tableResponsive">

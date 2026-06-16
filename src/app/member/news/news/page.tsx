@@ -104,7 +104,7 @@ export default function AdminNewsPage() {
           <h1>จัดการข่าวสารและกิจกรรม</h1>
           <p className="subtext">สร้าง แก้ไข เผยแพร่ และติดตามสถิติจำนวนผู้เข้าชมข่าวสารโรงพยาบาลเถิน</p>
         </div>
-        <Link href="/admin-news/news/create" className="createButton">
+        <Link href="/member/news/news/create" className="createButton">
           <Plus size={18} />
           <span>เพิ่มข่าวใหม่</span>
         </Link>
@@ -213,7 +213,7 @@ export default function AdminNewsPage() {
                       <td>
                         <div className="actionButtons">
                           <Link
-                            href={`/admin-news/news/${item.id}/edit`}
+                            href={`/member/news/news/${item.id}/edit`}
                             className="editButtonAction"
                             title="แก้ไขข่าว"
                           >
@@ -239,7 +239,7 @@ export default function AdminNewsPage() {
         ) : (
           <div className="emptyState">
             <p>ไม่พบข่าวสารตามเงื่อนไขการค้นหา</p>
-            <Link href="/admin-news/news/create" className="createButton" style={{ marginTop: '1rem', display: 'inline-flex' }}>
+            <Link href="/member/news/news/create" className="createButton" style={{ marginTop: '1rem', display: 'inline-flex' }}>
               <Plus size={18} /> เพิ่มข่าวแรก
             </Link>
           </div>
