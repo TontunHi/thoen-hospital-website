@@ -365,6 +365,39 @@
   width: 100%;
 }
 
+.bookingsClientLayout.fullWidthLayout {
+  grid-template-columns: 1fr;
+}
+
+.bookingBtnPremium {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+  color: #ffffff;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.3);
+  transition: all 0.25s ease;
+  text-decoration: none;
+}
+
+.bookingBtnPremium:hover {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.4);
+  color: #ffffff;
+}
+
+.bookingBtnPremium:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(13, 148, 136, 0.2);
+}
+
 .calendarSection {
   background: #ffffff;
   border-radius: 16px;
@@ -451,7 +484,9 @@
   align-items: flex-start;
   cursor: pointer;
   transition: all 0.15s ease-in-out;
-  min-height: 100px;
+  height: 120px;
+  min-height: 120px;
+  overflow: hidden;
 }
 
 .calendarDay:hover {
@@ -668,5 +703,9 @@
   .bookingsClientLayout {
     grid-template-columns: 1fr;
   }
+}
+
+.detailModalZ {
+  z-index: 3000 !important;
 }
 

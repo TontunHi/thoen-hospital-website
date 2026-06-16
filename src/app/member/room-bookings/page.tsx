@@ -26,8 +26,8 @@ export default async function RoomBookingsPage() {
             <p>ตรวจสอบสถานะ ปฏิทิน และส่งคำขอขอใช้ห้องประชุมของโรงพยาบาลเถิน</p>
           </div>
           <div className="headerActions">
-            <Link href="/member/room-bookings/new" className="btn btn-primary booking-btn">
-              ➕ จองห้องประชุม
+            <Link href="/member/room-bookings/new" className="bookingBtnPremium">
+              จองห้องประชุม
             </Link>
           </div>
         </div>

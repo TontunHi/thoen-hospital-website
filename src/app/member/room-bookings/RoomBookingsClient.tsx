@@ -38,6 +38,7 @@ export default function RoomBookingsClient({ isAdmin }: RoomBookingsClientProps)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [showDayListModal, setShowDayListModal] = useState(false)
 
   useEffect(() => {
     fetchBookings()
@@ -97,7 +98,6 @@ export default function RoomBookingsClient({ isAdmin }: RoomBookingsClientProps)
 
   // Helper to check if a booking overlaps with a specific day
   const getBookingsForDate = (date: Date) => {
-    // Zero out times for date comparison
     const target = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
     
     return bookings.filter(booking => {
@@ -124,6 +124,7 @@ export default function RoomBookingsClient({ isAdmin }: RoomBookingsClientProps)
     const today = new Date()
     setCurrentDate(today)
     setSelectedDate(today)
+    setShowDayListModal(true)
   }
 
   const parseEquipment = (jsonStr: string | null) => {
@@ -156,7 +157,7 @@ export default function RoomBookingsClient({ isAdmin }: RoomBookingsClientProps)
   }
 
   return (
-    <div className="bookingsClientLayout">
+    <div className="bookingsClientLayout fullWidthLayout">
       <div className="calendarSection">
         <div className="calendarHeader">
           <button className="navBtn" onClick={handlePrevMonth}>◀</button>
@@ -198,11 +199,14 @@ export default function RoomBookingsClient({ isAdmin }: RoomBookingsClientProps)
               <div
                 key={`day-${day.getDate()}`}
                 className={`calendarDay ${isSelected ? 'selected' : ''} ${isToday() ? 'today' : ''}`}
-                onClick={() => setSelectedDate(day)}
+                onClick={() => {
+                  setSelectedDate(day)
+                  setShowDayListModal(true)
+                }}
               >
                 <span className="dayNumber">{day.getDate()}</span>
                 <div className="dayBookingsList">
-                  {dayBookings.slice(0, 3).map(b => (
+                  {dayBookings.slice(0, 2).map(b => (
                     <div
                       key={b.id}
                       className={`dayBookingBadge ${b.status.toLowerCase()}`}
@@ -213,8 +217,8 @@ export default function RoomBookingsClient({ isAdmin }: RoomBookingsClientProps)
                       <span className="badgeTopic">{b.topic}</span>
                     </div>
                   ))}
-                  {dayBookings.length > 3 && (
-                    <div className="moreIndicator">+{dayBookings.length - 3} รายการ</div>
+                  {dayBookings.length > 2 && (
+                    <div className="moreIndicator">และอีก {dayBookings.length - 2} รายการ</div>
                   )}
                 </div>
               </div>
@@ -223,48 +227,61 @@ export default function RoomBookingsClient({ isAdmin }: RoomBookingsClientProps)
         </div>
       </div>
 
-      {/* Bookings for the selected day */}
-      <div className="selectedDayBookingsSection">
-        <h3>
-          📅 รายการจองห้องประชุมวันที่{' '}
-          {selectedDate ? formatThaiDate(selectedDate.toISOString().split('T')[0]) : ''}
-        </h3>
-        
-        {selectedDateBookings.length === 0 ? (
-          <div className="noBookingsNotice">ไม่มีการประชุมในวันที่เลือก</div>
-        ) : (
-          <div className="selectedBookingsList">
-            {selectedDateBookings.map(b => (
-              <div
-                key={b.id}
-                className="bookingDetailCard"
-                onClick={() => setSelectedBooking(b)}
-              >
-                <div className="bookingCardHeader">
-                  <span className={`statusLabel ${b.status.toLowerCase()}`}>
-                    {b.status === 'APPROVED' ? 'อนุมัติแล้ว' : b.status === 'REJECTED' ? 'ปฏิเสธ' : 'รอพิจารณา'}
-                  </span>
-                  <span className="bookingTime">🕒 {b.start_time} - {b.end_time} น.</span>
+      {/* 1. Daily meetings list popup modal */}
+      {showDayListModal && selectedDate && (
+        <div className="modalOverlay" onClick={() => setShowDayListModal(false)}>
+          <div className="modalContent dayListModal" onClick={(e) => e.stopPropagation()}>
+            <div className="modalHeader">
+              <h3>
+                📅 รายการประชุมวันที่{' '}
+                {formatThaiDate(selectedDate.toISOString().split('T')[0])}
+              </h3>
+              <button className="closeBtn" onClick={() => setShowDayListModal(false)}>×</button>
+            </div>
+            <div className="modalBody" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              {selectedDateBookings.length === 0 ? (
+                <div className="noBookingsNotice">ไม่มีการประชุมในวันที่เลือก</div>
+              ) : (
+                <div className="selectedBookingsList">
+                  {selectedDateBookings.map(b => (
+                    <div
+                      key={b.id}
+                      className="bookingDetailCard"
+                      onClick={() => {
+                        setSelectedBooking(b)
+                      }}
+                    >
+                      <div className="bookingCardHeader">
+                        <span className={`statusLabel ${b.status.toLowerCase()}`}>
+                          {b.status === 'APPROVED' ? 'อนุมัติแล้ว' : b.status === 'REJECTED' ? 'ปฏิเสธ' : 'รอพิจารณา'}
+                        </span>
+                        <span className="bookingTime">🕒 {b.start_time} - {b.end_time} น.</span>
+                      </div>
+                      <h4 className="bookingTopic">{b.topic}</h4>
+                      <div className="bookingMeta">
+                        <div>🚪 ห้องประชุม: <strong>{b.room_name}</strong></div>
+                        <div>👤 ผู้จอง: {b.requester_name} ({b.requester_dept})</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <h4 className="bookingTopic">{b.topic}</h4>
-                <div className="bookingMeta">
-                  <div>🚪 ห้องประชุม: <strong>{b.room_name}</strong></div>
-                  <div>👤 ผู้จอง: {b.requester_name} ({b.requester_dept})</div>
-                </div>
-              </div>
-            ))}
+              )}
+            </div>
+            <div className="modalFooter">
+              <button className="tabButton" onClick={() => setShowDayListModal(false)}>ปิด</button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Booking Detail Modal */}
+      {/* 2. Detailed Booking View Modal */}
       {selectedBooking && (() => {
         const sb = selectedBooking
         const equipment = parseEquipment(sb.equipment_json)
         const food = parseFood(sb.food_json)
 
         return (
-          <div className="modalOverlay" onClick={() => setSelectedBooking(null)}>
+          <div className="modalOverlay detailModalZ" onClick={() => setSelectedBooking(null)}>
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
               <div className="modalHeader">
                 <h3>รายละเอียดการจองห้องประชุม</h3>
