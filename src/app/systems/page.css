@@ -1,84 +1,128 @@
-.systemsPage {
-  padding-top: calc(var(--navbar-height) + 3rem);
-  padding-bottom: 5rem;
+/* ═══════════════════════════════════════════
+   Systems Portal Page — page.css
+   โรงพยาบาลเถิน (Thoen Hospital)
+   UX/UI Premium Refactored Stylesheet
+   ═══════════════════════════════════════════ */
+
+.systems-page {
+  padding-top: calc(var(--navbar-height, 80px) + 1rem);
+  padding-bottom: 6rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+  min-height: 100vh;
 }
 
+/* ── Header Section ── */
 .systemsHeader {
   text-align: center;
   margin-bottom: 3rem;
 }
 
-.systemsHeader h1 {
-  font-size: 2.5rem;
-  color: var(--primary);
-  margin-bottom: 0.75rem;
+.systemsHeader__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(13, 116, 70, 0.08);
+  border: 1px solid rgba(13, 116, 70, 0.2);
+  color: var(--primary, #0d7446);
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 1.25rem;
 }
 
-.systemsHeader p {
-  color: var(--gray-600);
+.systemsHeader__title {
+  font-size: clamp(2.2rem, 5vw, 3rem);
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 1rem;
+  letter-spacing: -0.5px;
+}
+
+.systemsHeader__desc {
+  color: #475569;
   font-size: 1.1rem;
-  max-width: 700px;
+  max-width: 600px;
   margin: 0 auto;
+  line-height: 1.6;
 }
 
-/* Tabs CSS */
-.systemsTabs {
+/* ── Sliding Segmented Tabs Controller ── */
+.systemsTabs-container {
   display: flex;
   justify-content: center;
-  gap: 1rem;
-  margin-bottom: 3rem;
-  border-bottom: 2px solid var(--gray-200);
-  padding-bottom: 1rem;
+  margin-bottom: 3.5rem;
+}
+
+.systemsTabs {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  padding: 6px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(10px);
 }
 
 .tabBtn {
-  padding: 0.75rem 1.5rem;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--gray-600);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #64748b;
   background: none;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: inherit;
 }
 
 .tabBtn:hover {
-  color: var(--primary);
-  background-color: var(--gray-50);
+  color: var(--primary, #0d7446);
 }
 
 .tabBtn.active {
-  color: var(--white);
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-  box-shadow: 0 4px 12px rgba(13, 116, 70, 0.2);
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary, #0d7446) 0%, var(--primary-dark, #095c38) 100%);
+  box-shadow: 0 8px 20px rgba(13, 116, 70, 0.2);
 }
 
-/* Systems Grid CSS */
+/* ── Systems Grid ── */
 .systemsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 2rem;
-  animation: slideUp 0.4s ease-out;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2.5rem;
+  animation: systemsSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── Premium System Portal Card ── */
 .systemCard {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  height: 100%;
+}
+
+.systemCard__inner {
+  padding: 2.25rem;
   display: flex;
   flex-direction: column;
   height: 100%;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  padding: 2rem;
-  border: 1px solid var(--gray-200);
-  background: var(--white);
-  border-radius: 12px;
 }
 
 .systemCard:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-5px);
+  box-shadow: 0 25px 50px rgba(13, 116, 70, 0.06);
 }
 
+/* Header style within Card */
 .cardHeader {
   display: flex;
   align-items: center;
@@ -90,242 +134,79 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #E8F5E9;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  border-radius: 12px;
+  width: 46px;
+  height: 46px;
   flex-shrink: 0;
-  border: 1.5px solid var(--primary-light);
+  border: 1.5px solid rgba(226, 232, 240, 0.8);
+  transition: all 0.3s ease;
 }
 
-.iconWrapper.mophIcon {
-  background-color: #E0F2F1;
-  border-color: #4DB6AC;
+.mophIcon {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
 }
 
-.cardHeader h3 {
+.dashboardIcon {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+.systemCard:hover .iconWrapper {
+  transform: scale(1.06) rotate(3deg);
+}
+
+.cardHeader__title {
   font-size: 1.15rem;
-  color: var(--gray-900);
-  font-weight: 700;
+  color: #0f172a;
+  font-weight: 800;
   margin: 0;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
-.systemCard p {
+.systemCard__desc {
   font-size: 0.95rem;
-  color: var(--gray-600);
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
+  color: #475569;
+  line-height: 1.7;
+  margin-bottom: 2rem;
   flex-grow: 1;
 }
 
+/* Actions button */
 .cardActions {
   margin-top: auto;
 }
 
-.cardActions a {
+.systemCard__btn {
   display: inline-flex;
   justify-content: center;
   align-items: center;
+  gap: 8px;
   width: 100%;
-  font-weight: 600;
-  padding: 0.6rem 1rem;
-  text-decoration: none;
-}
-
-/* Dashboard Tab CSS */
-.dashboardTab {
-  animation: slideUp 0.4s ease-out;
-}
-
-.dashboardGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2.5rem;
-}
-
-.statCard {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding: 1.75rem;
-}
-
-.statIcon {
-  font-size: 2.5rem;
-  background-color: var(--gray-50);
-  width: 65px;
-  height: 65px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
-}
-
-.statDetails {
-  display: flex;
-  flex-direction: column;
-}
-
-.statLabel {
-  font-size: 0.9rem;
-  color: var(--gray-500);
-  font-weight: 500;
-}
-
-.statValue {
-  font-size: 1.6rem;
   font-weight: 700;
-  color: var(--gray-900);
-  margin: 0.25rem 0;
-}
-
-.statTrend {
-  font-size: 0.8rem;
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.dashboardCharts {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 2rem;
-}
-
-@media (max-width: 1024px) {
-  .dashboardCharts {
-    grid-template-columns: 1fr;
-  }
-}
-
-.chartCard h3 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--gray-900);
-  margin-bottom: 1.75rem;
-  border-left: 4px solid var(--primary);
-  padding-left: 0.75rem;
-}
-
-/* Bar Chart */
-.barChart {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.barRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.barLabel {
-  width: 130px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--gray-700);
-}
-
-.barContainer {
-  flex-grow: 1;
-  height: 12px;
-  background-color: var(--gray-100);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.barFill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary-light) 0%, var(--primary) 100%);
-  border-radius: 6px;
-}
-
-.barVal {
-  width: 50px;
-  text-align: right;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--gray-800);
-}
-
-/* Radial / Circular progress mock */
-.radialMock {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2rem;
-  flex-wrap: wrap;
-  padding: 1rem 0;
-}
-
-.progressCircle {
-  position: relative;
-  width: 160px;
-  height: 160px;
-}
-
-.circleBg {
-  fill: none;
-  stroke: var(--gray-100);
-  stroke-width: 8;
-}
-
-.circleProgress {
-  fill: none;
-  stroke: var(--primary);
-  stroke-width: 8;
-  stroke-linecap: round;
-  stroke-dasharray: 251.2; /* 2 * PI * r = 2 * 3.1415 * 40 = 251.2 */
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-  transition: stroke-dashoffset 1s ease-out;
-}
-
-.circleText {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.percent {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--gray-900);
-  line-height: 1.1;
-}
-
-.circleText .subtitle {
-  font-size: 0.8rem;
-  color: var(--gray-500);
-  font-weight: 500;
-  margin-top: 0.25rem;
-}
-
-.circleDesc {
-  flex: 1;
-}
-
-.circleDesc p {
   font-size: 0.95rem;
-  color: var(--gray-600);
-  line-height: 1.6;
-  margin: 0.5rem 0;
+  padding: 10px 18px;
+  text-decoration: none;
+  border-radius: 12px;
+  transition: all 0.25s ease;
+  border: 1px solid rgba(13, 116, 70, 0.2);
+  background: #ffffff;
+  color: var(--primary, #0d7446);
+  cursor: pointer;
 }
 
-/* Animation keyframes */
-@keyframes slideUp {
+.systemCard__btn:hover {
+  background: var(--primary, #0d7446);
+  color: #ffffff;
+  border-color: var(--primary, #0d7446);
+  box-shadow: 0 4px 15px rgba(13, 116, 70, 0.15);
+}
+
+/* Animations */
+@keyframes systemsSlideUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(24px);
   }
   to {
     opacity: 1;
@@ -333,15 +214,35 @@
   }
 }
 
+/* Responsive adjustments */
 @media (max-width: 768px) {
-  .systemsTabs {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: stretch;
+  .systems-page {
+    padding-top: calc(var(--navbar-height, 80px) + 2rem);
   }
-  
+
+  .systemsTabs-container {
+    margin-bottom: 2.5rem;
+  }
+
+  .systemsTabs {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 4px;
+    padding: 6px;
+  }
+
   .tabBtn {
     width: 100%;
-    text-align: center;
+    justify-content: center;
+  }
+  
+  .systemsGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .systemCard__inner {
+    padding: 1.75rem;
   }
 }

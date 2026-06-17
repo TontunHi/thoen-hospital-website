@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { ExternalLink, LayoutDashboard, Activity } from 'lucide-react'
 import './page.css'
 
 export default function SystemsPage() {
@@ -161,90 +162,107 @@ export default function SystemsPage() {
   ]
 
   return (
-    <div className="container systemsPage">
-      <div className="systemsHeader">
-        <h1>ระบบสารสนเทศ</h1>
-        <p>ศูนย์รวมลิงก์ระบบงานบริการสาธารณสุข และเครื่องมือสารสนเทศสำหรับบุคลากรโรงพยาบาลเถิน</p>
-      </div>
+    <div className="systems-page">
+      <div className="container">
+        
+        {/* Systems Header */}
+        <div className="systemsHeader">
+          <h1 className="systemsHeader__title">ระบบสารสนเทศ</h1>
+          <p className="systemsHeader__desc">
+            ศูนย์รวมลิงก์ระบบงานบริการสาธารณสุข และเครื่องมือสารสนเทศสถิติสำหรับบุคลากรโรงพยาบาลเถิน
+          </p>
+        </div>
 
-      {/* Tabs Controller */}
-      <div className="systemsTabs">
-        <button 
-          className={`tabBtn ${activeTab === 'moph' ? 'active' : ''}`}
-          onClick={() => setActiveTab('moph')}
-        >
-          รวมบริการ MOPH
-        </button>
-        <button 
-          className={`tabBtn ${activeTab === 'dashboard' ? 'active' : ''}`}
-          onClick={() => setActiveTab('dashboard')}
-        >
-          DashBoard
-        </button>
-      </div>
-
-      {/* Tab Contents */}
-      <div className="tabContent">
-
-        {/* 2. MOPH SERVICES */}
-        {activeTab === 'moph' && (
-          <div className="systemsGrid">
-            {mophServices.map((sys, idx) => (
-              <div key={idx} className="systemCard card">
-                <div className="cardHeader">
-                  <div className="iconWrapper mophIcon">
-                    <Image
-                      src="/images/common/logo-website.webp"
-                      alt="MOPH Logo"
-                      width={40}
-                      height={40}
-                    />
-                  </div>
-                  <h3>{sys.title}</h3>
-                </div>
-                <p>{sys.desc}</p>
-                <div className="cardActions">
-                  <a href={sys.link} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
-                    เข้าสู่ระบบ ↗
-                  </a>
-                </div>
-              </div>
-            ))}
+        {/* Dynamic Tabs Controller */}
+        <div className="systemsTabs-container">
+          <div className="systemsTabs">
+            <button 
+              className={`tabBtn ${activeTab === 'moph' ? 'active' : ''}`}
+              onClick={() => setActiveTab('moph')}
+            >
+              <Activity size={16} />
+              <span>รวมบริการ MOPH</span>
+            </button>
+            <button 
+              className={`tabBtn ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              <LayoutDashboard size={16} />
+              <span>ระบบแดชบอร์ด</span>
+            </button>
           </div>
-        )}
+        </div>
 
-        {/* 3. DASHBOARD */}
-        {activeTab === 'dashboard' && (
-          <div className="systemsGrid">
-            {dashboardList.map((sys, idx) => (
-              <div key={idx} className="systemCard card">
-                <div className="cardHeader">
-                  <div className="iconWrapper" style={{ backgroundColor: '#E0F2F1', borderColor: '#26A69A' }}>
-                    <Image
-                      src="/images/common/logo-website.webp"
-                      alt="Logo"
-                      width={40}
-                      height={40}
-                    />
+        {/* Tab Contents */}
+        <div className="tabContent">
+          {/* MOPH SERVICES */}
+          {activeTab === 'moph' && (
+            <div className="systemsGrid">
+              {mophServices.map((sys, idx) => (
+                <div key={idx} className="systemCard moph-card">
+                  <div className="systemCard__inner">
+                    <div className="cardHeader">
+                      <div className="iconWrapper mophIcon">
+                        <Image
+                          src="/images/common/logo-website.webp"
+                          alt="MOPH Logo"
+                          width={36}
+                          height={36}
+                        />
+                      </div>
+                      <h3 className="cardHeader__title">{sys.title}</h3>
+                    </div>
+                    <p className="systemCard__desc">{sys.desc}</p>
+                    <div className="cardActions">
+                      <a href={sys.link} target="_blank" rel="noopener noreferrer" className="systemCard__btn">
+                        <span>เข้าสู่ระบบ</span>
+                        <ExternalLink size={14} />
+                      </a>
+                    </div>
                   </div>
-                  <h3>{sys.title}</h3>
                 </div>
-                <p>{sys.desc}</p>
-                <div className="cardActions">
-                  {sys.link.startsWith('http') ? (
-                    <a href={sys.link} target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
-                      เปิดดู Dashboard ↗
-                    </a>
-                  ) : (
-                    <Link href={sys.link} className="btn btn-outline btn-sm">
-                      เปิดดู Dashboard ↗
-                    </Link>
-                  )}
+              ))}
+            </div>
+          )}
+
+          {/* DASHBOARD LIST */}
+          {activeTab === 'dashboard' && (
+            <div className="systemsGrid">
+              {dashboardList.map((sys, idx) => (
+                <div key={idx} className="systemCard dashboard-card">
+                  <div className="systemCard__inner">
+                    <div className="cardHeader">
+                      <div className="iconWrapper dashboardIcon">
+                        <Image
+                          src="/images/common/logo-website.webp"
+                          alt="Dashboard Logo"
+                          width={36}
+                          height={36}
+                        />
+                      </div>
+                      <h3 className="cardHeader__title">{sys.title}</h3>
+                    </div>
+                    <p className="systemCard__desc">{sys.desc}</p>
+                    <div className="cardActions">
+                      {sys.link.startsWith('http') ? (
+                        <a href={sys.link} target="_blank" rel="noopener noreferrer" className="systemCard__btn">
+                          <span>เปิดดู Dashboard</span>
+                          <ExternalLink size={14} />
+                        </a>
+                      ) : (
+                        <Link href={sys.link} className="systemCard__btn">
+                          <span>เปิดดู Dashboard</span>
+                          <ExternalLink size={14} />
+                        </Link>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, UserPlus, Edit3, Trash2, Key, Mail, Shield, User, X, Check, Loader2, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, UserPlus, Edit3, Trash2, Mail, Shield, User, X, Check, Loader2, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react'
 import './page.css'
 
 interface Member {
@@ -49,6 +49,32 @@ export default function MembersAdminClient() {
   const [role, setRole] = useState<'member' | 'admin'>('member')
   const [modalError, setModalError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+
+  const handleSyncSalary = async () => {
+    if (!confirm('คุณต้องการซิงค์ข้อมูลสลิปเงินเดือนจากฐานข้อมูลภายนอกใช่หรือไม่? การดำเนินการนี้จะทำการอัปเดตข้อมูลบัญชีสลิปเงินเดือนของสมาชิกทุกคนที่มีชื่อผู้ใช้ตรงกับระบบเงินเดือน')) return
+
+    setSyncing(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await fetch('/api/member/sync-salary', {
+        method: 'POST'
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSuccess(`ซิงค์ข้อมูลเรียบร้อยแล้ว: อัปเดตข้อมูลสำเร็จ ${data.stats.matchedCount} รายการ`)
+        fetchMembers()
+      } else {
+        setError(data.error || 'การซิงค์ข้อมูลล้มเหลว')
+      }
+    } catch {
+      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อซิงค์ข้อมูล')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const checkCurrentUser = async () => {
     try {
@@ -80,8 +106,10 @@ export default function MembersAdminClient() {
   }
 
   useEffect(() => {
-    checkCurrentUser()
-    fetchMembers()
+    Promise.resolve().then(() => {
+      checkCurrentUser()
+      fetchMembers()
+    })
   }, [])
 
   const handleCreateClick = () => {
@@ -252,10 +280,16 @@ export default function MembersAdminClient() {
             <h1>แดชบอร์ดจัดการสมาชิก</h1>
             <p>เรียกดู เพิ่มสมาชิกใหม่ แก้ไขสิทธิ์การใช้งาน และข้อมูลรหัสผ่านบัญชีเงินเดือนของบุคลากรโรงพยาบาลเถิน</p>
           </div>
-          <button className="addMemberBtn" onClick={handleCreateClick}>
-            <UserPlus size={18} style={{ marginRight: '6px' }} />
-            เพิ่มสมาชิกใหม่
-          </button>
+          <div className="headerActions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button className="syncSalaryBtn" onClick={handleSyncSalary} disabled={syncing}>
+              <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} style={{ marginRight: '6px' }} />
+              {syncing ? 'กำลังซิงค์ข้อมูล...' : 'ซิงค์ข้อมูลเงินเดือน'}
+            </button>
+            <button className="addMemberBtn" onClick={handleCreateClick}>
+              <UserPlus size={18} style={{ marginRight: '6px' }} />
+              เพิ่มสมาชิกใหม่
+            </button>
+          </div>
         </header>
 
         {/* Stats Grid */}
@@ -367,7 +401,6 @@ export default function MembersAdminClient() {
                         <td className="memberId col-id" title={`#${member.id}`}>#{member.id}</td>
                         <td className="memberUser col-user" title={member.username}>
                           <div className="userFlex">
-                            <User size={14} className="userIcon" style={{ flexShrink: 0 }} />
                             <span className="truncate">{member.username}</span>
                           </div>
                         </td>
@@ -383,7 +416,6 @@ export default function MembersAdminClient() {
                         <td className="col-dept" title={member.department || '-'}>{member.department || '-'}</td>
                         <td className="col-role">
                           <span className={`roleBadge ${member.role}`}>
-                            <Shield size={10} style={{ marginRight: '3px', flexShrink: 0 }} />
                             {member.role === 'admin' ? 'แอดมิน' : 'ทั่วไป'}
                           </span>
                         </td>
@@ -457,7 +489,6 @@ export default function MembersAdminClient() {
                 <div className="formGroup">
                   <label>ชื่อผู้ใช้งาน (Username) *</label>
                   <div className="inputWrapper">
-                    <User size={16} className="inputIcon" />
                     <input
                       type="text"
                       value={username}
@@ -471,7 +502,6 @@ export default function MembersAdminClient() {
                 <div className="formGroup">
                   <label>ชื่อ-นามสกุล *</label>
                   <div className="inputWrapper">
-                    <User size={16} className="inputIcon" />
                     <input
                       type="text"
                       value={name}
@@ -485,7 +515,6 @@ export default function MembersAdminClient() {
                 <div className="formGroup">
                   <label>กลุ่มงาน / แผนก *</label>
                   <div className="inputWrapper">
-                    <User size={16} className="inputIcon" />
                     <input
                       type="text"
                       value={department}
@@ -499,7 +528,6 @@ export default function MembersAdminClient() {
                 <div className="formGroup">
                   <label>ตำแหน่ง</label>
                   <div className="inputWrapper">
-                    <User size={16} className="inputIcon" />
                     <input
                       type="text"
                       value={position}
@@ -512,7 +540,6 @@ export default function MembersAdminClient() {
                 <div className="formGroup">
                   <label>อีเมลติดต่อ (Email) *</label>
                   <div className="inputWrapper">
-                    <Mail size={16} className="inputIcon" />
                     <input
                       type="email"
                       value={email}
@@ -532,7 +559,6 @@ export default function MembersAdminClient() {
                   <div className="formGroup col-6">
                     <label>รหัสบุคลากรเงินเดือน (Username)</label>
                     <div className="inputWrapper">
-                      <Key size={16} className="inputIcon" />
                       <input
                         type="text"
                         value={salaryUser}
@@ -545,7 +571,6 @@ export default function MembersAdminClient() {
                   <div className="formGroup col-6">
                     <label>รหัสผ่านระบบเงินเดือน (Password)</label>
                     <div className="inputWrapper">
-                      <Key size={16} className="inputIcon" />
                       <input
                         type="text"
                         value={salaryPass}
@@ -564,7 +589,6 @@ export default function MembersAdminClient() {
                 <div className="formGroup">
                   <label>สิทธิ์การเข้าใช้งานระบบสมาชิก</label>
                   <div className="selectWrapper">
-                    <Shield size={16} className="inputIcon" />
                     <select
                       value={role}
                       onChange={(e) => setRole(e.target.value as 'member' | 'admin')}

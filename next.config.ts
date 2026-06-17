@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: blob: https:",
               "font-src 'self' https://fonts.gstatic.com",
               "frame-src 'self' https://app.powerbi.com https://*.moph.go.th https://www.youtube.com https://youtube.com https://docs.google.com https://www.facebook.com https://facebook.com https://www.google.com https://google.com",

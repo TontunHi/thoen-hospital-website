@@ -47,7 +47,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" className={ibmPlexSansThai.variable}>
+    <html lang="th" className={ibmPlexSansThai.variable} data-scroll-behavior="smooth">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('unhandledrejection', function(event) {
+                if (event.reason instanceof Event) {
+                  console.warn('Caught unhandled Promise rejection (Event):', event.reason.type, event.reason);
+                  event.preventDefault();
+                }
+              });
+            `
+          }}
+        />
+      </head>
       <body style={{ fontFamily: "var(--font-family)" }}>
         <Suspense fallback={<nav className="navbar" style={{ height: "var(--navbar-height)" }}></nav>}>
           <Navbar />

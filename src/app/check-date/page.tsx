@@ -99,10 +99,6 @@ export default function CheckDatePage() {
           <div className="cardDecorativeHeader"></div>
           
           <header className="appointHeader">
-            <div className="serviceBadge">
-              <CalendarRange size={16} />
-              <span>บริการประชาชน</span>
-            </div>
             <h1>ตรวจสอบตารางนัดหมายแพทย์</h1>
             <p>ค้นหาและตรวจสอบวันเวลานัดหมายการตรวจรักษากับโรงพยาบาลเถินได้ง่ายๆ สะดวก และรวดเร็ว</p>
           </header>

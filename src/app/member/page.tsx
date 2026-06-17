@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Briefcase, Calendar, Lock, Image, ClipboardCheck } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck } from 'lucide-react'
 import './page.css'
 
 export default async function MemberDashboardPage() {
@@ -48,14 +48,6 @@ export default async function MemberDashboardPage() {
     member: 'สมาชิกทั่วไป (Member)'
   }
   const displayRole = roleTranslation[member.role] || member.role || 'สมาชิกทั่วไป'
-
-  const registrationDate = member.created_at
-    ? new Date(member.created_at).toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    : '-'
 
   const hasSignature = !!member.signature_path
   const hasSalary = !!member.salary_user
@@ -187,7 +179,7 @@ export default async function MemberDashboardPage() {
             <Link href="/member/pr-requests" className="serviceCard">
               <div className="serviceCardHeader">
                 <div className="serviceIconWrapper prIcon">
-                  <Image size={24} />
+                  <ImageIcon size={24} />
                 </div>
                 <div className="statusIndicator success">
                   <span>เปิดใช้งาน</span>

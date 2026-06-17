@@ -65,40 +65,46 @@ export default async function ServicePage() {
 
 
   return (
-    <div className="container servicePage">
-      <div className="serviceHeader">
-        <h1>ระบบงานภายใน</h1>
-        <p>ศูนย์รวมลิงก์ระบบสารสนเทศและเครื่องมือภายในสำหรับบุคลากรโรงพยาบาลเถิน</p>
-      </div>
+    <div className="servicePage">
+      <div className="glowOrb glowOrb1"></div>
+      <div className="glowOrb glowOrb2"></div>
+      <div className="glowOrb glowOrb3"></div>
+      
+      <div className="serviceWrapper">
+        <div className="serviceHeader">
+          <h1>ระบบงานภายใน</h1>
+          <p>ศูนย์รวมลิงก์ระบบสารสนเทศและเครื่องมือภายในสำหรับบุคลากรโรงพยาบาลเถิน</p>
+        </div>
 
-      <div className="serviceGrid">
-        {internalSystems.map((sys, idx) => (
-          <div key={idx} className="serviceCard card">
-            <div className="cardHeader">
-              <div className="iconWrapper">
-                <Image
-                  src="/images/common/logo-website.webp"
-                  alt="Logo"
-                  width={40}
-                  height={40}
-                />
+        <div className="serviceGrid">
+          {internalSystems.map((sys, idx) => (
+            <div key={idx} className="serviceCard">
+              <div className="cardHeader">
+                <div className="iconWrapper">
+                  <Image
+                    src="/images/common/logo-website.webp"
+                    alt="Logo"
+                    width={40}
+                    height={40}
+                  />
+                </div>
+                <h3>{sys.title}</h3>
               </div>
-              <h3>{sys.title}</h3>
+              <p>{sys.desc}</p>
+              <div className="cardActions">
+                {sys.link.startsWith('http') ? (
+                  <a href={sys.link} target="_blank" rel="noopener noreferrer" className="btn">
+                    {sys.btnText}
+                  </a>
+                ) : (
+                  <Link href={sys.link} className="btn">
+                    {sys.btnText}
+                  </Link>
+                )}
+              </div>
             </div>
-            <p>{sys.desc}</p>
-            <div className="cardActions">
-              {sys.link.startsWith('http') ? (
-                <a href={sys.link} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm">
-                  {sys.btnText}
-                </a>
-              ) : (
-                <Link href={sys.link} className="btn btn-primary btn-sm">
-                  {sys.btnText}
-                </Link>
-              )}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )

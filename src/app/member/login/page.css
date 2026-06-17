@@ -268,3 +268,8 @@
   }
 
 }
+
+.memberLoginContainer ::selection {
+  background: rgba(52, 211, 153, 0.35);
+  color: #ffffff;
+}

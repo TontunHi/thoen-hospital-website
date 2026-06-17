@@ -34,12 +34,11 @@ export default function DentistryPage() {
           </div>
           <div className="dentalHero__content">
             <span className="dentalHero__badge">
-              <Sparkles size={16} style={{ marginRight: '6px', display: 'inline', verticalAlign: 'middle' }} />
+              <Sparkles size={16} />
               DENTAL CARE SERVICE
             </span>
             <h1 className="dentalHero__title">
               บริการด้านทันตกรรม (Dental Services)
-              <br />
               <span className="dentalHero__subTitle">โรงพยาบาลเถิน THOEN HOSPITAL</span>
             </h1>
             <p className="dentalHero__slogan">

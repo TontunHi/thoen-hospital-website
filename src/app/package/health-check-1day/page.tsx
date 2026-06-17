@@ -179,13 +179,12 @@ export default function HealthCheckPage() {
           </div>
           <div className="healthHero__content">
             <span className="healthHero__badge">
-              <HeartPulse size={16} style={{ marginRight: '6px', display: 'inline', verticalAlign: 'middle' }} />
+              <HeartPulse size={16} />
               HEALTH PROGRAM
             </span>
             <h1 className="healthHero__title">
               โปรแกรมตรวจสุขภาพ (Health Check Up Program)
-              <br />
-              <span style={{ fontSize: '1.8rem', fontWeight: 'normal' }}>โรงพยาบาลเถิน THOEN HOSPITAL</span>
+              <span className="healthHero__subtitle">โรงพยาบาลเถิน THOEN HOSPITAL</span>
             </h1>
             <p className="healthHero__slogan">
               "ใกล้บ้านใกล้ใจ รู้ผลได้ในหนึ่งวัน"

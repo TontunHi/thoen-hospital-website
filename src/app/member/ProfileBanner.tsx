@@ -25,7 +25,7 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [hasAvatar, setHasAvatar] = useState<boolean>(!!member.profile_path)
-  const [avatarTimestamp, setAvatarTimestamp] = useState<number>(Date.now())
+  const [avatarTimestamp, setAvatarTimestamp] = useState<number>(() => Date.now())
   const [uploading, setUploading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,14 +52,14 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
         body: formData,
       })
 
-      const data = await res.json()
+      const data = await res.ok ? await res.json() : null
 
-      if (res.ok && data.success) {
+      if (res.ok && data?.success) {
         setHasAvatar(true)
         setAvatarTimestamp(Date.now())
         router.refresh() // Refresh page to propagate changes
       } else {
-        setError(data.error || 'ไม่สามารถอัปโหลดรูปโปรไฟล์ได้')
+        setError(data?.error || 'ไม่สามารถอัปโหลดรูปโปรไฟล์ได้')
       }
     } catch (err) {
       console.error('Failed to upload avatar:', err)
@@ -109,8 +109,13 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
 
         <div className="userInfoGroup">
           <div className="userNameArea">
-            <h2>{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
-            <span className="usernameTag">@{member.username}</span>
+            <div className="userNameRow">
+              <h2>{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
+              <span className="usernameTag">@{member.username}</span>
+              <span className="usernameTag roleTag">
+                {displayRole}
+              </span>
+            </div>
             {error && <div className="avatarErrorText">{error}</div>}
           </div>
 

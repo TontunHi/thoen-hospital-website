@@ -36,7 +36,7 @@
 .dentalHero__overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(8, 110, 130, 0.95) 0%, rgba(14, 116, 144, 0.7) 100%);
+  background: linear-gradient(135deg, rgba(8, 110, 130, 0.95) 0%, rgba(14, 116, 144, 0.8) 100%);
 }
 
 .dentalHero__content {
@@ -50,37 +50,50 @@
 }
 
 .dentalHero__badge {
-  background: rgba(34, 211, 238, 0.2);
-  border: 1px solid rgba(34, 211, 238, 0.4);
-  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.15);
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  color: #67e8f9;
   padding: 6px 16px;
   border-radius: 50px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
   align-self: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .dentalHero__title {
-  font-size: 2.5rem;
+  font-size: 2.6rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
-  line-height: 1.2;
+  line-height: 1.3;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .dentalHero__subTitle {
-  font-size: 1.8rem;
-  font-weight: normal;
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 500;
   color: #cffafe;
+  margin-top: 0.5rem;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .dentalHero__slogan {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 500;
+  color: #e2f8ff;
   opacity: 0.95;
-  color: #a5f3fc;
+  margin-top: 1.2rem;
+  border-left: 3px solid #22d3ee;
+  padding-left: 12px;
+  line-height: 1.2;
 }
 
 /* Meta Card */
