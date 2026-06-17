@@ -80,7 +80,7 @@ a {
   --gray-900: #1A2E1F;
 
   /* Typography */
-  --font-family: var(--font-ibm-plex-sans-thai), 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-family: var(--font-sarabun), 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
