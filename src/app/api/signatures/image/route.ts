@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       )
     }
 
-    const filepath = path.join(process.cwd(), members[0].signature_path)
+    const filepath = path.join(/*turbopackIgnore: true*/ process.cwd(), members[0].signature_path)
 
     if (!fs.existsSync(filepath)) {
       return NextResponse.json(

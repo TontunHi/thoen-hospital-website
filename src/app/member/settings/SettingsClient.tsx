@@ -11,7 +11,6 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [featureSalary, setFeatureSalary] = useState(initialSettings['feature_salary'] !== '0')
   const [featurePrRequests, setFeaturePrRequests] = useState(initialSettings['feature_pr_requests'] !== '0')
   const [featureApprovals, setFeatureApprovals] = useState(initialSettings['feature_approvals'] !== '0')
-  const [featureRoomBooking, setFeatureRoomBooking] = useState(initialSettings['feature_room_booking'] !== '0')
 
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
@@ -27,10 +26,9 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         feature_signature: featureSignature ? '1' : '0',
         feature_salary: featureSalary ? '1' : '0',
         feature_pr_requests: featurePrRequests ? '1' : '0',
-        feature_approvals: featureApprovals ? '1' : '0',
-        feature_room_booking: featureRoomBooking ? '1' : '0'
+        feature_approvals: featureApprovals ? '1' : '0'
       }
-      const res = await fetch('/api/member/room-bookings/settings', {
+      const res = await fetch('/api/member/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -117,22 +115,6 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                   type="checkbox" 
                   checked={featureApprovals} 
                   onChange={(e) => setFeatureApprovals(e.target.checked)} 
-                />
-                <span className="slider"></span>
-              </label>
-            </div>
-
-            {/* Toggle: Room Booking */}
-            <div className="toggleRow">
-              <div className="toggleLabelInfo">
-                <span className="toggleLabelText">ระบบจองห้องประชุม</span>
-                <span className="toggleDescriptionText">อนุญาตให้สมาชิกทั่วไปจองห้องประชุมและดูปฏิทิน</span>
-              </div>
-              <label className="switch">
-                <input 
-                  type="checkbox" 
-                  checked={featureRoomBooking} 
-                  onChange={(e) => setFeatureRoomBooking(e.target.checked)} 
                 />
                 <span className="slider"></span>
               </label>

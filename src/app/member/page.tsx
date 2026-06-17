@@ -272,46 +272,6 @@ export default async function MemberDashboardPage() {
             </div>
           )}
 
-          {/* Card 5: Room Booking */}
-          {hasAccess('feature_room_booking') ? (
-            <Link href="/member/room-bookings" className="serviceCard">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper bookingIcon">
-                  <Calendar size={24} />
-                </div>
-                <div className="statusIndicator success">
-                  <span>เปิดใช้งาน</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>ระบบจองห้องประชุม</h4>
-                <p>ตรวจสอบตารางปฏิทิน จองห้องประชุม และติดตามสถานะคำขอใช้ห้องประชุมของโรงพยาบาล</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">เข้าสู่ระบบจองห้องประชุม</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </Link>
-          ) : (
-            <div className="serviceCard serviceCardDisabled">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper bookingIcon" style={{ opacity: 0.5 }}>
-                  <Lock size={24} />
-                </div>
-                <div className="statusIndicator error">
-                  <span>ปิดบริการชั่วคราว</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>ระบบจองห้องประชุม</h4>
-                <p>ตรวจสอบตารางปฏิทิน จองห้องประชุม และติดตามสถานะคำขอใช้ห้องประชุมของโรงพยาบาล</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </div>
-          )}
 
         </div>
 
@@ -321,26 +281,6 @@ export default async function MemberDashboardPage() {
             <div className="adminSectionDivider"></div>
             <h3 className="sectionTitle adminSectionTitle">ระบบควบคุมและตั้งค่า (สำหรับผู้ดูแลระบบ)</h3>
             <div className="servicesGrid">
-              {/* Card 6: Room Booking Admin Settings (Visible to Admins only) */}
-              <Link href="/member/room-bookings/admin" className="serviceCard">
-                <div className="serviceCardHeader">
-                  <div className="serviceIconWrapper bookingIcon" style={{ backgroundColor: '#fff1f2', color: '#f43f5e', borderColor: '#ffe4e6' }}>
-                    <Shield size={24} />
-                  </div>
-                  <div className="statusIndicator error">
-                    <span>ผู้ดูแลระบบ</span>
-                  </div>
-                </div>
-                <div className="serviceCardBody">
-                  <h4>จัดการระบบห้องประชุม</h4>
-                  <p>จัดการข้อมูลห้องประชุม อุปกรณ์อาหารเสิร์ฟ และตรวจสอบอนุมัติการจองห้องประชุมทั้งหมด</p>
-                </div>
-                <div className="serviceCardFooter">
-                  <span className="actionText" style={{ color: '#e11d48' }}>เข้าสู่ระบบจัดการแอดมิน</span>
-                  <ChevronRight size={16} className="chevronIcon" style={{ color: '#e11d48' }} />
-                </div>
-              </Link>
-
               {/* Card 7: System Feature Access Toggles (Visible to Admins only) */}
               <Link href="/member/settings" className="serviceCard">
                 <div className="serviceCardHeader">
@@ -353,7 +293,7 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardBody">
                   <h4>เปิด/ปิดฟังก์ชันและตั้งค่าระบบ</h4>
-                  <p>จัดการสิทธิ์และควบคุมการเข้าใช้งานของสมาชิกทั่วไป เช่น เปิด/ปิดฟังก์ชันลายเซ็น, สลิปเงินเดือน, ขอผลิตสื่อ และจองห้องประชุม</p>
+                  <p>จัดการสิทธิ์และควบคุมการเข้าใช้งานของสมาชิกทั่วไป เช่น เปิด/ปิดฟังก์ชันลายเซ็น, สลิปเงินเดือน และขอผลิตสื่อ</p>
                 </div>
                 <div className="serviceCardFooter" style={{ color: '#059669' }}>
                   <span className="actionText">เข้าสู่หน้าตั้งค่าระบบ</span>

@@ -126,8 +126,7 @@ async function initializeDb(poolInstance: mysql.Pool) {
       { key: 'feature_signature', val: '1' },
       { key: 'feature_salary', val: '1' },
       { key: 'feature_pr_requests', val: '1' },
-      { key: 'feature_approvals', val: '1' },
-      { key: 'feature_room_booking', val: '1' }
+      { key: 'feature_approvals', val: '1' }
     ]
     for (const setting of defaultSettings) {
       await connection.execute(
