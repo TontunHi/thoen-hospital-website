@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import './page.css'
 import { prisma } from '@/lib/prisma'
 
@@ -117,59 +116,40 @@ export default async function NewsListPage(props: {
 
       {news.length > 0 ? (
         <>
-          <div className="newsListGrid">
+          <div className="newsListForum">
             {news.map((item: any) => {
-              const coverImage = item.images.length > 0 ? item.images[0].imageUrl : null
+              const getCategoryLabel = (cat: string) => {
+                switch (cat) {
+                  case 'PR': return 'ประชาสัมพันธ์'
+                  case 'TRAINING': return 'อบรม/สัมมนา'
+                  case 'JOBS': return 'รับสมัครงาน'
+                  case 'ANNOUNCEMENT': return 'ประกาศ'
+                  default: return 'ข่าวสาร'
+                }
+              }
+
               return (
-                <Link key={item.id} href={`/news/${item.slug}`} className="publicNewsCard card">
-                  <div className="newsCardImage">
-                    {coverImage ? (
-                      <Image
-                        src={coverImage}
-                        alt={item.title}
-                        fill
-                        style={{ objectFit: 'cover' }}
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                      />
-                    ) : (
-                      <div className="newsCardPlaceholder">
-                        {item.pdfUrl ? (
-                          <div className="pdfPlaceholderContent">
-                            <span className="placeholderIcon">PDF</span>
-                            <span className="placeholderText">ข่าวแนบเอกสาร PDF</span>
-                          </div>
-                        ) : (
-                          <span className="placeholderIcon">ข่าว</span>
-                        )}
-                      </div>
-                    )}
+                <Link key={item.id} href={`/news/${item.slug}`} className="newsForumRow">
+                  <div className="newsRowMeta">
+                    <span className={`newsRowCategory badge-${item.category.toLowerCase()}`}>
+                      {getCategoryLabel(item.category)}
+                    </span>
+                    <time className="newsRowDate">
+                      {new Date(item.publishedAt).toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </time>
                   </div>
                   
-                  <div className="newsCardBody">
-                    <div className="newsCardMeta">
-                      <time>
-                        {new Date(item.publishedAt).toLocaleDateString('th-TH', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </time>
-                      
-                    </div>
-
-                    <h2 className="newsCardTitle">{item.title}</h2>
-                    <p className="newsCardExcerpt">
-                      {item.excerpt || (item.content ? item.content.substring(0, 120) + '...' : 'ข่าวสารประชาสัมพันธ์รายละเอียดแนบไฟล์')}
-                    </p>
-
-                    <span className="newsCardLink">
-                      อ่านรายละเอียด
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14"/>
-                        <path d="m12 5 7 7-7 7"/>
-                      </svg>
-                    </span>
-                  </div>
+                  <h2 className="newsRowTitle">{item.title}</h2>
+                  
+                  <span className="newsRowChevron">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6"/>
+                    </svg>
+                  </span>
                 </Link>
               )
             })}

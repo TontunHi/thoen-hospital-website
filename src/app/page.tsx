@@ -185,7 +185,7 @@ export default async function HomePage() {
             </div>
             <div className="director__content">
               <span className="badge badge-primary">สารจากผู้อำนวยการ</span>
-              <h2 className="director__name">พญ.นฤนาท จอมภาปิน</h2>
+              <h2 className="director__name">แพทย์หญิง นฤนาท จอมภาปิน</h2>
               <p className="director__position">ผู้อำนวยการโรงพยาบาลเถิน</p>
               <blockquote className="director__quote">
                 <p>
@@ -210,56 +210,43 @@ export default async function HomePage() {
 
           {latestNews.length > 0 ? (
             <>
-              <div className="news-grid">
+              <div className="news-list-forum">
                 {latestNews.map((item: NewsListItem) => {
-                  const coverImage = item.images && item.images.length > 0 ? item.images[0].imageUrl : null
+                  const getCategoryLabel = (cat: string) => {
+                    switch (cat) {
+                      case 'PR': return 'ประชาสัมพันธ์'
+                      case 'TRAINING': return 'อบรม/สัมมนา'
+                      case 'JOBS': return 'รับสมัครงาน'
+                      case 'ANNOUNCEMENT': return 'ประกาศ'
+                      default: return 'ข่าวสาร'
+                    }
+                  }
 
                   return (
-                    <Link key={item.id} href={`/news/${item.slug}`} className="news-card card">
-                      <div className="news-card__image">
-                        {coverImage ? (
-                          <Image
-                            src={coverImage}
-                            alt={item.title}
-                            fill
-                            style={{ objectFit: 'cover' }}
-                            sizes="(max-width: 768px) 100vw, 33vw"
-                          />
-                        ) : (
-                          <div className="news-card__placeholder">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <rect x="3" y="3" width="18" height="18" rx="2"/>
-                              <path d="m3 16 5-5c.928-.893 2.072-.893 3 0l5 5"/>
-                              <path d="m14 14 1-1c.928-.893 2.072-.893 3 0l3 3"/>
-                              <circle cx="15.5" cy="8.5" r="1.5"/>
-                            </svg>
-                          </div>
-                        )}
+                    <Link key={item.id} href={`/news/${item.slug}`} className="news-forum-row">
+                      <div className="news-row-meta">
+                        <span className={`news-row-category badge-${item.category.toLowerCase()}`}>
+                          {getCategoryLabel(item.category)}
+                        </span>
+                        <time className="news-row-date">
+                          {new Date(item.publishedAt).toLocaleDateString('th-TH', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </time>
                       </div>
-                      <div className="news-card__body">
-                        <div className="news-card__meta" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--primary)', marginBottom: '0.5rem', fontWeight: 600 }}>
-                          <time className="news-card__date" style={{ margin: 0 }}>
-                            {new Date(item.publishedAt).toLocaleDateString('th-TH', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </time>
-                          
-                        </div>
-                        <h3 className="news-card__title">{item.title}</h3>
-                        <p className="news-card__excerpt">{item.excerpt || (item.content ? item.content.substring(0, 100) + '...' : '')}</p>
-                      <span className="news-card__link">
-                        อ่านต่อ
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 12h14"/>
-                          <path d="m12 5 7 7-7 7"/>
+                      
+                      <h3 className="news-row-title">{item.title}</h3>
+                      
+                      <span className="news-row-chevron">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 18l6-6-6-6"/>
                         </svg>
                       </span>
-                    </div>
-                  </Link>
-                )})
-                }
+                    </Link>
+                  )
+                })}
               </div>
               <div className="news-section__more">
                 <Link href="/news" className="btn btn-outline">
