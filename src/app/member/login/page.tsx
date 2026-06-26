@@ -43,7 +43,7 @@ export default function MemberLoginPage() {
 
       if (res.ok) {
         setStep(2)
-        setSuccess(`รหัส OTP ถูกส่งไปยังอีเมล ${email} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย`)
+        setSuccess(`รหัส OTP ถูกส่งไปยังอีเมล ${email} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย หรือกล่องจดหมายขยะ`)
         setCountdown(60) // Cooldown 60s
       } else {
         setError(data.error || 'ไม่สามารถขอรหัส OTP ได้ในขณะนี้')

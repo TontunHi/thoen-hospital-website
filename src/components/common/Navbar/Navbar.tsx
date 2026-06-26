@@ -229,6 +229,15 @@ export default function Navbar() {
 
   return (
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
+      <div className="navbar__mourning-ribbon">
+        <Image
+          src="/images/home/black.webp"
+          alt="ไว้อาลัย"
+          width={40}
+          height={80}
+          priority
+        />
+      </div>
       <div className="navbar__container container">
         <Link href="/" className="navbar__logo">
           <Image

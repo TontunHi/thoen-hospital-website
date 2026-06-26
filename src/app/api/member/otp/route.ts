@@ -75,26 +75,38 @@ export async function POST(request: Request) {
       await transporter.sendMail({
         from: fromName,
         to: trimmedEmail,
-        subject: `รหัส OTP สำหรับเข้าสู่ระบบสมาชิก: ${otp}`,
+        subject: `รหัส OTP สำหรับเข้าสู่ระบบสมาชิกเว็บไซต์ โรงพยาบาลเถิน: ${otp}`,
         html: `
-          <div style="font-family: sans-serif; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 500px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 500px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
             <div style="text-align: center; margin-bottom: 20px;">
-              <h2 style="color: #059669; margin: 0;">โรงพยาบาลเถิน</h2>
-              <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0;">ระบบยืนยันตัวตนเข้าสู่ระบบสมาชิก</p>
+              <h2 style="color: #0d9488; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">โรงพยาบาลเถิน</h2>
+              <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0; font-weight: 500;">ระบบยืนยันตัวตนสมาชิก (One-Time Password)</p>
             </div>
-            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-            <p>เรียนคุณ <strong>${trimmedUsername}</strong>,</p>
-            <p>คุณได้ขอรหัส OTP สำหรับเข้าสู่ระบบสมาชิก รหัสอ้างอิงและใช้งานของคุณคือ:</p>
-            <div style="font-size: 36px; font-weight: bold; letter-spacing: 6px; color: #d97706; margin: 25px 0; text-align: center; background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px dashed #f59e0b;">
+            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+            
+            <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 10px 0;">
+              สวัสดีครับ นี่เป็นระบบข้อความอัตโนมัติ
+            </p>
+            <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 15px 0;">
+              คุณได้ทำรายการขอรับรหัสผ่านครั้งเดียว (OTP) เพื่อความปลอดภัยในการเข้าใช้งานบัญชี <strong>${trimmedUsername}</strong> ของระบบสมาชิกโรงพยาบาลเถิน รหัสผ่านของคุณคือ:
+            </p>
+            
+            <div style="font-size: 38px; font-weight: 800; letter-spacing: 8px; color: #d97706; margin: 25px 0; text-align: center; background: #fffbeb; padding: 18px; border-radius: 10px; border: 1.5px dashed #f59e0b;">
               ${otp}
             </div>
-            <p style="color: #ef4444; font-size: 13px; text-align: center; margin-top: 20px;">
+            
+            <p style="color: #dc2626; font-size: 13px; text-align: center; margin: 20px 0; font-weight: 500;">
               * รหัส OTP นี้มีอายุการใช้งาน 5 นาทีเท่านั้นเพื่อความปลอดภัย
             </p>
-            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0 0 0;" />
-            <p style="color: #94a3b8; font-size: 11px; text-align: center; margin-top: 10px;">
-              ข้อความฉบับนี้ส่งโดยระบบอัตโนมัติ กรุณาอย่าตอบกลับอีเมลนี้
-            </p>
+            
+            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 25px 0;" />
+            
+            <div style="text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.6;">
+              <p style="margin: 0 0 5px 0; font-weight: 600;">โรงพยาบาลเถิน จังหวัดลำปาง</p>
+              <p style="margin: 0 0 5px 0;">364 หมู่ 2 ถนนพหลโยธิน ตำบลล้อมแรด อำเภอเถิน จังหวัดลำปาง 52160</p>
+              <p style="margin: 0 0 10px 0;">โทรศัพท์: 054-291316-8</p>
+              <p style="margin: 0; color: #cbd5e1;">อีเมลฉบับนี้เป็นการส่งจากระบบอัตโนมัติ กรุณาอย่าตอบกลับอีเมลนี้</p>
+            </div>
           </div>
         `,
       })
