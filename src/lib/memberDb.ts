@@ -147,6 +147,12 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
   }
   await initPromise
 
-  const [results] = await currentPool.execute(sql, params)
-  return results as any[]
+  const connection = await currentPool.getConnection()
+  try {
+    await connection.query("SET NAMES utf8mb4")
+    const [results] = await connection.execute(sql, params)
+    return results as any[]
+  } finally {
+    connection.release()
+  }
 }
