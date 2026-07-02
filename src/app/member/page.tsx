@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop } from 'lucide-react'
 import './page.css'
 
 export default async function MemberDashboardPage() {
@@ -42,6 +42,15 @@ export default async function MemberDashboardPage() {
   const isAdmin = member.role === 'admin'
   const isFeatureEnabled = (key: string) => settings[key] !== '0'
   const hasAccess = (key: string) => isAdmin || isFeatureEnabled(key)
+
+  const userPosition = (member.position || '').trim()
+  const WORK_AUTHORIZED_POSITIONS = [
+    'เจ้าพนักงานเครื่องคอมพิวเตอร์',
+    'นักวิชาการคอมพิวเตอร์',
+    'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
+    'ผู้อำนวยการ',
+  ]
+  const isWorkAuthorized = WORK_AUTHORIZED_POSITIONS.includes(userPosition)
 
   const roleTranslation: Record<string, string> = {
     admin: 'ผู้ดูแลระบบ (Admin)',
@@ -264,6 +273,27 @@ export default async function MemberDashboardPage() {
             </div>
           )}
 
+          {/* Card 5: Mechanical Work Assignments System */}
+          {isWorkAuthorized && (
+            <Link href="/member/create-work" className="serviceCard">
+              <div className="serviceCardHeader">
+                <div className="serviceIconWrapper salaryIcon">
+                  <Laptop size={24} />
+                </div>
+                <div className="statusIndicator success">
+                  <span>เปิดใช้งาน</span>
+                </div>
+              </div>
+              <div className="serviceCardBody">
+                <h4>ระบบมอบหมายและติดตามงานช่างฯ</h4>
+                <p>ส่งคำร้องขอพัฒนาโปรแกรม ดึงข้อมูลคลังข้อมูล ซ่อมแซมระบบ บำรุงรักษาวัสดุอุปกรณ์ และติดตามขั้นตอนการทำงานช่าง</p>
+              </div>
+              <div className="serviceCardFooter">
+                <span className="actionText">เข้าสู่ระบบติดตามงานช่างฯ</span>
+                <ChevronRight size={16} className="chevronIcon" />
+              </div>
+            </Link>
+          )}
 
         </div>
 

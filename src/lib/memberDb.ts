@@ -134,6 +134,29 @@ async function initializeDb(poolInstance: mysql.Pool) {
         [setting.key, setting.val]
       )
     }
+
+
+
+    // Initialize Track Work System (Single Table Consolidation)
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS work_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        request_no VARCHAR(50) UNIQUE NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        created_by INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        assignees TEXT NULL,
+        attachments TEXT NULL,
+        status_history TEXT NULL,
+        progress_notes TEXT NULL,
+        completion TEXT NULL,
+        review TEXT NULL,
+        FOREIGN KEY (created_by) REFERENCES members(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
   } finally {
     connection.release()
   }

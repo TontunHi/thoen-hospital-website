@@ -15,7 +15,7 @@ export async function GET() {
 
     // Retrieve fresh info from database (including salary credentials status and role)
     const users = await queryMemberDb(
-      'SELECT username, email, name, department, salary_user, salary_pass, role FROM members WHERE username = ? AND email = ?',
+      'SELECT username, email, name, department, position, salary_user, salary_pass, role FROM members WHERE username = ? AND email = ?',
       [session.username, session.email]
     )
 
@@ -35,6 +35,7 @@ export async function GET() {
         email: user.email,
         name: user.name,
         department: user.department,
+        position: user.position || '',
         role: user.role || 'member',
         hasSalaryCredentials: !!(user.salary_user && user.salary_pass),
       },
