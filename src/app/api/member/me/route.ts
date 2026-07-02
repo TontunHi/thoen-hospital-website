@@ -27,6 +27,25 @@ export async function GET() {
     }
 
     const user = users[0]
+    const position = (user.position || '').trim()
+
+    // Query dynamic work system permissions from database
+    let isWorkAuthorized = user.role === 'admin'
+    let canCreateWork = user.role === 'admin'
+
+    if (!isWorkAuthorized && position) {
+      const perms = await queryMemberDb(
+        "SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)",
+        [position]
+      )
+      const keys = perms.map((p) => p.permission_key)
+      if (keys.includes('create_work') || keys.includes('view_all_work')) {
+        isWorkAuthorized = true
+      }
+      if (keys.includes('create_work')) {
+        canCreateWork = true
+      }
+    }
 
     return NextResponse.json({
       authenticated: true,
@@ -38,6 +57,8 @@ export async function GET() {
         position: user.position || '',
         role: user.role || 'member',
         hasSalaryCredentials: !!(user.salary_user && user.salary_pass),
+        isWorkAuthorized,
+        canCreateWork
       },
     })
   } catch (error: any) {

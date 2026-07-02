@@ -157,6 +157,41 @@ async function initializeDb(poolInstance: mysql.Pool) {
         FOREIGN KEY (created_by) REFERENCES members(id) ON DELETE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
+
+    // Initialize Position Permissions Table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS position_permissions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        permission_key VARCHAR(100) NOT NULL,
+        position_name VARCHAR(150) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_permission_position (permission_key, position_name)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    // Seed default permissions if table is empty
+    const [existingPerms] = await connection.query('SELECT COUNT(*) as cnt FROM position_permissions')
+    if ((existingPerms as any)[0]?.cnt === 0) {
+      const defaultPermissions = [
+        // create_work permissions
+        { key: 'create_work', pos: 'เจ้าพนักงานเครื่องคอมพิวเตอร์' },
+        { key: 'create_work', pos: 'นักวิชาการคอมพิวเตอร์' },
+        { key: 'create_work', pos: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์' },
+        { key: 'create_work', pos: 'ผู้อำนวยการ' },
+        // view_all_work permissions
+        { key: 'view_all_work', pos: 'ผู้อำนวยการ' },
+        { key: 'view_all_work', pos: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์' },
+        { key: 'view_all_work', pos: 'นักวิชาการคอมพิวเตอร์' },
+        { key: 'view_all_work', pos: 'เจ้าพนักงานเครื่องคอมพิวเตอร์' }
+      ]
+
+      for (const perm of defaultPermissions) {
+        await connection.execute(
+          'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
+          [perm.key, perm.pos]
+        )
+      }
+    }
   } finally {
     connection.release()
   }

@@ -44,13 +44,14 @@ export default async function MemberDashboardPage() {
   const hasAccess = (key: string) => isAdmin || isFeatureEnabled(key)
 
   const userPosition = (member.position || '').trim()
-  const WORK_AUTHORIZED_POSITIONS = [
-    'เจ้าพนักงานเครื่องคอมพิวเตอร์',
-    'นักวิชาการคอมพิวเตอร์',
-    'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
-    'ผู้อำนวยการ',
-  ]
-  const isWorkAuthorized = WORK_AUTHORIZED_POSITIONS.includes(userPosition)
+  let isWorkAuthorized = member.role === 'admin'
+  if (!isWorkAuthorized && userPosition) {
+    const workPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key IN ('create_work', 'view_all_work') AND TRIM(position_name) = TRIM(?)",
+      [userPosition]
+    )
+    isWorkAuthorized = (workPerms[0]?.count || 0) > 0
+  }
 
   const roleTranslation: Record<string, string> = {
     admin: 'ผู้ดูแลระบบ (Admin)',

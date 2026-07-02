@@ -40,7 +40,7 @@ export default function CreateWorkPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('all') // all, today, week, month
 
-  const [currentUser, setCurrentUser] = useState<{ id: number; name: string; position: string; role: string } | null>(null)
+  const [currentUser, setCurrentUser] = useState<{ id: number; name: string; position: string; role: string; isWorkAuthorized?: boolean; canCreateWork?: boolean } | null>(null)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -173,22 +173,9 @@ export default function CreateWorkPage() {
     }
   }
 
-  // Exact allowed positions for the work tracking system
-  const WORK_AUTHORIZED_POSITIONS = [
-    'เจ้าพนักงานเครื่องคอมพิวเตอร์',
-    'นักวิชาการคอมพิวเตอร์',
-    'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
-    'ผู้อำนวยการ',
-  ]
-
-  // Check if current user position can create a task
-  const userPosition = (currentUser?.position || '').trim()
-  const isAuthorized = WORK_AUTHORIZED_POSITIONS.includes(userPosition)
-
-  // Who can create (submit) new work requests
-  const canCreate = userPosition === 'เจ้าพนักงานเครื่องคอมพิวเตอร์' ||
-                    userPosition === 'นักวิชาการคอมพิวเตอร์' ||
-                    userPosition === 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์'
+  // Check authorization dynamically from currentUser permission flags (bypassed if admin)
+  const isAuthorized = currentUser?.role === 'admin' || !!currentUser?.isWorkAuthorized
+  const canCreate = currentUser?.role === 'admin' || !!currentUser?.canCreateWork
 
   // Calculate status counts
   const counts = {

@@ -12,11 +12,16 @@ async function canCreateWork(username: string): Promise<{ authorized: boolean; m
   }
 
   const member = members[0]
-  const position = member.position || ''
-  const isAuthorized = 
-    member.role === 'admin' ||
-    position.includes('ดิจิทัลทางการแพทย์') ||
-    position.includes('เจ้าพนักงานเครื่องคอมพิวเตอร์')
+  const position = (member.position || '').trim()
+  
+  let isAuthorized = member.role === 'admin'
+  if (!isAuthorized && position) {
+    const createWorkPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'create_work' AND TRIM(position_name) = TRIM(?)",
+      [position]
+    )
+    isAuthorized = (createWorkPerms[0]?.count || 0) > 0
+  }
 
   return { 
     authorized: isAuthorized, 
@@ -124,10 +129,14 @@ export async function GET(request: Request) {
     const position = currentMember.position || ''
     const role = currentMember.role
 
-    const canSeeAll = 
-      role === 'admin' ||
-      position.includes('ผู้อำนวยการ') ||
-      position.includes('ดิจิทัลทางการแพทย์')
+    let canSeeAll = role === 'admin'
+    if (!canSeeAll && position) {
+      const seeAllPerms = await queryMemberDb(
+        "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'view_all_work' AND TRIM(position_name) = TRIM(?)",
+        [position]
+      )
+      canSeeAll = (seeAllPerms[0]?.count || 0) > 0
+    }
 
     // Retrieve all work requests
     const query = `
