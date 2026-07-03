@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
     // 3. Send OTP to email
     try {
-      const smtpUser = process.env.MEMBER_OTP_EMAIL_USER || 'pisutyimkuson@gmail.com'
+      const smtpUser = process.env.MEMBER_OTP_EMAIL_USER || ''
       const fromName = `"ระบบสมาชิก โรงพยาบาลเถิน" <${smtpUser}>`
       await transporter.sendMail({
         from: fromName,
