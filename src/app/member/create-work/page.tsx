@@ -221,6 +221,7 @@ export default function CreateWorkPage() {
     switch (status) {
       case 'pending': return 'status-pending'
       case 'assigned': return 'status-assigned'
+      case 'waiting': return 'status-waiting'
       case 'in_progress': return 'status-progress'
       case 'completed': return 'status-completed'
       case 'reviewed': return 'status-reviewed'
@@ -232,6 +233,7 @@ export default function CreateWorkPage() {
     switch (status) {
       case 'pending': return 'รอการมอบหมาย'
       case 'assigned': return 'มอบหมายแล้ว'
+      case 'waiting': return 'รอดำเนินการ'
       case 'in_progress': return 'กำลังดำเนินการ'
       case 'completed': return 'เสร็จสิ้นรอประเมิน'
       case 'reviewed': return 'ประเมินแล้ว/ปิดงาน'

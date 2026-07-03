@@ -78,7 +78,7 @@ interface WorkRequestDetail {
   request_no: string
   title: string
   description: string
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'reviewed'
+  status: 'pending' | 'assigned' | 'waiting' | 'in_progress' | 'completed' | 'reviewed'
   created_by: number
   created_at: string
   updated_at: string
@@ -137,6 +137,8 @@ export default function ApprovalsInboxClient() {
   const [waitingFor, setWaitingFor] = useState('')
   const [blockers, setBlockers] = useState('')
   const [startDate, setStartDate] = useState('')
+  const [progressNote, setProgressNote] = useState('')
+  const [activeActionTab, setActiveActionTab] = useState<'waiting' | 'in_progress'>('in_progress')
 
   // Phase 4 - Completion form states
   const [completedDate, setCompletedDate] = useState('')
@@ -267,6 +269,8 @@ export default function ApprovalsInboxClient() {
     setWaitingFor('')
     setBlockers('')
     setStartDate('')
+    setProgressNote('')
+    setActiveActionTab('in_progress')
     setCompletedDate('')
     setCompletedTime('')
 
@@ -376,7 +380,7 @@ export default function ApprovalsInboxClient() {
     }
   }
 
-  const submitWorkPhase = async (phaseNum: number) => {
+  const submitWorkPhase = async (phaseNum: number, targetStatus?: 'waiting' | 'in_progress') => {
     if (!selectedWork) return
     setWorkLoading(true)
 
@@ -396,9 +400,20 @@ export default function ApprovalsInboxClient() {
       }
       payload.assignees = assignees
     } else if (phaseNum === 3) {
-      payload.waitingFor = waitingFor
-      payload.blockers = blockers
-      payload.startDate = startDate || null
+      if (!targetStatus) {
+        alert('ไม่ระบุสถานะงานเป้าหมาย')
+        setWorkLoading(false)
+        return
+      }
+      payload.targetStatus = targetStatus
+      if (targetStatus === 'waiting') {
+        payload.waitingFor = waitingFor
+        payload.blockers = blockers
+        payload.note = progressNote
+      } else {
+        payload.startDate = startDate || null
+        payload.details = progressNote
+      }
       payload.attachments = phaseAttachments
     } else if (phaseNum === 4) {
       if (!completedDate || !completedTime) {
@@ -576,6 +591,7 @@ export default function ApprovalsInboxClient() {
     switch (status) {
       case 'pending': return 'รอการมอบหมาย'
       case 'assigned': return 'มอบหมายแล้ว'
+      case 'waiting': return 'รอดำเนินการ'
       case 'in_progress': return 'กำลังดำเนินการ'
       case 'completed': return 'เสร็จสิ้นรอประเมิน'
       case 'reviewed': return 'ประเมินแล้ว/ปิดงาน'
@@ -713,6 +729,164 @@ export default function ApprovalsInboxClient() {
         </div>
       </div>
     )
+  }
+
+  const getMergedTimeline = () => {
+    if (!selectedWork) return []
+
+    const events: Array<{
+      id: string
+      time: string
+      title: string
+      type: string
+      user: string
+      position?: string
+      comment?: string
+      details?: React.ReactNode
+    }> = []
+
+    // 1. Add Creation event
+    events.push({
+      id: 'create',
+      time: selectedWork.created_at,
+      title: 'สร้างคำขอจัดทำรายงาน/งานคอมพิวเตอร์',
+      type: 'pending',
+      user: selectedWork.creator_name || '—',
+      position: selectedWork.creator_dept || 'ไม่ระบุกลุ่มงาน',
+      comment: selectedWork.description,
+      details: (
+        <>
+          {/* Phase 1 Attachments */}
+          {selectedWork.attachments.filter(a => a.phase === 1).length > 0 && (
+            <div className="timeline-attachments" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {selectedWork.attachments.filter(a => a.phase === 1).map(att => (
+                <a key={att.file_path} href={att.file_path} target="_blank" rel="noreferrer" className="timeline-att-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', color: '#475569', textDecoration: 'none' }}>
+                  {att.file_type === 'pdf' ? '📄' : '🖼️'} {att.original_name}
+                </a>
+              ))}
+            </div>
+          )}
+        </>
+      )
+    })
+
+    // 2. Add History events
+    selectedWork.history.forEach((h: any) => {
+      if (h.to_status === 'pending' && !h.from_status) return // skip creator history step as it is handled by creation event
+      
+      let title = `เปลี่ยนสถานะเป็น ${getStatusLabel(h.to_status)}`
+      if (h.to_status === 'assigned') title = 'มอบหมายงานช่าง'
+      if (h.to_status === 'completed') title = 'ช่างส่งมอบงาน'
+      if (h.to_status === 'reviewed') title = 'ประเมินความพึงพอใจและปิดงาน'
+
+      let details: React.ReactNode = null
+      if (h.to_status === 'assigned') {
+        details = (
+          <div className="timeline-assigned-staff" style={{ fontSize: '12px', color: '#475569', background: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '6px' }}>
+            <strong>ผู้รับผิดชอบหลัก:</strong> {selectedWork.assignments.find(a => a.role === 'primary')?.name || '—'}
+            {selectedWork.assignments.filter(a => a.role === 'secondary').length > 0 && (
+              <div style={{ marginTop: '4px' }}>
+                <strong>ผู้รับผิดชอบร่วม:</strong> {selectedWork.assignments.filter(a => a.role === 'secondary').map(a => a.name).join(', ')}
+              </div>
+            )}
+          </div>
+        )
+      } else if (h.to_status === 'completed' && selectedWork.completion) {
+        details = (
+          <div className="timeline-completion-info" style={{ fontSize: '12px', color: '#475569', background: '#ecfdf5', padding: '8px 12px', borderRadius: '8px', border: '1px solid #a7f3d0', marginTop: '6px' }}>
+            <p style={{ margin: 0 }}><strong>เสร็จเมื่อวันที่:</strong> {new Date(selectedWork.completion.completed_date).toLocaleDateString('th-TH')} เวลา {selectedWork.completion.completed_time} น.</p>
+            {/* Phase 4 attachments */}
+            {selectedWork.attachments.filter(a => a.phase === 4).length > 0 && (
+              <div className="timeline-attachments" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {selectedWork.attachments.filter(a => a.phase === 4).map(att => (
+                  <a key={att.file_path} href={att.file_path} target="_blank" rel="noreferrer" className="timeline-att-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', color: '#047857', textDecoration: 'none' }}>
+                    {att.file_type === 'pdf' ? '📄' : '🖼️'} {att.original_name}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      } else if (h.to_status === 'reviewed' && selectedWork.review) {
+        details = (
+          <div className="timeline-review-info" style={{ fontSize: '12px', color: '#475569', background: '#faf5ff', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e9d5ff', marginTop: '6px' }}>
+            <div className="stars-row" style={{ color: '#eab308', display: 'flex', gap: '2px', margin: '4px 0' }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star key={i} size={14} fill={i < selectedWork.review!.satisfaction_score ? '#eab308' : 'none'} />
+              ))}
+            </div>
+            <p style={{ margin: '4px 0 0 0' }}><strong>ข้อคิดเห็น:</strong> {selectedWork.review.comment || 'ไม่มีข้อคิดเห็นเพิ่มเติม'}</p>
+          </div>
+        )
+      }
+
+      events.push({
+        id: `history-${h.id}`,
+        time: h.changed_at,
+        title,
+        type: h.to_status,
+        user: h.changer_name,
+        position: h.changer_position || '',
+        comment: h.comment,
+        details
+      })
+    })
+
+    // 3. Add Progress Notes updates
+    if (selectedWork.progressNotes) {
+      const notes = Array.isArray(selectedWork.progressNotes)
+        ? selectedWork.progressNotes
+        : [selectedWork.progressNotes]
+
+      notes.forEach((n: any, index: number) => {
+        let title = n.status === 'waiting' ? 'อัปเดตการชะลองาน (รอดำเนินการ)' : 'อัปเดตรายละเอียดความคืบหน้า'
+        let details: React.ReactNode = null
+
+        if (n.status === 'waiting') {
+          details = (
+            <div className="timeline-waiting-details" style={{ fontSize: '12px', color: '#475569', background: '#fffbeb', padding: '8px 12px', borderRadius: '8px', border: '1px solid #fef3c7', marginTop: '6px' }}>
+              <p style={{ margin: '0 0 4px 0', color: '#b45309' }}><strong>สิ่งที่รอคอย:</strong> {n.waiting_for || 'ไม่ระบุ'}</p>
+              <p style={{ margin: '0 0 4px 0', color: '#b45309' }}><strong>อุปสรรค:</strong> {n.blockers || 'ไม่ระบุ'}</p>
+              {n.note && <p style={{ margin: 0 }}><strong>รายละเอียดเพิ่มเติม:</strong> {n.note}</p>}
+            </div>
+          )
+        } else {
+          details = (
+            <div className="timeline-progress-details" style={{ fontSize: '12px', color: '#475569', background: '#f0f9ff', padding: '8px 12px', borderRadius: '8px', border: '1px solid #bae6fd', marginTop: '6px' }}>
+              {n.start_date && <p style={{ margin: '0 0 4px 0' }}><strong>วันที่เริ่มทำงานจริง:</strong> {new Date(n.start_date).toLocaleDateString('th-TH')}</p>}
+              {n.details && <p style={{ margin: 0 }}><strong>รายละเอียดความคืบหน้า:</strong> {n.details}</p>}
+            </div>
+          )
+        }
+
+        events.push({
+          id: `progress-${index}-${n.updated_at}`,
+          time: n.updated_at,
+          title,
+          type: n.status,
+          user: n.updated_by_name || 'ช่างผู้รับผิดชอบ',
+          position: n.updated_by_position || 'ฝ่ายงานระบบ',
+          comment: '',
+          details: (
+            <>
+              {details}
+              {/* Attachments for this progress entry */}
+              {n.attachments && n.attachments.length > 0 && (
+                <div className="timeline-attachments" style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {n.attachments.map((att: any) => (
+                    <a key={att.file_path} href={att.file_path} target="_blank" rel="noreferrer" className="timeline-att-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', color: n.status === 'waiting' ? '#b45309' : '#0284c7', textDecoration: 'none' }}>
+                      {att.file_type === 'pdf' ? '📄' : '🖼️'} {att.original_name}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </>
+          )
+        })
+      })
+    }
+
+    return events.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
   }
 
   return (
@@ -1241,101 +1415,37 @@ export default function ApprovalsInboxClient() {
                           {selectedWork.description}
                         </div>
                       </div>
-
-                      {/* Phase 1 Attachments */}
-                      {selectedWork.attachments.filter(a => a.phase === 1).length > 0 && (
-                        <div className="workInfoCard__section">
-                          <h4>ไฟล์แนบประกอบคำขอ</h4>
-                          <div className="attachments-grid">
-                            {selectedWork.attachments.filter(a => a.phase === 1).map(att => (
-                              <div key={att.file_path} className="att-item-card">
-                                <span>{att.file_type === 'pdf' ? '📄' : '🖼️'}</span>
-                                <a href={att.file_path} target="_blank" rel="noreferrer" className="att-item-link">
-                                  {att.original_name}
-                                </a>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Progress Notes Show (Phase 3) */}
-                    {selectedWork.progressNotes && (
-                      <div className="workInfoCard card-secondary">
-                        <h4>บันทึกการดำเนินงาน</h4>
-                        <div className="progress-details">
-                          <p><strong>วันที่เริ่มงานจริง:</strong> {selectedWork.progressNotes.start_date ? new Date(selectedWork.progressNotes.start_date).toLocaleDateString('th-TH') : '—'}</p>
-                          <p><strong>สิ่งที่กำลังรอคอย:</strong> {selectedWork.progressNotes.waiting_for || 'ไม่มี'}</p>
-                          <p><strong>ปัญหาและอุปสรรค:</strong> {selectedWork.progressNotes.blockers || 'ไม่มี'}</p>
-                        </div>
-                        {selectedWork.attachments.filter(a => a.phase === 3).length > 0 && (
-                          <div className="attachments-grid" style={{ marginTop: '10px' }}>
-                            {selectedWork.attachments.filter(a => a.phase === 3).map(att => (
-                              <div key={att.file_path} className="att-item-card">
-                                <span>{att.file_type === 'pdf' ? '📄' : '🖼️'}</span>
-                                <a href={att.file_path} target="_blank" rel="noreferrer" className="att-item-link">
-                                  {att.original_name}
-                                </a>
+                    {/* Vertical Timeline Card */}
+                    <div className="vertical-timeline-container card" style={{ marginTop: '1.25rem', padding: '24px' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 800, margin: '0 0 20px 0', color: '#0f172a', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px' }}>
+                        ประวัติการดำเนินงานและไทม์ไลน์
+                      </h3>
+                      
+                      <div className="v-timeline">
+                        {getMergedTimeline().map((evt) => (
+                          <div key={evt.id} className={`v-timeline-item type-${evt.type}`} style={{ display: 'flex', gap: '16px', position: 'relative' }}>
+                            <div className="v-timeline-marker-line" style={{ position: 'absolute', left: '15px', top: '30px', bottom: '-20px', width: '2px', backgroundColor: '#e2e8f0', zIndex: 1 }}></div>
+                            <div className="v-timeline-marker" style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: evt.type === 'waiting' ? '#fef3c7' : evt.type === 'in_progress' ? '#e0f2fe' : evt.type === 'completed' ? '#d1fae5' : evt.type === 'reviewed' ? '#faf5ff' : '#f1f5f9', color: evt.type === 'waiting' ? '#d97706' : evt.type === 'in_progress' ? '#0284c7' : evt.type === 'completed' ? '#059669' : evt.type === 'reviewed' ? '#7c3aed' : '#475569', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', zIndex: 2, border: '2px solid #ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                              {evt.type === 'pending' && <Clock size={13} />}
+                              {evt.type === 'assigned' && <User size={13} />}
+                              {evt.type === 'waiting' && <AlertCircle size={13} />}
+                              {evt.type === 'in_progress' && <RefreshCw size={13} />}
+                              {evt.type === 'completed' && <FileCheck size={13} />}
+                              {evt.type === 'reviewed' && <CheckCircle2 size={13} />}
+                            </div>
+                            <div className="v-timeline-content" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px 16px', marginBottom: '20px', position: 'relative', flex: 1 }}>
+                              <div className="v-timeline-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                                <div>
+                                  <h4 className="v-timeline-title" style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#1e293b' }}>{evt.title}</h4>
+                                  <span className="v-timeline-user" style={{ fontSize: '11px', color: '#64748b' }}>โดย {evt.user} ({evt.position})</span>
+                                </div>
+                                <span className="v-timeline-time" style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{formatDate(evt.time)}</span>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Completion Details Show (Phase 4) */}
-                    {selectedWork.completion && (
-                      <div className="workInfoCard card-secondary">
-                        <h4>รายงานความเสร็จสมบูรณ์ของงาน</h4>
-                        <div className="progress-details">
-                          <p><strong>เสร็จเมื่อวันที่:</strong> {new Date(selectedWork.completion.completed_date).toLocaleDateString('th-TH')} เวลา {selectedWork.completion.completed_time} น.</p>
-                        </div>
-                        {selectedWork.attachments.filter(a => a.phase === 4).length > 0 && (
-                          <div className="attachments-grid" style={{ marginTop: '10px' }}>
-                            {selectedWork.attachments.filter(a => a.phase === 4).map(att => (
-                              <div key={att.file_path} className="att-item-card">
-                                <span>{att.file_type === 'pdf' ? '📄' : '🖼️'}</span>
-                                <a href={att.file_path} target="_blank" rel="noreferrer" className="att-item-link">
-                                  {att.original_name}
-                                </a>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Review Rating Show (Phase 5) */}
-                    {selectedWork.review && (
-                      <div className="workInfoCard card-primary">
-                        <h4>ผลการประเมินความพึงพอใจโดยหัวหน้ากลุ่มงาน</h4>
-                        <div className="review-details">
-                          <div className="stars-row" style={{ color: '#eab308', display: 'flex', gap: '4px', marginBottom: '8px' }}>
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star key={i} size={20} fill={i < selectedWork.review!.satisfaction_score ? '#eab308' : 'none'} />
-                            ))}
-                          </div>
-                          <p><strong>ข้อคิดเห็น:</strong> {selectedWork.review.comment || 'ไม่มีข้อคิดเห็นเพิ่มเติม'}</p>
-                          <p className="text-muted" style={{ fontSize: '0.85rem' }}>ผู้ประเมิน: {selectedWork.review.reviewer_name} เมื่อ {formatDate(selectedWork.review.reviewed_at)}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Status History Timeline */}
-                    <div className="workTimeline">
-                      <h4>บันทึกประวัติการเปลี่ยนสถานะ</h4>
-                      <div className="timeline-steps">
-                        {selectedWork.history.map(h => (
-                          <div key={h.id} className="timeline-step">
-                            <div className="timeline-marker"></div>
-                            <div className="timeline-content">
-                              <span className="timeline-time">{formatDate(h.changed_at)}</span>
-                              <p className="timeline-status">
-                                {h.from_status ? `${getStatusLabel(h.from_status)}` : 'เริ่มขั้นตอนดำเนินการ'} ➔ <strong>{getStatusLabel(h.to_status)}</strong>
-                              </p>
-                              {h.comment && <p className="timeline-comment">"{h.comment}"</p>}
-                              <span className="timeline-user">{h.changer_name} ({h.changer_position || 'ไม่ระบุตำแหน่ง'})</span>
+                              
+                              {evt.comment && <p className="v-timeline-comment" style={{ margin: '4px 0', fontSize: '12px', color: '#334155', fontStyle: 'italic', background: '#ffffff', padding: '6px 10px', borderRadius: '6px', borderLeft: '3px solid #cbd5e1' }}>"{evt.comment}"</p>}
+                              {evt.details && <div className="v-timeline-details" style={{ marginTop: '6px' }}>{evt.details}</div>}
                             </div>
                           </div>
                         ))}
@@ -1453,43 +1563,94 @@ export default function ApprovalsInboxClient() {
                     )}
 
                     {/* Phase 3: Start Work / Progress updates */}
-                    {(selectedWork.status === 'assigned' || selectedWork.status === 'in_progress') && 
+                    {(selectedWork.status === 'assigned' || selectedWork.status === 'waiting' || selectedWork.status === 'in_progress') && 
                      (selectedWork.assignments.some(a => a.user_id === currentMemberId) || currentMemberRole === 'admin' || userPosition.includes('ดิจิทัลทางการแพทย์')) && (
                       <div className="actionFormBox card">
-                        <h3>อัปเดตความคืบหน้าการทำงาน</h3>
-                        <div className="formGroup">
-                          <label>วันที่เริ่มทำงานจริง</label>
-                          <input 
-                            type="date"
-                            value={startDate}
-                            onChange={e => setStartDate(e.target.value)}
-                          />
-                        </div>
-                        <div className="formGroup">
-                          <label>สิ่งที่กำลังรอคอย (ถ้ามี)</label>
-                          <textarea 
-                            rows={3}
-                            placeholder="เช่น รอยืนยันข้อมูลฟิลด์จากกลุ่มงานบัญชี..."
-                            value={waitingFor}
-                            onChange={e => setWaitingFor(e.target.value)}
-                          />
-                        </div>
-                        <div className="formGroup">
-                          <label>ปัญหาและอุปสรรคที่พบ (ถ้ามี)</label>
-                          <textarea 
-                            rows={3}
-                            placeholder="เช่น เซิร์ฟเวอร์สำรองขัดข้องชั่วคราว..."
-                            value={blockers}
-                            onChange={e => setBlockers(e.target.value)}
-                          />
+                        <h3>อัปเดตสถานะและบันทึกงานช่าง</h3>
+                        
+                        {/* Tab Headers */}
+                        <div className="action-tabs" style={{ display: 'flex', gap: '10px', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                          <button 
+                            type="button"
+                            className={`tab-btn ${activeActionTab === 'in_progress' ? 'active' : ''}`}
+                            style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: 600, background: activeActionTab === 'in_progress' ? '#e0f2fe' : '#ffffff', color: activeActionTab === 'in_progress' ? '#0369a1' : '#475569', borderColor: activeActionTab === 'in_progress' ? '#0284c7' : '#cbd5e1' }}
+                            onClick={() => setActiveActionTab('in_progress')}
+                          >
+                            ⚙️ กำลังดำเนินการ
+                          </button>
+                          
+                          <button 
+                            type="button"
+                            className={`tab-btn ${activeActionTab === 'waiting' ? 'active' : ''}`}
+                            style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: 600, background: activeActionTab === 'waiting' ? '#fef3c7' : '#ffffff', color: activeActionTab === 'waiting' ? '#b45309' : '#475569', borderColor: activeActionTab === 'waiting' ? '#d97706' : '#cbd5e1' }}
+                            onClick={() => setActiveActionTab('waiting')}
+                          >
+                            🕒 รอดำเนินการ (รอ/อุปสรรค)
+                          </button>
                         </div>
 
-                        {/* File upload for Phase 3 */}
-                        <div className="formGroup">
+                        {/* Tab 1: In Progress Form */}
+                        {activeActionTab === 'in_progress' && (
+                          <div className="tab-panel">
+                            <div className="formGroup">
+                              <label>วันที่เริ่มทำงานจริง</label>
+                              <input 
+                                type="date"
+                                value={startDate}
+                                onChange={e => setStartDate(e.target.value)}
+                              />
+                            </div>
+                            <div className="formGroup">
+                              <label>รายละเอียดความคืบหน้าการดำเนินงาน</label>
+                              <textarea 
+                                rows={3}
+                                placeholder="ระบุสิ่งที่กำลังดำเนินการ หรือ อัปเดตความคืบหน้า..."
+                                value={progressNote}
+                                onChange={e => setProgressNote(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tab 2: Waiting Form */}
+                        {activeActionTab === 'waiting' && (
+                          <div className="tab-panel">
+                            <div className="formGroup">
+                              <label className="required-label">สิ่งที่กำลังรอคอย</label>
+                              <textarea 
+                                rows={2}
+                                placeholder="เช่น รอยืนยันข้อมูลฟิลด์จากกลุ่มงานคลัง..."
+                                value={waitingFor}
+                                onChange={e => setWaitingFor(e.target.value)}
+                              />
+                            </div>
+                            <div className="formGroup">
+                              <label className="required-label">ปัญหาและอุปสรรคที่พบ</label>
+                              <textarea 
+                                rows={2}
+                                placeholder="เช่น เซิร์ฟเวอร์หลักปิดปรับปรุงระบบชั่วคราว..."
+                                value={blockers}
+                                onChange={e => setBlockers(e.target.value)}
+                              />
+                            </div>
+                            <div className="formGroup">
+                              <label>หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+                              <textarea 
+                                rows={2}
+                                placeholder="ข้อมูลชี้แจงเหตุผลเพิ่มเติม..."
+                                value={progressNote}
+                                onChange={e => setProgressNote(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* File upload for Phase 3 (Global for both tabs) */}
+                        <div className="formGroup" style={{ marginTop: '12px' }}>
                           <label>แนบรูปภาพหรือเอกสารอัปเดตเพิ่มเติม</label>
-                          <div className="mini-upload-zone" onClick={() => document.getElementById('phase3-file-input')?.click()}>
+                          <div className="mini-upload-zone" onClick={() => document.getElementById('phase3-file-input')?.click()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', padding: '16px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', cursor: 'pointer' }}>
                             <Upload size={18} />
-                            <span>คลิกเพื่ออัปโหลดไฟล์</span>
+                            <span style={{ fontSize: '12px', marginTop: '4px', color: '#64748b' }}>คลิกเพื่ออัปโหลดไฟล์</span>
                             <input 
                               id="phase3-file-input"
                               type="file" 
@@ -1500,11 +1661,11 @@ export default function ApprovalsInboxClient() {
                             />
                           </div>
                           {phaseAttachments.length > 0 && (
-                            <div className="attachments-list" style={{ marginTop: '8px' }}>
+                            <div className="attachments-list" style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                               {phaseAttachments.map(a => (
-                                <div key={a.path} className="attachment-item">
+                                <div key={a.path} className="attachment-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f1f5f9', padding: '6px 10px', borderRadius: '6px', fontSize: '12px' }}>
                                   <span className="attachment-name">{a.type === 'pdf' ? '📄' : '🖼️'} {a.name}</span>
-                                  <button type="button" className="attachment-remove-btn" onClick={() => handleWorkRemoveAttachment(a.path)}>
+                                  <button type="button" className="attachment-remove-btn" onClick={() => handleWorkRemoveAttachment(a.path)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}>
                                     <X size={14} />
                                   </button>
                                 </div>
@@ -1513,14 +1674,18 @@ export default function ApprovalsInboxClient() {
                           )}
                         </div>
 
-                        <button className="btn btn-primary btn-block" onClick={() => submitWorkPhase(3)}>
-                          <RefreshCw size={16} /> บันทึกการอัปเดตดำเนินงาน
+                        <button 
+                          className="btn btn-primary btn-block" 
+                          style={{ marginTop: '16px', backgroundColor: activeActionTab === 'waiting' ? '#d97706' : '#0284c7' }}
+                          onClick={() => submitWorkPhase(3, activeActionTab)}
+                        >
+                          <RefreshCw size={16} /> บันทึกการอัปเดต ({activeActionTab === 'waiting' ? 'รอดำเนินการ' : 'กำลังดำเนินการ'})
                         </button>
                       </div>
                     )}
 
                     {/* Phase 4: Submit Completion */}
-                    {(selectedWork.status === 'in_progress' || selectedWork.status === 'completed') && 
+                    {(selectedWork.status === 'waiting' || selectedWork.status === 'in_progress' || selectedWork.status === 'completed') && 
                      (selectedWork.assignments.some(a => a.user_id === currentMemberId) || currentMemberRole === 'admin' || userPosition.includes('ดิจิทัลทางการแพทย์')) && (
                       <div className="actionFormBox card" style={{ marginTop: '1.25rem' }}>
                         <h3>รายงานส่งความเสร็จสมบูรณ์งาน</h3>

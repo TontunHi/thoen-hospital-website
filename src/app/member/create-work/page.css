@@ -290,6 +290,7 @@
 
 .status-pending { background: #64748b !important; color: #ffffff !important; }
 .status-assigned { background: #2563eb !important; color: #ffffff !important; }
+.status-waiting { background: #f59e0b !important; color: #ffffff !important; }
 .status-progress { background: #ea580c !important; color: #ffffff !important; }
 .status-completed { background: #10b981 !important; color: #ffffff !important; }
 .status-reviewed { background: #0d9488 !important; color: #ffffff !important; }

@@ -68,7 +68,23 @@ export async function verifyMemberSession(): Promise<{ username: string; email: 
 
   if (!token) return null
 
-  return verifyToken(token)
+  const session = verifyToken(token)
+  if (!session) return null
+
+  try {
+    const { queryMemberDb } = await import('./memberDb')
+    const users = await queryMemberDb(
+      'SELECT role FROM members WHERE username = ? AND email = ? LIMIT 1',
+      [session.username, session.email]
+    )
+    if (users && users.length > 0) {
+      session.role = users[0].role || 'member'
+    }
+  } catch (error) {
+    console.error('Failed to fetch fresh session role from DB:', error)
+  }
+
+  return session
 }
 
 export async function destroyMemberSession(): Promise<void> {

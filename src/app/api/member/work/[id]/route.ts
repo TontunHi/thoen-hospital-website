@@ -203,16 +203,16 @@ export async function PUT(
       return NextResponse.json({ error: 'คุณไม่มีชื่ออยู่ในงานนี้ ไม่สามารถดำเนินงานในส่วนนี้ได้' }, { status: 403 })
     }
 
-    // PHASE 3: In Progress Updates
+    // PHASE 3: Progress Updates (waiting or in_progress)
     if (phase === 3) {
-      if (currentStatus !== 'assigned' && currentStatus !== 'in_progress') {
-        return NextResponse.json({ error: 'สถานะงานไม่อยู่ในขั้นตอนกำลังดำเนินการ' }, { status: 400 })
+      const { targetStatus, waitingFor, blockers, startDate, details, note } = body
+      
+      if (!targetStatus || (targetStatus !== 'waiting' && targetStatus !== 'in_progress')) {
+        return NextResponse.json({ error: 'ไม่ระบุสถานะเป้าหมายที่ถูกต้อง' }, { status: 400 })
       }
 
-      const progressNotes = {
-        waiting_for: waitingFor || null,
-        blockers: blockers || null,
-        start_date: startDate || null
+      if (currentStatus !== 'assigned' && currentStatus !== 'waiting' && currentStatus !== 'in_progress') {
+        return NextResponse.json({ error: 'สถานะงานปัจจุบันไม่รองรับการอัปเดตขั้นตอนนี้' }, { status: 400 })
       }
 
       // Add new Phase 3 attachments
@@ -229,14 +229,50 @@ export async function PUT(
         }
       }
 
+      // Parse and append to progress_notes array
+      let notesArray = []
+      try {
+        notesArray = workRequest.progress_notes ? JSON.parse(workRequest.progress_notes) : []
+        if (!Array.isArray(notesArray)) {
+          notesArray = workRequest.progress_notes ? [JSON.parse(workRequest.progress_notes)] : []
+        }
+      } catch (e) {
+        notesArray = []
+      }
+
+      const noteEntry: any = {
+        id: notesArray.length + 1,
+        status: targetStatus,
+        updated_by: member.id,
+        updated_by_name: member.name,
+        updated_by_position: member.position,
+        updated_at: new Date().toISOString(),
+        attachments: (attachments || []).map((att: any) => ({
+          file_type: att.type,
+          file_path: att.path,
+          original_name: att.name
+        }))
+      }
+
+      if (targetStatus === 'waiting') {
+        noteEntry.waiting_for = waitingFor || null
+        noteEntry.blockers = blockers || null
+        noteEntry.note = note || details || null
+      } else {
+        noteEntry.start_date = startDate || null
+        noteEntry.details = details || note || null
+      }
+
+      notesArray.push(noteEntry)
+
       let nextStatus = currentStatus
-      if (currentStatus === 'assigned') {
-        nextStatus = 'in_progress'
+      if (currentStatus !== targetStatus) {
+        nextStatus = targetStatus
         currentHistory.push({
           id: currentHistory.length + 1,
-          from_status: 'assigned',
-          to_status: 'in_progress',
-          comment: 'เริ่มขั้นตอนดำเนินการจริง',
+          from_status: currentStatus,
+          to_status: targetStatus,
+          comment: targetStatus === 'waiting' ? 'เปลี่ยนสถานะเป็น รอดำเนินการ' : 'เปลี่ยนสถานะเป็น กำลังดำเนินการ',
           changed_by: member.id,
           changed_at: new Date().toISOString(),
           changer_name: member.name,
@@ -246,7 +282,7 @@ export async function PUT(
 
       await queryMemberDb(
         'UPDATE work_requests SET status = ?, progress_notes = ?, attachments = ?, status_history = ? WHERE id = ?',
-        [nextStatus, JSON.stringify(progressNotes), JSON.stringify(currentAttachments), JSON.stringify(currentHistory), workRequestId]
+        [nextStatus, JSON.stringify(notesArray), JSON.stringify(currentAttachments), JSON.stringify(currentHistory), workRequestId]
       )
 
       return NextResponse.json({ success: true, message: 'อัปเดตความคืบหน้าการดำเนินงานเรียบร้อยแล้ว' })
@@ -254,7 +290,7 @@ export async function PUT(
 
     // PHASE 4: Complete Work
     if (phase === 4) {
-      if (currentStatus !== 'in_progress' && currentStatus !== 'completed') {
+      if (currentStatus !== 'in_progress' && currentStatus !== 'waiting' && currentStatus !== 'completed') {
         return NextResponse.json({ error: 'สถานะงานไม่รองรับการส่งความสำเร็จงานในขณะนี้' }, { status: 400 })
       }
 
@@ -286,7 +322,7 @@ export async function PUT(
         nextStatus = 'completed'
         currentHistory.push({
           id: currentHistory.length + 1,
-          from_status: 'in_progress',
+          from_status: currentStatus,
           to_status: 'completed',
           comment: 'ดำเนินงานเสร็จสมบูรณ์',
           changed_by: member.id,

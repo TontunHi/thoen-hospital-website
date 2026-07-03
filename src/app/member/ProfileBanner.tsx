@@ -25,7 +25,7 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [hasAvatar, setHasAvatar] = useState<boolean>(!!member.profile_path)
-  const [avatarTimestamp, setAvatarTimestamp] = useState<number>(() => Date.now())
+  const [avatarTimestamp, setAvatarTimestamp] = useState<number>(0)
   const [uploading, setUploading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
