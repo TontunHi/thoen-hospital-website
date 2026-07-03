@@ -76,20 +76,20 @@ export async function POST(request: Request) {
       await transporter.sendMail({
         from: fromName,
         to: trimmedEmail,
-        subject: `รหัส OTP สำหรับเข้าสู่ระบบสมาชิกเว็บไซต์ โรงพยาบาลเถิน: ${otp}`,
+        subject: `รหัสยืนยันตัวตนสำหรับเข้าสู่ระบบสมาชิก โรงพยาบาลเถิน`,
         html: `
           <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 500px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
             <div style="text-align: center; margin-bottom: 20px;">
               <h2 style="color: #0d9488; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">โรงพยาบาลเถิน</h2>
-              <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0; font-weight: 500;">ระบบยืนยันตัวตนสมาชิก (One-Time Password)</p>
+              <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0; font-weight: 500;">ระบบตรวจสอบสิทธิ์เข้าใช้งานสมาชิก</p>
             </div>
             <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
             
             <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 10px 0;">
-              สวัสดีครับ นี่เป็นระบบข้อความอัตโนมัติ
+              สวัสดีครับ นี่เป็นข้อความแจ้งเตือนอัตโนมัติจากระบบความปลอดภัย
             </p>
             <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 15px 0;">
-              คุณได้ทำรายการขอรับรหัสผ่านครั้งเดียว (OTP) เพื่อความปลอดภัยในการเข้าใช้งานบัญชี <strong>${trimmedUsername}</strong> ของระบบสมาชิกโรงพยาบาลเถิน รหัสผ่านของคุณคือ:
+              ระบบได้รับคำขอตรวจสอบการยืนยันตัวตนเพื่อลงชื่อเข้าสู่ระบบในชื่อบัญชี <strong>${trimmedUsername}</strong> ของทางโรงพยาบาลเถิน รหัสยืนยันของคุณคือ:
             </p>
             
             <div style="font-size: 38px; font-weight: 800; letter-spacing: 8px; color: #d97706; margin: 25px 0; text-align: center; background: #fffbeb; padding: 18px; border-radius: 10px; border: 1.5px dashed #f59e0b;">
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
             </div>
             
             <p style="color: #dc2626; font-size: 13px; text-align: center; margin: 20px 0; font-weight: 500;">
-              * รหัส OTP นี้มีอายุการใช้งาน 5 นาทีเท่านั้นเพื่อความปลอดภัย
+              * รหัสความปลอดภัยนี้มีอายุการใช้งานจำกัดเพียง 5 นาทีเท่านั้นเพื่อความปลอดภัย
             </p>
             
             <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 25px 0;" />
