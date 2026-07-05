@@ -5,12 +5,12 @@ let pool: mysql.Pool | null = null
 function getPool() {
   if (!pool) {
     pool = mysql.createPool({
-      host: process.env.ER_DB_HOST,
-      port: parseInt(process.env.ER_DB_PORT || '3306'),
-      user: process.env.ER_DB_USER,
-      password: process.env.ER_DB_PASSWORD,
-      database: process.env.ER_DB_NAME,
-      charset: process.env.ER_DB_CHARSET || 'tis620',
+      host: process.env.APPOINT_DB_HOST,
+      port: parseInt(process.env.APPOINT_DB_PORT || '3306'),
+      user: process.env.APPOINT_DB_USER,
+      password: process.env.APPOINT_DB_PASSWORD,
+      database: process.env.APPOINT_DB_NAME,
+      charset: process.env.APPOINT_DB_CHARSET || 'tis620',
       connectionLimit: 10,
       waitForConnections: true,
       queueLimit: 0,

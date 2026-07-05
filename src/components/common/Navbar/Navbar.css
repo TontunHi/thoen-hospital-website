@@ -145,6 +145,12 @@
   gap: var(--space-3);
 }
 
+.navbar__cta-desktop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* Narrow Desktop adjustments to prevent wrapping */
 @media (min-width: 769px) and (max-width: 1280px) {
   .navbar__link {
@@ -249,13 +255,14 @@
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
-    padding: calc(var(--navbar-height) + var(--space-4)) var(--space-6) var(--space-6);
+    padding: calc(var(--navbar-height) + var(--space-4)) var(--space-6) 120px;
     background: var(--white);
     box-shadow: var(--shadow-2xl);
     transition: right var(--transition-slow);
     gap: var(--space-1);
     z-index: var(--z-overlay);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .navbar__links--open {
@@ -396,6 +403,7 @@
     border: none;
     padding: 0;
     display: flex;
+    flex-direction: column;
     opacity: 1;
     pointer-events: auto;
     background: transparent;

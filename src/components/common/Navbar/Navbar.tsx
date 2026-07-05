@@ -336,7 +336,7 @@ export default function Navbar() {
 
         <div className="navbar__actions">
           {/* Member status on desktop */}
-          <div className="navbar__cta-desktop" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div className="navbar__cta-desktop">
             <Link href="/check-date" className="navbar__check-date-btn">
               ตรวจสอบนัดหมาย
             </Link>

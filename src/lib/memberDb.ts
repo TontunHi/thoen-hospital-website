@@ -6,7 +6,7 @@ let initPromise: Promise<void> | null = null
 function getPool() {
   if (!pool) {
     pool = mysql.createPool({
-      host: process.env.MEMBER_DB_HOST || '192.168.1.7',
+      host: process.env.MEMBER_DB_HOST || 'localhost',
       port: parseInt(process.env.MEMBER_DB_PORT || '3306'),
       user: process.env.MEMBER_DB_USER,
       password: process.env.MEMBER_DB_PASSWORD,
