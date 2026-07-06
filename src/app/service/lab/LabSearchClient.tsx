@@ -274,8 +274,20 @@ export default function LabSearchClient() {
 
       {/* Modal Detail View */}
       {selectedVisitId && (
-        <div className="modal-overlay" onClick={handleCloseDetail}>
-          <div className="modal-card card" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-overlay" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseDetail()
+          }}
+          role="button"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              handleCloseDetail()
+            }
+          }}
+        >
+          <div className="modal-card card">
             <div className="modal-header">
               <div>
                 <h2>ประวัติการรักษาพยาบาล</h2>
@@ -364,23 +376,23 @@ export default function LabSearchClient() {
                             <table className="vitals-table">
                               <tbody>
                                 <tr>
-                                  <td>ความดันโลหิต (BP):</td>
+                                  <th scope="row" style={{ fontWeight: 'normal', textAlign: 'left' }}>ความดันโลหิต (BP):</th>
                                   <td><strong>{detail.screen.bps || '-'}/{detail.screen.bpd || '-'}</strong> mmHg</td>
                                 </tr>
                                 <tr>
-                                  <td>ชีพจร (Pulse):</td>
+                                  <th scope="row" style={{ fontWeight: 'normal', textAlign: 'left' }}>ชีพจร (Pulse):</th>
                                   <td><strong>{detail.screen.pulse || '-'}</strong> bpm</td>
                                 </tr>
                                 <tr>
-                                  <td>อุณหภูมิ (Temp):</td>
+                                  <th scope="row" style={{ fontWeight: 'normal', textAlign: 'left' }}>อุณหภูมิ (Temp):</th>
                                   <td><strong>{detail.screen.temperature || '-'}</strong> °C</td>
                                 </tr>
                                 <tr>
-                                  <td>การหายใจ (RR):</td>
+                                  <th scope="row" style={{ fontWeight: 'normal', textAlign: 'left' }}>การหายใจ (RR):</th>
                                   <td><strong>{detail.screen.rr || '-'}</strong> bpm</td>
                                 </tr>
                                 <tr>
-                                  <td>น้ำหนัก/ส่วนสูง:</td>
+                                  <th scope="row" style={{ fontWeight: 'normal', textAlign: 'left' }}>น้ำหนัก/ส่วนสูง:</th>
                                   <td><strong>{detail.screen.bw || '-'}</strong> กก. / <strong>{detail.screen.height || '-'}</strong> ซม.</td>
                                 </tr>
                               </tbody>

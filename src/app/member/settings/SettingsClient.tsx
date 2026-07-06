@@ -128,6 +128,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     switch (key) {
       case 'create_work': return 'สิทธิ์เข้าใช้งาน/เปิดคำขอซ่อมงานช่างฯ (create_work)'
       case 'view_all_work': return 'สิทธิ์ดูรายการงานและอัปเดตงานทั้งหมด (view_all_work)'
+      case 'upload_salary': return 'สิทธิ์อัปโหลดเอกสารการเงินและเงินเดือน (upload_salary)'
       default: return key
     }
   }
@@ -236,6 +237,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
               <select value={newPermKey} onChange={(e) => setNewPermKey(e.target.value)} className="permSelect">
                 <option value="create_work">เปิดคำขอใบงานช่าง (create_work)</option>
                 <option value="view_all_work">ดูแลระบบ/ดูงานทั้งหมด (view_all_work)</option>
+                <option value="upload_salary">อัปโหลดเงินเดือน/ค่าตอบแทน (upload_salary)</option>
               </select>
             </div>
 
@@ -292,7 +294,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
             <div className="loadingText">กำลังโหลดข้อมูลสิทธิ์การใช้งาน...</div>
           ) : (
             <div className="permissionsGroupContainer">
-              {['create_work', 'view_all_work'].map((key) => {
+              {['create_work', 'view_all_work', 'upload_salary'].map((key) => {
                 const groupMappings = permissions.filter((p) => p.permission_key === key)
                 return (
                   <div key={key} className="permGroupCard">

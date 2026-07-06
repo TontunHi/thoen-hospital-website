@@ -220,8 +220,20 @@ export default function AdminContactsPage() {
 
       {/* Modern Modal details popup */}
       {selectedContact && (
-        <div className="modalOverlay" onClick={() => setSelectedContact(null)}>
-          <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modalOverlay" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedContact(null)
+          }}
+          role="button"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              setSelectedContact(null)
+            }
+          }}
+        >
+          <div className="modalContent">
             <div className="modalHeader">
               <h2>รายละเอียดข้อความติดต่อ #{selectedContact.id}</h2>
               <button className="closeBtn" onClick={() => setSelectedContact(null)}>

@@ -47,6 +47,39 @@ export async function GET() {
   }
 }
 
+async function validateUpdateMember(body: any, sessionUsername: string) {
+  const { id, username, email, role } = body
+
+  if (!id || !username || !email || !role) {
+    return { error: 'ข้อมูลไม่ครบถ้วน กรุณากรอกข้อมูลที่จำเป็น', status: 400 }
+  }
+
+  let finalRole = role
+  if (sessionUsername) {
+    const targetUser = await queryMemberDb('SELECT username, role FROM members WHERE id = ?', [id])
+    if (targetUser && targetUser.length > 0 && targetUser[0].username === sessionUsername) {
+      // Force role to remain unchanged when editing self
+      finalRole = targetUser[0].role
+    }
+  }
+
+  if (finalRole !== 'member' && finalRole !== 'admin') {
+    return { error: 'สิทธิ์การใช้งานไม่ถูกต้อง', status: 400 }
+  }
+
+  // Check for duplicate username or email (excluding current user ID)
+  const duplicates = await queryMemberDb(
+    'SELECT id FROM members WHERE (username = ? OR email = ?) AND id != ?',
+    [username.trim(), email.trim(), id]
+  )
+
+  if (duplicates && duplicates.length > 0) {
+    return { error: 'ชื่อผู้ใช้งานหรืออีเมลนี้ถูกใช้งานแล้วในระบบ', status: 400 }
+  }
+
+  return { finalRole }
+}
+
 // PUT: Update member details (admin only)
 export async function PUT(request: Request) {
   try {
@@ -56,43 +89,13 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { id, username, email, name, department, position, salary_user, salary_pass, role } = body
-
-    if (!id || !username || !email || !role) {
-      return NextResponse.json(
-        { error: 'ข้อมูลไม่ครบถ้วน กรุณากรอกข้อมูลที่จำเป็น' },
-        { status: 400 }
-      )
+    const validation = await validateUpdateMember(body, auth.session.username || '')
+    if (validation.error) {
+      return NextResponse.json({ error: validation.error }, { status: validation.status })
     }
 
-    let finalRole = role
-    if (auth.session.username) {
-      const targetUser = await queryMemberDb('SELECT username, role FROM members WHERE id = ?', [id])
-      if (targetUser && targetUser.length > 0 && targetUser[0].username === auth.session.username) {
-        // Force role to remain unchanged when editing self
-        finalRole = targetUser[0].role
-      }
-    }
-
-    if (finalRole !== 'member' && finalRole !== 'admin') {
-      return NextResponse.json(
-        { error: 'สิทธิ์การใช้งานไม่ถูกต้อง' },
-        { status: 400 }
-      )
-    }
-
-    // Check for duplicate username or email (excluding current user ID)
-    const duplicates = await queryMemberDb(
-      'SELECT id FROM members WHERE (username = ? OR email = ?) AND id != ?',
-      [username.trim(), email.trim(), id]
-    )
-
-    if (duplicates && duplicates.length > 0) {
-      return NextResponse.json(
-        { error: 'ชื่อผู้ใช้งานหรืออีเมลนี้ถูกใช้งานแล้วในระบบ' },
-        { status: 400 }
-      )
-    }
+    const { finalRole } = validation
+    const { id, username, email, name, department, position, salary_user, salary_pass } = body
 
     // Retrieve existing salary password to preserve it if not changed (sent as '********')
     const existing = await queryMemberDb('SELECT salary_pass FROM members WHERE id = ? LIMIT 1', [id])

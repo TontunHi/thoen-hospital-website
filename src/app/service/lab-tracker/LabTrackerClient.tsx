@@ -294,7 +294,18 @@ export default function LabTrackerClient() {
                   <h2>เมนูระบบงานตรวจแลป</h2>
                 </div>
                 <div className="group-body options-body">
-                  <div className="all-orders-card" onClick={() => handleSelectDoctor('all', 'สั่งตรวจทั้งหมดในวันนี้')}>
+                  <div 
+                    className="all-orders-card" 
+                    onClick={() => handleSelectDoctor('all', 'สั่งตรวจทั้งหมดในวันนี้')}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleSelectDoctor('all', 'สั่งตรวจทั้งหมดในวันนี้')
+                      }
+                    }}
+                  >
                     <h3>ดูรายการผู้ป่วยทั้งหมดที่สั่ง LAB วันนี้</h3>
                     <p>จำนวนยอดผู้ป่วยสะสมที่สั่งตรวจสะสม: <strong>{dashboardData.totalCount}</strong> ราย</p>
                     <span className="btn btn-outline btn-sm">เปิดดูผู้ป่วยทั้งหมด</span>
@@ -434,8 +445,20 @@ export default function LabTrackerClient() {
 
       {/* Modal detailed results (Moved outside container to avoid parent stack context issues) */}
       {selectedHn && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal-card card" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-overlay" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseModal()
+          }}
+          role="button"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              handleCloseModal()
+            }
+          }}
+        >
+          <div className="modal-card card">
             <div className="modal-header">
               <div>
                 <h2>รายงานผลการตรวจทางห้องปฏิบัติการ (LAB)</h2>

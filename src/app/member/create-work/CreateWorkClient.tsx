@@ -79,6 +79,42 @@ export default function CreateWorkClient() {
     }
   }
 
+  const uploadSingleFile = async (
+    file: File, 
+    pdfCount: number, 
+    imageCount: number
+  ): Promise<{ success: boolean; attachment?: { name: string; type: 'image' | 'pdf'; path: string }; error?: string }> => {
+    const isPdf = file.type === 'application/pdf'
+    const type: 'image' | 'pdf' = isPdf ? 'pdf' : 'image'
+
+    if (isPdf && pdfCount + 1 > 10) {
+      return { success: false, error: 'สามารถแนบไฟล์ PDF ได้สูงสุด 10 ไฟล์เท่านั้น' }
+    }
+    if (!isPdf && imageCount + 1 > 20) {
+      return { success: false, error: 'สามารถแนบรูปภาพได้สูงสุด 20 รูปเท่านั้น' }
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('title', 'work-attachment')
+
+    try {
+      const res = await fetch('/api/member/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        return { success: true, attachment: { name: data.filename, type, path: data.url } }
+      } else {
+        return { success: false, error: data.error || 'ไม่สามารถอัปโหลดบางไฟล์ได้' }
+      }
+    } catch (err) {
+      console.error('Upload single file error:', err)
+      return { success: false, error: 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' }
+    }
+  }
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -86,40 +122,21 @@ export default function CreateWorkClient() {
     setLoading(true)
     setError('')
 
-    const imageCount = attachments.filter(a => a.type === 'image').length
-    const pdfCount = attachments.filter(a => a.type === 'pdf').length
+    let imageCount = attachments.filter(a => a.type === 'image').length
+    let pdfCount = attachments.filter(a => a.type === 'pdf').length
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-      const isPdf = file.type === 'application/pdf'
-      const type: 'image' | 'pdf' = isPdf ? 'pdf' : 'image'
-
-      if (isPdf && pdfCount + 1 > 10) {
-        setError('สามารถแนบไฟล์ PDF ได้สูงสุด 10 ไฟล์เท่านั้น')
-        continue
-      }
-      if (!isPdf && imageCount + 1 > 20) {
-        setError('สามารถแนบรูปภาพได้สูงสุด 20 รูปเท่านั้น')
-        continue
-      }
-
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('title', 'work-attachment')
-
-      try {
-        const res = await fetch('/api/member/upload', {
-          method: 'POST',
-          body: formData,
-        })
-        const data = await res.json()
-        if (res.ok && data.success) {
-          setAttachments(prev => [...prev, { name: data.filename, type, path: data.url }])
+      const result = await uploadSingleFile(file, pdfCount, imageCount)
+      if (result.success && result.attachment) {
+        setAttachments(prev => [...prev, result.attachment!])
+        if (result.attachment.type === 'pdf') {
+          pdfCount++
         } else {
-          setError(data.error || 'ไม่สามารถอัปโหลดบางไฟล์ได้')
+          imageCount++
         }
-      } catch (err) {
-        setError('เกิดข้อผิดพลาดในการอัปโหลดไฟล์')
+      } else if (result.error) {
+        setError(result.error)
       }
     }
     setLoading(false)
@@ -502,6 +519,14 @@ export default function CreateWorkClient() {
                 <div 
                   className="upload-dropzone" 
                   onClick={() => fileInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      fileInputRef.current?.click()
+                    }
+                  }}
                 >
                   <Upload size={32} className="text-primary" />
                   <p className="font-semibold">กดที่นี่เพื่อคลิกเลือกไฟล์เพื่อแนบประกอบ</p>

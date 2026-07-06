@@ -6,7 +6,7 @@ import ProfileBanner from './ProfileBanner'
 import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop } from 'lucide-react'
 import './page.css'
 
-export default async function MemberDashboardPage() {
+async function getMemberDashboardData() {
   const session = await verifyMemberSession()
 
   if (!session) {
@@ -40,8 +40,6 @@ export default async function MemberDashboardPage() {
   })
 
   const isAdmin = member.role === 'admin'
-  const isFeatureEnabled = (key: string) => settings[key] !== '0'
-  const hasAccess = (key: string) => isAdmin || isFeatureEnabled(key)
 
   const userPosition = (member.position || '').trim()
   let isWorkAuthorized = member.role === 'admin'
@@ -67,6 +65,242 @@ export default async function MemberDashboardPage() {
     ? member.name.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('')
     : member.username.substring(0, 2).toUpperCase()
 
+  let isFinance = member.role === 'admin' || (member.position && member.position.includes('เจ้าพนักงานการเงินและบัญชี'))
+  if (!isFinance && member.position) {
+    const finPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'upload_salary' AND TRIM(position_name) = TRIM(?)",
+      [member.position]
+    )
+    isFinance = (finPerms[0]?.count || 0) > 0
+  }
+
+  return {
+    member,
+    pendingCount,
+    settings,
+    isWorkAuthorized,
+    isAdmin,
+    isFinance,
+    displayRole,
+    hasSignature,
+    hasSalary,
+    initials
+  }
+}
+
+function SignatureCard({ hasAccess, hasSignature }: { hasAccess: (k: string) => boolean; hasSignature: boolean }) {
+  return hasAccess('feature_signature') ? (
+    <Link href="/member/signature" className="serviceCard">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper signatureIcon">
+          <PenTool size={24} />
+        </div>
+        <div className={`statusIndicator ${hasSignature ? 'success' : 'warning'}`}>
+          {hasSignature ? (
+            <>
+              <CheckCircle size={14} />
+              <span>ตั้งค่าแล้ว</span>
+            </>
+          ) : (
+            <>
+              <AlertCircle size={14} />
+              <span>ยังไม่ตั้งค่า</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>จัดการลายเซ็นดิจิทัล</h4>
+        <p>ลงทะเบียน วาดลายเส้น หรืออัปโหลดรูปภาพลายเซ็นของคุณสำหรับใช้ลงนามอนุมัติเอกสารภายในโรงพยาบาล</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">ตั้งค่าลายเซ็น</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  ) : (
+    <div className="serviceCard serviceCardDisabled">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper signatureIcon" style={{ opacity: 0.5 }}>
+          <Lock size={24} />
+        </div>
+        <div className="statusIndicator error">
+          <span>ปิดบริการชั่วคราว</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>จัดการลายเซ็นดิจิทัล</h4>
+        <p>ลงทะเบียน วาดลายเส้น หรืออัปโหลดรูปภาพลายเซ็นของคุณสำหรับใช้ลงนามอนุมัติเอกสารภายในโรงพยาบาล</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </div>
+  )
+}
+
+function SalaryCard({ hasAccess, hasSalary }: { hasAccess: (k: string) => boolean; hasSalary: boolean }) {
+  return hasAccess('feature_salary') ? (
+    <Link href="/salary" className="serviceCard">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper salaryIcon">
+          <FileText size={24} />
+        </div>
+        <div className={`statusIndicator ${hasSalary ? 'success' : 'error'}`}>
+          {hasSalary ? (
+            <>
+              <CheckCircle size={14} />
+              <span>ผูกบัญชีแล้ว</span>
+            </>
+          ) : (
+            <>
+              <AlertCircle size={14} />
+              <span>ยังไม่ได้ผูก</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>ระบบสลิปเงินเดือนออนไลน์</h4>
+        <p>เรียกดูข้อมูลสลิปเงินเดือน ประวัติรายได้ประจำเดือน และข้อมูลสวัสดิการของทางโรงพยาบาล</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">เข้าสู่ระบบสลิปเงินเดือน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  ) : (
+    <div className="serviceCard serviceCardDisabled">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper salaryIcon" style={{ opacity: 0.5 }}>
+          <Lock size={24} />
+        </div>
+        <div className="statusIndicator error">
+          <span>ปิดบริการชั่วคราว</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>ระบบสลิปเงินเดือนออนไลน์</h4>
+        <p>เรียกดูข้อมูลสลิปเงินเดือน ประวัติรายได้ประจำเดือน และข้อมูลสวัสดิการของทางโรงพยาบาล</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </div>
+  )
+}
+
+function PrRequestsCard({ hasAccess }: { hasAccess: (k: string) => boolean }) {
+  return hasAccess('feature_pr_requests') ? (
+    <Link href="/member/pr-requests" className="serviceCard">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper prIcon">
+          <ImageIcon size={24} />
+        </div>
+        <div className="statusIndicator success">
+          <span>เปิดใช้งาน</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>ร้องขอผลิตสื่อประชาสัมพันธ์</h4>
+        <p>ระบบจัดทำฟอร์มขอผลิตสื่อ ไวนิล โปสเตอร์ และอนุมัติใบงานประชาสัมพันธ์ด้วยลายเซ็นดิจิทัล</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">ส่งใบคำขอผลิตสื่อ</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  ) : (
+    <div className="serviceCard serviceCardDisabled">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper prIcon" style={{ opacity: 0.5 }}>
+          <Lock size={24} />
+        </div>
+        <div className="statusIndicator error">
+          <span>ปิดบริการชั่วคราว</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>ร้องขอผลิตสื่อประชาสัมพันธ์</h4>
+        <p>ระบบจัดทำฟอร์มขอผลิตสื่อ ไวนิล โปสเตอร์ และอนุมัติใบงานประชาสัมพันธ์ด้วยลายเซ็นดิจิทัล</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </div>
+  )
+}
+
+function ApprovalsCard({ hasAccess, pendingCount }: { hasAccess: (k: string) => boolean; pendingCount: number }) {
+  return hasAccess('feature_approvals') ? (
+    <Link href="/member/approvals" className="serviceCard">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper docIcon" style={{ position: 'relative' }}>
+          <ClipboardCheck size={24} />
+          {pendingCount > 0 && <span className="card-badge-dot"></span>}
+        </div>
+        <div className={`statusIndicator ${pendingCount > 0 ? 'error' : 'success'}`}>
+          {pendingCount > 0 ? (
+            <>
+              <AlertCircle size={14} className="pulseAnimation" />
+              <span>มีงานค้าง {pendingCount} รายการ</span>
+            </>
+          ) : (
+            <span>ไม่มีงานค้าง</span>
+          )}
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>กล่องงานรอการอนุมัติ</h4>
+        <p>กล่องงานตรวจสอบใบคำขอและเอกสารต่างๆ ที่ส่งเสนอเข้ามา และอนุมัติออนไลน์ด้วยลายเซ็นของคุณ</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">เข้าสู่กล่องงานรอการอนุมัติ</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  ) : (
+    <div className="serviceCard serviceCardDisabled">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper docIcon" style={{ opacity: 0.5 }}>
+          <Lock size={24} />
+        </div>
+        <div className="statusIndicator error">
+          <span>ปิดบริการชั่วคราว</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>กล่องงานรอการอนุมัติ</h4>
+        <p>กล่องงานตรวจสอบใบคำขอและเอกสารต่างๆ ที่ส่งเสนอเข้ามา และอนุมัติออนไลน์ด้วยลายเซ็นของคุณ</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </div>
+  )
+}
+
+export default async function MemberDashboardPage() {
+  const {
+    member,
+    pendingCount,
+    settings,
+    isWorkAuthorized,
+    isAdmin,
+    isFinance,
+    displayRole,
+    hasSignature,
+    hasSalary,
+    initials
+  } = await getMemberDashboardData()
+
+  const isFeatureEnabled = (key: string) => settings[key] !== '0'
+  const hasAccess = (key: string) => isAdmin || isFeatureEnabled(key)
+
   return (
     <div className="memberDashboardContainer">
       <div className="glowOrb glowOrb1"></div>
@@ -83,196 +317,16 @@ export default async function MemberDashboardPage() {
         <div className="servicesGrid">
           
           {/* Card 1: Digital Signature */}
-          {hasAccess('feature_signature') ? (
-            <Link href="/member/signature" className="serviceCard">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper signatureIcon">
-                  <PenTool size={24} />
-                </div>
-                <div className={`statusIndicator ${hasSignature ? 'success' : 'warning'}`}>
-                  {hasSignature ? (
-                    <>
-                      <CheckCircle size={14} />
-                      <span>ตั้งค่าแล้ว</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle size={14} />
-                      <span>ยังไม่ตั้งค่า</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>จัดการลายเซ็นดิจิทัล</h4>
-                <p>ลงทะเบียน วาดลายเส้น หรืออัปโหลดรูปภาพลายเซ็นของคุณสำหรับใช้ลงนามอนุมัติเอกสารภายในโรงพยาบาล</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">ตั้งค่าลายเซ็น</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </Link>
-          ) : (
-            <div className="serviceCard serviceCardDisabled">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper signatureIcon" style={{ opacity: 0.5 }}>
-                  <Lock size={24} />
-                </div>
-                <div className="statusIndicator error">
-                  <span>ปิดบริการชั่วคราว</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>จัดการลายเซ็นดิจิทัล</h4>
-                <p>ลงทะเบียน วาดลายเส้น หรืออัปโหลดรูปภาพลายเซ็นของคุณสำหรับใช้ลงนามอนุมัติเอกสารภายในโรงพยาบาล</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </div>
-          )}
+          <SignatureCard hasAccess={hasAccess} hasSignature={hasSignature} />
 
           {/* Card 2: Salary Slip */}
-          {hasAccess('feature_salary') ? (
-            <Link href="/salary" className="serviceCard">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper salaryIcon">
-                  <FileText size={24} />
-                </div>
-                <div className={`statusIndicator ${hasSalary ? 'success' : 'error'}`}>
-                  {hasSalary ? (
-                    <>
-                      <CheckCircle size={14} />
-                      <span>ผูกบัญชีแล้ว</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle size={14} />
-                      <span>ยังไม่ได้ผูก</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>ระบบสลิปเงินเดือนออนไลน์</h4>
-                <p>เรียกดูข้อมูลสลิปเงินเดือน ประวัติรายได้ประจำเดือน และข้อมูลสวัสดิการของทางโรงพยาบาล</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">เข้าสู่ระบบสลิปเงินเดือน</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </Link>
-          ) : (
-            <div className="serviceCard serviceCardDisabled">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper salaryIcon" style={{ opacity: 0.5 }}>
-                  <Lock size={24} />
-                </div>
-                <div className="statusIndicator error">
-                  <span>ปิดบริการชั่วคราว</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>ระบบสลิปเงินเดือนออนไลน์</h4>
-                <p>เรียกดูข้อมูลสลิปเงินเดือน ประวัติรายได้ประจำเดือน และข้อมูลสวัสดิการของทางโรงพยาบาล</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </div>
-          )}
+          <SalaryCard hasAccess={hasAccess} hasSalary={hasSalary} />
 
           {/* Card 3: PR Media Production */}
-          {hasAccess('feature_pr_requests') ? (
-            <Link href="/member/pr-requests" className="serviceCard">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper prIcon">
-                  <ImageIcon size={24} />
-                </div>
-                <div className="statusIndicator success">
-                  <span>เปิดใช้งาน</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>ร้องขอผลิตสื่อประชาสัมพันธ์</h4>
-                <p>ระบบจัดทำฟอร์มขอผลิตสื่อ ไวนิล โปสเตอร์ และอนุมัติใบงานประชาสัมพันธ์ด้วยลายเซ็นดิจิทัล</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">ส่งใบคำขอผลิตสื่อ</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </Link>
-          ) : (
-            <div className="serviceCard serviceCardDisabled">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper prIcon" style={{ opacity: 0.5 }}>
-                  <Lock size={24} />
-                </div>
-                <div className="statusIndicator error">
-                  <span>ปิดบริการชั่วคราว</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>ร้องขอผลิตสื่อประชาสัมพันธ์</h4>
-                <p>ระบบจัดทำฟอร์มขอผลิตสื่อ ไวนิล โปสเตอร์ และอนุมัติใบงานประชาสัมพันธ์ด้วยลายเซ็นดิจิทัล</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </div>
-          )}
+          <PrRequestsCard hasAccess={hasAccess} />
 
           {/* Card 4: Unified Approvals Inbox */}
-          {hasAccess('feature_approvals') ? (
-            <Link href="/member/approvals" className="serviceCard">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper docIcon" style={{ position: 'relative' }}>
-                  <ClipboardCheck size={24} />
-                  {pendingCount > 0 && <span className="card-badge-dot"></span>}
-                </div>
-                <div className={`statusIndicator ${pendingCount > 0 ? 'error' : 'success'}`}>
-                  {pendingCount > 0 ? (
-                    <>
-                      <AlertCircle size={14} className="pulseAnimation" />
-                      <span>มีงานค้าง {pendingCount} รายการ</span>
-                    </>
-                  ) : (
-                    <span>ไม่มีงานค้าง</span>
-                  )}
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>กล่องงานรอการอนุมัติ</h4>
-                <p>กล่องงานตรวจสอบใบคำขอและเอกสารต่างๆ ที่ส่งเสนอเข้ามา และอนุมัติออนไลน์ด้วยลายเซ็นของคุณ</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">เข้าสู่กล่องงานรอการอนุมัติ</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </Link>
-          ) : (
-            <div className="serviceCard serviceCardDisabled">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper docIcon" style={{ opacity: 0.5 }}>
-                  <Lock size={24} />
-                </div>
-                <div className="statusIndicator error">
-                  <span>ปิดบริการชั่วคราว</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>กล่องงานรอการอนุมัติ</h4>
-                <p>กล่องงานตรวจสอบใบคำขอและเอกสารต่างๆ ที่ส่งเสนอเข้ามา และอนุมัติออนไลน์ด้วยลายเซ็นของคุณ</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </div>
-          )}
+          <ApprovalsCard hasAccess={hasAccess} pendingCount={pendingCount} />
 
           {/* Card 5: Mechanical Work Assignments System */}
           {isWorkAuthorized && (
@@ -291,6 +345,28 @@ export default async function MemberDashboardPage() {
               </div>
               <div className="serviceCardFooter">
                 <span className="actionText">เข้าสู่ระบบติดตามงานช่างฯ</span>
+                <ChevronRight size={16} className="chevronIcon" />
+              </div>
+            </Link>
+          )}
+
+          {/* Card 6: Upload Salary (Visible only to admin or finance position) */}
+          {isFinance && (
+            <Link href="/member/upload-salary" className="serviceCard">
+              <div className="serviceCardHeader">
+                <div className="serviceIconWrapper salaryIcon" style={{ backgroundColor: '#fff7ed', color: '#ea580c', borderColor: '#ffedd5', borderWidth: '1px', borderStyle: 'solid' }}>
+                  <FileText size={24} />
+                </div>
+                <div className="statusIndicator success" style={{ backgroundColor: '#ffedd5', color: '#c2410c', borderColor: '#fed7aa' }}>
+                  <span>นำเข้าข้อมูลการเงิน</span>
+                </div>
+              </div>
+              <div className="serviceCardBody">
+                <h4>ระบบนำเข้าข้อมูลการเงิน</h4>
+                <p>ระบบบันทึกงวดนำเข้า และอัปโหลดไฟล์ Excel/CSV ข้อมูลสลิปเงินเดือนและ OT ของบุคลากรโรงพยาบาลเถิน</p>
+              </div>
+              <div className="serviceCardFooter" style={{ color: '#ea580c' }}>
+                <span className="actionText">เข้าสู่หน้านำเข้าข้อมูลการเงิน</span>
                 <ChevronRight size={16} className="chevronIcon" />
               </div>
             </Link>

@@ -197,6 +197,134 @@ export default function ApprovalsInboxClient() {
     }).length
   }
 
+  const resetWorkStates = () => {
+    setSelectedWork(null)
+    setPhaseAttachments([])
+    setShowRollbackForm(false)
+    setRollbackComment('')
+    setReviewComment('')
+    setWaitingFor('')
+    setBlockers('')
+    setStartDate('')
+    setProgressNote('')
+    setActiveActionTab('in_progress')
+    setCompletedDate('')
+    setCompletedTime('')
+  }
+
+  const prefillWorkStates = (wr: any) => {
+    const prim = wr.assignments.find((a: any) => a.role === 'primary')
+    if (prim) setPrimaryAssignee(prim.user_id)
+    
+    const secs = wr.assignments.filter((a: any) => a.role === 'secondary').map((a: any) => a.user_id)
+    setSecondaryAssignees(secs)
+
+    if (wr.progressNotes) {
+      setWaitingFor(wr.progressNotes.waiting_for || '')
+      setBlockers(wr.progressNotes.blockers || '')
+      if (wr.progressNotes.start_date) {
+        setStartDate(new Date(wr.progressNotes.start_date).toISOString().split('T')[0])
+      }
+    }
+
+    if (wr.completion) {
+      if (wr.completion.completed_date) {
+        setCompletedDate(new Date(wr.completion.completed_date).toISOString().split('T')[0])
+      }
+      setCompletedTime(wr.completion.completed_time || '')
+    }
+  }
+
+  const uploadSingleWorkFile = async (
+    file: File, 
+    phaseNum: number, 
+    pdfCount: number, 
+    imageCount: number
+  ): Promise<{ name: string; type: 'image' | 'pdf'; path: string } | null> => {
+    const isPdf = file.type === 'application/pdf'
+    const type: 'image' | 'pdf' = isPdf ? 'pdf' : 'image'
+
+    if (isPdf && pdfCount + 1 > 10) {
+      alert('แนบไฟล์ PDF ได้สูงสุด 10 ไฟล์')
+      return null
+    }
+    if (!isPdf && imageCount + 1 > 20) {
+      alert('แนบรูปภาพได้สูงสุด 20 รูป')
+      return null
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('title', `work-phase-${phaseNum}`)
+
+    try {
+      const res = await fetch('/api/member/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          return { name: data.filename, type, path: data.url }
+        }
+      }
+    } catch (err) {
+      console.error('File upload error:', err)
+    }
+    return null
+  }
+
+  const buildPhasePayload = (phaseNum: number, targetStatus?: 'waiting' | 'in_progress') => {
+    const payload: any = { phase: phaseNum }
+
+    if (phaseNum === 2) {
+      const assignees = []
+      if (primaryAssignee > 0) {
+        assignees.push({ userId: primaryAssignee, role: 'primary' })
+      } else {
+        alert('กรุณาระบุผู้รับผิดชอบหลัก')
+        return null
+      }
+      for (const sId of secondaryAssignees) {
+        assignees.push({ userId: sId, role: 'secondary' })
+      }
+      payload.assignees = assignees
+    } else if (phaseNum === 3) {
+      if (!targetStatus) {
+        alert('ไม่ระบุสถานะงานเป้าหมาย')
+        return null
+      }
+      payload.targetStatus = targetStatus
+      if (targetStatus === 'waiting') {
+        payload.waitingFor = waitingFor
+        payload.blockers = blockers
+        payload.note = progressNote
+      } else {
+        payload.startDate = startDate || null
+        payload.details = progressNote
+      }
+      payload.attachments = phaseAttachments
+    } else if (phaseNum === 4) {
+      if (!completedDate || !completedTime) {
+        alert('กรุณากรอกวันที่และเวลาเสร็จสิ้น')
+        return null
+      }
+      payload.completedDate = completedDate
+      payload.completedTime = completedTime
+      payload.attachments = phaseAttachments
+    }
+
+    return payload
+  }
+
+  const handleSecondaryAssigneeChange = (sId: number, checked: boolean) => {
+    if (checked) {
+      setSecondaryAssignees(prev => [...prev, sId])
+    } else {
+      setSecondaryAssignees(prev => prev.filter(id => id !== sId))
+    }
+  }
+
   useEffect(() => { 
     fetchApprovals() 
     fetchStaffList()
@@ -261,18 +389,7 @@ export default function ApprovalsInboxClient() {
   const openWorkDetail = async (workId: number) => {
     setIsWorkOpen(true)
     setWorkLoading(true)
-    setSelectedWork(null)
-    setPhaseAttachments([])
-    setShowRollbackForm(false)
-    setRollbackComment('')
-    setReviewComment('')
-    setWaitingFor('')
-    setBlockers('')
-    setStartDate('')
-    setProgressNote('')
-    setActiveActionTab('in_progress')
-    setCompletedDate('')
-    setCompletedTime('')
+    resetWorkStates()
 
     try {
       const res = await fetch(`/api/member/work/${workId}`)
@@ -281,30 +398,7 @@ export default function ApprovalsInboxClient() {
         if (data.success) {
           const wr = data.workRequest
           setSelectedWork(wr)
-          
-          // Prefill assignees
-          const prim = wr.assignments.find((a: any) => a.role === 'primary')
-          if (prim) setPrimaryAssignee(prim.user_id)
-          
-          const secs = wr.assignments.filter((a: any) => a.role === 'secondary').map((a: any) => a.user_id)
-          setSecondaryAssignees(secs)
-
-          // Prefill progress notes
-          if (wr.progressNotes) {
-            setWaitingFor(wr.progressNotes.waiting_for || '')
-            setBlockers(wr.progressNotes.blockers || '')
-            if (wr.progressNotes.start_date) {
-              setStartDate(new Date(wr.progressNotes.start_date).toISOString().split('T')[0])
-            }
-          }
-
-          // Prefill completion info
-          if (wr.completion) {
-            if (wr.completion.completed_date) {
-              setCompletedDate(new Date(wr.completion.completed_date).toISOString().split('T')[0])
-            }
-            setCompletedTime(wr.completion.completed_time || '')
-          }
+          prefillWorkStates(wr)
         } else {
           showStatus('error', data.error || 'ดึงรายละเอียดงานไม่สำเร็จ')
           setIsWorkOpen(false)
@@ -327,40 +421,19 @@ export default function ApprovalsInboxClient() {
     if (!files || files.length === 0) return
 
     setUploadingFile(true)
-    const imageCount = phaseAttachments.filter(a => a.type === 'image').length
-    const pdfCount = phaseAttachments.filter(a => a.type === 'pdf').length
+    let imageCount = phaseAttachments.filter(a => a.type === 'image').length
+    let pdfCount = phaseAttachments.filter(a => a.type === 'pdf').length
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-      const isPdf = file.type === 'application/pdf'
-      const type = isPdf ? 'pdf' : 'image'
-
-      if (isPdf && pdfCount + 1 > 10) {
-        alert('แนบไฟล์ PDF ได้สูงสุด 10 ไฟล์')
-        continue
-      }
-      if (!isPdf && imageCount + 1 > 20) {
-        alert('แนบรูปภาพได้สูงสุด 20 รูป')
-        continue
-      }
-
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('title', `work-phase-${phaseNum}`)
-
-      try {
-        const res = await fetch('/api/member/upload', {
-          method: 'POST',
-          body: formData,
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success) {
-            setPhaseAttachments(prev => [...prev, { name: data.filename, type, path: data.url }])
-          }
+      const result = await uploadSingleWorkFile(file, phaseNum, pdfCount, imageCount)
+      if (result) {
+        setPhaseAttachments(prev => [...prev, result])
+        if (result.type === 'pdf') {
+          pdfCount++
+        } else {
+          imageCount++
         }
-      } catch (err) {
-        console.error('File upload error:', err)
       }
     }
     setUploadingFile(false)
@@ -384,46 +457,10 @@ export default function ApprovalsInboxClient() {
     if (!selectedWork) return
     setWorkLoading(true)
 
-    const payload: any = { phase: phaseNum }
-
-    if (phaseNum === 2) {
-      const assignees = []
-      if (primaryAssignee > 0) {
-        assignees.push({ userId: primaryAssignee, role: 'primary' })
-      } else {
-        alert('กรุณาระบุผู้รับผิดชอบหลัก')
-        setWorkLoading(false)
-        return
-      }
-      for (const sId of secondaryAssignees) {
-        assignees.push({ userId: sId, role: 'secondary' })
-      }
-      payload.assignees = assignees
-    } else if (phaseNum === 3) {
-      if (!targetStatus) {
-        alert('ไม่ระบุสถานะงานเป้าหมาย')
-        setWorkLoading(false)
-        return
-      }
-      payload.targetStatus = targetStatus
-      if (targetStatus === 'waiting') {
-        payload.waitingFor = waitingFor
-        payload.blockers = blockers
-        payload.note = progressNote
-      } else {
-        payload.startDate = startDate || null
-        payload.details = progressNote
-      }
-      payload.attachments = phaseAttachments
-    } else if (phaseNum === 4) {
-      if (!completedDate || !completedTime) {
-        alert('กรุณากรอกวันที่และเวลาเสร็จสิ้น')
-        setWorkLoading(false)
-        return
-      }
-      payload.completedDate = completedDate
-      payload.completedTime = completedTime
-      payload.attachments = phaseAttachments
+    const payload = buildPhasePayload(phaseNum, targetStatus)
+    if (!payload) {
+      setWorkLoading(false)
+      return
     }
 
     try {
@@ -1127,8 +1164,20 @@ export default function ApprovalsInboxClient() {
 
       {/* ===== Detail Modal ===== */}
       {isDetailOpen && (
-        <div className="detailOverlay" onClick={() => setIsDetailOpen(false)}>
-          <div className="detailModal" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="detailOverlay" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsDetailOpen(false)
+          }}
+          role="button"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              setIsDetailOpen(false)
+            }
+          }}
+        >
+          <div className="detailModal">
             <div className="detailModalHeader">
               <div>
                 <h2>รายละเอียดคำขอ</h2>
@@ -1372,8 +1421,20 @@ export default function ApprovalsInboxClient() {
 
       {/* ===== Track Work Details Modal (Phases 2-5) ===== */}
       {isWorkOpen && (
-        <div className="detailOverlay" onClick={() => setIsWorkOpen(false)}>
-          <div className="detailModal workDetailModal" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="detailOverlay" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsWorkOpen(false)
+          }}
+          role="button"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              setIsWorkOpen(false)
+            }
+          }}
+        >
+          <div className="detailModal workDetailModal">
             <div className="detailModalHeader">
               <div>
                 <h2>{selectedWork ? `ติดตามงาน: ${selectedWork.request_no}` : 'รายละเอียดงาน'}</h2>
@@ -1484,6 +1545,16 @@ export default function ApprovalsInboxClient() {
                               e.currentTarget.style.color = '#e11d48';
                               e.currentTarget.style.boxShadow = '0 2px 4px rgba(225, 29, 72, 0.05)';
                             }}
+                            onFocus={(e) => {
+                              e.currentTarget.style.background = '#e11d48';
+                              e.currentTarget.style.color = '#ffffff';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(225, 29, 72, 0.2)';
+                            }}
+                            onBlur={(e) => {
+                              e.currentTarget.style.background = 'rgba(225, 29, 72, 0.03)';
+                              e.currentTarget.style.color = '#e11d48';
+                              e.currentTarget.style.boxShadow = '0 2px 4px rgba(225, 29, 72, 0.05)';
+                            }}
                           >
                             <XCircle size={16} /> สั่งแก้ไขงานใหม่ (ส่งกลับไปดำเนินการ)
                           </button>
@@ -1542,13 +1613,7 @@ export default function ApprovalsInboxClient() {
                                 <input 
                                   type="checkbox"
                                   checked={secondaryAssignees.includes(s.id)}
-                                  onChange={e => {
-                                    if (e.target.checked) {
-                                      setSecondaryAssignees(prev => [...prev, s.id])
-                                    } else {
-                                      setSecondaryAssignees(prev => prev.filter(id => id !== s.id))
-                                    }
-                                  }}
+                                  onChange={e => handleSecondaryAssigneeChange(s.id, e.target.checked)}
                                 />
                                 <span>{s.name} ({s.position})</span>
                               </label>
@@ -1648,7 +1713,19 @@ export default function ApprovalsInboxClient() {
                         {/* File upload for Phase 3 (Global for both tabs) */}
                         <div className="formGroup" style={{ marginTop: '12px' }}>
                           <label>แนบรูปภาพหรือเอกสารอัปเดตเพิ่มเติม</label>
-                          <div className="mini-upload-zone" onClick={() => document.getElementById('phase3-file-input')?.click()} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', padding: '16px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', cursor: 'pointer' }}>
+                          <div 
+                            className="mini-upload-zone" 
+                            onClick={() => document.getElementById('phase3-file-input')?.click()} 
+                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', padding: '16px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '10px', cursor: 'pointer' }}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                document.getElementById('phase3-file-input')?.click()
+                              }
+                            }}
+                          >
                             <Upload size={18} />
                             <span style={{ fontSize: '12px', marginTop: '4px', color: '#64748b' }}>คลิกเพื่ออัปโหลดไฟล์</span>
                             <input 
@@ -1709,7 +1786,18 @@ export default function ApprovalsInboxClient() {
                         {/* File upload for Phase 4 */}
                         <div className="formGroup">
                           <label>แนบผลลัพธ์ของงาน / สกรีนช็อตรายงาน / ไฟล์แนบความสำเร็จ</label>
-                          <div className="mini-upload-zone" onClick={() => document.getElementById('phase4-file-input')?.click()}>
+                          <div 
+                            className="mini-upload-zone" 
+                            onClick={() => document.getElementById('phase4-file-input')?.click()}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                document.getElementById('phase4-file-input')?.click()
+                              }
+                            }}
+                          >
                             <Upload size={18} />
                             <span>คลิกเพื่ออัปโหลดไฟล์</span>
                             <input 

@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     }
 
     // Insert request using JSON document storage for form details
-    const insertResult = await queryMemberDb(
+    await queryMemberDb(
       `INSERT INTO pr_requests (title, has_cost, requester_id, department, status, form_data)
        VALUES (?, ?, ?, ?, 'PENDING', ?)`,
       [
@@ -189,6 +189,72 @@ export async function POST(request: Request) {
   }
 }
 
+async function recreatePRApprovalTickets(id: number, hasCost: boolean, isPrOfficer: boolean) {
+  if (isPrOfficer) {
+    // If PR Officer is editing, we do not reset Step 1.
+    // We only delete all steps after Step 1 and re-create them.
+    await queryMemberDb(
+      "DELETE FROM approval_tickets WHERE source_system = 'PR_MEDIA' AND source_id = ? AND step_number > 1",
+      [id]
+    )
+  } else {
+    // If original creator is editing, we reset the entire workflow back to Step 1 (PENDING)
+    await queryMemberDb(
+      "DELETE FROM approval_tickets WHERE source_system = 'PR_MEDIA' AND source_id = ?",
+      [id]
+    )
+
+    const prOfficers = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%นักประชาสัมพันธ์%' LIMIT 1")
+    const prOfficerId = prOfficers.length > 0 ? prOfficers[0].id : null
+
+    // Step 1: นักประชาสัมพันธ์ (PENDING)
+    await queryMemberDb(
+      `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
+       VALUES ('PR_MEDIA', ?, 1, 'นักประชาสัมพันธ์', ?, 'PENDING')`,
+      [id, prOfficerId]
+    )
+  }
+
+  const digHeads = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%ดิจิทัลทางการแพทย์%' LIMIT 1")
+  const digHeadId = digHeads.length > 0 ? digHeads[0].id : null
+
+  // Step 2: หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ (WAITING)
+  await queryMemberDb(
+    `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
+     VALUES ('PR_MEDIA', ?, 2, 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์', ?, 'WAITING')`,
+    [id, digHeadId]
+  )
+
+  if (hasCost) {
+    // Step 3: เจ้าหน้าที่พัสดุ (WAITING)
+    const pasOfficer = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%เจ้าหน้าที่พัสดุ%' OR (position LIKE '%พัสดุ%' AND position NOT LIKE '%หัวหน้า%') LIMIT 1")
+    const pasOfficerId = pasOfficer.length > 0 ? pasOfficer[0].id : null
+    await queryMemberDb(
+      `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
+       VALUES ('PR_MEDIA', ?, 3, 'เจ้าหน้าที่พัสดุ', ?, 'WAITING')`,
+      [id, pasOfficerId]
+    )
+
+    // Step 4: หัวหน้าเจ้าหน้าที่พัสดุ (WAITING)
+    const pasHead = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%หัวหน้าเจ้าหน้าที่พัสดุ%' OR position LIKE '%หัวหน้าพัสดุ%' OR (position LIKE '%หัวหน้า%' AND position LIKE '%พัสดุ%') LIMIT 1")
+    const pasHeadId = pasHead.length > 0 ? pasHead[0].id : null
+    await queryMemberDb(
+      `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
+       VALUES ('PR_MEDIA', ?, 4, 'หัวหน้าเจ้าหน้าที่พัสดุ', ?, 'WAITING')`,
+      [id, pasHeadId]
+    )
+
+    // Step 5: ผู้อำนวยการโรงพยาบาลเถิน (WAITING)
+    const directors = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%ผู้อำนวยการ%' LIMIT 1")
+    const directorId = directors.length > 0 ? directors[0].id : null
+    await queryMemberDb(
+      `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
+       VALUES ('PR_MEDIA', ?, 5, 'ผู้อำนวยการโรงพยาบาลเถิน', ?, 'WAITING')`,
+      [id, directorId]
+    )
+  }
+}
+
 export async function PUT(request: Request) {
   try {
     const session = await verifyMemberSession()
@@ -265,108 +331,7 @@ export async function PUT(request: Request) {
       ]
     )
 
-    if (isPrOfficer) {
-      // If PR Officer is editing, we do not reset Step 1.
-      // We only delete all steps after Step 1 and re-create them.
-      await queryMemberDb(
-        "DELETE FROM approval_tickets WHERE source_system = 'PR_MEDIA' AND source_id = ? AND step_number > 1",
-        [id]
-      )
-
-      const digHeads = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%ดิจิทัลทางการแพทย์%' LIMIT 1")
-      const digHeadId = digHeads.length > 0 ? digHeads[0].id : null
-
-      // Step 2: หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ (WAITING)
-      await queryMemberDb(
-        `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-         VALUES ('PR_MEDIA', ?, 2, 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์', ?, 'WAITING')`,
-        [id, digHeadId]
-      )
-
-      if (hasCost) {
-        // Step 3: เจ้าหน้าที่พัสดุ (WAITING)
-        const pasOfficer = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%เจ้าหน้าที่พัสดุ%' OR (position LIKE '%พัสดุ%' AND position NOT LIKE '%หัวหน้า%') LIMIT 1")
-        const pasOfficerId = pasOfficer.length > 0 ? pasOfficer[0].id : null
-        await queryMemberDb(
-          `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-           VALUES ('PR_MEDIA', ?, 3, 'เจ้าหน้าที่พัสดุ', ?, 'WAITING')`,
-          [id, pasOfficerId]
-        )
-
-        // Step 4: หัวหน้าเจ้าหน้าที่พัสดุ (WAITING)
-        const pasHead = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%หัวหน้าเจ้าหน้าที่พัสดุ%' OR position LIKE '%หัวหน้าพัสดุ%' OR (position LIKE '%หัวหน้า%' AND position LIKE '%พัสดุ%') LIMIT 1")
-        const pasHeadId = pasHead.length > 0 ? pasHead[0].id : null
-        await queryMemberDb(
-          `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-           VALUES ('PR_MEDIA', ?, 4, 'หัวหน้าเจ้าหน้าที่พัสดุ', ?, 'WAITING')`,
-          [id, pasHeadId]
-        )
-
-        // Step 5: ผู้อำนวยการโรงพยาบาลเถิน (WAITING)
-        const directors = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%ผู้อำนวยการ%' LIMIT 1")
-        const directorId = directors.length > 0 ? directors[0].id : null
-        await queryMemberDb(
-          `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-           VALUES ('PR_MEDIA', ?, 5, 'ผู้อำนวยการโรงพยาบาลเถิน', ?, 'WAITING')`,
-          [id, directorId]
-        )
-      }
-    } else {
-      // If original creator is editing, we reset the entire workflow back to Step 1 (PENDING)
-      await queryMemberDb(
-        "DELETE FROM approval_tickets WHERE source_system = 'PR_MEDIA' AND source_id = ?",
-        [id]
-      )
-
-      const prOfficers = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%นักประชาสัมพันธ์%' LIMIT 1")
-      const prOfficerId = prOfficers.length > 0 ? prOfficers[0].id : null
-
-      const digHeads = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%ดิจิทัลทางการแพทย์%' LIMIT 1")
-      const digHeadId = digHeads.length > 0 ? digHeads[0].id : null
-
-      // Step 1: นักประชาสัมพันธ์ (PENDING)
-      await queryMemberDb(
-        `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-         VALUES ('PR_MEDIA', ?, 1, 'นักประชาสัมพันธ์', ?, 'PENDING')`,
-        [id, prOfficerId]
-      )
-
-      // Step 2: หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ (WAITING)
-      await queryMemberDb(
-        `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-         VALUES ('PR_MEDIA', ?, 2, 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์', ?, 'WAITING')`,
-        [id, digHeadId]
-      )
-
-      if (hasCost) {
-        // Step 3: เจ้าหน้าที่พัสดุ (WAITING)
-        const pasOfficer = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%เจ้าหน้าที่พัสดุ%' OR (position LIKE '%พัสดุ%' AND position NOT LIKE '%หัวหน้า%') LIMIT 1")
-        const pasOfficerId = pasOfficer.length > 0 ? pasOfficer[0].id : null
-        await queryMemberDb(
-          `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-           VALUES ('PR_MEDIA', ?, 3, 'เจ้าหน้าที่พัสดุ', ?, 'WAITING')`,
-          [id, pasOfficerId]
-        )
-
-        // Step 4: หัวหน้าเจ้าหน้าที่พัสดุ (WAITING)
-        const pasHead = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%หัวหน้าเจ้าหน้าที่พัสดุ%' OR position LIKE '%หัวหน้าพัสดุ%' OR (position LIKE '%หัวหน้า%' AND position LIKE '%พัสดุ%') LIMIT 1")
-        const pasHeadId = pasHead.length > 0 ? pasHead[0].id : null
-        await queryMemberDb(
-          `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-           VALUES ('PR_MEDIA', ?, 4, 'หัวหน้าเจ้าหน้าที่พัสดุ', ?, 'WAITING')`,
-          [id, pasHeadId]
-        )
-
-        // Step 5: ผู้อำนวยการโรงพยาบาลเถิน (WAITING)
-        const directors = await queryMemberDb("SELECT id FROM members WHERE position LIKE '%ผู้อำนวยการ%' LIMIT 1")
-        const directorId = directors.length > 0 ? directors[0].id : null
-        await queryMemberDb(
-          `INSERT INTO approval_tickets (source_system, source_id, step_number, assigned_position, current_approver_id, status)
-           VALUES ('PR_MEDIA', ?, 5, 'ผู้อำนวยการโรงพยาบาลเถิน', ?, 'WAITING')`,
-          [id, directorId]
-        )
-      }
-    }
+    await recreatePRApprovalTickets(id, !!hasCost, isPrOfficer)
 
     return NextResponse.json({ success: true, message: 'แก้ไขคำขอผลิตสื่อประชาสัมพันธ์เรียบร้อยแล้ว' })
   } catch (error) {

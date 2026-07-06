@@ -49,13 +49,6 @@ export default function AdminDashboard() {
           return start > now
         }).length
 
-        const archived = allNews.filter((n: any) => {
-          if (n.expiredAt) {
-            const end = new Date(n.expiredAt)
-            return end < now
-          }
-          return false
-        }).length
 
         // Map recent news
         const mappedRecent = allNews.slice(0, 5).map((n: any) => ({

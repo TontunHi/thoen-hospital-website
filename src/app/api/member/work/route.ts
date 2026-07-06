@@ -107,6 +107,52 @@ export async function POST(request: Request) {
   }
 }
 
+async function checkCanSeeAll(role: string, position: string): Promise<boolean> {
+  if (role === 'admin') return true
+  if (position) {
+    const seeAllPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'view_all_work' AND TRIM(position_name) = TRIM(?)",
+      [position]
+    )
+    return (seeAllPerms[0]?.count || 0) > 0
+  }
+  return false
+}
+
+function formatWorkRequest(req: any, memberId: number, canSeeAll: boolean) {
+  let assignees = []
+  try {
+    assignees = req.assignees ? JSON.parse(req.assignees) : []
+  } catch (e) {
+    console.error('Failed to parse assignees JSON:', e)
+    assignees = []
+  }
+
+  const isCreator = req.created_by === memberId
+  const isAssigned = assignees.some((a: any) => a.id === memberId || a.user_id === memberId)
+
+  if (canSeeAll || isCreator || isAssigned) {
+    const mappedAssignees = assignees.map((a: any) => ({
+      id: a.id || a.user_id,
+      name: a.name,
+      position: a.position,
+      role: a.role
+    }))
+
+    return {
+      ...req,
+      assignees: mappedAssignees,
+      attachments: req.attachments ? JSON.parse(req.attachments) : [],
+      status_history: req.status_history ? JSON.parse(req.status_history) : [],
+      progress_notes: req.progress_notes ? JSON.parse(req.progress_notes) : null,
+      completion: req.completion ? JSON.parse(req.completion) : null,
+      review: req.review ? JSON.parse(req.review) : null
+    }
+  }
+
+  return null
+}
+
 // GET: Retrieve work requests based on permissions and dashboard scope
 export async function GET(request: Request) {
   try {
@@ -129,14 +175,7 @@ export async function GET(request: Request) {
     const position = currentMember.position || ''
     const role = currentMember.role
 
-    let canSeeAll = role === 'admin'
-    if (!canSeeAll && position) {
-      const seeAllPerms = await queryMemberDb(
-        "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'view_all_work' AND TRIM(position_name) = TRIM(?)",
-        [position]
-      )
-      canSeeAll = (seeAllPerms[0]?.count || 0) > 0
-    }
+    const canSeeAll = await checkCanSeeAll(role, position)
 
     // Retrieve all work requests
     const query = `
@@ -149,38 +188,9 @@ export async function GET(request: Request) {
 
     const formattedRequests = []
     for (const req of requests) {
-      // Parse JSON fields safely
-      let assignees = []
-      try {
-        assignees = req.assignees ? JSON.parse(req.assignees) : []
-      } catch (e) {
-        assignees = []
-      }
-
-      // Filter visibility checks:
-      // - Users who canSeeAll see everything
-      // - Others see only if they created it OR are assigned to it
-      const isCreator = req.created_by === memberId
-      const isAssigned = assignees.some((a: any) => a.id === memberId || a.user_id === memberId)
-
-      if (canSeeAll || isCreator || isAssigned) {
-        // Standardize assignees format for FE compatibility
-        const mappedAssignees = assignees.map((a: any) => ({
-          id: a.id || a.user_id,
-          name: a.name,
-          position: a.position,
-          role: a.role
-        }))
-
-        formattedRequests.push({
-          ...req,
-          assignees: mappedAssignees,
-          attachments: req.attachments ? JSON.parse(req.attachments) : [],
-          status_history: req.status_history ? JSON.parse(req.status_history) : [],
-          progress_notes: req.progress_notes ? JSON.parse(req.progress_notes) : null,
-          completion: req.completion ? JSON.parse(req.completion) : null,
-          review: req.review ? JSON.parse(req.review) : null
-        })
+      const formatted = formatWorkRequest(req, memberId, canSeeAll)
+      if (formatted) {
+        formattedRequests.push(formatted)
       }
     }
 

@@ -6,7 +6,7 @@ import './page.css'
 
 export default function SalaryDashboardPage() {
   const [name, setName] = useState('')
-  const [username, setUsername] = useState('')
+
   const [years, setYears] = useState<string[]>([])
   const [selectedYear, setSelectedYear] = useState('')
   const [selectedMonth, setSelectedMonth] = useState('')

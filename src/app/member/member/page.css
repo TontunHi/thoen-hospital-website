@@ -621,7 +621,8 @@
 
 .membersDashboardPage .modalHeader {
   padding: 26px 32px;
-  border-bottom: 1px solid rgba(241, 245, 249, 0.8);
+  background: linear-gradient(135deg, #10b981, #059669); /* Rich green gradient */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   gap: 16px;
@@ -632,9 +633,9 @@
   width: 48px;
   height: 48px;
   border-radius: 16px;
-  background: rgba(16, 185, 129, 0.08);
-  color: #059669;
-  border: 1px solid rgba(16, 185, 129, 0.15);
+  background: rgba(255, 255, 255, 0.15); /* White opacity */
+  color: #ffffff; /* White icon */
+  border: 1px solid rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -644,14 +645,15 @@
 .membersDashboardPage .modalHeader h2 {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #ffffff; /* White title */
   margin: 0;
   letter-spacing: -0.01em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .membersDashboardPage .headerSubtitle {
   font-size: 0.85rem;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.9); /* Light white subtitle */
   margin: 4px 0 0 0;
 }
 
@@ -661,7 +663,7 @@
   right: 32px;
   background: none;
   border: none;
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
   padding: 6px;
   border-radius: 10px;
@@ -672,8 +674,8 @@
 }
 
 .membersDashboardPage .closeBtn:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
 }
 
 /* Modal form inputs & wrappers */

@@ -52,7 +52,7 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
         body: formData,
       })
 
-      const data = await res.ok ? await res.json() : null
+      const data = res.ok ? await res.json() : null
 
       if (res.ok && data?.success) {
         setHasAvatar(true)
@@ -77,7 +77,19 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
       <div className="bannerBackground"></div>
       <div className="profileBannerContent">
         <div className="avatarWrapper">
-          <div className="userAvatar clickableAvatar" onClick={handleAvatarClick} title="คลิกเพื่ออัปโหลดรูปภาพโปรไฟล์">
+          <div 
+            className="userAvatar clickableAvatar" 
+            onClick={handleAvatarClick} 
+            title="คลิกเพื่ออัปโหลดรูปภาพโปรไฟล์"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                handleAvatarClick()
+              }
+            }}
+          >
             {hasAvatar ? (
               <img
                 src={`/api/member/profile/image?userId=${member.id}&t=${avatarTimestamp}`}

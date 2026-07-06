@@ -222,6 +222,14 @@ export default function EditPRRequestClient({
             <div 
               className={`typeSelectCard ${!hasCost ? 'active' : ''}`}
               onClick={() => setHasCost(false)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setHasCost(false)
+                }
+              }}
             >
               <h3>ไม่มีค่าใช้จ่าย (ทั่วไป)</h3>
               <p>เช่น งานออกแบบขึ้นเว็บ, วิดีโอ หรือสื่อดิจิทัลทั่วไป อนุมัติสั้นเพียง 1 ขั้นตอน</p>
@@ -229,6 +237,14 @@ export default function EditPRRequestClient({
             <div 
               className={`typeSelectCard ${hasCost ? 'active' : ''}`}
               onClick={() => setHasCost(true)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setHasCost(true)
+                }
+              }}
             >
               <h3>มีค่าใช้จ่าย (งบประมาณ)</h3>
               <p>เช่น งานไวนิล, ป้ายบอร์ดนิทรรศการ หรือสิ่งพิมพ์จ้างนอก อนุมัติ 4 ขั้นตอน</p>
@@ -397,7 +413,17 @@ export default function EditPRRequestClient({
             }}
             onMouseOver={(e) => e.currentTarget.style.borderColor = '#0d9488'}
             onMouseOut={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
+            onFocus={(e) => e.currentTarget.style.borderColor = '#0d9488'}
+            onBlur={(e) => e.currentTarget.style.borderColor = '#cbd5e1'}
             onClick={() => document.getElementById('attachment-input')?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                document.getElementById('attachment-input')?.click()
+              }
+            }}
             >
               <input 
                 id="attachment-input"
@@ -477,6 +503,8 @@ export default function EditPRRequestClient({
                       }}
                       onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
                       onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      onFocus={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                      onBlur={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                       <X size={16} />
                     </button>

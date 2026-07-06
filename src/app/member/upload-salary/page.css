@@ -1,0 +1,358 @@
+.uploadSalaryContainer {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: 'Sarabun', sans-serif;
+  color: #1e293b;
+}
+
+.uploadSalaryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.uploadSalaryHeader h1 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.uploadSalaryGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 992px) {
+  .uploadSalaryGrid {
+    grid-template-columns: 1fr 1.2fr;
+  }
+}
+
+.uploadCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.uploadCard h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 10px;
+}
+
+/* Forms */
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formLabel {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.formLabel.required::after {
+  content: ' *';
+  color: #ef4444;
+}
+
+.formRadioGroup {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.formRadioLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.formInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: #0d9488;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btnPrimary {
+  background: #0d9488;
+  color: #ffffff;
+}
+
+.btnPrimary:hover {
+  background: #0f766e;
+}
+
+.btnSecondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btnSecondary:hover {
+  background: #e2e8f0;
+}
+
+.btnDanger {
+  background: #ef4444;
+  color: #ffffff;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btnDanger:hover {
+  background: #dc2626;
+}
+
+/* Upload Area */
+.dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 30px 20px;
+  text-align: center;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.dropzone:hover, .dropzone:focus {
+  border-color: #0d9488;
+  background: #f0fdfa;
+  outline: none;
+}
+
+.dropzoneIcon {
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.dropzoneText {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0 0 4px 0;
+}
+
+.dropzoneSubtext {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.fileSelectedArea {
+  margin-top: 16px;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fileInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+/* Table */
+.periodTableContainer {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.periodTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.periodTable th, .periodTable td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.periodTable th {
+  background: #f8fafc;
+  font-weight: 700;
+  color: #475569;
+}
+
+.statusBadge {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.statusSalary {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.statusOt {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+/* Toast/Alerts */
+.alertBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.alertSuccess {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.alertError {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Modal Overlay */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Modal Content Card */
+.modalCard {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  animation: scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid #e2e8f0;
+}
+
+.modalHeader {
+  background: linear-gradient(135deg, #10b981, #059669); /* Rich green gradient */
+  color: #ffffff !important;
+  padding: 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 800;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.modalBody {
+  padding: 24px;
+}
+
+.confirmDetailList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.confirmDetailItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+  font-size: 14px;
+}
+
+.confirmDetailLabel {
+  font-weight: 700;
+  color: #64748b;
+}
+
+.confirmDetailValue {
+  font-weight: 600;
+  color: #1e293b;
+  text-align: right;
+  max-width: 250px;
+  word-break: break-all;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+

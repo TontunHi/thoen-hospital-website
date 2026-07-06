@@ -379,7 +379,20 @@ export default function Navbar() {
           </button>
         </div>
       </div>
-      {isOpen && <div className="navbar__overlay" onClick={() => setIsOpen(false)} />}
+      {isOpen && (
+        <div 
+          className="navbar__overlay" 
+          onClick={() => setIsOpen(false)} 
+          role="button"
+          aria-label="ปิดเมนู"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              setIsOpen(false)
+            }
+          }}
+        />
+      )}
       
       {showToast && (
         <div className="navbar__toast">

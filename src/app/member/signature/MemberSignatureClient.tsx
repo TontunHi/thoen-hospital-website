@@ -19,7 +19,7 @@ export default function MemberSignatureClient() {
   const contextRef = useRef<CanvasRenderingContext2D | null>(null)
 
   // Signature Upload States
-  const [uploadedImageSrc, setUploadedImageSrc] = useState<string | null>(null)
+
   const [processedImageSrc, setProcessedImageSrc] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -149,7 +149,6 @@ export default function MemberSignatureClient() {
     const reader = new FileReader()
     reader.onload = (event) => {
       const imgUrl = event.target?.result as string
-      setUploadedImageSrc(imgUrl)
       processImageBackground(imgUrl)
     }
     reader.readAsDataURL(file)
@@ -227,7 +226,6 @@ export default function MemberSignatureClient() {
         setLastUpdated(new Date().toLocaleString('th-TH'))
         if (activeTab === 'draw') clearCanvas()
         else {
-          setUploadedImageSrc(null)
           setProcessedImageSrc(null)
         }
       } else {
@@ -355,7 +353,6 @@ export default function MemberSignatureClient() {
                   <div className="canvasToolbar">
                     <button
                       onClick={() => {
-                        setUploadedImageSrc(null)
                         setProcessedImageSrc(null)
                       }}
                       className="button buttonSecondary"
