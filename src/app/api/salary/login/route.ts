@@ -51,6 +51,17 @@ export async function POST(request: Request) {
     // Set secure signed browser session cookie
     await createSalarySession(user.user_name, user.name || user.user_name)
 
+    // Log login event
+    try {
+      const { logAudit } = await import('@/lib/audit')
+      await logAudit(
+        'LOGIN',
+        'username',
+        `User ${user.user_name} logged in to Salary portal manually`,
+        { username: user.user_name, email: '' }
+      )
+    } catch (e) {}
+
     return NextResponse.json({ success: true, name: user.name || user.user_name })
   } catch (error: any) {
     console.error('Salary login general error:', error)
@@ -121,6 +132,17 @@ export async function GET() {
 
     // 4. Set secure signed browser session cookie for Salary portal
     await createSalarySession(salaryUser.user_name, salaryUser.name || salaryUser.user_name)
+
+    // Log login event
+    try {
+      const { logAudit } = await import('@/lib/audit')
+      await logAudit(
+        'LOGIN',
+        'username',
+        `User ${salaryUser.user_name} logged in to Salary portal via SSO`,
+        { username: memberSession.username, email: memberSession.email }
+      )
+    } catch (e) {}
 
     return NextResponse.json({
       authenticated: true,

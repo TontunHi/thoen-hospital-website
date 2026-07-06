@@ -63,6 +63,19 @@ export async function POST(request: Request) {
     // 4. Create member session cookie
     await createMemberSession(trimmedUsername, trimmedEmail, user.role || 'member')
 
+    // 5. Log login event
+    try {
+      const { logAudit } = await import('@/lib/audit')
+      await logAudit(
+        'LOGIN',
+        'members',
+        `User ${trimmedUsername} logged in successfully`,
+        { username: trimmedUsername, email: trimmedEmail }
+      )
+    } catch (auditErr) {
+      console.error('Failed to log login event:', auditErr)
+    }
+
     return NextResponse.json({
       success: true,
       message: 'เข้าสู่ระบบสำเร็จ',

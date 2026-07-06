@@ -158,6 +158,21 @@ async function initializeDb(poolInstance: mysql.Pool) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
 
+    // Initialize Audit Logs Table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        username VARCHAR(100) NULL,
+        email VARCHAR(100) NULL,
+        action_type VARCHAR(50) NOT NULL,
+        target_table VARCHAR(100) NULL,
+        action_details TEXT NULL,
+        ip_address VARCHAR(45) NULL,
+        user_agent VARCHAR(255) NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
     // Initialize Position Permissions Table
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS position_permissions (
@@ -209,6 +224,33 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
   try {
     await connection.query("SET NAMES utf8mb4")
     const [results] = await connection.execute(sql, params)
+
+    // Capture DB modification queries for audit logs
+    const trimmedSql = sql.trim().toUpperCase()
+    const isModify = /^(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|REPLACE)/.test(trimmedSql)
+    const isAuditLogWrite = /INSERT\s+INTO\s+AUDIT_LOGS/i.test(sql)
+
+    if (isModify && !isAuditLogWrite) {
+      // Extract target table name from sql
+      let targetTable = 'unknown'
+      const tableMatch = sql.match(/(?:from|into|update|table)\s+[\`"']?([a-zA-Z0-9_\-]+)[\`"']?/i)
+      if (tableMatch) {
+        targetTable = tableMatch[1]
+      }
+
+      let actionType = 'UPDATE'
+      if (trimmedSql.startsWith('INSERT')) actionType = 'CREATE'
+      else if (trimmedSql.startsWith('DELETE')) actionType = 'DELETE'
+      else if (trimmedSql.startsWith('CREATE') || trimmedSql.startsWith('DROP') || trimmedSql.startsWith('ALTER')) actionType = 'SYSTEM'
+
+      const { logAudit } = await import('./audit')
+      logAudit(
+        actionType as any,
+        targetTable,
+        `SQL: ${sql} | Params: ${JSON.stringify(params)}`
+      ).catch(err => console.error('Failed to write CRUD audit log:', err))
+    }
+
     return results as any[]
   } finally {
     connection.release()

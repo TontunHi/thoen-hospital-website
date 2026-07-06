@@ -439,6 +439,26 @@ export default async function MemberDashboardPage() {
                   <ChevronRight size={16} className="chevronIcon" />
                 </div>
               </Link>
+
+              {/* Card 10: Audit Log Viewer (Visible to Admins only) */}
+              <Link href="/member/audit-logs" className="serviceCard">
+                <div className="serviceCardHeader">
+                  <div className="serviceIconWrapper" style={{ backgroundColor: '#fff1f2', color: '#e11d48', borderColor: '#ffe4e6', borderWidth: '1px', borderStyle: 'solid' }}>
+                    <Shield size={24} />
+                  </div>
+                  <div className="statusIndicator success" style={{ backgroundColor: '#ffe4e6', color: '#9f1239', borderColor: '#fecdd3' }}>
+                    <span>ความปลอดภัย</span>
+                  </div>
+                </div>
+                <div className="serviceCardBody">
+                  <h4>ระบบประวัติการใช้งาน (Audit Logs)</h4>
+                  <p>ระบบติดตามความปลอดภัยและประวัติการทำรายการต่างๆ ตรวจสอบข้อมูลการเข้าสู่ระบบ, การทำ CRUD บนฐานข้อมูล, และการเข้าชมเว็บของเจ้าหน้าที่</p>
+                </div>
+                <div className="serviceCardFooter" style={{ color: '#e11d48' }}>
+                  <span className="actionText">ตรวจสอบประวัติการใช้งาน</span>
+                  <ChevronRight size={16} className="chevronIcon" />
+                </div>
+              </Link>
             </div>
           </>
         )}
