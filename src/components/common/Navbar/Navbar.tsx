@@ -179,6 +179,7 @@ export default function Navbar() {
         { href: '/package/health-check-1day', label: 'โปรแกรมตรวจสุขภาพ 1 วัน' },
         { href: '/package/dentistry', label: 'บริการด้านทันตกรรม' },
         { href: '/package/vip-room', label: 'ห้องพิเศษ VIP' },
+        { href: '/package/childbirth', label: 'คลอดบุตร' },
       ]
     },
     {

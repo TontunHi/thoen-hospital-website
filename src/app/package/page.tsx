@@ -103,6 +103,35 @@ export default function PackagePage() {
             </div>
           </div>
 
+          {/* Card 4: Childbirth Packages */}
+          <div className="packageCard card-glass">
+            <div className="packageCard__image">
+              <Image
+                src="/images/package/childbirth/childbirth.webp"
+                alt="คลอดบุตร โรงพยาบาลเถิน"
+                fill
+                style={{ objectFit: 'cover', objectPosition: 'center 40%' }}
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            </div>
+            <div className="packageCard__body">
+              <div className="packageCard__icon">
+                <HeartPulse size={24} />
+              </div>
+              <h3>คลอดบุตร (Childbirth Packages)</h3>
+              <p>
+                โปรแกรมเตรียมคลอดปกติ คลอดปกติพร้อมทำหมัน ผ่าตัดคลอด และผ่าตัดคลอดพร้อมทำหมัน ดูแลอย่างอบอุ่นโดยแพทย์และทีมพยาบาลผู้เชี่ยวชาญ
+              </p>
+              <div className="packageCard__footer">
+                <span className="packageCard__price">เริ่มต้น 5,000.- บาท</span>
+                <Link href="/package/childbirth" className="packageCard__btn">
+                  ดูรายละเอียด
+                  <ChevronRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>

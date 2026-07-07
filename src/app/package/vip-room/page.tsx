@@ -67,27 +67,28 @@ const getAmenityIcon = (name: string) => {
 
 export default function VipRoomPage() {
   return (
-    <div className="vip-page" style={{ paddingTop: '2rem' }}>
-      {/* Hero Banner */}
-      <section className="vip-hero">
-        <div className="vip-hero__bg" aria-hidden="true" />
-        <div className="container vip-hero__content">
-          <span className="vip-hero__badge">
-            <Crown size={14} />
-            PREMIUM SERVICES
-          </span>
-          <h1 className="vip-hero__title">
-            อัตราค่าบริการห้องพิเศษ
-            <span className="vip-hero__subtitle">โรงพยาบาลเถิน THOEN HOSPITAL</span>
-          </h1>
-          <p className="vip-hero__desc">
-            โรงพยาบาลเถินมุ่งมั่นให้บริการดูแลคุณและคนที่คุณรัก ด้วยมาตรฐานโรงพยาบาลและบริการสุขภาพ
-            พร้อมด้วยสิ่งอำนวยความสะดวกครบครัน และความเป็นส่วนตัวตลอดช่วงเวลาการพักฟื้น
-          </p>
-        </div>
-      </section>
+    <div className="vip-page">
+      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '5rem' }}>
+        {/* Hero Banner */}
+        <section className="vip-hero">
+          <div className="vip-hero__bg" aria-hidden="true" />
+          <div className="vip-hero__content">
+            <span className="vip-hero__badge">
+              <Crown size={14} />
+              PREMIUM SERVICES
+            </span>
+            <h1 className="vip-hero__title">
+              อัตราค่าบริการห้องพิเศษ
+              <span className="vip-hero__subtitle">โรงพยาบาลเถิน THOEN HOSPITAL</span>
+            </h1>
+            <p className="vip-hero__desc">
+              โรงพยาบาลเถินมุ่งมั่นให้บริการดูแลคุณและคนที่คุณรัก ด้วยมาตรฐานโรงพยาบาลและบริการสุขภาพ
+              พร้อมด้วยสิ่งอำนวยความสะดวกครบครัน และความเป็นส่วนตัวตลอดช่วงเวลาการพักฟื้น
+            </p>
+          </div>
+        </section>
 
-      <div className="container vip-content">
+        <div className="vip-content">
         <div className="vip-rooms-grid">
           {/* ─── ห้อง VIP ─── */}
           <section id="vip" className="room-card vip-theme">
@@ -182,6 +183,7 @@ export default function VipRoomPage() {
             </ul>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

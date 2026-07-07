@@ -52,7 +52,8 @@ export const services: ServiceItem[] = [
   {
     title: 'สูตินรีเวชกรรม',
     desc: 'บริการดูแลคุณแม่ตั้งครรภ์ ฝากครรภ์ คลอดบุตร และตรวจรักษาโรคทางนรีเวชอย่างอบอุ่นและปลอดภัย',
-    icon: Baby
+    icon: Baby,
+    link: '/package/childbirth'
   },
 ];
 
