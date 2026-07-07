@@ -166,17 +166,7 @@ export default function HealthCheckPage() {
 
         {/* Hero Section */}
         <section className="healthHero">
-          <div className="healthHero__bg">
-            <Image
-              src="/images/package/health-check-1day/health-check.webp"
-              alt="โปรแกรมตรวจสุขภาพ รู้ผลได้ใน 1 วัน"
-              fill
-              priority
-              style={{ objectFit: 'cover' }}
-              sizes="100vw"
-            />
-            <div className="healthHero__overlay" />
-          </div>
+          <div className="healthHero__bg" aria-hidden="true" />
           <div className="healthHero__content">
             <span className="healthHero__badge">
               <HeartPulse size={16} />

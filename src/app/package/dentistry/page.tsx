@@ -21,17 +21,7 @@ export default function DentistryPage() {
 
         {/* Hero Section */}
         <section className="dentalHero">
-          <div className="dentalHero__bg">
-            <Image
-              src="/images/package/dentistry/dentistry.webp"
-              alt="บริการทันตกรรม โรงพยาบาลเถิน"
-              fill
-              priority
-              style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
-              sizes="100vw"
-            />
-            <div className="dentalHero__overlay" />
-          </div>
+          <div className="dentalHero__bg" aria-hidden="true" />
           <div className="dentalHero__content">
             <span className="dentalHero__badge">
               <Sparkles size={16} />

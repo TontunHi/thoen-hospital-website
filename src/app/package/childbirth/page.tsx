@@ -63,17 +63,7 @@ export default function ChildbirthPackagePage() {
 
         {/* Hero Section */}
         <section className="childbirthHero">
-          <div className="childbirthHero__bg">
-            <Image
-              src="/images/package/childbirth/childbirth.webp"
-              alt="แพ็กเกจคลอดบุตร โรงพยาบาลเถิน"
-              fill
-              priority
-              style={{ objectFit: 'cover', objectPosition: 'center 40%' }}
-              sizes="100vw"
-            />
-            <div className="childbirthHero__overlay" />
-          </div>
+          <div className="childbirthHero__bg" aria-hidden="true" />
           <div className="childbirthHero__content">
             <span className="childbirthHero__badge">
               <Heart size={16} fill="currentColor" />
