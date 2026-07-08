@@ -41,7 +41,8 @@ export const services: ServiceItem[] = [
   {
     title: 'แพทย์แผนไทย',
     desc: 'บริการนวดรักษา ประคบสมุนไพร อบไอน้ำสมุนไพร และการฟื้นฟูสุขภาพด้วยศาสตร์แพทย์แผนไทย',
-    icon: Leaf
+    icon: Leaf,
+    link: '/package/thai-traditional-and-alternative-medicine'
   },
   {
     title: 'อัตราการบริการห้องพิเศษ',

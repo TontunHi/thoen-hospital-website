@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { HeartPulse, ChevronRight, Sparkles } from 'lucide-react'
+import { HeartPulse, ChevronRight, Sparkles, Leaf } from 'lucide-react'
 import './page.css'
 
 export default function PackagePage() {
@@ -125,6 +125,35 @@ export default function PackagePage() {
               <div className="packageCard__footer">
                 <span className="packageCard__price">เริ่มต้น 5,000.- บาท</span>
                 <Link href="/package/childbirth" className="packageCard__btn">
+                  ดูรายละเอียด
+                  <ChevronRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 5: Thai Traditional Medicine */}
+          <div className="packageCard card-glass">
+            <div className="packageCard__image">
+              <Image
+                src="/images/package/thai-traditional-medicine/thai-traditional-medicine.webp"
+                alt="กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก โรงพยาบาลเถิน"
+                fill
+                style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            </div>
+            <div className="packageCard__body">
+              <div className="packageCard__icon">
+                <Leaf size={24} />
+              </div>
+              <h3>กลุ่มงานการแพทย์แผนไทยและการแพทย์ทางเลือก</h3>
+              <p>
+                บริการดูแลสุขภาพด้วยศาสตร์แพทย์แผนไทย การนวดรักษา ประคบสมุนไพร พอกเข่า สักยาน้ำมันสมุนไพร อบสมุนไพร และฟื้นฟูสุขภาพหลังคลอด (อยู่ไฟ)
+              </p>
+              <div className="packageCard__footer">
+                <span className="packageCard__price">รับเฉพาะสิทธิเบิกได้</span>
+                <Link href="/package/thai-traditional-and-alternative-medicine" className="packageCard__btn">
                   ดูรายละเอียด
                   <ChevronRight size={16} />
                 </Link>
