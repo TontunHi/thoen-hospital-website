@@ -19,7 +19,7 @@ export default function NewBlogPage() {
   useEffect(() => {
     if (typeof document !== 'undefined') {
       try {
-        document.execCommand('styleWithCSS', false, true)
+        document.execCommand('styleWithCSS', false, 'true')
       } catch (e) {}
     }
   }, [])
@@ -241,7 +241,7 @@ export default function NewBlogPage() {
               className="rich-editor-content"
               contentEditable
               suppressContentEditableWarning
-              placeholder="พิมพ์เนื้อหาข่าวหรือบทความของคุณที่นี่..."
+              data-placeholder="พิมพ์เนื้อหาข่าวหรือบทความของคุณที่นี่..."
               onKeyUp={updateActiveState}
               onMouseUp={updateActiveState}
               onSelect={updateActiveState}
