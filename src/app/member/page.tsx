@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe } from 'lucide-react'
 import './page.css'
 
 async function getMemberDashboardData() {
@@ -74,6 +74,15 @@ async function getMemberDashboardData() {
     isFinance = (finPerms[0]?.count || 0) > 0
   }
 
+  let isItaAuthorized = member.role === 'admin'
+  if (!isItaAuthorized && userPosition) {
+    const itaPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'manage_ita' AND TRIM(position_name) = TRIM(?)",
+      [userPosition]
+    )
+    isItaAuthorized = (itaPerms[0]?.count || 0) > 0
+  }
+
   return {
     member,
     pendingCount,
@@ -81,6 +90,7 @@ async function getMemberDashboardData() {
     isWorkAuthorized,
     isAdmin,
     isFinance,
+    isItaAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -292,6 +302,7 @@ export default async function MemberDashboardPage() {
     isWorkAuthorized,
     isAdmin,
     isFinance,
+    isItaAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -372,7 +383,51 @@ export default async function MemberDashboardPage() {
             </Link>
           )}
 
+          {/* Card 7: ITA Blog Management */}
+          {isItaAuthorized && (
+            hasAccess('feature_ita') ? (
+              <Link href="/member/ita" className="serviceCard">
+                <div className="serviceCardHeader">
+                  <div className="serviceIconWrapper" style={{ backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
+                    <Globe size={24} />
+                  </div>
+                  <div className="statusIndicator success" style={{ backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' }}>
+                    <span>เปิดใช้งาน</span>
+                  </div>
+                </div>
+                <div className="serviceCardBody">
+                  <h4>จัดการบทความ ITA</h4>
+                  <p>ระบบเขียนบทความ ปรับแต่งเนื้อหา และเผยแพร่ข้อมูลการประเมินคุณธรรมและความโปร่งใสสู่สาธารณะ</p>
+                </div>
+                <div className="serviceCardFooter" style={{ color: '#2563eb' }}>
+                  <span className="actionText">เข้าสู่หน้าจัดการบทความ</span>
+                  <ChevronRight size={16} className="chevronIcon" />
+                </div>
+              </Link>
+            ) : (
+              <div className="serviceCard serviceCardDisabled">
+                <div className="serviceCardHeader">
+                  <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
+                    <Lock size={24} />
+                  </div>
+                  <div className="statusIndicator error">
+                    <span>ปิดบริการชั่วคราว</span>
+                  </div>
+                </div>
+                <div className="serviceCardBody">
+                  <h4>จัดการบทความ ITA</h4>
+                  <p>ระบบเขียนบทความ ปรับแต่งเนื้อหา และเผยแพร่ข้อมูลการประเมินคุณธรรมและความโปร่งใสสู่สาธารณะ</p>
+                </div>
+                <div className="serviceCardFooter">
+                  <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+                  <ChevronRight size={16} className="chevronIcon" />
+                </div>
+              </div>
+            )
+          )}
+
         </div>
+
 
         {/* Admin Section (Visible only to admins) */}
         {member.role === 'admin' && (

@@ -168,6 +168,20 @@ export default function AuditLogsClient() {
     }
   }
 
+  const getTargetTableName = (table: string | null) => {
+    if (!table) return '-'
+    switch (table.toLowerCase()) {
+      case 'members': return 'ข้อมูลสมาชิก (members)'
+      case 'pr_requests': return 'คำขอผลิตสื่อ PR (pr_requests)'
+      case 'approval_tickets': return 'งานรออนุมัติ (approval_tickets)'
+      case 'work_requests': return 'ใบงานช่าง (work_requests)'
+      case 'ita_blogs': return 'บทความ ITA (ita_blogs)'
+      case 'member_system_settings': return 'ตั้งค่าระบบ (settings)'
+      case 'position_permissions': return 'ตั้งค่าสิทธิ์ (permissions)'
+      default: return table
+    }
+  }
+
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr)
@@ -333,7 +347,7 @@ export default function AuditLogsClient() {
                       <td>{getActionBadge(log.action_type)}</td>
                       <td className="targetCell">
                         <span className="targetBadge" title={log.target_table || ''}>
-                          {log.target_table || '-'}
+                          {getTargetTableName(log.target_table)}
                         </span>
                       </td>
                       <td className="ipCell">{log.ip_address || '-'}</td>

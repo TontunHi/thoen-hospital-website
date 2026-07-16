@@ -18,6 +18,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [featureSalary, setFeatureSalary] = useState(initialSettings['feature_salary'] !== '0')
   const [featurePrRequests, setFeaturePrRequests] = useState(initialSettings['feature_pr_requests'] !== '0')
   const [featureApprovals, setFeatureApprovals] = useState(initialSettings['feature_approvals'] !== '0')
+  const [featureIta, setFeatureIta] = useState(initialSettings['feature_ita'] !== '0')
 
   // Permissions States
   const [permissions, setPermissions] = useState<PermissionMapping[]>([])
@@ -67,7 +68,8 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         feature_signature: featureSignature ? '1' : '0',
         feature_salary: featureSalary ? '1' : '0',
         feature_pr_requests: featurePrRequests ? '1' : '0',
-        feature_approvals: featureApprovals ? '1' : '0'
+        feature_approvals: featureApprovals ? '1' : '0',
+        feature_ita: featureIta ? '1' : '0'
       }
       const res = await fetch('/api/member/settings', {
         method: 'POST',
@@ -129,6 +131,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       case 'create_work': return 'สิทธิ์เข้าใช้งาน/เปิดคำขอซ่อมงานช่างฯ (create_work)'
       case 'view_all_work': return 'สิทธิ์ดูรายการงานและอัปเดตงานทั้งหมด (view_all_work)'
       case 'upload_salary': return 'สิทธิ์อัปโหลดเอกสารการเงินและเงินเดือน (upload_salary)'
+      case 'manage_ita': return 'สิทธิ์เข้าถึงและจัดการระบบบทความ ITA (manage_ita)'
       default: return key
     }
   }
@@ -211,6 +214,22 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                 <span className="slider"></span>
               </label>
             </div>
+
+            {/* Toggle: ITA Blog System */}
+            <div className="toggleRow">
+              <div className="toggleLabelInfo">
+                <span className="toggleLabelText">ระบบจัดการบทความ ITA</span>
+                <span className="toggleDescriptionText">อนุญาตให้สมาชิกทั่วไปอ่านบทความ และผู้เขียนบทความที่มีสิทธิ์เข้าจัดการระบบหลังบ้าน</span>
+              </div>
+              <label className="switch">
+                <input 
+                  type="checkbox" 
+                  checked={featureIta} 
+                  onChange={(e) => setFeatureIta(e.target.checked)} 
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
           </div>
 
           <div className="formActions" style={{ marginTop: '28px' }}>
@@ -238,6 +257,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                 <option value="create_work">เปิดคำขอใบงานช่าง (create_work)</option>
                 <option value="view_all_work">ดูแลระบบ/ดูงานทั้งหมด (view_all_work)</option>
                 <option value="upload_salary">อัปโหลดเงินเดือน/ค่าตอบแทน (upload_salary)</option>
+                <option value="manage_ita">จัดการข้อมูลและบทความ ITA (manage_ita)</option>
               </select>
             </div>
 
@@ -294,7 +314,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
             <div className="loadingText">กำลังโหลดข้อมูลสิทธิ์การใช้งาน...</div>
           ) : (
             <div className="permissionsGroupContainer">
-              {['create_work', 'view_all_work', 'upload_salary'].map((key) => {
+              {['create_work', 'view_all_work', 'upload_salary', 'manage_ita'].map((key) => {
                 const groupMappings = permissions.filter((p) => p.permission_key === key)
                 return (
                   <div key={key} className="permGroupCard">

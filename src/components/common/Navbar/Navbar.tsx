@@ -202,17 +202,7 @@ export default function Navbar() {
         { href: '/ethics?year=2567', label: 'จริยธรรมปีงบประมาณ 2567' },
       ]
     },
-    {
-      label: 'ITA',
-      submenu: [
-        { href: '/ita', label: 'ITA ทั้งหมด' },
-        { href: 'https://sites.google.com/thoenhospital.com/ita-2569-11152/ita', label: 'ITA 2569' },
-        { href: 'https://sites.google.com/thoenhospital.com/ita-11152/ita', label: 'ITA 2568' },
-        { href: 'http://www.thlp.moph.go.th/11152/ITA/2567/index.php', label: 'ITA 2567' },
-        { href: 'http://www.thlp.moph.go.th/11152/ITA/2567/index.php', label: 'ITA 2566' },
-        { href: 'http://www.thlp.moph.go.th/11152/ITA/2565/index.php', label: 'ITA 2565' },
-      ]
-    },
+    { href: '/ita', label: 'ITA' },
     {
       label: 'เกี่ยวกับเรา',
       submenu: [

@@ -126,7 +126,8 @@ async function initializeDb(poolInstance: mysql.Pool) {
       { key: 'feature_signature', val: '1' },
       { key: 'feature_salary', val: '1' },
       { key: 'feature_pr_requests', val: '1' },
-      { key: 'feature_approvals', val: '1' }
+      { key: 'feature_approvals', val: '1' },
+      { key: 'feature_ita', val: '1' }
     ]
     for (const setting of defaultSettings) {
       await connection.execute(
@@ -183,6 +184,29 @@ async function initializeDb(poolInstance: mysql.Pool) {
         UNIQUE KEY uq_permission_position (permission_key, position_name)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
+
+    // Initialize ITA Blogs Table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS ita_blogs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(500) NOT NULL,
+        slug VARCHAR(500) NULL,
+        content LONGTEXT NOT NULL,
+        author_id INT NOT NULL,
+        author_name VARCHAR(255) NULL,
+        author_position VARCHAR(255) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (author_id) REFERENCES members(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    try {
+      await connection.execute(`
+        ALTER TABLE ita_blogs ADD COLUMN slug VARCHAR(500) NULL
+      `)
+    } catch (alterError) {}
+
 
     // Seed default permissions if table is empty
     const [existingPerms] = await connection.query('SELECT COUNT(*) as cnt FROM position_permissions')

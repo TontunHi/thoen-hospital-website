@@ -1,101 +1,90 @@
-import { Globe, ArrowUpRight, ShieldAlert, Calendar } from 'lucide-react';
-import './page.css';
+import { Calendar, User, ChevronRight, FileText } from 'lucide-react'
+import Link from 'next/link'
+import { queryMemberDb } from '@/lib/memberDb'
+import './page.css'
 
-interface ItaItem {
-  year: string;
-  title: string;
-  url: string;
-  status?: string;
-}
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'ITA การประเมินคุณธรรมและความโปร่งใส | โรงพยาบาลเถิน',
-  description: 'การประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ (Integrity & Transparency Assessment) โรงพยาบาลเถิน จังหวัดลำปาง',
-};
+  title: 'บทความการประเมินคุณธรรมและความโปร่งใส (ITA) | โรงพยาบาลเถิน',
+  description: 'ศูนย์รวมบทความสาระ ความโปร่งใส และการดำเนินงานด้านคุณธรรมและความโปร่งใส (ITA) โรงพยาบาลเถิน จังหวัดลำปาง',
+}
 
-export default function ItaPage() {
-  const itaData: ItaItem[] = [
-    {
-      year: '2569',
-      title: 'การประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ (Integrity & Transparency Assessment) ประจำปีงบประมาณ 2569',
-      url: 'https://sites.google.com/thoenhospital.com/ita-2569-11152/ita',
-      status: 'ปีงบประมาณปัจจุบัน',
-    },
-    {
-      year: '2568',
-      title: 'การประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ (Integrity & Transparency Assessment) ประจำปีงบประมาณ 2568',
-      url: 'https://sites.google.com/thoenhospital.com/ita-11152/ita',
-    },
-    {
-      year: '2567',
-      title: 'การประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ (Integrity & Transparency Assessment) ประจำปีงบประมาณ 2567',
-      url: 'http://www.thlp.moph.go.th/11152/ITA/2567/index.php',
-    },
-    {
-      year: '2566',
-      title: 'การประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ (Integrity & Transparency Assessment) ประจำปีงบประมาณ 2566',
-      url: 'http://www.thlp.moph.go.th/11152/ITA/2567/index.php',
-    },
-    {
-      year: '2565',
-      title: 'การประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ (Integrity & Transparency Assessment) ประจำปีงบประมาณ 2565',
-      url: 'http://www.thlp.moph.go.th/11152/ITA/2565/index.php',
-    },
-  ];
+export default async function ItaPage() {
+  let blogs = []
+  try {
+    blogs = await queryMemberDb(
+      'SELECT id, title, content, author_name, author_position, created_at FROM ita_blogs ORDER BY created_at DESC'
+    )
+  } catch (error) {
+    console.error('Failed to load public ITA blogs:', error)
+  }
+
+  // Helper to extract plain text snippet from rich HTML content
+  const getExcerpt = (htmlContent: string) => {
+    if (!htmlContent) return ''
+    const cleanText = htmlContent.replace(/<[^>]*>/g, '')
+    return cleanText.length > 150 ? cleanText.substring(0, 150) + '...' : cleanText
+  }
 
   return (
     <div className="ita-page">
       <div className="container">
         
-        {/* ITA Header */}
-        <div className="ita-header">
-          <h1 className="ita-header__title">ITA (Integrity & Transparency Assessment)</h1>
+        {/* Header section */}
+        <div className="ita-header animate-fade-in">
+          <h1 className="ita-header__title">ITA & Integrity Articles</h1>
           <p className="ita-subtitle">
-            การประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ โรงพยาบาลเถิน
+            ศูนย์รวมบทความ ความรู้ และการประเมินคุณธรรมและความโปร่งใสในการดำเนินงานของหน่วยงานภาครัฐ โรงพยาบาลเถิน
           </p>
         </div>
 
-        {/* ITA Grid */}
+        {/* Blog Grid */}
         <div className="ita-content">
-          <div className="ita-grid">
-            {itaData.map((item) => (
-              <div key={item.year} className="ita-card">
-                <div className="ita-card-header">
-                  <span className="ita-year-badge">
-                    <Calendar size={14} />
-                    <span>ปีงบประมาณ {item.year}</span>
-                  </span>
-                  {item.status && (
-                    <span className="ita-status-badge">
-                      <ShieldAlert size={12} />
-                      <span>{item.status}</span>
-                    </span>
-                  )}
-                </div>
-                <div className="ita-card-body">
-                  <h2 className="ita-title">{item.title}</h2>
-                  <p className="ita-desc">
-                    เข้าชมหน้าเว็บประเมินผล รวบรวมหัวข้อการเปิดเผยข้อมูลสาธารณะ (OIT) และแบบตรวจวัดการรับรู้ของบุคลากรภายในและผู้รับบริการภายนอก
-                  </p>
-                </div>
-                <div className="ita-card-footer">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ita-card-btn"
-                  >
-                    <Globe size={16} />
-                    <span>เข้าสู่เว็บไซต์ ITA {item.year}</span>
-                    <ArrowUpRight size={14} />
-                  </a>
-                </div>
+          {blogs.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon-wrapper">
+                <FileText size={48} />
               </div>
-            ))}
-          </div>
+              <h3>ยังไม่มีบทความในขณะนี้</h3>
+              <p>กรุณากลับมาตรวจสอบใหม่อีกครั้งในภายหลัง หรือเข้าสู่ระบบสมาชิกเพื่อเริ่มเขียนบทความ</p>
+              <Link href="/member/login" className="btn-login-member">
+                เข้าสู่ระบบสมาชิก
+              </Link>
+            </div>
+          ) : (
+            <div className="ita-blog-grid">
+              {blogs.map((blog: any) => {
+                const pubDate = new Date(blog.created_at).toLocaleDateString('th-TH', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })
+
+                return (
+                  <article key={blog.id} className="ita-blog-card">
+                    <div className="ita-blog-card__body">
+                      <h2 className="ita-blog-card__title">
+                        <Link href={`/ita/${blog.slug || blog.id}`}>{blog.title}</Link>
+                      </h2>
+                      <p className="ita-blog-card__excerpt">{getExcerpt(blog.content)}</p>
+                    </div>
+                    <div className="ita-blog-card__footer">
+                      <div className="card-action-bar" style={{ width: '100%', justifyContent: 'flex-end' }}>
+                        <Link href={`/ita/${blog.slug || blog.id}`} className="read-more-btn">
+                          <span>อ่านต่อ</span>
+                          <ChevronRight size={14} />
+                        </Link>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
         </div>
 
       </div>
     </div>
-  );
+  )
 }
