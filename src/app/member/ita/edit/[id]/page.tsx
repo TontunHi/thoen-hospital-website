@@ -22,6 +22,7 @@ export default function EditBlogPage(props: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const editorRef = useRef<HTMLDivElement>(null)
+  const initialContentRef = useRef('')
 
   // Load existing blog details
   useEffect(() => {
@@ -31,9 +32,7 @@ export default function EditBlogPage(props: Props) {
         const data = await res.json()
         if (data.success) {
           setTitle(data.data.title)
-          if (editorRef.current) {
-            editorRef.current.innerHTML = data.data.content
-          }
+          initialContentRef.current = data.data.content
         } else {
           alert(data.error?.message || 'ไม่สามารถโหลดข้อมูลบทความได้')
           router.push('/member/ita')
@@ -49,6 +48,13 @@ export default function EditBlogPage(props: Props) {
 
     loadBlog()
   }, [id, router])
+
+  // Populate editor once loading is complete
+  useEffect(() => {
+    if (!isLoading && editorRef.current && initialContentRef.current) {
+      editorRef.current.innerHTML = initialContentRef.current
+    }
+  }, [isLoading])
 
   // Setup styleWithCSS
   useEffect(() => {
