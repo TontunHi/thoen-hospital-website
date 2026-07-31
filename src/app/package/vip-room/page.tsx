@@ -15,7 +15,11 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
-  Crown
+  Crown,
+  Info,
+  PhoneCall,
+  Users,
+  CreditCard
 } from 'lucide-react'
 import './page.css'
 
@@ -169,6 +173,74 @@ export default function VipRoomPage() {
             </div>
           </section>
         </div>
+
+        {/* ─── รายละเอียดเพิ่มเติม ─── */}
+        <section className="vip-extra-info">
+          <div className="vip-extra-info__header">
+            <Info size={22} className="vip-extra-info__icon" />
+            <h2 className="vip-extra-info__title">รายละเอียดเพิ่มเติม</h2>
+          </div>
+
+          <div className="vip-extra-info__grid">
+            {/* อัตราค่าห้องพิเศษตามสิทธิ */}
+            <div className="vip-rates-card">
+              <div className="vip-card-heading">
+                <CreditCard size={18} />
+                <h3>อัตราค่าห้องพิเศษ</h3>
+              </div>
+              <ul className="vip-rates-list">
+                <li className="vip-rate-item">
+                  <span className="vip-rate-label">สิทธิประกันสุขภาพในเขต</span>
+                  <span className="vip-rate-value">คืนละ <strong>800</strong> บาท</span>
+                </li>
+                <li className="vip-rate-item">
+                  <span className="vip-rate-label">สิทธิประกันสุขภาพนอกเขต</span>
+                  <span className="vip-rate-value">คืนละ <strong>1,200</strong> บาท</span>
+                </li>
+                <li className="vip-rate-item">
+                  <span className="vip-rate-label">สิทธิประกันสังคม</span>
+                  <span className="vip-rate-value">คืนละ <strong>1,200</strong> บาท</span>
+                </li>
+                <li className="vip-rate-item">
+                  <span className="vip-rate-label">สิทธิข้าราชการ</span>
+                  <span className="vip-rate-value">จ่ายส่วนเกิน คืนละ <strong>100</strong> บาท</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* เงื่อนไขและการจอง */}
+            <div className="vip-conditions-card">
+              <div className="vip-card-heading">
+                <Users size={18} />
+                <h3>เงื่อนไขการเข้าพักและการจอง</h3>
+              </div>
+
+              <div className="vip-condition-item">
+                <div className="vip-condition-icon">
+                  <Users size={20} />
+                </div>
+                <div className="vip-condition-content">
+                  <strong>ข้อกำหนดการเฝ้าไข้</strong>
+                  <p>ห้องพิเศษต้องมีญาติเฝ้า 24 ชั่วโมง</p>
+                </div>
+              </div>
+
+              <div className="vip-booking-box">
+                <div className="vip-booking-info">
+                  <div className="vip-booking-icon-wrap">
+                    <PhoneCall size={22} className="vip-booking-icon" />
+                  </div>
+                  <div className="vip-booking-text">
+                    <span className="vip-booking-label">จองห้องพิเศษ โทร</span>
+                    <span className="vip-booking-phone">
+                      086-4289213
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* ─── หมายเหตุ ─── */}
         <div className="vip-notice-box">

@@ -371,13 +371,199 @@
   margin-bottom: 0.5rem;
 }
 
-.notice-list li::marker {
-  color: #d97706;
+/* ── รายละเอียดเพิ่มเติม (Additional Details) ── */
+.vip-extra-info {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 2.25rem;
+  border: 1px solid rgba(22, 101, 52, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  margin-bottom: 2.5rem;
+}
+
+.vip-extra-info__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f0fdf4;
+}
+
+.vip-extra-info__icon {
+  color: #166534;
+}
+
+.vip-extra-info__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.vip-extra-info__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.vip-rates-card,
+.vip-conditions-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.vip-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #166534;
+  font-weight: 700;
+}
+
+.vip-card-heading h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.vip-rates-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.vip-rate-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  font-size: 0.95rem;
+  color: #334155;
+  transition: all 0.2s ease;
+}
+
+.vip-rate-item:hover {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  transform: translateX(2px);
+}
+
+.vip-rate-value {
+  color: #166534;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vip-rate-value strong {
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.vip-condition-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #ffffff;
+  padding: 1.25rem;
+  border-radius: 14px;
+  border: 1px solid #f1f5f9;
+}
+
+.vip-condition-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  color: #166534;
+  flex-shrink: 0;
+}
+
+.vip-condition-content strong {
+  display: block;
+  font-size: 0.95rem;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.vip-condition-content p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.vip-booking-box {
+  background: linear-gradient(135deg, #094f30 0%, #166534 100%);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(22, 101, 52, 0.18);
+  margin-top: auto;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vip-booking-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(22, 101, 52, 0.25);
+}
+
+.vip-booking-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vip-booking-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fef08a;
+  flex-shrink: 0;
+}
+
+.vip-booking-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.vip-booking-label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.vip-booking-phone {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fef08a;
+  letter-spacing: 0.5px;
 }
 
 /* ── Responsive styling ── */
 @media (max-width: 1024px) {
-  .vip-rooms-grid {
+  .vip-rooms-grid,
+  .vip-extra-info__grid {
     grid-template-columns: 1fr;
     gap: 2.5rem;
   }
@@ -407,6 +593,10 @@
   .room-card__info {
     padding: 1.75rem;
   }
+
+  .vip-extra-info {
+    padding: 1.5rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -421,6 +611,12 @@
   
   .price-tag {
     font-size: 2.75rem;
+  }
+
+  .vip-rate-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
   
   .vip-notice-box {
