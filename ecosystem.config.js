@@ -2,16 +2,17 @@ module.exports = {
   apps: [
     {
       name: 'thoen-hospital-website',
-      // Runs the Next.js production server binary directly
-      script: './node_modules/next/dist/bin/next',
-      args: 'start --hostname 0.0.0.0 --port 6060',
-      instances: '1',       // Run in cluster mode to utilize all CPU cores
-      exec_mode: 'cluster',    // Enables load balancing across instances
-      watch: false,            // Do not watch files in production
-      max_memory_restart: '1G', // Restart if memory usage exceeds 1GB
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -H 0.0.0.0 -p 3000',
+      instances: 'max',
+      exec_mode: 'cluster',
       env: {
-        NODE_ENV: 'production'
-      }
+        NODE_ENV: 'production',
+        PORT: 3000
+      },
+      max_memory_restart: '1G',
+      autorestart: true,
+      watch: false
     }
   ]
-};
+}
