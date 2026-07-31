@@ -13,6 +13,7 @@ export default function SalaryDashboardPage() {
   
   const [salaryData, setSalaryData] = useState<any>(null)
   const [otData, setOtData] = useState<any>(null)
+  const [calendarData, setCalendarData] = useState<any[] | null>(null)
   
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -22,6 +23,11 @@ export default function SalaryDashboardPage() {
     'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
     'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
   ]
+
+  const monthShortNameMap: Record<number, string> = {
+    1: 'ม.ค.', 2: 'ก.พ.', 3: 'มี.ค.', 4: 'เม.ย.', 5: 'พ.ค.', 6: 'มิ.ย.',
+    7: 'ก.ค.', 8: 'ส.ค.', 9: 'ก.ย.', 10: 'ต.ค.', 11: 'พ.ย.', 12: 'ธ.ค.'
+  }
 
   // 1. Fetch initial session and available periods
   useEffect(() => {
@@ -43,6 +49,7 @@ export default function SalaryDashboardPage() {
               setSelectedMonth(data.selectedMonth || '')
               setSalaryData(data.salary)
               setOtData(data.ot)
+              setCalendarData(data.calendar || null)
               setName(data.userName || '')
               setLoading(false)
               return
@@ -68,6 +75,7 @@ export default function SalaryDashboardPage() {
           setSelectedMonth(data.selectedMonth || '')
           setSalaryData(data.salary)
           setOtData(data.ot)
+          setCalendarData(data.calendar || null)
           setName(data.userName || '')
         } else {
           setError(data.error || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
@@ -98,6 +106,7 @@ export default function SalaryDashboardPage() {
             const data = await retryRes.json()
             setSalaryData(data.salary)
             setOtData(data.ot)
+            setCalendarData(data.calendar || null)
             setLoading(false)
             return
           }
@@ -115,6 +124,7 @@ export default function SalaryDashboardPage() {
       if (res.ok) {
         setSalaryData(data.salary)
         setOtData(data.ot)
+        setCalendarData(data.calendar || null)
       } else {
         setError(data.error || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
       }
@@ -152,6 +162,10 @@ export default function SalaryDashboardPage() {
     return `${day} ${month} ${year}`
   }
 
+  const now = new Date()
+  const currentMonthName = monthShortNameMap[now.getMonth() + 1] || ''
+  const currentYearBuddhist = now.getFullYear() + 543
+
   return (
     <div className="salaryPage">
       <div className="container salaryContainer">
@@ -172,6 +186,46 @@ export default function SalaryDashboardPage() {
           </div>
           {/* Removed LogoutButton as per user request */}
         </header>
+
+        {/* Salary Import Calendar Section */}
+        {calendarData && calendarData.length > 0 && (
+          <section className="salaryCalendarCard card">
+            <div className="salaryCalendarHeader">
+              <h3>
+                ปฏิทินนำเข้าเงินเดือนและรายได้อื่นๆ <br className="mobileOnlyBreak" />
+                ประจำเดือน <span className="calendarHighlight">{currentMonthName} {currentYearBuddhist}</span>
+              </h3>
+            </div>
+            <div className="tableResponsive">
+              <table className="salaryCalendarTable">
+                <thead>
+                  <tr>
+                    <th>ประเภท</th>
+                    <th className="textCenter">วันที่</th>
+                    <th>หมายเหตุ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calendarData.map((item: any, idx: number) => {
+                    const dateObj = new Date(item.datein)
+                    const dayNum = dateObj.getDate()
+                    const typeText = String(item.type) === '1' 
+                      ? 'เงินเดือน' 
+                      : 'ค่าปฏิบัติงานล่วงเวลา หรือรายได้อื่นๆ'
+
+                    return (
+                      <tr key={item.id || idx}>
+                        <td>{typeText}</td>
+                        <td className="textCenter">{dayNum}</td>
+                        <td>{item.notesalary || ''}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Filters Panel */}
         <section className="salaryFiltersCard card">

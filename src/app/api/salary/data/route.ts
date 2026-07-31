@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { querySalaryDb } from '@/lib/salaryDb'
+import { querySalaryDb, querySalaryEditDb } from '@/lib/salaryDb'
 import { verifySalarySession } from '@/lib/salaryAuth'
 
 export async function GET(request: Request) {
@@ -20,6 +20,7 @@ export async function GET(request: Request) {
     // 2. Fetch all salary and OT records for this user (fetch all columns for in-memory mapping)
     let salaryRows: any[] = []
     let otRows: any[] = []
+    let calendarRows: any[] = []
 
     try {
       salaryRows = await querySalaryDb(
@@ -36,6 +37,14 @@ export async function GET(request: Request) {
         { error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลเงินเดือนได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' },
         { status: 500 }
       )
+    }
+
+    try {
+      calendarRows = await querySalaryEditDb(
+        "SELECT id, type, datein, notesalary FROM datein WHERE MONTH(datein) = MONTH(NOW()) AND YEAR(datein) = YEAR(NOW()) ORDER BY ABS(DAY(datein)) ASC"
+      )
+    } catch (calErr: any) {
+      console.warn('Calendar schedule fetch failed, continuing without calendar:', calErr)
     }
 
 
@@ -150,6 +159,7 @@ export async function GET(request: Request) {
       selectedMonth: targetMonth,
       salary: salaryData,
       ot: otData,
+      calendar: calendarRows,
       userName: user.name
     })
   } catch (error: any) {

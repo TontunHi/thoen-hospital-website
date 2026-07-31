@@ -71,6 +71,84 @@
   color: #DC2626 !important;
 }
 
+/* Salary Import Calendar Styles */
+.salaryCalendarCard {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 16px;
+  padding: 1.75rem 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.salaryCalendarHeader h3 {
+  font-size: 1.1rem;
+  color: var(--gray-900);
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  border-left: 4px solid #10B981;
+  padding-left: 0.75rem;
+  line-height: 1.5;
+}
+
+.calendarHighlight {
+  color: #DC2626;
+  font-weight: 700;
+}
+
+.tableResponsive {
+  overflow-x: auto;
+}
+
+.salaryCalendarTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.salaryCalendarTable th {
+  background-color: #E8F5E9;
+  color: #1B5E20;
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 2px solid #C8E6C9;
+}
+
+.salaryCalendarTable td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-800);
+}
+
+.salaryCalendarTable tr:nth-child(even) {
+  background-color: #F1F8E9;
+}
+
+.salaryCalendarTable tr:nth-child(odd) {
+  background-color: var(--white);
+}
+
+.salaryCalendarTable tr:hover {
+  background-color: #E8F5E9;
+}
+
+.textCenter {
+  text-align: center !important;
+}
+
+.mobileOnlyBreak {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobileOnlyBreak {
+    display: block;
+  }
+}
+
 /* Filters Card Styles */
 .salaryFiltersCard {
   background: var(--white);
