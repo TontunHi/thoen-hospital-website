@@ -1,0 +1,463 @@
+/* ═══════════════════════════════════════════
+   Specialized Clinics Page — page.css
+   โรงพยาบาลเถิน (Thoen Hospital)
+   ═══════════════════════════════════════════ */
+
+.specializedPage {
+  padding-bottom: 6rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f7fee7 20%, #ffffff 100%);
+  min-height: 100vh;
+}
+
+/* ── Hero Banner ── */
+.specializedHero {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  margin-bottom: 2.5rem;
+  padding: 3.5rem 2.5rem;
+  color: #ffffff;
+  box-shadow: 0 15px 35px rgba(13, 116, 70, 0.12);
+  background: linear-gradient(135deg, #094f30 0%, #0d7446 50%, #15803d 100%);
+}
+
+.specializedHero__bg {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(circle at 15% 20%, rgba(254, 240, 138, 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 45%);
+  pointer-events: none;
+}
+
+.specializedHero__content {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+}
+
+.specializedHero__badge {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fef08a;
+  padding: 6px 16px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  letter-spacing: 1.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.specializedHero__title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  line-height: 1.25;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.specializedHero__subTitle {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #fef08a;
+  margin-top: 0.35rem;
+  letter-spacing: 1px;
+}
+
+.specializedHero__slogan {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.95);
+  margin-top: 1rem;
+  font-weight: 300;
+  max-width: 800px;
+}
+
+/* ── Operating Hours Card ── */
+.operatingHoursCard {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2rem;
+  border: 1px solid rgba(22, 101, 52, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 3.5rem;
+}
+
+.operatingItem {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 1;
+}
+
+.operatingIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #f0fdf4;
+  color: #15803d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #bbf7d0;
+}
+
+.operatingDetails {
+  display: flex;
+  flex-direction: column;
+}
+
+.operatingLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.operatingValue {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.operatingNote {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.highlightTime {
+  color: #15803d;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.operatingDivider {
+  width: 1px;
+  height: 50px;
+  background: #e2e8f0;
+}
+
+/* ── Weekly Schedule Section ── */
+.scheduleSection {
+  margin-bottom: 4rem;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.sectionBadge {
+  color: #15803d;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  background: #f0fdf4;
+  padding: 4px 14px;
+  border-radius: 50px;
+  border: 1px solid #bbf7d0;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.sectionTitle {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.sectionSubtitle {
+  font-size: 1rem;
+  color: #64748b;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.scheduleGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1.25rem;
+}
+
+.dayCard {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  padding: 1.5rem 1.25rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dayCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 35px rgba(21, 128, 61, 0.1);
+  border-color: #bbf7d0;
+}
+
+.dayHeader {
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.dayBadge {
+  display: flex;
+  flex-direction: column;
+}
+
+.dayTitle {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #166534;
+}
+
+.dayEn {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.clinicList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.clinicItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.925rem;
+  color: #334155;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+.clinicIcon {
+  color: #166534;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Poster Section ── */
+.posterSection {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  margin-bottom: 4rem;
+}
+
+.posterHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #166534;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.posterHeader h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.posterImageWrapper {
+  max-width: 780px;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.posterImg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ── Contact Section ── */
+.contactCard {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  border: 1px solid rgba(22, 101, 52, 0.15);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.04);
+}
+
+.contactGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+
+.contactTitle {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.contactTitle svg {
+  color: #166534;
+}
+
+.contactList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.contactList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 1rem;
+  color: #334155;
+}
+
+.contactList li svg {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.iconPhone { color: #0284c7; }
+.iconFb { color: #1877f2; }
+.iconMap { color: #e11d48; }
+
+.contactList strong {
+  display: block;
+  font-size: 0.95rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.phoneNum {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #166534;
+}
+
+.sloganBox {
+  background: linear-gradient(135deg, #094f30 0%, #166534 100%);
+  border-radius: 20px;
+  padding: 2.5rem;
+  color: #ffffff;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(22, 101, 52, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.heartIconWrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fef08a;
+  margin-bottom: 1.25rem;
+}
+
+.sloganText {
+  font-size: 1.15rem;
+  font-style: italic;
+  line-height: 1.6;
+  color: #ffffff;
+  margin: 0 0 1.25rem 0;
+  font-weight: 300;
+}
+
+.hospitalTag {
+  font-size: 0.875rem;
+  color: #fef08a;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ── Responsive Styling ── */
+@media (max-width: 1200px) {
+  .scheduleGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .operatingHoursCard {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+  
+  .operatingDivider {
+    width: 100%;
+    height: 1px;
+  }
+  
+  .scheduleGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .contactGrid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .specializedHero {
+    padding: 2.5rem 1.5rem;
+  }
+
+  .specializedHero__title {
+    font-size: 1.8rem;
+  }
+
+  .scheduleGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .contactCard {
+    padding: 2rem 1.5rem;
+  }
+
+  .posterSection {
+    padding: 1.5rem;
+  }
+}

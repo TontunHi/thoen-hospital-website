@@ -177,6 +177,7 @@ export default function Navbar() {
       href: '/package',
       submenu: [
         { href: '/package/health-check-1day', label: 'โปรแกรมตรวจสุขภาพ 1 วัน' },
+        { href: '/package/specialized-clinics', label: 'คลินิกเฉพาะทาง' },
         { href: '/package/dentistry', label: 'บริการด้านทันตกรรม' },
         { href: '/package/thai-traditional-and-alternative-medicine', label: 'แพทย์แผนไทย' },
         { href: '/package/vip-room', label: 'ห้องพิเศษ VIP' },

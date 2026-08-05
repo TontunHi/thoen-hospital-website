@@ -30,7 +30,8 @@ export const services: ServiceItem[] = [
   {
     title: 'คลินิกเฉพาะทาง',
     desc: 'ตรวจรักษาโดยแพทย์ผู้เชี่ยวชาญเฉพาะทางหลากหลายสาขา ครอบคลุมโรคเฉพาะโรค',
-    icon: Stethoscope
+    icon: Stethoscope,
+    link: '/package/specialized-clinics'
   },
   {
     title: 'ทันตกรรม',

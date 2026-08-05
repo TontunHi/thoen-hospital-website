@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { HeartPulse, ChevronRight, Sparkles, Leaf } from 'lucide-react'
+import { HeartPulse, ChevronRight, Sparkles, Leaf, Stethoscope } from 'lucide-react'
 import './page.css'
 
 export default function PackagePage() {
@@ -154,6 +154,35 @@ export default function PackagePage() {
               <div className="packageCard__footer">
                 <span className="packageCard__price">รับเฉพาะสิทธิเบิกได้</span>
                 <Link href="/package/thai-traditional-and-alternative-medicine" className="packageCard__btn">
+                  ดูรายละเอียด
+                  <ChevronRight size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 6: Specialized Clinics */}
+          <div className="packageCard card-glass">
+            <div className="packageCard__image">
+              <Image
+                src="/images/package/specialized-clinics/specialized-clinics.webp"
+                alt="คลินิกเฉพาะทาง โรงพยาบาลเถิน"
+                fill
+                style={{ objectFit: 'cover', objectPosition: 'center 20%' }}
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            </div>
+            <div className="packageCard__body">
+              <div className="packageCard__icon">
+                <Stethoscope size={24} />
+              </div>
+              <h3>คลินิกเฉพาะทาง (Specialized Clinics)</h3>
+              <p>
+                ตรวจรักษาโดยทีมแพทย์คลินิกเฉพาะทาง ครอบคลุมหลากหลายกลุ่มโรค เช่น โรคหัวใจ ผิวหนัง เบาหวาน ความดัน ระบบประสาท โรคไต และบริการ Telemedicine
+              </p>
+              <div className="packageCard__footer">
+                <span className="packageCard__price">เปิดบริการ จ.-ศ. (08:00-16:00 น.)</span>
+                <Link href="/package/specialized-clinics" className="packageCard__btn">
                   ดูรายละเอียด
                   <ChevronRight size={16} />
                 </Link>
