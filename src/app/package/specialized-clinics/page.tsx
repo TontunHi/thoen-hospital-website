@@ -6,11 +6,9 @@ import {
   Calendar, 
   Clock, 
   Phone, 
-  MapPin, 
   CheckCircle2, 
   Heart, 
   Sparkles,
-  Info,
   Building2
 } from 'lucide-react'
 import './page.css'
@@ -21,11 +19,16 @@ export const metadata: Metadata = {
     'บริการตรวจรักษาโดยทีมแพทย์คลินิกเฉพาะทาง ครอบคลุมหลากหลายกลุ่มโรค โรงพยาบาลเถิน จังหวัดลำปาง',
 }
 
+interface ClinicItemData {
+  name: string
+  sub?: string
+}
+
 interface ScheduleDay {
   day: string
   dayEn: string
   color: string
-  clinics: string[]
+  clinics: ClinicItemData[]
 }
 
 const scheduleData: ScheduleDay[] = [
@@ -34,12 +37,12 @@ const scheduleData: ScheduleDay[] = [
     dayEn: 'Monday',
     color: '#e0f2fe',
     clinics: [
-      'โรคหัวใจ',
-      'โรคผิวหนัง',
-      'ไวรัสตับอักเสบ',
-      'บำบัดยาเสพติด',
-      'คลินิกเบาหวาน / ความดัน (ปฐมภูมิฯ)',
-      'บริการ Telemedicine',
+      { name: 'โรคหัวใจ' },
+      { name: 'โรคผิวหนัง' },
+      { name: 'ไวรัสตับอักเสบ' },
+      { name: 'บำบัดยาเสพติด' },
+      { name: 'คลินิกเบาหวาน', sub: 'ความดัน (ปฐมภูมิฯ)' },
+      { name: 'บริการ Telemedicine' },
     ],
   },
   {
@@ -47,12 +50,12 @@ const scheduleData: ScheduleDay[] = [
     dayEn: 'Tuesday',
     color: '#fce7f3',
     clinics: [
-      'โรคเบาหวาน',
-      'โรคระบบประสาทและสมอง',
-      'คลินิกจิตเวชเด็ก',
-      'บำบัดยาเสพติด / บำบัดบุหรี่และสุรา',
-      'คลินิก ARV',
-      'บริการ Telemedicine',
+      { name: 'โรคเบาหวาน' },
+      { name: 'โรคระบบประสาทและสมอง' },
+      { name: 'คลินิกจิตเวชเด็ก' },
+      { name: 'บำบัดยาเสพติด', sub: 'บำบัดบุหรี่และสุรา' },
+      { name: 'คลินิก ARV' },
+      { name: 'บริการ Telemedicine' },
     ],
   },
   {
@@ -60,11 +63,11 @@ const scheduleData: ScheduleDay[] = [
     dayEn: 'Wednesday',
     color: '#dcfce7',
     clinics: [
-      'โรคเบาหวาน',
-      'โรคไทรอยด์',
-      'โรคทางเดินอาหาร',
-      'คลินิกจิตเวชผู้ใหญ่',
-      'บริการ Telemedicine',
+      { name: 'โรคเบาหวาน' },
+      { name: 'โรคไทรอยด์' },
+      { name: 'โรคทางเดินอาหาร' },
+      { name: 'คลินิกจิตเวชผู้ใหญ่' },
+      { name: 'บริการ Telemedicine' },
     ],
   },
   {
@@ -72,12 +75,12 @@ const scheduleData: ScheduleDay[] = [
     dayEn: 'Thursday',
     color: '#ffedd5',
     clinics: [
-      'โรคความดันโลหิตสูง',
-      'รูมาตอยด์',
-      'โรคติดเชื้อ',
-      'บำบัดยาเสพติด / บำบัดบุหรี่และสุรา',
-      'คลินิกสุขภาพเด็กดี',
-      'บริการ Telemedicine',
+      { name: 'โรคความดันโลหิตสูง' },
+      { name: 'รูมาตอยด์' },
+      { name: 'โรคติดเชื้อ' },
+      { name: 'บำบัดยาเสพติด', sub: 'บำบัดบุหรี่และสุรา' },
+      { name: 'คลินิกสุขภาพเด็กดี' },
+      { name: 'บริการ Telemedicine' },
     ],
   },
   {
@@ -85,14 +88,14 @@ const scheduleData: ScheduleDay[] = [
     dayEn: 'Friday',
     color: '#e0e7ff',
     clinics: [
-      'โรคปอดอุดกั้นเรื้อรัง',
-      'โรคหอบหืด',
-      'โรคไต',
-      'ไขมันในเส้นเลือด',
-      'บำบัดยาเสพติด',
-      'คลินิกโรคจากการทำงาน',
-      'คลินิกวัณโรค',
-      'บริการ Telemedicine',
+      { name: 'โรคปอดอุดกั้นเรื้อรัง' },
+      { name: 'โรคหอบหืด' },
+      { name: 'โรคไต' },
+      { name: 'ไขมันในเส้นเลือด' },
+      { name: 'บำบัดยาเสพติด' },
+      { name: 'คลินิกโรคจากการทำงาน' },
+      { name: 'คลินิกวัณโรค' },
+      { name: 'บริการ Telemedicine' },
     ],
   },
 ]
@@ -130,8 +133,12 @@ export default function SpecializedClinicsPage() {
             <div className="operatingDetails">
               <span className="operatingLabel">วันเปิดทำการ</span>
               <strong className="operatingValue">
-                วันจันทร์ – วันศุกร์ 
-                <span className="operatingNote"> (ในวันและเวลาราชการเท่านั้น *ยกเว้นวันหยุดราชการและวันหยุดนักขัตฤกษ์*)</span>
+                วันจันทร์ – วันศุกร์
+                <span className="operatingNote">
+                  (ในวันและเวลาราชการเท่านั้น
+                  <br />
+                  *ยกเว้นวันหยุดราชการและวันหยุดนักขัตฤกษ์*)
+                </span>
               </strong>
             </div>
           </div>
@@ -150,7 +157,6 @@ export default function SpecializedClinicsPage() {
         {/* Weekly Schedule Section */}
         <section className="scheduleSection">
           <div className="sectionHeader">
-            <span className="sectionBadge">WEEKLY SCHEDULE</span>
             <h2 className="sectionTitle">ตารางการออกตรวจ คลินิกเฉพาะทาง</h2>
             <p className="sectionSubtitle">
               ให้บริการออกตรวจโรคและคลินิกเฉพาะทางประจำวัน จันทร์ - ศุกร์ โดยทีมแพทย์และบุคลากรทางการแพทย์
@@ -171,7 +177,10 @@ export default function SpecializedClinicsPage() {
                   {item.clinics.map((clinic, idx) => (
                     <li key={idx} className="clinicItem">
                       <CheckCircle2 size={16} className="clinicIcon" />
-                      <span>{clinic}</span>
+                      <div className="clinicText">
+                        <span className="clinicName">{clinic.name}</span>
+                        {clinic.sub && <span className="clinicSub">{clinic.sub}</span>}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -182,10 +191,6 @@ export default function SpecializedClinicsPage() {
 
         {/* Poster Image Section */}
         <section className="posterSection card">
-          <div className="posterHeader">
-            <Info size={20} />
-            <h3>แผ่นพับประชาสัมพันธ์ตารางคลินิกเฉพาะทาง</h3>
-          </div>
           <div className="posterImageWrapper">
             <Image
               src="/images/package/specialized-clinics/specialized-clinics.webp"
@@ -212,22 +217,6 @@ export default function SpecializedClinicsPage() {
                   <div>
                     <strong>เบอร์โทรศัพท์ (ระบบอัตโนมัติ):</strong>
                     <span className="phoneNum">054-291585</span>
-                  </div>
-                </li>
-                <li>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="iconFb">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                  <div>
-                    <strong>Facebook Fanpage:</strong>
-                    <span>โรงพยาบาลเถิน ลำปาง</span>
-                  </div>
-                </li>
-                <li>
-                  <MapPin size={18} className="iconMap" />
-                  <div>
-                    <strong>สถานที่ตั้ง:</strong>
-                    <span>โรงพยาบาลเถิน จังหวัดลำปาง</span>
                   </div>
                 </li>
               </ul>
