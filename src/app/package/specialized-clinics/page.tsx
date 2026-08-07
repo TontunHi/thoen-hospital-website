@@ -8,7 +8,6 @@ import {
   Phone, 
   CheckCircle2, 
   Heart, 
-  Sparkles,
   Building2
 } from 'lucide-react'
 import './page.css'
@@ -27,75 +26,71 @@ interface ClinicItemData {
 interface ScheduleDay {
   day: string
   dayEn: string
-  color: string
-  clinics: ClinicItemData[]
+  clinics: string[]
 }
 
 const scheduleData: ScheduleDay[] = [
   {
     day: 'วันจันทร์',
     dayEn: 'Monday',
-    color: '#e0f2fe',
     clinics: [
-      { name: 'โรคหัวใจ' },
-      { name: 'โรคผิวหนัง' },
-      { name: 'ไวรัสตับอักเสบ' },
-      { name: 'บำบัดยาเสพติด' },
-      { name: 'คลินิกเบาหวาน', sub: 'ความดัน (ปฐมภูมิฯ)' },
-      { name: 'บริการ Telemedicine' },
+      'โรคหัวใจ',
+      'โรคผิวหนัง',
+      'ไวรัสตับอักเสบ',
+      'บำบัดยาเสพติด',
+      'คลินิกเบาหวาน / ความดัน (ปฐมภูมิฯ)',
+      'บริการ Telemedicine',
     ],
   },
   {
     day: 'วันอังคาร',
     dayEn: 'Tuesday',
-    color: '#fce7f3',
     clinics: [
-      { name: 'โรคเบาหวาน' },
-      { name: 'โรคระบบประสาทและสมอง' },
-      { name: 'คลินิกจิตเวชเด็ก' },
-      { name: 'บำบัดยาเสพติด', sub: 'บำบัดบุหรี่และสุรา' },
-      { name: 'คลินิก ARV' },
-      { name: 'บริการ Telemedicine' },
+      'โรคเบาหวาน',
+      'โรคระบบประสาทและสมอง',
+      'คลินิกจิตเวชเด็ก',
+      'บำบัดยาเสพติด',
+      'บำบัดบุหรี่และสุรา',
+      'คลินิก ARV',
+      'บริการ Telemedicine',
     ],
   },
   {
     day: 'วันพุธ',
     dayEn: 'Wednesday',
-    color: '#dcfce7',
     clinics: [
-      { name: 'โรคเบาหวาน' },
-      { name: 'โรคไทรอยด์' },
-      { name: 'โรคทางเดินอาหาร' },
-      { name: 'คลินิกจิตเวชผู้ใหญ่' },
-      { name: 'บริการ Telemedicine' },
+      'โรคเบาหวาน',
+      'โรคไทรอยด์',
+      'โรคทางเดินอาหาร',
+      'คลินิกจิตเวชผู้ใหญ่',
+      'บริการ Telemedicine',
     ],
   },
   {
     day: 'วันพฤหัสบดี',
     dayEn: 'Thursday',
-    color: '#ffedd5',
     clinics: [
-      { name: 'โรคความดันโลหิตสูง' },
-      { name: 'รูมาตอยด์' },
-      { name: 'โรคติดเชื้อ' },
-      { name: 'บำบัดยาเสพติด', sub: 'บำบัดบุหรี่และสุรา' },
-      { name: 'คลินิกสุขภาพเด็กดี' },
-      { name: 'บริการ Telemedicine' },
+      'โรคความดันโลหิตสูง',
+      'รูมาตอยด์',
+      'โรคติดเชื้อ',
+      'บำบัดยาเสพติด',
+      'บำบัดบุหรี่และสุรา',
+      'คลินิกสุขภาพเด็กดี',
+      'บริการ Telemedicine',
     ],
   },
   {
     day: 'วันศุกร์',
     dayEn: 'Friday',
-    color: '#e0e7ff',
     clinics: [
-      { name: 'โรคปอดอุดกั้นเรื้อรัง' },
-      { name: 'โรคหอบหืด' },
-      { name: 'โรคไต' },
-      { name: 'ไขมันในเส้นเลือด' },
-      { name: 'บำบัดยาเสพติด' },
-      { name: 'คลินิกโรคจากการทำงาน' },
-      { name: 'คลินิกวัณโรค' },
-      { name: 'บริการ Telemedicine' },
+      'โรคปอดอุดกั้นเรื้อรัง',
+      'โรคหอบหืด',
+      'โรคไต',
+      'ไขมันในเส้นเลือด',
+      'บำบัดยาเสพติด',
+      'คลินิกโรคจากการทำงาน',
+      'คลินิกวัณโรค',
+      'บริการ Telemedicine',
     ],
   },
 ]
@@ -114,12 +109,11 @@ export default function SpecializedClinicsPage() {
               SPECIALTY CLINICS
             </span>
             <h1 className="specializedHero__title">
-              คลินิกเฉพาะทาง (Specialized Clinics)
-              <span className="specializedHero__subTitle">โรงพยาบาลเถิน THOEN HOSPITAL</span>
+              คลินิกเฉพาะทาง โรงพยาบาลเถิน
+              <span className="specializedHero__subTitle">THOEN HOSPITAL</span>
             </h1>
             <p className="specializedHero__slogan">
-              โรงพยาบาลเถินพร้อมให้บริการตรวจรักษาโดยทีมแพทย์คลินิกเฉพาะทาง ครอบคลุมหลากหลายกลุ่มโรค
-              เพื่อให้ผู้ป่วยได้รับบริการที่ตรงจุด มีคุณภาพ และมีประสิทธิภาพสูงสุด
+              "ให้เราได้ดูแลคุณและคนที่คุณรัก" — ได้รับการรับรองมาตรฐานโรงพยาบาลและการบริการสุขภาพ (HA)
             </p>
           </div>
         </section>
@@ -131,13 +125,13 @@ export default function SpecializedClinicsPage() {
               <Calendar size={24} />
             </div>
             <div className="operatingDetails">
-              <span className="operatingLabel">วันเปิดทำการ</span>
+              <span className="operatingLabel">วันเปิดให้บริการ</span>
               <strong className="operatingValue">
-                วันจันทร์ – วันศุกร์
+                วันจันทร์ - วันศุกร์
                 <span className="operatingNote">
                   (ในวันและเวลาราชการเท่านั้น
                   <br />
-                  *ยกเว้นวันหยุดราชการและวันหยุดนักขัตฤกษ์*)
+                  *หยุดวันเสาร์ - อาทิตย์ และวันหยุดนักขัตฤกษ์*)
                 </span>
               </strong>
             </div>
@@ -149,7 +143,7 @@ export default function SpecializedClinicsPage() {
             </div>
             <div className="operatingDetails">
               <span className="operatingLabel">เวลาทำการ</span>
-              <strong className="operatingValue highlightTime">08:00 - 16:00 น.</strong>
+              <strong className="operatingValue highlightTime">08.00 - 16.00 น.</strong>
             </div>
           </div>
         </div>
@@ -157,10 +151,7 @@ export default function SpecializedClinicsPage() {
         {/* Weekly Schedule Section */}
         <section className="scheduleSection">
           <div className="sectionHeader">
-            <h2 className="sectionTitle">ตารางการออกตรวจ คลินิกเฉพาะทาง</h2>
-            <p className="sectionSubtitle">
-              ให้บริการออกตรวจโรคและคลินิกเฉพาะทางประจำวัน จันทร์ - ศุกร์ โดยทีมแพทย์และบุคลากรทางการแพทย์
-            </p>
+            <h2 className="sectionTitle">ตารางการเปิดให้บริการคลินิกเฉพาะทาง</h2>
           </div>
 
           <div className="scheduleGrid">
@@ -177,10 +168,7 @@ export default function SpecializedClinicsPage() {
                   {item.clinics.map((clinic, idx) => (
                     <li key={idx} className="clinicItem">
                       <CheckCircle2 size={16} className="clinicIcon" />
-                      <div className="clinicText">
-                        <span className="clinicName">{clinic.name}</span>
-                        {clinic.sub && <span className="clinicSub">{clinic.sub}</span>}
-                      </div>
+                      <span>{clinic}</span>
                     </li>
                   ))}
                 </ul>
@@ -215,8 +203,8 @@ export default function SpecializedClinicsPage() {
                 <li>
                   <Phone size={18} className="iconPhone" />
                   <div>
-                    <strong>เบอร์โทรศัพท์ (ระบบอัตโนมัติ):</strong>
-                    <span className="phoneNum">054-291585</span>
+                    <strong>เบอร์โทรศัพท์:</strong>
+                    <span className="phoneNum">054-291585 (เบอร์โทรศัพท์อัตโนมัติ)</span>
                   </div>
                 </li>
               </ul>
