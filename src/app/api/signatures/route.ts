@@ -21,6 +21,17 @@ export async function GET(request: Request) {
       )
     }
 
+    if (session.role !== 'admin') {
+      const settingsRows = await queryMemberDb("SELECT config_value FROM member_system_settings WHERE config_key = 'feature_signature'")
+      const isEnabled = settingsRows.length === 0 || settingsRows[0].config_value !== '0'
+      if (!isEnabled) {
+        return NextResponse.json(
+          { error: 'ระบบจัดการลายเซ็นอิเล็กทรอนิกส์ถูกปิดใช้งานชั่วคราว' },
+          { status: 403 }
+        )
+      }
+    }
+
     const members = await queryMemberDb(
       'SELECT signature_path, updated_at FROM members WHERE username = ? LIMIT 1',
       [session.username]
@@ -52,6 +63,17 @@ export async function POST(request: Request) {
         { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
         { status: 401 }
       )
+    }
+
+    if (session.role !== 'admin') {
+      const settingsRows = await queryMemberDb("SELECT config_value FROM member_system_settings WHERE config_key = 'feature_signature'")
+      const isEnabled = settingsRows.length === 0 || settingsRows[0].config_value !== '0'
+      if (!isEnabled) {
+        return NextResponse.json(
+          { error: 'ระบบจัดการลายเซ็นอิเล็กทรอนิกส์ถูกปิดใช้งานชั่วคราว' },
+          { status: 403 }
+        )
+      }
     }
 
     const { imageBase64 } = await request.json()

@@ -53,6 +53,64 @@ export async function GET(request: Request) {
 
     const appointments = await queryAppointmentDb(sql, [searchValue])
 
+    // Mask patient name for PDPA compliance (Readable & Secure):
+    // e.g. "นาย สมชาย ใจดี" -> "นาย สมช** ใจ**"
+    // e.g. "นางสาว วิภาวดี รักสงบ" -> "นางสาว วิภา** รัก***"
+    const maskPatientName = (fullName: string | null): string => {
+      if (!fullName) return 'ผู้รับบริการ'
+      const trimmed = fullName.trim()
+      if (!trimmed) return 'ผู้รับบริการ'
+
+      // Common Thai prefixes/titles
+      const prefixes = [
+        'เด็กชาย', 'เด็กหญิง', 'นางสาว', 'นาย', 'นาง', 
+        'ด.ช.', 'ด.ญ.', 'น.ส.', 'ด.ต.', 'พ.ต.ท.', 'พ.ต.อ.', 'ร.ต.อ.', 'ร.ต.ท.', 'ร.ต.ต.',
+        'พญ.', 'นพ.', 'ทพ.', 'ทพญ.', 'ภก.', 'ภญ.', 'ผศ.', 'รศ.', 'ศ.', 'ดร.'
+      ]
+
+      let title = ''
+      let remaining = trimmed
+
+      for (const p of prefixes) {
+        if (remaining.startsWith(p)) {
+          title = p
+          remaining = remaining.substring(p.length).trim()
+          break
+        }
+      }
+
+      const parts = remaining.split(/\s+/).filter(Boolean)
+      if (parts.length === 0) return trimmed
+
+      const firstName = parts[0]
+      const lastName = parts.slice(1).join(' ')
+
+      // Mask first name: Keep up to 3-4 chars, then mask trailing chars (at least 2 stars)
+      let maskedFirst = firstName
+      if (firstName.length > 3) {
+        const visibleLen = Math.max(2, Math.floor(firstName.length * 0.6))
+        maskedFirst = `${firstName.substring(0, visibleLen)}**`
+      } else if (firstName.length > 1) {
+        maskedFirst = `${firstName.substring(0, 1)}**`
+      }
+
+      // Mask last name if present: Keep initial 2-3 chars, mask the rest
+      let maskedLast = ''
+      if (lastName) {
+        if (lastName.length > 3) {
+          const visibleLen = Math.max(2, Math.floor(lastName.length * 0.5))
+          maskedLast = `${lastName.substring(0, visibleLen)}***`
+        } else if (lastName.length > 1) {
+          maskedLast = `${lastName.substring(0, 1)}**`
+        } else {
+          maskedLast = `${lastName}*`
+        }
+      }
+
+      const fullResult = [title, maskedFirst, maskedLast].filter(Boolean).join(' ')
+      return fullResult.replace(/\s+/g, ' ').trim()
+    }
+
     // Clean up dates and times for JSON response
     const formatted = appointments.map((app: any) => {
       let formattedDate = app.appoint_date
@@ -64,7 +122,7 @@ export async function GET(request: Request) {
       }
       return {
         hn: app.hn,
-        ptname: app.ptname,
+        ptname: maskPatientName(app.ptname),
         appoint_date: formattedDate,
         appoint_time: app.appoint_time,
         clinic_name: app.clinic_name || 'ไม่ระบุห้องตรวจ',
