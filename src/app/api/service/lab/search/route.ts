@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(request: Request) {
   try {
@@ -91,6 +92,14 @@ export async function POST(request: Request) {
       ipdDrugsCount: row.co2 || 0,
       ipdLabsCount: row.clab2 || 0
     }))
+
+    // Record audit log for PHI search compliance
+    await logAudit(
+      'READ',
+      'patient_lab_history',
+      `ค้นหาประวัติการรักษาและผลแลปสำหรับ: ${searchQuery} (พบ ${results?.length || 0} รายการ)`,
+      memberSession
+    )
 
     return NextResponse.json({
       success: true,

@@ -4,22 +4,9 @@ import { verifyMemberSession } from '@/lib/memberAuth'
 
 export async function GET() {
   try {
+    // Check if user is an authenticated clinical staff / member
     const memberSession = await verifyMemberSession()
-
-    if (!memberSession) {
-      return NextResponse.json(
-        { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
-        { status: 401 }
-      )
-    }
-
-    const allowedRoles = ['doctor', 'nurse', 'admin']
-    if (!allowedRoles.includes(memberSession.role)) {
-      return NextResponse.json(
-        { error: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
-        { status: 403 }
-      )
-    }
+    const isStaff = memberSession && ['doctor', 'nurse', 'admin', 'member'].includes(memberSession.role)
 
     // 1. Fetch current active ER patients
     const activePatientsQuery = `
@@ -97,9 +84,9 @@ export async function GET() {
     `
     const dischargeTypes = await queryErDb(dischargeTypesQuery)
 
-    // 6. Return response
+    // 6. Return response (Redact activePatients list for public callers to protect patient privacy)
     return NextResponse.json({
-      activePatients,
+      activePatients: isStaff ? activePatients : [],
       summary: {
         totalActive: activePatients.length,
         critical: criticalCount,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(request: Request) {
   try {
@@ -96,6 +97,14 @@ export async function GET(request: Request) {
       const xraySql = `select xray_list from xray_head WHERE vn = ?`
       const xrays = await queryHosDb(xraySql, [vn])
       const xray = xrays[0]?.xray_list || null
+
+      // Record audit log for OPD detail view
+      await logAudit(
+        'READ',
+        'patient_lab_history',
+        `เข้าดูรายละเอียดเวชระเบียน/ผลแลป OPD VN: ${vn} (HN: ${patient.hn})`,
+        memberSession
+      )
 
       return NextResponse.json({
         type: 'OPD',
@@ -198,6 +207,14 @@ export async function GET(request: Request) {
       const xraySql = `SELECT xray_list FROM xray_head WHERE vn = ?`
       const xrays = await queryHosDb(xraySql, [an])
       const xray = xrays[0]?.xray_list || null
+
+      // Record audit log for IPD detail view
+      await logAudit(
+        'READ',
+        'patient_lab_history',
+        `เข้าดูรายละเอียดเวชระเบียน/ผลแลป IPD AN: ${an} (HN: ${patient.hn})`,
+        memberSession
+      )
 
       return NextResponse.json({
         type: 'IPD',

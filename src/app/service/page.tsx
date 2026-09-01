@@ -43,6 +43,12 @@ export default async function ServicePage() {
       btnText: 'ลงทะเบียนหนังสือส่งออก',
     },
     {
+      title: 'ติดตามการจ่ายยา\nลอราทาดีน',
+      desc: 'ระบบติดตามรายชื่อและสถิติการจ่ายยาลอราทาดีนทั้งโรงพยาบาลแบบเรียลไทม์ สำหรับกลุ่มงานการแพทย์แผนไทยฯ',
+      link: '/service/loratadine-dispense',
+      btnText: 'ติดตามการจ่ายยา',
+    },
+    {
       title: 'โปรแกรม COC Lampang',
       desc: 'เชื่อมต่อระบบ COC โรงพยาบาลลำปาง สำหรับจัดการข้อมูลและการติดตามดูแลผู้ป่วยต่อเนื่อง',
       link: 'http://coc.lph.go.th/',
@@ -88,7 +94,7 @@ export default async function ServicePage() {
                     height={40}
                   />
                 </div>
-                <h3>{sys.title}</h3>
+                <h3 style={{ whiteSpace: 'pre-line' }}>{sys.title}</h3>
               </div>
               <p>{sys.desc}</p>
               <div className="cardActions">
