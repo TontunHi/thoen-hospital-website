@@ -5,13 +5,27 @@ import nodemailer from 'nodemailer'
 import { memberOtpRequestSchema } from '@/lib/schemas/member'
 import { checkRateLimit } from '@/lib/rateLimit'
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.MEMBER_OTP_EMAIL_USER!,
-    pass: process.env.MEMBER_OTP_EMAIL_PASS!,
-  },
-})
+const isBrevoConfigured = Boolean(process.env.BREVO_SMTP_USER && process.env.BREVO_SMTP_PASS);
+
+const transporter = nodemailer.createTransport(
+  isBrevoConfigured
+    ? {
+        host: process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com',
+        port: Number(process.env.BREVO_SMTP_PORT) || 587,
+        secure: false, // TLS on port 587
+        auth: {
+          user: process.env.BREVO_SMTP_USER,
+          pass: process.env.BREVO_SMTP_PASS,
+        },
+      }
+    : {
+        service: 'gmail',
+        auth: {
+          user: process.env.MEMBER_OTP_EMAIL_USER!,
+          pass: process.env.MEMBER_OTP_EMAIL_PASS!,
+        },
+      }
+);
 
 export async function POST(request: Request) {
   try {
@@ -71,12 +85,20 @@ export async function POST(request: Request) {
 
     // 3. Send OTP to email
     try {
-      const smtpUser = process.env.MEMBER_OTP_EMAIL_USER || ''
-      const fromName = `"ระบบสมาชิก โรงพยาบาลเถิน" <${smtpUser}>`
+      const smtpUser = process.env.BREVO_SMTP_FROM_EMAIL || process.env.MEMBER_OTP_EMAIL_USER || ''
+      const fromName = process.env.BREVO_SMTP_FROM || `"ระบบสมาชิก โรงพยาบาลเถิน" <${smtpUser}>`
       await transporter.sendMail({
         from: fromName,
         to: trimmedEmail,
-        subject: `รหัสยืนยันตัวตนสำหรับเข้าสู่ระบบสมาชิก โรงพยาบาลเถิน`,
+        replyTo: smtpUser,
+        subject: `[โรงพยาบาลเถิน] รหัสยืนยัน OTP สำหรับเข้าสู่ระบบสมาชิก`,
+        text: `เรียนคุณ ${trimmedUsername},\n\nรหัสยืนยันตัวตน (OTP) สำหรับเข้าสู่ระบบสมาชิก โรงพยาบาลเถิน คือ: ${otp}\n\n* รหัสนี้มีอายุการใช้งาน 5 นาที\nหากท่านไม่ได้เป็นผู้ทำรายการ โปรดติดต่อผู้ดูแลระบบโรงพยาบาลเถิน\nโทร: 054-291316-8`,
+        headers: {
+          'X-Priority': '1 (Highest)',
+          'X-MSMail-Priority': 'High',
+          'Importance': 'High',
+          'X-Mailer': 'Thoen Hospital Member Auth Service',
+        },
         html: `
           <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 500px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
             <div style="text-align: center; margin-bottom: 20px;">

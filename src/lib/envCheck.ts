@@ -14,8 +14,6 @@ const requiredEnvVars = [
   'SALARY_DB_USER',
   'SALARY_DB_PASSWORD',
   'SALARY_DB_NAME',
-  'OTP_EMAIL_USER',
-  'OTP_EMAIL_PASS',
   'ER_DB_HOST',
   'ER_DB_USER',
   'ER_DB_PASSWORD',

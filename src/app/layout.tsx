@@ -13,7 +13,10 @@ const sarabun = Sarabun({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "โรงพยาบาลเถิน | Thoen Hospital ลำปาง",
     template: "%s | โรงพยาบาลเถิน",
@@ -27,12 +30,32 @@ export const metadata: Metadata = {
     "สาธารณสุข เถิน",
     "บริการสุขภาพ เถิน",
   ],
+  authors: [{ name: "โรงพยาบาลเถิน" }],
+  creator: "โรงพยาบาลเถิน",
+  publisher: "โรงพยาบาลเถิน",
   openGraph: {
     title: "โรงพยาบาลเถิน | Thoen Hospital",
     description:
-      "โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร",
+      "โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ",
+    url: siteUrl,
+    siteName: "โรงพยาบาลเถิน",
+    images: [
+      {
+        url: "/images/common/logo-website.webp",
+        width: 800,
+        height: 800,
+        alt: "ตราสัญลักษณ์โรงพยาบาลเถิน",
+      },
+    ],
     locale: "th_TH",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "โรงพยาบาลเถิน | Thoen Hospital",
+    description:
+      "โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร",
+    images: ["/images/common/logo-website.webp"],
   },
   icons: {
     icon: "/images/common/logo-website.webp",

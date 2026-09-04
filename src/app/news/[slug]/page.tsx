@@ -81,6 +81,7 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { slug } = await props.params
   const news = await getNewsBySlug(slug)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   
   if (!news || news.status !== 'PUBLISHED') {
     return {
@@ -88,9 +89,36 @@ export async function generateMetadata(
     }
   }
 
+  const firstImage = news.images && news.images.length > 0 ? news.images[0].imageUrl : '/images/common/logo-website.webp'
+  const imageUrl = firstImage.startsWith('http') ? firstImage : `${siteUrl}${firstImage}`
+  const pageUrl = `${siteUrl}/news/${encodeURIComponent(slug)}`
+
   return {
     title: `${news.title} | โรงพยาบาลเถิน`,
     description: news.excerpt || 'ข่าวสารประชาสัมพันธ์โรงพยาบาลเถิน จังหวัดลำปาง',
+    alternates: {
+      canonical: pageUrl,
+    },
+    openGraph: {
+      title: news.title,
+      description: news.excerpt || 'ข่าวสารประชาสัมพันธ์โรงพยาบาลเถิน จังหวัดลำปาง',
+      url: pageUrl,
+      type: 'article',
+      publishedTime: new Date(news.publishedAt).toISOString(),
+      authors: ['โรงพยาบาลเถิน'],
+      images: [
+        {
+          url: imageUrl,
+          alt: news.title,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: news.title,
+      description: news.excerpt || 'ข่าวสารประชาสัมพันธ์โรงพยาบาลเถิน จังหวัดลำปาง',
+      images: [imageUrl],
+    },
   }
 }
 
@@ -99,6 +127,7 @@ export default async function NewsDetailPage(
 ) {
   const { slug } = await props.params
   const news = await getNewsBySlug(slug)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
   // Verify news exists and is published
   if (!news || news.status !== 'PUBLISHED' || new Date(news.publishedAt) > new Date()) {
@@ -106,9 +135,44 @@ export default async function NewsDetailPage(
   }
 
   const youtubeId = news.youtubeUrl ? getYouTubeId(news.youtubeUrl) : null
+  const firstImage = news.images && news.images.length > 0 ? news.images[0].imageUrl : '/images/common/logo-website.webp'
+  const imageUrl = firstImage.startsWith('http') ? firstImage : `${siteUrl}${firstImage}`
+
+  const articleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: news.title,
+    description: news.excerpt || news.title,
+    image: [imageUrl],
+    datePublished: new Date(news.publishedAt).toISOString(),
+    dateModified: new Date(news.createdAt).toISOString(),
+    author: {
+      '@type': 'Organization',
+      name: 'โรงพยาบาลเถิน',
+      url: siteUrl,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'โรงพยาบาลเถิน',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${siteUrl}/images/common/logo-website.webp`,
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${siteUrl}/news/${encodeURIComponent(slug)}`,
+    },
+  }
 
   return (
     <div className="container newsDetailPage">
+      {/* Schema.org NewsArticle Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+
       {/* Trigger Client View Counter (anti-spam) */}
       <ViewCounter newsId={news.id} />
 

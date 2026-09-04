@@ -120,9 +120,62 @@ async function getActiveSlides() {
 export default async function HomePage() {
   const latestNews = await getLatestNews();
   const activeSlides = await getActiveSlides();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  // Schema.org structured data for Hospital
+  const hospitalJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Hospital',
+    name: 'โรงพยาบาลเถิน (Thoen Hospital)',
+    alternateName: 'Thoen Hospital',
+    url: siteUrl,
+    logo: `${siteUrl}/images/common/logo-website.webp`,
+    image: `${siteUrl}/images/common/logo-website.webp`,
+    description: 'โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ พร้อมดูแลสุขภาพของประชาชนในพื้นที่อำเภอเถินและใกล้เคียง',
+    telephone: '054-291568',
+    emergencyTelephone: '1669',
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: '159 หมู่ 7 ถนนพหลโยธิน ตำบลล้อมแรด',
+      addressLocality: 'อำเภอเถิน',
+      addressRegion: 'จังหวัดลำปาง',
+      postalCode: '52160',
+      addressCountry: 'TH',
+    },
+    geo: {
+      '@type': 'GeoCoordinates',
+      latitude: '17.618683',
+      longitude: '99.219808',
+    },
+    openingHoursSpecification: [
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: [
+          'Monday',
+          'Tuesday',
+          'Wednesday',
+          'Thursday',
+          'Friday',
+          'Saturday',
+          'Sunday',
+        ],
+        opens: '00:00',
+        closes: '23:59',
+      },
+    ],
+    sameAs: [
+      'https://www.facebook.com/thoenhospital',
+    ],
+  };
 
   return (
     <div className="home">
+      {/* Structured Data for SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(hospitalJsonLd) }}
+      />
+
       {/* ===== HERO SECTION ===== */}
       <section className="hero">
         <HeroSlideshow slides={activeSlides} />
