@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { SkeletonCard, SkeletonTable } from '@/components/common/Skeleton'
 import './page.css'
 
 interface Patient {
@@ -42,25 +43,10 @@ export default function ERInStatusClient() {
   const [data, setData] = useState<ERData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [authenticated, setAuthenticated] = useState(false)
 
-  // 1. Verify Member Auth
+  // 1. Initial Fetch on Mount (Server Component already verified session)
   useEffect(() => {
-    async function checkAuth() {
-      try {
-        const res = await fetch('/api/member/me')
-        const result = await res.json()
-        if (res.ok && result.authenticated) {
-          setAuthenticated(true)
-          fetchStatus()
-        } else {
-          window.location.href = '/member/login'
-        }
-      } catch {
-        window.location.href = '/member/login'
-      }
-    }
-    checkAuth()
+    fetchStatus()
   }, [])
 
   // 2. Fetch function
@@ -82,24 +68,34 @@ export default function ERInStatusClient() {
   }
 
   // 3. Set interval after authentication
+  // 3. Auto-refresh polling every 15 seconds
   useEffect(() => {
-    if (!authenticated) return
-
     const interval = setInterval(() => {
       fetchStatus()
-    }, 15000) // Auto-refresh every 15 seconds
+    }, 15000)
 
     return () => clearInterval(interval)
-  }, [authenticated])
+  }, [])
 
-  if (!authenticated || (loading && !data)) {
+  if (loading && !data) {
     return (
       <div className="erStatusPage">
         <div className="container erContainer">
-          <div className="erLoadingPanel card">
-            <div className="spinner"></div>
-            <h3>กำลังเชื่อมต่อฐานข้อมูล HOSxP โรงพยาบาลเถิน...</h3>
-            <p>เพื่อดึงสถิติและรายชื่อผู้ป่วยที่เข้ารักษาในห้องฉุกเฉินวันนี้</p>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <Link href="/service" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
+              ← กลับไปหน้าระบบงานภายใน
+            </Link>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            <SkeletonCard height="130px" />
+            <SkeletonCard height="130px" />
+            <SkeletonCard height="130px" />
+            <SkeletonCard height="130px" />
+            <SkeletonCard height="130px" />
+            <SkeletonCard height="130px" />
+          </div>
+          <div className="card" style={{ padding: '1.5rem', background: '#fff' }}>
+            <SkeletonTable rows={6} cols={7} />
           </div>
         </div>
       </div>
@@ -209,19 +205,19 @@ export default function ERInStatusClient() {
 
                     return (
                       <tr key={patient.vn || idx} className={`level-${levelId}`}>
-                        <td style={{ fontWeight: 'bold' }}>{patient.enter_time ? patient.enter_time.substring(0, 5) : '-'}</td>
-                        <td>{patient.hn}</td>
-                        <td style={{ fontWeight: 600 }}>{patient.ptname}</td>
-                        <td>{patient.age}</td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
+                        <td data-label="เวลาเข้า" style={{ fontWeight: 'bold' }}>{patient.enter_time ? patient.enter_time.substring(0, 5) : '-'}</td>
+                        <td data-label="HN">{patient.hn}</td>
+                        <td data-label="ชื่อ-สกุล" style={{ fontWeight: 600 }}>{patient.ptname}</td>
+                        <td data-label="อายุ">{patient.age} ปี</td>
+                        <td data-label="เตียง" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
                           {patient.bedno ? `เตียง ${patient.bedno}` : '-'}
                         </td>
-                        <td>
+                        <td data-label="ระดับความรุนแรง">
                           <span className={`severityPill pill-${levelId}`}>
                             {displayLevel}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="สถานะ Observe">
                           {patient.observe === 'Y' ? (
                             <span className="observeBadge">Observe ON</span>
                           ) : '-'}
