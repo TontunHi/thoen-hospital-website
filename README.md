@@ -29,20 +29,24 @@
 * **ระบบแสดงผลห้องฉุกเฉินเรียลไทม์ (ER Live Status):** แสดงสถานะผู้ป่วยฉุกเฉินปัจจุบัน จำแนกตามระดับความเร่งด่วน (Triage Colors) พร้อมโหมดแสดงผลบนหน้าจอทีวี (TV Mode)
 * **การจัดการโปรไฟล์ส่วนตัว (Profile Avatar Management):** รองรับการอัปโหลดและเปลี่ยนรูปโปรไฟล์ของตนเองผ่าน Dashboard พร้อมระบบย่อขนาดและบันทึกภาพลงพื้นที่จัดเก็บส่วนตัว
 * **ระบบแจ้งเตือนงานอนุมัติอัจฉริยะ (Smart Approvals Notification):** กระดิ่งแจ้งเตือน Navbar, In-App Toast, Browser Native Push, และ Dynamic Document Title
+* **ระบบแคชข้อมูลระยะสั้น (Short-Lived In-Memory Cache):** แคชผลลัพธ์การคิวรีฐานข้อมูล HOSxP/ER (`src/lib/cache.ts`) อายุ 8 วินาที ช่วยลดภาระฐานข้อมูล Production ขณะที่มีการ Polling สถานะห้องฉุกเฉินพร้อมกันหลายจอ
+* **ระบบโครงกระดูกโหลดข้อมูล (Skeleton Loading & Responsive Views):** รองรับโครงกระดูกแสดงสถานะโหลด (Skeleton UI) และการสลับมุมมองการ์ด/ตารางบนอุปกรณ์พกพาสำหรับบริการ ER Live Status
 
 ---
 
 ## 🛠️ เทคโนโลยีหลักที่ใช้พัฒนา (Tech Stack)
 
-* **Framework:** [Next.js (App Router)](https://nextjs.org/) + TypeScript
+* **Framework:** [Next.js (App Router)](https://nextjs.org/) + TypeScript (ใช้ Next.js 16+ พร้อม Turbopack และ React 19)
 * **Styling:** Vanilla CSS (ใช้สถาปัตยกรรม CSS ดั้งเดิมเพื่อประสิทธิภาพสูงสุด ควบคุมความสวยงาม และขนาด Bundle ที่เล็กที่สุด)
-* **Database ORM:** [Prisma Client](https://www.prisma.io/)
+* **Database ORM:** [Prisma Client](https://www.prisma.io/) (Prisma 6)
 * **Database Systems:**
   * **Primary DB (MySQL/MariaDB):** เก็บข้อมูลโครงสร้างระบบ CMS, ข่าวสาร, สไลด์โชว์, ระบบสมาชิก, บันทึกการลงนาม และ Audit Logs
   * **HOSxP Database (Read-Only Integration):** เชื่อมโยงข้อมูลผู้ป่วย, นัดหมาย, ข้อมูลห้องฉุกเฉิน, และผลการตรวจทางห้องปฏิบัติการ
   * **Salary Database (Read-Only Integration):** เชื่อมโยงฐานข้อมูลสลิปเงินเดือนและค่าตอบแทน OT
 * **Data Validation:** [Zod](https://zod.dev/) (สำหรับตรวจทาน Payload ป้อนเข้าทุกรูปแบบ)
 * **Security & Auth:** HMAC-SHA256 Token Signatures & Server-side Session Guards
+* **Email & OTP Delivery:** Nodemailer / Brevo SMTP
+* **Image Processing:** Sharp (รองรับ WebP/AVIF และประมวลผลรูปภาพความปลอดภัยสูง)
 
 ---
 
@@ -51,7 +55,7 @@
 > [!IMPORTANT]
 > ระบบนี้ผ่านการทดสอบและวางโครงสร้างความปลอดภัยเพื่อป้องกันช่องโหว่ด้านเว็บแอปพลิเคชันในระดับสูงสุด
 
-1. **การป้องกันเส้นทางที่ฝั่งเซิร์ฟเวอร์ (Defensive Server-side Protection):** ทุกเพจและ API ภายในระบบสมาชิก (Member Dashboard) และหน้าผู้ดูแลระบบ (Admin Panel) จะถูกตรวจสอบสิทธิ์และเซสชันที่ฝั่งเซิร์ฟเวอร์ก่อนแสดงผล (Server-side Session Validation) หากผู้ใช้อ้างอิง URL โดยตรงโดยไม่มีสิทธิ์ ระบบจะทำการ Redirect ทันทีที่ระดับเซิร์ฟเวอร์
+1. **การป้องกันเส้นทางที่ฝั่งเซิร์ฟเวอร์ (Defensive Server-side Protection):** ทุกเพจและ API ภายในระบบสมาชิก (Member Dashboard) และหน้าผู้ดูแลระบบ (Admin Panel) จะถูกตรวจสอบสิทธิ์และเซสชันที่ฝั่งเซิร์ฟเวอร์ก่อนแสดงผล (Server-side Session Validation เช่น `verifyMemberSession`) หากผู้ใช้อ้างอิง URL โดยตรงโดยไม่มีสิทธิ์ ระบบจะทำการ Redirect ทันทีที่ระดับเซิร์ฟเวอร์
 2. **การป้องกัน SQL Injection:** การติดต่อฐานข้อมูลหลักผ่าน Prisma ORM และคำสั่ง Query ภายนอกทั้งหมด ใช้กลไก Prepared Statements และ Parameterized Queries 100%
 3. **การเก็บบันทึกประวัติการใช้งาน (Audit Trail for PDPA Compliance):** บันทึกประวัติการเข้าใช้งาน การเข้าสู่ระบบ และการสืบค้นข้อมูลเวชระเบียน/ผลแลปของผู้ป่วย (PHI) อย่างละเอียด เพื่อให้สอดคล้องตามมาตรฐาน พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล
 4. **การเก็บรักษาและแยกแยะพื้นที่ส่วนตัว (Data Isolation):** ข้อมูลอ่อนไหว เช่น ลายเซ็นอิเล็กทรอนิกส์และภาพถ่ายโปรไฟล์ จะถูกแยกจัดเก็บภายใต้โครงสร้างไดเรกทอรีส่วนบุคคลแยกตามรหัสผู้ใช้งาน (`storage/[username]/`) และจำกัดสิทธิ์การเข้าถึงผ่าน API ยืนยันตัวตนเท่านั้น
