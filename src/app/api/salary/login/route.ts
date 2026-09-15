@@ -9,9 +9,6 @@ import { queryMemberDb } from '@/lib/memberDb'
 
 export async function POST(request: Request) {
   try {
-    const rateCheck = await checkRateLimit({ key: 'salary-login', maxAttempts: 5, windowSeconds: 900 })
-    if (!rateCheck.allowed) return rateCheck.response!
-
     const body = await request.json()
     const { username, password } = body
 
@@ -22,6 +19,14 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    const rateCheck = await checkRateLimit({
+      key: 'salary-login',
+      identifier: username,
+      maxAttempts: 5,
+      windowSeconds: 300,
+    })
+    if (!rateCheck.allowed) return rateCheck.response!
 
     // Connect to external database and search for the user
     // We select user_name, name (assuming column name is 'name' or similar) from 'username' table

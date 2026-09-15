@@ -54,6 +54,8 @@ async function getClientIp(): Promise<string> {
 interface RateLimitOptions {
   /** Unique identifier prefix for this limiter (e.g., 'auth-login') */
   key: string
+  /** Optional secondary identifier such as username or citizen ID */
+  identifier?: string
   /** Maximum number of requests allowed within the window */
   maxAttempts: number
   /** Time window in seconds */
@@ -76,7 +78,7 @@ interface RateLimitResult {
  * 
  * Usage in API routes:
  * ```ts
- * const rateCheck = await checkRateLimit({ key: 'auth-login', maxAttempts: 5, windowSeconds: 900 })
+ * const rateCheck = await checkRateLimit({ key: 'auth-login', identifier: username, maxAttempts: 5, windowSeconds: 300 })
  * if (!rateCheck.allowed) return rateCheck.response!
  * ```
  */
@@ -92,7 +94,10 @@ export async function checkRateLimit(options: RateLimitOptions): Promise<RateLim
   cleanupExpiredEntries()
 
   const clientIp = await getClientIp()
-  const storeKey = `${options.key}:${clientIp}`
+  const normalizedId = options.identifier ? options.identifier.trim().toLowerCase() : ''
+  const storeKey = normalizedId
+    ? `${options.key}:${clientIp}:${normalizedId}`
+    : `${options.key}:${clientIp}`
   const now = Date.now()
   const windowMs = options.windowSeconds * 1000
 

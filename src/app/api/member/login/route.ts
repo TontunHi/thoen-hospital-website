@@ -6,9 +6,6 @@ import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
   try {
-    const rateCheck = await checkRateLimit({ key: 'member-login', maxAttempts: 5, windowSeconds: 900 })
-    if (!rateCheck.allowed) return rateCheck.response!
-
     const body = await request.json()
     const { username, email, otp } = body
 
@@ -23,6 +20,14 @@ export async function POST(request: Request) {
     const trimmedUsername = username.trim()
     const trimmedEmail = email.trim()
     const trimmedOtp = otp.trim()
+
+    const rateCheck = await checkRateLimit({
+      key: 'member-login',
+      identifier: trimmedUsername,
+      maxAttempts: 5,
+      windowSeconds: 300,
+    })
+    if (!rateCheck.allowed) return rateCheck.response!
 
     // 1. Fetch member details from database and check expiration using DB-native time
     const users = await queryMemberDb(

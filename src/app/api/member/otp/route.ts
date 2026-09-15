@@ -29,9 +29,6 @@ const transporter = nodemailer.createTransport(
 
 export async function POST(request: Request) {
   try {
-    const rateCheck = await checkRateLimit({ key: 'member-otp', maxAttempts: 3, windowSeconds: 900 })
-    if (!rateCheck.allowed) return rateCheck.response!
-
     const body = await request.json()
     const { username, email } = body
 
@@ -45,6 +42,14 @@ export async function POST(request: Request) {
 
     const trimmedUsername = username.trim()
     const trimmedEmail = email.trim()
+
+    const rateCheck = await checkRateLimit({
+      key: 'member-otp',
+      identifier: trimmedUsername,
+      maxAttempts: 5,
+      windowSeconds: 300,
+    })
+    if (!rateCheck.allowed) return rateCheck.response!
 
     // 1. Check if user already exists
     const users = await queryMemberDb(
