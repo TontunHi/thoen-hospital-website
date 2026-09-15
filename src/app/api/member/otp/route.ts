@@ -51,39 +51,36 @@ export async function POST(request: Request) {
     })
     if (!rateCheck.allowed) return rateCheck.response!
 
-    // 1. Check if user already exists
+    // 1. Check if user exists in database
     const users = await queryMemberDb(
-      'SELECT * FROM members WHERE username = ?',
+      'SELECT id, username, email FROM members WHERE username = ?',
       [trimmedUsername]
     )
 
-    if (users && users.length > 0) {
-      const user = users[0]
-      // Username exists, check if email matches
-      if (user.email.toLowerCase() !== trimmedEmail.toLowerCase()) {
-        return NextResponse.json(
-          { error: 'ชื่อผู้ใช้งานนี้ลงทะเบียนด้วยอีเมลอื่นอยู่แล้ว' },
-          { status: 400 }
-        )
-      }
+    if (!users || users.length === 0) {
+      return NextResponse.json(
+        { error: 'ไม่พบข้อมูลผู้ใช้งานนี้ในระบบสมาชิก กรุณาติดต่อเจ้าหน้าที่ดูแลระบบหรือกลุ่มงานทรัพยากรบุคคล' },
+        { status: 404 }
+      )
+    }
+
+    const user = users[0]
+    // Username exists, check if email matches
+    if (user.email.toLowerCase() !== trimmedEmail.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'อีเมลไม่ตรงกับข้อมูลที่ลงทะเบียนไว้ในระบบ' },
+        { status: 400 }
+      )
     }
 
     // 2. Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString()
 
-    if (users && users.length > 0) {
-      // Update existing user with new OTP using DB-native server time
-      await queryMemberDb(
-        'UPDATE members SET otp_code = ?, otp_expiry = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE username = ?',
-        [otp, trimmedUsername]
-      )
-    } else {
-      // Create new user using DB-native server time
-      await queryMemberDb(
-        'INSERT INTO members (username, email, otp_code, otp_expiry) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 5 MINUTE))',
-        [trimmedUsername, trimmedEmail, otp]
-      )
-    }
+    // Update existing user with new OTP using DB-native server time
+    await queryMemberDb(
+      'UPDATE members SET otp_code = ?, otp_expiry = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
+      [otp, user.id]
+    )
 
     // Console log for debugging/testing
     console.log(`[MEMBER OTP DEBUG] User: ${trimmedUsername}, OTP: ${otp}, Sent to: ${trimmedEmail}`)
