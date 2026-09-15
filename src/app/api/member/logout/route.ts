@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { destroyMemberSession, verifyMemberSession } from '@/lib/memberAuth'
+import { destroySalarySession } from '@/lib/salaryAuth'
 
 export async function POST() {
   try {
@@ -18,6 +19,7 @@ export async function POST() {
       }
     }
     await destroyMemberSession()
+    await destroySalarySession()
     return NextResponse.json({ success: true, message: 'ออกจากระบบเรียบร้อยแล้ว' })
   } catch (error: any) {
     console.error('Member logout error:', error)

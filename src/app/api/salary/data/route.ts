@@ -1,17 +1,34 @@
 import { NextResponse } from 'next/server'
 import { querySalaryDb, querySalaryEditDb } from '@/lib/salaryDb'
-import { verifySalarySession } from '@/lib/salaryAuth'
+import { verifySalarySession, destroySalarySession } from '@/lib/salaryAuth'
+import { verifyMemberSession } from '@/lib/memberAuth'
+import { queryMemberDb } from '@/lib/memberDb'
 
 export async function GET(request: Request) {
   try {
-    // 1. Authenticate user from signed session cookie
-    const user = await verifySalarySession()
-
-    if (!user || !user.username) {
+    // 1. Verify Member session first to ensure current logged-in member
+    const memberSession = await verifyMemberSession()
+    if (!memberSession) {
       return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบ' }, { status: 401 })
     }
 
-    const username = user.username // Citizen ID (matches c2 in salary and ot)
+    // 2. Authenticate salary session
+    const user = await verifySalarySession()
+
+    // 3. Verify that the salary session belongs to the current member's bound salary_user
+    // If mismatch or no salary session, destroy old salary cookie and return 401 so client auto-logs in via SSO
+    const memberRows = await queryMemberDb(
+      'SELECT salary_user FROM members WHERE username = ? LIMIT 1',
+      [memberSession.username]
+    )
+    const expectedSalaryUser = memberRows[0]?.salary_user
+
+    if (!user || !user.username || (expectedSalaryUser && user.username !== expectedSalaryUser)) {
+      await destroySalarySession()
+      return NextResponse.json({ error: 'เซสชันระบบเงินเดือนไม่ตรงกับผู้ใช้งานปัจจุบัน กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
+    }
+
+    const username = user.username // Citizen ID / salary_user (matches c2 in salary and ot)
 
     const { searchParams } = new URL(request.url)
     const selectedYear = searchParams.get('year') // e.g. "2567"

@@ -265,17 +265,16 @@
 
 /* Action Panel & Filtering */
 .membersDashboardPage .actionPanel {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 24px;
-  padding: 18px 28px;
+  border-radius: 20px;
+  padding: 16px 20px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
   box-shadow: 
     0 4px 6px -1px rgba(0, 0, 0, 0.01),
     0 10px 20px -3px rgba(0, 0, 0, 0.02);
@@ -283,16 +282,15 @@
 
 .membersDashboardPage .searchWrapper {
   position: relative;
-  flex: 1;
-  min-width: 300px;
+  width: 100%;
 }
 
 .membersDashboardPage .searchWrapper input {
   width: 100%;
-  padding: 12px 16px 12px 44px;
+  padding: 11px 16px 11px 44px;
   border: 1.5px solid rgba(203, 213, 225, 0.8);
-  border-radius: 16px;
-  font-size: 0.95rem;
+  border-radius: 14px;
+  font-size: 0.93rem;
   font-weight: 500;
   color: #0f172a;
   background-color: #ffffff;
@@ -315,39 +313,59 @@
 }
 
 .membersDashboardPage .filterGroup {
-  display: flex;
-  gap: 8px;
-  background: rgba(241, 245, 249, 0.8);
-  padding: 4px;
-  border-radius: 14px;
-  border: 1px solid rgba(226, 232, 240, 0.5);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
 }
 
 .membersDashboardPage .filterTab {
-  padding: 8px 18px;
-  border-radius: 10px;
+  padding: 6px 12px;
+  border-radius: 8px;
   background-color: transparent;
-  color: #475569;
+  color: #64748b;
   border: none;
-  font-weight: 600;
-  font-size: 0.9rem;
+  font-weight: 500;
+  font-size: 0.84rem;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .membersDashboardPage .filterTab:hover {
   color: #0f172a;
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .membersDashboardPage .filterTab.active {
   background-color: #ffffff;
   color: #0f172a;
+  font-weight: 600;
   box-shadow: 
-    0 1px 3px rgba(0, 0, 0, 0.05),
-    0 4px 12px rgba(15, 23, 42, 0.05);
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.membersDashboardPage .filterCount {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.15);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  line-height: 1.3;
+}
+
+.membersDashboardPage .filterTab.active .filterCount {
+  color: #0d9488;
+  background: rgba(13, 148, 136, 0.1);
 }
 
 /* Members Table Card */

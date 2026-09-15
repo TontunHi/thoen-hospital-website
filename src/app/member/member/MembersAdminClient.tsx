@@ -352,25 +352,25 @@ export default function MembersAdminClient() {
               className={`filterTab ${roleFilter === 'all' ? 'active' : ''}`}
               onClick={() => setRoleFilter('all')}
             >
-              ทั้งหมด ({members.length})
+              ทั้งหมด <span className="filterCount">({members.length})</span>
             </button>
             <button
               className={`filterTab ${roleFilter === 'member' ? 'active' : ''}`}
               onClick={() => setRoleFilter('member')}
             >
-              ทั่วไป ({members.filter(m => m.role === 'member').length})
+              ทั่วไป <span className="filterCount">({members.filter(m => m.role === 'member').length})</span>
             </button>
             <button
               className={`filterTab ${roleFilter === 'subdistrict' ? 'active' : ''}`}
               onClick={() => setRoleFilter('subdistrict')}
             >
-              รพ.สต. ({members.filter(m => m.role === 'subdistrict').length})
+              รพ.สต. <span className="filterCount">({members.filter(m => m.role === 'subdistrict').length})</span>
             </button>
             <button
               className={`filterTab ${roleFilter === 'admin' ? 'active' : ''}`}
               onClick={() => setRoleFilter('admin')}
             >
-              แอดมิน ({members.filter(m => m.role === 'admin').length})
+              แอดมิน <span className="filterCount">({members.filter(m => m.role === 'admin').length})</span>
             </button>
           </div>
         </div>

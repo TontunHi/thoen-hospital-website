@@ -158,13 +158,71 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
 }
 
+.salaryFiltersHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
 .salaryFiltersCard h3 {
   font-size: 1.1rem;
   color: var(--gray-900);
   font-weight: 700;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
   border-left: 4px solid var(--primary);
   padding-left: 0.75rem;
+}
+
+.printActionGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.printSlipBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.15rem;
+  background-color: var(--primary);
+  color: var(--white);
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(13, 116, 70, 0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+.printSlipBtn:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(13, 116, 70, 0.25);
+}
+
+.imageSlipBtn {
+  background-color: #0284C7 !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2) !important;
+}
+
+.imageSlipBtn:hover {
+  background-color: #0369A1 !important;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.25) !important;
+}
+
+.imageSlipBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.printSlipBtn svg {
+  flex-shrink: 0;
 }
 
 .filtersGrid {
@@ -472,5 +530,340 @@
 
   .netPayValue {
     font-size: 2rem;
+  }
+}
+
+/* ==========================================================================
+   Print-Only & Image Export Document Styles (Shared Pixel-Perfect Design)
+   ========================================================================== */
+
+.salaryPrintOnlyDoc {
+  display: none;
+}
+
+/* Off-screen rendering for html-to-image capture (fully painted, no screen flicker) */
+.salaryPrintOnlyDoc.isCapturingImage {
+  display: block !important;
+  width: 820px !important;
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  box-sizing: border-box !important;
+  padding: 32px 36px !important;
+  font-family: var(--font-prompt, 'Sarabun', 'Prompt', -apple-system, BlinkMacSystemFont, sans-serif) !important;
+}
+
+/* Shared typography and layout when printing or capturing image */
+.salaryPrintOnlyDoc.isCapturingImage,
+.salaryPrintOnlyDoc {
+  /* Header */
+  .printDocHeader {
+    border-bottom: 2.5px solid #0D7446;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+  }
+
+  .printLogoSection {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .printLogoImage {
+    width: 65px;
+    height: auto;
+    object-fit: contain;
+    background-color: transparent !important;
+  }
+
+  .printHeaderText h2 {
+    font-size: 19px;
+    font-weight: 700;
+    color: #0D7446;
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  .printSubText {
+    font-size: 13px;
+    color: #4B5563;
+    margin: 2px 0 6px 0;
+    line-height: 1.3;
+  }
+
+  .printHeaderText h1 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #111827;
+    margin: 3px 0;
+    line-height: 1.3;
+  }
+
+  .printPeriodText {
+    font-size: 14px;
+    color: #1F2937;
+    margin: 3px 0 0 0;
+    line-height: 1.3;
+  }
+
+  /* Employee Information Box */
+  .printInfoBox {
+    background-color: #F9FAFB !important;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin-bottom: 18px;
+    font-size: 13.5px;
+    line-height: 1.4;
+  }
+
+  .printInfoRow {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 6px;
+  }
+
+  .printInfoRow:last-child {
+    margin-bottom: 0;
+  }
+
+  .printInfoCol {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .printInfoCol:last-child {
+    justify-content: flex-end;
+  }
+
+  .infoLabel {
+    color: #6B7280;
+    white-space: nowrap;
+  }
+
+  .infoValue {
+    color: #111827;
+    white-space: nowrap;
+  }
+
+  .infoValue.bold {
+    font-weight: 700;
+    color: #0D7446;
+  }
+
+  /* Section Styles */
+  .printSection {
+    margin-bottom: 18px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .printSectionTitle {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0D7446;
+    background-color: #F0FDF4 !important;
+    border-left: 4px solid #0D7446;
+    padding: 5px 12px;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  /* Tables Grid */
+  .printTablesGrid {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .printTable {
+    flex: 1;
+    width: 50%;
+    border-collapse: collapse;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .printTable th,
+  .printTable td {
+    padding: 5px 8px;
+    border: 1px solid #D1D5DB;
+    vertical-align: middle;
+  }
+
+  .printTable thead th {
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .printEarningsTable thead th {
+    background-color: #ECFDF5 !important;
+    color: #065F46;
+    border-color: #A7F3D0;
+  }
+
+  .printDeductionsTable thead th {
+    background-color: #FEF2F2 !important;
+    color: #991B1B;
+    border-color: #FECACA;
+  }
+
+  .printTable tbody td {
+    color: #374151;
+  }
+
+  .printTable tbody tr:nth-child(even) {
+    background-color: #F9FAFB !important;
+  }
+
+  .printTable tfoot th {
+    font-weight: 700;
+  }
+
+  .printEarningsTable tfoot th {
+    color: #047857;
+    background-color: #ECFDF5 !important;
+    border-color: #A7F3D0;
+  }
+
+  .printDeductionsTable tfoot th {
+    color: #B91C1C;
+    background-color: #FEF2F2 !important;
+    border-color: #FECACA;
+  }
+
+  .numCol {
+    text-align: right !important;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Net Summary */
+  .printNetSummary {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 7px 12px;
+    background-color: #F9FAFB !important;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    font-size: 13.5px;
+    line-height: 1.35;
+  }
+
+  .printNetSummary span {
+    color: #4B5563;
+    white-space: nowrap;
+  }
+
+  .printNetSummary strong {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #0D7446;
+    white-space: nowrap;
+  }
+
+  /* Grand Total Box */
+  .printGrandTotalBox {
+    background-color: #0D7446 !important;
+    color: #ffffff !important;
+    border-radius: 8px;
+    padding: 12px 20px;
+    margin-top: 14px;
+    margin-bottom: 8px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .grandTotalRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .grandTotalRow span {
+    white-space: nowrap;
+  }
+
+  .grandTotalAmount {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+  }
+}
+
+@media print {
+  /* Page Setup: margin 0 removes browser default headers (date/time, title) and footers (URL, page numbers) */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  /* Reset layout & backgrounds for crisp print */
+  html, body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-family: var(--font-prompt, 'Sarabun', 'Prompt', sans-serif) !important;
+    font-size: 10.5pt !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide EVERYTHING on normal page */
+  nav,
+  header.navbar,
+  footer,
+  .site-header,
+  .site-footer,
+  .salaryHeader,
+  .salaryCalendarCard,
+  .salaryFiltersCard,
+  .systemsTabs,
+  .tabContent,
+  .salaryAlert,
+  .salaryLoadingPanel,
+  .salaryEmptyPanel,
+  .salaryLogoutBtn {
+    display: none !important;
+  }
+
+  /* Unset salary container wrappers */
+  .salaryPage {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+    min-height: auto !important;
+  }
+
+  .salaryContainer {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    animation: none !important;
+  }
+
+  /* Show Print Document with clean margins inside the page */
+  .salaryPrintOnlyDoc {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 12mm 15mm 15mm 15mm !important;
+    color: #111827 !important;
   }
 }
