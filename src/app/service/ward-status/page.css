@@ -1,0 +1,455 @@
+.wardStatusPage {
+  padding-top: calc(var(--navbar-height) + 1.5rem);
+  padding-bottom: 4rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  transition: all 0.3s ease;
+}
+
+.wardContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Header Card */
+.wardHeaderCard {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+  margin-bottom: 1.5rem;
+}
+
+.wardTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.wardIconBadge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wardTitleSection h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.wardSubtitle {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0 0;
+}
+
+.wardControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.lastUpdateText {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.refreshBtn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.refreshBtn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.refreshBtn.spinning svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Overview / Stats Banner - 4 columns per row = 2 balanced rows (8 cards total) */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.statCard {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.statCard.active {
+  border-color: #0d9488;
+  background: #f0fdfa;
+}
+
+.statCard__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.statCard__title {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.statCard__pill {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+
+.statCard__value {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.statCard__unit {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: normal;
+  margin-left: 0.25rem;
+}
+
+/* Filter & Search Bar */
+.filterBar {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.tabsList {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  max-width: 100%;
+}
+
+.tabBtn {
+  background: #f1f5f9;
+  border: none;
+  color: #475569;
+  padding: 0.45rem 0.9rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.tabBtn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.tabBtn.active {
+  background: #0d9488;
+  color: #ffffff;
+}
+
+.searchBox {
+  position: relative;
+  min-width: 250px;
+  flex: 1;
+  max-width: 360px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.55rem 0.85rem 0.55rem 2.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.searchInput:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.15);
+}
+
+/* Sections Grid - 2 columns equal width when displaying all sections */
+.wardSectionsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* When only 1 ward is selected, stretch full width */
+.wardSectionsGrid:has(> .wardSection:only-child) {
+  grid-template-columns: 1fr;
+}
+
+/* Section Card */
+.wardSection {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.wardSection__header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+}
+
+.wardSection__titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.wardSection__titleGroup h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.floorTag {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.countBadge {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  background: #ecfdf5;
+  color: #059669;
+}
+
+/* Table Design */
+.wardTableWrapper {
+  overflow-x: auto;
+}
+
+.wardTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.wardTable th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.wardTable td {
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.92rem;
+  color: #334155;
+}
+
+.wardTable tr:last-child td {
+  border-bottom: none;
+}
+
+.wardTable tr:hover td {
+  background-color: #f8fafc;
+}
+
+.bedBadge {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.patientName {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.daysPill {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.daysPill.longStay {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+/* Empty State */
+.emptyState {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+/* Badges for cards */
+.badge-emerald {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-teal {
+  background: #ccfbf1;
+  color: #115e59;
+}
+
+.badge-cyan {
+  background: #cffafe;
+  color: #155e75;
+}
+
+.badge-rose {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.badge-purple {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.badge-amber {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-orange {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .wardSectionsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .wardHeaderCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .wardControls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchBox {
+    max-width: 100%;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .wardTable th, .wardTable td {
+    padding: 0.65rem 0.85rem;
+  }
+}

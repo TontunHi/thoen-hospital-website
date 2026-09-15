@@ -1,0 +1,330 @@
+.orStatusPage {
+  padding-top: calc(var(--navbar-height) + 1.5rem);
+  padding-bottom: 4rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  transition: all 0.2s ease;
+}
+
+/* Fullscreen mode: cover whole screen, hide navbar (z-index: 99999), keep bright light theme */
+.orStatusPage.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  background-color: #f1f5f9;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.orContainer {
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.fullscreen .orContainer {
+  max-width: 100%;
+  padding: 0;
+}
+
+/* Header Card */
+.orHeaderCard {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 1.25rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+  margin-bottom: 1.25rem;
+}
+
+.orTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.orIconBadge {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orTitleSection h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.orSubtitle {
+  color: #64748b;
+  font-size: 0.92rem;
+  margin: 0.25rem 0 0 0;
+}
+
+.orControls {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.lastUpdateText {
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.actionBtn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.2s ease;
+}
+
+.actionBtn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.actionBtn.spinning svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Slogan Banner - Clean White & Medical Green */
+.orSloganBanner {
+  background: #ffffff;
+  border: 1.5px solid #a7f3d0;
+  border-left: 6px solid #059669;
+  border-radius: 12px;
+  padding: 0.95rem 1.5rem;
+  margin-bottom: 1.25rem;
+  text-align: center;
+  color: #065f46;
+  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.06);
+}
+
+.orSloganBanner h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #047857;
+}
+
+/* 3 Equal Columns Grid (33.3% each) */
+.orThreeColGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Column Card */
+.orColCard {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+/* Column Headers */
+.orColCard__header {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.orColCard__header.waiting {
+  background: #fefce8;
+  border-bottom: 2px solid #facc15;
+}
+
+.orColCard__header.inProgress {
+  background: #fdf2f8;
+  border-bottom: 2px solid #f472b6;
+}
+
+.orColCard__header.recovery {
+  background: #ecfeff;
+  border-bottom: 2px solid #22d3ee;
+}
+
+.orColCard__titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.orColCard__titleGroup h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.waitingTitle {
+  color: #a16207;
+}
+
+.inProgressTitle {
+  color: #be185d;
+}
+
+.recoveryTitle {
+  color: #0e7490;
+}
+
+.orBadgeCount {
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 0.25rem 0.8rem;
+  border-radius: 9999px;
+}
+
+.orBadgeCount.waiting {
+  background: #fef08a;
+  color: #854d0e;
+}
+
+.orBadgeCount.inProgress {
+  background: #fbcfe8;
+  color: #9d174d;
+}
+
+.orBadgeCount.recovery {
+  background: #cffafe;
+  color: #155e75;
+}
+
+/* Table Design */
+.orTableWrapper {
+  overflow-x: auto;
+  max-height: 650px;
+  overflow-y: auto;
+}
+
+.fullscreen .orTableWrapper {
+  max-height: calc(100vh - 280px);
+}
+
+.orTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.orTable th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.orTable td {
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 1.05rem;
+  color: #1e293b;
+}
+
+.orTable tr:last-child td {
+  border-bottom: none;
+}
+
+.orTable tr:hover td {
+  background-color: #f8fafc;
+}
+
+.patientNameCell {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #0f172a;
+}
+
+.roomTag {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.emptyState {
+  padding: 4rem 1rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .orThreeColGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .orHeaderCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .orControls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .orTable th, .orTable td {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.95rem;
+  }
+
+  .patientNameCell {
+    font-size: 1rem;
+  }
+}

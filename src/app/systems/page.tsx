@@ -95,6 +95,11 @@ export default function SystemsPage() {
       link: '/systems/er-out-status',
     },
     {
+      title: 'สถานะห้องผ่าตัด (OR Live)',
+      desc: 'ระบบแสดงผลสถานะห้องผ่าตัดประจำวัน (รอผ่าตัด, กำลังผ่าตัด, ผ่าตัดเสร็จ/พักฟื้น) โรงพยาบาลเถิน',
+      link: '/systems/status-or',
+    },
+    {
       title: 'ใบรับรองแพทย์ Digital',
       desc: 'ระบบแดชบอร์ดข้อมูลการออกเอกสารใบรับรองแพทย์ดิจิทัลอิเล็กทรอนิกส์',
       link: 'https://app.powerbi.com/view?r=eyJrIjoiM2Y0MTAwZjItZDYwNC00MmUyLTlmZjktM2I1MWM3YjY3MjRmIiwidCI6ImI3NmEyM2QzLThjZGYtNDNjMC1hNTNiLTYwYmNkMjM3OTg5NSIsImMiOjEwfQ%3D%3D',

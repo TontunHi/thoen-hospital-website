@@ -1,11 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js You Know
 
-This project may use a Next.js version and conventions that differ from your training data — APIs, file structure, and defaults can all have changed.
+# This is NOT the Next.js you know
 
-- **Before writing any code:** check `package.json` for the exact `next` version installed, then read the matching docs in `node_modules/next/dist/docs/` (or the official changelog for that version) instead of relying on memory.
-- **Heed deprecation warnings** shown in the terminal/build output — do not silently work around them; fix the root cause or ask before ignoring.
-- **Never assume an API shape.** If a hook, config option, or file convention isn't confirmed in the installed docs, say so and verify rather than guessing.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN:project-architecture-rules -->
