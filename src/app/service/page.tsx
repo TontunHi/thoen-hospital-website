@@ -19,7 +19,7 @@ export default async function ServicePage() {
       btnText: 'ไปยังโปรแกรมเงินเดือน',
     },
     {
-      title: 'ค้นหาผลแลป & ประวัติการรักษา',
+      title: 'EMR Online',
       desc: 'ระบบค้นหาประวัติการรักษาพยาบาล รายการยา และรายงานผลการตรวจ LAB (Outpatient / Inpatient) ของโรงพยาบาลเถิน',
       link: '/service/lab',
       btnText: 'ค้นหาประวัติและผลแลป',
