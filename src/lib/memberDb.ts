@@ -221,7 +221,10 @@ async function initializeDb(poolInstance: mysql.Pool) {
         { key: 'view_all_work', pos: 'ผู้อำนวยการ' },
         { key: 'view_all_work', pos: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์' },
         { key: 'view_all_work', pos: 'นักวิชาการคอมพิวเตอร์' },
-        { key: 'view_all_work', pos: 'เจ้าพนักงานเครื่องคอมพิวเตอร์' }
+        { key: 'view_all_work', pos: 'เจ้าพนักงานเครื่องคอมพิวเตอร์' },
+        // manage_news permissions
+        { key: 'manage_news', pos: 'นักประชาสัมพันธ์' },
+        { key: 'manage_news', pos: 'นักวิชาการคอมพิวเตอร์' }
       ]
 
       for (const perm of defaultPermissions) {

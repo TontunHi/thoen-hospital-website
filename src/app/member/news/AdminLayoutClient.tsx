@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { LayoutDashboard, Newspaper, LogOut, Image as ImageIcon } from 'lucide-react'
+import { LayoutDashboard, Newspaper, LogOut, Image as ImageIcon, ArrowLeft } from 'lucide-react'
 import './layout.css'
 
 export default function AdminLayoutClient({
@@ -67,6 +67,13 @@ export default function AdminLayoutClient({
               </Link>
             )
           })}
+
+          <div className="navDivider" />
+
+          <Link href="/member" className="navLink navLinkBack">
+            <ArrowLeft size={18} className="navIcon" />
+            <span>กลับหน้าหลักสมาชิก</span>
+          </Link>
         </nav>
 
         <div className="sidebarFooter">

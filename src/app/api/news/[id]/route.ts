@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireMemberAdmin } from '@/lib/memberAuth'
+import { requireNewsPermission } from '@/lib/memberAuth'
 import { newsCreateSchema } from '@/lib/schemas/news'
 
 export async function GET(
@@ -219,7 +219,7 @@ export async function PUT(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireMemberAdmin()
+    const authResult = await requireNewsPermission()
     if (authResult.error) return authResult.error
 
     const { id } = await ctx.params
@@ -295,7 +295,7 @@ export async function DELETE(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireMemberAdmin()
+    const authResult = await requireNewsPermission()
     if (authResult.error) return authResult.error
 
     const { id } = await ctx.params

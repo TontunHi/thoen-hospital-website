@@ -94,6 +94,71 @@ export async function destroyMemberSession(): Promise<void> {
 
 import { NextResponse } from 'next/server'
 
+export async function checkPositionPermission(
+  username: string,
+  permissionKey: string | string[]
+): Promise<boolean> {
+  try {
+    const { queryMemberDb } = await import('./memberDb')
+    const users = await queryMemberDb(
+      'SELECT position, role FROM members WHERE username = ? LIMIT 1',
+      [username]
+    )
+
+    if (!users || users.length === 0) return false
+    const user = users[0]
+    if (user.role === 'admin') return true
+
+    const userPosition = (user.position || '').trim()
+    if (!userPosition) return false
+
+    const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey]
+    const placeholders = keys.map(() => '?').join(', ')
+
+    const result = await queryMemberDb(
+      `SELECT COUNT(*) as count FROM position_permissions WHERE permission_key IN (${placeholders}) AND TRIM(position_name) = TRIM(?)`,
+      [...keys, userPosition]
+    )
+
+    return (result[0]?.count || 0) > 0
+  } catch (error) {
+    console.error('Check position permission error:', error)
+    return false
+  }
+}
+
+export async function requireNewsPermission(): Promise<
+  { session: { username: string; email: string; role: string }; error?: never } |
+  { session?: never; error: NextResponse }
+> {
+  const session = await verifyMemberSession()
+
+  if (!session) {
+    return {
+      error: NextResponse.json(
+        { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
+        { status: 401 }
+      ),
+    }
+  }
+
+  if (session.role === 'admin') {
+    return { session }
+  }
+
+  const hasNewsPerm = await checkPositionPermission(session.username, 'manage_news')
+  if (!hasNewsPerm) {
+    return {
+      error: NextResponse.json(
+        { error: 'คุณไม่มีสิทธิ์จัดการข่าวประชาสัมพันธ์' },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return { session }
+}
+
 export async function requireMemberAdmin(): Promise<
   { session: { username: string; email: string; role: string }; error?: never } |
   { session?: never; error: NextResponse }
@@ -120,4 +185,5 @@ export async function requireMemberAdmin(): Promise<
 
   return { session }
 }
+
 

@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper } from 'lucide-react'
 import './page.css'
 
 async function getMemberDashboardData() {
@@ -83,6 +83,15 @@ async function getMemberDashboardData() {
     isItaAuthorized = (itaPerms[0]?.count || 0) > 0
   }
 
+  let isNewsAuthorized = member.role === 'admin'
+  if (!isNewsAuthorized && userPosition) {
+    const newsPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'manage_news' AND TRIM(position_name) = TRIM(?)",
+      [userPosition]
+    )
+    isNewsAuthorized = (newsPerms[0]?.count || 0) > 0
+  }
+
   return {
     member,
     pendingCount,
@@ -91,6 +100,7 @@ async function getMemberDashboardData() {
     isAdmin,
     isFinance,
     isItaAuthorized,
+    isNewsAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -303,6 +313,7 @@ export default async function MemberDashboardPage() {
     isAdmin,
     isFinance,
     isItaAuthorized,
+    isNewsAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -426,6 +437,27 @@ export default async function MemberDashboardPage() {
             )
           )}
 
+          {/* Card 8: PR News Posting Program (Visible to authorized members who are not admins) */}
+          {isNewsAuthorized && !isAdmin && (
+            <Link href="/member/news" className="serviceCard">
+              <div className="serviceCardHeader">
+                <div className="serviceIconWrapper" style={{ backgroundColor: '#f0f9ff', color: '#0284c7', borderColor: '#e0f2fe', borderWidth: '1px', borderStyle: 'solid' }}>
+                  <Newspaper size={24} />
+                </div>
+                <div className="statusIndicator success" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderColor: '#bae6fd' }}>
+                  <span>จัดการเว็บไซต์</span>
+                </div>
+              </div>
+              <div className="serviceCardBody">
+                <h4>โปรแกรมโพสข่าวประชาสัมพันธ์</h4>
+                <p>ระบบจัดการและโพสข่าวประชาสัมพันธ์ กิจกรรม ข่าวรับสมัครงาน เพื่อแสดงผลบนหน้าเว็บไซต์หลักโรงพยาบาลเถิน</p>
+              </div>
+              <div className="serviceCardFooter" style={{ color: '#0284c7' }}>
+                <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
+                <ChevronRight size={16} className="chevronIcon" />
+              </div>
+            </Link>
+          )}
         </div>
 
 

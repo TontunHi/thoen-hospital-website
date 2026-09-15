@@ -1,4 +1,4 @@
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
 import AdminLayoutClient from './AdminLayoutClient'
 
@@ -15,10 +15,13 @@ export default async function AdminLayout({
     redirect('/member/login')
   }
 
-  if (session.role !== 'admin') {
+  const isAuthorized = session.role === 'admin' || (await checkPositionPermission(session.username, 'manage_news'))
+
+  if (!isAuthorized) {
     redirect('/unauthorized')
   }
 
   return <AdminLayoutClient>{children}</AdminLayoutClient>
 }
+
 

@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireMemberAdmin } from '@/lib/memberAuth'
+import { requireNewsPermission } from '@/lib/memberAuth'
 import { heroSlideSchema } from '@/lib/schemas/heroSlide'
 import { unlink } from 'fs/promises'
 import path from 'path'
 
 export async function DELETE(request: Request, props: any) {
   try {
-    const authResult = await requireMemberAdmin()
+    const authResult = await requireNewsPermission()
     if (authResult.error) return authResult.error
 
     const resolvedParams = await props.params
@@ -54,7 +54,7 @@ export async function DELETE(request: Request, props: any) {
 
 export async function PUT(request: Request, props: any) {
   try {
-    const authResult = await requireMemberAdmin()
+    const authResult = await requireNewsPermission()
     if (authResult.error) return authResult.error
 
     const resolvedParams = await props.params

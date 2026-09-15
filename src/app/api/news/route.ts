@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireMemberAdmin } from '@/lib/memberAuth'
+import { requireNewsPermission } from '@/lib/memberAuth'
 import { newsCreateSchema } from '@/lib/schemas/news'
 
 function generateSlug(title: string): string {
@@ -119,7 +119,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const authResult = await requireMemberAdmin()
+    const authResult = await requireNewsPermission()
     if (authResult.error) return authResult.error
 
     const body = await request.json()
