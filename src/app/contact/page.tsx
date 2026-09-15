@@ -61,7 +61,7 @@ export default function ContactPage() {
                 <h2>โรงพยาบาลเถิน</h2>
               </div>
               <p className="addressText">
-                เลขที่ 196 หมู่ 6 ถนนพหลโยธิน ตำบลล้อมแรด อำเภอเถิน จังหวัดลำปาง 52160
+                เลขที่ 96/5 หมู่ 7 ตำบลล้อมแรด อำเภอเถิน จังหวัดลำปาง 52160
               </p>
 
               <div className="infoItems">
