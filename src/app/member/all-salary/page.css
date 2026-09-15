@@ -1,0 +1,504 @@
+.allSalaryPage {
+  padding-top: calc(var(--navbar-height, 60px) + 2.5rem);
+  padding-bottom: 5rem;
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.04) 0%, rgba(248, 250, 252, 0) 100%), #f8fafc;
+  min-height: 100vh;
+  font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), sans-serif;
+  color: #1e293b;
+}
+
+.allSalaryContainer {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.pageTopBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #0284c7;
+  text-decoration: none;
+  background: #ffffff;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.backLink:hover {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.badgeRole {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(14, 165, 233, 0.1);
+  color: #0369a1;
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Search Box Card */
+.searchBoxCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 2rem 2.25rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.searchCardHeader h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.01em;
+}
+
+.searchCardHeader p {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.inputContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.searchIconWrapper {
+  position: absolute;
+  left: 18px;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.usernameSearchInput {
+  width: 100%;
+  padding: 16px 50px 16px 54px;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #0f172a;
+  background-color: #f8fafc;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.25s ease;
+}
+
+.usernameSearchInput:focus {
+  border-color: #0284c7;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.12);
+}
+
+.clearInputBtn {
+  position: absolute;
+  right: 18px;
+  background: #e2e8f0;
+  border: none;
+  color: #64748b;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clearInputBtn:hover {
+  background: #cbd5e1;
+  color: #1e293b;
+}
+
+/* Alert Box */
+.alertBox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 1rem 1.5rem;
+  border-radius: 14px;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.alertDanger {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Employee Info Card */
+.employeeInfoCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 1.75rem 2rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.02);
+}
+
+.employeeMainInfo {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.avatarCircle {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.employeeDetails {
+  flex: 1;
+}
+
+.nameBadgeRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.employeeName {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.usernamePill {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.metaGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.92rem;
+  color: #64748b;
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.highlightNumber {
+  color: #0284c7;
+  font-weight: 700;
+}
+
+/* Filters Card */
+.filtersCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+}
+
+.filtersCard h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 1rem 0;
+  border-left: 4px solid #0284c7;
+  padding-left: 10px;
+}
+
+.filtersRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.selectGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.selectGroup label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.styledSelect {
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+  background-color: #f8fafc;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.styledSelect:focus {
+  border-color: #0284c7;
+  background-color: #ffffff;
+}
+
+/* Tabs */
+.tabsContainer {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 0.5rem 0;
+}
+
+.tabButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #64748b;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.tabButton:hover {
+  color: #0284c7;
+  background-color: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.tabButton.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.28);
+}
+
+/* Breakdown Grid */
+.breakdownGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .breakdownGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.slipCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 1.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+}
+
+.slipCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1rem;
+  border-bottom: 1.5px solid #f1f5f9;
+  margin-bottom: 1rem;
+}
+
+.slipCardHeader h4 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.earningCard .slipCardHeader h4 {
+  color: #047857;
+}
+
+.deductionCard .slipCardHeader h4 {
+  color: #b91c1c;
+}
+
+.totalBadge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.earningBadge {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.deductionBadge {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.itemList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.itemList li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  color: #475569;
+  padding: 4px 0;
+  border-bottom: 1px dashed #f1f5f9;
+}
+
+.itemList li:last-child {
+  border-bottom: none;
+}
+
+.itemList li strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* Net Pay Card */
+.netPayCard {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  padding: 2rem;
+  box-shadow: 0 10px 25px rgba(2, 132, 199, 0.25);
+}
+
+.netPayWrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.netPayLabel {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.netPayAmount {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.netPayAmount .unit {
+  font-size: 1.15rem;
+  font-weight: 600;
+  opacity: 0.9;
+  margin-left: 6px;
+}
+
+/* Empty State Card */
+.emptyStateCard, .initialBlankCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 4rem 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.blankIconCircle {
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  background-color: #f0f9ff;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.emptyIcon {
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.emptyStateCard h4, .initialBlankCard h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.emptyStateCard p, .initialBlankCard p {
+  font-size: 0.96rem;
+  color: #64748b;
+  margin: 0;
+  max-width: 480px;
+  line-height: 1.6;
+}

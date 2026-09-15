@@ -224,7 +224,9 @@ async function initializeDb(poolInstance: mysql.Pool) {
         { key: 'view_all_work', pos: 'เจ้าพนักงานเครื่องคอมพิวเตอร์' },
         // manage_news permissions
         { key: 'manage_news', pos: 'นักประชาสัมพันธ์' },
-        { key: 'manage_news', pos: 'นักวิชาการคอมพิวเตอร์' }
+        { key: 'manage_news', pos: 'นักวิชาการคอมพิวเตอร์' },
+        // view_all_salary permissions
+        { key: 'view_all_salary', pos: 'เจ้าพนักงานธุรการ' }
       ]
 
       for (const perm of defaultPermissions) {
@@ -234,6 +236,14 @@ async function initializeDb(poolInstance: mysql.Pool) {
         )
       }
     }
+
+    // Ensure default permission for view_all_salary exists
+    try {
+      await connection.execute(
+        'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
+        ['view_all_salary', 'เจ้าพนักงานธุรการ']
+      )
+    } catch (e) {}
   } finally {
     connection.release()
   }

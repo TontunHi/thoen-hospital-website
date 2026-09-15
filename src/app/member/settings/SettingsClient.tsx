@@ -131,6 +131,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       case 'create_work': return 'สิทธิ์เข้าใช้งาน/เปิดคำขอซ่อมงานช่างฯ (create_work)'
       case 'view_all_work': return 'สิทธิ์ดูรายการงานและอัปเดตงานทั้งหมด (view_all_work)'
       case 'upload_salary': return 'สิทธิ์อัปโหลดเอกสารการเงินและเงินเดือน (upload_salary)'
+      case 'view_all_salary': return 'สิทธิ์ดูสลิปเงินเดือนบุคลากรทุกคน (view_all_salary)'
       case 'manage_ita': return 'สิทธิ์เข้าถึงและจัดการระบบบทความ ITA (manage_ita)'
       case 'manage_news': return 'สิทธิ์จัดการและลงข่าวสารประชาสัมพันธ์ (manage_news)'
       default: return key
@@ -258,6 +259,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                 <option value="create_work">เปิดคำขอใบงานช่าง (create_work)</option>
                 <option value="view_all_work">ดูแลระบบ/ดูงานทั้งหมด (view_all_work)</option>
                 <option value="upload_salary">อัปโหลดเงินเดือน/ค่าตอบแทน (upload_salary)</option>
+                <option value="view_all_salary">ดูสลิปเงินเดือนบุคลากรทุกคน (view_all_salary)</option>
                 <option value="manage_ita">จัดการข้อมูลและบทความ ITA (manage_ita)</option>
                 <option value="manage_news">จัดการและลงข่าวประชาสัมพันธ์ (manage_news)</option>
               </select>
@@ -316,7 +318,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
             <div className="loadingText">กำลังโหลดข้อมูลสิทธิ์การใช้งาน...</div>
           ) : (
             <div className="permissionsGroupContainer">
-              {['create_work', 'view_all_work', 'upload_salary', 'manage_ita', 'manage_news'].map((key) => {
+              {['create_work', 'view_all_work', 'upload_salary', 'view_all_salary', 'manage_ita', 'manage_news'].map((key) => {
                 const groupMappings = permissions.filter((p) => p.permission_key === key)
                 return (
                   <div key={key} className="permGroupCard">

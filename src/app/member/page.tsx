@@ -93,6 +93,15 @@ async function getMemberDashboardData() {
     isNewsAuthorized = (newsPerms[0]?.count || 0) > 0
   }
 
+  let isAllSalaryAuthorized = member.role === 'admin'
+  if (!isAllSalaryAuthorized && userPosition) {
+    const salaryAllPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'view_all_salary' AND TRIM(position_name) = TRIM(?)",
+      [userPosition]
+    )
+    isAllSalaryAuthorized = (salaryAllPerms[0]?.count || 0) > 0
+  }
+
   return {
     member,
     pendingCount,
@@ -102,6 +111,7 @@ async function getMemberDashboardData() {
     isFinance,
     isItaAuthorized,
     isNewsAuthorized,
+    isAllSalaryAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -315,6 +325,7 @@ export default async function MemberDashboardPage() {
     isFinance,
     isItaAuthorized,
     isNewsAuthorized,
+    isAllSalaryAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -471,6 +482,28 @@ export default async function MemberDashboardPage() {
                   </div>
                   <div className="serviceCardFooter" style={{ color: '#0284c7' }}>
                     <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+              )}
+
+              {/* Card 9: All Staff Salary Slip (Visible to authorized members or admins) */}
+              {isAllSalaryAuthorized && (
+                <Link href="/member/all-salary" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
+                      <FileText size={24} />
+                    </div>
+                    <div className="statusIndicator success" style={{ backgroundColor: '#dcfce7', color: '#15803d', borderColor: '#bbf7d0' }}>
+                      <span>สิทธิ์ธุรการ</span>
+                    </div>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>สลิปเงินเดือนบุคลากรทั้งหมด</h4>
+                    <p>ระบบค้นหาและเรียกดูข้อมูลสลิปเงินเดือนและค่าล่วงเวลา (OT) ของบุคลากรทุกคนในโรงพยาบาลเถิน</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#16a34a' }}>
+                    <span className="actionText">ค้นหาสลิปเงินเดือนบุคลากร</span>
                     <ChevronRight size={16} className="chevronIcon" />
                   </div>
                 </Link>
