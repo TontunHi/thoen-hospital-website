@@ -13,7 +13,7 @@ interface Member {
   position: string | null
   salary_user: string | null
   salary_pass: string | null
-  role: 'member' | 'admin'
+  role: 'member' | 'admin' | 'subdistrict'
   created_at: string
   updated_at: string
 }
@@ -27,7 +27,7 @@ export default function MembersAdminClient() {
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'all' | 'member' | 'admin'>('all')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'member' | 'admin' | 'subdistrict'>('all')
 
   // Sort State
   const [sortField, setSortField] = useState<'id' | 'username' | 'email' | 'name' | 'department' | 'role'>('id')
@@ -46,7 +46,7 @@ export default function MembersAdminClient() {
   const [position, setPosition] = useState('')
   const [salaryUser, setSalaryUser] = useState('')
   const [salaryPass, setSalaryPass] = useState('')
-  const [role, setRole] = useState<'member' | 'admin'>('member')
+  const [role, setRole] = useState<'member' | 'admin' | 'subdistrict'>('member')
   const [modalError, setModalError] = useState('')
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -321,6 +321,15 @@ export default function MembersAdminClient() {
               <Mail size={24} />
             </div>
           </div>
+          <div className="statCard subdistrict">
+            <div className="statCardInfo">
+              <span className="statLabel">รพ.สต.</span>
+              <span className="statValue">{members.filter(m => m.role === 'subdistrict').length} คน</span>
+            </div>
+            <div className="statCardIcon subdistrict">
+              <User size={24} />
+            </div>
+          </div>
         </div>
 
         {error && <div className="dashboardAlert alertDanger">{error}</div>}
@@ -352,6 +361,12 @@ export default function MembersAdminClient() {
               ทั่วไป ({members.filter(m => m.role === 'member').length})
             </button>
             <button
+              className={`filterTab ${roleFilter === 'subdistrict' ? 'active' : ''}`}
+              onClick={() => setRoleFilter('subdistrict')}
+            >
+              รพ.สต. ({members.filter(m => m.role === 'subdistrict').length})
+            </button>
+            <button
               className={`filterTab ${roleFilter === 'admin' ? 'active' : ''}`}
               onClick={() => setRoleFilter('admin')}
             >
@@ -373,7 +388,7 @@ export default function MembersAdminClient() {
                 <thead>
                   <tr>
                     <th onClick={() => handleSort('id')} className="sortableHeader col-id">
-                      <div className="headerFlex">ID {renderSortIcon('id')}</div>
+                      <div className="headerFlex">ลำดับ {renderSortIcon('id')}</div>
                     </th>
                     <th onClick={() => handleSort('username')} className="sortableHeader col-user">
                       <div className="headerFlex">ชื่อผู้ใช้ {renderSortIcon('username')}</div>
@@ -394,11 +409,11 @@ export default function MembersAdminClient() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedMembers.map((member) => {
+                  {sortedMembers.map((member, index) => {
                     const isSelf = currentUser && member.username === currentUser.username;
                     return (
                       <tr key={member.id} className={isSelf ? 'rowSelf' : ''}>
-                        <td className="memberId col-id" title={`#${member.id}`}>#{member.id}</td>
+                        <td className="memberId col-id" title={`ลำดับที่ ${index + 1}`}>{index + 1}</td>
                         <td className="memberUser col-user" title={member.username}>
                           <div className="userFlex">
                             <span className="truncate">{member.username}</span>
@@ -416,7 +431,7 @@ export default function MembersAdminClient() {
                         <td className="col-dept" title={member.department || '-'}>{member.department || '-'}</td>
                         <td className="col-role">
                           <span className={`roleBadge ${member.role}`}>
-                            {member.role === 'admin' ? 'แอดมิน' : 'ทั่วไป'}
+                            {member.role === 'admin' ? 'แอดมิน' : member.role === 'subdistrict' ? 'รพ.สต.' : 'ทั่วไป'}
                           </span>
                         </td>
                         <td className="col-actions">
@@ -591,10 +606,11 @@ export default function MembersAdminClient() {
                   <div className="selectWrapper">
                     <select
                       value={role}
-                      onChange={(e) => setRole(e.target.value as 'member' | 'admin')}
+                      onChange={(e) => setRole(e.target.value as 'member' | 'admin' | 'subdistrict')}
                       disabled={!isCreateMode && editingMember?.username === currentUser?.username}
                     >
-                      <option value="member">สมาชิกทั่วไป (Member) - สามารถดูสลิปเงินเดือนตนเองได้</option>
+                      <option value="member">สมาชิกทั่วไป (Member) - บุคลากรภายในโรงพยาบาลเถิน</option>
+                      <option value="subdistrict">รพ.สต. (Sub-district Hospital) - ใช้งาน EMR และติดตามแลป</option>
                       <option value="admin">ผู้ดูแลระบบสมาชิก (Admin) - จัดการสมาชิกและระบบหลังบ้านได้</option>
                     </select>
                   </div>

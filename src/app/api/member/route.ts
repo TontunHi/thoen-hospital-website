@@ -63,7 +63,7 @@ async function validateUpdateMember(body: any, sessionUsername: string) {
     }
   }
 
-  if (finalRole !== 'member' && finalRole !== 'admin') {
+  if (finalRole !== 'member' && finalRole !== 'admin' && finalRole !== 'subdistrict') {
     return { error: 'สิทธิ์การใช้งานไม่ถูกต้อง', status: 400 }
   }
 
@@ -183,7 +183,7 @@ export async function POST(request: Request) {
       )
     }
 
-    if (role !== 'member' && role !== 'admin') {
+    if (role !== 'member' && role !== 'admin' && role !== 'subdistrict') {
       return NextResponse.json(
         { error: 'สิทธิ์การใช้งานไม่ถูกต้อง' },
         { status: 400 }

@@ -13,6 +13,7 @@ interface MemberInfo {
   department: string | null
   position: string | null
   profile_path: string | null
+  role?: string
 }
 
 interface ProfileBannerProps {
@@ -124,7 +125,7 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
             <div className="userNameRow">
               <h2>{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
               <span className="usernameTag">@{member.username}</span>
-              <span className="usernameTag roleTag">
+              <span className={`usernameTag roleTag ${member.role || ''}`}>
                 {displayRole}
               </span>
             </div>

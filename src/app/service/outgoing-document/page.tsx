@@ -14,5 +14,9 @@ export default async function OutgoingDocumentPage() {
     redirect('/member/login')
   }
 
+  if (session.role === 'subdistrict') {
+    redirect('/service')
+  }
+
   return <OutgoingDocClient />
 }

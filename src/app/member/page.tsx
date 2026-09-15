@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper, Building2 } from 'lucide-react'
 import './page.css'
 
 async function getMemberDashboardData() {
@@ -53,7 +53,8 @@ async function getMemberDashboardData() {
 
   const roleTranslation: Record<string, string> = {
     admin: 'ผู้ดูแลระบบ (Admin)',
-    member: 'สมาชิกทั่วไป (Member)'
+    member: 'สมาชิกทั่วไป (Member)',
+    subdistrict: 'รพ.สต.'
   }
   const displayRole = roleTranslation[member.role] || member.role || 'สมาชิกทั่วไป'
 
@@ -333,132 +334,150 @@ export default async function MemberDashboardPage() {
         {/* Banner Section / Profile Card */}
         <ProfileBanner member={member} initials={initials} displayRole={displayRole} />
 
-        {/* Services / Features Grid */}
-        <h3 className="sectionTitle">บริการและฟังก์ชันการใช้งานภายใน</h3>
-        
-        <div className="servicesGrid">
-          
-          {/* Card 1: Digital Signature */}
-          <SignatureCard hasAccess={hasAccess} hasSignature={hasSignature} />
-
-          {/* Card 2: Salary Slip */}
-          <SalaryCard hasAccess={hasAccess} hasSalary={hasSalary} />
-
-          {/* Card 3: PR Media Production */}
-          <PrRequestsCard hasAccess={hasAccess} />
-
-          {/* Card 4: Unified Approvals Inbox */}
-          <ApprovalsCard hasAccess={hasAccess} pendingCount={pendingCount} />
-
-          {/* Card 5: Mechanical Work Assignments System */}
-          {isWorkAuthorized && (
-            <Link href="/member/create-work" className="serviceCard">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper salaryIcon">
-                  <Laptop size={24} />
-                </div>
-                <div className="statusIndicator success">
-                  <span>เปิดใช้งาน</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>ระบบมอบหมายและติดตามงานช่างฯ</h4>
-                <p>ส่งคำร้องขอพัฒนาโปรแกรม ดึงข้อมูลคลังข้อมูล ซ่อมแซมระบบ บำรุงรักษาวัสดุอุปกรณ์ และติดตามขั้นตอนการทำงานช่าง</p>
-              </div>
-              <div className="serviceCardFooter">
-                <span className="actionText">เข้าสู่ระบบติดตามงานช่างฯ</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
+        {/* Services / Features Section */}
+        {member.role === 'subdistrict' ? (
+          <div className="subdistrictNotice">
+            <div className="subdistrictNoticeIcon">
+              <Building2 size={32} />
+            </div>
+            <h3>บัญชีผู้ใช้หน่วยบริการ รพ.สต.</h3>
+            <p>
+              บัญชีผู้ใช้งานนี้ได้รับสิทธิ์ในระดับ <strong>รพ.สต.</strong> เพื่อเข้าถึงระบบสารสนเทศทางการแพทย์และการติดตามผลแลปภายนอกโรงพยาบาล ไม่มีฟังก์ชันบริการงานภายในโรงพยาบาลในหน้านี้
+            </p>
+            <Link href="/service" className="subdistrictNoticeBtn">
+              <span>เข้าสู่หน้าระบบงานสารสนเทศ (Services)</span>
+              <ChevronRight size={18} />
             </Link>
-          )}
+          </div>
+        ) : (
+          <>
+            <h3 className="sectionTitle">บริการและฟังก์ชันการใช้งานภายใน</h3>
+            
+            <div className="servicesGrid">
+              
+              {/* Card 1: Digital Signature */}
+              <SignatureCard hasAccess={hasAccess} hasSignature={hasSignature} />
 
-          {/* Card 6: Upload Salary (Visible only to admin or finance position) */}
-          {isFinance && (
-            <Link href="/member/upload-salary" className="serviceCard">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper salaryIcon" style={{ backgroundColor: '#fff7ed', color: '#ea580c', borderColor: '#ffedd5', borderWidth: '1px', borderStyle: 'solid' }}>
-                  <FileText size={24} />
-                </div>
-                <div className="statusIndicator success" style={{ backgroundColor: '#ffedd5', color: '#c2410c', borderColor: '#fed7aa' }}>
-                  <span>นำเข้าข้อมูลการเงิน</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>ระบบนำเข้าข้อมูลการเงิน</h4>
-                <p>ระบบบันทึกงวดนำเข้า และอัปโหลดไฟล์ Excel/CSV ข้อมูลสลิปเงินเดือนและ OT ของบุคลากรโรงพยาบาลเถิน</p>
-              </div>
-              <div className="serviceCardFooter" style={{ color: '#ea580c' }}>
-                <span className="actionText">เข้าสู่หน้านำเข้าข้อมูลการเงิน</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </Link>
-          )}
+              {/* Card 2: Salary Slip */}
+              <SalaryCard hasAccess={hasAccess} hasSalary={hasSalary} />
 
-          {/* Card 7: ITA Blog Management */}
-          {isItaAuthorized && (
-            hasAccess('feature_ita') ? (
-              <Link href="/member/ita" className="serviceCard">
-                <div className="serviceCardHeader">
-                  <div className="serviceIconWrapper" style={{ backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
-                    <Globe size={24} />
-                  </div>
-                  <div className="statusIndicator success" style={{ backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' }}>
-                    <span>เปิดใช้งาน</span>
-                  </div>
-                </div>
-                <div className="serviceCardBody">
-                  <h4>จัดการบทความ ITA</h4>
-                  <p>ระบบเขียนบทความ ปรับแต่งเนื้อหา และเผยแพร่ข้อมูลการประเมินคุณธรรมและความโปร่งใสสู่สาธารณะ</p>
-                </div>
-                <div className="serviceCardFooter" style={{ color: '#2563eb' }}>
-                  <span className="actionText">เข้าสู่หน้าจัดการบทความ</span>
-                  <ChevronRight size={16} className="chevronIcon" />
-                </div>
-              </Link>
-            ) : (
-              <div className="serviceCard serviceCardDisabled">
-                <div className="serviceCardHeader">
-                  <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
-                    <Lock size={24} />
-                  </div>
-                  <div className="statusIndicator error">
-                    <span>ปิดบริการชั่วคราว</span>
-                  </div>
-                </div>
-                <div className="serviceCardBody">
-                  <h4>จัดการบทความ ITA</h4>
-                  <p>ระบบเขียนบทความ ปรับแต่งเนื้อหา และเผยแพร่ข้อมูลการประเมินคุณธรรมและความโปร่งใสสู่สาธารณะ</p>
-                </div>
-                <div className="serviceCardFooter">
-                  <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-                  <ChevronRight size={16} className="chevronIcon" />
-                </div>
-              </div>
-            )
-          )}
+              {/* Card 3: PR Media Production */}
+              <PrRequestsCard hasAccess={hasAccess} />
 
-          {/* Card 8: PR News Posting Program (Visible to authorized members who are not admins) */}
-          {isNewsAuthorized && !isAdmin && (
-            <Link href="/member/news" className="serviceCard">
-              <div className="serviceCardHeader">
-                <div className="serviceIconWrapper" style={{ backgroundColor: '#f0f9ff', color: '#0284c7', borderColor: '#e0f2fe', borderWidth: '1px', borderStyle: 'solid' }}>
-                  <Newspaper size={24} />
-                </div>
-                <div className="statusIndicator success" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderColor: '#bae6fd' }}>
-                  <span>จัดการเว็บไซต์</span>
-                </div>
-              </div>
-              <div className="serviceCardBody">
-                <h4>โปรแกรมโพสข่าวประชาสัมพันธ์</h4>
-                <p>ระบบจัดการและโพสข่าวประชาสัมพันธ์ กิจกรรม ข่าวรับสมัครงาน เพื่อแสดงผลบนหน้าเว็บไซต์หลักโรงพยาบาลเถิน</p>
-              </div>
-              <div className="serviceCardFooter" style={{ color: '#0284c7' }}>
-                <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
-                <ChevronRight size={16} className="chevronIcon" />
-              </div>
-            </Link>
-          )}
-        </div>
+              {/* Card 4: Unified Approvals Inbox */}
+              <ApprovalsCard hasAccess={hasAccess} pendingCount={pendingCount} />
+
+              {/* Card 5: Mechanical Work Assignments System */}
+              {isWorkAuthorized && (
+                <Link href="/member/create-work" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper salaryIcon">
+                      <Laptop size={24} />
+                    </div>
+                    <div className="statusIndicator success">
+                      <span>เปิดใช้งาน</span>
+                    </div>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>ระบบมอบหมายและติดตามงานช่างฯ</h4>
+                    <p>ส่งคำร้องขอพัฒนาโปรแกรม ดึงข้อมูลคลังข้อมูล ซ่อมแซมระบบ บำรุงรักษาวัสดุอุปกรณ์ และติดตามขั้นตอนการทำงานช่าง</p>
+                  </div>
+                  <div className="serviceCardFooter">
+                    <span className="actionText">เข้าสู่ระบบติดตามงานช่างฯ</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+              )}
+
+              {/* Card 6: Upload Salary (Visible only to admin or finance position) */}
+              {isFinance && (
+                <Link href="/member/upload-salary" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper salaryIcon" style={{ backgroundColor: '#fff7ed', color: '#ea580c', borderColor: '#ffedd5', borderWidth: '1px', borderStyle: 'solid' }}>
+                      <FileText size={24} />
+                    </div>
+                    <div className="statusIndicator success" style={{ backgroundColor: '#ffedd5', color: '#c2410c', borderColor: '#fed7aa' }}>
+                      <span>นำเข้าข้อมูลการเงิน</span>
+                    </div>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>ระบบนำเข้าข้อมูลการเงิน</h4>
+                    <p>ระบบบันทึกงวดนำเข้า และอัปโหลดไฟล์ Excel/CSV ข้อมูลสลิปเงินเดือนและ OT ของบุคลากรโรงพยาบาลเถิน</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#ea580c' }}>
+                    <span className="actionText">เข้าสู่หน้านำเข้าข้อมูลการเงิน</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+              )}
+
+              {/* Card 7: ITA Blog Management */}
+              {isItaAuthorized && (
+                hasAccess('feature_ita') ? (
+                  <Link href="/member/ita" className="serviceCard">
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper" style={{ backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
+                        <Globe size={24} />
+                      </div>
+                      <div className="statusIndicator success" style={{ backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' }}>
+                        <span>เปิดใช้งาน</span>
+                      </div>
+                    </div>
+                    <div className="serviceCardBody">
+                      <h4>จัดการบทความ ITA</h4>
+                      <p>ระบบเขียนบทความ ปรับแต่งเนื้อหา และเผยแพร่ข้อมูลการประเมินคุณธรรมและความโปร่งใสสู่สาธารณะ</p>
+                    </div>
+                    <div className="serviceCardFooter" style={{ color: '#2563eb' }}>
+                      <span className="actionText">เข้าสู่หน้าจัดการบทความ</span>
+                      <ChevronRight size={16} className="chevronIcon" />
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="serviceCard serviceCardDisabled">
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
+                        <Lock size={24} />
+                      </div>
+                      <div className="statusIndicator error">
+                        <span>ปิดบริการชั่วคราว</span>
+                      </div>
+                    </div>
+                    <div className="serviceCardBody">
+                      <h4>จัดการบทความ ITA</h4>
+                      <p>ระบบเขียนบทความ ปรับแต่งเนื้อหา และเผยแพร่ข้อมูลการประเมินคุณธรรมและความโปร่งใสสู่สาธารณะ</p>
+                    </div>
+                    <div className="serviceCardFooter">
+                      <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+                      <ChevronRight size={16} className="chevronIcon" />
+                    </div>
+                  </div>
+                )
+              )}
+
+              {/* Card 8: PR News Posting Program (Visible to authorized members who are not admins) */}
+              {isNewsAuthorized && !isAdmin && (
+                <Link href="/member/news" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper" style={{ backgroundColor: '#f0f9ff', color: '#0284c7', borderColor: '#e0f2fe', borderWidth: '1px', borderStyle: 'solid' }}>
+                      <Newspaper size={24} />
+                    </div>
+                    <div className="statusIndicator success" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderColor: '#bae6fd' }}>
+                      <span>จัดการเว็บไซต์</span>
+                    </div>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>โปรแกรมโพสข่าวประชาสัมพันธ์</h4>
+                    <p>ระบบจัดการและโพสข่าวประชาสัมพันธ์ กิจกรรม ข่าวรับสมัครงาน เพื่อแสดงผลบนหน้าเว็บไซต์หลักโรงพยาบาลเถิน</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#0284c7' }}>
+                    <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+              )}
+            </div>
+          </>
+        )}
 
 
         {/* Admin Section (Visible only to admins) */}

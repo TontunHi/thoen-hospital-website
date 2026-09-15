@@ -80,6 +80,10 @@ export default async function ServicePage() {
     },
   ]
 
+  const displaySystems = session.role === 'subdistrict'
+    ? internalSystems.filter((sys) => sys.link === '/service/lab' || sys.link === '/service/lab-tracker')
+    : internalSystems
+
 
 
   return (
@@ -95,7 +99,7 @@ export default async function ServicePage() {
         </div>
 
         <div className="serviceGrid">
-          {internalSystems.map((sys, idx) => (
+          {displaySystems.map((sys, idx) => (
             <div key={idx} className="serviceCard">
               <div className="cardHeader">
                 <div className="iconWrapper">

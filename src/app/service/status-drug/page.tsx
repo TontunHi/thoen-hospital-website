@@ -14,5 +14,9 @@ export default async function StatusDrugPage() {
     redirect('/member/login')
   }
 
+  if (session.role === 'subdistrict') {
+    redirect('/service')
+  }
+
   return <StatusDrugClient />
 }

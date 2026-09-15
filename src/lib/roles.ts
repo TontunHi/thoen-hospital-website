@@ -9,7 +9,7 @@ import { verifyMemberSession } from './memberAuth'
 import { NextResponse } from 'next/server'
 
 // All valid roles in the system
-export type UserRole = 'patient' | 'doctor' | 'nurse' | 'admin' | 'hr' | 'editor'
+export type UserRole = 'patient' | 'doctor' | 'nurse' | 'admin' | 'hr' | 'editor' | 'subdistrict'
 
 export const ROLES = {
   PATIENT: 'patient' as const,
@@ -18,16 +18,18 @@ export const ROLES = {
   ADMIN: 'admin' as const,
   HR: 'hr' as const,
   EDITOR: 'editor' as const,
+  SUBDISTRICT: 'subdistrict' as const,
 }
 
 // Role hierarchy for permission checking
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
-  admin: ['admin', 'editor', 'hr', 'doctor', 'nurse', 'patient'], // admin can do everything
+  admin: ['admin', 'editor', 'hr', 'doctor', 'nurse', 'patient', 'subdistrict'], // admin can do everything
   hr: ['hr'],
   editor: ['editor'],
   doctor: ['doctor'],
   nurse: ['nurse'],
   patient: ['patient'],
+  subdistrict: ['subdistrict'],
 }
 
 /**
