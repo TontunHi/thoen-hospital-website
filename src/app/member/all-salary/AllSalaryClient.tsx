@@ -356,8 +356,8 @@ export default function AllSalaryClient() {
                       <span className="totalBadge earningBadge">+{otData.c15} บาท</span>
                     </div>
                     <ul className="itemList">
-                      <li><span>ค่าตอบแทนล่วงเวลา (โอที)</span><strong>{otData.c5 || '0.00'}</strong></li>
-                      <li><span>ค่าเวรบ่าย-ดึก / ค่าเวร</span><strong>{otData.c6 || '0.00'}</strong></li>
+                      <li><span>ฉ.11</span><strong>{otData.c5 || '0.00'}</strong></li>
+                      <li><span>ค่าเวร / OT</span><strong>{otData.c6 || '0.00'}</strong></li>
                       <li><span>เบี้ยเลี้ยง / เงินชดเชย</span><strong>{otData.c7 || '0.00'}</strong></li>
                       <li><span>ค่าตอบแทนพิเศษ (P4P / พ.ต.ส.)</span><strong>{otData.c8 || '0.00'}</strong></li>
                     </ul>

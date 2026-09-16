@@ -464,11 +464,11 @@ export default function SalaryDashboardPage() {
                     </div>
                     <ul className="slipList">
                       <li>
-                        <span>ค่าตอบแทนล่วงเวลา (โอที)</span>
+                        <span>ฉ.11</span>
                         <strong>{otData.c5 || '0.00'}</strong>
                       </li>
                       <li>
-                        <span>ค่าเวรบ่าย-ดึก / ค่าเวร</span>
+                        <span>ค่าเวร / OT</span>
                         <strong>{otData.c6 || '0.00'}</strong>
                       </li>
                       <li>
@@ -670,11 +670,11 @@ export default function SalaryDashboardPage() {
                     </thead>
                     <tbody>
                       <tr>
-                        <td>ค่าตอบแทนล่วงเวลา (โอที)</td>
+                        <td>ฉ.11</td>
                         <td className="numCol">{otData.c5 || '0.00'}</td>
                       </tr>
                       <tr>
-                        <td>ค่าเวรบ่าย-ดึก / ค่าเวร</td>
+                        <td>ค่าเวร / OT</td>
                         <td className="numCol">{otData.c6 || '0.00'}</td>
                       </tr>
                       <tr>
