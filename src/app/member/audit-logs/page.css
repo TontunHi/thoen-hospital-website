@@ -106,6 +106,85 @@
   margin: 0;
 }
 
+/* Stats Dashboard Cards */
+.auditStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.statCard {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.statIconWrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.statIconTotal {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.statIconLogin {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.statIconRead {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+.statIconRetention {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.statInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.statLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.statValue {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.statSubtext {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
 /* Filter Card */
 .filterCard {
   background: #ffffff;
@@ -406,6 +485,12 @@
   border: 1px solid #e9d5ff;
 }
 
+.badgeRead {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+
 .badgeDelete {
   background: #fff1f2;
   color: #be123c;
@@ -427,6 +512,33 @@
 .badgeDefault {
   background: #f1f5f9;
   color: #475569;
+}
+
+.btnExport {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  padding: 0 16px;
+  height: 40px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btnExport:hover:not(:disabled) {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.btnExport:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .viewDetailBtn {

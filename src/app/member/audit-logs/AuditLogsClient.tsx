@@ -16,7 +16,10 @@ import {
   Globe, 
   X, 
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  Download,
+  Shield,
+  HardDrive
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -39,9 +42,24 @@ interface PaginationInfo {
   totalPages: number
 }
 
+interface AuditStats {
+  totalLogs: number
+  sizeMb: number
+  oldestLog: string | null
+  newestLog: string | null
+  retainedDays: number
+  policyRetentionDays: number
+  loginsToday: number
+  readsToday: number
+  changesToday: number
+}
+
 export default function AuditLogsClient() {
   const [logs, setLogs] = useState<AuditLog[]>([])
+  const [stats, setStats] = useState<AuditStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   // Filters
@@ -89,10 +107,58 @@ export default function AuditLogsClient() {
     }
   }
 
+  const fetchStats = async () => {
+    setStatsLoading(true)
+    try {
+      const res = await fetch('/api/admin/audit-logs/stats')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setStats(data.stats)
+      }
+    } catch (err) {
+      console.error('Failed to load stats:', err)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  const handleExportCsv = async () => {
+    setExporting(true)
+    try {
+      const params = new URLSearchParams()
+      if (search) params.append('search', search)
+      if (actionType) params.append('actionType', actionType)
+      if (startDate) params.append('startDate', startDate)
+      if (endDate) params.append('endDate', endDate)
+
+      const res = await fetch(`/api/admin/audit-logs/export?${params.toString()}`)
+      if (!res.ok) throw new Error('Export failed')
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `audit_logs_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export error:', err)
+      alert('ไม่สามารถส่งออกไฟล์รายงานได้ กรุณาลองใหม่อีกครั้ง')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   // Trigger fetch on filters or page change
   useEffect(() => {
     fetchLogs(page)
   }, [page, actionType])
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -140,6 +206,13 @@ export default function AuditLogsClient() {
           <span className="logBadge badgeUpdate">
             <Database size={12} style={{ marginRight: '4px' }} />
             UPDATE
+          </span>
+        )
+      case 'READ':
+        return (
+          <span className="logBadge badgeRead">
+            <Eye size={12} style={{ marginRight: '4px' }} />
+            READ
           </span>
         )
       case 'DELETE':
@@ -219,6 +292,55 @@ export default function AuditLogsClient() {
         </div>
       </div>
 
+      {/* Stats Dashboard Cards */}
+      {stats && (
+        <div className="auditStatsGrid">
+          <div className="statCard">
+            <div className="statIconWrapper statIconTotal">
+              <Database size={24} />
+            </div>
+            <div className="statInfo">
+              <span className="statLabel">บันทึกทั้งหมด (Total Logs)</span>
+              <span className="statValue">{stats.totalLogs.toLocaleString()}</span>
+              <span className="statSubtext">ขนาดข้อมูล ~{stats.sizeMb} MB</span>
+            </div>
+          </div>
+
+          <div className="statCard">
+            <div className="statIconWrapper statIconLogin">
+              <LogIn size={24} />
+            </div>
+            <div className="statInfo">
+              <span className="statLabel">เข้าสู่ระบบวันนี้ (Logins Today)</span>
+              <span className="statValue">{stats.loginsToday.toLocaleString()} ครั้ง</span>
+              <span className="statSubtext">กิจกรรม Login รอบวัน</span>
+            </div>
+          </div>
+
+          <div className="statCard">
+            <div className="statIconWrapper statIconRead">
+              <Shield size={24} />
+            </div>
+            <div className="statInfo">
+              <span className="statLabel">เข้าดูข้อมูลสำคัญ (Reads Today)</span>
+              <span className="statValue">{stats.readsToday.toLocaleString()} ครั้ง</span>
+              <span className="statSubtext">ตรวจสอบการเข้าถึงเงินเดือน/ข้อมูล</span>
+            </div>
+          </div>
+
+          <div className="statCard">
+            <div className="statIconWrapper statIconRetention">
+              <HardDrive size={24} />
+            </div>
+            <div className="statInfo">
+              <span className="statLabel">อายุจัดเก็บ (Retention Span)</span>
+              <span className="statValue">{stats.retainedDays} วัน</span>
+              <span className="statSubtext">ตามเกณฑ์ รพ. 2 ปี (730 วัน)</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filter Card */}
       <div className="filterCard">
         <form onSubmit={handleSearchSubmit} className="filterForm">
@@ -230,7 +352,7 @@ export default function AuditLogsClient() {
                 <Search size={18} className="searchIcon" />
                 <input
                   type="text"
-                  placeholder="ค้นหาชื่อผู้ใช้, อีเมล, คำสั่ง SQL, IP..."
+                  placeholder="ค้นหาชื่อผู้ใช้, อีเมล, IP, ตาราง..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -250,6 +372,7 @@ export default function AuditLogsClient() {
                 <option value="">ทั้งหมด (All)</option>
                 <option value="LOGIN">LOGIN (เข้าสู่ระบบ)</option>
                 <option value="LOGOUT">LOGOUT (ออกจากระบบ)</option>
+                <option value="READ">READ (เข้าดูข้อมูลสำคัญ/เงินเดือน)</option>
                 <option value="CREATE">CREATE (เพิ่มข้อมูล)</option>
                 <option value="UPDATE">UPDATE (แก้ไขข้อมูล)</option>
                 <option value="DELETE">DELETE (ลบข้อมูล)</option>
@@ -293,6 +416,20 @@ export default function AuditLogsClient() {
             <button type="button" className="btnSecondary" onClick={handleResetFilters} disabled={loading}>
               <RefreshCw size={16} />
               <span>ล้างตัวกรอง</span>
+            </button>
+            <button 
+              type="button" 
+              className="btnExport" 
+              onClick={handleExportCsv} 
+              disabled={loading || exporting}
+              title="ส่งออกรายการตามตัวกรองปัจจุบันเป็นไฟล์ CSV รองรับภาษาไทยใน Excel"
+            >
+              {exporting ? (
+                <RefreshCw size={16} className="animate-spin" />
+              ) : (
+                <Download size={16} />
+              )}
+              <span>{exporting ? 'กำลังส่งออก...' : 'ส่งออกรายงาน (CSV)'}</span>
             </button>
           </div>
         </form>
