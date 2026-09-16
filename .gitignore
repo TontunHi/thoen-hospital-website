@@ -53,5 +53,9 @@ next-env.d.ts
 !/storage/.gitkeep
 /public/uploads/*
 !/public/uploads/.gitkeep
+# logs and backups
 /logs/
 *.log
+/backups/
+*.sql
+*.sql.gz

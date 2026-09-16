@@ -12,6 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "maintenance:cleanup": "tsx scripts/purgeOldAuditLogs.ts",
+    "db:backup": "tsx scripts/dbBackup.ts",
+    "db:restore": "tsx scripts/dbRestore.ts",
+    "db:safe-push": "tsx scripts/safeDbPush.ts",
     "precommit": "lint-staged"
   },
   "dependencies": {
