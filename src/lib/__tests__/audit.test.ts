@@ -58,4 +58,27 @@ describe('Audit Logger', () => {
       logAudit('LOGIN', 'members', 'Login attempt', { username: 'test', email: 'test@hospital.go.th' })
     ).resolves.not.toThrow()
   })
+
+  it('throttles rapid sequential audit logs within cooldown window', async () => {
+    const { logThrottledAudit, _resetAuditThrottleCacheForTesting } = await import('../audit')
+    _resetAuditThrottleCacheForTesting()
+
+    const user = { username: '1234567890123', email: 'staff@hospital.go.th' }
+    
+    // First call: writes to DB
+    const res1 = await logThrottledAudit('READ', 'loratadine_dispense_log', 'First view', user, 1000)
+    expect(res1).toBe(true)
+    expect(mockQueryMemberDb).toHaveBeenCalledTimes(1)
+
+    // Second call immediately after: should be throttled (skipped)
+    const res2 = await logThrottledAudit('READ', 'loratadine_dispense_log', 'Second view', user, 1000)
+    expect(res2).toBe(false)
+    expect(mockQueryMemberDb).toHaveBeenCalledTimes(1) // Still 1!
+
+    // Third call after cooldown expires (simulate elapsed time)
+    await new Promise((resolve) => setTimeout(resolve, 1050))
+    const res3 = await logThrottledAudit('READ', 'loratadine_dispense_log', 'Third view after cooldown', user, 1000)
+    expect(res3).toBe(true)
+    expect(mockQueryMemberDb).toHaveBeenCalledTimes(2) // Incremented to 2!
+  })
 })

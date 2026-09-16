@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { verifyMemberSession, attachRenewedMemberSessionCookie } from '@/lib/memberAuth'
-import { logAudit } from '@/lib/audit'
+import { logThrottledAudit } from '@/lib/audit'
 
 export async function GET(request: Request) {
   try {
@@ -56,8 +56,8 @@ export async function GET(request: Request) {
     const ipdCount = rows.filter((item: any) => item.status === 'IPD').length
     const adultCount = rows.filter((item: any) => Number(item.age) > 19).length
 
-    // 5. Record audit log
-    await logAudit(
+    // 5. Record audit log (throttled: only records once per 15 mins per user to avoid auto-refresh log bloat)
+    await logThrottledAudit(
       'READ',
       'loratadine_dispense_log',
       `เข้าดูรายการจ่ายยาลอราทาดีน (พบ ${totalCount} รายการ, เงื่อนไขอายุ: ${ageFilter})`,

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
-import { logAudit } from '@/lib/audit'
+import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
 interface PatientRecord {
@@ -26,7 +26,7 @@ export async function GET() {
       )
     }
 
-    logAudit(
+    logThrottledAudit(
       'READ',
       'an_stat',
       'Viewed IPD ward status and admitted patient list',

@@ -69,3 +69,54 @@ export async function logAudit(
     logger.error({ error }, 'Error writing audit log')
   }
 }
+
+// In-memory throttle cache to prevent log pollution from auto-refreshing monitor views
+const auditThrottleCache = new Map<string, number>()
+
+/**
+ * Logs audit record only once per cooldown window for a specific user, action, and target.
+ * Prevents rapid auto-refreshing dashboards (e.g. 10s/20s intervals) from polluting audit_logs.
+ * 
+ * @param actionType Action type (e.g. 'READ')
+ * @param targetTable Target table or resource name
+ * @param actionDetails Description of the action
+ * @param sessionData User session credentials
+ * @param cooldownMs Cooldown duration in milliseconds (default: 15 minutes / 900,000 ms)
+ */
+export async function logThrottledAudit(
+  actionType: AuditActionType,
+  targetTable: string,
+  actionDetails: string,
+  sessionData?: { username: string; email: string } | null,
+  cooldownMs = 15 * 60 * 1000 // 15 minutes default
+): Promise<boolean> {
+  const actor = sessionData?.username || 'anonymous'
+  const cacheKey = `${actor}:${targetTable}:${actionType}`
+  const now = Date.now()
+
+  const lastLogged = auditThrottleCache.get(cacheKey)
+  if (lastLogged && (now - lastLogged) < cooldownMs) {
+    // Within cooldown period: skip writing duplicate log
+    return false
+  }
+
+  // Update timestamp in cache
+  auditThrottleCache.set(cacheKey, now)
+
+  // Prevent memory leak if cache grows large
+  if (auditThrottleCache.size > 500) {
+    for (const [k, timestamp] of auditThrottleCache.entries()) {
+      if (now - timestamp > cooldownMs) {
+        auditThrottleCache.delete(k)
+      }
+    }
+  }
+
+  // Execute actual log audit write
+  await logAudit(actionType, targetTable, actionDetails, sessionData)
+  return true
+}
+
+export function _resetAuditThrottleCacheForTesting() {
+  auditThrottleCache.clear()
+}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { queryErDb } from '@/lib/erDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
-import { logAudit } from '@/lib/audit'
+import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
     const isStaff = memberSession && ['doctor', 'nurse', 'admin', 'member'].includes(memberSession.role)
 
     if (memberSession && isStaff) {
-      logAudit(
+      logThrottledAudit(
         'READ',
         'er_regist',
         'Viewed ER live status and active patient registry',
