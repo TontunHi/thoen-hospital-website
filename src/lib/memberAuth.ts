@@ -10,8 +10,19 @@ function getSecret(): string {
   return secret
 }
 
-const COOKIE_NAME = 'member_session'
-const SESSION_MAX_AGE = 1800 // 30 minutes in seconds
+export const COOKIE_NAME = 'member_session'
+export const SESSION_MAX_AGE = 1800 // 30 minutes in seconds
+export const ABSOLUTE_MAX_AGE = 43200 // 12 hours in seconds (hard limit cap)
+export const SLIDE_THRESHOLD = 900 // Slide/renew if token has aged >= 15 minutes (or < 15 mins remaining)
+
+export interface MemberSessionPayload {
+  username: string
+  email: string
+  role: string
+  aud: 'member'
+  iat: number
+  exp: number
+}
 
 function sign(value: string): string {
   const hmac = crypto.createHmac('sha256', getSecret())
@@ -19,14 +30,26 @@ function sign(value: string): string {
   return hmac.digest('hex')
 }
 
-export function createToken(payloadData: { username: string; email: string; role: string }): string {
-  const payload = JSON.stringify({ ...payloadData, aud: 'member', exp: Date.now() + SESSION_MAX_AGE * 1000 })
-  const encoded = Buffer.from(payload).toString('base64url')
+export function createToken(
+  payloadData: { username: string; email: string; role: string },
+  customIat?: number,
+  customExp?: number
+): string {
+  const now = Date.now()
+  const iat = customIat ?? now
+  const exp = customExp ?? (now + SESSION_MAX_AGE * 1000)
+  const payload: MemberSessionPayload = {
+    ...payloadData,
+    aud: 'member',
+    iat,
+    exp,
+  }
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
   const signature = sign(encoded)
   return `${encoded}.${signature}`
 }
 
-export function verifyToken(token: string): { username: string; email: string; role: string } | null {
+export function verifyToken(token: string): (MemberSessionPayload & { username: string; email: string; role: string }) | null {
   try {
     const [encoded, signature] = token.split('.')
     if (!encoded || !signature) return null
@@ -41,12 +64,57 @@ export function verifyToken(token: string): { username: string; email: string; r
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
 
     if (payload.aud !== 'member') return null
-    if (payload.exp < Date.now()) return null
+    
+    const now = Date.now()
+    // Check 30-minute inactivity expiration
+    if (payload.exp < now) return null
 
-    return { username: payload.username, email: payload.email, role: payload.role || 'member' }
+    // Check 12-hour absolute session cap (if iat is present)
+    const iat = typeof payload.iat === 'number' ? payload.iat : payload.exp - SESSION_MAX_AGE * 1000
+    if (now - iat > ABSOLUTE_MAX_AGE * 1000) {
+      return null
+    }
+
+    return {
+      username: payload.username,
+      email: payload.email,
+      role: payload.role || 'member',
+      aud: payload.aud,
+      iat,
+      exp: payload.exp,
+    }
   } catch {
     return null
   }
+}
+
+/**
+ * Checks if a verified token should be renewed (if remaining time < SLIDE_THRESHOLD)
+ * and has not exceeded ABSOLUTE_MAX_AGE.
+ */
+export function shouldRenewSession(payload: { iat: number; exp: number }): boolean {
+  const now = Date.now()
+  // If overall lifespan exceeded absolute cap, do not renew
+  if (now - payload.iat >= ABSOLUTE_MAX_AGE * 1000) {
+    return false
+  }
+  // Renew if remaining validity is less than SLIDE_THRESHOLD (e.g. 15 minutes)
+  const remainingSeconds = Math.floor((payload.exp - now) / 1000)
+  return remainingSeconds <= SLIDE_THRESHOLD
+}
+
+/**
+ * Generates a renewed token preserving the original `iat` while extending `exp` by SESSION_MAX_AGE.
+ */
+export function renewToken(payload: { username: string; email: string; role: string; iat: number }): string {
+  return createToken(
+    {
+      username: payload.username,
+      email: payload.email,
+      role: payload.role,
+    },
+    payload.iat
+  )
 }
 
 export async function createMemberSession(username: string, email: string, role: string): Promise<void> {
@@ -64,7 +132,7 @@ export async function createMemberSession(username: string, email: string, role:
   })
 }
 
-export async function verifyMemberSession(): Promise<{ username: string; email: string; role: string } | null> {
+export async function verifyMemberSession(): Promise<(MemberSessionPayload & { username: string; email: string; role: string }) | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE_NAME)?.value
 
@@ -72,6 +140,22 @@ export async function verifyMemberSession(): Promise<{ username: string; email: 
 
   const session = verifyToken(token)
   if (!session) return null
+
+  // If in server route context that allows cookie mutation, refresh if eligible
+  if (shouldRenewSession(session)) {
+    try {
+      const renewedToken = renewToken(session)
+      cookieStore.set(COOKIE_NAME, renewedToken, {
+        httpOnly: true,
+        secure: process.env.COOKIE_SECURE === 'true',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: SESSION_MAX_AGE,
+      })
+    } catch {
+      // In Server Components, cookies().set may throw (read-only); silently ignore here
+    }
+  }
 
   try {
     const { queryMemberDb } = await import('./memberDb')
@@ -87,6 +171,23 @@ export async function verifyMemberSession(): Promise<{ username: string; email: 
   }
 
   return session
+}
+
+/**
+ * Explicit helper for API Route handlers to ensure renewed session cookie is attached to NextResponse
+ */
+export function attachRenewedMemberSessionCookie<T>(response: NextResponse<T>, session: MemberSessionPayload): NextResponse<T> {
+  if (shouldRenewSession(session)) {
+    const renewedToken = renewToken(session)
+    response.cookies.set(COOKIE_NAME, renewedToken, {
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === 'true',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: SESSION_MAX_AGE,
+    })
+  }
+  return response
 }
 
 export async function destroyMemberSession(): Promise<void> {

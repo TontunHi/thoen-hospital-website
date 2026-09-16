@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { verifyMemberSession, attachRenewedMemberSessionCookie } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
 
 export async function GET(request: Request) {
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
       memberSession
     )
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       items: rows.map((r: any) => ({
         hn: r.hn,
@@ -86,6 +86,8 @@ export async function GET(request: Request) {
         adultCount,
       },
     })
+
+    return attachRenewedMemberSessionCookie(response, memberSession)
   } catch (error: any) {
     console.error('Loratadine Dispense API Error:', error)
     return NextResponse.json(
