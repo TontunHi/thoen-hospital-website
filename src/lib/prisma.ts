@@ -8,14 +8,10 @@ const basePrisma = globalForPrisma.prisma ?? new PrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma
 
-// Cache charset initialization so we don't execute SET NAMES on every single query
-let charsetInitialized = false
-
+// Always ensure charset utf8mb4 on connection before query to avoid tis620 conversion failure
 async function ensureCharset() {
-  if (charsetInitialized) return
   try {
     await basePrisma.$executeRawUnsafe('SET NAMES utf8mb4')
-    charsetInitialized = true
   } catch {
     // Suppress if already initialized or connection warm-up
   }
@@ -24,9 +20,7 @@ async function ensureCharset() {
 export const prisma = basePrisma.$extends({
   query: {
     $allOperations: async ({ model, operation, args, query }: any) => {
-      if (!charsetInitialized) {
-        await ensureCharset()
-      }
+      await ensureCharset()
       
       const result = await query(args)
 

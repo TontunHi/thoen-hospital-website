@@ -26,29 +26,58 @@ function parseDotEnv() {
   }
 }
 
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentField = '';
   let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') {
+          currentField += '"';
+          i++; // skip escaped quote
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentField += char;
+      }
     } else {
-      current += char;
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        currentRow.push(currentField.trim());
+        currentField = '';
+      } else if (char === '\r') {
+        if (nextChar === '\n') {
+          i++;
+        }
+        currentRow.push(currentField.trim());
+        rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
+      } else if (char === '\n') {
+        currentRow.push(currentField.trim());
+        rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
+      } else {
+        currentField += char;
+      }
     }
   }
-  result.push(current);
-  return result.map(val => {
-    let cleaned = val.trim();
-    if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-      cleaned = cleaned.slice(1, -1);
-    }
-    return cleaned;
-  });
+
+  if (currentField || currentRow.length > 0) {
+    currentRow.push(currentField.trim());
+    rows.push(currentRow);
+  }
+
+  return rows;
 }
 
 async function main() {
@@ -63,12 +92,15 @@ async function main() {
 
   console.log('Reading CSV from:', csvPath);
   const fileContent = fs.readFileSync(csvPath, 'utf-8');
-  const lines = fileContent.split(/\r?\n/);
-  
-  if (lines.length <= 1) {
+  const allRows = parseCsv(fileContent);
+
+  if (allRows.length <= 1) {
     console.log('No data found or empty CSV.');
     return;
   }
+
+  const header = allRows[0];
+  console.log(`Found ${allRows.length - 1} data rows.`);
 
   if (!process.env.MEMBER_DB_HOST || !process.env.MEMBER_DB_USER || !process.env.MEMBER_DB_PASSWORD) {
     console.error('Missing required MEMBER_DB_* environment variables in .env');
@@ -92,79 +124,91 @@ async function main() {
     await connection.query("SET NAMES utf8mb4");
     await connection.query("SET CHARACTER SET utf8mb4");
 
+    // 1. ล้างข้อมูลตาราง members
+    console.log('Clearing existing records from table `members`...');
+    await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.execute('TRUNCATE TABLE members');
+    await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
+    console.log('Table `members` cleared successfully.');
+
     let successCount = 0;
     let skipCount = 0;
     let errorCount = 0;
 
-    // Start from index 1 to skip header line: "Column 1,Column 2..."
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
+    const seenUsernames = new Set<string>();
+    const seenEmails = new Set<string>();
 
-      const columns = parseCsvLine(line);
-      if (columns.length < 7) {
-        console.warn(`[Row ${i + 1}] Skipping incomplete row: ${line}`);
+    // 2. นำเข้าข้อมูลใหม่
+    for (let i = 1; i < allRows.length; i++) {
+      const cols = allRows[i];
+      if (!cols || cols.length === 0 || cols.every(c => !c)) {
+        continue;
+      }
+
+      // Mapping ตามโครงสร้าง CSV:
+      // index 1: เลขบัตรประชาชน -> username สำหรับเข้าระบบ (หรือ fallback index 14)
+      // index 2: คำนำหน้า
+      // index 3: ชื่อ
+      // index 4: นามสกุล
+      // index 10: ตำแหน่ง (position)
+      // index 11: กลุ่มงาน (department)
+      // index 14: ชื่อผู้ใช้งาน / Username
+      // index 16: Email
+      const cid = cols[1]?.trim().replace(/[^0-9]/g, '');
+      const altUsername = cols[14]?.trim();
+      const username = cid || altUsername;
+
+      const title = cols[2]?.trim() || '';
+      const firstName = cols[3]?.trim() || '';
+      const lastName = cols[4]?.trim() || '';
+      const name = `${title} ${firstName} ${lastName}`.replace(/\s+/g, ' ').trim();
+
+      const position = cols[10]?.trim() || null;
+      const department = cols[11]?.trim() || null;
+      const email = cols[16]?.trim().toLowerCase();
+
+      if (!username || !email) {
+        console.warn(`[Row ${i + 1}] Skipping: missing username or email (Name: ${name || 'N/A'}, Username: ${username || 'N/A'}, Email: ${email || 'N/A'})`);
         skipCount++;
         continue;
       }
 
-      // Column 2 = department (index 1)
-      // Column 3+4+5 = name (index 2, 3, 4)
-      // Column 6 = username (index 5)
-      // Column 7 = email (index 6)
-      const department = columns[1]?.trim() || null;
-      
-      const title = columns[2]?.trim() || '';
-      const firstName = columns[3]?.trim() || '';
-      const lastName = columns[4]?.trim() || '';
-      
-      // Format name nicely: "Title FirstName LastName"
-      const name = `${title} ${firstName} ${lastName}`.replace(/\s+/g, ' ').trim();
+      if (seenUsernames.has(username)) {
+        console.warn(`[Row ${i + 1}] Skipping duplicate username: ${username} (${name})`);
+        skipCount++;
+        continue;
+      }
 
-      const username = columns[5]?.trim();
-      const email = columns[6]?.trim().toLowerCase();
-
-      if (!username || !email) {
-        console.warn(`[Row ${i + 1}] Skipping due to missing username/email: ${line}`);
+      if (seenEmails.has(email)) {
+        console.warn(`[Row ${i + 1}] Skipping duplicate email: ${email} (${name})`);
         skipCount++;
         continue;
       }
 
       try {
-        // Check if username or email already exists
-        const [existing]: any = await connection.execute(
-          'SELECT id, username, email FROM members WHERE username = ? OR email = ?',
-          [username, email]
+        await connection.execute(
+          'INSERT INTO members (username, email, name, department, position, role) VALUES (?, ?, ?, ?, ?, ?)',
+          [username, email, name, department, position, 'member']
         );
-
-        if (existing && existing.length > 0) {
-          // Update the existing record's name and department
-          const memberId = existing[0].id;
-          await connection.execute(
-            'UPDATE members SET name = ?, department = ? WHERE id = ?',
-            [name, department, memberId]
-          );
-          console.log(`[Row ${i + 1}] Updated existing user: ${username} (${email}) -> ${name}, ${department}`);
-          successCount++;
-        } else {
-          // Insert new member
-          await connection.execute(
-            'INSERT INTO members (username, email, name, department, role) VALUES (?, ?, ?, ?, ?)',
-            [username, email, name, department, 'member']
-          );
-          console.log(`[Row ${i + 1}] Inserted new user: ${username} (${email}) -> ${name}, ${department}`);
-          successCount++;
-        }
+        seenUsernames.add(username);
+        seenEmails.add(email);
+        console.log(`[Row ${i + 1}] Inserted: ${username} | ${name} | ${department} | ${position} | ${email}`);
+        successCount++;
       } catch (err: any) {
-        console.error(`[Row ${i + 1}] Error processing row: ${line}`, err.message);
+        console.error(`[Row ${i + 1}] Error inserting ${username}:`, err.message);
         errorCount++;
       }
     }
 
-    console.log('\n--- Import Summary ---');
-    console.log(`Successfully processed: ${successCount} rows`);
-    console.log(`Skipped: ${skipCount} rows`);
-    console.log(`Errors: ${errorCount} rows`);
+    console.log('\n==================================');
+    console.log('         IMPORT SUMMARY           ');
+    console.log('==================================');
+    console.log(`Successfully inserted : ${successCount} members`);
+    console.log(`Skipped rows          : ${skipCount} rows`);
+    console.log(`Errors encountered    : ${errorCount} rows`);
+
+    const [finalCount]: any = await connection.query('SELECT COUNT(*) as cnt FROM members');
+    console.log(`Final members table row count: ${finalCount[0].cnt}`);
 
   } finally {
     await connection.end();
@@ -176,3 +220,4 @@ main().catch(err => {
   console.error('Fatal error during import:', err);
   process.exit(1);
 });
+
