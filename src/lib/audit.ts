@@ -2,6 +2,8 @@ import { headers } from 'next/headers'
 import { verifyMemberSession } from './memberAuth'
 import { queryMemberDb } from './memberDb'
 
+import { logger } from './logger'
+
 export type AuditActionType = 'LOGIN' | 'LOGOUT' | 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'REQUEST' | 'SYSTEM'
 
 export async function logAudit(
@@ -64,6 +66,6 @@ export async function logAudit(
       ]
     )
   } catch (error) {
-    console.error('Error writing audit log:', error)
+    logger.error({ error }, 'Error writing audit log')
   }
 }

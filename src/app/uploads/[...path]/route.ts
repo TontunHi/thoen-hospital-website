@@ -15,12 +15,12 @@ export async function GET(
     }
 
     // Security check: prevent directory traversal
-    if (pathArray.some(p => p === '..' || p === '.')) {
+    const baseUploadDir = path.resolve(process.cwd(), 'public', 'uploads')
+    const absolutePath = path.resolve(baseUploadDir, ...pathArray)
+
+    if (!absolutePath.startsWith(baseUploadDir + path.sep)) {
       return new Response('Forbidden', { status: 403 })
     }
-
-    // Build the absolute path to the file
-    const absolutePath = path.join(process.cwd(), 'public', 'uploads', ...pathArray)
 
     // Check if file exists on disk
     if (!fs.existsSync(absolutePath)) {

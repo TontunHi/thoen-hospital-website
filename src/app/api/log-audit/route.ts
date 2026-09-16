@@ -5,15 +5,22 @@ import { logAudit } from '@/lib/audit'
 export async function POST(request: Request) {
   try {
     const session = await verifyMemberSession()
-    // Even if not logged in, we can still record public requests as guest
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { actionType, targetTable, actionDetails } = body
 
+    if (!actionType || !targetTable) {
+      return NextResponse.json({ error: 'Invalid audit payload' }, { status: 400 })
+    }
+
     await logAudit(
-      actionType || 'REQUEST',
-      targetTable || 'unknown',
-      actionDetails || '',
-      session ? { username: session.username, email: session.email } : null
+      actionType,
+      targetTable,
+      typeof actionDetails === 'string' ? actionDetails.slice(0, 1000) : '',
+      { username: session.username, email: session.email }
     )
 
     return NextResponse.json({ success: true })

@@ -8,15 +8,24 @@ const basePrisma = globalForPrisma.prisma ?? new PrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma
 
-// Extend Prisma Client to run SET NAMES utf8mb4 on every query
-// to fix encoding issues with databases set to tis620 character set.
+// Cache charset initialization so we don't execute SET NAMES on every single query
+let charsetInitialized = false
+
+async function ensureCharset() {
+  if (charsetInitialized) return
+  try {
+    await basePrisma.$executeRawUnsafe('SET NAMES utf8mb4')
+    charsetInitialized = true
+  } catch {
+    // Suppress if already initialized or connection warm-up
+  }
+}
+
 export const prisma = basePrisma.$extends({
   query: {
     $allOperations: async ({ model, operation, args, query }: any) => {
-      try {
-        await basePrisma.$executeRawUnsafe('SET NAMES utf8mb4')
-      } catch (e) {
-        // Ignore or log error
+      if (!charsetInitialized) {
+        await ensureCharset()
       }
       
       const result = await query(args)
@@ -29,14 +38,16 @@ export const prisma = basePrisma.$extends({
           else if (operation.startsWith('delete')) actionType = 'DELETE'
 
           const { logAudit } = await import('./audit')
+          const { logger } = await import('./logger')
           logAudit(
             actionType as any,
             model || 'prisma',
             `Operation: ${operation} | Args: ${JSON.stringify(args)}`
-          ).catch(err => console.error('Prisma audit log failed:', err))
+          ).catch(err => logger.error({ err }, 'Prisma audit log failed'))
         }
       } catch (err) {
-        console.error('Error in Prisma audit hook:', err)
+        const { logger } = await import('./logger')
+        logger.error({ err }, 'Error in Prisma audit hook')
       }
 
       return result

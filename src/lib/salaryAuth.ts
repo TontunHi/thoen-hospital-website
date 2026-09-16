@@ -18,8 +18,8 @@ function sign(value: string): string {
   return hmac.digest('hex')
 }
 
-function createToken(payloadData: { username: string; name: string }): string {
-  const payload = JSON.stringify({ ...payloadData, exp: Date.now() + SESSION_MAX_AGE * 1000 })
+export function createSalaryToken(payloadData: { username: string; name: string }): string {
+  const payload = JSON.stringify({ ...payloadData, aud: 'salary', exp: Date.now() + SESSION_MAX_AGE * 1000 })
   const encoded = Buffer.from(payload).toString('base64url')
   const signature = sign(encoded)
   return `${encoded}.${signature}`
@@ -39,6 +39,7 @@ export function verifySalaryToken(token: string): { username: string; name: stri
 
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
 
+    if (payload.aud !== 'salary') return null
     if (payload.exp < Date.now()) return null
 
     return { username: payload.username, name: payload.name }
@@ -48,7 +49,7 @@ export function verifySalaryToken(token: string): { username: string; name: stri
 }
 
 export async function createSalarySession(username: string, name: string): Promise<void> {
-  const token = createToken({ username, name })
+  const token = createSalaryToken({ username, name })
   const cookieStore = await cookies()
 
   cookieStore.set(COOKIE_NAME, token, {

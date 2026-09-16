@@ -82,8 +82,8 @@ export async function POST(request: Request) {
       [otp, user.id]
     )
 
-    // Console log for debugging/testing
-    console.log(`[MEMBER OTP DEBUG] User: ${trimmedUsername}, OTP: ${otp}, Sent to: ${trimmedEmail}`)
+    // Log OTP dispatch without sensitive PHI
+    console.log('[MEMBER OTP] OTP generated successfully and dispatching to registered email')
 
     // 3. Send OTP to email
     try {

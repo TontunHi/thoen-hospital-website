@@ -2,12 +2,23 @@ import { NextResponse } from 'next/server'
 import { queryErDb } from '@/lib/erDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
+import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function GET() {
   try {
     // Check if user is an authenticated clinical staff / member
     const memberSession = await verifyMemberSession()
     const isStaff = memberSession && ['doctor', 'nurse', 'admin', 'member'].includes(memberSession.role)
+
+    if (memberSession && isStaff) {
+      logAudit(
+        'READ',
+        'er_regist',
+        'Viewed ER live status and active patient registry',
+        { username: memberSession.username, email: memberSession.email }
+      ).catch(err => logger.error({ err }, 'ER status audit log failed'))
+    }
 
     // Fetch raw status with 8s in-memory cache to prevent HOSxP replica overload
     const erData = await getCachedData('er-live-status-data', async () => {
@@ -111,7 +122,7 @@ export async function GET() {
       stats: erData.stats,
     })
   } catch (error: any) {
-    console.error('ER Status API Error:', error)
+    logger.error({ error }, 'ER Status API Error')
     return NextResponse.json(
       { error: 'ไม่สามารถดึงข้อมูลสถานะห้องฉุกเฉินได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' },
       { status: 500 }

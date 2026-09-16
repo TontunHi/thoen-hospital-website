@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: Request) {
   try {
@@ -30,12 +32,36 @@ export async function GET(request: Request) {
     }
 
     const rawRequest = requests[0]
+
+    // IDOR Check: Ensure user is the requester, an admin, or an assigned approver
+    const userRows = await queryMemberDb('SELECT id FROM members WHERE username = ? LIMIT 1', [session.username])
+    const currentMemberId = userRows[0]?.id
+
+    const isRequester = currentMemberId === rawRequest.requester_id
+    const isAdmin = session.role === 'admin'
+    const approverCheck = await queryMemberDb(
+      'SELECT id FROM approval_tickets WHERE source_system = "PR_MEDIA" AND source_id = ? AND current_approver_id = ? LIMIT 1',
+      [id, currentMemberId]
+    )
+    const isApprover = approverCheck.length > 0
+
+    if (!isRequester && !isAdmin && !isApprover) {
+      return NextResponse.json({ error: 'คุณไม่มีสิทธิ์เข้าถึงรายการนี้' }, { status: 403 })
+    }
+
+    logAudit(
+      'READ',
+      'pr_requests',
+      `Viewed PR request details ID: ${id}`,
+      { username: session.username, email: session.email }
+    ).catch(err => logger.error({ err }, 'PR detail audit log failed'))
+
     let formData: any = {}
     if (rawRequest.form_data) {
       try {
         formData = typeof rawRequest.form_data === 'string' ? JSON.parse(rawRequest.form_data) : rawRequest.form_data
       } catch (e) {
-        console.error('Failed to parse form_data JSON for request detail ID', rawRequest.id, e)
+        logger.error({ err: e }, `Failed to parse form_data JSON for request detail ID: ${rawRequest.id}`)
       }
     }
 
@@ -80,7 +106,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, request: prRequest, approvals })
   } catch (error) {
-    console.error('Fetch request detail error:', error)
+    logger.error({ error }, 'Fetch request detail error')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียด' }, { status: 500 })
   }
 }

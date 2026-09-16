@@ -103,9 +103,9 @@ export default function CheckDatePage() {
             <p>ค้นหาและตรวจสอบวันเวลานัดหมายการตรวจรักษากับโรงพยาบาลเถินได้ง่ายๆ สะดวก และรวดเร็ว</p>
           </header>
 
-          <form onSubmit={handleSearch} className="searchForm">
+          <form onSubmit={handleSearch} className="searchForm" role="search">
             <div className="searchInputWrapper">
-              <Search className="searchIcon" size={20} />
+              <Search className="searchIcon" size={20} aria-hidden="true" />
               <input
                 type="text"
                 className="appointInput"
@@ -115,17 +115,20 @@ export default function CheckDatePage() {
                 maxLength={13}
                 required
                 disabled={loading}
+                aria-label="กรอกเลขประจำตัวประชาชน 13 หลัก"
+                aria-required="true"
+                aria-invalid={!!error}
               />
             </div>
-            <button type="submit" className="appointSearchBtn" disabled={loading}>
+            <button type="submit" className="appointSearchBtn" disabled={loading} aria-label="ค้นหาข้อมูลนัดหมาย">
               {loading ? (
                 <>
-                  <RefreshCw size={18} className="spinner" />
+                  <RefreshCw size={18} className="spinner" aria-hidden="true" />
                   <span>กำลังค้นหา...</span>
                 </>
               ) : (
                 <>
-                  <Search size={18} />
+                  <Search size={18} aria-hidden="true" />
                   <span>ค้นหาข้อมูล</span>
                 </>
               )}

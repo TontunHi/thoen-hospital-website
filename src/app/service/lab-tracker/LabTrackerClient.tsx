@@ -198,7 +198,7 @@ export default function LabTrackerClient() {
             ตรวจสอบความคืบหน้าการรายงานผลและติดตามตรวจทางห้องปฏิบัติการประจำวัน สำหรับ รพ.สต.
           </p>
           <div className="refresh-status">
-            <span>อัปเดตล่าสุดเมื่อ: <strong>{lastRefreshed.toLocaleTimeString()}</strong></span>
+            <span>อัปเดตล่าสุดเมื่อ: <strong suppressHydrationWarning>{lastRefreshed.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} น.</strong></span>
             <button 
               onClick={() => activeDoctor ? fetchDoctorReport(activeDoctor.code) : fetchDashboard()} 
               className="refresh-btn"

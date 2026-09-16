@@ -5,7 +5,7 @@ module.exports = {
       name: 'thoen-hospital-website',
       // Runs the Next.js production server binary directly
       script: './node_modules/next/dist/bin/next',
-      args: 'start --hostname 0.0.0.0 --port 6060',
+      args: 'start --hostname 127.0.0.1 --port 6060',
       instances: '1',       // Run in cluster mode to utilize all CPU cores
       exec_mode: 'cluster',    // Enables load balancing across instances
       watch: false,            // Do not watch files in production

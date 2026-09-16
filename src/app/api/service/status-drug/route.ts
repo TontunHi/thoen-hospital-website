@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
+import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function GET() {
   try {
@@ -12,6 +14,13 @@ export async function GET() {
         { status: 401 }
       )
     }
+
+    logAudit(
+      'READ',
+      'opitemrece',
+      'Viewed drug dispensing status and outpatient prescription queue',
+      { username: session.username, email: session.email }
+    ).catch(err => logger.error({ err }, 'Drug status audit log failed'))
 
     const cacheKey = 'drug-dispense-status-data'
 
@@ -71,7 +80,7 @@ export async function GET() {
       data,
     })
   } catch (error: any) {
-    console.error('Drug status API error:', error)
+    logger.error({ error }, 'Drug status API error')
     return NextResponse.json(
       {
         success: false,

@@ -49,3 +49,9 @@ next-env.d.ts
 # local files
 /scratch/
 /contacts.json
+/storage/*
+!/storage/.gitkeep
+/public/uploads/*
+!/public/uploads/.gitkeep
+/logs/
+*.log

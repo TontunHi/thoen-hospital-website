@@ -3,6 +3,8 @@ import { querySalaryDb, querySalaryEditDb } from '@/lib/salaryDb'
 import { verifySalarySession, destroySalarySession } from '@/lib/salaryAuth'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: Request) {
   try {
@@ -27,6 +29,13 @@ export async function GET(request: Request) {
       await destroySalarySession()
       return NextResponse.json({ error: 'เซสชันระบบเงินเดือนไม่ตรงกับผู้ใช้งานปัจจุบัน กรุณาเข้าสู่ระบบใหม่' }, { status: 401 })
     }
+
+    logAudit(
+      'READ',
+      'salary',
+      'Viewed personal salary and payslip records',
+      { username: memberSession.username, email: memberSession.email }
+    ).catch(err => logger.error({ err }, 'Salary data audit log failed'))
 
     const username = user.username // Citizen ID / salary_user (matches c2 in salary and ot)
 
@@ -180,7 +189,7 @@ export async function GET(request: Request) {
       userName: user.name
     })
   } catch (error: any) {
-    console.error('Failed to fetch salary data:', error)
+    logger.error({ error }, 'Failed to fetch salary data')
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูล' }, { status: 500 })
   }
 }

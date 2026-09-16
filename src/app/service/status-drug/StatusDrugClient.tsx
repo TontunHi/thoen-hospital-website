@@ -143,7 +143,7 @@ export default function StatusDrugClient() {
           </div>
 
           <div className="drugControls">
-            <div className="lastUpdateText">
+            <div className="lastUpdateText" suppressHydrationWarning>
               อัปเดตล่าสุด:{' '}
               {lastUpdated.toLocaleTimeString('th-TH', {
                 hour: '2-digit',

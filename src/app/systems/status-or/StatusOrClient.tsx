@@ -126,7 +126,7 @@ export default function StatusOrClient() {
           </div>
 
           <div className="orControls">
-            <div className="lastUpdateText">
+            <div className="lastUpdateText" suppressHydrationWarning>
               อัปเดตล่าสุด:{' '}
               {lastUpdated.toLocaleTimeString('th-TH', {
                 hour: '2-digit',

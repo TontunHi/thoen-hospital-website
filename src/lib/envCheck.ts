@@ -9,7 +9,6 @@
 
 const requiredEnvVars = [
   'DATABASE_URL',
-  'ADMIN_SECRET',
   'SALARY_DB_HOST',
   'SALARY_DB_USER',
   'SALARY_DB_PASSWORD',
@@ -22,11 +21,7 @@ const requiredEnvVars = [
   'MEMBER_DB_USER',
   'MEMBER_DB_PASSWORD',
   'MEMBER_DB_NAME',
-  'MEMBER_OTP_EMAIL_USER',
-  'MEMBER_OTP_EMAIL_PASS',
   'MEMBER_SESSION_SECRET',
-  'NEXTAUTH_SECRET',
-  'NEXTAUTH_URL',
 ] as const
 
 /**

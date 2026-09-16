@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: Request) {
   try {
@@ -24,6 +26,14 @@ export async function GET(request: Request) {
         { status: 400 }
       )
     }
+
+    // Audit log access to patient lab results (PHI)
+    logAudit(
+      'READ',
+      'lab_order',
+      `Viewed lab results detail for HN: ${hn}`,
+      { username: memberSession.username, email: memberSession.email }
+    ).catch(err => logger.error({ err }, 'Lab detail audit log failed'))
 
     // 3. Fetch reported labs for today (confirm = 'Y')
     const reportedSql = `
@@ -83,7 +93,7 @@ export async function GET(request: Request) {
     })
 
   } catch (error: any) {
-    console.error('HPH Lab Tracker Detail API error:', error)
+    logger.error({ error }, 'HPH Lab Tracker Detail API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียดผล LAB' },
       { status: 500 }

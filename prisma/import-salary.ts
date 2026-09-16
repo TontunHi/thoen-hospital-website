@@ -29,19 +29,29 @@ function parseDotEnv() {
 async function main() {
   parseDotEnv();
 
+  if (!process.env.SALARY_DB_HOST || !process.env.SALARY_DB_USER || !process.env.SALARY_DB_PASSWORD) {
+    console.error('Missing required SALARY_DB_* environment variables in .env');
+    process.exit(1);
+  }
+
+  if (!process.env.MEMBER_DB_HOST || !process.env.MEMBER_DB_USER || !process.env.MEMBER_DB_PASSWORD) {
+    console.error('Missing required MEMBER_DB_* environment variables in .env');
+    process.exit(1);
+  }
+
   // Config for Salary DB (external)
   const salaryDbConfig = {
-    host: process.env.SALARY_DB_HOST || '192.168.1.4',
+    host: process.env.SALARY_DB_HOST,
     port: parseInt(process.env.SALARY_DB_PORT || '3306'),
-    user: process.env.SALARY_DB_USER || 'guest',
-    password: process.env.SALARY_DB_PASSWORD || 'guest',
+    user: process.env.SALARY_DB_USER,
+    password: process.env.SALARY_DB_PASSWORD,
     database: process.env.SALARY_DB_NAME || 'salary',
-    charset: 'tis620', // From .env
+    charset: 'tis620',
   };
 
   // Config for Member DB (local/target)
   const memberDbConfig = {
-    host: process.env.MEMBER_DB_HOST || '192.168.1.7',
+    host: process.env.MEMBER_DB_HOST,
     port: parseInt(process.env.MEMBER_DB_PORT || '3306'),
     user: process.env.MEMBER_DB_USER,
     password: process.env.MEMBER_DB_PASSWORD,

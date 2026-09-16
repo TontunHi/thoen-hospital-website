@@ -142,7 +142,7 @@ export default function WardStatusClient() {
           </div>
 
           <div className="wardControls">
-            <div className="lastUpdateText">
+            <div className="lastUpdateText" suppressHydrationWarning>
               อัปเดตล่าสุด:{' '}
               {lastUpdated.toLocaleTimeString('th-TH', {
                 hour: '2-digit',

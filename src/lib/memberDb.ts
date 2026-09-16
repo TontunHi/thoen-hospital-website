@@ -207,6 +207,19 @@ async function initializeDb(poolInstance: mysql.Pool) {
       `)
     } catch (alterError) {}
 
+    // Initialize Contact Messages Table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS contact_messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(20) NULL,
+        message TEXT NOT NULL,
+        is_read TINYINT(1) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
 
     // Seed default permissions if table is empty
     const [existingPerms] = await connection.query('SELECT COUNT(*) as cnt FROM position_permissions')
@@ -281,11 +294,24 @@ export async function queryMemberDb(sql: string, params: any[] = []) {
       else if (trimmedSql.startsWith('CREATE') || trimmedSql.startsWith('DROP') || trimmedSql.startsWith('ALTER')) actionType = 'SYSTEM'
 
       const { logAudit } = await import('./audit')
+      
+      // Sanitize params to avoid logging passwords, OTPs, or tokens in audit logs
+      const sanitizedParams = params.map((param: any) => {
+        if (typeof param === 'string' && param.length >= 6) {
+          // If query mentions password, otp, or secret, mask the corresponding values
+          if (/password|salary_pass|otp_code|token|secret/i.test(sql)) {
+            return '***REDACTED***'
+          }
+        }
+        return param
+      })
+
+      const { logger } = await import('./logger')
       logAudit(
         actionType as any,
         targetTable,
-        `SQL: ${sql} | Params: ${JSON.stringify(params)}`
-      ).catch(err => console.error('Failed to write CRUD audit log:', err))
+        `SQL: ${sql} | Params: ${JSON.stringify(sanitizedParams)}`
+      ).catch(err => logger.error({ err }, 'Failed to write CRUD audit log'))
     }
 
     return results as any[]

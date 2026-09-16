@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import crypto from 'crypto'
+import { logger } from './logger'
 
 function getSecret(): string {
   const secret = process.env.MEMBER_SESSION_SECRET
@@ -18,14 +19,14 @@ function sign(value: string): string {
   return hmac.digest('hex')
 }
 
-function createToken(payloadData: { username: string; email: string; role: string }): string {
-  const payload = JSON.stringify({ ...payloadData, exp: Date.now() + SESSION_MAX_AGE * 1000 })
+export function createToken(payloadData: { username: string; email: string; role: string }): string {
+  const payload = JSON.stringify({ ...payloadData, aud: 'member', exp: Date.now() + SESSION_MAX_AGE * 1000 })
   const encoded = Buffer.from(payload).toString('base64url')
   const signature = sign(encoded)
   return `${encoded}.${signature}`
 }
 
-function verifyToken(token: string): { username: string; email: string; role: string } | null {
+export function verifyToken(token: string): { username: string; email: string; role: string } | null {
   try {
     const [encoded, signature] = token.split('.')
     if (!encoded || !signature) return null
@@ -39,6 +40,7 @@ function verifyToken(token: string): { username: string; email: string; role: st
 
     const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString())
 
+    if (payload.aud !== 'member') return null
     if (payload.exp < Date.now()) return null
 
     return { username: payload.username, email: payload.email, role: payload.role || 'member' }
@@ -122,7 +124,7 @@ export async function checkPositionPermission(
 
     return (result[0]?.count || 0) > 0
   } catch (error) {
-    console.error('Check position permission error:', error)
+    logger.error({ error }, 'Check position permission error')
     return false
   }
 }

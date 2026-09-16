@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
   try {
@@ -13,6 +14,17 @@ export async function POST(request: Request) {
         { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
         { status: 401 }
       )
+    }
+
+    // Rate limit: Max 20 searches per minute per user/IP to protect against enumeration
+    const rateCheck = await checkRateLimit({
+      key: 'lab-search',
+      identifier: memberSession.username,
+      maxAttempts: 20,
+      windowSeconds: 60,
+    })
+    if (!rateCheck.allowed) {
+      return rateCheck.response!
     }
 
     // 2. Validate input

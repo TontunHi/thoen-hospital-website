@@ -1,13 +1,19 @@
 import { NextResponse } from 'next/server'
 import { queryHosDb } from '@/lib/hosDb'
 import { getCachedData } from '@/lib/cache'
+import { checkRateLimit } from '@/lib/rateLimit'
+import { logger } from '@/lib/logger'
 
 export async function GET() {
   try {
+    const rateCheck = await checkRateLimit({ key: 'status-or-query', maxAttempts: 60, windowSeconds: 60 })
+    if (!rateCheck.allowed) {
+      return rateCheck.response!
+    }
+
     const cacheKey = 'or-room-status-data'
 
     const data = await getCachedData(cacheKey, async () => {
-      // Query according to C:\Users\Tontun\Downloads\q\htdocs\status\or\index.php
       // 1. รอผ่าตัด (status_id = '1')
       const waitingQuery = `
         SELECT DISTINCT
@@ -68,10 +74,23 @@ export async function GET() {
         queryHosDb(recoveryQuery),
       ])
 
+      const maskName = (name: string | null): string => {
+        if (!name) return '-'
+        const trimmed = name.trim()
+        if (trimmed.length <= 3) return trimmed + '***'
+        return trimmed.slice(0, 3) + '***'
+      }
+
+      const maskList = (list: any[]) =>
+        (list || []).map((item: any) => ({
+          ...item,
+          ptname: maskName(item.ptname),
+        }))
+
       return {
-        waiting: waitingList || [],
-        inProgress: inProgressList || [],
-        recovery: recoveryList || [],
+        waiting: maskList(waitingList),
+        inProgress: maskList(inProgressList),
+        recovery: maskList(recoveryList),
         total: (waitingList?.length || 0) + (inProgressList?.length || 0) + (recoveryList?.length || 0),
         updatedAt: new Date().toISOString(),
       }
@@ -82,7 +101,7 @@ export async function GET() {
       data,
     })
   } catch (error: any) {
-    console.error('OR status API error:', error)
+    logger.error({ error }, 'OR status API error')
     return NextResponse.json(
       {
         success: false,

@@ -54,9 +54,10 @@ function parseCsvLine(line: string): string[] {
 async function main() {
   parseDotEnv();
 
-  const csvPath = 'C:\\Users\\Tontun\\Downloads\\import.csv';
+  const csvPath = process.argv[2] || process.env.CSV_IMPORT_PATH || path.resolve(process.cwd(), 'import.csv');
   if (!fs.existsSync(csvPath)) {
     console.error('CSV file not found at:', csvPath);
+    console.error('Usage: npx tsx prisma/import-csv.ts <path-to-csv>');
     process.exit(1);
   }
 
@@ -69,9 +70,14 @@ async function main() {
     return;
   }
 
+  if (!process.env.MEMBER_DB_HOST || !process.env.MEMBER_DB_USER || !process.env.MEMBER_DB_PASSWORD) {
+    console.error('Missing required MEMBER_DB_* environment variables in .env');
+    process.exit(1);
+  }
+
   // Create MySQL connection using env variables
   const dbConfig = {
-    host: process.env.MEMBER_DB_HOST || '192.168.1.7',
+    host: process.env.MEMBER_DB_HOST,
     port: parseInt(process.env.MEMBER_DB_PORT || '3306'),
     user: process.env.MEMBER_DB_USER,
     password: process.env.MEMBER_DB_PASSWORD,

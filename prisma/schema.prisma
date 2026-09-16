@@ -62,3 +62,33 @@ model HeroSlide {
 
   @@map("hero_slides")
 }
+
+model AuditLog {
+  id            Int      @id @default(autoincrement())
+  timestamp     DateTime @default(now()) @db.Timestamp(0)
+  username      String?  @db.VarChar(100)
+  email         String?  @db.VarChar(100)
+  actionType    String   @map("action_type") @db.VarChar(50)
+  targetTable   String?  @map("target_table") @db.VarChar(100)
+  actionDetails String?  @map("action_details") @db.Text
+  ipAddress     String?  @map("ip_address") @db.VarChar(45)
+  userAgent     String?  @map("user_agent") @db.VarChar(255)
+
+  @@index([username], map: "idx_username")
+  @@index([actionType], map: "idx_action_type")
+  @@index([timestamp], map: "idx_timestamp")
+  @@map("audit_logs")
+}
+
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(200)
+  email     String   @db.VarChar(255)
+  phone     String?  @db.VarChar(20)
+  message   String   @db.Text
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+
+  @@index([createdAt], map: "idx_contact_created")
+  @@map("contact_messages")
+}

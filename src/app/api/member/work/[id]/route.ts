@@ -132,9 +132,18 @@ async function handlePhase2(
   }
 
   // Fetch details of assigned members to store in JSON
-  const staffIds = assignees.map((a: any) => a.userId)
+  const staffIds = assignees
+    .map((a: any) => Number(a.userId))
+    .filter((id: number) => Number.isInteger(id) && id > 0)
+
+  if (staffIds.length === 0) {
+    return { error: 'ข้อมูลผู้รับผิดชอบไม่ถูกต้อง', status: 400 }
+  }
+
+  const placeholders = staffIds.map(() => '?').join(',')
   const staffDetails = await queryMemberDb(
-    `SELECT id, name, position FROM members WHERE id IN (${staffIds.join(',')})`
+    `SELECT id, name, position FROM members WHERE id IN (${placeholders})`,
+    staffIds
   )
 
   const formattedAssignees = assignees.map((ass: any) => {

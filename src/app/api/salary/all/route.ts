@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import { querySalaryDb, querySalaryEditDb } from '@/lib/salaryDb'
+import { logAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 
 export async function GET(request: Request) {
   try {
@@ -32,6 +34,13 @@ export async function GET(request: Request) {
         message: 'กรุณาระบุ Username ของบุคลากร' 
       })
     }
+
+    logAudit(
+      'READ',
+      'salary',
+      `Viewed employee salary records for: ${targetUsername}`,
+      { username: session.username, email: session.email }
+    ).catch(err => logger.error({ err }, 'Salary all audit log failed'))
 
     // 3. Find target member in memberDb
     const memberRows = await queryMemberDb(
@@ -191,7 +200,7 @@ export async function GET(request: Request) {
       hasRecords: mappedSalaries.length > 0 || mappedOts.length > 0
     })
   } catch (error: any) {
-    console.error('All salary API error:', error)
+    logger.error({ error }, 'All salary API error')
     return NextResponse.json(
       { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลสลิปเงินเดือน' },
       { status: 500 }
