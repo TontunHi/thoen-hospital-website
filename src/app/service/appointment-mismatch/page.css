@@ -1,0 +1,338 @@
+/* ==========================================
+   Appointment Mismatch Page Styles
+   Follows project glassmorphism + brand green pattern
+   ========================================== */
+
+.mismatchPage {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 1.5rem;
+  font-family: var(--font-ibm-thai), 'IBM Plex Sans Thai', 'Sarabun', sans-serif;
+}
+
+.mismatchContainer {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Header Card */
+.mismatchHeaderCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.mismatchTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mismatchIconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border-radius: 14px;
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.mismatchTitleSection h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.mismatchSubtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0.2rem 0 0 0;
+}
+
+.mismatchControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lastUpdateText {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.refreshBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.refreshBtn:hover {
+  background: #e2e8f0;
+}
+
+.refreshBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refreshBtn.spinning svg {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Combined Warning Banner & Stats */
+.warningBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 1px solid #fcd34d;
+  border-radius: 14px;
+  padding: 1.25rem 1.75rem;
+  margin-bottom: 1.25rem;
+  color: #92400e;
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.08);
+}
+
+.warningBanner__left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+  min-width: 300px;
+}
+
+.warningBanner__icon {
+  flex-shrink: 0;
+  color: #d97706;
+}
+
+.warningBanner__content strong {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.warningBanner__content p {
+  margin: 0.15rem 0 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.warningNote {
+  font-weight: 600;
+  color: #b45309;
+  margin-top: 0.35rem !important;
+}
+
+/* Stat Section inside Banner */
+.warningBanner__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(252, 211, 77, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 0.85rem 1.5rem;
+  min-width: 170px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.warningStat__title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #78350f;
+  margin-bottom: 0.25rem;
+}
+
+.warningStat__value {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #92400e;
+  line-height: 1.1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.warningStat__unit {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #b45309;
+}
+
+/* Table */
+.tableWrapper {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 14px;
+  overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.mismatchTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.mismatchTable thead {
+  background: #f8fafc;
+}
+
+.mismatchTable th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.mismatchTable td {
+  padding: 0.65rem 1rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.mismatchTable tbody tr:hover {
+  background: #f8fafc;
+}
+
+.mismatchTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tdCenter {
+  text-align: center;
+}
+
+.thCenter {
+  text-align: center !important;
+}
+
+/* Badges */
+.hnBadge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.deptBadge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.userBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+/* Empty / Loading State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.emptyState h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0.75rem 0 0.25rem 0;
+}
+
+.emptyState p {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.emptyStateSuccess {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 14px;
+}
+
+.spinIcon {
+  animation: spin 1.2s linear infinite;
+  color: #94a3b8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .mismatchPage {
+    padding: 1rem;
+  }
+
+  .mismatchHeaderCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mismatchControls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .mismatchTitleSection h1 {
+    font-size: 1.1rem;
+  }
+}
