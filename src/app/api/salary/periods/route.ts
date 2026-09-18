@@ -44,7 +44,7 @@ export async function GET() {
     }
 
     const periods = await querySalaryEditDb(
-      'SELECT id, type, datein, notesalary FROM datein ORDER BY datein DESC, id DESC LIMIT 10'
+      "SELECT id, type, DATE_FORMAT(datein, '%Y-%m-%d') as datein, notesalary FROM datein ORDER BY datein DESC, id DESC LIMIT 10"
     )
 
     return NextResponse.json({ success: true, periods })
@@ -77,6 +77,32 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Create salary period error:', error)
     return NextResponse.json({ error: 'ไม่สามารถบันทึกรอบการจ่ายเงินได้' }, { status: 500 })
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const auth = await checkFinanceAccess()
+    if (auth.error) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
+    const body = await request.json()
+    const { id, type, datein, notesalary } = body
+
+    if (!id || !type || !datein) {
+      return NextResponse.json({ error: 'กรุณากรอกข้อมูลรหัสรอบ ประเภท และวันที่ให้ครบถ้วน' }, { status: 400 })
+    }
+
+    await querySalaryEditDb(
+      'UPDATE datein SET type = ?, datein = ?, notesalary = ? WHERE id = ?',
+      [type.toString(), datein, notesalary || null, id]
+    )
+
+    return NextResponse.json({ success: true, message: 'แก้ไขรอบการจ่ายเงินสำเร็จ' })
+  } catch (error: any) {
+    console.error('Update salary period error:', error)
+    return NextResponse.json({ error: 'ไม่สามารถแก้ไขรอบการจ่ายเงินได้' }, { status: 500 })
   }
 }
 

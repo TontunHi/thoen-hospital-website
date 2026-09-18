@@ -1,7 +1,19 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Upload, Trash2, CheckCircle, AlertTriangle, FileText, Loader2, ArrowLeft, HelpCircle } from 'lucide-react'
+import { 
+  Upload, 
+  Trash2, 
+  Edit3, 
+  CheckCircle, 
+  AlertTriangle, 
+  FileText, 
+  Loader2, 
+  ArrowLeft, 
+  HelpCircle,
+  Calendar,
+  X
+} from 'lucide-react'
 import Link from 'next/link'
 import './page.css'
 
@@ -15,19 +27,38 @@ interface ImportPeriod {
 export default function UploadSalaryClient() {
   const [periods, setPeriods] = useState<ImportPeriod[]>([])
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  // Form States (Unified)
+  // -------------------------------------------------------------
+  // System 1: Record Pay Period (datein)
+  // -------------------------------------------------------------
   const [periodType, setPeriodType] = useState('1') // '1' = เงินเดือน, '2' = OT
   const [periodDate, setPeriodDate] = useState('')
   const [periodNote, setPeriodNote] = useState('')
+  const [isSavingPeriod, setIsSavingPeriod] = useState(false)
+
+  // -------------------------------------------------------------
+  // System 2: Upload CSV File
+  // -------------------------------------------------------------
+  const [uploadType, setUploadType] = useState<'salary' | 'ot'>('salary')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  
-  // Modal Confirmation State
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
-  
+  const [isUploadingFile, setIsUploadingFile] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  // -------------------------------------------------------------
+  // System 3: Edit Period Modal
+  // -------------------------------------------------------------
+  const [editingPeriod, setEditingPeriod] = useState<ImportPeriod | null>(null)
+  const [editType, setEditType] = useState('1')
+  const [editDate, setEditDate] = useState('')
+  const [editNote, setEditNote] = useState('')
+  const [isUpdatingPeriod, setIsUpdatingPeriod] = useState(false)
+
+  // -------------------------------------------------------------
+  // System 4: Delete Period Confirmation Modal
+  // -------------------------------------------------------------
+  const [deletingPeriod, setDeletingPeriod] = useState<ImportPeriod | null>(null)
+  const [isDeletingPeriod, setIsDeletingPeriod] = useState(false)
 
   useEffect(() => {
     fetchPeriods()
@@ -58,37 +89,19 @@ export default function UploadSalaryClient() {
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setSelectedFile(file)
-    }
-  }
-
-  const handleUnifiedSubmit = (e: React.FormEvent) => {
+  // --- 1. Handle Submit Period (บันทึกวัน) ---
+  const handlePeriodSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    const missing: string[] = []
-    if (!selectedFile) missing.push('ยังไม่ได้เลือกไฟล์ข้อมูล (.CSV)')
-    if (!periodDate) missing.push('ยังไม่ได้ระบุวันที่จ่ายเงิน')
-
-    if (missing.length > 0) {
-      showStatus('error', `กรุณากรอกข้อมูลให้ครบถ้วนก่อนการนำเข้า: ` + missing.join(', '))
+    if (!periodDate) {
+      showStatus('error', 'กรุณาระบุวันที่จ่ายเงินในรอบ')
       return
     }
 
-    // Show beautiful confirmation modal
-    setShowConfirmModal(true)
-  }
-
-  const executeUpload = async () => {
-    setShowConfirmModal(false)
     try {
-      setSubmitting(true)
+      setIsSavingPeriod(true)
       setStatusMsg(null)
 
-      // 1. Save Period to datein
-      const periodRes = await fetch('/api/salary/periods', {
+      const res = await fetch('/api/salary/periods', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -98,55 +111,164 @@ export default function UploadSalaryClient() {
         }),
       })
 
-      const periodData = await periodRes.json()
-      if (!periodRes.ok || !periodData.success) {
-        showStatus('error', periodData.error || 'บันทึกงวดนำเข้าปฏิทิน (datein) ล้มเหลว')
-        return
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showStatus('success', 'บันทึกงวดวันจ่ายเงินในปฏิทินสำเร็จ!')
+        setPeriodDate('')
+        setPeriodNote('')
+        fetchPeriods()
+      } else {
+        showStatus('error', data.error || 'บันทึกงวดวันจ่ายเงินล้มเหลว')
       }
+    } catch (err) {
+      console.error(err)
+      showStatus('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+    } finally {
+      setIsSavingPeriod(false)
+    }
+  }
 
-      // 2. Upload CSV File (Type maps: '1' -> 'salary', '2' -> 'ot')
-      const targetUploadType = periodType === '1' ? 'salary' : 'ot'
+  // --- 2. Handle Submit File (อัปโหลดไฟล์ .CSV) ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+    }
+  }
+
+  const handleFileUpload = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedFile) {
+      showStatus('error', 'กรุณาเลือกไฟล์ข้อมูล (.CSV) ก่อนการอัปโหลด')
+      return
+    }
+
+    try {
+      setIsUploadingFile(true)
+      setStatusMsg(null)
+
       const formData = new FormData()
-      formData.append('file', selectedFile!)
-      formData.append('type', targetUploadType)
+      formData.append('file', selectedFile)
+      formData.append('type', uploadType)
 
-      const uploadRes = await fetch('/api/salary/upload', {
+      const res = await fetch('/api/salary/upload', {
         method: 'POST',
         body: formData,
       })
 
-      const uploadData = await uploadRes.json()
-      if (uploadRes.ok && uploadData.success) {
-        showStatus('success', `บันทึกงวดและอัปโหลดข้อมูลสำเร็จ! (${uploadData.message})`)
-        
-        // Clear all inputs
-        setPeriodDate('')
-        setPeriodNote('')
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showStatus('success', `อัปโหลดไฟล์ข้อมูลสำเร็จ! (${data.message})`)
         setSelectedFile(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
-        
-        fetchPeriods()
       } else {
-        showStatus('error', uploadData.error || 'นำเข้าข้อมูลจากไฟล์ล้มเหลว (แต่งวดปฏิทินถูกบันทึกแล้ว)')
+        showStatus('error', data.error || 'นำเข้าข้อมูลจากไฟล์ล้มเหลว')
       }
     } catch (err) {
       console.error(err)
       showStatus('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่ายเซิร์ฟเวอร์')
     } finally {
-      setSubmitting(false)
+      setIsUploadingFile(false)
+    }
+  }
+
+  // --- 3. Handle Edit Period ---
+  const openEditModal = (period: ImportPeriod) => {
+    setEditingPeriod(period)
+    setEditType(period.type ? String(period.type) : '1')
+    
+    // Format date string to YYYY-MM-DD directly without timezone shift
+    let dStr = ''
+    if (period.datein) {
+      if (period.datein.includes('T')) {
+        dStr = period.datein.split('T')[0]
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(period.datein)) {
+        dStr = period.datein.substring(0, 10)
+      } else {
+        dStr = period.datein
+      }
+    }
+    setEditDate(dStr)
+    setEditNote(period.notesalary || '')
+  }
+
+  const handleUpdatePeriod = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingPeriod || !editDate) {
+      showStatus('error', 'กรุณาระบุวันที่ให้ครบถ้วน')
+      return
+    }
+
+    try {
+      setIsUpdatingPeriod(true)
+      const res = await fetch('/api/salary/periods', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingPeriod.id,
+          type: editType,
+          datein: editDate,
+          notesalary: editNote.trim() || null,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showStatus('success', 'แก้ไขรอบการจ่ายเงินเรียบร้อยแล้ว')
+        setEditingPeriod(null)
+        fetchPeriods()
+      } else {
+        showStatus('error', data.error || 'แก้ไขรอบการจ่ายเงินล้มเหลว')
+      }
+    } catch (err) {
+      console.error(err)
+      showStatus('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+    } finally {
+      setIsUpdatingPeriod(false)
+    }
+  }
+
+  // --- 4. Handle Delete Period ---
+  const executeDeletePeriod = async () => {
+    if (!deletingPeriod) return
+
+    try {
+      setIsDeletingPeriod(true)
+      const res = await fetch(`/api/salary/periods?id=${deletingPeriod.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showStatus('success', 'ลบงวดวันจ่ายเงินออกจากปฏิทินเรียบร้อยแล้ว')
+        setDeletingPeriod(null)
+        fetchPeriods()
+      } else {
+        showStatus('error', data.error || 'ลบรอบการจ่ายเงินล้มเหลว')
+      }
+    } catch (err) {
+      console.error(err)
+      showStatus('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+    } finally {
+      setIsDeletingPeriod(false)
     }
   }
 
   const getThaiDateStr = (dateinStr: string) => {
+    if (!dateinStr) return ''
     try {
-      const d = new Date(dateinStr)
-      if (isNaN(d.getTime())) return dateinStr
-      const day = d.getDate()
-      const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
-      const month = months[d.getMonth()]
-      const year = d.getFullYear() + 543
-      return `${day} ${month} ${year}`
-    } catch (e) {
+      // Parse YYYY-MM-DD directly without UTC conversion
+      const rawDate = dateinStr.includes('T') ? dateinStr.split('T')[0] : dateinStr
+      const parts = rawDate.split('-')
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10) + 543
+        const monthIndex = parseInt(parts[1], 10) - 1
+        const day = parseInt(parts[2], 10)
+        const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+        return `${day} ${months[monthIndex] || ''} ${year}`
+      }
+      return dateinStr
+    } catch {
       return dateinStr
     }
   }
@@ -170,10 +292,16 @@ export default function UploadSalaryClient() {
       )}
 
       <div className="uploadSalaryGrid">
-        {/* Left Column: Combined Upload & Period Form */}
+        {/* Card 1: Record Pay Period (ระบบบันทึกวัน) */}
         <div className="uploadCard">
-          <h2>กรอกรายละเอียดและแนบไฟล์นำเข้าข้อมูลการเงิน</h2>
-          <form onSubmit={handleUnifiedSubmit}>
+          <h2>
+            <Calendar size={20} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px', color: '#0d9488' }} />
+            1. บันทึกงวดวันจ่ายเงิน (ปฏิทิน)
+          </h2>
+          <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '-6px', marginBottom: '16px' }}>
+            สำหรับบันทึกวันที่เงินโอนเข้าบัญชี เพื่อแสดงในปฏิทินหน้า /salary
+          </p>
+          <form onSubmit={handlePeriodSubmit}>
             <div className="formGroup">
               <label className="formLabel required">ประเภทงวดการเงิน</label>
               <div className="formRadioGroup">
@@ -184,7 +312,7 @@ export default function UploadSalaryClient() {
                     value="1"
                     checked={periodType === '1'}
                     onChange={(e) => setPeriodType(e.target.value)}
-                    disabled={submitting}
+                    disabled={isSavingPeriod}
                   />
                   <span>เงินเดือน (Salary)</span>
                 </label>
@@ -195,9 +323,9 @@ export default function UploadSalaryClient() {
                     value="2"
                     checked={periodType === '2'}
                     onChange={(e) => setPeriodType(e.target.value)}
-                    disabled={submitting}
+                    disabled={isSavingPeriod}
                   />
-                  <span>ค่าเวรล่วงเวลา / รายวัน / อื่นๆ (OT)</span>
+                  <span>ค่าเวรล่วงเวลา / อื่นๆ (OT)</span>
                 </label>
               </div>
             </div>
@@ -211,7 +339,7 @@ export default function UploadSalaryClient() {
                 value={periodDate}
                 onChange={(e) => setPeriodDate(e.target.value)}
                 required
-                disabled={submitting}
+                disabled={isSavingPeriod}
               />
             </div>
 
@@ -224,19 +352,75 @@ export default function UploadSalaryClient() {
                 value={periodNote}
                 placeholder="เช่น เงินเดือนประจำเดือน มิถุนายน 2569"
                 onChange={(e) => setPeriodNote(e.target.value)}
-                disabled={submitting}
+                disabled={isSavingPeriod}
               />
             </div>
 
-            <div className="formGroup" style={{ marginTop: '24px' }}>
-              <label className="formLabel required">ไฟล์ข้อมูลพนักงาน (.CSV)</label>
+            <button
+              type="submit"
+              className="btn btnPrimary"
+              disabled={isSavingPeriod}
+              style={{ width: '100%', marginTop: '8px' }}
+            >
+              {isSavingPeriod ? (
+                <>
+                  <Loader2 size={16} className="spinning" />
+                  กำลังบันทึกงวดวันที่...
+                </>
+              ) : (
+                'บันทึกงวดวันจ่ายเงิน'
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Card 2: Upload CSV File (ระบบอัปโหลดไฟล์) */}
+        <div className="uploadCard">
+          <h2>
+            <Upload size={20} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px', color: '#0369a1' }} />
+            2. อัปโหลดไฟล์ข้อมูลสลิป (.CSV)
+          </h2>
+          <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '-6px', marginBottom: '16px' }}>
+            นำเข้าไฟล์ข้อมูลเงินเดือนหรือค่าตอบแทนลงระบบฐานข้อมูล
+          </p>
+          <form onSubmit={handleFileUpload}>
+            <div className="formGroup">
+              <label className="formLabel required">นำเข้าลงตารางข้อมูล</label>
+              <div className="formRadioGroup">
+                <label className="formRadioLabel">
+                  <input
+                    type="radio"
+                    name="uploadType"
+                    value="salary"
+                    checked={uploadType === 'salary'}
+                    onChange={() => setUploadType('salary')}
+                    disabled={isUploadingFile}
+                  />
+                  <span>ข้อมูลเงินเดือน (ตาราง salary)</span>
+                </label>
+                <label className="formRadioLabel">
+                  <input
+                    type="radio"
+                    name="uploadType"
+                    value="ot"
+                    checked={uploadType === 'ot'}
+                    onChange={() => setUploadType('ot')}
+                    disabled={isUploadingFile}
+                  />
+                  <span>ข้อมูลค่าเวร / OT (ตาราง ot)</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="formGroup">
+              <label className="formLabel required">เลือกไฟล์ข้อมูล (.CSV)</label>
               <div
                 className="dropzone"
-                onClick={() => !submitting && fileInputRef.current?.click()}
+                onClick={() => !isUploadingFile && fileInputRef.current?.click()}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
-                  if (!submitting && (e.key === 'Enter' || e.key === ' ')) {
+                  if (!isUploadingFile && (e.key === 'Enter' || e.key === ' ')) {
                     e.preventDefault()
                     fileInputRef.current?.click()
                   }
@@ -248,30 +432,35 @@ export default function UploadSalaryClient() {
                 <input
                   type="file"
                   ref={fileInputRef}
-                  style={{ display: 'none' }}
-                  accept=".csv"
                   onChange={handleFileChange}
-                  disabled={submitting}
+                  accept=".csv"
+                  style={{ display: 'none' }}
+                  disabled={isUploadingFile}
                 />
               </div>
 
               {selectedFile && (
                 <div className="fileSelectedArea">
                   <div className="fileInfo">
-                    <FileText size={16} />
-                    <span>{selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                    <FileText size={20} />
+                    <div>
+                      <div>{selectedFile.name}</div>
+                      <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                        {(selectedFile.size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
                   </div>
                   <button
                     type="button"
                     className="btn btnSecondary"
-                    style={{ padding: '6px' }}
+                    style={{ padding: '4px 8px', fontSize: '12px' }}
                     onClick={() => {
                       setSelectedFile(null)
                       if (fileInputRef.current) fileInputRef.current.value = ''
                     }}
-                    disabled={submitting}
+                    disabled={isUploadingFile}
                   >
-                    ยกเลิก
+                    ลบไฟล์
                   </button>
                 </div>
               )}
@@ -280,27 +469,24 @@ export default function UploadSalaryClient() {
             <button
               type="submit"
               className="btn btnPrimary"
-              style={{ width: '100%', marginTop: '24px', padding: '12px', fontSize: '15px' }}
-              disabled={submitting}
+              disabled={isUploadingFile || !selectedFile}
+              style={{ width: '100%', marginTop: '8px' }}
             >
-              {submitting ? (
+              {isUploadingFile ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>กำลังบันทึกงวดปฏิทินและนำเข้าไฟล์ข้อมูล...</span>
+                  <Loader2 size={16} className="spinning" />
+                  กำลังประมวลผลและนำเข้าไฟล์...
                 </>
               ) : (
-                <>
-                  <Upload size={16} />
-                  <span>เริ่มอัปโหลดและนำเข้าข้อมูลระบบการเงิน</span>
-                </>
+                'ยืนยันนำเข้าข้อมูลจากไฟล์'
               )}
             </button>
           </form>
         </div>
 
-        {/* Right Column: Read-only History List */}
-        <div className="uploadCard">
-          <h2>ประวัติงวดนำเข้า 10 รายการล่าสุด</h2>
+        {/* Card 3: Period History Table (เต็มความกว้าง) */}
+        <div className="uploadCard uploadSalaryFullWidth">
+          <h2>3. ประวัติงวดนำเข้า 10 รายการล่าสุด</h2>
           <div className="periodTableContainer">
             {loading ? (
               <div style={{ textAlign: 'center', padding: '20px' }}>กำลังดึงข้อมูล...</div>
@@ -310,9 +496,10 @@ export default function UploadSalaryClient() {
               <table className="periodTable">
                 <thead>
                   <tr>
-                    <th>ประเภท</th>
-                    <th>งวดวันที่</th>
+                    <th style={{ width: '120px' }}>ประเภท</th>
+                    <th style={{ width: '150px' }}>งวดวันที่</th>
                     <th>หมายเหตุ</th>
+                    <th style={{ width: '140px', textAlign: 'center' }}>จัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -325,6 +512,28 @@ export default function UploadSalaryClient() {
                       </td>
                       <td>{getThaiDateStr(p.datein)}</td>
                       <td>{p.notesalary || '—'}</td>
+                      <td>
+                        <div className="actionButtonGroup" style={{ justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            className="btnActionIcon btnActionEdit"
+                            onClick={() => openEditModal(p)}
+                            title="แก้ไขงวดวันที่"
+                          >
+                            <Edit3 size={14} />
+                            <span>แก้ไข</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btnActionIcon btnActionDelete"
+                            onClick={() => setDeletingPeriod(p)}
+                            title="ลบงวดวันที่"
+                          >
+                            <Trash2 size={14} />
+                            <span>ลบ</span>
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -334,15 +543,16 @@ export default function UploadSalaryClient() {
         </div>
       </div>
 
-      {showConfirmModal && (
+      {/* Edit Period Modal */}
+      {editingPeriod && (
         <div 
           className="modalOverlay" 
-          onClick={() => setShowConfirmModal(false)}
+          onClick={() => !isUpdatingPeriod && setEditingPeriod(null)}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
-            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-              setShowConfirmModal(false)
+            if (!isUpdatingPeriod && (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ')) {
+              setEditingPeriod(null)
             }
           }}
         >
@@ -353,52 +563,153 @@ export default function UploadSalaryClient() {
             aria-modal="true"
             tabIndex={-1}
           >
-            <div className="modalHeader">
-              <HelpCircle size={48} />
-              <h3 id="modal-title">ยืนยันการนำเข้าข้อมูลการเงิน</h3>
+            <div className="modalHeader" style={{ background: 'linear-gradient(135deg, #0d9488, #0f766e)' }}>
+              <Edit3 size={36} color="#ffffff" />
+              <h3 id="modal-title">แก้ไขงวดวันจ่ายเงิน</h3>
             </div>
-            <div className="modalBody">
-              <p style={{ fontSize: '14.5px', color: '#475569', marginBottom: '18px', textAlign: 'center' }}>
-                โปรดตรวจสอบความถูกต้องของข้อมูลก่อนเริ่มกระบวนการเขียนฐานข้อมูล
-              </p>
-              
-              <div className="confirmDetailList">
-                <div className="confirmDetailItem">
-                  <span className="confirmDetailLabel">ประเภทงวดการเงิน</span>
-                  <span className="confirmDetailValue" style={{ color: periodType === '1' ? '#0369a1' : '#d97706' }}>
-                    {periodType === '1' ? 'เงินเดือน (Salary)' : 'ค่าตอบแทน/เวรล่วงเวลา (OT)'}
-                  </span>
-                </div>
-                <div className="confirmDetailItem">
-                  <span className="confirmDetailLabel">วันที่จ่ายเงินในรอบ</span>
-                  <span className="confirmDetailValue">{getThaiDateStr(periodDate)}</span>
-                </div>
-                <div className="confirmDetailItem">
-                  <span className="confirmDetailLabel">หมายเหตุ / คำอธิบาย</span>
-                  <span className="confirmDetailValue">{periodNote.trim() || '—'}</span>
-                </div>
-                <div className="confirmDetailItem">
-                  <span className="confirmDetailLabel">ไฟล์เอกสารที่นำเข้า</span>
-                  <span className="confirmDetailValue" style={{ color: '#0f766e' }}>
-                    {selectedFile?.name} ({(selectedFile?.size || 0 / 1024).toFixed(1)} KB)
-                  </span>
+            <form onSubmit={handleUpdatePeriod} className="modalBody">
+              <div className="formGroup">
+                <label className="formLabel required">ประเภทงวดการเงิน</label>
+                <div className="formRadioGroup">
+                  <label className="formRadioLabel">
+                    <input
+                      type="radio"
+                      name="editType"
+                      value="1"
+                      checked={editType === '1'}
+                      onChange={(e) => setEditType(e.target.value)}
+                      disabled={isUpdatingPeriod}
+                    />
+                    <span>เงินเดือน (Salary)</span>
+                  </label>
+                  <label className="formRadioLabel">
+                    <input
+                      type="radio"
+                      name="editType"
+                      value="2"
+                      checked={editType === '2'}
+                      onChange={(e) => setEditType(e.target.value)}
+                      disabled={isUpdatingPeriod}
+                    />
+                    <span>ค่าเวรล่วงเวลา / อื่นๆ (OT)</span>
+                  </label>
                 </div>
               </div>
+
+              <div className="formGroup">
+                <label htmlFor="editDate" className="formLabel required">วันที่จ่ายเงินในรอบ (ตามปฏิทินบัญชี)</label>
+                <input
+                  id="editDate"
+                  type="date"
+                  className="formInput"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  required
+                  disabled={isUpdatingPeriod}
+                />
+              </div>
+
+              <div className="formGroup">
+                <label htmlFor="editNote" className="formLabel">หมายเหตุ / คำอธิบายงวดเงิน</label>
+                <input
+                  id="editNote"
+                  type="text"
+                  className="formInput"
+                  value={editNote}
+                  placeholder="เช่น เงินเดือนประจำเดือน มิถุนายน 2569"
+                  onChange={(e) => setEditNote(e.target.value)}
+                  disabled={isUpdatingPeriod}
+                />
+              </div>
+
+              <div className="modalActions" style={{ marginTop: '20px' }}>
+                <button 
+                  type="button" 
+                  className="btn btnSecondary" 
+                  onClick={() => setEditingPeriod(null)}
+                  disabled={isUpdatingPeriod}
+                >
+                  ยกเลิก
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btnPrimary" 
+                  disabled={isUpdatingPeriod}
+                >
+                  {isUpdatingPeriod ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Period Confirmation Modal */}
+      {deletingPeriod && (
+        <div 
+          className="modalOverlay" 
+          onClick={() => !isDeletingPeriod && setDeletingPeriod(null)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (!isDeletingPeriod && (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ')) {
+              setDeletingPeriod(null)
+            }
+          }}
+        >
+          <div 
+            className="modalCard" 
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
+          >
+            <div className="modalHeader" style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
+              <AlertTriangle size={36} color="#ffffff" />
+              <h3 id="modal-title">ยืนยันการลบงวดวันจ่ายเงิน</h3>
+            </div>
+            <div className="modalBody">
+              <p style={{ fontSize: '14.5px', color: '#475569', marginBottom: '16px', textAlign: 'center' }}>
+                คุณต้องการลบงวดวันจ่ายเงินนี้ออกจากปฏิทินหรือไม่?
+              </p>
+              
+              <div className="confirmDetailList" style={{ marginBottom: '16px' }}>
+                <div className="confirmDetailItem">
+                  <span className="confirmDetailLabel">ประเภท:</span>
+                  <span className="confirmDetailValue" style={{ color: deletingPeriod.type === '1' ? '#0369a1' : '#d97706' }}>
+                    {deletingPeriod.type === '1' ? 'เงินเดือน (Salary)' : 'ค่าตอบแทน/เวรล่วงเวลา (OT)'}
+                  </span>
+                </div>
+                <div className="confirmDetailItem">
+                  <span className="confirmDetailLabel">งวดวันที่:</span>
+                  <span className="confirmDetailValue">{getThaiDateStr(deletingPeriod.datein)}</span>
+                </div>
+                <div className="confirmDetailItem">
+                  <span className="confirmDetailLabel">หมายเหตุ:</span>
+                  <span className="confirmDetailValue">{deletingPeriod.notesalary || '—'}</span>
+                </div>
+              </div>
+
+              <p style={{ fontSize: '12.5px', color: '#64748b', textAlign: 'center', marginBottom: '20px' }}>
+                * การลบนี้จะลบเฉพาะรายการในปฏิทินหน้า /salary เท่านั้น ไม่กระทบกับข้อมูลไฟล์สลิปเงินเดือนที่เคยนำเข้า
+              </p>
 
               <div className="modalActions">
                 <button 
                   type="button" 
                   className="btn btnSecondary" 
-                  onClick={() => setShowConfirmModal(false)}
+                  onClick={() => setDeletingPeriod(null)}
+                  disabled={isDeletingPeriod}
                 >
                   ยกเลิก
                 </button>
                 <button 
                   type="button" 
-                  className="btn btnPrimary" 
-                  onClick={executeUpload}
+                  className="btn btnDanger" 
+                  onClick={executeDeletePeriod}
+                  disabled={isDeletingPeriod}
                 >
-                  ยืนยันนำเข้าข้อมูล
+                  {isDeletingPeriod ? 'กำลังลบ...' : 'ยืนยันลบงวดนี้'}
                 </button>
               </div>
             </div>

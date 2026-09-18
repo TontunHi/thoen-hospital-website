@@ -28,7 +28,11 @@
 
 @media (min-width: 992px) {
   .uploadSalaryGrid {
-    grid-template-columns: 1fr 1.2fr;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .uploadSalaryFullWidth {
+    grid-column: 1 / -1;
   }
 }
 
@@ -143,6 +147,10 @@
 
 /* Upload Area */
 .dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border: 2px dashed #cbd5e1;
   border-radius: 12px;
   padding: 30px 20px;
@@ -159,8 +167,9 @@
 }
 
 .dropzoneIcon {
+  display: block;
+  margin: 0 auto 12px auto;
   color: #94a3b8;
-  margin-bottom: 12px;
 }
 
 .dropzoneText {
@@ -235,6 +244,48 @@
 .statusOt {
   background: #fef3c7;
   color: #d97706;
+}
+
+.actionButtonGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btnActionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnActionEdit {
+  background: #f0fdf4;
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+
+.btnActionEdit:hover {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.btnActionDelete {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.btnActionDelete:hover {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 /* Toast/Alerts */
