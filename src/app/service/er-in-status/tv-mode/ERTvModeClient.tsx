@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import './page.css'
 
 interface Patient {
@@ -33,6 +34,95 @@ export default function ERTvModeClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [authenticated, setAuthenticated] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [currentTime, setCurrentTime] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Real-time clock
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date()
+      setCurrentTime(
+        now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      )
+    }
+    updateTime()
+    const timer = setInterval(updateTime, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Fullscreen helper
+  const requestFullScreen = async () => {
+    try {
+      const docEl = document.documentElement
+      if (!document.fullscreenElement) {
+        if (docEl.requestFullscreen) {
+          await docEl.requestFullscreen()
+        } else if ((docEl as any).webkitRequestFullscreen) {
+          await (docEl as any).webkitRequestFullscreen()
+        } else if ((docEl as any).msRequestFullscreen) {
+          await (docEl as any).msRequestFullscreen()
+        }
+      }
+    } catch {
+      // Browser may block automatic fullscreen without user interaction
+    }
+  }
+
+  const exitFullScreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen()
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen()
+        }
+      }
+    } catch {
+      // Ignore exit error
+    }
+  }
+
+  const toggleFullScreen = () => {
+    if (document.fullscreenElement) {
+      exitFullScreen()
+    } else {
+      requestFullScreen()
+    }
+  }
+
+  // Listen to fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
+    }
+  }, [])
+
+  // Try auto fullscreen on mount & on user first click/tap
+  useEffect(() => {
+    requestFullScreen()
+
+    const handleFirstInteraction = () => {
+      if (!document.fullscreenElement) {
+        requestFullScreen()
+      }
+    }
+
+    window.addEventListener('click', handleFirstInteraction, { once: true })
+    window.addEventListener('keydown', handleFirstInteraction, { once: true })
+
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction)
+      window.removeEventListener('keydown', handleFirstInteraction)
+    }
+  }, [])
 
   // 1. Verify Member Auth
   useEffect(() => {
@@ -94,9 +184,31 @@ export default function ERTvModeClient() {
   const activePatients = data?.activePatients || []
 
   return (
-    <div className="erTvPage">
+    <div className="erTvPage" ref={containerRef}>
       <div className="erTvContainer">
         
+        {/* TV Header Bar */}
+        <header className="erTvHeader">
+          <div className="erTvHeaderLeft">
+            <h1 className="erTvHospitalTitle">โรงพยาบาลเถิน • จอแสดงสถานะห้องฉุกเฉิน (ER LIVE STATUS)</h1>
+            <span className="erLiveBadge">● LIVE</span>
+          </div>
+          <div className="erTvHeaderRight">
+            <span className="erTvClock">🕒 {currentTime}</span>
+            <button 
+              type="button" 
+              onClick={toggleFullScreen}
+              className="erFullscreenBtn"
+              title={isFullscreen ? 'ออกจาก Fullscreen' : 'เข้าสู่ Fullscreen (เต็มจอ)'}
+            >
+              {isFullscreen ? '⤢ ออกเต็มจอ' : '⛶ เต็มจอ'}
+            </button>
+            <Link href="/service/er-in-status" className="erExitBtn" title="กลับหน้าระบบปกติ">
+              ✕ ปิดโหมดทีวี
+            </Link>
+          </div>
+        </header>
+
         {/* Critical Alert Warning Alert */}
         {hasCritical && (
           <section className="erAlertBanner">
@@ -137,12 +249,15 @@ export default function ERTvModeClient() {
 
         {/* Active Patients Live Queue */}
         <section className="patientsListCard card">
-          <h2 className="patientsListTitle">
-            รายชื่อผู้ป่วยที่กำลังตรวจรักษาในห้องฉุกเฉิน ({activePatients.length} ราย)
-          </h2>
+          <div className="patientsListHeader">
+            <h2 className="patientsListTitle">
+              รายชื่อผู้ป่วยที่กำลังตรวจรักษาในห้องฉุกเฉิน ({activePatients.length} ราย)
+            </h2>
+            <span className="erUpdateNotice">รีเฟรชข้อมูลอัตโนมัติทุก 15 วินาที</span>
+          </div>
           
           {activePatients.length === 0 ? (
-            <p className="emptyPatientsMessage">ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</p>
+            <div className="emptyPatientsMessage">ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</div>
           ) : (
             <div className="patientsTableWrapper">
               <table className="patientsTable">
@@ -151,7 +266,7 @@ export default function ERTvModeClient() {
                     <th>เวลาที่เข้า</th>
                     <th>HN</th>
                     <th>ชื่อผู้ป่วย</th>
-                    <th>อายุ (ปี)</th>
+                    <th>อายุ</th>
                     <th>เตียงสังเกตอาการ</th>
                     <th>ระดับความเร่งด่วน</th>
                     <th>เตียงสังเกต (Observe)</th>
@@ -172,7 +287,7 @@ export default function ERTvModeClient() {
                         <td style={{ fontWeight: 'bold' }}>{patient.enter_time ? patient.enter_time.substring(0, 5) : '-'}</td>
                         <td>{patient.hn}</td>
                         <td style={{ fontWeight: 600 }}>{patient.ptname}</td>
-                        <td>{patient.age}</td>
+                        <td>{patient.age} ปี</td>
                         <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
                           {patient.bedno ? `เตียง ${patient.bedno}` : '-'}
                         </td>
@@ -198,3 +313,4 @@ export default function ERTvModeClient() {
     </div>
   )
 }
+
