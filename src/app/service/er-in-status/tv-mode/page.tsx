@@ -7,16 +7,6 @@ export const metadata = {
   description: 'จอแสดงผลสถานะห้องฉุกเฉินสำหรับตั้งบอร์ดทีวี โรงพยาบาลเถิน',
 }
 
-export default async function ERTvModePage() {
-  const session = await verifyMemberSession()
-
-  if (!session) {
-    redirect('/member/login')
-  }
-
-  if (session.role === 'subdistrict') {
-    redirect('/service')
-  }
-
+export default function ERTvModePage() {
   return <ERTvModeClient />
 }

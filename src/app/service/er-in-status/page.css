@@ -173,13 +173,13 @@
 }
 
 /* Patient table column widths optimization */
-.patientsTable th:nth-child(1), .patientsTable td:nth-child(1) { width: 90px; text-align: center; } /* เวลาที่เข้า */
-.patientsTable th:nth-child(2), .patientsTable td:nth-child(2) { width: 100px; text-align: center; } /* HN */
-.patientsTable th:nth-child(3), .patientsTable td:nth-child(3) { width: 220px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* ชื่อผู้ป่วย */
-.patientsTable th:nth-child(4), .patientsTable td:nth-child(4) { width: 80px; text-align: center; } /* อายุ */
-.patientsTable th:nth-child(5), .patientsTable td:nth-child(5) { width: 140px; text-align: center; } /* เตียงสังเกตอาการ */
-.patientsTable th:nth-child(6), .patientsTable td:nth-child(6) { width: 220px; text-align: center; } /* ระดับความเร่งด่วน */
-.patientsTable th:nth-child(7), .patientsTable td:nth-child(7) { width: 160px; text-align: center; } /* เตียงสังเกต (Observe) */
+.erStatusPage .patientsTable th:nth-child(1), .erStatusPage .patientsTable td:nth-child(1) { width: 90px; text-align: center; } /* เวลาที่เข้า */
+.erStatusPage .patientsTable th:nth-child(2), .erStatusPage .patientsTable td:nth-child(2) { width: 100px; text-align: center; } /* HN */
+.erStatusPage .patientsTable th:nth-child(3), .erStatusPage .patientsTable td:nth-child(3) { width: 220px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* ชื่อผู้ป่วย */
+.erStatusPage .patientsTable th:nth-child(4), .erStatusPage .patientsTable td:nth-child(4) { width: 80px; text-align: center; } /* อายุ */
+.erStatusPage .patientsTable th:nth-child(5), .erStatusPage .patientsTable td:nth-child(5) { width: 140px; text-align: center; } /* เตียงสังเกตอาการ */
+.erStatusPage .patientsTable th:nth-child(6), .erStatusPage .patientsTable td:nth-child(6) { width: 220px; text-align: center; } /* ระดับความเร่งด่วน */
+.erStatusPage .patientsTable th:nth-child(7), .erStatusPage .patientsTable td:nth-child(7) { width: 160px; text-align: center; } /* เตียงสังเกต (Observe) */
 
 /* Severity background styling */
 .patientsTable tr.level-1 { background-color: #ffebee; } /* Resuscitate */

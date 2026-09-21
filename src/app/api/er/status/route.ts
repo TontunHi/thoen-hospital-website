@@ -1,12 +1,15 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { queryErDb } from '@/lib/erDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
 import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url)
+    const isTvMode = searchParams.get('mode') === 'tv'
+
     // Check if user is an authenticated clinical staff / member
     const memberSession = await verifyMemberSession()
     const isStaff = memberSession && ['doctor', 'nurse', 'admin', 'member'].includes(memberSession.role)
@@ -117,7 +120,7 @@ export async function GET() {
     }, 8000)
 
     return NextResponse.json({
-      activePatients: isStaff ? erData.activePatients : [],
+      activePatients: (isStaff || isTvMode) ? erData.activePatients : [],
       summary: erData.summary,
       stats: erData.stats,
     })
