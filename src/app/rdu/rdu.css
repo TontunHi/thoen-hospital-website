@@ -1,0 +1,316 @@
+.rduPublicPage {
+  padding-top: calc(var(--navbar-height, 80px) + 2rem);
+  padding-bottom: 6rem;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+  min-height: 100vh;
+  font-family: var(--font-ibm-thai), sans-serif;
+}
+
+.rdu-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ── Header Section matching /ita ── */
+.rdu-header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.rdu-header__title {
+  font-size: clamp(2.25rem, 5vw, 3rem);
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 1rem;
+  letter-spacing: -0.75px;
+}
+
+.rdu-subtitle {
+  color: #475569;
+  font-size: 1.15rem;
+  max-width: 700px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* Tabs */
+.rduTabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.rduTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.rduTabBtn:hover {
+  border-color: #0d9488;
+  color: #0d9488;
+}
+
+.rduTabBtn.active {
+  background: #0d9488;
+  color: #ffffff;
+  border-color: #0d9488;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+}
+
+.tabBadge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 700;
+}
+
+.rduTabBtn.active .tabBadge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Grid Layout */
+.rduGrid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+@media (max-width: 992px) {
+  .rduGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left Panel */
+.rduFileListPanel {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.panelHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.rduFilesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rduFileCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #f1f5f9;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rduFileCard:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.rduFileCard.active {
+  border-color: #0d9488;
+  background: #f0fdfa;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.1);
+}
+
+.rduFileCardIcon {
+  color: #e11d48;
+  flex-shrink: 0;
+}
+
+.rduFileCardDetails {
+  flex: 1;
+  min-width: 0;
+}
+
+.fileTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rduFileCard.active .fileTitle {
+  color: #0f766e;
+}
+
+.fileMetaText {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.chevron {
+  color: #94a3b8;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+
+.rduFileCard.active .chevron {
+  color: #0d9488;
+  transform: translateX(3px);
+}
+
+.emptyFilesAlert {
+  padding: 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* Right Panel: Viewer */
+.rduViewerPanel {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.viewerWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+}
+
+.viewerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.viewerTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.viewerTitle h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.viewerSubtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.viewerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btnViewAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btnViewAction:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.btnViewAction.btnDownload {
+  background: #0d9488;
+  color: #ffffff;
+  border-color: #0d9488;
+}
+
+.btnViewAction.btnDownload:hover {
+  background: #0f766e;
+}
+
+.viewerFrameContainer {
+  flex: 1;
+  min-height: 650px;
+  background: #f1f5f9;
+}
+
+.pdfViewerFrame {
+  width: 100%;
+  height: 100%;
+  min-height: 650px;
+  border: none;
+}
+
+.noFileSelected,
+.rduEmpty,
+.rduPageLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #64748b;
+  text-align: center;
+}
+
+.rduPageLoading {
+  min-height: 50vh;
+  gap: 16px;
+  color: #0d9488;
+  font-weight: 600;
+}

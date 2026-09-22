@@ -263,11 +263,12 @@
 }
 
 /* Column Widths & Alignments strictly enforced */
-.erTvPage .patientsTable th.col-time, .erTvPage .patientsTable td.col-time { width: 12% !important; text-align: center !important; }
-.erTvPage .patientsTable th.col-hn, .erTvPage .patientsTable td.col-hn { width: 14% !important; text-align: center !important; }
-.erTvPage .patientsTable th.col-name, .erTvPage .patientsTable td.col-name { width: 34% !important; text-align: left !important; }
-.erTvPage .patientsTable th.col-level, .erTvPage .patientsTable td.col-level { width: 22% !important; text-align: center !important; }
-.erTvPage .patientsTable th.col-bed, .erTvPage .patientsTable td.col-bed { width: 18% !important; text-align: center !important; }
+.erTvPage .patientsTable th.col-time, .erTvPage .patientsTable td.col-time { width: 10% !important; text-align: center !important; }
+.erTvPage .patientsTable th.col-name, .erTvPage .patientsTable td.col-name { width: 28% !important; text-align: left !important; }
+.erTvPage .patientsTable th.col-age, .erTvPage .patientsTable td.col-age { width: 10% !important; text-align: center !important; }
+.erTvPage .patientsTable th.col-level, .erTvPage .patientsTable td.col-level { width: 20% !important; text-align: center !important; }
+.erTvPage .patientsTable th.col-status, .erTvPage .patientsTable td.col-status { width: 18% !important; text-align: center !important; }
+.erTvPage .patientsTable th.col-bed, .erTvPage .patientsTable td.col-bed { width: 14% !important; text-align: center !important; }
 
 /* Table Body Cells - High Visibility for TV */
 .erTvPage .patientsTable td {
@@ -281,6 +282,30 @@
   font-weight: 800;
   color: #475569;
   font-variant-numeric: tabular-nums;
+}
+
+.cell-age {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #334155;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cell-status {
+  text-align: center;
+}
+
+.cell-status .statusText {
+  display: inline-block;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1e293b;
+  background: transparent;
+  border: none;
+  padding: 0;
+  white-space: nowrap;
 }
 
 .cell-hn {

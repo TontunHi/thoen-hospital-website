@@ -101,8 +101,32 @@ export async function GET(req: NextRequest) {
       `
       const dischargeTypes = await queryErDb(dischargeTypesQuery)
 
+      // 6. Fetch error status patients (past 7 months to yesterday with er_dch_type IN ('5','6','7','8','9'))
+      const errorStatusQuery = `
+        SELECT 
+          d.\`name\` as nname,
+          er.vstdate,
+          pt.hn,
+          er.vn,
+          edt.name as status_name
+        FROM er_regist er 
+        left outer join vn_stat vn on er.vn=vn.vn 
+        left outer join patient pt on vn.hn=pt.hn 
+        left outer join er_dch_type edt on er.er_dch_type=edt.er_dch_type 
+        left outer join doctor d on er.er_doctor=d.\`code\` 
+        WHERE (er.vstdate between DATE_ADD(DATE_ADD(LAST_DAY(now()),INTERVAL 1 day),INTERVAL - 7 MONTH) 
+               and DATE_ADD(DATE_ADD(CURDATE(),INTERVAL -1 day),INTERVAL 0 MONTH) ) 
+          and (er.er_dch_type in ('5','6','7','8','9')) 
+        ORDER BY er.vstdate DESC
+      `
+      const errorStatusRows = await queryErDb(errorStatusQuery)
+
       return {
         activePatients,
+        errorStatusList: {
+          total: errorStatusRows.length,
+          list: errorStatusRows,
+        },
         summary: {
           totalActive: activePatients.length,
           critical: criticalCount,
@@ -121,6 +145,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       activePatients: (isStaff || isTvMode) ? erData.activePatients : [],
+      errorStatusList: (isStaff || isTvMode) ? erData.errorStatusList : { total: erData.errorStatusList?.total || 0, list: [] },
       summary: erData.summary,
       stats: erData.stats,
     })

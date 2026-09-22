@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { toPng } from 'html-to-image'
 import './page.css'
 
@@ -227,6 +228,12 @@ export default function SalaryDashboardPage() {
         
         {/* User Info Header Panel */}
         <header className="salaryHeader card">
+          <div className="salaryHeaderTop">
+            <Link href="/member" className="salaryBackBtn">
+              <span className="backArrow">←</span>
+              <span>กลับสู่หน้าระบบสมาชิก</span>
+            </Link>
+          </div>
           <div className="salaryUserPanel">
             <div className="salaryUserInfo">
               <h2>ยินดีต้อนรับเข้าสู่ระบบข้อมูลเงินเดือน</h2>
@@ -239,7 +246,6 @@ export default function SalaryDashboardPage() {
               </p>
             </div>
           </div>
-          {/* Removed LogoutButton as per user request */}
         </header>
 
         {/* Salary Import Calendar Section */}

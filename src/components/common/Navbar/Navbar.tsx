@@ -11,6 +11,8 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [member, setMember] = useState<{ username: string; email?: string; role?: string; name?: string | null } | null>(null);
+  const [rduFolders, setRduFolders] = useState<{ id: number; folder_name: string; files: { id: number; display_name: string; file_name: string; file_path: string }[] }[]>([]);
+  const [expandedFolderId, setExpandedFolderId] = useState<number | null>(null);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
@@ -42,6 +44,24 @@ export default function Navbar() {
   useEffect(() => {
     setIsOpen(false);
   }, [pathname]);
+
+  // Fetch RDU dynamic menu items
+  useEffect(() => {
+    async function fetchRdu() {
+      try {
+        const res = await fetch('/api/rdu');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.folders)) {
+            setRduFolders(data.folders);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch RDU menu data:', err);
+      }
+    }
+    fetchRdu();
+  }, []);
 
   // Check if member is logged in
   useEffect(() => {
@@ -135,6 +155,12 @@ export default function Navbar() {
     },
     { href: '/ita', label: 'ITA' },
     {
+      label: 'RDU',
+      href: '/rdu',
+      isRdu: true,
+      folders: rduFolders
+    },
+    {
       label: 'เกี่ยวกับเรา',
       submenu: [
         { href: '/about', label: 'ผู้บริหารโรงพยาบาล' },
@@ -178,6 +204,75 @@ export default function Navbar() {
 
         <ul className={`navbar__links ${isOpen ? 'navbar__links--open' : ''}`}>
           {navLinks.map((link) => {
+            if ((link as any).isRdu) {
+              const isRduActive = pathname === '/rdu';
+              const folders = (link as any).folders || [];
+              return (
+                <li key={link.label} className="navbar__dropdown navbar__dropdown--rdu">
+                  <Link
+                    href="/rdu"
+                    className={`navbar__link navbar__dropdown-toggle ${isRduActive ? 'navbar__link--active' : ''}`}
+                  >
+                    {link.label} <span className="dropdown-arrow">▼</span>
+                  </Link>
+
+                  <ul className="navbar__submenu navbar__submenu--rdu">
+                    <li key="rdu-main">
+                      <Link
+                        href="/rdu"
+                        className={`navbar__submenu-link ${isRduActive ? 'navbar__submenu-link--active' : ''}`}
+                      >
+                        หน้าหลักเอกสาร RDU ทั้งหมด
+                      </Link>
+                    </li>
+                    {folders.length > 0 && <li className="navbar__submenu-divider" />}
+                    {folders.map((folder: any) => {
+                      const hasFiles = folder.files && folder.files.length > 0;
+                      const isExpanded = expandedFolderId === folder.id;
+                      return (
+                        <li
+                          key={`folder-${folder.id}`}
+                          className={`navbar__nested-item ${hasFiles ? 'has-sub' : ''} ${isExpanded ? 'is-expanded' : ''}`}
+                        >
+                          <div
+                            className="navbar__nested-trigger"
+                            onClick={(e) => {
+                              // For mobile / click toggle
+                              if (hasFiles) {
+                                e.preventDefault();
+                                setExpandedFolderId(isExpanded ? null : folder.id);
+                              }
+                            }}
+                          >
+                            <span className="navbar__nested-title">{folder.folder_name}</span>
+                            {hasFiles && <span className="nested-arrow">›</span>}
+                          </div>
+
+                          {hasFiles && (
+                            <ul className={`navbar__nested-menu ${isExpanded ? 'navbar__nested-menu--open' : ''}`}>
+                              {folder.files.map((file: any) => (
+                                <li key={`file-${file.id}`}>
+                                  <a
+                                    href={file.file_path}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="navbar__nested-file-link"
+                                    title={`เปิดอ่าน ${file.display_name}`}
+                                  >
+                                    <span>{file.display_name}</span>
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              );
+            }
+
             if (link.submenu) {
               const isSubActive = link.submenu.some((sub) => isActiveLink(sub.href));
               const hasHeaderLink = !!link.href;

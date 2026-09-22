@@ -22,8 +22,20 @@ interface Patient {
   hosname_dest: string | null
 }
 
+interface ErrorPatient {
+  vstdate: string
+  hn: string
+  vn: string
+  status_name: string | null
+  nname: string | null
+}
+
 interface ERData {
   activePatients: Patient[]
+  errorStatusList?: {
+    total: number
+    list: ErrorPatient[]
+  }
   summary: {
     totalActive: number
     critical: number
@@ -230,6 +242,64 @@ export default function ERInStatusClient() {
             </div>
           )}
         </section>
+
+        {/* Error Status Warning & Table Section */}
+        {data?.errorStatusList && (
+          <section className="errorStatusCard card">
+            <div className="errorStatusBanner">
+              <span className="errorStatusIcon">⚠️</span>
+              <span className="errorStatusTitle">
+                แสดงสถานะไม่ถูกต้อง จำนวน {data.errorStatusList.total} ราย
+              </span>
+            </div>
+
+            {data.errorStatusList.total > 0 && (
+              <div className="patientsTableWrapper errorTableWrapper">
+                <table className="patientsTable errorStatusTable">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '22%' }}>วันที่มารับบริการ</th>
+                      <th style={{ width: '18%', textAlign: 'center' }}>HN</th>
+                      <th style={{ width: '25%' }}>สถานะ</th>
+                      <th style={{ width: '35%' }}>พยาบาลเวร / เจ้าหน้าที่เวร</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.errorStatusList.list.map((item, idx) => {
+                      const vstDateObj = item.vstdate ? new Date(item.vstdate) : null
+                      const formattedDate = vstDateObj
+                        ? vstDateObj.toLocaleDateString('th-TH', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : '-'
+
+                      return (
+                        <tr key={item.vn || idx} className="errorRow">
+                          <td data-label="วันที่มารับบริการ" style={{ fontWeight: 600 }}>
+                            {formattedDate}
+                          </td>
+                          <td data-label="HN" style={{ textAlign: 'center', fontWeight: 700 }}>
+                            {item.hn}
+                          </td>
+                          <td data-label="สถานะ">
+                            <span className="errorStatusBadge">
+                              {item.status_name || '-'}
+                            </span>
+                          </td>
+                          <td data-label="พยาบาลเวร / เจ้าหน้าที่เวร" style={{ color: 'var(--gray-700)' }}>
+                            {item.nname || '-'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Monthly statistics */}
         <section className="erMonthlyStatsGrid">

@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper, Building2 } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper, Building2, Pill } from 'lucide-react'
 import './page.css'
 
 async function getMemberDashboardData() {
@@ -102,6 +102,15 @@ async function getMemberDashboardData() {
     isAllSalaryAuthorized = (salaryAllPerms[0]?.count || 0) > 0
   }
 
+  let isRduAuthorized = member.role === 'admin'
+  if (!isRduAuthorized && userPosition) {
+    const rduPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'manage_rdu' AND TRIM(position_name) = TRIM(?)",
+      [userPosition]
+    )
+    isRduAuthorized = (rduPerms[0]?.count || 0) > 0
+  }
+
   return {
     member,
     pendingCount,
@@ -112,6 +121,7 @@ async function getMemberDashboardData() {
     isItaAuthorized,
     isNewsAuthorized,
     isAllSalaryAuthorized,
+    isRduAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -326,6 +336,7 @@ export default async function MemberDashboardPage() {
     isItaAuthorized,
     isNewsAuthorized,
     isAllSalaryAuthorized,
+    isRduAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -507,6 +518,49 @@ export default async function MemberDashboardPage() {
                     <ChevronRight size={16} className="chevronIcon" />
                   </div>
                 </Link>
+              )}
+
+              {/* Card 10: RDU Document Management */}
+              {isRduAuthorized && (
+                hasAccess('feature_rdu') ? (
+                  <Link href="/member/rdu" className="serviceCard">
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdfa', color: '#0d9488', borderColor: '#ccfbf1', borderWidth: '1px', borderStyle: 'solid' }}>
+                        <Pill size={24} />
+                      </div>
+                      <div className="statusIndicator success" style={{ backgroundColor: '#ccfbf1', color: '#0f766e', borderColor: '#99f6e4' }}>
+                        <span>เปิดใช้งาน</span>
+                      </div>
+                    </div>
+                    <div className="serviceCardBody">
+                      <h4>ระบบจัดการเอกสาร RDU</h4>
+                      <p>จัดการโฟลเดอร์ปี อัปโหลดและแก้ไขชื่อไฟล์ PDF การใช้ยาอย่างสมเหตุผล พร้อมเผยแพร่บน Navbar</p>
+                    </div>
+                    <div className="serviceCardFooter" style={{ color: '#0d9488' }}>
+                      <span className="actionText">เข้าสู่ระบบจัดการ RDU</span>
+                      <ChevronRight size={16} className="chevronIcon" />
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="serviceCard serviceCardDisabled">
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#f0fdfa', color: '#0d9488', borderColor: '#ccfbf1', borderWidth: '1px', borderStyle: 'solid' }}>
+                        <Lock size={24} />
+                      </div>
+                      <div className="statusIndicator error">
+                        <span>ปิดบริการชั่วคราว</span>
+                      </div>
+                    </div>
+                    <div className="serviceCardBody">
+                      <h4>ระบบจัดการเอกสาร RDU</h4>
+                      <p>จัดการโฟลเดอร์ปี อัปโหลดและแก้ไขชื่อไฟล์ PDF การใช้ยาอย่างสมเหตุผล พร้อมเผยแพร่บน Navbar</p>
+                    </div>
+                    <div className="serviceCardFooter">
+                      <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+                      <ChevronRight size={16} className="chevronIcon" />
+                    </div>
+                  </div>
+                )
               )}
             </div>
           </>

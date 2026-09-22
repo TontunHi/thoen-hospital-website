@@ -25,7 +25,8 @@ import {
   RefreshCw,
   UserCheck,
   Sliders,
-  Users
+  Users,
+  Pill
 } from 'lucide-react'
 
 interface SettingsClientProps {
@@ -45,6 +46,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [featurePrRequests, setFeaturePrRequests] = useState(initialSettings['feature_pr_requests'] !== '0')
   const [featureApprovals, setFeatureApprovals] = useState(initialSettings['feature_approvals'] !== '0')
   const [featureIta, setFeatureIta] = useState(initialSettings['feature_ita'] !== '0')
+  const [featureRdu, setFeatureRdu] = useState(initialSettings['feature_rdu'] !== '0')
   const [isSavingSettings, setIsSavingSettings] = useState(false)
 
   // Active View Tab
@@ -101,7 +103,8 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         feature_salary: featureSalary ? '1' : '0',
         feature_pr_requests: featurePrRequests ? '1' : '0',
         feature_approvals: featureApprovals ? '1' : '0',
-        feature_ita: featureIta ? '1' : '0'
+        feature_ita: featureIta ? '1' : '0',
+        feature_rdu: featureRdu ? '1' : '0'
       }
       const res = await fetch('/api/member/settings', {
         method: 'POST',
@@ -205,6 +208,13 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       icon: Newspaper,
       color: '#e11d48',
       bg: '#ffe4e6'
+    },
+    manage_rdu: {
+      label: 'จัดการข้อมูลและเอกสาร RDU (manage_rdu)',
+      desc: 'ผู้รับผิดชอบงานใช้ยาอย่างสมเหตุผล (RDU) จัดการโฟลเดอร์ปีและอัปโหลดไฟล์ PDF',
+      icon: Pill,
+      color: '#0d9488',
+      bg: '#ccfbf1'
     }
   }
 
@@ -402,6 +412,32 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                   <span className="slider"></span>
                 </label>
               </div>
+
+              {/* Feature: RDU Management */}
+              <div className={`featureCard ${featureRdu ? 'isActive' : 'isInactive'}`}>
+                <div className="featureCardLeft">
+                  <div className="featureIconWrapper" style={{ background: '#ccfbf1', color: '#0d9488' }}>
+                    <Pill size={22} />
+                  </div>
+                  <div className="featureMeta">
+                    <div className="featureTitleRow">
+                      <span className="featureTitle">ระบบจัดการเอกสาร RDU (การใช้ยาอย่างสมเหตุผล)</span>
+                      <span className={`statusPill ${featureRdu ? 'pillActive' : 'pillInactive'}`}>
+                        {featureRdu ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
+                      </span>
+                    </div>
+                    <p className="featureDesc">อนุญาตให้เข้าใช้งานระบบจัดทำโฟลเดอร์ปีและอัปโหลดเอกสาร RDU เพื่อเผยแพร่</p>
+                  </div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={featureRdu}
+                    onChange={(e) => setFeatureRdu(e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
             </div>
 
             <div className="formActions">
@@ -463,6 +499,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                   <option value="view_all_salary">ดูสลิปเงินเดือนบุคลากรทุกคน (view_all_salary)</option>
                   <option value="manage_ita">จัดการข้อมูลและบทความ ITA (manage_ita)</option>
                   <option value="manage_news">จัดการและลงข่าวประชาสัมพันธ์ (manage_news)</option>
+                  <option value="manage_rdu">จัดการข้อมูลและเอกสาร RDU (manage_rdu)</option>
                 </select>
               </div>
 

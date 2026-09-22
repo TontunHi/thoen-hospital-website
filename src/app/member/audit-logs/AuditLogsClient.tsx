@@ -271,12 +271,16 @@ export default function AuditLogsClient() {
       : <Laptop size={13} className="deviceIcon" />
 
     const deviceName = parsed.deviceModel || parsed.os
+    const tooltipText = `${parsed.os} • ${parsed.browser} (${uaString || 'ไม่ระบุ User-Agent'})`
+
     return (
-      <div className={`deviceBadge deviceBadge-${parsed.deviceType}`} title={uaString || 'ไม่ระบุ'}>
+      <div className={`deviceBadge deviceBadge-${parsed.deviceType}`} title={tooltipText}>
         {icon}
-        <span className="deviceName">{deviceName}</span>
-        <span className="deviceSeparator">•</span>
-        <span className="browserName">{parsed.browser}</span>
+        <span className="deviceTextTruncate">
+          <span className="deviceName">{deviceName}</span>
+          <span className="deviceSeparator">•</span>
+          <span className="browserName">{parsed.browser}</span>
+        </span>
       </div>
     )
   }

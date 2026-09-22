@@ -450,26 +450,39 @@
 }
 
 .deviceCell {
-  max-width: 220px;
+  max-width: 170px;
+  width: 170px;
+  overflow: hidden;
 }
 
 .deviceBadge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 4px 10px;
-  font-size: 0.82rem;
+  padding: 3px 8px;
+  font-size: 0.8rem;
   color: #334155;
   white-space: nowrap;
   max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .deviceBadge .deviceIcon {
   flex-shrink: 0;
   color: #64748b;
+}
+
+.deviceTextTruncate {
+  display: inline-block;
+  max-width: calc(100% - 18px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .deviceBadge .deviceName {
@@ -480,6 +493,7 @@
 .deviceBadge .deviceSeparator {
   color: #94a3b8;
   font-size: 0.75rem;
+  margin: 0 3px;
 }
 
 .deviceBadge .browserName {

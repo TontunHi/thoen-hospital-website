@@ -15,6 +15,7 @@ interface Patient {
   er_emergency_level_name: string
   er_emergency_level_id: number | string
   observe: string | null
+  dch_type_name?: string
 }
 
 interface ERData {
@@ -306,9 +307,10 @@ export default function ERTvModeClient() {
                 <thead>
                   <tr>
                     <th className="col-time">เวลาเข้า</th>
-                    <th className="col-hn">HN</th>
                     <th className="col-name">ชื่อผู้ป่วย</th>
+                    <th className="col-age">อายุ</th>
                     <th className="col-level">ระดับความเร่งด่วน</th>
+                    <th className="col-status">สถานะการรักษา</th>
                     <th className="col-bed">เตียง / Observe</th>
                   </tr>
                 </thead>
@@ -331,15 +333,20 @@ export default function ERTvModeClient() {
                         <td className="col-time cell-time">
                           {patient.enter_time ? patient.enter_time.substring(0, 5) : '-'}
                         </td>
-                        <td className="col-hn cell-hn">
-                          {patient.hn}
-                        </td>
                         <td className="col-name cell-name">
                           {shortName}
+                        </td>
+                        <td className="col-age cell-age">
+                          {patient.age !== undefined && patient.age !== null ? `${patient.age} ปี` : '-'}
                         </td>
                         <td className="col-level cell-level">
                           <span className={`severityPill pill-${levelId}`}>
                             {displayLevel}
+                          </span>
+                        </td>
+                        <td className="col-status cell-status">
+                          <span className="statusText">
+                            {patient.dch_type_name || 'กำลังตรวจรักษา'}
                           </span>
                         </td>
                         <td className="col-bed cell-bed">

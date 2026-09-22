@@ -181,45 +181,6 @@ export default async function HomePage() {
         <HeroSlideshow slides={activeSlides} />
       </section>
 
-      {/* ===== SERVICES SECTION ===== */}
-      <section className="section services-section">
-        <div className="container">
-          <div className="section-header">
-            <h2>บริการของเรา</h2>
-            <p>เรามุ่งเน้นให้บริการสุขภาพที่ครอบคลุมทุกด้าน เพื่อคุณภาพชีวิตที่ดีของชุมชน</p>
-          </div>
-          <div className="services-grid">
-            {services.map((service, i) => {
-              const IconComponent = service.icon;
-              const CardContent = (
-                <>
-                  <div className="service-card__accent" />
-                  <div className="service-card__icon-container">
-                    <IconComponent className="service-card__icon" size={28} />
-                  </div>
-                  <h3 className="service-card__title">{service.title}</h3>
-                  <p className="service-card__desc">{service.desc}</p>
-                </>
-              )
-
-              if (service.link) {
-                return (
-                  <Link href={service.link} key={i} className="service-card card-glass" style={{ textDecoration: 'none', display: 'flex', cursor: 'pointer' }}>
-                    {CardContent}
-                  </Link>
-                );
-              }
-
-              return (
-                <div key={i} className="service-card card-glass">
-                  {CardContent}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* ===== DIRECTOR MESSAGE SECTION ===== */}
       <section className="section director-section bg-gray-50">
         <div className="container">
@@ -322,8 +283,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-
-
       {/* ===== SOCIAL & MAPS SECTION ===== */}
       <section className="section social-map-section bg-gray-50">
         <div className="container">
@@ -368,6 +327,45 @@ export default async function HomePage() {
               />
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== SERVICES SECTION ===== */}
+      <section className="section services-section">
+        <div className="container">
+          <div className="section-header">
+            <h2>บริการของเรา</h2>
+            <p>เรามุ่งเน้นให้บริการสุขภาพที่ครอบคลุมทุกด้าน เพื่อคุณภาพชีวิตที่ดีของชุมชน</p>
+          </div>
+          <div className="services-grid">
+            {services.map((service, i) => {
+              const IconComponent = service.icon;
+              const CardContent = (
+                <>
+                  <div className="service-card__accent" />
+                  <div className="service-card__icon-container">
+                    <IconComponent className="service-card__icon" size={28} />
+                  </div>
+                  <h3 className="service-card__title">{service.title}</h3>
+                  <p className="service-card__desc">{service.desc}</p>
+                </>
+              )
+
+              if (service.link) {
+                return (
+                  <Link href={service.link} key={i} className="service-card card-glass" style={{ textDecoration: 'none', display: 'flex', cursor: 'pointer' }}>
+                    {CardContent}
+                  </Link>
+                );
+              }
+
+              return (
+                <div key={i} className="service-card card-glass">
+                  {CardContent}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

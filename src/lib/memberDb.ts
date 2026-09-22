@@ -250,11 +250,47 @@ async function initializeDb(poolInstance: mysql.Pool) {
       }
     }
 
-    // Ensure default permission for view_all_salary exists
+    // Initialize RDU Folders Table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS rdu_folders (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        folder_name VARCHAR(255) NOT NULL UNIQUE,
+        display_order INT NOT NULL DEFAULT 0,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    // Initialize RDU Files Table
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS rdu_files (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        folder_id INT NOT NULL,
+        display_name VARCHAR(255) NOT NULL,
+        file_name VARCHAR(255) NOT NULL,
+        file_path VARCHAR(500) NOT NULL,
+        file_size BIGINT NULL,
+        display_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (folder_id) REFERENCES rdu_folders(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    // Ensure default permission for view_all_salary and manage_rdu exists
     try {
       await connection.execute(
         'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
         ['view_all_salary', 'เจ้าพนักงานธุรการ']
+      )
+      await connection.execute(
+        'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
+        ['manage_rdu', 'เภสัชกรชำนาญการ']
+      )
+      await connection.execute(
+        'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
+        ['manage_rdu', 'เภสัชกร']
       )
     } catch (e) {}
   } finally {
