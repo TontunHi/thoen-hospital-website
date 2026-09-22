@@ -53,7 +53,12 @@ export async function GET() {
           if (!filesByFolder[file.folder_id]) {
             filesByFolder[file.folder_id] = []
           }
-          filesByFolder[file.folder_id].push(file)
+          // Always route through API streamer /api/rdu/file/[id] to bypass Next.js static production cache & IIS double escape 404
+          const streamUrl = `/api/rdu/file/${file.id}`
+          filesByFolder[file.folder_id].push({
+            ...file,
+            file_path: streamUrl,
+          })
         })
 
         return folders.map((folder) => ({

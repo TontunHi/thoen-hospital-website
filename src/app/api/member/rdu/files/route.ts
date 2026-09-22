@@ -70,27 +70,28 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(arrayBuffer)
     await fs.writeFile(targetFilePath, buffer)
 
-    // Relative web path for browser access
-    const webFilePath = `/documents/rdu/${encodeURIComponent(sanitizedFolderName)}/${encodeURIComponent(safeDiskFileName)}`
-
-    // Determine display_order
+    // Relative web path for browser access (via dynamic API streamer to bypass Next.js production static file cache)
+    // First insert to get ID
     const maxOrderRes = await queryMemberDb('SELECT MAX(display_order) as maxOrder FROM rdu_files WHERE folder_id = ?', [
       folderId
     ])
     const nextOrder = (maxOrderRes[0]?.maxOrder ?? -1) + 1
 
-    // Insert into rdu_files
     const insertRes = await queryMemberDb(
       `INSERT INTO rdu_files (folder_id, display_name, file_name, file_path, file_size, display_order) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [folderId, displayName, safeDiskFileName, webFilePath, buffer.length, nextOrder]
+      [folderId, displayName, safeDiskFileName, '', buffer.length, nextOrder]
     )
+    const newFileId = (insertRes as any).insertId
+    const webFilePath = `/api/rdu/file/${newFileId}`
+
+    await queryMemberDb('UPDATE rdu_files SET file_path = ? WHERE id = ?', [webFilePath, newFileId])
 
     return NextResponse.json({
       success: true,
       message: 'อัปโหลดไฟล์ PDF เรียบร้อยแล้ว',
       file: {
-        id: (insertRes as any).insertId,
+        id: newFileId,
         folder_id: Number(folderId),
         display_name: displayName,
         file_name: safeDiskFileName,
