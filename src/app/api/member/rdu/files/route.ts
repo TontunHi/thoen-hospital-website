@@ -61,8 +61,20 @@ export async function POST(request: Request) {
     const folderDirPath = path.join(process.cwd(), 'public', 'documents', 'rdu', sanitizedFolderName)
     await fs.mkdir(folderDirPath, { recursive: true })
 
-    // Safe disk filename
-    const safeDiskFileName = `${Date.now()}_${originalFileName.replace(/[^a-zA-Z0-9ก-๙._\-]/g, '_')}`
+    // Clean, readable disk filename (e.g. Antibiogram_2568_All.pdf or Antibiogram_2568_All_2.pdf if duplicate)
+    const rawCleanBase = path.basename(originalFileName, ext).replace(/[\\/:*?"<>|\s]+/g, '_')
+    let candidateFileName = `${rawCleanBase}${ext}`
+    let counter = 1
+    while (true) {
+      try {
+        await fs.access(path.join(folderDirPath, candidateFileName))
+        candidateFileName = `${rawCleanBase}_${counter}${ext}`
+        counter++
+      } catch {
+        break
+      }
+    }
+    const safeDiskFileName = candidateFileName
     const targetFilePath = path.join(folderDirPath, safeDiskFileName)
 
     // Write file buffer
@@ -83,9 +95,10 @@ export async function POST(request: Request) {
       [folderId, displayName, safeDiskFileName, '', buffer.length, nextOrder]
     )
     const newFileId = (insertRes as any).insertId
-    const webFilePath = `/api/rdu/file/${newFileId}`
 
-    await queryMemberDb('UPDATE rdu_files SET file_path = ? WHERE id = ?', [webFilePath, newFileId])
+    // Readable path for database reference: /documents/rdu/folderName/fileName.pdf
+    const readableFilePath = `/documents/rdu/${sanitizedFolderName}/${safeDiskFileName}`
+    await queryMemberDb('UPDATE rdu_files SET file_path = ? WHERE id = ?', [readableFilePath, newFileId])
 
     return NextResponse.json({
       success: true,
@@ -95,7 +108,7 @@ export async function POST(request: Request) {
         folder_id: Number(folderId),
         display_name: displayName,
         file_name: safeDiskFileName,
-        file_path: webFilePath,
+        file_path: `/api/rdu/file/${newFileId}`,
         file_size: buffer.length,
         display_order: nextOrder
       }
