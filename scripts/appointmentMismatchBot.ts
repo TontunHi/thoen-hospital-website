@@ -22,6 +22,13 @@ import dotenv from 'dotenv'
 dotenv.config({ path: path.resolve(__dirname, '.env.bot') })
 dotenv.config() // fallback to root .env if not found in .env.bot
 
+import dns from 'dns'
+
+// บังคับให้ Node.js แปลงโดเมนเป็น IPv4 ก่อนเสมอ ป้องกัน IPv6 connect timeout บนเครือข่ายโรงพยาบาล
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first')
+}
+
 import mysql from 'mysql2/promise'
 
 interface AppointmentMismatch {
@@ -69,19 +76,27 @@ function formatThaiDate(dateStr: string): string {
 /**
  * Helper to call Telegram API
  */
-async function callTelegram(method: string, payload: Record<string, any>) {
+async function callTelegram(method: string, payload: Record<string, any>, timeoutMs = 45000) {
   if (!TELEGRAM_BOT_TOKEN) {
     throw new Error('TELEGRAM_BOT_TOKEN is not defined in environment variables.')
   }
 
-  const response = await fetch(`${API_BASE}/${method}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
 
-  const json = await response.json()
-  return json
+  try {
+    const response = await fetch(`${API_BASE}/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+
+    const json = await response.json()
+    return json
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /**
