@@ -19,9 +19,14 @@ import {
   ArrowLeft,
   Download,
   Shield,
-  HardDrive
+  HardDrive,
+  Laptop,
+  Smartphone,
+  Tablet,
+  Bot
 } from 'lucide-react'
 import Link from 'next/link'
+import { parseUserAgent } from '@/lib/userAgentParser'
 
 interface AuditLog {
   id: number
@@ -255,6 +260,27 @@ export default function AuditLogsClient() {
     }
   }
 
+  const getDeviceBadge = (uaString: string | null) => {
+    const parsed = parseUserAgent(uaString)
+    const icon = parsed.deviceType === 'mobile' 
+      ? <Smartphone size={13} className="deviceIcon" />
+      : parsed.deviceType === 'tablet'
+      ? <Tablet size={13} className="deviceIcon" />
+      : parsed.deviceType === 'bot'
+      ? <Bot size={13} className="deviceIcon" />
+      : <Laptop size={13} className="deviceIcon" />
+
+    const deviceName = parsed.deviceModel || parsed.os
+    return (
+      <div className={`deviceBadge deviceBadge-${parsed.deviceType}`} title={uaString || 'ไม่ระบุ'}>
+        {icon}
+        <span className="deviceName">{deviceName}</span>
+        <span className="deviceSeparator">•</span>
+        <span className="browserName">{parsed.browser}</span>
+      </div>
+    )
+  }
+
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr)
@@ -464,6 +490,7 @@ export default function AuditLogsClient() {
                     <th>ประเภท</th>
                     <th>ตาราง/หน้า (Target)</th>
                     <th>IP Address</th>
+                    <th>อุปกรณ์ / เบราว์เซอร์</th>
                     <th>รายละเอียด</th>
                   </tr>
                 </thead>
@@ -488,6 +515,7 @@ export default function AuditLogsClient() {
                         </span>
                       </td>
                       <td className="ipCell">{log.ip_address || '-'}</td>
+                      <td className="deviceCell">{getDeviceBadge(log.user_agent)}</td>
                       <td>
                         <button 
                           className="viewDetailBtn"
@@ -570,8 +598,33 @@ export default function AuditLogsClient() {
                   <span className="detailValue code">{selectedLog.ip_address || '-'}</span>
                 </div>
                 <div className="detailItem">
-                  <span className="detailLabel">อุปกรณ์/เบราว์เซอร์ (User-Agent)</span>
-                  <span className="detailValue userAgentText">{selectedLog.user_agent || '-'}</span>
+                  <span className="detailLabel">ประเภทอุปกรณ์ (Device)</span>
+                  <span className="detailValue">
+                    {(() => {
+                      const p = parseUserAgent(selectedLog.user_agent)
+                      return p.deviceType === 'desktop' 
+                        ? '💻 คอมพิวเตอร์ (Desktop)' 
+                        : p.deviceType === 'mobile' 
+                        ? `📱 มือถือ (${p.deviceModel || 'Mobile'})` 
+                        : p.deviceType === 'tablet' 
+                        ? `📟 แท็บเล็ต (${p.deviceModel || 'Tablet'})` 
+                        : p.deviceType === 'bot' 
+                        ? '🤖 บอท / สคริปต์อัตโนมัติ' 
+                        : 'ไม่ระบุ'
+                    })()}
+                  </span>
+                </div>
+                <div className="detailItem">
+                  <span className="detailLabel">ระบบปฏิบัติการ (OS)</span>
+                  <span className="detailValue">{parseUserAgent(selectedLog.user_agent).os}</span>
+                </div>
+                <div className="detailItem">
+                  <span className="detailLabel">เบราว์เซอร์ (Browser)</span>
+                  <span className="detailValue">{parseUserAgent(selectedLog.user_agent).browser}</span>
+                </div>
+                <div className="detailItem fullWidth">
+                  <span className="detailLabel">User-Agent แบบเต็ม (Raw Header)</span>
+                  <span className="detailValue userAgentText code">{selectedLog.user_agent || '-'}</span>
                 </div>
               </div>
 

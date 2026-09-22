@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberAdmin } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { parseUserAgent } from '@/lib/userAgentParser'
 
 export async function GET(request: Request) {
   const auth = await requireMemberAdmin()
@@ -47,20 +48,50 @@ export async function GET(request: Request) {
       return `"${val}"`
     }
 
-    const headers = ['ID', 'วัน-เวลา', 'ผู้ใช้งาน (Username)', 'อีเมล (Email)', 'ประเภท (Action)', 'ตาราง/เป้าหมาย (Target)', 'รายละเอียด (Details)', 'IP Address', 'User Agent']
+    const headers = [
+      'ID', 
+      'วัน-เวลา', 
+      'ผู้ใช้งาน (Username)', 
+      'อีเมล (Email)', 
+      'ประเภท (Action)', 
+      'ตาราง/เป้าหมาย (Target)', 
+      'รายละเอียด (Details)', 
+      'IP Address', 
+      'อุปกรณ์ (Device)',
+      'ระบบปฏิบัติการ (OS)',
+      'เบราว์เซอร์ (Browser)',
+      'User Agent แบบเต็ม'
+    ]
+
     const csvRows = [
       headers.join(','),
-      ...logs.map((log: any) => [
-        escapeCsv(log.id),
-        escapeCsv(log.timestamp),
-        escapeCsv(log.username),
-        escapeCsv(log.email),
-        escapeCsv(log.action_type),
-        escapeCsv(log.target_table),
-        escapeCsv(log.action_details),
-        escapeCsv(log.ip_address),
-        escapeCsv(log.user_agent),
-      ].join(','))
+      ...logs.map((log: any) => {
+        const parsedUa = parseUserAgent(log.user_agent)
+        const deviceTypeLabel = parsedUa.deviceType === 'desktop' 
+          ? 'คอมพิวเตอร์ (Desktop)' 
+          : parsedUa.deviceType === 'mobile' 
+          ? `มือถือ (${parsedUa.deviceModel || 'Mobile'})` 
+          : parsedUa.deviceType === 'tablet' 
+          ? `แท็บเล็ต (${parsedUa.deviceModel || 'Tablet'})` 
+          : parsedUa.deviceType === 'bot' 
+          ? 'Bot / Script' 
+          : 'ไม่ระบุ'
+
+        return [
+          escapeCsv(log.id),
+          escapeCsv(log.timestamp),
+          escapeCsv(log.username),
+          escapeCsv(log.email),
+          escapeCsv(log.action_type),
+          escapeCsv(log.target_table),
+          escapeCsv(log.action_details),
+          escapeCsv(log.ip_address),
+          escapeCsv(deviceTypeLabel),
+          escapeCsv(parsedUa.os),
+          escapeCsv(parsedUa.browser),
+          escapeCsv(log.user_agent),
+        ].join(',')
+      })
     ]
 
     // Prepend UTF-8 BOM so Excel opens Thai characters correctly

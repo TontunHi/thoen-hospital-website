@@ -449,6 +449,71 @@
   white-space: nowrap;
 }
 
+.deviceCell {
+  max-width: 220px;
+}
+
+.deviceBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.82rem;
+  color: #334155;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.deviceBadge .deviceIcon {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.deviceBadge .deviceName {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.deviceBadge .deviceSeparator {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.deviceBadge .browserName {
+  color: #475569;
+  font-weight: 500;
+}
+
+.deviceBadge-mobile {
+  background: #fdf2f8;
+  border-color: #fbcfe8;
+}
+
+.deviceBadge-mobile .deviceIcon {
+  color: #db2777;
+}
+
+.deviceBadge-tablet {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.deviceBadge-tablet .deviceIcon {
+  color: #7c3aed;
+}
+
+.deviceBadge-bot {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.deviceBadge-bot .deviceIcon {
+  color: #d97706;
+}
+
 /* Badges */
 .logBadge {
   display: inline-flex;
@@ -720,6 +785,10 @@
   padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid #f1f5f9;
+}
+
+.detailItem.fullWidth {
+  grid-column: 1 / -1;
 }
 
 .detailLabel {
