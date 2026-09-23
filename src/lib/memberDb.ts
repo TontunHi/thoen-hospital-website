@@ -278,6 +278,36 @@ async function initializeDb(poolInstance: mysql.Pool) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
 
+    // Initialize Telegram Linking Tables
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS member_telegram_links (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        member_id INT NOT NULL UNIQUE,
+        telegram_chat_id BIGINT NOT NULL UNIQUE,
+        telegram_user_id BIGINT NOT NULL UNIQUE,
+        telegram_username VARCHAR(100) NULL,
+        first_name VARCHAR(150) NULL,
+        linked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+        INDEX idx_member_id (member_id),
+        INDEX idx_chat_id (telegram_chat_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS telegram_link_challenges (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        member_id INT NOT NULL,
+        token_hash VARCHAR(64) NOT NULL UNIQUE,
+        expires_at DATETIME NOT NULL,
+        used_at DATETIME NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_token_lookup (token_hash, expires_at),
+        FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
     // Ensure default permission for view_all_salary and manage_rdu exists
     try {
       await connection.execute(

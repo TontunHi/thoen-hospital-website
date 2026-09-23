@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Camera, Briefcase, Shield, Loader2 } from 'lucide-react'
+import { Camera, Briefcase, Building2, Loader2, Send, User } from 'lucide-react'
 import MemberLogoutButton from './LogoutButton'
+import TelegramLinkModal from './TelegramLinkModal'
 import { useRouter } from 'next/navigation'
 
 interface MemberInfo {
@@ -29,6 +30,7 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
   const [avatarTimestamp, setAvatarTimestamp] = useState<number>(0)
   const [uploading, setUploading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState<boolean>(false)
 
   const handleAvatarClick = () => {
     if (fileInputRef.current) {
@@ -74,12 +76,16 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
   }
 
   return (
-    <div className="profileBannerCard">
-      <div className="bannerBackground"></div>
-      <div className="profileBannerContent">
-        <div className="avatarWrapper">
+    <div className="pb-card">
+      {/* ── Section 1: Gradient Header Strip ── */}
+      <div className="pb-header" />
+
+      {/* ── Section 2: Identity Row (Avatar + Name + Logout) ── */}
+      <div className="pb-identity">
+        {/* Avatar */}
+        <div className="pb-avatarWrap">
           <div 
-            className="userAvatar clickableAvatar" 
+            className="pb-avatar" 
             onClick={handleAvatarClick} 
             title="คลิกเพื่ออัปโหลดรูปภาพโปรไฟล์"
             role="button"
@@ -95,21 +101,19 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
               <img
                 src={`/api/member/profile/image?userId=${member.id}&t=${avatarTimestamp}`}
                 alt={member.name || 'Avatar'}
-                className="userAvatarImage"
+                className="pb-avatarImg"
               />
             ) : (
-              <span className="userAvatarText">{initials}</span>
+              <span className="pb-avatarInitials">{initials}</span>
             )}
-            
-            <div className="avatarUploadOverlay">
+            <div className="pb-avatarOverlay">
               {uploading ? (
-                <Loader2 className="uploadSpinner animate-spin" size={24} />
+                <Loader2 className="animate-spin" size={22} />
               ) : (
-                <Camera size={24} />
+                <Camera size={22} />
               )}
             </div>
           </div>
-          
           <input
             type="file"
             ref={fileInputRef}
@@ -120,34 +124,54 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
           />
         </div>
 
-        <div className="userInfoGroup">
-          <div className="userNameArea">
-            <div className="userNameRow">
-              <h2>{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
-              <span className="usernameTag">@{member.username}</span>
-              <span className={`usernameTag roleTag ${member.role || ''}`}>
-                {displayRole}
-              </span>
-            </div>
-            {error && <div className="avatarErrorText">{error}</div>}
+        {/* Name & Tags */}
+        <div className="pb-nameGroup">
+          <h2 className="pb-fullName">{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
+          <div className="pb-tagsRow">
+            <span className="pb-tag pb-tagId">
+              <User size={12} />
+              @{member.username}
+            </span>
+            <span className={`pb-tag pb-tagRole ${member.role === 'subdistrict' ? 'pb-tagRoleSub' : ''}`}>
+              {displayRole}
+            </span>
           </div>
-
-          <div className="userDetailsGrid">
-            <div className="userDetailItem">
-              <Briefcase size={16} className="detailIcon" />
-              <span>ตำแหน่ง: <strong>{member.position || 'ไม่ได้ระบุ'}</strong></span>
-            </div>
-            <div className="userDetailItem">
-              <Shield size={16} className="detailIcon" />
-              <span>แผนก/กลุ่มงาน: <strong>{member.department || 'ไม่ได้ระบุ'}</strong></span>
-            </div>
-          </div>
+          {error && <div className="pb-errorMsg">{error}</div>}
         </div>
 
-        <div className="logoutButtonWrapper">
+        {/* Logout – pushed right on desktop */}
+        <div className="pb-logoutSlot">
           <MemberLogoutButton />
         </div>
       </div>
+
+      {/* ── Section 3: Quick-Info Chips ── */}
+      <div className="pb-infoBar">
+        <div className="pb-chip">
+          <Briefcase size={15} className="pb-chipIcon" />
+          <span className="pb-chipLabel">ตำแหน่ง</span>
+          <span className="pb-chipValue">{member.position || 'ไม่ได้ระบุ'}</span>
+        </div>
+        <div className="pb-chip">
+          <Building2 size={15} className="pb-chipIcon" />
+          <span className="pb-chipLabel">แผนก</span>
+          <span className="pb-chipValue">{member.department || 'ไม่ได้ระบุ'}</span>
+        </div>
+        <button 
+          type="button" 
+          className="pb-chip pb-chipAction" 
+          onClick={() => setIsTelegramModalOpen(true)}
+        >
+          <Send size={15} className="pb-chipIcon pb-chipIconTg" />
+          <span className="pb-chipLabel">การแจ้งเตือน</span>
+          <span className="pb-chipValue">เชื่อมระบบ Telegram</span>
+        </button>
+      </div>
+
+      <TelegramLinkModal 
+        isOpen={isTelegramModalOpen} 
+        onClose={() => setIsTelegramModalOpen(false)} 
+      />
     </div>
   )
 }

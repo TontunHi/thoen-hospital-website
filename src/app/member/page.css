@@ -81,138 +81,187 @@
   animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Premium Profile Banner Card Design (Glassmorphic Top Banner) */
-.memberDashboardContainer .profileBannerCard {
+/* ══════════════════════════════════════════════════════════════
+   Profile Banner Card — pb-* prefix
+   Three-section layout: header strip → identity row → info bar
+   ══════════════════════════════════════════════════════════════ */
+
+/* Card shell */
+.memberDashboardContainer .pb-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 30px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
   overflow: hidden;
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.02),
-    0 10px 30px -3px rgba(0, 0, 0, 0.04),
-    0 20px 40px -5px rgba(16, 185, 129, 0.02);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 6px 24px -4px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.35s ease;
+}
+.memberDashboardContainer .pb-card:hover {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.05),
+    0 12px 32px -4px rgba(16, 185, 129, 0.08);
 }
 
-.memberDashboardContainer .profileBannerCard:hover {
-  border-color: rgba(16, 185, 129, 0.3);
-  box-shadow: 
-    0 10px 15px -3px rgba(0, 0, 0, 0.02),
-    0 20px 40px -4px rgba(0, 0, 0, 0.05),
-    0 25px 50px -12px rgba(16, 185, 129, 0.05);
-}
-
-.memberDashboardContainer .bannerBackground {
-  height: 140px;
+/* ── Section 1: Gradient header strip ── */
+.memberDashboardContainer .pb-header {
+  height: 88px;
   background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #0f766e 100%);
   position: relative;
 }
-
-.memberDashboardContainer .bannerBackground::before {
+.memberDashboardContainer .pb-header::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+  background:
+    radial-gradient(ellipse 60% 100% at 90% 10%, rgba(255,255,255,0.13) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 90% at 20% 80%, rgba(0,0,0,0.06) 0%, transparent 70%);
+  pointer-events: none;
 }
 
-.memberDashboardContainer .profileBannerContent {
-  padding: 0 40px 40px;
-  margin-top: -65px;
+/* ── Section 2: Identity row ── */
+.memberDashboardContainer .pb-identity {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  align-items: center;
+  gap: 16px;
+  padding: 0 28px 20px;
+  margin-top: -44px;
   position: relative;
   z-index: 10;
 }
-
 @media (min-width: 768px) {
-  .memberDashboardContainer .profileBannerContent {
+  .memberDashboardContainer .pb-identity {
     flex-direction: row;
     align-items: flex-end;
-    gap: 36px;
+    gap: 24px;
+    padding: 0 36px 24px;
   }
 }
 
-.memberDashboardContainer .avatarWrapper {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* Avatar */
+.memberDashboardContainer .pb-avatarWrap {
   flex-shrink: 0;
 }
-
-.memberDashboardContainer .userAvatar {
-  width: 130px;
-  height: 130px;
+.memberDashboardContainer .pb-avatar {
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: 5px solid #ffffff;
-  box-shadow: 
-    0 10px 20px -5px rgba(16, 185, 129, 0.3),
-    0 0 0 1px rgba(16, 185, 129, 0.1);
+  background: linear-gradient(145deg, #10b981, #059669);
+  border: 4px solid #ffffff;
+  box-shadow:
+    0 6px 16px -4px rgba(16, 185, 129, 0.35),
+    0 0 0 1px rgba(16, 185, 129, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 38px;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 0.02em;
   position: relative;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.memberDashboardContainer .userAvatar:hover {
-  transform: scale(1.03);
-  box-shadow: 
-    0 14px 28px -5px rgba(16, 185, 129, 0.4),
-    0 0 0 2px rgba(16, 185, 129, 0.2);
-}
-
-.memberDashboardContainer .clickableAvatar {
   cursor: pointer;
   overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
-
-.memberDashboardContainer .userAvatarImage {
+.memberDashboardContainer .pb-avatar:hover {
+  transform: scale(1.04);
+  box-shadow:
+    0 8px 20px -4px rgba(16, 185, 129, 0.45),
+    0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+.memberDashboardContainer .pb-avatarImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
 }
-
-.memberDashboardContainer .avatarUploadOverlay {
+.memberDashboardContainer .pb-avatarInitials {
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+.memberDashboardContainer .pb-avatarOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  opacity: 0;
-  transition: opacity 0.25s ease;
   border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
-
-.memberDashboardContainer .clickableAvatar:hover .avatarUploadOverlay {
+.memberDashboardContainer .pb-avatar:hover .pb-avatarOverlay {
   opacity: 1;
 }
 
-.memberDashboardContainer .uploadSpinner {
-  animation: spin 1s linear infinite;
+/* Name group */
+.memberDashboardContainer .pb-nameGroup {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+@media (min-width: 768px) {
+  .memberDashboardContainer .pb-nameGroup {
+    text-align: left;
+  }
+}
+.memberDashboardContainer .pb-fullName {
+  font-size: 21px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  -webkit-text-stroke: 2px #ffffff;
+  paint-order: stroke fill;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Tags row */
+.memberDashboardContainer .pb-tagsRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+@media (min-width: 768px) {
+  .memberDashboardContainer .pb-tagsRow {
+    justify-content: flex-start;
+  }
+}
+.memberDashboardContainer .pb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  line-height: 1.4;
+}
+.memberDashboardContainer .pb-tagId {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+.memberDashboardContainer .pb-tagRole {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+.memberDashboardContainer .pb-tagRoleSub {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
-.memberDashboardContainer .avatarErrorText {
-  color: #ef4444;
+/* Error message */
+.memberDashboardContainer .pb-errorMsg {
+  color: #dc2626;
   font-size: 13px;
-  margin-top: 8px;
+  margin-top: 6px;
   font-weight: 500;
   background: rgba(239, 68, 68, 0.06);
   padding: 4px 12px;
@@ -221,130 +270,102 @@
   display: inline-block;
 }
 
-.memberDashboardContainer .userInfoGroup {
-  flex: 1;
+/* Logout slot */
+.memberDashboardContainer .pb-logoutSlot {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  justify-content: center;
+  width: 100%;
 }
-
-.memberDashboardContainer .userNameArea {
-  text-align: center;
-}
-
 @media (min-width: 768px) {
-  .memberDashboardContainer .userNameArea {
-    text-align: left;
-    transform: translateY(-65px);
-    margin-bottom: -45px;
+  .memberDashboardContainer .pb-logoutSlot {
+    width: auto;
+    margin-left: auto;
+    align-self: flex-end;
+    margin-bottom: 4px;
   }
 }
 
-.memberDashboardContainer .userNameRow {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-@media (min-width: 768px) {
-  .memberDashboardContainer .userNameRow {
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-  }
-}
-
-.memberDashboardContainer .userNameArea h2 {
-  font-size: 28px;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0;
-  letter-spacing: -0.02em;
-  text-shadow: 0 2px 4px rgba(15, 23, 42, 0.15);
-}
-
-.memberDashboardContainer .usernameTag {
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 13px;
-  font-weight: 500;
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  padding: 4px 12px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  display: inline-block;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.memberDashboardContainer .roleTag {
-  background: rgba(16, 185, 129, 0.25);
-  border-color: rgba(16, 185, 129, 0.35);
-}
-
-.memberDashboardContainer .roleTag.subdistrict {
-  background: rgba(14, 165, 233, 0.25);
-  border-color: rgba(14, 165, 233, 0.4);
-}
-
-.memberDashboardContainer .userDetailsGrid {
+/* ── Section 3: Info bar (chips) ── */
+.memberDashboardContainer .pb-infoBar {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  margin-top: 10px;
+  gap: 8px;
+  padding: 16px 28px 22px;
+  border-top: 1px solid #f1f5f9;
+  background: #fafbfc;
 }
-
-@media (min-width: 640px) {
-  .memberDashboardContainer .userDetailsGrid {
-    grid-template-columns: repeat(2, 1fr);
+@media (min-width: 768px) {
+  .memberDashboardContainer .pb-infoBar {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 16px 36px 22px;
   }
 }
 
-.memberDashboardContainer .userDetailItem {
+/* Individual chip */
+.memberDashboardContainer .pb-chip {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: rgba(241, 245, 249, 0.6);
-  padding: 14px 20px;
-  border-radius: 18px;
-  border: 1px solid rgba(226, 232, 240, 0.7);
-  font-size: 14px;
-  color: #475569;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 13.5px;
+  color: #334155;
+  transition: all 0.25s ease;
+}
+.memberDashboardContainer .pb-chip:hover {
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px -2px rgba(16, 185, 129, 0.12);
 }
 
-.memberDashboardContainer .userDetailItem:hover {
-  background: rgba(16, 185, 129, 0.04);
-  border-color: rgba(16, 185, 129, 0.2);
-  color: #0f172a;
-  transform: translateY(-2px);
-}
-
-.memberDashboardContainer .userDetailItem strong {
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.memberDashboardContainer .detailIcon {
+/* Chip icon */
+.memberDashboardContainer .pb-chipIcon {
   color: #059669;
   flex-shrink: 0;
 }
-
-.memberDashboardContainer .logoutButtonWrapper {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
+.memberDashboardContainer .pb-chipIconTg {
+  color: #0088cc;
 }
 
-@media (min-width: 768px) {
-  .memberDashboardContainer .logoutButtonWrapper {
-    align-self: flex-end;
-    margin-left: auto;
-    margin-bottom: 4px;
-    margin-top: 0;
-  }
+/* Chip label & value */
+.memberDashboardContainer .pb-chipLabel {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
 }
+.memberDashboardContainer .pb-chipValue {
+  color: #0f172a;
+  font-weight: 600;
+  margin-left: auto;
+  text-align: right;
+  font-size: 13px;
+}
+
+/* Action chip (button) */
+.memberDashboardContainer .pb-chipAction {
+  cursor: pointer;
+  font-family: inherit;
+}
+.memberDashboardContainer .pb-chipAction:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+.memberDashboardContainer .pb-chipAction:hover .pb-chipIconTg {
+  color: #006699;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+
+
 
 /* Section Title with modern accent indicators */
 .memberDashboardContainer .sectionTitle {
@@ -686,3 +707,398 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(2, 132, 199, 0.35);
 }
+
+/* Telegram Profile Button */
+.memberDashboardContainer .telegramProfileBtn {
+  cursor: pointer;
+  background: rgba(238, 246, 255, 0.85);
+  border-color: rgba(186, 230, 253, 0.9);
+  color: #0369a1;
+  text-align: left;
+}
+
+.memberDashboardContainer .telegramProfileBtn:hover {
+  background: rgba(224, 242, 254, 0.95);
+  border-color: #0ea5e9;
+  color: #0284c7;
+  transform: translateY(-1px);
+}
+
+.memberDashboardContainer .telegramBlueIcon {
+  color: #0ea5e9;
+}
+
+/* Telegram Modal Styles */
+.telegramModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 9999;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.telegramModalCard {
+  background: #ffffff;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.telegramModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.telegramModalTitle {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.telegramIconBadge {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+.telegramModalTitle h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.telegramModalTitle p {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.telegramCloseBtn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.telegramCloseBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.telegramModalBody {
+  padding: 24px;
+}
+
+.telegramAlertBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  margin-bottom: 18px;
+}
+
+.telegramAlertBox.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+.telegramLoadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+/* Linked Content */
+.telegramLinkedContent {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.telegramStatusBadge.connected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.telegramDetailsBox {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.telegramDetailRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.telegramDetailRow .label {
+  color: #64748b;
+}
+
+.telegramDetailRow .value {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.telegramUnlinkBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.telegramUnlinkBtn:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+
+.telegramUnlinkBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Challenge Content */
+.telegramChallengeContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.telegramInstructions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: #334155;
+  text-align: left;
+  width: 100%;
+}
+
+.stepNumber {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.qrWrapper {
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 18px;
+  border: 2px dashed #bae6fd;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.qrImage {
+  width: 190px;
+  height: 190px;
+  border-radius: 10px;
+}
+
+.qrExpiryHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #0284c7;
+  font-weight: 500;
+}
+
+.challengeActionRow {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.telegramOpenBotBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+}
+
+.telegramOpenBotBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.35);
+}
+
+.telegramCopyBtn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.telegramCopyBtn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.telegramCancelChallengeBtn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.telegramCancelChallengeBtn:hover {
+  color: #64748b;
+  text-decoration: underline;
+}
+
+/* Unlinked Benefit Screen */
+.telegramBenefitList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8fafc;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 22px;
+}
+
+.benefitItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.benefitBullet {
+  color: #059669;
+  font-weight: 700;
+}
+
+.telegramStartLinkingBox {
+  display: flex;
+  justify-content: center;
+}
+
+.telegramConnectBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  color: #ffffff;
+  padding: 14px 24px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.3);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.telegramConnectBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(14, 165, 233, 0.4);
+}
+
+.telegramConnectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+

@@ -17,7 +17,7 @@
 - รายละเอียดอาการ
 - รหัสหรือข้อมูล AnyDesk (ไม่บังคับ)
 - เบอร์โทรติดต่อ
-- รูปประกอบ 0–5 รูป (ไม่บังคับ)
+- รูปประกอบ 0–3 รูป (ไม่บังคับ)
 
 ผู้แจ้งเป็นได้ทุกคนที่มี session ที่ถูกต้อง (`member` และ `admin`) ไม่ใช่เฉพาะเจ้าหน้าที่ IT ส่วนผู้ปฏิบัติงานซ่อมต้องมีสิทธิ์เฉพาะ `repair.computer.manage` ซึ่ง admin เป็นผู้กำหนดให้ได้
 
@@ -26,7 +26,7 @@
 - `GENERAL`: ซ่อมทั่วไป/อาคารสถานที่
 - `MEDICAL_DEVICE`: ซ่อมเครื่องมือแพทย์
 
-ทั้งสองประเภทจะใช้แกนใบงานเดียวกัน แต่เพิ่มแบบฟอร์มเฉพาะประเภท ตารางช่าง/กลุ่มรับผิดชอบ และกฎ SLA ของตนเอง งานเครื่องมือแพทย์ต้องมีการทบทวนข้อกำหนดด้านความปลอดภัยเครื่องมือแพทย์กับหน่วยวิศวกรรมการแพทย์ก่อนเริ่มพัฒนา
+ทั้งสองประเภทจะใช้แกนใบงานเดียวกัน แต่เพิ่มแบบฟอร์มเฉพาะประเภทและตารางช่าง/กลุ่มรับผิดชอบของตนเอง งานเครื่องมือแพทย์ต้องมีการทบทวนข้อกำหนดด้านความปลอดภัยเครื่องมือแพทย์กับหน่วยวิศวกรรมการแพทย์ก่อนเริ่มพัฒนา
 
 ## 2. ข้อสังเกตจากระบบเดิม
 
@@ -40,7 +40,7 @@
 | --- | --- | --- |
 | ผู้แจ้ง (Requester) | member, admin | สร้างงาน, ดูเฉพาะงานของตน, เพิ่มข้อมูล/ยกเลิกก่อนมีผู้รับงาน, ดูผลปิดงาน |
 | ช่าง IT (IT Technician) | ผู้ได้รับ permission `repair.computer.manage` | ดูคิวงานคอมพิวเตอร์, กดรับงานเป็นช่างหลักหรือช่างรอง, เริ่มงาน, เพิ่มบันทึก, อัปโหลดหลักฐาน, ปิดงาน |
-| หัวหน้า IT (IT Supervisor) | `repair.computer.assign` | ดูทุกงาน, กำหนด/เปลี่ยนช่าง, ปรับความสำคัญ, เปิดงานใหม่, ดูรายงาน |
+| หัวหน้า IT (IT Supervisor) | `repair.computer.assign` | ดูทุกงาน, กำหนด/เปลี่ยนช่าง, สร้างใบงานแทนผู้แจ้ง, ดูรายงาน |
 | ผู้ดูแลระบบ | admin | จัดการสิทธิ์, หมวด/สถานที่/ครุภัณฑ์, Telegram routing และตรวจสอบ audit |
 
 ใช้ permission แบบละเอียดแทนพึ่งพา `position` อย่างเดียว เพื่อรองรับการโยกย้ายบุคลากร เช่น `repair.computer.create`, `repair.computer.view_all`, `repair.computer.manage`, `repair.computer.assign`, `repair.catalog.manage`, `repair.report.view` และ `repair.telegram.manage`.
@@ -60,7 +60,15 @@
 
 กฎสำคัญ:
 
-1. การรับงานต้องเป็น atomic update: ช่างคนแรกที่กดรับเป็น `primary_technician_id`; เมื่อมีช่างหลักแล้ว ช่างที่มีสิทธิ์สามารถกดเข้าร่วมเป็นช่างรองได้เพียงหนึ่งคน (`secondary_technician_id`). ต้องป้องกันทั้งการกดซ้ำและการมีช่างหลัก/รองเป็นคนเดียวกัน
+1. การรับงานต้องเป็น atomic update ผูกกับคอลัมน์ `version` โดยตรง — ห้ามแยกเป็น `SELECT` เช็คสถานะแล้วค่อย `UPDATE` เป็นคนละคำสั่ง เพราะเปิดช่องให้ช่างสองคนกดรับพร้อมกันแล้วเขียนทับกันเงียบๆ ให้ใช้ conditional update คำสั่งเดียว เช่น
+   ```sql
+   UPDATE repair_tickets
+   SET primary_technician_id = :myId, version = version + 1
+   WHERE id = :ticketId
+     AND primary_technician_id IS NULL
+     AND version = :expectedVersion
+   ```
+   แล้วเช็คจำนวนแถวที่ถูกแก้ (affected rows): ได้ 1 แถว = รับงานสำเร็จ, ได้ 0 แถว = มีคนรับไปก่อนแล้วหรือ version ไม่ตรง ให้ตอบ error กลับไป ใช้หลักการเดียวกันสำหรับ `secondary_technician_id` (เพิ่มเงื่อนไข `AND primary_technician_id IS NOT NULL AND secondary_technician_id IS NULL AND primary_technician_id != :myId` เพื่อกันคนคนเดียวเป็นทั้งช่างหลักและช่างรอง)
 2. การเปลี่ยนสถานะทุกครั้งต้องบันทึก event แบบ immutable และตรวจสิทธิ์บน API เสมอ ไม่เชื่อค่าจากปุ่มหรือ client
 3. ช่างหลักหรือหัวหน้า IT สามารถปิดงานได้เมื่อมี `resolutionNote` อย่างน้อยหนึ่งข้อความ; การปิดงานเป็นสถานะสิ้นสุด ผู้แจ้ง **ไม่มีสิทธิ์ reopen**. หากพบปัญหาใหม่ ให้สร้างใบแจ้งซ่อมใบใหม่โดยอ้างอิงเลขใบงานเดิมได้
 4. ผู้แจ้งเห็น AnyDesk และไฟล์เฉพาะงานของตน; IT supervisor เห็นทุกงาน; ห้ามสร้าง URL ไฟล์ที่เปิดสาธารณะ
@@ -79,7 +87,6 @@
 | `ticket_no` | VARCHAR(32), UNIQUE | เช่น `ITR-20260922-0001`; สร้างจาก transaction/sequence ไม่ใช้ `COUNT(*)` |
 | `repair_type` | VARCHAR(30), indexed | `COMPUTER`, รองรับ `GENERAL`, `MEDICAL_DEVICE` |
 | `status` | VARCHAR(20), indexed | `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `CLOSED`, `CANCELLED` |
-| `priority` | VARCHAR(20), indexed | `LOW`, `NORMAL`, `HIGH`, `CRITICAL` |
 | `requester_id` | BIGINT FK → `members.id` | ผู้แจ้ง |
 | `primary_technician_id` | BIGINT FK nullable → `members.id` | ช่างผู้รับผิดชอบหลัก |
 | `secondary_technician_id` | BIGINT FK nullable → `members.id` | ช่างรอง; ต้องไม่ซ้ำกับช่างหลัก |
@@ -105,13 +112,13 @@
 
 บันทึกประวัติที่แก้ไขย้อนหลังไม่ได้: `id`, `ticket_id`, `event_type`, `from_status`, `to_status`, `actor_member_id` (nullable สำหรับ system), `note`, `metadata_json`, `created_at`, `ip_address`, `request_id`.
 
-ตัวอย่าง `event_type`: `CREATED`, `PRIMARY_TECHNICIAN_ASSIGNED`, `SECONDARY_TECHNICIAN_ASSIGNED`, `STARTED`, `NOTE_ADDED`, `ATTACHMENT_ADDED`, `CLOSED`, `CANCELLED`, `TELEGRAM_ACTION_REJECTED`.
+ตัวอย่าง `event_type`: `CREATED`, `PRIMARY_TECHNICIAN_ASSIGNED`, `SECONDARY_TECHNICIAN_ASSIGNED`, `STARTED`, `NOTE_ADDED`, `ATTACHMENT_ADDED`, `ATTACHMENT_DOWNLOADED`, `CLOSED`, `CANCELLED`, `TELEGRAM_ACTION_REJECTED`.
 
 #### `repair_ticket_attachments`
 
 `id`, `ticket_id`, `uploaded_by_member_id`, `attachment_stage` (`REQUEST`, `PROGRESS`, `RESOLUTION`), `storage_key`, `original_filename`, `detected_mime_type`, `byte_size`, `sha256`, `created_at`, `deleted_at`.
 
-ไฟล์ต้องอยู่ใน private storage นอก `public/`; ใช้ชื่อที่ระบบสร้างเอง; ตรวจ magic bytes, MIME allowlist (`image/jpeg`, `image/png`, `image/webp`), ขนาดต่อไฟล์/รวมไฟล์ และสแกนมัลแวร์ก่อนเปิดให้ดู
+ไฟล์ต้องอยู่ใน private storage นอก `public/`; ใช้ชื่อที่ระบบสร้างเอง; ตรวจ magic bytes, MIME allowlist (`image/jpeg`, `image/png`, `image/webp`), และขนาดต่อไฟล์/รวมไฟล์ (สูงสุด 3 ไฟล์ต่อใบงาน — ตรวจจำนวนไฟล์ปัจจุบันฝั่ง server ก่อน insert ทุกครั้ง ไม่พึ่งการจำกัดฝั่ง frontend อย่างเดียว)
 
 ### 5.2 ข้อมูลอ้างอิง
 
@@ -149,7 +156,7 @@
 
 ## 6. Telegram Bot: พฤติกรรมและความปลอดภัย
 
-เมื่อสร้างงาน ระบบส่งข้อความไปยัง Telegram group ของทีม IT โดยไม่ส่งข้อมูลอ่อนไหว: เลขใบงาน, หัวข้อ, สถานที่, ระดับความสำคัญ และลิงก์เข้าระบบเท่านั้น ไม่ส่ง AnyDesk, เบอร์โทร, ภาพ หรือรายละเอียดที่ละเอียดอ่อนเข้า group
+เมื่อสร้างงาน ระบบส่งข้อความไปยัง Telegram group ของทีม IT โดยไม่ส่งข้อมูลอ่อนไหว: เลขใบงาน, หัวข้อ, สถานที่ และลิงก์เข้าระบบเท่านั้น ไม่ส่ง AnyDesk, เบอร์โทร, ภาพ หรือรายละเอียดที่ละเอียดอ่อนเข้า group
 
 สำหรับผู้แจ้งที่ผูก Telegram แล้ว ระบบส่งข้อความส่วนตัวไปยัง `telegram_chat_id` ของบัญชีนั้นเมื่อมีช่างหลัก/ช่างรองรับงาน หรือเมื่อปิดงาน โดยระบุเลขใบงาน สถานะ ชื่อช่าง และผลการซ่อม พร้อมลิงก์เข้าสู่รายละเอียดใบงาน. ไม่ส่ง AnyDesk หรือไฟล์แนบในข้อความแจ้งเตือน; ให้เปิดดูผ่านระบบหลังตรวจ session แทน
 
@@ -181,10 +188,10 @@ REPAIR_UPLOAD_MAX_BYTES=redacted
 - `/member/repairs/computer/new` — แบบฟอร์มแจ้งซ่อม: ค้นหาเลขครุภัณฑ์, dropdown สถานที่, รายละเอียด, AnyDesk, โทรศัพท์, รูป
 - `/member/repairs` — รายการของผู้แจ้ง พร้อมตัวกรองสถานะและค้นหาเลขใบงาน
 - `/member/repairs/[ticketNo]` — timeline, รายละเอียด, รูป, สถานะ และผลปิดงาน; ไม่มี action reopen สำหรับผู้แจ้ง
-- `/member/repairs/it` — คิว IT สำหรับผู้มีสิทธิ์, filter สถานะ/ความสำคัญ/สถานที่, รับ/มอบหมาย/ปิดงาน
+- `/member/repairs/it` — คิว IT สำหรับผู้มีสิทธิ์, filter สถานะ/สถานที่, รับ/มอบหมาย/ปิดงาน
 - `/member/repairs/catalog/assets` และ `/locations` — admin จัดการเลขครุภัณฑ์และสถานที่
 - `/member/profile/telegram` — เชื่อม/ยกเลิก Telegram ของผู้ใช้
-- `/member/repairs/reports` — dashboard SLA และปริมาณงาน (IT supervisor/admin)
+- `/member/repairs/reports` — dashboard ปริมาณงานและเวลาดำเนินการ (IT supervisor/admin)
 
 ทุก Server Component ที่เป็น protected page เรียก `verifyMemberSession()` แล้ว `redirect('/member/login')` หากไม่ผ่าน และ API ทุก endpoint ตรวจ session + permission ซ้ำเสมอ
 
@@ -208,7 +215,7 @@ payload ทุกตัวใช้ Zod validation; response ใช้มาต�
 
 ### Phase 0 — ตัดสินใจและเตรียมข้อมูล
 
-1. ยืนยันรายชื่อช่าง IT, ผู้รับผิดชอบ, ชั่วโมงบริการ, SLA และนิยาม `CRITICAL`.
+1. ยืนยันรายชื่อช่าง IT, ผู้รับผิดชอบ และชั่วโมงบริการ.
 2. เตรียม master data เลขครุภัณฑ์และสถานที่ใน CSV ที่ผ่านการตรวจซ้ำ/คัดลอกรายการซ้ำ.
 3. สร้าง bot จากบัญชีองค์กร, IT group, webhook HTTPS และบัญชี/secret สำหรับ production.
 4. ตกลง retention ของใบงานและไฟล์ภาพ (เช่น 3 ปี) รวมถึงผู้มีสิทธิ์เข้าดูรูปและ AnyDesk.
@@ -236,7 +243,7 @@ payload ทุกตัวใช้ Zod validation; response ใช้มาต�
 
 ### Phase 4 — รายงานและขยายประเภทงาน
 
-1. รายงานจำนวนงาน, เวลารับงาน, เวลาปิดงาน, งานค้าง, SLA breach และ workload ต่อช่าง.
+1. รายงานจำนวนงาน, เวลารับงาน, เวลาปิดงาน, งานค้าง และ workload ต่อช่าง.
 2. เพิ่ม `GENERAL` โดยใช้ ticket engine เดิมและ form/routing ของช่างอาคาร.
 3. หลังการอนุมัติร่วมกับหน่วยที่รับผิดชอบ เพิ่ม `MEDICAL_DEVICE` พร้อมฟิลด์เฉพาะและขั้นตอนตรวจรับที่เหมาะสม.
 
@@ -256,4 +263,3 @@ payload ทุกตัวใช้ Zod validation; response ใช้มาต�
 2. จะใช้ Telegram group เดียวหรือแยกตามเวลาราชการ/เวร และการกดรับงานถือเป็นการมอบหมายถาวรหรือมีการย้ายช่างได้?
 3. เลขครุภัณฑ์ต้นทางมาจากระบบใด, มีเจ้าของข้อมูลใด, และอนุญาตให้ผู้แจ้งกรอกเลขที่ไม่มีใน master ได้หรือไม่?
 4. นโยบายจัดเก็บภาพ, AnyDesk และเบอร์โทรนานเท่าใด และใครบ้างที่มีสิทธิ์เข้าดู?
-5. ความหมายของงานด่วน/วิกฤตและ SLA ที่ต้องแจ้งเตือนซ้ำคืออะไร?
