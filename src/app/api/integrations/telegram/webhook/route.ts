@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     // 2. We are primarily looking for message updates with text commands
     const message = update?.message
     if (!message || !message.text) {
-      // Return 200 OK so Telegram doesn't keep resending unhandled updates (like photos or inline callbacks)
+      // Return 200 OK so Telegram doesn't keep resending unhandled updates
       return NextResponse.json({ ok: true })
     }
 

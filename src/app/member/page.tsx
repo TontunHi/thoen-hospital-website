@@ -389,28 +389,6 @@ export default async function MemberDashboardPage() {
               {/* Card 4: Unified Approvals Inbox */}
               <ApprovalsCard hasAccess={hasAccess} pendingCount={pendingCount} />
 
-              {/* Card 5: Mechanical Work Assignments System */}
-              {isWorkAuthorized && (
-                <Link href="/member/create-work" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper salaryIcon">
-                      <Laptop size={24} />
-                    </div>
-                    <div className="statusIndicator success">
-                      <span>เปิดใช้งาน</span>
-                    </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>ระบบมอบหมายและติดตามงานช่างฯ</h4>
-                    <p>ส่งคำร้องขอพัฒนาโปรแกรม ดึงข้อมูลคลังข้อมูล ซ่อมแซมระบบ บำรุงรักษาวัสดุอุปกรณ์ และติดตามขั้นตอนการทำงานช่าง</p>
-                  </div>
-                  <div className="serviceCardFooter">
-                    <span className="actionText">เข้าสู่ระบบติดตามงานช่างฯ</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
-
               {/* Card 6: Upload Salary (Visible only to admin or finance position) */}
               {isFinance && (
                 <Link href="/member/upload-salary" className="serviceCard">
