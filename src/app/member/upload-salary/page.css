@@ -397,6 +397,54 @@
   justify-content: flex-end;
 }
 
+/* Batch Delete Styles */
+.batchDeleteCard {
+  border-top: 4px solid #ef4444;
+}
+
+.batchInfoBox {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.batchInfoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed #e2e8f0;
+  font-size: 14px;
+}
+
+.batchInfoRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.batchInfoLabel {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.batchInfoValue {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.batchEmptyBox {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13.5px;
+  margin: 16px 0;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

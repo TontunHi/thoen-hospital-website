@@ -60,15 +60,46 @@ export default function UploadSalaryClient() {
   const [deletingPeriod, setDeletingPeriod] = useState<ImportPeriod | null>(null)
   const [isDeletingPeriod, setIsDeletingPeriod] = useState(false)
 
+  // -------------------------------------------------------------
+  // System 5: Batch Delete Latest Data (หัวข้อที่ 4)
+  // -------------------------------------------------------------
+  const [batchDeleteType, setBatchDeleteType] = useState<'salary' | 'ot'>('salary')
+  const [latestBatch, setLatestBatch] = useState<{ tableName: string; date: string; count: number } | null>(null)
+  const [isLoadingBatch, setIsLoadingBatch] = useState(false)
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
+  const [isDeletingBatch, setIsDeletingBatch] = useState(false)
+
   useEffect(() => {
     fetchPeriods()
   }, [])
+
+  useEffect(() => {
+    fetchLatestBatch(batchDeleteType)
+  }, [batchDeleteType])
 
   const showStatus = (type: 'success' | 'error', message: string) => {
     setStatusMsg({ type, message })
     setTimeout(() => {
       setStatusMsg(null)
     }, type === 'error' ? 10000 : 7000)
+  }
+
+  const fetchLatestBatch = async (type: 'salary' | 'ot') => {
+    try {
+      setIsLoadingBatch(true)
+      const res = await fetch(`/api/salary/batch-delete?type=${type}`)
+      const data = await res.json()
+      if (data.success) {
+        setLatestBatch(data.latestBatch || null)
+      } else {
+        setLatestBatch(null)
+      }
+    } catch (err) {
+      console.error(err)
+      setLatestBatch(null)
+    } finally {
+      setIsLoadingBatch(false)
+    }
   }
 
   const fetchPeriods = async () => {
@@ -251,6 +282,37 @@ export default function UploadSalaryClient() {
       showStatus('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
     } finally {
       setIsDeletingPeriod(false)
+    }
+  }
+
+  // --- 5. Handle Batch Delete (ลบชุดข้อมูลล่าสุด) ---
+  const executeBatchDelete = async () => {
+    if (!latestBatch) return
+
+    try {
+      setIsDeletingBatch(true)
+      const res = await fetch('/api/salary/batch-delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: batchDeleteType,
+          confirmedDate: latestBatch.date,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showStatus('success', data.message || 'ลบชุดข้อมูลล่าสุดเรียบร้อยแล้ว')
+        setShowBatchDeleteModal(false)
+        fetchLatestBatch(batchDeleteType)
+      } else {
+        showStatus('error', data.error || 'ลบชุดข้อมูลล้มเหลว')
+      }
+    } catch (err) {
+      console.error(err)
+      showStatus('error', 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+    } finally {
+      setIsDeletingBatch(false)
     }
   }
 
@@ -541,6 +603,97 @@ export default function UploadSalaryClient() {
             )}
           </div>
         </div>
+
+        {/* Card 4: Delete Batch Data (ระบบลบชุดข้อมูลเงินเดือน/OT) */}
+        <div className="uploadCard uploadSalaryFullWidth batchDeleteCard">
+          <h2>
+            <Trash2 size={20} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '6px', color: '#ef4444' }} />
+            4. ลบชุดข้อมูลเงินเดือน / OT
+          </h2>
+          <p style={{ fontSize: '13.5px', color: '#64748b', marginTop: '-6px', marginBottom: '16px' }}>
+            สำหรับลบชุดข้อมูลที่นำเข้าผิดพลาด โดยระบบจะอนุญาตให้ลบได้เฉพาะ <strong>1 ชุดข้อมูลล่าสุด</strong> ของตารางที่เลือกเท่านั้น
+          </p>
+
+          <div className="formGroup" style={{ maxWidth: '500px' }}>
+            <label className="formLabel required">เลือกตารางข้อมูลที่ต้องการตรวจสอบและลบ</label>
+            <div className="formRadioGroup">
+              <label className="formRadioLabel">
+                <input
+                  type="radio"
+                  name="batchDeleteType"
+                  value="salary"
+                  checked={batchDeleteType === 'salary'}
+                  onChange={() => setBatchDeleteType('salary')}
+                  disabled={isLoadingBatch || isDeletingBatch}
+                />
+                <span>ข้อมูลเงินเดือน (ตาราง salary)</span>
+              </label>
+              <label className="formRadioLabel">
+                <input
+                  type="radio"
+                  name="batchDeleteType"
+                  value="ot"
+                  checked={batchDeleteType === 'ot'}
+                  onChange={() => setBatchDeleteType('ot')}
+                  disabled={isLoadingBatch || isDeletingBatch}
+                />
+                <span>ข้อมูลค่าเวร / OT (ตาราง ot)</span>
+              </label>
+            </div>
+          </div>
+
+          {isLoadingBatch ? (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+              <Loader2 size={20} className="spinning" style={{ display: 'inline', verticalAlign: 'middle', marginRight: '8px' }} />
+              กำลังตรวจสอบชุดข้อมูลล่าสุดในตาราง...
+            </div>
+          ) : latestBatch ? (
+            <div>
+              <div className="batchInfoBox">
+                <div className="batchInfoRow">
+                  <span className="batchInfoLabel">ตารางข้อมูล:</span>
+                  <span className="batchInfoValue">
+                    <span className={`statusBadge ${batchDeleteType === 'salary' ? 'statusSalary' : 'statusOt'}`}>
+                      {batchDeleteType === 'salary' ? 'ตาราง salary (เงินเดือน)' : 'ตาราง ot (ค่าเวร/OT)'}
+                    </span>
+                  </span>
+                </div>
+                <div className="batchInfoRow">
+                  <span className="batchInfoLabel">ชุดข้อมูลงวดวันที่ล่าสุด (c1):</span>
+                  <span className="batchInfoValue" style={{ color: '#0f766e', fontSize: '15px' }}>
+                    {getThaiDateStr(latestBatch.date)} ({latestBatch.date})
+                  </span>
+                </div>
+                <div className="batchInfoRow">
+                  <span className="batchInfoLabel">จำนวนรายการทั้งหมดในชุดนี้:</span>
+                  <span className="batchInfoValue" style={{ color: '#dc2626', fontSize: '15px' }}>
+                    {latestBatch.count.toLocaleString()} รายการ
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                  * ตรวจสอบความถูกต้องก่อนกดลบ การลบจะมีผลกับข้อมูลในตาราง {batchDeleteType} ทันที
+                </p>
+                <button
+                  type="button"
+                  className="btn btnDanger"
+                  onClick={() => setShowBatchDeleteModal(true)}
+                  disabled={isDeletingBatch}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Trash2 size={16} />
+                  ลบชุดข้อมูลล่าสุดนี้ ({latestBatch.count.toLocaleString()} รายการ)
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="batchEmptyBox">
+              ไม่พบชุดข้อมูลล่าสุดในตาราง {batchDeleteType === 'salary' ? 'salary (เงินเดือน)' : 'ot (ค่าเวร/OT)'} หรือไม่มีข้อมูลที่สามารถลบได้
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Edit Period Modal */}
@@ -716,6 +869,89 @@ export default function UploadSalaryClient() {
           </div>
         </div>
       )}
+
+      {/* Batch Delete Confirmation Modal */}
+      {showBatchDeleteModal && latestBatch && (
+        <div 
+          className="modalOverlay" 
+          onClick={() => !isDeletingBatch && setShowBatchDeleteModal(false)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (!isDeletingBatch && (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ')) {
+              setShowBatchDeleteModal(false)
+            }
+          }}
+        >
+          <div 
+            className="modalCard" 
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
+          >
+            <div className="modalHeader" style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}>
+              <AlertTriangle size={36} color="#ffffff" />
+              <h3 id="modal-title">ยืนยันการลบชุดข้อมูลล่าสุด</h3>
+            </div>
+            <div className="modalBody">
+              <p style={{ fontSize: '14.5px', color: '#475569', marginBottom: '16px', textAlign: 'center' }}>
+                คุณแน่ใจหรือไม่ว่าต้องการลบชุดข้อมูลนี้ออกจากตาราง <strong>{batchDeleteType}</strong>?
+              </p>
+              
+              <div className="confirmDetailList" style={{ marginBottom: '16px' }}>
+                <div className="confirmDetailItem">
+                  <span className="confirmDetailLabel">ประเภทตาราง:</span>
+                  <span className="confirmDetailValue" style={{ color: batchDeleteType === 'salary' ? '#0369a1' : '#d97706' }}>
+                    {batchDeleteType === 'salary' ? 'ข้อมูลเงินเดือน (salary)' : 'ข้อมูลค่าเวร / OT (ot)'}
+                  </span>
+                </div>
+                <div className="confirmDetailItem">
+                  <span className="confirmDetailLabel">ชุดงวดวันที่ (c1):</span>
+                  <span className="confirmDetailValue">{getThaiDateStr(latestBatch.date)} ({latestBatch.date})</span>
+                </div>
+                <div className="confirmDetailItem">
+                  <span className="confirmDetailLabel">จำนวนรายการที่จะถูกลบ:</span>
+                  <span className="confirmDetailValue" style={{ color: '#dc2626' }}>{latestBatch.count.toLocaleString()} รายการ</span>
+                </div>
+              </div>
+
+              <div style={{ background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
+                <p style={{ fontSize: '12.5px', color: '#991b1b', margin: 0, textAlign: 'center', lineHeight: '1.5' }}>
+                  ⚠️ <strong>คำเตือน:</strong> การลบข้อมูลนี้จะลบแถวข้อมูลทั้งหมดที่มีงวดวันที่ดังกล่าวออกจากระบบฐานข้อมูลทันที และไม่สามารถกู้คืนได้
+                </p>
+              </div>
+
+              <div className="modalActions">
+                <button 
+                  type="button" 
+                  className="btn btnSecondary" 
+                  onClick={() => setShowBatchDeleteModal(false)}
+                  disabled={isDeletingBatch}
+                >
+                  ยกเลิก
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btnDanger" 
+                  onClick={executeBatchDelete}
+                  disabled={isDeletingBatch}
+                >
+                  {isDeletingBatch ? (
+                    <>
+                      <Loader2 size={16} className="spinning" />
+                      กำลังลบชุดข้อมูล...
+                    </>
+                  ) : (
+                    `ยืนยันลบข้อมูล (${latestBatch.count.toLocaleString()} รายการ)`
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

@@ -8,8 +8,7 @@ export const dynamic = 'force-dynamic';
 
 import { 
   Phone,
-  MessageSquare,
-  MapPin
+  MessageSquare
 } from 'lucide-react';
 import './page.css';
 import { FacebookIcon } from '@/components/common/Icons';
@@ -283,21 +282,21 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ===== SOCIAL & MAPS SECTION ===== */}
+      {/* ===== SOCIAL & FACEBOOK SECTION ===== */}
       <section className="section social-map-section bg-gray-50">
         <div className="container">
-          <div className="social-map-grid">
+          <div className="social-map-grid full-width">
             <div className="facebook-embed-card card">
               <div className="card-header-with-icon">
                 <FacebookIcon className="text-primary" size={24} />
                 <h2>ติดตามเราบน Facebook</h2>
               </div>
-              <p className="section-sub">เกาะติดข่าวสารและกิจกรรมผ่าน Facebook Fanpage</p>
+              <p className="section-sub">เกาะติดข่าวสารและกิจกรรมผ่าน Facebook Fanpage โรงพยาบาลเถิน</p>
               <div className="facebook-wrapper">
                 <iframe
-                  src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FThoenHospital1669&tabs=timeline&width=500&height=450&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
+                  src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FThoenHospital1669&tabs=timeline&width=500&height=550&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
                   width="100%"
-                  height="450"
+                  height="550"
                   style={{ border: 'none', overflow: 'hidden', borderRadius: '8px' }}
                   scrolling="no"
                   frameBorder="0"
@@ -305,26 +304,6 @@ export default async function HomePage() {
                   allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                   title="Facebook Page - โรงพยาบาลเถิน"
                 />
-              </div>
-            </div>
-
-            <div className="google-map-embed-card card">
-              <div className="card-header-with-icon">
-                <MapPin className="text-primary" size={24} />
-                <h2>แผนที่และการเดินทาง</h2>
-              </div>
-              <p className="section-sub">แผนที่แสดงพิกัดนำทางโรงพยาบาลเถิน จังหวัดลำปาง</p>
-              <div className="map-wrapper">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3765.2312965383568!2d99.2379647!3d17.6371055!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x30dea78c00000001%3A0xcab5fbfb134039ab!2sThoen%20Hospital!5e0!3m2!1sth!2sth!4v1716888495000!5m2!1sth!2sth"
-                width="100%"
-                height="450"
-                style={{ border: 0, borderRadius: '8px' }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Google Maps - โรงพยาบาลเถิน"
-              />
               </div>
             </div>
           </div>
