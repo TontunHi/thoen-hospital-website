@@ -16,6 +16,7 @@
     "db:restore": "tsx scripts/dbRestore.ts",
     "db:safe-push": "tsx scripts/safeDbPush.ts",
     "bot:appointment": "tsx scripts/appointmentMismatchBot.ts",
+    "bot:repair": "tsx scripts/telegramRepairPollingBot.ts",
     "precommit": "lint-staged"
   },
   "dependencies": {
