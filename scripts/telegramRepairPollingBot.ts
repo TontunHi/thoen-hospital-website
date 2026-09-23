@@ -15,8 +15,7 @@
 import path from 'path'
 import dotenv from 'dotenv'
 
-// Load environment from scripts/.env.bot if present, otherwise root .env
-dotenv.config({ path: path.resolve(__dirname, '.env.bot') })
+// Load environment from root .env of the website
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 
 import dns from 'dns'
