@@ -2,12 +2,11 @@
  * Telegram Bot Notification Script for Appointment Mismatch (รายการนัดผิดห้องตรวจ)
  * 
  * Standalone Service for Thoen Hospital:
- * - Runs 24/7 with long-polling to receive user button clicks (Callback Queries).
- * - Schedules daily group summaries at 08:00 and 16:00 (Thai Time).
+ * - Runs 24/7 with scheduler and command polling (/check).
+ * - Schedules daily group summary at 15:00 (Thai Time).
  * - Queries HOSxP MySQL (APPOINT_DB_*) for appointment mismatch records.
  * - Groups and sorts mismatches by app_user (count descending).
- * - Sends public summary with Inline Keyboard buttons to Telegram Group.
- * - Sends detailed HN list directly into user's Private Chat (DM) upon button click (PDPA compliant).
+ * - Sends summary with web link button to Telegram Group.
  * 
  * Usage:
  *   npx tsx scripts/appointmentMismatchBot.ts
@@ -244,7 +243,7 @@ async function sendGroupSummary(isDryRun = false) {
           inline_keyboard: [
             [
               {
-                text: '🔗 ดูรายละเอียดทั้งหมดบนเว็บไซต์ (ต้องเข้าสู่ระบบสมาชิก)',
+                text: '🔗 คลิ๊กดูรายละเอียด',
                 url: 'https://thlp.moph.go.th/service/appointment-mismatch',
               },
             ],
@@ -269,31 +268,19 @@ async function sendGroupSummary(isDryRun = false) {
 
   const inlineKeyboard: Array<Array<{ text: string; callback_data?: string; url?: string }>> = []
 
-  grouped.forEach((g, index) => {
-    // Bold + space จัดคอลัมน์ให้อ่านง่าย สบายตา ไม่มี emoji อันดับ
-    text += `• <b>${g.appUser}</b>  ➔  <b>${g.count}</b> รายการ\n`
-
-    const token = `usr_${index}`
-    callbackCache.set(token, { appUser: g.appUser, items: g.items })
-
-    // Create inline buttons (1 button per row for clear reading)
-    inlineKeyboard.push([
-      {
-        text: `👤 ดูรายการ HN ของ ${g.appUser} (${g.count})`,
-        callback_data: token,
-      },
-    ])
+  grouped.forEach((g) => {
+    // Bold + space จัดคอลัมน์ให้อ่านง่าย สบายตา
+    text += `• <b>${g.appUser}</b>  ➔  <b>${g.count}</b>\n`
   })
 
   text += 
     `\n──────────────────────────\n` +
-    `💡 <i>กดปุ่มด้านล่างเพื่อรับรายการ HN ผ่านแชตส่วนตัว (PDPA)</i>\n` +
     `🔐 <i>สามารถตรวจสอบแบบเต็มได้ที่เว็บไซต์ (ต้อง Login สมาชิก)</i>`
 
-  // แนบปุ่มลิงก์ไปยังเว็บไซต์ที่แถวล่างสุด
+  // แนบปุ่มลิงก์ไปยังเว็บไซต์
   inlineKeyboard.push([
     {
-      text: '🔗 ดูรายละเอียดทั้งหมดบนเว็บไซต์ (ต้องเข้าสู่ระบบสมาชิก)',
+      text: '🔗 คลิ๊กดูรายละเอียด',
       url: 'https://thlp.moph.go.th/service/appointment-mismatch',
     },
   ])
@@ -470,10 +457,9 @@ async function startLongPolling() {
  * Daily Schedule Checker (Runs every minute to check 08:00 and 16:00)
  */
 function startInternalScheduler() {
-  console.log('⏰ Internal scheduler initialized: targets 08:00 and 16:00 (Thai Time) daily.')
+  console.log('⏰ Internal scheduler initialized: targets 15:00 (Thai Time) daily.')
 
   let lastTriggeredDate = ''
-  let lastTriggeredSlot = ''
 
   setInterval(async () => {
     // Current time in Bangkok UTC+7
@@ -483,23 +469,19 @@ function startInternalScheduler() {
       hour12: false,
       hour: '2-digit',
       minute: '2-digit',
-    }) // "08:00" or "16:00"
+    }) // "15:00"
 
     const thaiDateStr = now.toLocaleDateString('en-CA', {
       timeZone: 'Asia/Bangkok',
     }) // "YYYY-MM-DD"
 
-    const isSlot08 = thaiTimeStr === '08:00'
-    const isSlot16 = thaiTimeStr === '16:00'
+    const isSlot15 = thaiTimeStr === '15:00'
 
-    if (isSlot08 || isSlot16) {
-      const currentSlot = isSlot08 ? '08:00' : '16:00'
-
+    if (isSlot15) {
       // Prevent triggering multiple times in the same minute
-      if (lastTriggeredDate !== thaiDateStr || lastTriggeredSlot !== currentSlot) {
+      if (lastTriggeredDate !== thaiDateStr) {
         lastTriggeredDate = thaiDateStr
-        lastTriggeredSlot = currentSlot
-        console.log(`⏰ [Trigger] Scheduled daily alarm for slot ${currentSlot}`)
+        console.log(`⏰ [Trigger] Scheduled daily alarm for slot 15:00`)
         await sendGroupSummary()
       }
     }
