@@ -1,7 +1,18 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Send, CheckCircle2, AlertCircle, ExternalLink, Unlink, QrCode, RefreshCw, X } from 'lucide-react'
+import {
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  Unlink,
+  QrCode,
+  RefreshCw,
+  X,
+  ShieldAlert,
+  Loader2
+} from 'lucide-react'
 
 interface TelegramStatus {
   isLinked: boolean
@@ -18,6 +29,10 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
   const [challengeData, setChallengeData] = useState<{ botUrl: string; expiresAt: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  
+  // Custom Confirmation Modal State (แทน window.confirm)
+  const [showConfirmUnlink, setShowConfirmUnlink] = useState(false)
+
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fetch status on open
@@ -28,6 +43,7 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
       stopPolling()
       setChallengeData(null)
       setError(null)
+      setShowConfirmUnlink(false)
     }
   }, [isOpen])
 
@@ -94,11 +110,8 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
     }, 3000)
   }
 
-  // Unlink account
-  const handleUnlink = async () => {
-    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการเชื่อมต่อ Telegram กับระบบโรงพยาบาล?')) {
-      return
-    }
+  // Execute actual Unlink
+  const executeUnlink = async () => {
     setActionLoading(true)
     setError(null)
     try {
@@ -107,6 +120,7 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
       if (json.success) {
         setStatus({ isLinked: false })
         setChallengeData(null)
+        setShowConfirmUnlink(false)
       } else {
         setError(json.error || 'ไม่สามารถยกเลิกการเชื่อมต่อได้')
       }
@@ -119,55 +133,53 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
 
   if (!isOpen) return null
 
-  // Generate QR code image URL using standard SVG data uri / Google charts API or external QR generator
   const qrCodeUrl = challengeData
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(challengeData.botUrl)}`
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(challengeData.botUrl)}`
     : ''
 
   return (
     <div className="telegramModalOverlay" onClick={onClose}>
-      <div className="telegramModalCard" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="telegramModalHeader">
+      <div className="telegramModalCard compactModal" onClick={(e) => e.stopPropagation()}>
+        {/* Header - Compact */}
+        <div className="telegramModalHeader compactHeader">
           <div className="telegramModalTitle">
-            <div className="telegramIconBadge">
-              <Send size={20} />
+            <div className="telegramIconBadge compactBadge">
+              <Send size={18} />
             </div>
             <div>
-              <h3>เชื่อมระบบ Telegram</h3>
-              <p>รับการแจ้งเตือนงานซ่อมและเอกสารส่วนตัวผ่านแอปพลิเคชัน Telegram</p>
+              <h3>เชื่อมต่อ Telegram</h3>
             </div>
           </div>
-          <button className="telegramCloseBtn" onClick={onClose} aria-label="Close modal">
-            <X size={20} />
+          <button className="telegramCloseBtn compactCloseBtn" onClick={onClose} aria-label="Close modal">
+            <X size={18} />
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="telegramModalBody">
+        {/* Content Body - Compact */}
+        <div className="telegramModalBody compactBody">
           {error && (
-            <div className="telegramAlertBox error">
-              <AlertCircle size={16} />
+            <div className="telegramAlertBox error compactAlert">
+              <AlertCircle size={15} />
               <span>{error}</span>
             </div>
           )}
 
           {loading ? (
-            <div className="telegramLoadingState">
-              <RefreshCw className="animate-spin" size={24} />
-              <span>กำลังตรวจสอบสถานะการเชื่อมต่อ...</span>
+            <div className="telegramLoadingState compactLoading">
+              <RefreshCw className="animate-spin text-emerald-600" size={22} />
+              <span>กำลังตรวจสอบสถานะ...</span>
             </div>
           ) : status?.isLinked ? (
             /* Linked State */
-            <div className="telegramLinkedContent">
-              <div className="telegramStatusBadge connected">
-                <CheckCircle2 size={18} />
+            <div className="telegramLinkedContent compactLinked">
+              <div className="telegramStatusBadge connected compactStatus">
+                <CheckCircle2 size={16} />
                 <span>เชื่อมต่อบัญชีเรียบร้อยแล้ว</span>
               </div>
 
-              <div className="telegramDetailsBox">
+              <div className="telegramDetailsBox compactBox">
                 <div className="telegramDetailRow">
-                  <span className="label">ชื่อผู้ใช้ Telegram:</span>
+                  <span className="label">ชื่อผู้ใช้:</span>
                   <span className="value">
                     {status.telegramUsername ? `@${status.telegramUsername}` : status.firstName || 'ไม่ระบุชื่อ'}
                   </span>
@@ -184,8 +196,6 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
                       })}
                     </span>
                   </div>
@@ -194,34 +204,25 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
 
               <div className="telegramActionArea">
                 <button
-                  className="telegramUnlinkBtn"
-                  onClick={handleUnlink}
+                  type="button"
+                  className="telegramUnlinkBtn compactUnlinkBtn"
+                  onClick={() => setShowConfirmUnlink(true)}
                   disabled={actionLoading}
                 >
-                  <Unlink size={16} />
-                  <span>{actionLoading ? 'กำลังยกเลิก...' : 'ยกเลิกการเชื่อมต่อ'}</span>
+                  <Unlink size={15} />
+                  <span>ยกเลิกการเชื่อมต่อ</span>
                 </button>
               </div>
             </div>
           ) : challengeData ? (
-            /* Active Linking Challenge Screen (QR + Deep Link) */
-            <div className="telegramChallengeContent">
-              <div className="telegramInstructions">
-                <span className="stepNumber">1</span>
-                <span>เปิดแอปพลิเคชัน Telegram บนโทรศัพท์ แล้วสแกน QR Code นี้ หรือกดปุ่มเปิดแอป</span>
-              </div>
-
-              <div className="qrWrapper">
-                <img src={qrCodeUrl} alt="Telegram Link QR Code" className="qrImage" />
+            /* Active Linking Challenge Screen (QR + Deep Link) - Compact */
+            <div className="telegramChallengeContent compactChallenge">
+              <div className="qrWrapper compactQr">
+                <img src={qrCodeUrl} alt="Telegram QR" className="qrImage compactQrImg" />
                 <div className="qrExpiryHint">
-                  <RefreshCw size={13} className="animate-spin" />
-                  <span>กำลังรอให้ท่านกดปุ่ม [START] ใน Telegram...</span>
+                  <RefreshCw size={12} className="animate-spin" />
+                  <span>รอการกด [START] ในแอป Telegram...</span>
                 </div>
-              </div>
-
-              <div className="telegramInstructions">
-                <span className="stepNumber">2</span>
-                <span>เมื่อเปิดหน้าแชทกับบอท ให้กดปุ่ม <strong>[ START ]</strong> ที่ด้านล่าง</span>
               </div>
 
               <div className="challengeActionRow">
@@ -229,22 +230,22 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
                   href={challengeData.botUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="telegramOpenBotBtn"
+                  className="telegramOpenBotBtn compactBtn"
                 >
-                  <ExternalLink size={16} />
-                  <span>เปิดในแอป Telegram ทันที</span>
+                  <ExternalLink size={15} />
+                  <span>เปิด Telegram ทันที</span>
                 </a>
 
                 <button
                   type="button"
-                  className="telegramCopyBtn"
+                  className="telegramCopyBtn compactBtn"
                   onClick={() => {
                     navigator.clipboard.writeText(challengeData.botUrl)
                     setCopied(true)
                     setTimeout(() => setCopied(false), 2000)
                   }}
                 >
-                  {copied ? 'คัดลอกลิงก์แล้ว!' : 'คัดลอกลิงก์'}
+                  {copied ? 'คัดลอกแล้ว!' : 'คัดลอกลิงก์'}
                 </button>
               </div>
 
@@ -260,36 +261,86 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
               </button>
             </div>
           ) : (
-            /* Unlinked Initial Screen */
-            <div className="telegramUnlinkedContent">
-              <div className="telegramBenefitList">
-                <div className="benefitItem">
-                  <span className="benefitBullet">✓</span>
-                  <span>รับการแจ้งเตือนทันทีเมื่อมีช่างรับงานซ่อมคอมพิวเตอร์ของคุณ</span>
+            /* Unlinked Initial Screen - Compact & Informative */
+            <div className="telegramUnlinkedContent compactUnlinked">
+              <div className="compactBenefitCard">
+                <div className="compactBenefitHeader">
+                  <span>สิทธิประโยชน์เมื่อเชื่อมต่อระบบ:</span>
                 </div>
-                <div className="benefitItem">
+                <div className="compactBenefitItem">
                   <span className="benefitBullet">✓</span>
-                  <span>รับสรุปผลและรายงานเมื่อช่างทำการปิดงานซ่อมเรียบร้อย</span>
+                  <span>รับการแจ้งเตือนงานซ่อมและสถานะปิดงานแบบเรียลไทม์</span>
                 </div>
-                <div className="benefitItem">
+                <div className="compactBenefitItem">
                   <span className="benefitBullet">✓</span>
-                  <span>ปลอดภัย ไม่เปิดเผยเบอร์โทรศัพท์ส่วนตัว และยกเลิกการเชื่อมต่อได้ตลอดเวลา</span>
+                  <span>รับแจ้งเตือนเอกสาร คำขอ และรายการที่ต้องลงนามอนุมัติ</span>
+                </div>
+                <div className="compactBenefitItem">
+                  <span className="benefitBullet">✓</span>
+                  <span>ปลอดภัย ข้อมูลส่วนบุคคลเป็นส่วนตัว ไม่เปิดเผยเบอร์โทรศัพท์</span>
                 </div>
               </div>
 
-              <div className="telegramStartLinkingBox">
-                <button
-                  className="telegramConnectBtn"
-                  onClick={handleRequestLink}
-                  disabled={actionLoading}
-                >
-                  <QrCode size={18} />
-                  <span>{actionLoading ? 'กำลังสร้างรหัส...' : 'เชื่อมต่อบัญชี Telegram ทันที'}</span>
-                </button>
-              </div>
+              <button
+                className="telegramConnectBtn compactConnectBtn"
+                onClick={handleRequestLink}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>กำลังเชื่อมต่อ...</span>
+                  </>
+                ) : (
+                  <>
+                    <QrCode size={16} />
+                    <span>เชื่อมต่อบัญชี Telegram</span>
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>
+
+        {/* ── Custom In-App Unlink Confirmation Modal (แทน window.confirm) ── */}
+        {showConfirmUnlink && (
+          <div className="customConfirmOverlay" onClick={() => setShowConfirmUnlink(false)}>
+            <div className="customConfirmCard" onClick={(e) => e.stopPropagation()}>
+              <div className="customConfirmIconBox">
+                <ShieldAlert size={28} />
+              </div>
+              <h4 className="customConfirmTitle">ยืนยันยกเลิกการเชื่อมต่อ?</h4>
+              <p className="customConfirmDesc">
+                หากยกเลิก คุณจะไม่ได้รับการแจ้งเตือนงานซ่อมและเอกสารผ่าน Telegram อีกต่อไป จนกว่าจะเชื่อมต่อใหม่
+              </p>
+              <div className="customConfirmActions">
+                <button
+                  type="button"
+                  className="confirmBtnCancel"
+                  onClick={() => setShowConfirmUnlink(false)}
+                  disabled={actionLoading}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  className="confirmBtnDanger"
+                  onClick={executeUnlink}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>กำลังยกเลิก...</span>
+                    </>
+                  ) : (
+                    <span>ยืนยันยกเลิก</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

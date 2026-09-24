@@ -1102,3 +1102,480 @@
   cursor: not-allowed;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Compact Telegram Modal & Custom Confirmation Popup Additions
+   ══════════════════════════════════════════════════════════════ */
+
+.telegramModalCard.compactModal {
+  max-width: 420px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.2);
+  position: relative;
+}
+
+.telegramModalHeader.compactHeader {
+  padding: 18px 20px 14px;
+}
+
+.telegramIconBadge.compactBadge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(34, 158, 217, 0.3);
+}
+
+.telegramModalHeader.compactHeader h3 {
+  font-size: 1.05rem;
+  margin: 0 0 2px;
+}
+
+.telegramModalHeader.compactHeader p {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.telegramCloseBtn.compactCloseBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.telegramModalBody.compactBody {
+  padding: 18px 20px 20px;
+}
+
+.telegramAlertBox.compactAlert {
+  padding: 9px 12px;
+  font-size: 0.82rem;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+
+.telegramLoadingState.compactLoading {
+  padding: 24px 0;
+  font-size: 0.88rem;
+}
+
+/* Linked state compact */
+.telegramLinkedContent.compactLinked {
+  gap: 14px;
+}
+
+.telegramStatusBadge.compactStatus {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border-radius: 10px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0284c7;
+}
+
+.telegramDetailsBox.compactBox {
+  padding: 12px 14px;
+  border-radius: 12px;
+  gap: 8px;
+}
+
+.telegramDetailsBox.compactBox .telegramDetailRow {
+  font-size: 0.82rem;
+}
+
+.telegramUnlinkBtn.compactUnlinkBtn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+/* Challenge state compact */
+.telegramChallengeContent.compactChallenge {
+  gap: 12px;
+}
+
+.qrWrapper.compactQr {
+  padding: 12px;
+  border-radius: 14px;
+  gap: 8px;
+  border: 1px dashed #7dd3fc;
+  background: #f0f9ff;
+}
+
+.qrImage.compactQrImg {
+  width: 140px;
+  height: 140px;
+}
+
+.qrWrapper.compactQr .qrExpiryHint {
+  font-size: 0.75rem;
+  color: #0284c7;
+}
+
+.telegramOpenBotBtn.compactBtn {
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgba(34, 158, 217, 0.3);
+}
+
+.telegramCopyBtn.compactBtn {
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  border-radius: 10px;
+}
+
+.compactBenefitCard {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.compactBenefitHeader {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0369a1;
+  border-bottom: 1px dashed #bae6fd;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+.compactBenefitItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #0369a1;
+}
+
+.compactBenefitItem .benefitBullet {
+  color: #0284c7;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.telegramConnectBtn.compactConnectBtn {
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(34, 158, 217, 0.35);
+}
+
+.telegramConnectBtn.compactConnectBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #229ED9 0%, #1c88bd 100%);
+  transform: translateY(-1px);
+}
+
+/* ── Custom Elegant Confirmation Popup (แทน browser confirm) ── */
+.customConfirmOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-radius: 20px;
+  z-index: 50;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.customConfirmCard {
+  background: #ffffff;
+  border: 1px solid #fecaca;
+  border-radius: 16px;
+  padding: 20px;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+  animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.customConfirmIconBox {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fef2f2;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.customConfirmTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.customConfirmDesc {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0 0 18px;
+  line-height: 1.45;
+}
+
+.customConfirmActions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.confirmBtnCancel {
+  flex: 1;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.confirmBtnCancel:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.confirmBtnDanger {
+  flex: 1;
+  background: #dc2626;
+  border: none;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+
+.confirmBtnDanger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Telegram Prompt Invitation Modal (Auto popup for unlinked users)
+   ══════════════════════════════════════════════════════════════ */
+
+.telegramPromptOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 10000;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.telegramPromptCard {
+  background: #ffffff;
+  width: 100%;
+  max-width: 400px;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  animation: scaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.telegramPromptGlowStrip {
+  height: 5px;
+  width: 100%;
+  background: linear-gradient(90deg, #2AABEE 0%, #229ED9 50%, #0088cc 100%);
+}
+
+.telegramPromptCloseBtn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.telegramPromptCloseBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.telegramPromptBody {
+  padding: 24px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.telegramPromptIconBox {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  box-shadow: 0 8px 18px rgba(34, 158, 217, 0.35);
+  animation: floatSmall 3s ease-in-out infinite alternate;
+}
+
+@keyframes floatSmall {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-4px); }
+}
+
+.telegramPromptTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.telegramPromptSubtitle {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.telegramPromptBenefits {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 10px 14px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.promptBenefitRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #0369a1;
+}
+
+.promptBenefitIcon {
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+.telegramPromptActionGroup {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.telegramPromptConnectBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #2AABEE 0%, #229ED9 100%);
+  color: #ffffff;
+  border: none;
+  padding: 11px 18px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(34, 158, 217, 0.35);
+}
+
+.telegramPromptConnectBtn:hover {
+  background: linear-gradient(135deg, #229ED9 0%, #1c88bd 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(34, 158, 217, 0.45);
+}
+
+/* Footer: Checkbox & Later button */
+.telegramPromptFooter {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+}
+
+.telegramPromptCheckboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #64748b;
+  cursor: pointer;
+  user-select: none;
+}
+
+.telegramPromptCheckbox {
+  width: 15px;
+  height: 15px;
+  accent-color: #229ED9;
+  cursor: pointer;
+}
+
+.telegramPromptLaterBtn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.telegramPromptLaterBtn:hover {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+
+

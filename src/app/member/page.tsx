@@ -25,6 +25,13 @@ async function getMemberDashboardData() {
 
   const member = users[0]
 
+  // Query Telegram linking status for this member
+  const telegramLinkRes = await queryMemberDb(
+    'SELECT id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+    [member.id]
+  )
+  const isTelegramLinked = Boolean(telegramLinkRes && telegramLinkRes.length > 0)
+
   // Query pending approvals count for this member
   const pendingApprovalsRes = await queryMemberDb(
     "SELECT COUNT(*) as count FROM approval_tickets WHERE current_approver_id = ? AND status = 'PENDING'",
@@ -125,6 +132,7 @@ async function getMemberDashboardData() {
     displayRole,
     hasSignature,
     hasSalary,
+    isTelegramLinked,
     initials
   }
 }
@@ -340,6 +348,7 @@ export default async function MemberDashboardPage() {
     displayRole,
     hasSignature,
     hasSalary,
+    isTelegramLinked,
     initials
   } = await getMemberDashboardData()
 
@@ -354,7 +363,12 @@ export default async function MemberDashboardPage() {
       <div className="dashboardWrapper">
         
         {/* Banner Section / Profile Card */}
-        <ProfileBanner member={member} initials={initials} displayRole={displayRole} />
+        <ProfileBanner
+          member={member}
+          initials={initials}
+          displayRole={displayRole}
+          isTelegramLinked={isTelegramLinked}
+        />
 
         {/* Services / Features Section */}
         {member.role === 'subdistrict' ? (

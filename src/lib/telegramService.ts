@@ -83,14 +83,13 @@ export async function getMemberTelegramLink(memberId: number): Promise<TelegramL
 
   const link = rows[0]
   const chatIdStr = String(link.telegram_chat_id)
-  const maskedChatId = chatIdStr.length > 4 ? `***${chatIdStr.slice(-4)}` : '****'
 
   return {
     isLinked: true,
     telegramUsername: link.telegram_username,
     firstName: link.first_name,
     linkedAt: link.linked_at ? new Date(link.linked_at).toISOString() : null,
-    telegramChatIdMasked: maskedChatId,
+    telegramChatIdMasked: chatIdStr,
   }
 }
 

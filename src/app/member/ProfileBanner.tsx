@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react'
 import { Camera, Briefcase, Building2, Loader2, Send, User } from 'lucide-react'
 import MemberLogoutButton from './LogoutButton'
 import TelegramLinkModal from './TelegramLinkModal'
+import TelegramPromptModal from './TelegramPromptModal'
 import { useRouter } from 'next/navigation'
 
 interface MemberInfo {
@@ -21,9 +22,15 @@ interface ProfileBannerProps {
   member: MemberInfo
   initials: string
   displayRole: string
+  isTelegramLinked?: boolean
 }
 
-export default function ProfileBanner({ member, initials, displayRole }: ProfileBannerProps) {
+export default function ProfileBanner({
+  member,
+  initials,
+  displayRole,
+  isTelegramLinked = false,
+}: ProfileBannerProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [hasAvatar, setHasAvatar] = useState<boolean>(!!member.profile_path)
@@ -171,6 +178,13 @@ export default function ProfileBanner({ member, initials, displayRole }: Profile
       <TelegramLinkModal 
         isOpen={isTelegramModalOpen} 
         onClose={() => setIsTelegramModalOpen(false)} 
+      />
+
+      {/* Auto Prompt for unlinked users */}
+      <TelegramPromptModal
+        isLinked={isTelegramLinked}
+        memberId={member.id}
+        onOpenConnectModal={() => setIsTelegramModalOpen(true)}
       />
     </div>
   )
