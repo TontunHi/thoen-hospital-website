@@ -365,7 +365,7 @@ export default function AuditLogsClient() {
             <div className="statInfo">
               <span className="statLabel">อายุจัดเก็บ (Retention Span)</span>
               <span className="statValue">{stats.retainedDays} วัน</span>
-              <span className="statSubtext">ตามเกณฑ์ รพ. 2 ปี (730 วัน)</span>
+              <span className="statSubtext">ตามเกณฑ์ พ.ร.บ. 90 วัน</span>
             </div>
           </div>
         </div>

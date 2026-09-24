@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger'
  * Automated Maintenance & PDPA Data Retention Endpoint
  * 
  * Complies with Thailand's PDPA storage limitation principles:
- * - Purges audit log records older than 730 days (2 years)
+ * - Purges audit log records older than 90 days
  * - Safe from unauthorized triggering (requires CRON_SECRET or Admin bearer)
  */
 export async function POST(request: Request) {
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const retentionDays = parseInt(searchParams.get('days') || '730') // Default: 2 years (730 days)
+    const retentionDays = parseInt(searchParams.get('days') || '90') // Default: 90 days
 
     if (isNaN(retentionDays) || retentionDays < 90) {
       return NextResponse.json(

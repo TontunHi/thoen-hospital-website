@@ -55,7 +55,7 @@ export async function GET() {
         oldestLog,
         newestLog,
         retainedDays,
-        policyRetentionDays: 730,
+        policyRetentionDays: 90,
         loginsToday,
         readsToday,
         changesToday,

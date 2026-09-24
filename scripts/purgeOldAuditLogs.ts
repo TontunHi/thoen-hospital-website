@@ -2,10 +2,10 @@
  * PDPA Data Retention Maintenance Script
  * 
  * Runs as a standalone CLI command or via Windows Task Scheduler.
- * Purges audit log records older than the retention period (default: 730 days / 2 years).
+ * Purges audit log records older than the retention period (default: 90 days).
  * 
  * Usage:
- *   npx tsx scripts/purgeOldAuditLogs.ts [--days=730]
+ *   npx tsx scripts/purgeOldAuditLogs.ts [--days=90]
  */
 
 import 'dotenv/config'
@@ -13,7 +13,7 @@ import mysql from 'mysql2/promise'
 
 async function runCleanup() {
   const args = process.argv.slice(2)
-  let retentionDays = 730 // default 2 years
+  let retentionDays = 90 // default 90 days
 
   for (const arg of args) {
     if (arg.startsWith('--days=')) {
