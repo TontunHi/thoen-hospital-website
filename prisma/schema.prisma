@@ -92,3 +92,78 @@ model ContactMessage {
   @@index([createdAt], map: "idx_contact_created")
   @@map("contact_messages")
 }
+
+model Member {
+  id              Int               @id @default(autoincrement())
+  username        String            @unique @db.VarChar(100)
+  email           String            @unique @db.VarChar(100)
+  name            String?           @db.VarChar(255)
+  department      String?           @db.VarChar(100)
+  position        String?           @db.VarChar(100)
+  salaryUser      String?           @map("salary_user") @db.VarChar(100)
+  salaryPass      String?           @map("salary_pass") @db.VarChar(100)
+  role            String            @default("member") @db.VarChar(50)
+  otpCode         String?           @map("otp_code") @db.VarChar(10)
+  otpExpiry       DateTime?         @map("otp_expiry") @db.DateTime(0)
+  signaturePath   String?           @map("signature_path") @db.VarChar(255)
+  profilePath     String?           @map("profile_path") @db.VarChar(255)
+  telegramChatId  String?           @map("telegram_chat_id") @db.VarChar(50)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  prRequests      PrRequest[]
+  approvalTickets ApprovalTicket[]
+
+  @@map("members")
+}
+
+model PrRequest {
+  id           Int      @id @default(autoincrement())
+  title        String   @db.VarChar(255)
+  hasCost      Boolean  @default(false) @map("has_cost")
+  requesterId  Int      @map("requester_id")
+  department   String?  @db.VarChar(100)
+  status       String   @default("PENDING") @db.VarChar(50)
+  formData     Json?    @map("form_data")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  requester    Member   @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId], map: "idx_pr_requester")
+  @@map("pr_requests")
+}
+
+model ApprovalTicket {
+  id                 Int       @id @default(autoincrement())
+  sourceSystem       String    @map("source_system") @db.VarChar(50)
+  sourceId           Int       @map("source_id")
+  stepNumber         Int       @map("step_number")
+  assignedPosition   String    @map("assigned_position") @db.VarChar(100)
+  currentApproverId  Int?      @map("current_approver_id")
+  status             String    @default("WAITING") @db.VarChar(20)
+  comment            String?   @db.VarChar(255)
+  signaturePath      String?   @map("signature_path") @db.VarChar(255)
+  approvedAt         DateTime? @map("approved_at") @db.DateTime(0)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  currentApprover    Member?   @relation(fields: [currentApproverId], references: [id], onDelete: SetNull)
+
+  @@index([currentApproverId], map: "idx_ticket_approver")
+  @@map("approval_tickets")
+}
+
+model MemberSystemSetting {
+  configKey   String @id @map("config_key") @db.VarChar(100)
+  configValue String @map("config_value") @db.VarChar(255)
+
+  @@map("member_system_settings")
+}
+
+model PositionPermission {
+  id             Int      @id @default(autoincrement())
+  permissionKey  String   @map("permission_key") @db.VarChar(100)
+  positionName   String   @map("position_name") @db.VarChar(150)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+
+  @@unique([permissionKey, positionName], map: "uq_permission_position")
+  @@map("position_permissions")
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { fetchAppointmentMismatches } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
 import { logThrottledAudit } from '@/lib/audit'
@@ -46,33 +46,7 @@ export async function GET() {
     const cacheKey = 'appointment-mismatch-data'
 
     const data = await getCachedData<AppointmentMismatchResponse>(cacheKey, async () => {
-      // Query mirrors PHP index.php lines 71-75:
-      // Find appointments where the department code is inactive/unset,
-      // meaning the appointment was made to a wrong examination room.
-      // This prevents the auto-send examination system from working.
-      const sql = `
-        SELECT 
-          o.hn,
-          o.vstdate,
-          o.nextdate,
-          k.department,
-          o.app_user
-        FROM oapp o
-        LEFT OUTER JOIN kskdepartment k ON o.depcode = k.depcode
-        WHERE o.nextdate > CURRENT_DATE
-          AND (k.depcode_active IS NULL OR k.depcode_active = '')
-        ORDER BY o.app_user
-      `
-
-      const rows = await queryHosDb(sql)
-
-      const mismatches: AppointmentMismatch[] = rows.map((row: Record<string, unknown>) => ({
-        hn: String(row.hn || ''),
-        department: row.department ? String(row.department).trim() : '',
-        vstdate: row.vstdate ? String(row.vstdate) : '',
-        nextdate: row.nextdate ? String(row.nextdate) : '',
-        appUser: row.app_user ? String(row.app_user).trim() : '',
-      }))
+      const mismatches = await fetchAppointmentMismatches()
 
       return {
         totalMismatches: mismatches.length,

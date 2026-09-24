@@ -96,3 +96,46 @@ export async function requireRole(allowedRoles: UserRole[]): Promise<
 
   return { session }
 }
+
+/**
+ * Verify user is authenticated AND either:
+ * - Has admin role
+ * - Matches one of the allowed roles (optional)
+ * - Or has granted position permission key(s)
+ */
+export async function requirePermission(
+  permissionKey: string | string[],
+  fallbackRoles: UserRole[] = []
+): Promise<
+  { session: { username: string; email: string; role: UserRole }; error?: never } |
+  { session?: never; error: NextResponse }
+> {
+  const authResult = await requireAuth()
+  if (authResult.error) return authResult
+
+  const { session } = authResult
+
+  // Admin has access to everything
+  if (session.role === 'admin') {
+    return { session }
+  }
+
+  // Check fallback role
+  if (fallbackRoles.includes(session.role)) {
+    return { session }
+  }
+
+  // Check dynamic position permission
+  const { checkPositionPermission } = await import('./memberAuth')
+  const hasPermission = await checkPositionPermission(session.username, permissionKey)
+  if (hasPermission) {
+    return { session }
+  }
+
+  return {
+    error: NextResponse.json(
+      { error: 'คุณไม่มีสิทธิ์เข้าถึงส่วนงานนี้' },
+      { status: 403 }
+    ),
+  }
+}

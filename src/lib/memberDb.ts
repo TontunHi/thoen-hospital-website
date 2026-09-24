@@ -3,14 +3,37 @@ import mysql from 'mysql2/promise'
 let pool: mysql.Pool | null = null
 let initPromise: Promise<void> | null = null
 
+function parseDatabaseUrl(urlStr?: string) {
+  if (!urlStr) return null
+  try {
+    const parsed = new URL(urlStr)
+    return {
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 3306,
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: parsed.pathname.replace(/^\//, ''),
+    }
+  } catch {
+    return null
+  }
+}
+
 function getPool() {
   if (!pool) {
+    const dbUrlConfig = parseDatabaseUrl(process.env.DATABASE_URL)
+    const host = process.env.MEMBER_DB_HOST || dbUrlConfig?.host || 'localhost'
+    const port = parseInt(process.env.MEMBER_DB_PORT || String(dbUrlConfig?.port || 3306), 10)
+    const user = process.env.MEMBER_DB_USER || dbUrlConfig?.user
+    const password = process.env.MEMBER_DB_PASSWORD || dbUrlConfig?.password
+    const database = process.env.MEMBER_DB_NAME || dbUrlConfig?.database || 'thoen_hospital_website'
+
     pool = mysql.createPool({
-      host: process.env.MEMBER_DB_HOST || 'localhost',
-      port: parseInt(process.env.MEMBER_DB_PORT || '3306'),
-      user: process.env.MEMBER_DB_USER,
-      password: process.env.MEMBER_DB_PASSWORD,
-      database: process.env.MEMBER_DB_NAME || 'thoen_hospital_website',
+      host,
+      port,
+      user,
+      password,
+      database,
       connectionLimit: 15,
       waitForConnections: true,
       queueLimit: 0,

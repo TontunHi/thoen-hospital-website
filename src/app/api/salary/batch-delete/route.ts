@@ -1,47 +1,13 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { requirePermission } from '@/lib/roles'
 import { querySalaryEditDb } from '@/lib/salaryDb'
 import { logAudit } from '@/lib/audit'
 
-async function checkFinanceAccess() {
-  const session = await verifyMemberSession()
-  if (!session) {
-    return { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน', status: 401 }
-  }
-
-  const users = await queryMemberDb(
-    'SELECT role, position FROM members WHERE username = ? AND email = ?',
-    [session.username, session.email]
-  )
-
-  if (!users || users.length === 0) {
-    return { error: 'ไม่พบข้อมูลสมาชิกในระบบ', status: 403 }
-  }
-
-  const member = users[0]
-  let isFinance = member.role === 'admin' || (member.position && member.position.includes('เจ้าพนักงานการเงินและบัญชี'))
-
-  if (!isFinance && member.position) {
-    const finPerms = await queryMemberDb(
-      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'upload_salary' AND TRIM(position_name) = TRIM(?)",
-      [member.position]
-    )
-    isFinance = (finPerms[0]?.count || 0) > 0
-  }
-
-  if (!isFinance) {
-    return { error: 'คุณไม่มีสิทธิ์เข้าถึงส่วนงานนี้', status: 403 }
-  }
-
-  return { success: true, session }
-}
-
 export async function GET(request: Request) {
   try {
-    const auth = await checkFinanceAccess()
+    const auth = await requirePermission('upload_salary')
     if (auth.error || !auth.session) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status })
+      return auth.error
     }
 
     const { searchParams } = new URL(request.url)
@@ -104,9 +70,9 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const auth = await checkFinanceAccess()
+    const auth = await requirePermission('upload_salary')
     if (auth.error || !auth.session) {
-      return NextResponse.json({ error: auth.error }, { status: auth.status })
+      return auth.error
     }
 
     const body = await request.json()

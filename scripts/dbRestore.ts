@@ -26,12 +26,29 @@ function askQuestion(query: string): Promise<string> {
   }))
 }
 
+function parseDatabaseUrl(urlStr?: string) {
+  if (!urlStr) return null
+  try {
+    const parsed = new URL(urlStr)
+    return {
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 3306,
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      database: parsed.pathname.replace(/^\//, ''),
+    }
+  } catch {
+    return null
+  }
+}
+
 async function runDatabaseRestore() {
-  const host = process.env.MEMBER_DB_HOST || 'localhost'
-  const user = process.env.MEMBER_DB_USER || 'root'
-  const password = process.env.MEMBER_DB_PASSWORD || ''
-  const database = process.env.MEMBER_DB_NAME || 'thoen_hospital_website'
-  const port = parseInt(process.env.MEMBER_DB_PORT || '3306', 10)
+  const dbUrlConfig = parseDatabaseUrl(process.env.DATABASE_URL)
+  const host = process.env.MEMBER_DB_HOST || dbUrlConfig?.host || 'localhost'
+  const user = process.env.MEMBER_DB_USER || dbUrlConfig?.user || 'root'
+  const password = process.env.MEMBER_DB_PASSWORD || dbUrlConfig?.password || ''
+  const database = process.env.MEMBER_DB_NAME || dbUrlConfig?.database || 'thoen_hospital_website'
+  const port = parseInt(process.env.MEMBER_DB_PORT || String(dbUrlConfig?.port || 3306), 10)
 
   const backupsDir = path.resolve(process.cwd(), 'backups')
   if (!fs.existsSync(backupsDir)) {
