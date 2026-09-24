@@ -239,11 +239,7 @@
   line-height: 1.75;
   color: #475569;
   margin-bottom: 2.25rem;
-  height: 4.5rem; /* Fix text alignment height on desktop grid */
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  min-height: 4.5rem; /* Keep visual balance between cards on desktop grid */
 }
 
 /* Amenities area */
@@ -569,9 +565,7 @@
   }
   
   .room-card__desc {
-    height: auto;
-    display: block;
-    -webkit-line-clamp: none;
+    min-height: auto;
   }
 }
 
