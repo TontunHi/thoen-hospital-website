@@ -339,6 +339,10 @@ async function initializeDb(poolInstance: mysql.Pool) {
       )
       await connection.execute(
         'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
+        ['upload_salary', 'เจ้าพนักงานการเงินและบัญชี']
+      )
+      await connection.execute(
+        'INSERT IGNORE INTO position_permissions (permission_key, position_name) VALUES (?, ?)',
         ['manage_rdu', 'เภสัชกรชำนาญการ']
       )
       await connection.execute(

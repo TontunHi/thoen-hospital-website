@@ -215,7 +215,11 @@ export async function checkPositionPermission(
     const userPosition = (user.position || '').trim()
     if (!userPosition) return false
 
+    // Built-in standard role/position rules
     const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey]
+    if (keys.includes('upload_salary') && userPosition.includes('เจ้าพนักงานการเงินและบัญชี')) {
+      return true
+    }
     const placeholders = keys.map(() => '?').join(', ')
 
     const result = await queryMemberDb(
