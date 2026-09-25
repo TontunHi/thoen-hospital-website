@@ -244,7 +244,7 @@ export default function CheckDatePage() {
                             <div className="appointDetails__row">
                               <User size={16} className="detailIcon" />
                               <div className="detailContent">
-                                <span className="detailLabel">แพทย์ผู้ตรวจ</span>
+                                <span className="detailLabel">ผู้ทำรายการนัดหมาย</span>
                                 <span className="detailVal">{app.doctor_name || 'แพทย์เวร/แพทย์ทั่วไป'}</span>
                               </div>
                             </div>
