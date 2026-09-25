@@ -107,7 +107,7 @@ export default function SystemsPage() {
     {
       title: 'Health Rider',
       desc: 'ระบบติดตามข้อมูลและการจัดส่งยาโดยทีมผู้ให้บริการจัดส่งยาถึงบ้าน (Health Rider)',
-      link: 'https://health-mis-dashboard.moph.go.th/main/login',
+      link: 'https://telepharma-his.one.th/login',
     },
     {
       title: 'สอน. บัดดี้',
@@ -122,7 +122,7 @@ export default function SystemsPage() {
     {
       title: 'Dashboard Cyber Security',
       desc: 'ระบบเฝ้าระวังความมั่นคงปลอดภัยไซเบอร์และรายงานความเสี่ยงสารสนเทศในสังกัด สธ.',
-      link: 'https://ict.moph.go.th/th/extension/1524',
+      link: 'https://ctam.moph.go.th/public/reports',
     },
     {
       title: 'Imaging Hub Dashboard',
@@ -143,11 +143,6 @@ export default function SystemsPage() {
       title: 'Telemedicine จังหวัดลำปาง',
       desc: 'ระบบสถิติการตรวจรักษาทางไกล (Telemedicine) ของสถานพยาบาลในจังหวัดลำปาง',
       link: 'https://mis-health.lpho.go.th/group/it/telemed',
-    },
-    {
-      title: 'ระบบส่งยาใกล้บ้าน',
-      desc: 'ระบบสำหรับอำนวยความสะดวกในการจัดส่งและจ่ายยาสะดวกสบายใกล้บ้านสำหรับผู้รับบริการ',
-      link: 'https://telepharma-his.one.th/login',
     },
     {
       title: 'แดชบอร์ดการดำเนินงานด้านสุขภาพ',
