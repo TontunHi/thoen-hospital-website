@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useApprovalNotifications } from '@/hooks/useApprovalNotifications';
 import './Navbar.css';
 
 export default function Navbar() {
@@ -16,10 +15,6 @@ export default function Navbar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
-
-  const { pendingCount, showToast, setShowToast, toastMessage } = useApprovalNotifications(
-    member ? { username: member.username, email: member.email || '', role: member.role || 'member', name: member.name || undefined } : null
-  );
 
   const getDisplayName = () => {
     if (!member) return '';
@@ -342,7 +337,6 @@ export default function Navbar() {
             {member ? (
               <Link href="/member" className="btn btn-primary" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 ระบบสมาชิก ({getDisplayName()})
-                {pendingCount > 0 && <span className="navbar__badge-mobile">{pendingCount}</span>}
               </Link>
             ) : (
               <Link href="/member/login" className="btn btn-outline">
@@ -360,30 +354,17 @@ export default function Navbar() {
             </Link>
 
             {member ? (
-              <>
-                <Link href="/member" className="navbar__member-btn">
-                  <span className="navbar__member-name">
-                    {getDisplayName()}
-                  </span>
-                </Link>
-                <Link href="/member/approvals" className="navbar__bell-btn" title="กล่องงานรออนุมัติ">
-                  <span className="navbar__bell-icon">🔔</span>
-                  {pendingCount > 0 && <span className="navbar__bell-badge">{pendingCount}</span>}
-                </Link>
-              </>
+              <Link href="/member" className="navbar__member-btn">
+                <span className="navbar__member-name">
+                  {getDisplayName()}
+                </span>
+              </Link>
             ) : (
               <Link href="/member/login" className="navbar__login-btn">
                 เข้าสู่ระบบสมาชิก
               </Link>
             )}
           </div>
-
-          {member && (
-            <Link href="/member/approvals" className="navbar__bell-btn navbar__bell-btn--mobile" title="กล่องงานรออนุมัติ">
-              <span className="navbar__bell-icon">🔔</span>
-              {pendingCount > 0 && <span className="navbar__bell-badge">{pendingCount}</span>}
-            </Link>
-          )}
 
           <button
             className={`navbar__burger ${isOpen ? 'navbar__burger--active' : ''}`}
@@ -410,19 +391,6 @@ export default function Navbar() {
             }
           }}
         />
-      )}
-      
-      {showToast && (
-        <div className="navbar__toast">
-          <div className="navbar__toast-content">
-            <span className="navbar__toast-icon">🔔</span>
-            <div className="navbar__toast-text">
-              <div className="navbar__toast-title">มีงานรออนุมัติใหม่</div>
-              <div className="navbar__toast-desc">{toastMessage}</div>
-            </div>
-            <button className="navbar__toast-close" onClick={() => setShowToast(false)}>×</button>
-          </div>
-        </div>
       )}
     </nav>
   );

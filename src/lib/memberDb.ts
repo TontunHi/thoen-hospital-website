@@ -69,41 +69,6 @@ async function initializeDb(poolInstance: mysql.Pool) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
 
-    // Automatically initialize/check table pr_requests
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS pr_requests (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        has_cost TINYINT(1) NOT NULL DEFAULT 0,
-        requester_id INT NOT NULL,
-        department VARCHAR(100) NULL,
-        status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
-        form_data JSON NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (requester_id) REFERENCES members(id) ON DELETE CASCADE
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `)
-
-    // Automatically initialize/check table approval_tickets
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS approval_tickets (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        source_system VARCHAR(50) NOT NULL,
-        source_id INT NOT NULL,
-        step_number INT NOT NULL,
-        assigned_position VARCHAR(100) NOT NULL,
-        current_approver_id INT NULL,
-        status VARCHAR(20) NOT NULL DEFAULT 'WAITING',
-        comment VARCHAR(255) NULL,
-        signature_path VARCHAR(255) NULL,
-        approved_at DATETIME NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (current_approver_id) REFERENCES members(id) ON DELETE SET NULL
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `)
-
     // Safely add columns if the table already exists
     try {
       await connection.execute(`
@@ -148,8 +113,6 @@ async function initializeDb(poolInstance: mysql.Pool) {
     const defaultSettings = [
       { key: 'feature_signature', val: '1' },
       { key: 'feature_salary', val: '1' },
-      { key: 'feature_pr_requests', val: '1' },
-      { key: 'feature_approvals', val: '1' },
       { key: 'feature_ita', val: '1' }
     ]
     for (const setting of defaultSettings) {

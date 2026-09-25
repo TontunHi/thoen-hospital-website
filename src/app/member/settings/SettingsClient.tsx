@@ -13,8 +13,6 @@ import {
   X,
   PenTool,
   Wallet,
-  Sparkles,
-  ClipboardCheck,
   BookOpen,
   Wrench,
   Eye,
@@ -43,8 +41,6 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   // Feature Toggles
   const [featureSignature, setFeatureSignature] = useState(initialSettings['feature_signature'] !== '0')
   const [featureSalary, setFeatureSalary] = useState(initialSettings['feature_salary'] !== '0')
-  const [featurePrRequests, setFeaturePrRequests] = useState(initialSettings['feature_pr_requests'] !== '0')
-  const [featureApprovals, setFeatureApprovals] = useState(initialSettings['feature_approvals'] !== '0')
   const [featureIta, setFeatureIta] = useState(initialSettings['feature_ita'] !== '0')
   const [featureRdu, setFeatureRdu] = useState(initialSettings['feature_rdu'] !== '0')
   const [isSavingSettings, setIsSavingSettings] = useState(false)
@@ -101,8 +97,6 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       const payload = {
         feature_signature: featureSignature ? '1' : '0',
         feature_salary: featureSalary ? '1' : '0',
-        feature_pr_requests: featurePrRequests ? '1' : '0',
-        feature_approvals: featureApprovals ? '1' : '0',
         feature_ita: featureIta ? '1' : '0',
         feature_rdu: featureRdu ? '1' : '0'
       }
@@ -335,57 +329,6 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                 </label>
               </div>
 
-              {/* Feature: PR Requests */}
-              <div className={`featureCard ${featurePrRequests ? 'isActive' : 'isInactive'}`}>
-                <div className="featureCardLeft">
-                  <div className="featureIconWrapper" style={{ background: '#f0fdf4', color: '#16a34a' }}>
-                    <Sparkles size={22} />
-                  </div>
-                  <div className="featureMeta">
-                    <div className="featureTitleRow">
-                      <span className="featureTitle">ร้องขอผลิตสื่อประชาสัมพันธ์ (PR)</span>
-                      <span className={`statusPill ${featurePrRequests ? 'pillActive' : 'pillInactive'}`}>
-                        {featurePrRequests ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p className="featureDesc">อนุญาตให้บุคลากรยื่นคำขอจัดทำสื่อ ป้ายประชาสัมพันธ์ ไวนิล และสิ่งพิมพ์</p>
-                  </div>
-                </div>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={featurePrRequests}
-                    onChange={(e) => setFeaturePrRequests(e.target.checked)}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-
-              {/* Feature: Approvals Inbox */}
-              <div className={`featureCard ${featureApprovals ? 'isActive' : 'isInactive'}`}>
-                <div className="featureCardLeft">
-                  <div className="featureIconWrapper" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                    <ClipboardCheck size={22} />
-                  </div>
-                  <div className="featureMeta">
-                    <div className="featureTitleRow">
-                      <span className="featureTitle">กล่องงานรอการอนุมัติ (Approvals Inbox)</span>
-                      <span className={`statusPill ${featureApprovals ? 'pillActive' : 'pillInactive'}`}>
-                        {featureApprovals ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p className="featureDesc">อนุญาตให้สมาชิกเข้าสู่ศูนย์กลางตรวจสอบและลงลายเซ็นอนุมัติเอกสาร</p>
-                  </div>
-                </div>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={featureApprovals}
-                    onChange={(e) => setFeatureApprovals(e.target.checked)}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
 
               {/* Feature: ITA Management */}
               <div className={`featureCard ${featureIta ? 'isActive' : 'isInactive'}`}>

@@ -32,13 +32,6 @@ async function getMemberDashboardData() {
   )
   const isTelegramLinked = Boolean(telegramLinkRes && telegramLinkRes.length > 0)
 
-  // Query pending approvals count for this member
-  const pendingApprovalsRes = await queryMemberDb(
-    "SELECT COUNT(*) as count FROM approval_tickets WHERE current_approver_id = ? AND status = 'PENDING'",
-    [member.id]
-  )
-  const pendingCount = pendingApprovalsRes[0]?.count || 0
-
   // Fetch settings config for features control
   const settingsRows = await queryMemberDb('SELECT config_key, config_value FROM member_system_settings')
   const settings: Record<string, string> = {}
@@ -120,7 +113,6 @@ async function getMemberDashboardData() {
 
   return {
     member,
-    pendingCount,
     settings,
     isWorkAuthorized,
     isAdmin,
@@ -241,102 +233,11 @@ function SalaryCard({ hasAccess, hasSalary }: { hasAccess: (k: string) => boolea
   )
 }
 
-function PrRequestsCard({ hasAccess }: { hasAccess: (k: string) => boolean }) {
-  return hasAccess('feature_pr_requests') ? (
-    <Link href="/member/pr-requests" className="serviceCard">
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper prIcon">
-          <ImageIcon size={24} />
-        </div>
-        <div className="statusIndicator success">
-          <span>เปิดใช้งาน</span>
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>ร้องขอผลิตสื่อประชาสัมพันธ์</h4>
-        <p>ระบบจัดทำฟอร์มขอผลิตสื่อ ไวนิล โปสเตอร์ และอนุมัติใบงานประชาสัมพันธ์ด้วยลายเซ็นดิจิทัล</p>
-      </div>
-      <div className="serviceCardFooter">
-        <span className="actionText">ส่งใบคำขอผลิตสื่อ</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </Link>
-  ) : (
-    <div className="serviceCard serviceCardDisabled">
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper prIcon" style={{ opacity: 0.5 }}>
-          <Lock size={24} />
-        </div>
-        <div className="statusIndicator error">
-          <span>ปิดบริการชั่วคราว</span>
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>ร้องขอผลิตสื่อประชาสัมพันธ์</h4>
-        <p>ระบบจัดทำฟอร์มขอผลิตสื่อ ไวนิล โปสเตอร์ และอนุมัติใบงานประชาสัมพันธ์ด้วยลายเซ็นดิจิทัล</p>
-      </div>
-      <div className="serviceCardFooter">
-        <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </div>
-  )
-}
 
-function ApprovalsCard({ hasAccess, pendingCount }: { hasAccess: (k: string) => boolean; pendingCount: number }) {
-  return hasAccess('feature_approvals') ? (
-    <Link href="/member/approvals" className="serviceCard">
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper docIcon" style={{ position: 'relative' }}>
-          <ClipboardCheck size={24} />
-          {pendingCount > 0 && <span className="card-badge-dot"></span>}
-        </div>
-        <div className={`statusIndicator ${pendingCount > 0 ? 'error' : 'success'}`}>
-          {pendingCount > 0 ? (
-            <>
-              <AlertCircle size={14} className="pulseAnimation" />
-              <span>มีงานค้าง {pendingCount} รายการ</span>
-            </>
-          ) : (
-            <span>ไม่มีงานค้าง</span>
-          )}
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>กล่องงานรอการอนุมัติ</h4>
-        <p>กล่องงานตรวจสอบใบคำขอและเอกสารต่างๆ ที่ส่งเสนอเข้ามา และอนุมัติออนไลน์ด้วยลายเซ็นของคุณ</p>
-      </div>
-      <div className="serviceCardFooter">
-        <span className="actionText">เข้าสู่กล่องงานรอการอนุมัติ</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </Link>
-  ) : (
-    <div className="serviceCard serviceCardDisabled">
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper docIcon" style={{ opacity: 0.5 }}>
-          <Lock size={24} />
-        </div>
-        <div className="statusIndicator error">
-          <span>ปิดบริการชั่วคราว</span>
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>กล่องงานรอการอนุมัติ</h4>
-        <p>กล่องงานตรวจสอบใบคำขอและเอกสารต่างๆ ที่ส่งเสนอเข้ามา และอนุมัติออนไลน์ด้วยลายเซ็นของคุณ</p>
-      </div>
-      <div className="serviceCardFooter">
-        <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </div>
-  )
-}
 
 export default async function MemberDashboardPage() {
   const {
     member,
-    pendingCount,
     settings,
     isWorkAuthorized,
     isAdmin,
@@ -396,12 +297,6 @@ export default async function MemberDashboardPage() {
 
               {/* Card 2: Salary Slip */}
               <SalaryCard hasAccess={hasAccess} hasSalary={hasSalary} />
-
-              {/* Card 3: PR Media Production */}
-              <PrRequestsCard hasAccess={hasAccess} />
-
-              {/* Card 4: Unified Approvals Inbox */}
-              <ApprovalsCard hasAccess={hasAccess} pendingCount={pendingCount} />
 
               {/* Card 6: Upload Salary (Visible only to admin or finance position) */}
               {isFinance && (

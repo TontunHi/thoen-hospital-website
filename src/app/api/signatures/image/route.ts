@@ -18,27 +18,11 @@ async function checkSignatureAuth(session: any, queryUserId: string): Promise<{ 
   }
   const targetUsername = users[0].username
 
-  // Authorization Check: Only allow if owner, admin, or related through PR/Approval tickets
+  // Authorization Check: Only allow if owner or admin
   const isOwner = currentUser.id === targetUserIdParsed
   const isAdmin = currentUser.role === 'admin'
-  
-  let isRelated = false
-  if (!isOwner && !isAdmin) {
-    const relationship = await queryMemberDb(`
-      SELECT 1 FROM approval_tickets t 
-      JOIN pr_requests r ON t.source_id = r.id AND t.source_system = 'PR' 
-      WHERE (r.requester_id = ? AND t.current_approver_id = ?) 
-         OR (r.requester_id = ? AND t.current_approver_id = ?) 
-         OR (t.current_approver_id = ? AND EXISTS (
-             SELECT 1 FROM approval_tickets t2 
-             WHERE t2.source_id = r.id AND t2.source_system = 'PR' AND t2.current_approver_id = ?
-         ))
-      LIMIT 1
-    `, [currentUser.id, targetUserIdParsed, targetUserIdParsed, currentUser.id, currentUser.id, targetUserIdParsed])
-    isRelated = relationship.length > 0
-  }
 
-  if (!isOwner && !isAdmin && !isRelated) {
+  if (!isOwner && !isAdmin) {
     return { error: 'คุณไม่มีสิทธิ์เข้าถึงลายเซ็นของผู้ใช้นี้', status: 403 }
   }
 

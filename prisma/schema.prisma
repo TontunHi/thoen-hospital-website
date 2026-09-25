@@ -110,45 +110,8 @@ model Member {
   telegramChatId  String?           @map("telegram_chat_id") @db.VarChar(50)
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp(0)
   updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
-  prRequests      PrRequest[]
-  approvalTickets ApprovalTicket[]
 
   @@map("members")
-}
-
-model PrRequest {
-  id           Int      @id @default(autoincrement())
-  title        String   @db.VarChar(255)
-  hasCost      Boolean  @default(false) @map("has_cost")
-  requesterId  Int      @map("requester_id")
-  department   String?  @db.VarChar(100)
-  status       String   @default("PENDING") @db.VarChar(50)
-  formData     Json?    @map("form_data")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
-  requester    Member   @relation(fields: [requesterId], references: [id], onDelete: Cascade)
-
-  @@index([requesterId], map: "idx_pr_requester")
-  @@map("pr_requests")
-}
-
-model ApprovalTicket {
-  id                 Int       @id @default(autoincrement())
-  sourceSystem       String    @map("source_system") @db.VarChar(50)
-  sourceId           Int       @map("source_id")
-  stepNumber         Int       @map("step_number")
-  assignedPosition   String    @map("assigned_position") @db.VarChar(100)
-  currentApproverId  Int?      @map("current_approver_id")
-  status             String    @default("WAITING") @db.VarChar(20)
-  comment            String?   @db.VarChar(255)
-  signaturePath      String?   @map("signature_path") @db.VarChar(255)
-  approvedAt         DateTime? @map("approved_at") @db.DateTime(0)
-  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
-  currentApprover    Member?   @relation(fields: [currentApproverId], references: [id], onDelete: SetNull)
-
-  @@index([currentApproverId], map: "idx_ticket_approver")
-  @@map("approval_tickets")
 }
 
 model MemberSystemSetting {
