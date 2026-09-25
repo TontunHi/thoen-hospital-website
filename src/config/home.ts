@@ -66,7 +66,7 @@ export const relatedOrgs: RelatedOrgItem[] = [
   { name: 'รพ.ศูนย์ลำปาง', url: 'https://www.lph.go.th/lpweb/' },
   { name: 'รพ.เกาะคา', url: 'https://www.kokhahospital.go.th/' },
   { name: 'รพ.งาว', url: 'https://www.ngaohospital.com/' },
-  { name: 'รพ.แจ้ห่ม', url: 'https://chaehomlampang.wordpress.com/' },
+  { name: 'รพ.แจ้ห่ม', url: 'https://chaehomhospital.moph.go.th' },
   { name: 'รพ.เมืองปาน', url: 'https://muangpan.moph.go.th/newsportal/' },
   { name: 'รพ.แม่ทะ', url: 'https://www.maethahospital.go.th/' },
   { name: 'รพ.แม่พริก', url: 'https://www.maeprikhospital.go.th/' },
