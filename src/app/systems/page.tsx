@@ -8,6 +8,7 @@ import './page.css'
 
 export default function SystemsPage() {
   const [activeTab, setActiveTab] = useState<'moph' | 'dashboard'>('moph')
+  const [dashboardSubTab, setDashboardSubTab] = useState<'all' | 'internal' | 'external'>('all')
 
   const mophServices = [
     {
@@ -65,10 +66,39 @@ export default function SystemsPage() {
       desc: 'ระบบยืนยันตัวตนผู้รับบริการสุขภาพดิจิทัลสำหรับผู้ที่ไม่มีสมาร์ทโฟนหรือแอปพลิเคชันหมอพร้อม',
       link: 'https://moph.id.th/login',
     },
+    {
+      title: 'ระบบบริหารจัดการคำร้องขอเพื่อเชื่อมต่อ API',
+      desc: 'ระบบสำหรับลงทะเบียนและบริการจัดการคำร้องขอในการเชื่อมต่อบริการ API กระทรวงสาธารณสุข',
+      link: 'https://moph-api-mx.id.th/',
+    },
+    {
+      title: 'ศูนย์รวมประกาศรับสมัครสอบ สมัครงานสาธารณสุขไทย',
+      desc: 'ศูนย์ข้อมูลและประกาศรับสมัครงาน รับสมัครสอบสำหรับบุคลากรทางการแพทย์และสาธารณสุข',
+      link: 'https://workspace.moph.go.th/',
+    },
   ]
 
-  // Real dashboards list
-  const dashboardList = [
+  // 1. แดชบอร์ดภายใน โรงพยาบาลเถิน
+  const internalDashboards = [
+    {
+      title: 'สถานะห้องฉุกเฉิน (ภายนอก)',
+      desc: 'แสดงข้อมูลรายงานสถิติสถานะห้องฉุกเฉินสำหรับผู้รับบริการภายนอกโรงพยาบาลเถิน',
+      link: '/systems/er-out-status',
+    },
+    {
+      title: 'สถานะห้องผ่าตัด (OR Live)',
+      desc: 'ระบบแสดงผลสถานะห้องผ่าตัดประจำวัน (รอผ่าตัด, กำลังผ่าตัด, ผ่าตัดเสร็จ/พักฟื้น) โรงพยาบาลเถิน',
+      link: '/systems/status-or',
+    },
+    {
+      title: 'สถานะผู้ป่วยนอนรักษาพยาบาล (ภายนอก)',
+      desc: 'ติดตามจำนวนผู้ป่วยครองเตียงในแต่ละหอผู้ป่วยแบบเรียลไทม์ โรงพยาบาลเถิน',
+      link: '/systems/ward-status',
+    },
+  ]
+
+  // 2. แดชบอร์ดภายนอก
+  const externalDashboards = [
     {
       title: 'Main Dashboard',
       desc: 'ระบบแดชบอร์ดหลักของโรงพยาบาลสำหรับสรุปภาพรวมข้อมูลและสถิติต่างๆ',
@@ -90,16 +120,6 @@ export default function SystemsPage() {
       link: 'https://app.powerbi.com/view?r=eyJrIjoiNjUwYjIyZTgtYzllMC00YTM0LWJhNTItOTA2ZTY1OGJlOGVkIiwidCI6ImI3NmEyM2QzLThjZGYtNDNjMC1hNTNiLTYwYmNkMjM3OTg5NSIsImMiOjEwfQ%3D%3D',
     },
     {
-      title: 'สถานะห้องฉุกเฉิน (ภายนอก)',
-      desc: 'แสดงข้อมูลรายงานสถิติสถานะห้องฉุกเฉินสำหรับผู้รับบริการภายนอกโรงพยาบาลเถิน',
-      link: '/systems/er-out-status',
-    },
-    {
-      title: 'สถานะห้องผ่าตัด (OR Live)',
-      desc: 'ระบบแสดงผลสถานะห้องผ่าตัดประจำวัน (รอผ่าตัด, กำลังผ่าตัด, ผ่าตัดเสร็จ/พักฟื้น) โรงพยาบาลเถิน',
-      link: '/systems/status-or',
-    },
-    {
       title: 'ใบรับรองแพทย์ Digital',
       desc: 'ระบบแดชบอร์ดข้อมูลการออกเอกสารใบรับรองแพทย์ดิจิทัลอิเล็กทรอนิกส์',
       link: 'https://app.powerbi.com/view?r=eyJrIjoiM2Y0MTAwZjItZDYwNC00MmUyLTlmZjktM2I1MWM3YjY3MjRmIiwidCI6ImI3NmEyM2QzLThjZGYtNDNjMC1hNTNiLTYwYmNkMjM3OTg5NSIsImMiOjEwfQ%3D%3D',
@@ -115,7 +135,7 @@ export default function SystemsPage() {
       link: 'https://dashboard-dhi.one.th/dashboard_telemedicine',
     },
     {
-      title: 'เว็บไซต์ 30 บาท',
+      title: '30 บาทรักษาทุกที่ ด้วยบัตรประชาชนใบเดียว',
       desc: 'แดชบอร์ดรายงานการให้บริการรักษาพยาบาลตามสิทธิ 30 บาทรักษาทุกโรค',
       link: 'https://app.powerbi.com/view?r=eyJrIjoiMjdlNzcxOTQtODc1YS00ZDA5LWJmYTMtYTRlNmVlY2VkNzg0IiwidCI6ImI3NmEyM2QzLThjZGYtNDNjMC1hNTNiLTYwYmNkMjM3OTg5NSIsImMiOjEwfQ%3D%3D',
     },
@@ -149,17 +169,10 @@ export default function SystemsPage() {
       desc: 'ระบบแดชบอร์ดรายงานการดำเนินงานด้านสุขภาพและบริการสาธารณสุข กระทรวงสาธารณสุข',
       link: 'https://health-mis-dashboard.moph.go.th/main/login',
     },
-    {
-      title: 'ระบบบริหารจัดการคำร้องขอเพื่อเชื่อมต่อ API',
-      desc: 'ระบบสำหรับลงทะเบียนและบริการจัดการคำร้องขอในการเชื่อมต่อบริการ API กระทรวงสาธารณสุข',
-      link: 'https://moph-api-mx.id.th/',
-    },
-    {
-      title: 'ศูนย์รวมประกาศรับสมัครสอบ สมัครงานสาธารณสุขไทย',
-      desc: 'ศูนย์ข้อมูลและประกาศรับสมัครงาน รับสมัครสอบสำหรับบุคลากรทางการแพทย์และสาธารณสุข',
-      link: 'https://workspace.moph.go.th/',
-    },
   ]
+
+  const showInternal = dashboardSubTab === 'all' || dashboardSubTab === 'internal'
+  const showExternal = dashboardSubTab === 'all' || dashboardSubTab === 'external'
 
   return (
     <div className="systems-page">
@@ -225,40 +238,129 @@ export default function SystemsPage() {
             </div>
           )}
 
-          {/* DASHBOARD LIST */}
+          {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
-            <div className="systemsGrid">
-              {dashboardList.map((sys, idx) => (
-                <div key={idx} className="systemCard dashboard-card">
-                  <div className="systemCard__inner">
-                    <div className="cardHeader">
-                      <div className="iconWrapper dashboardIcon">
-                        <Image
-                          src="/images/common/logo-website.webp"
-                          alt="Dashboard Logo"
-                          width={36}
-                          height={36}
-                        />
-                      </div>
-                      <h3 className="cardHeader__title">{sys.title}</h3>
-                    </div>
-                    <p className="systemCard__desc">{sys.desc}</p>
-                    <div className="cardActions">
-                      {sys.link.startsWith('http') ? (
-                        <a href={sys.link} target="_blank" rel="noopener noreferrer" className="systemCard__btn">
-                          <span>เปิดดู Dashboard</span>
-                          <ExternalLink size={14} />
-                        </a>
-                      ) : (
-                        <Link href={sys.link} className="systemCard__btn">
-                          <span>เปิดดู Dashboard</span>
-                          <ExternalLink size={14} />
-                        </Link>
-                      )}
+            <div className="dashboardSectionWrapper">
+              {/* Sub-Category Filter Buttons */}
+              <div className="subCategoryTabs">
+                <button
+                  className={`subTabBtn ${dashboardSubTab === 'all' ? 'active' : ''}`}
+                  onClick={() => setDashboardSubTab('all')}
+                >
+                  <span>ทั้งหมด</span>
+                </button>
+                <button
+                  className={`subTabBtn ${dashboardSubTab === 'internal' ? 'active' : ''}`}
+                  onClick={() => setDashboardSubTab('internal')}
+                >
+                  <span>แดชบอร์ดภายใน</span>
+                </button>
+                <button
+                  className={`subTabBtn ${dashboardSubTab === 'external' ? 'active' : ''}`}
+                  onClick={() => setDashboardSubTab('external')}
+                >
+                  <span>แดชบอร์ดภายนอก</span>
+                </button>
+              </div>
+
+              {/* SECTION 1: แดชบอร์ดภายใน */}
+              {showInternal && (
+                <div className="dashboardSubSection">
+                  <div className="subSectionHeader">
+                    <div>
+                      <h2 className="subSectionTitle">แดชบอร์ดภายใน</h2>
+                      <p className="subSectionDesc">
+                        ระบบรายงานสถานะและมอนิเตอร์แบบเรียลไทม์ โรงพยาบาลเถิน
+                      </p>
                     </div>
                   </div>
+
+                  <div className="systemsGrid">
+                    {internalDashboards.map((sys, idx) => (
+                      <div key={idx} className="systemCard dashboard-card internal-card">
+                        <div className="systemCard__inner">
+                          <div className="cardHeader">
+                            <div className="iconWrapper dashboardIcon internal">
+                              <Image
+                                src="/images/common/logo-website.webp"
+                                alt="Dashboard Logo"
+                                width={36}
+                                height={36}
+                              />
+                            </div>
+                            <h3 className="cardHeader__title">{sys.title}</h3>
+                          </div>
+                          <p className="systemCard__desc">{sys.desc}</p>
+                          <div className="cardActions">
+                            <Link href={sys.link} className="systemCard__btn internal">
+                              <span>เปิดดู Dashboard</span>
+                              <ExternalLink size={14} />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* SECTION DIVIDER (when showing all) */}
+              {showInternal && showExternal && (
+                <div className="subSectionDivider" />
+              )}
+
+              {/* SECTION 2: แดชบอร์ดภายนอก */}
+              {showExternal && (
+                <div className="dashboardSubSection">
+                  <div className="subSectionHeader">
+                    <div>
+                      <h2 className="subSectionTitle">แดชบอร์ดภายนอก</h2>
+                      <p className="subSectionDesc">
+                        ระบบรายงานสถิติ แดชบอร์ด และบริการสารสนเทศเชื่อมโยงภายนอก
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="systemsGrid">
+                    {externalDashboards.map((sys, idx) => (
+                      <div key={idx} className="systemCard dashboard-card">
+                        <div className="systemCard__inner">
+                          <div className="cardHeader">
+                            <div className="iconWrapper dashboardIcon">
+                              <Image
+                                src="/images/common/logo-website.webp"
+                                alt="Dashboard Logo"
+                                width={36}
+                                height={36}
+                              />
+                            </div>
+                            <h3 className="cardHeader__title">{sys.title}</h3>
+                          </div>
+                          <p className="systemCard__desc">{sys.desc}</p>
+                          <div className="cardActions">
+                            {sys.link.startsWith('http') ? (
+                              <a
+                                href={sys.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="systemCard__btn"
+                              >
+                                <span>เปิดดู Dashboard</span>
+                                <ExternalLink size={14} />
+                              </a>
+                            ) : (
+                              <Link href={sys.link} className="systemCard__btn">
+                                <span>เปิดดู Dashboard</span>
+                                <ExternalLink size={14} />
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

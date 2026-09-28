@@ -24,7 +24,9 @@ import {
   UserCheck,
   Sliders,
   Users,
-  Pill
+  Pill,
+  FileSpreadsheet,
+  Scale
 } from 'lucide-react'
 
 interface SettingsClientProps {
@@ -209,8 +211,23 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       icon: Pill,
       color: '#0d9488',
       bg: '#ccfbf1'
+    },
+    manage_outgoing_doc: {
+      label: 'จัดการหนังสือส่งออก Online (manage_outgoing_doc)',
+      desc: 'เจ้าหน้าที่งานสารบรรณ/ธุรการที่ได้รับมอบหมายให้จัดการลิงก์ Google Sheets หนังสือส่งออก',
+      icon: FileSpreadsheet,
+      color: '#10b981',
+      bg: '#ecfdf5'
+    },
+    manage_ethics: {
+      label: 'จัดการเอกสารชมรมจริยธรรม (manage_ethics)',
+      desc: 'คณะทำงานขับเคลื่อนชมรมจริยธรรมในการเพิ่มปีงบประมาณและอัปโหลดเอกสาร PDF',
+      icon: Scale,
+      color: '#4f46e5',
+      bg: '#eef2ff'
     }
   }
+
 
   return (
     <div className="settingsClient">
@@ -443,7 +460,10 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                   <option value="manage_ita">จัดการข้อมูลและบทความ ITA (manage_ita)</option>
                   <option value="manage_news">จัดการและลงข่าวประชาสัมพันธ์ (manage_news)</option>
                   <option value="manage_rdu">จัดการข้อมูลและเอกสาร RDU (manage_rdu)</option>
+                  <option value="manage_outgoing_doc">จัดการหนังสือส่งออก Online (manage_outgoing_doc)</option>
+                  <option value="manage_ethics">จัดการเอกสารชมรมจริยธรรม (manage_ethics)</option>
                 </select>
+
               </div>
 
               <div className="fieldGroup">

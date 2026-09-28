@@ -46,10 +46,13 @@ export const prisma = basePrisma.$extends({
 
             const { logAudit } = await import('./audit')
             const { logger } = await import('./logger')
+            const safeArgs = JSON.stringify(args, (_, value) =>
+              typeof value === 'bigint' ? value.toString() : value
+            )
             logAudit(
               actionType as any,
               model || 'prisma',
-              `Operation: ${operation} | Args: ${JSON.stringify(args)}`
+              `Operation: ${operation} | Args: ${safeArgs}`
             ).catch(err => logger.error({ err }, 'Prisma audit log failed'))
           }
         } catch (err) {

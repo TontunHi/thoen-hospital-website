@@ -1,0 +1,450 @@
+.adminEthicsPage {
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-16);
+  min-height: calc(100vh - var(--navbar-height));
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.topNavHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--gray-600);
+  font-weight: 500;
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  padding: 8px 12px;
+  background-color: var(--white);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-200);
+  transition: all var(--transition-fast);
+}
+
+.backBtn:hover {
+  color: var(--primary);
+  border-color: var(--primary-light);
+  background-color: var(--gray-50);
+}
+
+.topNavActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pageHeaderSection {
+  background: linear-gradient(135deg, #3730a3 0%, #4f46e5 100%);
+  color: #ffffff;
+  padding: var(--space-8);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-8);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.25);
+}
+
+.pageHeaderInfo h1 {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--space-2);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pageHeaderInfo p {
+  color: #e0e7ff;
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.btnPrimaryCreate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  color: #3730a3;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-fast);
+}
+
+.btnPrimaryCreate:hover {
+  background-color: #f5f3ff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.15);
+}
+
+/* Alert Notification */
+.alertNotification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  animation: slideDown 0.3s ease;
+}
+
+.alertNotification.success {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.alertNotification.error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Year Tabs in Admin */
+.adminYearTabs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.adminYearTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  border: 1px solid var(--gray-200);
+  background-color: var(--white);
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.adminYearTab.active {
+  background-color: #4f46e5;
+  color: #ffffff;
+  border-color: #4f46e5;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+}
+
+.btnAddYear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border: 1px dashed #6366f1;
+  background-color: #eef2ff;
+  color: #4338ca;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnAddYear:hover {
+  background-color: #e0e7ff;
+}
+
+/* Content Container */
+.ethicsCardContainer {
+  background-color: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.yearHeaderBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  background-color: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.yearHeaderTitle {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--gray-800);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yearActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Document Item List */
+.docItemList {
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.docItemRow {
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  transition: all var(--transition-fast);
+}
+
+.docItemRow:hover {
+  border-color: #c7d2fe;
+  background-color: #fafafa;
+}
+
+.docItemMain {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.docItemInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.docIconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #fee2e2;
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+.docFolderBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  flex-shrink: 0;
+}
+
+.docTitleText h4 {
+  font-size: var(--font-size-sm);
+  color: var(--gray-900);
+  margin: 0 0 2px 0;
+  font-weight: 600;
+}
+
+.docSubList {
+  margin-top: var(--space-3);
+  padding-left: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-left: 2px dashed #cbd5e1;
+  margin-left: 18px;
+}
+
+.docSubRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--white);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #e2e8f0;
+}
+
+.btnActionIcon {
+  padding: 5px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  background-color: var(--white);
+  color: var(--gray-600);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.btnActionIcon:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background-color: #eef2ff;
+}
+
+.btnActionIcon.delete:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background-color: #fee2e2;
+}
+
+.btnAddSubDoc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #4f46e5;
+  background: none;
+  border: 1px dashed #a5b4fc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+.btnAddSubDoc:hover {
+  background-color: #eef2ff;
+}
+
+/* Modals */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-4);
+  animation: fadeIn 0.2s ease;
+}
+
+.modalContent {
+  background-color: var(--white);
+  border-radius: var(--radius-xl);
+  max-width: 520px;
+  width: 100%;
+  box-shadow: var(--shadow-2xl);
+  overflow: hidden;
+  animation: scaleUp 0.2s ease;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--gray-200);
+  background-color: var(--gray-50);
+}
+
+.modalHeader h2 {
+  font-size: var(--font-size-lg);
+  color: var(--gray-900);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gray-400);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+}
+
+.closeBtn:hover {
+  color: var(--gray-700);
+  background-color: var(--gray-200);
+}
+
+.modalBody {
+  padding: var(--space-6);
+}
+
+.formGroup {
+  margin-bottom: var(--space-4);
+}
+
+.formGroup label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--gray-700);
+  margin-bottom: var(--space-1);
+}
+
+.formInput,
+.formSelect {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.formInput:focus,
+.formSelect:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--gray-200);
+  background-color: var(--gray-50);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

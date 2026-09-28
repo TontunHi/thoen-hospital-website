@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper, Building2, Pill } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper, Building2, Pill, FileSpreadsheet, Scale } from 'lucide-react'
 import './page.css'
 
 async function getMemberDashboardData() {
@@ -111,6 +111,24 @@ async function getMemberDashboardData() {
     isRduAuthorized = (rduPerms[0]?.count || 0) > 0
   }
 
+  let isOutgoingDocAuthorized = member.role === 'admin'
+  if (!isOutgoingDocAuthorized && userPosition) {
+    const outgoingPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'manage_outgoing_doc' AND TRIM(position_name) = TRIM(?)",
+      [userPosition]
+    )
+    isOutgoingDocAuthorized = (outgoingPerms[0]?.count || 0) > 0
+  }
+
+  let isEthicsAuthorized = member.role === 'admin'
+  if (!isEthicsAuthorized && userPosition) {
+    const ethicsPerms = await queryMemberDb(
+      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'manage_ethics' AND TRIM(position_name) = TRIM(?)",
+      [userPosition]
+    )
+    isEthicsAuthorized = (ethicsPerms[0]?.count || 0) > 0
+  }
+
   return {
     member,
     settings,
@@ -121,6 +139,8 @@ async function getMemberDashboardData() {
     isNewsAuthorized,
     isAllSalaryAuthorized,
     isRduAuthorized,
+    isOutgoingDocAuthorized,
+    isEthicsAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -128,6 +148,8 @@ async function getMemberDashboardData() {
     initials
   }
 }
+
+
 
 function SignatureCard({ hasAccess, hasSignature }: { hasAccess: (k: string) => boolean; hasSignature: boolean }) {
   return hasAccess('feature_signature') ? (
@@ -246,6 +268,8 @@ export default async function MemberDashboardPage() {
     isNewsAuthorized,
     isAllSalaryAuthorized,
     isRduAuthorized,
+    isOutgoingDocAuthorized,
+    isEthicsAuthorized,
     displayRole,
     hasSignature,
     hasSalary,
@@ -449,8 +473,54 @@ export default async function MemberDashboardPage() {
                   </div>
                 )
               )}
+
+              {/* Card 11: Outgoing Document Management (Visible to authorized members or admins) */}
+              {isOutgoingDocAuthorized && (
+                <Link href="/member/outgoing-document" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper" style={{ backgroundColor: '#ecfdf5', color: '#059669', borderColor: '#d1fae5', borderWidth: '1px', borderStyle: 'solid' }}>
+                      <FileSpreadsheet size={24} />
+                    </div>
+                    <div className="statusIndicator success" style={{ backgroundColor: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' }}>
+                      <span>งานสารบรรณ</span>
+                    </div>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>จัดการระบบหนังสือส่งออก Online</h4>
+                    <p>ระบบจัดการลิงก์ Google Sheets ทะเบียนหนังสือส่งออกโรงพยาบาลเถิน แยกตามปีงบประมาณ</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#059669' }}>
+                    <span className="actionText">เข้าสู่หน้าจัดการหนังสือส่งออก</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+              )}
+
+              {/* Card 12: Ethics Document Management (Visible to authorized members or admins) */}
+              {isEthicsAuthorized && (
+                <Link href="/member/ethics" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper" style={{ backgroundColor: '#eef2ff', color: '#4f46e5', borderColor: '#e0e7ff', borderWidth: '1px', borderStyle: 'solid' }}>
+                      <Scale size={24} />
+                    </div>
+                    <div className="statusIndicator success" style={{ backgroundColor: '#e0e7ff', color: '#3730a3', borderColor: '#c7d2fe' }}>
+                      <span>ชมรมจริยธรรม</span>
+                    </div>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>จัดการเอกสารชมรมจริยธรรม</h4>
+                    <p>จัดการปีงบประมาณ คำสั่งคณะทำงาน แผนปฏิบัติการ และอัปโหลดไฟล์ PDF รายงานผลชมรมจริยธรรม</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#4f46e5' }}>
+                    <span className="actionText">เข้าสู่หน้าจัดการเอกสารจริยธรรม</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+              )}
+
             </div>
           </>
+
         )}
 
 

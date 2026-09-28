@@ -7,8 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-
 model News {
   id          Int          @id @default(autoincrement())
   title       String       @db.VarChar(500)
@@ -40,15 +38,6 @@ model Attachment {
   @@map("attachments")
 }
 
-enum Role {
-  admin
-  editor
-  patient
-  doctor
-  nurse
-  hr
-}
-
 model HeroSlide {
   id           Int      @id @default(autoincrement())
   imagePath    String   @map("image_path") @db.VarChar(255)
@@ -56,9 +45,9 @@ model HeroSlide {
   linkUrl      String?  @map("link_url") @db.VarChar(255)
   startDate    DateTime @map("start_date") @db.DateTime(0)
   endDate      DateTime @map("end_date") @db.DateTime(0)
-  displayOrder Int      @default(0) @map("display_order")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
   updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamp(0)
+  displayOrder Int      @default(0) @map("display_order")
 
   @@map("hero_slides")
 }
@@ -94,22 +83,25 @@ model ContactMessage {
 }
 
 model Member {
-  id              Int               @id @default(autoincrement())
-  username        String            @unique @db.VarChar(100)
-  email           String            @unique @db.VarChar(100)
-  name            String?           @db.VarChar(255)
-  department      String?           @db.VarChar(100)
-  position        String?           @db.VarChar(100)
-  salaryUser      String?           @map("salary_user") @db.VarChar(100)
-  salaryPass      String?           @map("salary_pass") @db.VarChar(100)
-  role            String            @default("member") @db.VarChar(50)
-  otpCode         String?           @map("otp_code") @db.VarChar(10)
-  otpExpiry       DateTime?         @map("otp_expiry") @db.DateTime(0)
-  signaturePath   String?           @map("signature_path") @db.VarChar(255)
-  profilePath     String?           @map("profile_path") @db.VarChar(255)
-  telegramChatId  String?           @map("telegram_chat_id") @db.VarChar(50)
-  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamp(0)
-  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  id                       Int                        @id @default(autoincrement())
+  username                 String                     @unique(map: "username") @db.VarChar(100)
+  email                    String                     @unique(map: "email") @db.VarChar(100)
+  name                     String?                    @db.VarChar(255)
+  department               String?                    @db.VarChar(100)
+  salaryUser               String?                    @map("salary_user") @db.VarChar(100)
+  salaryPass               String?                    @map("salary_pass") @db.VarChar(100)
+  role                     String                     @default("member") @db.VarChar(50)
+  otpCode                  String?                    @map("otp_code") @db.VarChar(10)
+  otpExpiry                DateTime?                  @map("otp_expiry") @db.DateTime(0)
+  createdAt                DateTime                   @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt                DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  profilePath              String?                    @map("profile_path") @db.VarChar(255)
+  position                 String?                    @db.VarChar(100)
+  signaturePath            String?                    @map("signature_path") @db.VarChar(255)
+  ita_blogs                ita_blogs[]
+  member_telegram_links    member_telegram_links?
+  telegram_link_challenges telegram_link_challenges[]
+  work_requests            work_requests[]
 
   @@map("members")
 }
@@ -122,11 +114,154 @@ model MemberSystemSetting {
 }
 
 model PositionPermission {
-  id             Int      @id @default(autoincrement())
-  permissionKey  String   @map("permission_key") @db.VarChar(100)
-  positionName   String   @map("position_name") @db.VarChar(150)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  id            Int      @id @default(autoincrement())
+  permissionKey String   @map("permission_key") @db.VarChar(100)
+  positionName  String   @map("position_name") @db.VarChar(150)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(0)
 
   @@unique([permissionKey, positionName], map: "uq_permission_position")
   @@map("position_permissions")
 }
+
+model ita_blogs {
+  id              Int      @id @default(autoincrement())
+  title           String   @db.VarChar(500)
+  slug            String?  @db.VarChar(500)
+  content         String   @db.LongText
+  author_id       Int
+  author_name     String?  @db.VarChar(255)
+  author_position String?  @db.VarChar(255)
+  created_at      DateTime @default(now()) @db.Timestamp(0)
+  updated_at      DateTime @default(now()) @db.Timestamp(0)
+  members         Member   @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "ita_blogs_ibfk_1")
+
+  @@index([author_id], map: "author_id")
+}
+
+model member_telegram_links {
+  id                BigInt   @id @default(autoincrement())
+  member_id         Int      @unique(map: "member_id")
+  telegram_chat_id  BigInt   @unique(map: "telegram_chat_id")
+  telegram_user_id  BigInt   @unique(map: "telegram_user_id")
+  telegram_username String?  @db.VarChar(100)
+  first_name        String?  @db.VarChar(150)
+  linked_at         DateTime @default(now()) @db.DateTime(0)
+  updated_at        DateTime @default(now()) @db.DateTime(0)
+  members           Member   @relation(fields: [member_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "member_telegram_links_ibfk_1")
+
+  @@index([telegram_chat_id], map: "idx_chat_id")
+  @@index([member_id], map: "idx_member_id")
+}
+
+model rdu_files {
+  id            Int         @id @default(autoincrement())
+  folder_id     Int
+  display_name  String      @db.VarChar(255)
+  file_name     String      @db.VarChar(255)
+  file_path     String      @db.VarChar(500)
+  file_size     BigInt?
+  display_order Int         @default(0)
+  created_at    DateTime    @default(now()) @db.Timestamp(0)
+  updated_at    DateTime    @default(now()) @db.Timestamp(0)
+  rdu_folders   rdu_folders @relation(fields: [folder_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "rdu_files_ibfk_1")
+
+  @@index([folder_id], map: "folder_id")
+}
+
+model rdu_folders {
+  id            Int         @id @default(autoincrement())
+  folder_name   String      @unique(map: "folder_name") @db.VarChar(255)
+  display_order Int         @default(0)
+  is_active     Boolean     @default(true)
+  created_at    DateTime    @default(now()) @db.Timestamp(0)
+  updated_at    DateTime    @default(now()) @db.Timestamp(0)
+  rdu_files     rdu_files[]
+}
+
+model telegram_link_challenges {
+  id         BigInt    @id @default(autoincrement())
+  member_id  Int
+  token_hash String    @unique(map: "token_hash") @db.VarChar(64)
+  expires_at DateTime  @db.DateTime(0)
+  used_at    DateTime? @db.DateTime(0)
+  created_at DateTime  @default(now()) @db.DateTime(0)
+  members    Member    @relation(fields: [member_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "telegram_link_challenges_ibfk_1")
+
+  @@index([token_hash, expires_at], map: "idx_token_lookup")
+  @@index([member_id], map: "member_id")
+}
+
+model work_requests {
+  id             Int      @id @default(autoincrement())
+  request_no     String   @unique(map: "request_no") @db.VarChar(50)
+  title          String   @db.VarChar(255)
+  description    String   @db.Text
+  status         String   @default("pending") @db.VarChar(50)
+  created_by     Int
+  created_at     DateTime @default(now()) @db.Timestamp(0)
+  updated_at     DateTime @default(now()) @db.Timestamp(0)
+  assignees      String?  @db.Text
+  attachments    String?  @db.Text
+  status_history String?  @db.Text
+  progress_notes String?  @db.Text
+  completion     String?  @db.Text
+  review         String?  @db.Text
+  members        Member   @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "work_requests_ibfk_1")
+
+  @@index([created_by], map: "created_by")
+}
+
+model OutgoingDocument {
+  id           Int      @id @default(autoincrement())
+  year         String   @db.VarChar(10)
+  label        String   @db.VarChar(255)
+  note         String?  @db.VarChar(500)
+  url          String   @db.VarChar(1000)
+  status       String   @default("เสร็จสิ้น") @db.VarChar(50)
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdBy    String?  @map("created_by") @db.VarChar(100)
+  updatedBy    String?  @map("updated_by") @db.VarChar(100)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([year], map: "idx_outgoing_doc_year")
+  @@index([isActive], map: "idx_outgoing_doc_active")
+  @@map("outgoing_documents")
+}
+
+model EthicsYear {
+  id           Int              @id @default(autoincrement())
+  year         String           @unique(map: "uq_ethics_year") @db.VarChar(10)
+  displayOrder Int              @default(0) @map("display_order")
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  documents    EthicsDocument[]
+
+  @@index([displayOrder], map: "idx_ethics_year_order")
+  @@map("ethics_years")
+}
+
+model EthicsDocument {
+  id           Int              @id @default(autoincrement())
+  yearId       Int              @map("year_id")
+  parentId     Int?             @map("parent_id")
+  title        String           @db.VarChar(500)
+  filePath     String?          @map("file_path") @db.VarChar(1000)
+  fileSize     BigInt?          @map("file_size")
+  displayOrder Int              @default(0) @map("display_order")
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  year         EthicsYear       @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  parent       EthicsDocument?  @relation("EthicsSubDocuments", fields: [parentId], references: [id], onDelete: Cascade)
+  children     EthicsDocument[] @relation("EthicsSubDocuments")
+
+  @@index([yearId], map: "idx_ethics_doc_year")
+  @@index([parentId], map: "idx_ethics_doc_parent")
+  @@map("ethics_documents")
+}
+
+

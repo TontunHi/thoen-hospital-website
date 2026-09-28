@@ -2,79 +2,79 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FileText, Calendar, ArrowUpRight, FolderOpen } from 'lucide-react';
+import Link from 'next/link';
+import { FileText, Calendar, ArrowUpRight, FolderOpen, Settings, RefreshCw } from 'lucide-react';
 import './page.css';
 
+interface SubDocumentItem {
+  id: number;
+  title: string;
+  fileUrl: string;
+  displayOrder: number;
+}
+
 interface DocumentItem {
+  id: number;
   title: string;
   fileUrl?: string;
-  subItems?: { title: string; fileUrl: string }[];
+  displayOrder: number;
+  subItems?: SubDocumentItem[];
+}
+
+interface YearItem {
+  id: number;
+  year: string;
+  displayOrder: number;
+  documents: DocumentItem[];
 }
 
 function EthicsPageContent() {
   const searchParams = useSearchParams();
   const yearParam = searchParams.get('year');
-  const [activeYear, setActiveYear] = useState<'2569' | '2568' | '2567'>('2569');
+  const [yearsData, setYearsData] = useState<YearItem[]>([]);
+  const [activeYear, setActiveYear] = useState<string>('');
+  const [canManage, setCanManage] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const fetchEthics = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/ethics');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.years) {
+          setYearsData(data.years);
+          setCanManage(Boolean(data.canManage));
+
+          // Set default active year
+          if (data.years.length > 0) {
+            if (yearParam && data.years.some((y: YearItem) => y.year === yearParam)) {
+              setActiveYear(yearParam);
+            } else {
+              setActiveYear(data.years[0].year);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load ethics documents:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (yearParam === '2568' || yearParam === '2569' || yearParam === '2567') {
+    fetchEthics();
+  }, []);
+
+  useEffect(() => {
+    if (yearParam && yearsData.some((y) => y.year === yearParam)) {
       setActiveYear(yearParam);
     }
-  }, [yearParam]);
+  }, [yearParam, yearsData]);
 
-  const ethicsData: Record<'2569' | '2568' | '2567', DocumentItem[]> = {
-    '2569': [
-      {
-        title: '1. คำสั่งคณะทำงานขับเคลื่อนชมรมจริยธรรมของหน่วยงาน',
-        fileUrl: '/documents/ethics/2569/command.pdf',
-      },
-      {
-        title: '2. แผนปฏิบัติการส่งเสริมคุณธรรมของชมรมจริยธรรมของหน่วยงาน',
-        fileUrl: '/documents/ethics/2569/action-plan.pdf',
-      },
-      {
-        title: '3. รายงานผลการดำเนินงานตามแผนปฏิบัติการส่งเสริมคุณธรรมของชมรมจริยธรรมโรงพยาบาลเถิน',
-        fileUrl: '/documents/ethics/2569/report.pdf',
-      },
-    ],
-    '2568': [
-      {
-        title: '1. คำสั่งคณะทำงานขับเคลื่อนชมรมจริยธรรมของหน่วยงาน',
-        fileUrl: '/documents/ethics/2568/command.pdf',
-      },
-      {
-        title: '2. แผนปฏิบัติการส่งเสริมคุณธรรมของชมรมจริยธรรมของหน่วยงาน',
-        fileUrl: '/documents/ethics/2568/action-plan.pdf',
-      },
-      {
-        title: '3. รายงานผลการดำเนินงานตามแผนปฏิบัติการส่งเสริมคุณธรรมของชมรมจริยธรรมโรงพยาบาลเถิน',
-        subItems: [
-          {
-            title: 'รายงานผลการดำเนินงานตามแผนปฏิบัติการส่งเสริมคุณธรรมของหน่วยงาน รอบ 6 เดือน',
-            fileUrl: '/documents/ethics/2568/report-6m.pdf',
-          },
-          {
-            title: 'รายงานผลการดำเนินงานตามแผนปฏิบัติการส่งเสริมคุณธรรมของหน่วยงาน รอบ 12 เดือน',
-            fileUrl: '/documents/ethics/2568/report-12m.pdf',
-          },
-        ],
-      },
-    ],
-    '2567': [
-      {
-        title: '1. คำสั่งคณะทำงานขับเคลื่อนชมรมจริยธรรมของหน่วยงาน',
-        fileUrl: '/documents/ethics/2567/command.pdf',
-      },
-      {
-        title: '2. แผนปฏิบัติการส่งเสริมคุณธรรมของชมรมจริยธรรมของหน่วยงาน',
-        fileUrl: '/documents/ethics/2567/action-plan.pdf',
-      },
-      {
-        title: '3. รายงานผลการดำเนินงานตามแผนปฏิบัติการส่งเสริมคุณธรรมของชมรมจริยธรรมโรงพยาบาลเถิน',
-        fileUrl: '/documents/ethics/2567/report.pdf',
-      },
-    ],
-  };
+  const currentYearItem = yearsData.find((y) => y.year === activeYear);
+  const documents = currentYearItem ? currentYearItem.documents : [];
 
   return (
     <div className="ethics-page">
@@ -86,102 +86,136 @@ function EthicsPageContent() {
           <p className="ethics-subtitle">
             ศูนย์รวมเอกสาร แผนการดำเนินงาน และคำสั่งคณะทำงานขับเคลื่อนชมรมจริยธรรม โรงพยาบาลเถิน
           </p>
+
+          {canManage && (
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+              <Link
+                href="/member/ethics"
+                className="btn btn-outline"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 18px',
+                  borderColor: '#4f46e5',
+                  color: '#4338ca',
+                  backgroundColor: '#eef2ff',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  textDecoration: 'none'
+                }}
+              >
+                <Settings size={16} />
+                <span>จัดการเอกสารจริยธรรม ⚙️</span>
+              </Link>
+            </div>
+          )}
         </div>
 
-        {/* Year Selector tab controller */}
-        <div className="ethics-year-selector-container">
-          <div className="ethics-year-selector">
-            <button
-              className={`year-tab ${activeYear === '2569' ? 'active' : ''}`}
-              onClick={() => setActiveYear('2569')}
-            >
-              <Calendar size={15} />
-              <span>ปีงบประมาณ 2569</span>
-            </button>
-            <button
-              className={`year-tab ${activeYear === '2568' ? 'active' : ''}`}
-              onClick={() => setActiveYear('2568')}
-            >
-              <Calendar size={15} />
-              <span>ปีงบประมาณ 2568</span>
-            </button>
-            <button
-              className={`year-tab ${activeYear === '2567' ? 'active' : ''}`}
-              onClick={() => setActiveYear('2567')}
-            >
-              <Calendar size={15} />
-              <span>ปีงบประมาณ 2567</span>
-            </button>
+        {/* Loading state */}
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 0', gap: '12px' }}>
+            <RefreshCw size={28} className="spinner" style={{ color: '#4f46e5', animation: 'spin 1s linear infinite' }} />
+            <p style={{ color: '#6b7280', margin: 0 }}>กำลังโหลดข้อมูลเอกสาร...</p>
           </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="ethics-content">
-          <h2 className="section-title">
-            เอกสารจริยธรรม ประจำปีงบประมาณ {activeYear}
-          </h2>
-
-          <div className="document-list">
-            {ethicsData[activeYear].map((item, index) => (
-              <div key={index} className={`document-card ${!item.fileUrl ? 'group-card' : ''}`}>
-                {item.fileUrl ? (
-                  <div className="document-row">
-                    <div className="document-info">
-                      <span className="pdf-icon">
-                        <FileText size={20} />
-                      </span>
-                      <div className="document-info__text">
-                        <h3 className="document-title">{item.title}</h3>
-                        <span className="pdf-badge">PDF Document</span>
-                      </div>
-                    </div>
-                    <a
-                      href={item.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="document-download-btn"
-                    >
-                      <span>เปิดดูเอกสาร</span>
-                      <ArrowUpRight size={14} />
-                    </a>
-                  </div>
-                ) : (
-                  <div className="document-group">
-                    <div className="document-group-header">
-                      <span className="group-folder-icon">
-                        <FolderOpen size={20} />
-                      </span>
-                      <h3 className="document-group-title">{item.title}</h3>
-                    </div>
-                    {item.subItems && (
-                      <div className="sub-document-list">
-                        {item.subItems.map((sub, sIdx) => (
-                          <div key={sIdx} className="sub-document-row">
-                            <div className="document-info">
-                              <span className="pdf-icon sub-icon">
-                                <FileText size={14} />
-                              </span>
-                              <span className="sub-document-title">{sub.title}</span>
-                            </div>
-                            <a
-                              href={sub.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="sub-document-download-btn"
-                            >
-                              <span>เปิดดูเอกสาร</span>
-                              <ArrowUpRight size={12} />
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+        ) : yearsData.length === 0 ? (
+          <div style={{ padding: '60px 0', textAlign: 'center', color: '#6b7280' }}>
+            <p>ยังไม่มีข้อมูลเอกสารชมรมจริยธรรม</p>
+          </div>
+        ) : (
+          <>
+            {/* Year Selector tab controller */}
+            <div className="ethics-year-selector-container">
+              <div className="ethics-year-selector">
+                {yearsData.map((y) => (
+                  <button
+                    key={y.id}
+                    className={`year-tab ${activeYear === y.year ? 'active' : ''}`}
+                    onClick={() => setActiveYear(y.year)}
+                  >
+                    <Calendar size={15} />
+                    <span>ปีงบประมาณ {y.year}</span>
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+
+            {/* Content Area */}
+            <div className="ethics-content">
+              <h2 className="section-title">
+                เอกสารจริยธรรม ประจำปีงบประมาณ {activeYear}
+              </h2>
+
+              {documents.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px dashed #e5e7eb' }}>
+                  ยังไม่มีรายการเอกสารสำหรับปีงบประมาณนี้
+                </div>
+              ) : (
+                <div className="document-list">
+                  {documents.map((item) => (
+                    <div key={item.id} className={`document-card ${!item.fileUrl ? 'group-card' : ''}`}>
+                      {item.fileUrl ? (
+                        <div className="document-row">
+                          <div className="document-info">
+                            <span className="pdf-icon">
+                              <FileText size={20} />
+                            </span>
+                            <div className="document-info__text">
+                              <h3 className="document-title">{item.title}</h3>
+                              <span className="pdf-badge">PDF Document</span>
+                            </div>
+                          </div>
+                          <a
+                            href={item.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="document-download-btn"
+                          >
+                            <span>เปิดดูเอกสาร</span>
+                            <ArrowUpRight size={14} />
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="document-group">
+                          <div className="document-group-header">
+                            <span className="group-folder-icon">
+                              <FolderOpen size={20} />
+                            </span>
+                            <h3 className="document-group-title">{item.title}</h3>
+                          </div>
+                          {item.subItems && item.subItems.length > 0 && (
+                            <div className="sub-document-list">
+                              {item.subItems.map((sub) => (
+                                <div key={sub.id} className="sub-document-row">
+                                  <div className="document-info">
+                                    <span className="pdf-icon sub-icon">
+                                      <FileText size={14} />
+                                    </span>
+                                    <span className="sub-document-title">{sub.title}</span>
+                                  </div>
+                                  <a
+                                    href={sub.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="sub-document-download-btn"
+                                  >
+                                    <span>เปิดดูเอกสาร</span>
+                                    <ArrowUpRight size={12} />
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
       </div>
     </div>
@@ -195,3 +229,4 @@ export default function EthicsPage() {
     </Suspense>
   );
 }
+
