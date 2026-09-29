@@ -1,0 +1,854 @@
+/* ==========================================================================
+   Modern Editorial Hospital Repair Form Styling (Claude Warm-Editorial Philosophy)
+   Incorporating DESIGN-claude.md token aesthetics while preserving hospital theme
+   ========================================================================== */
+
+:root {
+  /* Existing member portal palette: white surfaces with hospital green accents */
+  --claude-canvas: #ffffff;
+  --claude-surface-card: #f0fdf4;
+  --claude-surface-soft: #f8fafc;
+  --claude-surface-muted: #f8fafc;
+  --claude-ink: #1f2937;
+  --claude-body: #334155;
+  --claude-muted: #64748b;
+  --claude-muted-soft: #94a3b8;
+  --claude-hairline: #e2e8f0;
+  --claude-hairline-warm: #bbf7d0;
+  
+  /* Brand Voltage & Medical Accents */
+  --claude-coral: #059669;
+  --claude-coral-active: #047857;
+  --hospital-blue: #059669;
+  --hospital-blue-dark: #047857;
+  --hospital-teal: #0d9488;
+  --hospital-emerald: #059669;
+  
+  /* Radii Scale from DESIGN-claude.md */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+}
+
+.repairWrapper {
+  max-width: 1040px;
+  margin: 0 auto;
+  font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), system-ui, -apple-system, sans-serif;
+  color: var(--claude-ink);
+  letter-spacing: 0;
+}
+
+/* ── Top Header Banner ── */
+.repairHeaderCard {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--claude-hairline);
+  box-shadow: none;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.repairHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.repairBadgeIcon {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-lg);
+  background: var(--claude-coral);
+  color: #ffffff;
+  border: 1px solid var(--claude-coral);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: none;
+}
+
+.repairEyebrow {
+  display: block;
+  color: var(--claude-coral-active);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: 0.2rem;
+}
+
+.repairHeaderLeft h1 {
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--claude-ink);
+  letter-spacing: 0;
+  margin: 0 0 0.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.repairHeaderLeft p {
+  color: var(--claude-muted);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.repairBackBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.2rem;
+  border-radius: var(--radius-md);
+  background: var(--claude-canvas);
+  border: 1px solid var(--claude-hairline);
+  color: var(--claude-body);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  min-height: 40px;
+}
+
+.repairBackBtn:hover {
+  background-color: var(--claude-canvas);
+  color: var(--claude-ink);
+  border-color: var(--claude-coral);
+}
+
+/* ── Alerts ── */
+.repairAlert {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.925rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.repairAlert.error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* ── Main Form Container ── */
+.repairFormCard {
+  background: var(--claude-canvas);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--claude-hairline);
+  box-shadow: none;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.repairSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--claude-hairline-soft);
+}
+
+.repairSection:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.sectionHeaderLabel {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--claude-ink);
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  letter-spacing: -0.01em;
+}
+
+.stepNum {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  background-color: var(--claude-surface-card);
+  color: var(--claude-coral-active);
+  border: 1px solid var(--claude-hairline);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.reqStar {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* ── Step 1: Repair Type Cards (Editorial Tabs) ── */
+.repairTypeTabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.95rem;
+}
+
+.repairTabBtn {
+  background: var(--claude-canvas);
+  border: 1.5px solid var(--claude-hairline);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.2rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  color: var(--claude-body);
+  position: relative;
+  overflow: hidden;
+}
+
+.repairTabBtn:hover {
+  background-color: var(--claude-canvas);
+  border-color: var(--claude-coral);
+}
+
+.repairTabBtn.active {
+  background: var(--claude-surface-card);
+  border-color: var(--hospital-blue);
+  color: #065f46;
+  box-shadow: none;
+}
+
+.repairTabBtn.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--hospital-blue);
+}
+
+.repairTabBtn.active svg {
+  color: var(--hospital-blue);
+  background-color: #ecfdf5;
+}
+
+.tabIconWrap {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: var(--claude-surface-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.tabText strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--claude-ink);
+  letter-spacing: -0.01em;
+}
+
+.tabText span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--claude-muted);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+/* ── Step 2: Item Category Toggles ── */
+.itemCategoryToggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .itemCategoryToggles {
+    grid-template-columns: 1fr;
+  }
+}
+
+.categoryRadioCard {
+  border: 1.5px solid var(--claude-hairline);
+  background-color: var(--claude-canvas);
+  border-radius: var(--radius-lg);
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+
+.categoryRadioCard:hover {
+  background-color: var(--claude-canvas);
+  border-color: var(--claude-coral);
+}
+
+.categoryRadioCard.selected {
+  background-color: var(--claude-surface-card);
+  border-color: var(--hospital-emerald);
+  box-shadow: none;
+}
+
+.categoryRadioCard.selected svg {
+  color: var(--hospital-emerald);
+}
+
+.categoryRadioCard input {
+  margin-top: 0.25rem;
+  accent-color: var(--hospital-emerald);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.categoryRadioCard strong {
+  display: block;
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--claude-ink);
+}
+
+.categoryRadioCard span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--claude-muted);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+/* ── Form Inputs & Layout ── */
+.grid2Cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.15rem;
+}
+
+@media (max-width: 640px) {
+  .grid2Cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.formGroup label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--claude-body);
+}
+
+.repairInput, 
+.repairSelect, 
+.repairTextarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--claude-hairline);
+  background-color: var(--claude-canvas);
+  font-size: 0.925rem;
+  color: var(--claude-ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.repairInput:hover, 
+.repairSelect:hover, 
+.repairTextarea:hover {
+  border-color: var(--claude-muted-soft);
+}
+
+.repairInput:focus, 
+.repairSelect:focus, 
+.repairTextarea:focus {
+  border-color: var(--hospital-blue);
+  background-color: var(--claude-canvas);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.repairInput.withIcon {
+  padding-left: 2.75rem;
+}
+
+/* ── Location Search Component ── */
+.locationSearchInputWrap {
+  position: relative;
+}
+
+.locationSearchInputWrap .locIcon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--claude-muted);
+  pointer-events: none;
+}
+
+.clearLocBtn {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: var(--claude-surface-card);
+  color: var(--claude-body);
+  border-radius: var(--radius-pill);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.clearLocBtn:hover {
+  background: var(--claude-surface-soft);
+  color: var(--claude-ink);
+}
+
+.locDropdownMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--claude-canvas);
+  border: 1px solid var(--claude-hairline);
+  border-radius: var(--radius-lg);
+  max-height: 280px;
+  overflow-y: auto;
+  box-shadow: 0 8px 20px rgba(20, 20, 19, 0.08);
+  z-index: 50;
+}
+
+.locDropdownItem {
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--claude-hairline-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.locDropdownItem:last-child {
+  border-bottom: none;
+}
+
+.locDropdownItem:hover {
+  background-color: var(--claude-canvas);
+}
+
+.locItemMain strong {
+  display: block;
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--claude-ink);
+}
+
+.locItemSub {
+  font-size: 0.8rem;
+  color: var(--claude-muted);
+  margin-top: 0.15rem;
+}
+
+.locBadge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  background: var(--claude-surface-card);
+  color: var(--claude-body);
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.dropdownNotice {
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--claude-muted);
+  font-size: 0.875rem;
+}
+
+/* ── Urgency Selector ── */
+.urgencyOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.85rem;
+}
+
+.urgencyRadio {
+  border: 1px solid var(--claude-hairline);
+  background-color: var(--claude-canvas);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  color: var(--claude-body);
+}
+
+.urgencyRadio:hover {
+  background-color: var(--claude-canvas);
+  border-color: var(--claude-muted-soft);
+}
+
+.urgencyRadio input {
+  accent-color: var(--hospital-emerald);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.urgencyRadio.selected {
+  background-color: #f0fdf4;
+  border-color: var(--hospital-emerald);
+  color: #065f46;
+  font-weight: 600;
+}
+
+.urgencyRadio.selected.urgent {
+  background-color: #fff7ed;
+  border-color: #ea580c;
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.urgencyRadio.selected.urgent input {
+  accent-color: #ea580c;
+}
+
+.urgencyRadio.selected.veryUrgent {
+  background-color: #fef2f2;
+  border-color: #dc2626;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.urgencyRadio.selected.veryUrgent input {
+  accent-color: #dc2626;
+}
+
+/* ── Step 5: Technician Mode Selection ── */
+.technicianModeCard {
+  border: 1.5px solid var(--claude-hairline);
+  background-color: var(--claude-canvas);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.technicianModeCard:hover {
+  background-color: var(--claude-canvas);
+  border-color: var(--claude-coral);
+}
+
+.technicianModeCard.selected {
+  background-color: var(--claude-surface-card);
+  border-color: var(--hospital-blue);
+  box-shadow: none;
+}
+
+.technicianModeCard input {
+  margin-top: 0.25rem;
+  accent-color: var(--hospital-blue);
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.technicianModeCard strong {
+  display: block;
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--claude-ink);
+}
+
+.technicianModeCard span {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--claude-muted);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+/* ── Photo Upload Zone ── */
+.photoUploadContainer {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.photoThumbWrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--claude-hairline);
+  box-shadow: none;
+}
+
+.photoThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+
+.photoThumbWrap:hover .photoThumbImg {
+  transform: scale(1.05);
+}
+
+.photoDeleteBtn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: rgba(20, 20, 19, 0.75);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-pill);
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  backdrop-filter: blur(4px);
+}
+
+.photoDeleteBtn:hover {
+  background-color: #dc2626;
+}
+
+.photoUploadBox {
+  width: 140px;
+  height: 96px;
+  border: 1.5px dashed var(--claude-muted-soft);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  background-color: var(--claude-canvas);
+  color: var(--claude-muted);
+  font-size: 0.775rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.photoUploadBox:hover {
+  background-color: var(--claude-canvas);
+  border-color: var(--hospital-blue);
+  color: var(--hospital-blue);
+}
+
+/* ── Reporter Info Meta Band ── */
+.reporterInfoBox {
+  background-color: var(--claude-canvas);
+  border: 1px solid var(--claude-hairline-warm);
+  border-radius: var(--radius-lg);
+  padding: 1.15rem 1.5rem;
+  display: flex;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.reporterMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.875rem;
+  color: var(--claude-body);
+}
+
+.reporterMeta svg {
+  color: var(--claude-coral);
+}
+
+.reporterMeta strong {
+  color: var(--claude-ink);
+  font-weight: 600;
+}
+
+/* ── Form Actions ── */
+.formActionRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+}
+
+.repairCancelBtn {
+  padding: 0.75rem 1.6rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--claude-hairline);
+  background: var(--claude-canvas);
+  color: var(--claude-body);
+  font-size: 0.925rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.repairCancelBtn:hover {
+  background-color: var(--claude-canvas);
+  color: var(--claude-ink);
+  border-color: var(--claude-coral);
+}
+
+.submitRepairBtn {
+  background: var(--hospital-blue);
+  color: #ffffff;
+  padding: 0.75rem 2rem;
+  border-radius: var(--radius-md);
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  box-shadow: none;
+  transition: background-color 0.15s ease;
+  letter-spacing: 0;
+}
+
+.submitRepairBtn:hover:not(:disabled) {
+  background: var(--hospital-blue-dark);
+  box-shadow: none;
+}
+
+.submitRepairBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Success Screen (Editorial Card) ── */
+.repairSuccessCard {
+  background: var(--claude-canvas);
+  border-radius: var(--radius-lg);
+  padding: 4rem 2.5rem;
+  border: 1px solid var(--claude-hairline);
+  text-align: center;
+  box-shadow: none;
+}
+
+.repairSuccessIcon {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--radius-pill);
+  background-color: #ecfdf5;
+  color: var(--hospital-emerald);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.75rem;
+  border: 1px solid #a7f3d0;
+}
+
+.repairSuccessCard h2 {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--claude-ink);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.6rem;
+}
+
+.repairSuccessCard p {
+  color: var(--claude-muted);
+  max-width: 520px;
+  margin: 0 auto 1.75rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.repairTicketBox {
+  background-color: var(--claude-canvas);
+  border: 1.5px dashed var(--claude-hairline-warm);
+  padding: 1.25rem 2.5rem;
+  border-radius: var(--radius-lg);
+  display: inline-block;
+}
+
+.ticketLabel {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--claude-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.ticketNo {
+  display: block;
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--hospital-blue);
+  letter-spacing: 0.05em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (max-width: 720px) {
+  .repairHeaderCard { align-items: flex-start; padding: 1.25rem; }
+  .repairHeaderLeft { align-items: flex-start; gap: 0.85rem; }
+  .repairBadgeIcon { width: 46px; height: 46px; }
+  .repairHeaderLeft h1 { font-size: 1.4rem; }
+  .repairBackBtn { width: 100%; justify-content: center; }
+  .repairFormCard { padding: 1.25rem; gap: 1.5rem; }
+  .repairSection { padding-bottom: 1.5rem; }
+  .repairTypeTabs { grid-template-columns: 1fr; }
+  .repairTabBtn { min-height: 84px; }
+  .urgencyOptions { grid-template-columns: 1fr; }
+  .formActionRow { flex-direction: column-reverse; }
+  .repairCancelBtn, .submitRepairBtn { min-height: 46px; width: 100%; }
+  .reporterInfoBox { gap: 0.85rem; padding: 1rem; }
+  .repairSuccessCard { padding: 2.5rem 1.25rem; }
+}

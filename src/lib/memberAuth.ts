@@ -36,6 +36,9 @@ export type MemberPermission =
   | 'upload_salary'
   | 'create_work'
   | 'view_all_work'
+  | 'manage_locations'
+  | 'manage_repairs'
+  | 'manage_inbox'
 
 export interface MemberDto {
   id: number

@@ -1,7 +1,26 @@
 import { getAuthenticatedMember, toClientMember } from '@/lib/memberAuth'
+import { queryMemberDb } from '@/lib/memberDb'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, FileText, ChevronRight, User, Shield, Globe, Newspaper, Building2, Pill, FileSpreadsheet, Scale } from 'lucide-react'
+import { 
+  PenTool, 
+  FileText, 
+  ChevronRight, 
+  User, 
+  Shield, 
+  Globe, 
+  Newspaper, 
+  Building2, 
+  Pill, 
+  FileSpreadsheet, 
+  Scale, 
+  Inbox, 
+  Wrench, 
+  MapPin, 
+  Lock, 
+  CheckCircle, 
+  AlertCircle 
+} from 'lucide-react'
 import './page.css'
 
 function SignatureCard({ show }: { show: boolean }) {
@@ -48,8 +67,125 @@ function SalaryCard({ show }: { show: boolean }) {
   )
 }
 
+function InboxCard({ show, pendingInboxCount }: { show: boolean; pendingInboxCount: number }) {
+  if (!show) {
+    return (
+      <div className="serviceCard serviceCardDisabled">
+        <div className="serviceCardHeader">
+          <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
+            <Lock size={24} />
+          </div>
+          <div className="statusIndicator error">
+            <span>ปิดบริการชั่วคราว</span>
+          </div>
+        </div>
+        <div className="serviceCardBody">
+          <h4>กล่องงาน</h4>
+          <p>ตรวจสอบและอนุมัติงานที่ส่งมาถึงคุณ พร้อมติดตามสถานะงานที่คุณยื่นขอ</p>
+        </div>
+        <div className="serviceCardFooter">
+          <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+          <ChevronRight size={16} className="chevronIcon" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Link href="/member/inbox" className="serviceCard" style={{ border: pendingInboxCount > 0 ? '1.5px solid #3b82f6' : undefined }}>
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper" style={{ backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
+          <Inbox size={24} />
+        </div>
+        <div className={`statusIndicator ${pendingInboxCount > 0 ? 'warning' : 'success'}`} style={{ backgroundColor: pendingInboxCount > 0 ? '#fef3c7' : '#dcfce7', color: pendingInboxCount > 0 ? '#b45309' : '#15803d' }}>
+          {pendingInboxCount > 0 ? (
+            <>
+              <AlertCircle size={14} />
+              <span>รอคุณดำเนินการ {pendingInboxCount} รายการ</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle size={14} />
+              <span>ไม่มีงานค้าง</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>กล่องงาน</h4>
+        <p>ตรวจสอบและดำเนินการงานที่ส่งมาถึงคุณ พร้อมติดตามสถานะงานที่คุณยื่นขอ</p>
+      </div>
+      <div className="serviceCardFooter" style={{ color: '#2563eb' }}>
+        <span className="actionText">เปิดกล่องงาน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  )
+}
+
+function RepairCard({ show }: { show: boolean }) {
+  if (!show) {
+    return (
+      <div className="serviceCard serviceCardDisabled">
+        <div className="serviceCardHeader">
+          <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
+            <Lock size={24} />
+          </div>
+          <div className="statusIndicator error">
+            <span>ปิดบริการชั่วคราว</span>
+          </div>
+        </div>
+        <div className="serviceCardBody">
+          <h4>แจ้งซ่อมบำรุง</h4>
+          <p>ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมระบุครุภัณฑ์และสถานที่</p>
+        </div>
+        <div className="serviceCardFooter">
+          <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+          <ChevronRight size={16} className="chevronIcon" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Link href="/member/repairs/new" className="serviceCard">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
+          <Wrench size={24} />
+        </div>
+        <div className="statusIndicator success" style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
+          <CheckCircle size={14} />
+          <span>พร้อมให้บริการ</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>แจ้งซ่อมบำรุง</h4>
+        <p>ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมระบุครุภัณฑ์และสถานที่</p>
+      </div>
+      <div className="serviceCardFooter" style={{ color: '#16a34a' }}>
+        <span className="actionText">ยื่นใบแจ้งซ่อม</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  )
+}
+
 export default async function MemberDashboardPage() {
   const member = await getAuthenticatedMember()
+
+  // Query pending tasks count in Unified Inbox for this member
+  let pendingInboxCount = 0
+  try {
+    const inboxRows = await queryMemberDb(
+      `SELECT COUNT(*) as cnt FROM inbox_tasks 
+       WHERE status = 'PENDING' 
+       AND (current_assignee = ? OR (current_role IS NOT NULL AND (current_role = ? OR current_role = ?)))`,
+      [member.id, (member.position || '').trim(), member.role]
+    )
+    pendingInboxCount = inboxRows[0]?.cnt || 0
+  } catch (err) {
+    console.error('Error fetching inbox count:', err)
+  }
 
   const isFinance = member.can('upload_salary')
   const isItaAuthorized = member.can('manage_ita')
@@ -58,6 +194,7 @@ export default async function MemberDashboardPage() {
   const isRduAuthorized = member.can('manage_rdu')
   const isOutgoingDocAuthorized = member.can('manage_outgoing_doc')
   const isEthicsAuthorized = member.can('manage_ethics')
+  const isLocationsAuthorized = member.can('manage_locations') || member.isAdmin
 
   return (
     <div className="memberDashboardContainer">
@@ -95,6 +232,17 @@ export default async function MemberDashboardPage() {
             
             <div className="servicesGrid">
               
+              {/* Card 0: กล่องงาน (Unified Task Inbox) */}
+              <InboxCard 
+                show={member.hasAccess('feature_inbox')} 
+                pendingInboxCount={pendingInboxCount} 
+              />
+
+              {/* Card 0.5: ระบบแจ้งซ่อม (Repair Request) */}
+              <RepairCard 
+                show={member.hasAccess('feature_repair')} 
+              />
+
               {/* Card 1: Digital Signature */}
               <SignatureCard show={member.hasAccess('feature_signature')} />
 
@@ -236,9 +384,7 @@ export default async function MemberDashboardPage() {
 
             </div>
           </>
-
         )}
-
 
         {/* Admin Section (Visible only to admins) */}
         {member.role === 'admin' && (
@@ -246,7 +392,7 @@ export default async function MemberDashboardPage() {
             <div className="adminSectionDivider"></div>
             <h3 className="sectionTitle adminSectionTitle">ระบบควบคุมและตั้งค่า (สำหรับผู้ดูแลระบบ)</h3>
             <div className="servicesGrid">
-              {/* Card 7: System Feature Access Toggles (Visible to Admins only) */}
+              {/* Card 7: System Feature Access Toggles */}
               <Link href="/member/settings" className="serviceCard">
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper" style={{ backgroundColor: '#ecfdf5', color: '#059669', borderColor: '#d1fae5', borderWidth: '1px', borderStyle: 'solid' }}>
@@ -255,7 +401,7 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardBody">
                   <h4>เปิด/ปิดฟังก์ชันและตั้งค่าระบบ</h4>
-                  <p>จัดการสิทธิ์และควบคุมการเข้าใช้งานของสมาชิกทั่วไป เช่น เปิด/ปิดฟังก์ชันลายเซ็น, สลิปเงินเดือน และขอผลิตสื่อ</p>
+                  <p>จัดการสิทธิ์และควบคุมการเข้าใช้งานของสมาชิกทั่วไป เช่น เปิด/ปิดฟังก์ชันกล่องงาน, แจ้งซ่อม, ลายเซ็น และสลิปเงินเดือน</p>
                 </div>
                 <div className="serviceCardFooter" style={{ color: '#059669' }}>
                   <span className="actionText">เข้าสู่หน้าตั้งค่าระบบ</span>
@@ -263,7 +409,7 @@ export default async function MemberDashboardPage() {
                 </div>
               </Link>
 
-              {/* Card 8: PR News Posting Program (Visible to Admins only) */}
+              {/* Card 8: PR News Posting Program */}
               <Link href="/member/news" className="serviceCard">
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper" style={{ backgroundColor: '#f0f9ff', color: '#0284c7', borderColor: '#e0f2fe', borderWidth: '1px', borderStyle: 'solid' }}>
@@ -280,7 +426,7 @@ export default async function MemberDashboardPage() {
                 </div>
               </Link>
 
-              {/* Card 9: Members Directory Management (Visible to Admins only) */}
+              {/* Card 9: Members Directory Management */}
               <Link href="/member/member" className="serviceCard">
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper" style={{ backgroundColor: '#faf5ff', color: '#7c3aed', borderColor: '#f3e8ff', borderWidth: '1px', borderStyle: 'solid' }}>
@@ -297,7 +443,7 @@ export default async function MemberDashboardPage() {
                 </div>
               </Link>
 
-              {/* Card 10: Audit Log Viewer (Visible to Admins only) */}
+              {/* Card 10: Audit Log Viewer */}
               <Link href="/member/audit-logs" className="serviceCard">
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper" style={{ backgroundColor: '#fff1f2', color: '#e11d48', borderColor: '#ffe4e6', borderWidth: '1px', borderStyle: 'solid' }}>
@@ -313,6 +459,28 @@ export default async function MemberDashboardPage() {
                   <ChevronRight size={16} className="chevronIcon" />
                 </div>
               </Link>
+
+              {/* Card 11: Hospital Locations Management */}
+              {isLocationsAuthorized && (
+                <Link href="/member/locations" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper" style={{ backgroundColor: '#ecfdf5', color: '#059669', borderColor: '#d1fae5', borderWidth: '1px', borderStyle: 'solid' }}>
+                      <MapPin size={24} />
+                    </div>
+                    <div className="statusIndicator success" style={{ backgroundColor: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' }}>
+                      <span>ฐานข้อมูลสถานที่</span>
+                    </div>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>จัดการสถานที่ ตึก-ชั้น-ห้อง</h4>
+                    <p>แดชบอร์ดจัดการข้อมูลสถานที่ ตรวจสอบความถูกต้อง เปิด/ปิดใช้งาน และแก้ไขชื่อห้องสำหรับระบบแจ้งซ่อม</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#059669' }}>
+                    <span className="actionText">จัดการข้อมูลสถานที่</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+              )}
             </div>
           </>
         )}
