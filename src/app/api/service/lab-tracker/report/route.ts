@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 
 export async function GET(request: Request) {
@@ -89,8 +89,8 @@ export async function GET(request: Request) {
     }
 
     const [pendingRows, reportedRows] = await Promise.all([
-      queryHosDb(pendingSql, params),
-      queryHosDb(reportedSql, params)
+      queryClinicalDb(pendingSql, params),
+      queryClinicalDb(reportedSql, params)
     ])
 
     // Get ordering doctor/staff name from first record if searching for a doctor

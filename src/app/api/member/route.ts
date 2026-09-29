@@ -1,37 +1,12 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-
-// Helper to verify member admin session
-async function requireMemberAdmin(): Promise<
-  { error: string; status: number; session?: never } |
-  { error?: never; status?: never; session: { username: string; email: string; role: string } }
-> {
-  const session = await verifyMemberSession()
-  if (!session) {
-    return { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน', status: 401 }
-  }
-
-  // Fetch role from DB to verify freshest credentials
-  const users = await queryMemberDb(
-    'SELECT role FROM members WHERE username = ? AND email = ?',
-    [session.username, session.email]
-  )
-
-  if (!users || users.length === 0 || users[0].role !== 'admin') {
-    return { error: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลส่วนนี้', status: 403 }
-  }
-
-  return { session }
-}
 
 // GET: Retrieve all members (admin only)
 export async function GET() {
   try {
-    const auth = await requireMemberAdmin()
-    if (auth.error || !auth.session) {
-      return NextResponse.json({ error: auth.error || 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: auth.status || 401 })
-    }
+    const { error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error) return error
 
     const members = await queryMemberDb(
       "SELECT id, username, email, name, department, position, salary_user, IF(salary_pass IS NULL OR salary_pass = '', NULL, '********') AS salary_pass, role, created_at, updated_at FROM members ORDER BY created_at DESC"
@@ -83,13 +58,11 @@ async function validateUpdateMember(body: any, sessionUsername: string) {
 // PUT: Update member details (admin only)
 export async function PUT(request: Request) {
   try {
-    const auth = await requireMemberAdmin()
-    if (auth.error || !auth.session) {
-      return NextResponse.json({ error: auth.error || 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: auth.status || 401 })
-    }
+    const { member, error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error || !member) return error
 
     const body = await request.json()
-    const validation = await validateUpdateMember(body, auth.session.username || '')
+    const validation = await validateUpdateMember(body, member.username || '')
     if (validation.error) {
       return NextResponse.json({ error: validation.error }, { status: validation.status })
     }
@@ -133,10 +106,8 @@ export async function PUT(request: Request) {
 // DELETE: Remove member (admin only)
 export async function DELETE(request: Request) {
   try {
-    const auth = await requireMemberAdmin()
-    if (auth.error || !auth.session) {
-      return NextResponse.json({ error: auth.error || 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: auth.status || 401 })
-    }
+    const { member, error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error || !member) return error
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
@@ -146,9 +117,9 @@ export async function DELETE(request: Request) {
     }
 
     // Prevent admin from deleting themselves
-    if (auth.session.username) {
+    if (member.username) {
       const targetUser = await queryMemberDb('SELECT username FROM members WHERE id = ?', [id])
-      if (targetUser && targetUser.length > 0 && targetUser[0].username === auth.session.username) {
+      if (targetUser && targetUser.length > 0 && targetUser[0].username === member.username) {
         return NextResponse.json({ error: 'ไม่สามารถลบบัญชีของตัวเองได้' }, { status: 400 })
       }
     }
@@ -168,10 +139,8 @@ export async function DELETE(request: Request) {
 // POST: Create a new member (admin only)
 export async function POST(request: Request) {
   try {
-    const auth = await requireMemberAdmin()
-    if (auth.error || !auth.session) {
-      return NextResponse.json({ error: auth.error || 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: auth.status || 401 })
-    }
+    const { error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error) return error
 
     const body = await request.json()
     const { username, email, name, department, position, salary_user, salary_pass, role } = body

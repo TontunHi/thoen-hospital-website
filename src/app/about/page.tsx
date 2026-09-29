@@ -7,9 +7,12 @@ export const metadata = {
   description: 'วิสัยทัศน์ พันธกิจ ประวัติความเป็นมา และผู้บริหารของโรงพยาบาลเถิน จังหวัดลำปาง',
 }
 
+import Breadcrumb from '@/components/ui/Breadcrumb'
+
 export default function AboutPage() {
   return (
     <div className="container aboutPage">
+      <Breadcrumb items={[{ label: 'เกี่ยวกับเรา' }]} />
       <div className="aboutHeader">
         <h1>เกี่ยวกับเรา</h1>
         <p>โรงพยาบาลเถิน มุ่งมั่นให้บริการด้านการแพทย์และส่งเสริมสุขภาพอย่างมีมาตรฐานเพื่อประชาชน</p>

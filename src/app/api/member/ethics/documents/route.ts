@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
-import fs from 'fs/promises'
+import { DocumentStorage, StorageValidationError } from '@/lib/storage/documentStorage'
 import path from 'path'
 import { z } from 'zod'
 
@@ -14,36 +14,11 @@ const documentSchema = z.object({
   isActive: z.boolean().default(true),
 })
 
-async function checkManageAuth() {
-  const session = await verifyMemberSession()
-  if (!session) {
-    return { error: NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 }), session: null }
-  }
-
-  const isAuthorized = await checkPositionPermission(session.username, 'manage_ethics')
-  if (!isAuthorized) {
-    return { error: NextResponse.json({ error: 'ไม่มีสิทธิ์จัดการข้อมูลชมรมจริยธรรม' }, { status: 403 }), session: null }
-  }
-
-  return { error: null, session }
-}
-
-// Helper to delete physical file if exists
-async function deletePhysicalFile(filePath: string | null) {
-  if (!filePath) return
-  try {
-    const fullPath = path.join(process.cwd(), 'public', filePath.replace(/^\//, ''))
-    await fs.unlink(fullPath)
-  } catch (err) {
-    // Ignore error if file not found
-  }
-}
-
 // POST: Upload a PDF file or create document entry
 export async function POST(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
+    if (error || !member) return error
 
     const formData = await request.formData()
     const yearIdStr = formData.get('yearId') as string
@@ -81,30 +56,15 @@ export async function POST(request: Request) {
     let fileSize: bigint | null = null
 
     if (file && file.size > 0) {
-      // Validate PDF
-      const ext = path.extname(file.name).toLowerCase()
-      if (ext !== '.pdf' && file.type !== 'application/pdf') {
-        return NextResponse.json({ error: 'รองรับเฉพาะไฟล์เอกสาร .pdf เท่านั้น' }, { status: 400 })
-      }
-
-      // Max 25MB
-      if (file.size > 25 * 1024 * 1024) {
-        return NextResponse.json({ error: 'ขนาดไฟล์เกินกำหนด (สูงสุด 25MB)' }, { status: 400 })
-      }
-
-      // Target directory: public/documents/ethics/[year]/
-      const targetDir = path.join(process.cwd(), 'public', 'documents', 'ethics', yearRecord.year)
-      await fs.mkdir(targetDir, { recursive: true })
-
-      const sanitizedOriginalName = path.basename(file.name, ext).replace(/[\\/:*?"<>|]/g, '_').trim()
-      const uniqueName = `${Date.now()}_${sanitizedOriginalName}${ext}`
-      const finalDiskPath = path.join(targetDir, uniqueName)
-
-      const buffer = Buffer.from(await file.arrayBuffer())
-      await fs.writeFile(finalDiskPath, buffer)
-
-      filePath = `/documents/ethics/${yearRecord.year}/${uniqueName}`
-      fileSize = BigInt(file.size)
+      const saved = await DocumentStorage.save(file, {
+        destinationDir: `public/documents/ethics/${yearRecord.year}`,
+        allowedMimeTypes: ['application/pdf'],
+        allowedExtensions: ['.pdf'],
+        maxSizeBytes: 25 * 1024 * 1024,
+        collisionStrategy: 'timestamp',
+      })
+      filePath = saved.publicUrl
+      fileSize = BigInt(saved.fileSize)
     }
 
     const created = await prisma.ethicsDocument.create({
@@ -122,8 +82,8 @@ export async function POST(request: Request) {
     await logAudit(
       'CREATE',
       'ethics_documents',
-      `เพิ่มเอกสารจริยธรรม "${title}" ปี ${yearRecord.year} โดย ${session.username}`,
-      session
+      `เพิ่มเอกสารจริยธรรม "${title}" ปี ${yearRecord.year} โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({
@@ -135,6 +95,9 @@ export async function POST(request: Request) {
       message: 'บันทึกเอกสารสำเร็จ'
     })
   } catch (error: any) {
+    if (error instanceof StorageValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     console.error('Create ethics document error:', error)
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการบันทึกเอกสาร' }, { status: 500 })
   }
@@ -143,8 +106,8 @@ export async function POST(request: Request) {
 // PUT: Update an existing document (title, displayOrder, isActive, or replace file)
 export async function PUT(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
+    if (error || !member) return error
 
     const formData = await request.formData()
     const idStr = formData.get('id') as string
@@ -170,32 +133,15 @@ export async function PUT(request: Request) {
     let fileSize = existing.fileSize
 
     if (file && file.size > 0) {
-      const ext = path.extname(file.name).toLowerCase()
-      if (ext !== '.pdf' && file.type !== 'application/pdf') {
-        return NextResponse.json({ error: 'รองรับเฉพาะไฟล์เอกสาร .pdf เท่านั้น' }, { status: 400 })
-      }
-
-      if (file.size > 25 * 1024 * 1024) {
-        return NextResponse.json({ error: 'ขนาดไฟล์เกินกำหนด (สูงสุด 25MB)' }, { status: 400 })
-      }
-
-      const targetDir = path.join(process.cwd(), 'public', 'documents', 'ethics', existing.year.year)
-      await fs.mkdir(targetDir, { recursive: true })
-
-      const sanitizedOriginalName = path.basename(file.name, ext).replace(/[\\/:*?"<>|]/g, '_').trim()
-      const uniqueName = `${Date.now()}_${sanitizedOriginalName}${ext}`
-      const finalDiskPath = path.join(targetDir, uniqueName)
-
-      const buffer = Buffer.from(await file.arrayBuffer())
-      await fs.writeFile(finalDiskPath, buffer)
-
-      // Optionally delete old file if it was a generated timestamped upload
-      if (existing.filePath && existing.filePath.includes(`${existing.year.year}/`)) {
-        await deletePhysicalFile(existing.filePath)
-      }
-
-      filePath = `/documents/ethics/${existing.year.year}/${uniqueName}`
-      fileSize = BigInt(file.size)
+      const saved = await DocumentStorage.replace(existing.filePath, file, {
+        destinationDir: `public/documents/ethics/${existing.year.year}`,
+        allowedMimeTypes: ['application/pdf'],
+        allowedExtensions: ['.pdf'],
+        maxSizeBytes: 25 * 1024 * 1024,
+        collisionStrategy: 'timestamp',
+      })
+      filePath = saved.publicUrl
+      fileSize = BigInt(saved.fileSize)
     }
 
     const updated = await prisma.ethicsDocument.update({
@@ -212,8 +158,8 @@ export async function PUT(request: Request) {
     await logAudit(
       'UPDATE',
       'ethics_documents',
-      `แก้ไขเอกสารจริยธรรม ID: ${id} ("${updated.title}") โดย ${session.username}`,
-      session
+      `แก้ไขเอกสารจริยธรรม ID: ${id} ("${updated.title}") โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({
@@ -225,6 +171,9 @@ export async function PUT(request: Request) {
       message: 'อัปเดตข้อมูลสำเร็จ'
     })
   } catch (error: any) {
+    if (error instanceof StorageValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     console.error('Update ethics document error:', error)
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการอัปเดตเอกสาร' }, { status: 500 })
   }
@@ -233,8 +182,8 @@ export async function PUT(request: Request) {
 // DELETE: Delete a document (and its children)
 export async function DELETE(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
+    if (error || !member) return error
 
     const { searchParams } = new URL(request.url)
     const idParam = searchParams.get('id')
@@ -255,12 +204,12 @@ export async function DELETE(request: Request) {
     // Delete child files
     for (const child of existing.children) {
       if (child.filePath) {
-        await deletePhysicalFile(child.filePath)
+        await DocumentStorage.delete(child.filePath)
       }
     }
     // Delete parent file
     if (existing.filePath) {
-      await deletePhysicalFile(existing.filePath)
+      await DocumentStorage.delete(existing.filePath)
     }
 
     await prisma.ethicsDocument.delete({
@@ -270,8 +219,8 @@ export async function DELETE(request: Request) {
     await logAudit(
       'DELETE',
       'ethics_documents',
-      `ลบเอกสารจริยธรรม "${existing.title}" (ID: ${id}) พร้อมเอกสารย่อย โดย ${session.username}`,
-      session
+      `ลบเอกสารจริยธรรม "${existing.title}" (ID: ${id}) พร้อมเอกสารย่อย โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({
@@ -283,3 +232,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการลบเอกสาร' }, { status: 500 })
   }
 }
+

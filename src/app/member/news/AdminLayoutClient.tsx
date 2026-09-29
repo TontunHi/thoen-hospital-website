@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { LayoutDashboard, Newspaper, LogOut, Image as ImageIcon, ArrowLeft } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import './layout.css'
 
 export default function AdminLayoutClient({
@@ -13,14 +15,18 @@ export default function AdminLayoutClient({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
-    if (!confirm('ยืนยันว่าต้องการออกจากระบบใช่หรือไม่?')) return
+    setIsLoggingOut(true)
     try {
       await fetch('/api/member/logout', { method: 'POST' })
       router.push('/member/login')
     } catch (error) {
       console.error('Logout error:', error)
+      setIsLoggingOut(false)
+      setShowLogoutConfirm(false)
     }
   }
 
@@ -77,7 +83,7 @@ export default function AdminLayoutClient({
         </nav>
 
         <div className="sidebarFooter">
-          <button onClick={handleLogout} className="logoutButton">
+          <button type="button" onClick={() => setShowLogoutConfirm(true)} className="logoutButton">
             <LogOut size={18} className="navIcon" />
             <span>ออกจากระบบ</span>
           </button>
@@ -89,6 +95,18 @@ export default function AdminLayoutClient({
           {children}
         </div>
       </main>
+
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="ยืนยันการออกจากระบบ"
+        description="คุณต้องการออกจากระบบจัดการเว็บไซต์ใช่หรือไม่?"
+        confirmText="ออกจากระบบ"
+        cancelText="ยกเลิก"
+        type="warning"
+        loading={isLoggingOut}
+        onConfirm={handleLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   )
 }

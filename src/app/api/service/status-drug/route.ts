@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
 import { logThrottledAudit } from '@/lib/audit'
@@ -64,8 +64,8 @@ export async function GET() {
       `
 
       const [paidList, printedList] = await Promise.all([
-        queryHosDb(queryPaid),
-        queryHosDb(queryPrinted),
+        queryClinicalDb(queryPaid),
+        queryClinicalDb(queryPrinted),
       ])
 
       return {

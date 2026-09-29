@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
 
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         join patient pt on pt.hn=o.hn 
         WHERE vn = ?
       `
-      const patients = await queryHosDb(patientSql, [vn])
+      const patients = await queryClinicalDb(patientSql, [vn])
       if (patients.length === 0) {
         return NextResponse.json({ error: 'ไม่พบข้อมูลการตรวจรักษา OPD นี้' }, { status: 404 })
       }
@@ -68,7 +68,7 @@ export async function GET(request: Request) {
         left outer join icd101 ic3 on vn.dx2=ic3.code 
         WHERE o.vn = ?
       `
-      const screenData = await queryHosDb(screenSql, [vn])
+      const screenData = await queryClinicalDb(screenSql, [vn])
       const screen = screenData[0] || {}
 
       // Drugs
@@ -81,7 +81,7 @@ export async function GET(request: Request) {
         left outer join sp_use su on o.sp_use=su.sp_use 
         WHERE vn = ? and o.qty <> '0'
       `
-      const drugs = await queryHosDb(drugSql, [vn])
+      const drugs = await queryClinicalDb(drugSql, [vn])
 
       // Labs
       const labSql = `
@@ -91,11 +91,11 @@ export async function GET(request: Request) {
         left outer join lab_items l on lo.lab_items_code=l.lab_items_code 
         WHERE lh.vn = ? and lo.confirm = 'Y' and lo.lab_order_result is not null
       `
-      const labs = await queryHosDb(labSql, [vn])
+      const labs = await queryClinicalDb(labSql, [vn])
 
       // X-ray
       const xraySql = `select xray_list from xray_head WHERE vn = ?`
-      const xrays = await queryHosDb(xraySql, [vn])
+      const xrays = await queryClinicalDb(xraySql, [vn])
       const xray = xrays[0]?.xray_list || null
 
       // Record audit log for OPD detail view
@@ -165,7 +165,7 @@ export async function GET(request: Request) {
         left outer join icd101 ic on o.pdx=ic.code 
         WHERE o.an = ?
       `
-      const patients = await queryHosDb(patientSql, [an])
+      const patients = await queryClinicalDb(patientSql, [an])
       if (patients.length === 0) {
         return NextResponse.json({ error: 'ไม่พบข้อมูลการรักษา IPD นี้' }, { status: 404 })
       }
@@ -185,7 +185,7 @@ export async function GET(request: Request) {
         WHERE o.an = ? and o.qty <> '0' 
         ORDER BY o.rxdate
       `
-      const drugs = await queryHosDb(drugSql, [an])
+      const drugs = await queryClinicalDb(drugSql, [an])
 
       // Labs
       const labSql = `
@@ -201,11 +201,11 @@ export async function GET(request: Request) {
         WHERE lh.vn = ? and lo.confirm = 'Y' 
         ORDER BY lh.report_date
       `
-      const labs = await queryHosDb(labSql, [an])
+      const labs = await queryClinicalDb(labSql, [an])
 
       // X-ray
       const xraySql = `SELECT xray_list FROM xray_head WHERE vn = ?`
-      const xrays = await queryHosDb(xraySql, [an])
+      const xrays = await queryClinicalDb(xraySql, [an])
       const xray = xrays[0]?.xray_list || null
 
       // Record audit log for IPD detail view

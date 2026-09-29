@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Bold, Link as LinkIcon } from 'lucide-react'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import '../../page.css'
 
 interface Props {
@@ -21,8 +22,18 @@ export default function EditBlogPage(props: Props) {
   const [isBoldActive, setIsBoldActive] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
   const editorRef = useRef<HTMLDivElement>(null)
   const initialContentRef = useRef('')
+
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const toastId = Date.now().toString()
+    setToasts((prev) => [...prev, { id: toastId, message, type }])
+  }
+
+  const removeToast = (toastId: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== toastId))
+  }
 
   // Load existing blog details
   useEffect(() => {
@@ -34,13 +45,13 @@ export default function EditBlogPage(props: Props) {
           setTitle(data.data.title)
           initialContentRef.current = data.data.content
         } else {
-          alert(data.error?.message || 'ไม่สามารถโหลดข้อมูลบทความได้')
-          router.push('/member/ita')
+          addToast(data.error?.message || 'ไม่สามารถโหลดข้อมูลบทความได้', 'error')
+          setTimeout(() => router.push('/member/ita'), 1200)
         }
       } catch (e) {
         console.error('Fetch blog error:', e)
-        alert('เกิดข้อผิดพลาดในการดึงข้อมูล')
-        router.push('/member/ita')
+        addToast('เกิดข้อผิดพลาดในการดึงข้อมูล', 'error')
+        setTimeout(() => router.push('/member/ita'), 1200)
       } finally {
         setIsLoading(false)
       }
@@ -130,13 +141,13 @@ export default function EditBlogPage(props: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) {
-      alert('กรุณากรอกชื่อเรื่อง')
+      addToast('กรุณากรอกชื่อเรื่อง', 'warning')
       return
     }
 
     const contentHtml = editorRef.current?.innerHTML || ''
     if (!contentHtml.trim() || contentHtml === '<br>') {
-      alert('กรุณากรอกเนื้อหาบทความ')
+      addToast('กรุณากรอกเนื้อหาบทความ', 'warning')
       return
     }
 
@@ -153,14 +164,16 @@ export default function EditBlogPage(props: Props) {
 
       const data = await res.json()
       if (data.success) {
-        alert('แก้ไขบทความสำเร็จ')
-        router.push('/member/ita')
+        addToast('แก้ไขบทความสำเร็จ กำลังกลับสู่หน้ารายการ...', 'success')
+        setTimeout(() => {
+          router.push('/member/ita')
+        }, 800)
       } else {
-        alert(data.error?.message || 'เกิดข้อผิดพลาดในการบันทึก')
+        addToast(data.error?.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error')
       }
     } catch (error) {
       console.error('Save blog error:', error)
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+      addToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -310,6 +323,8 @@ export default function EditBlogPage(props: Props) {
           </button>
         </div>
       </form>
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   )
 }

@@ -1,34 +1,19 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-
-async function getMemberDetails(username: string) {
-  const members = await queryMemberDb(
-    'SELECT id, name, position, role FROM members WHERE username = ? LIMIT 1',
-    [username]
-  )
-  return members && members.length > 0 ? members[0] : null
-}
 
 export async function POST(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await verifyMemberSession()
-    if (!session) {
-      return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 })
-    }
+    const { member, error } = await requireMemberApi()
+    if (error || !member) return error
 
     const { id } = await props.params
     const workRequestId = parseInt(id)
     if (isNaN(workRequestId)) {
       return NextResponse.json({ error: 'รหัสอ้างอิงงานไม่ถูกต้อง' }, { status: 400 })
-    }
-
-    const member = await getMemberDetails(session.username)
-    if (!member) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลผู้ใช้งาน' }, { status: 404 })
     }
 
     const isDeptHead = 

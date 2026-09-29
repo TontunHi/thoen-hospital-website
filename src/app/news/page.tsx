@@ -1,8 +1,21 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import './page.css'
+import { Newspaper, ChevronRight } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
+import Breadcrumb from '@/components/ui/Breadcrumb'
+import { siteConfig } from '@/config/site'
+import './page.css'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'ข่าวสารและประชาสัมพันธ์',
+  description: 'ข่าวสารประชาสัมพันธ์ ประกาศ กิจกรรม อบรมสัมมนา และรับสมัครงาน โรงพยาบาลเถิน จังหวัดลำปาง',
+  openGraph: {
+    title: `ข่าวสารและประชาสัมพันธ์ | ${siteConfig.name}`,
+    description: 'ข่าวสารประชาสัมพันธ์ ประกาศ กิจกรรม และรับสมัครงาน โรงพยาบาลเถิน',
+  },
+}
 
 async function getNewsList(page: number, limit: number, category?: string) {
   try {
@@ -11,7 +24,7 @@ async function getNewsList(page: number, limit: number, category?: string) {
 
     const where: any = {
       startDate: { lte: now },
-      endDate: { gte: now }
+      endDate: { gte: now },
     }
 
     if (category) {
@@ -26,24 +39,24 @@ async function getNewsList(page: number, limit: number, category?: string) {
         take: limit,
         include: {
           attachments: {
-            orderBy: { id: 'asc' }
-          }
-        }
+            orderBy: { id: 'asc' },
+          },
+        },
       }),
       prisma.news.count({ where }),
     ])
 
     const adaptedNews = news.map((item: any) => {
-      const imageAttachments = item.attachments.filter((att: any) => 
+      const imageAttachments = item.attachments.filter((att: any) =>
         att.fileType && att.fileType.startsWith('image/')
       )
       const images = imageAttachments.map((att: any) => ({
         id: att.id,
         imageUrl: att.filePath,
-        order: 0
+        order: 0,
       }))
 
-      const pdfAttachment = item.attachments.find((att: any) => 
+      const pdfAttachment = item.attachments.find((att: any) =>
         att.fileType === 'application/pdf'
       )
 
@@ -69,13 +82,13 @@ async function getNewsList(page: number, limit: number, category?: string) {
         expiredAt: item.endDate,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
-        images
+        images,
       }
     })
 
     return {
       news: adaptedNews,
-      total
+      total,
     }
   } catch (error) {
     console.error('Fetch news error:', error)
@@ -91,7 +104,7 @@ export default async function NewsListPage(props: {
   const page = parseInt(searchParams.page || '1')
   const category = searchParams.category
   const limit = 9
-  
+
   const { news, total } = await getNewsList(page, limit, category)
   const totalPages = Math.ceil(total / limit)
 
@@ -107,16 +120,53 @@ export default async function NewsListPage(props: {
 
   const categoryTitle = getCategoryTitle(category)
 
+  const categories = [
+    { key: undefined, label: 'ทั้งหมด', href: '/news' },
+    { key: 'PR', label: 'ประชาสัมพันธ์', href: '/news?category=PR' },
+    { key: 'TRAINING', label: 'ประชุมอบรม / สัมมนา', href: '/news?category=TRAINING' },
+    { key: 'JOBS', label: 'ประกาศรับสมัครงาน', href: '/news?category=JOBS' },
+    { key: 'ANNOUNCEMENT', label: 'ประกาศ', href: '/news?category=ANNOUNCEMENT' },
+  ]
+
   return (
     <div className="container newsListPage">
-      <div className="newsListHeader">
-        <h1>{categoryTitle}</h1>
+      {/* Breadcrumb (N5) */}
+      <Breadcrumb
+        items={[
+          { label: 'ข่าวสาร', href: '/news' },
+          ...(category ? [{ label: categoryTitle }] : []),
+        ]}
+      />
+
+      <div className="newsListHeader animate-fadeInUp">
+        <div className="newsHeaderBadge">
+          <Newspaper size={16} />
+          <span>News & Announcements</span>
+        </div>
+        <h1>{category ? categoryTitle : 'ข่าวสารและประชาสัมพันธ์'}</h1>
         <p>ติดตามข่าวสารกิจกรรม ผลงาน และข้อมูลข่าวประชาสัมพันธ์ล่าสุดจากโรงพยาบาลเถิน</p>
+
+        {/* Category Filters Bar */}
+        <nav className="newsCategoryFilters" aria-label="กรองประเภทข่าว">
+          {categories.map((cat) => {
+            const isActive = category === cat.key || (!category && !cat.key)
+            return (
+              <Link
+                key={cat.label}
+                href={cat.href}
+                className={`categoryFilterBtn touch-target ${isActive ? 'categoryFilterBtnActive' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <span>{cat.label}</span>
+              </Link>
+            )
+          })}
+        </nav>
       </div>
 
       {news.length > 0 ? (
         <>
-          <div className="newsListForum">
+          <div className="newsListForum animate-fadeInUp">
             {news.map((item: any) => {
               const getCategoryLabel = (cat: string) => {
                 switch (cat) {
@@ -129,7 +179,7 @@ export default async function NewsListPage(props: {
               }
 
               return (
-                <Link key={item.id} href={`/news/${item.slug}`} className="newsForumRow">
+                <Link key={item.id} href={`/news/${item.slug}`} className="newsForumRow touch-target">
                   <div className="newsRowMeta">
                     <span className={`newsRowCategory badge-${item.category.toLowerCase()}`}>
                       {getCategoryLabel(item.category)}
@@ -142,13 +192,11 @@ export default async function NewsListPage(props: {
                       })}
                     </time>
                   </div>
-                  
+
                   <h2 className="newsRowTitle">{item.title}</h2>
-                  
+
                   <span className="newsRowChevron">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 18l6-6-6-6"/>
-                    </svg>
+                    <ChevronRight size={18} />
                   </span>
                 </Link>
               )
@@ -156,7 +204,7 @@ export default async function NewsListPage(props: {
           </div>
 
           {totalPages > 1 && (
-            <div className="pagination">
+            <div className="pagination" role="navigation" aria-label="การแบ่งหน้าข่าว">
               {Array.from({ length: totalPages }).map((_, i) => {
                 const pageNum = i + 1
                 const isActive = pageNum === page
@@ -164,7 +212,9 @@ export default async function NewsListPage(props: {
                   <Link
                     key={pageNum}
                     href={`/news?page=${pageNum}${category ? `&category=${category}` : ''}`}
-                    className={`pageButton ${isActive ? 'pageButtonActive' : ''}`}
+                    className={`pageButton touch-target ${isActive ? 'pageButtonActive' : ''}`}
+                    aria-current={isActive ? 'page' : undefined}
+                    aria-label={`ไปยังหน้าที่ ${pageNum}`}
                   >
                     {pageNum}
                   </Link>
@@ -174,7 +224,7 @@ export default async function NewsListPage(props: {
           )}
         </>
       ) : (
-        <div className="newsEmptyState">
+        <div className="newsEmptyState animate-fadeIn">
           <h3>ยังไม่มีข่าวประชาสัมพันธ์</h3>
           <p>ในขณะนี้ยังไม่มีข้อมูลข่าวสารเผยแพร่ กรุณากลับมาติดตามข่าวสารใหม่ในภายหลัง</p>
         </div>

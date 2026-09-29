@@ -1,25 +1,17 @@
-import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
+import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
 import MemberSignatureClient from './MemberSignatureClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MemberSignaturePage() {
-  const session = await verifyMemberSession()
+  const member = await getAuthenticatedMember({
+    requiredFeature: 'feature_signature',
+    redirectTo: '/unauthorized',
+  })
 
-  if (!session) {
-    redirect('/member/login')
-  }
-
-  if (session.role === 'subdistrict') {
+  if (member.role === 'subdistrict') {
     redirect('/member')
-  }
-
-  if (session.role !== 'admin') {
-    const settingsRows = await queryMemberDb("SELECT config_value FROM member_system_settings WHERE config_key = 'feature_signature'")
-    const isEnabled = settingsRows.length === 0 || settingsRows[0].config_value !== '0'
-    if (!isEnabled) {
-      redirect('/unauthorized')
-    }
   }
 
   return <MemberSignatureClient />

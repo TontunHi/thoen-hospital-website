@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { queryErDb } from '@/lib/erDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
 import { logThrottledAudit } from '@/lib/audit'
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
           and ((er.er_dch_type in ('2','3','5','6','7','8','9') and w.name is null) and h.name is null) 
         ORDER BY er.enter_er_time DESC
       `
-      const activePatients = await queryErDb(activePatientsQuery)
+      const activePatients = await queryClinicalDb(activePatientsQuery)
 
       // 2. Fetch active critical patients count (level 1 = Resuscitate)
       const criticalCount = activePatients.filter((p: any) => p.er_emergency_level_id === 1 || p.er_emergency_level_id === '1').length
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
         where er.vstdate BETWEEN DATE_ADD(DATE_ADD(LAST_DAY(now()),INTERVAL 1 DAY),INTERVAL - 1 MONTH) and CURRENT_DATE() 
         group by er.er_pt_type
       `
-      const ptTypes = await queryErDb(ptTypesQuery)
+      const ptTypes = await queryClinicalDb(ptTypesQuery)
 
       // 4. Fetch monthly statistics: Emergency levels
       const emergencyLevelsQuery = `
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
         group by ept.er_emergency_level_name 
         order by ept.er_emergency_level_id
       `
-      const emergencyLevels = await queryErDb(emergencyLevelsQuery)
+      const emergencyLevels = await queryClinicalDb(emergencyLevelsQuery)
 
       // 5. Fetch monthly statistics: Discharge types
       const dischargeTypesQuery = `
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
         group by ept.name 
         order by ept.er_dch_type
       `
-      const dischargeTypes = await queryErDb(dischargeTypesQuery)
+      const dischargeTypes = await queryClinicalDb(dischargeTypesQuery)
 
       // 6. Fetch error status patients (past 7 months to yesterday with er_dch_type IN ('5','6','7','8','9'))
       const errorStatusQuery = `
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
           and (er.er_dch_type in ('5','6','7','8','9')) 
         ORDER BY er.vstdate DESC
       `
-      const errorStatusRows = await queryErDb(errorStatusQuery)
+      const errorStatusRows = await queryClinicalDb(errorStatusQuery)
 
       return {
         activePatients,

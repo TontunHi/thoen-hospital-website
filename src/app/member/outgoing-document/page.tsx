@@ -1,5 +1,4 @@
-import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
-import { redirect } from 'next/navigation'
+import { getAuthenticatedMember } from '@/lib/memberAuth'
 import OutgoingDocAdminClient from './OutgoingDocAdminClient'
 
 export const metadata = {
@@ -8,16 +7,11 @@ export const metadata = {
 }
 
 export default async function MemberOutgoingDocPage() {
-  const session = await verifyMemberSession()
+  const member = await getAuthenticatedMember({
+    requiredPermission: 'manage_outgoing_doc',
+    redirectTo: '/member',
+  })
 
-  if (!session) {
-    redirect('/member/login')
-  }
-
-  const isAuthorized = await checkPositionPermission(session.username, 'manage_outgoing_doc')
-  if (!isAuthorized) {
-    redirect('/member')
-  }
-
-  return <OutgoingDocAdminClient username={session.username} />
+  return <OutgoingDocAdminClient username={member.username} />
 }
+

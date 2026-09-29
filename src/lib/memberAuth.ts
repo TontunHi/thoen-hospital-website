@@ -1,4 +1,6 @@
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { logger } from './logger'
 
@@ -22,6 +24,55 @@ export interface MemberSessionPayload {
   aud: 'member'
   iat: number
   exp: number
+}
+
+export type MemberPermission =
+  | 'manage_news'
+  | 'manage_ita'
+  | 'manage_rdu'
+  | 'manage_ethics'
+  | 'manage_outgoing_doc'
+  | 'view_all_salary'
+  | 'upload_salary'
+  | 'create_work'
+  | 'view_all_work'
+
+export interface AuthenticatedMember {
+  id: number
+  username: string
+  email: string
+  name: string
+  department: string
+  position: string
+  salaryUser: string | null
+  role: string
+  displayRole: string
+  initials: string
+  signaturePath: string | null
+  profilePath: string | null
+  profile_path: string | null
+  hasSignature: boolean
+  hasSalary: boolean
+  hasSalaryCredentials: boolean
+  isTelegramLinked: boolean
+  isAdmin: boolean
+  permissions: Set<string>
+  settings: Record<string, string>
+  session: {
+    username: string
+    email: string
+    role: string
+  }
+  can(permission: MemberPermission | MemberPermission[] | string | string[]): boolean
+  isFeatureEnabled(featureKey: string): boolean
+  hasAccess(featureKey: string): boolean
+}
+
+export interface MemberAuthOptions {
+  requiredPermission?: MemberPermission | MemberPermission[] | string | string[]
+  requiredRole?: string | string[]
+  requiredFeature?: string
+  redirectTo?: string
 }
 
 function sign(value: string): string {
@@ -195,7 +246,219 @@ export async function destroyMemberSession(): Promise<void> {
   cookieStore.delete(COOKIE_NAME)
 }
 
-import { NextResponse } from 'next/server'
+/**
+ * Hydrates complete member context with permissions and system settings in a single roundtrip.
+ */
+export async function fetchAuthenticatedMember(username: string, email: string): Promise<AuthenticatedMember | null> {
+  try {
+    const { queryMemberDb } = await import('./memberDb')
+
+    // 1. Fetch member core profile
+    const users = await queryMemberDb(
+      'SELECT id, username, email, name, department, position, salary_user, role, signature_path, profile_path FROM members WHERE username = ? AND email = ? LIMIT 1',
+      [username, email]
+    )
+
+    if (!users || users.length === 0) return null
+    const user = users[0]
+
+    const userPosition = (user.position || '').trim()
+    const isAdmin = user.role === 'admin'
+
+    // 2. Fetch parallel context data: permissions, system settings, telegram linking
+    const [permsRes, settingsRows, telegramRows] = await Promise.all([
+      userPosition
+        ? queryMemberDb('SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)', [userPosition])
+        : Promise.resolve([]),
+      queryMemberDb('SELECT config_key, config_value FROM member_system_settings'),
+      queryMemberDb('SELECT id FROM member_telegram_links WHERE member_id = ? LIMIT 1', [user.id])
+    ])
+
+    const permissions = new Set<string>()
+    if (permsRes && Array.isArray(permsRes)) {
+      permsRes.forEach((row: any) => {
+        if (row.permission_key) permissions.add(row.permission_key)
+      })
+    }
+
+    const settings: Record<string, string> = {}
+    if (settingsRows && Array.isArray(settingsRows)) {
+      settingsRows.forEach((row: any) => {
+        if (row.config_key) settings[row.config_key] = row.config_value
+      })
+    }
+
+    const isTelegramLinked = Boolean(telegramRows && telegramRows.length > 0)
+    const hasSignature = Boolean(user.signature_path)
+    const hasSalary = Boolean(user.salary_user)
+
+    const roleTranslation: Record<string, string> = {
+      admin: 'ผู้ดูแลระบบ (Admin)',
+      member: 'สมาชิกทั่วไป (Member)',
+      subdistrict: 'รพ.สต.'
+    }
+    const displayRole = roleTranslation[user.role] || user.role || 'สมาชิกทั่วไป'
+
+    const initials = user.name
+      ? user.name.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('')
+      : user.username.substring(0, 2).toUpperCase()
+
+    const can = (perm: MemberPermission | MemberPermission[] | string | string[]): boolean => {
+      if (isAdmin) return true
+      const keys = Array.isArray(perm) ? perm : [perm]
+      if (keys.includes('upload_salary') && userPosition.includes('เจ้าพนักงานการเงินและบัญชี')) {
+        return true
+      }
+      return keys.some(k => permissions.has(k))
+    }
+
+    const isFeatureEnabled = (key: string): boolean => {
+      return settings[key] !== '0'
+    }
+
+    const hasAccess = (key: string): boolean => {
+      return isAdmin || isFeatureEnabled(key)
+    }
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      name: user.name || '',
+      department: user.department || '',
+      position: userPosition,
+      salaryUser: user.salary_user || null,
+      role: user.role || 'member',
+      displayRole,
+      initials,
+      signaturePath: user.signature_path || null,
+      profilePath: user.profile_path || null,
+      profile_path: user.profile_path || null,
+      hasSignature,
+      hasSalary,
+      hasSalaryCredentials: hasSalary,
+      isTelegramLinked,
+      isAdmin,
+      permissions,
+      settings,
+      session: {
+        username: user.username,
+        email: user.email,
+        role: user.role || 'member',
+      },
+      can,
+      isFeatureEnabled,
+      hasAccess,
+    }
+  } catch (error) {
+    logger.error({ error }, 'fetchAuthenticatedMember error')
+    return null
+  }
+}
+
+/**
+ * For Server Components & Server Actions:
+ * Enforces authentication and optional permissions.
+ * Redirects defensively on failure.
+ */
+export async function getAuthenticatedMember(options?: MemberAuthOptions): Promise<AuthenticatedMember> {
+  const session = await verifyMemberSession()
+  if (!session) {
+    redirect('/member/login')
+  }
+
+  const member = await fetchAuthenticatedMember(session.username, session.email)
+  if (!member) {
+    redirect('/member/login')
+  }
+
+  if (options?.requiredRole) {
+    const roles = Array.isArray(options.requiredRole) ? options.requiredRole : [options.requiredRole]
+    if (!member.isAdmin && !roles.includes(member.role)) {
+      redirect(options.redirectTo || '/member')
+    }
+  }
+
+  if (options?.requiredPermission) {
+    if (!member.can(options.requiredPermission)) {
+      redirect(options.redirectTo || '/member')
+    }
+  }
+
+  if (options?.requiredFeature) {
+    if (!member.hasAccess(options.requiredFeature)) {
+      redirect(options.redirectTo || '/member')
+    }
+  }
+
+  return member
+}
+
+/**
+ * For API Route Handlers:
+ * Enforces authentication and optional permissions.
+ * Returns standard early-exit JSON errors on failure.
+ */
+export async function requireMemberApi(options?: MemberAuthOptions): Promise<
+  { member: AuthenticatedMember; error?: never } |
+  { member?: never; error: NextResponse }
+> {
+  const session = await verifyMemberSession()
+  if (!session) {
+    return {
+      error: NextResponse.json(
+        { success: false, error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
+        { status: 401 }
+      ),
+    }
+  }
+
+  const member = await fetchAuthenticatedMember(session.username, session.email)
+  if (!member) {
+    return {
+      error: NextResponse.json(
+        { success: false, error: 'ไม่พบบัญชีผู้ใช้งานในระบบ' },
+        { status: 401 }
+      ),
+    }
+  }
+
+  if (options?.requiredRole) {
+    const roles = Array.isArray(options.requiredRole) ? options.requiredRole : [options.requiredRole]
+    if (!member.isAdmin && !roles.includes(member.role)) {
+      return {
+        error: NextResponse.json(
+          { success: false, error: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
+          { status: 403 }
+        ),
+      }
+    }
+  }
+
+  if (options?.requiredPermission) {
+    if (!member.can(options.requiredPermission)) {
+      return {
+        error: NextResponse.json(
+          { success: false, error: 'คุณไม่มีสิทธิ์เข้าถึงส่วนงานนี้' },
+          { status: 403 }
+        ),
+      }
+    }
+  }
+
+  if (options?.requiredFeature) {
+    if (!member.hasAccess(options.requiredFeature)) {
+      return {
+        error: NextResponse.json(
+          { success: false, error: 'ฟังก์ชันนี้ถูกปิดใช้งานชั่วคราว' },
+          { status: 403 }
+        ),
+      }
+    }
+  }
+
+  return { member }
+}
 
 export async function checkPositionPermission(
   username: string,

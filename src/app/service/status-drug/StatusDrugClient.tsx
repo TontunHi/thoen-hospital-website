@@ -12,6 +12,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { usePolling } from '@/hooks/usePolling'
 import './page.css'
 
 interface PaidPatient {
@@ -40,36 +41,24 @@ export default function StatusDrugClient() {
   const [loading, setLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
-
-  const fetchData = useCallback(async (manual = false) => {
-    if (manual) setIsRefreshing(true)
+  const fetchData = useCallback(async () => {
     try {
+      setIsRefreshing(true)
       const res = await fetch('/api/service/status-drug', { cache: 'no-store' })
       const json = await res.json()
       if (json.success && json.data) {
         setData(json.data)
-        setLastUpdated(new Date())
       }
     } catch (err) {
       console.error('Failed to fetch drug status:', err)
     } finally {
       setLoading(false)
-      if (manual) {
-        setTimeout(() => setIsRefreshing(false), 500)
-      }
+      setIsRefreshing(false)
     }
   }, [])
 
-  useEffect(() => {
-    fetchData()
-    // Poll background every 30 seconds
-    const interval = setInterval(() => {
-      fetchData()
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [fetchData])
+  // Use polling with Page Visibility API (S1)
+  const { lastUpdated, refresh } = usePolling(fetchData, 30000)
 
   // Filter based on search query
   const filteredPaid = useMemo(() => {
@@ -145,16 +134,17 @@ export default function StatusDrugClient() {
           <div className="drugControls">
             <div className="lastUpdateText" suppressHydrationWarning>
               อัปเดตล่าสุด:{' '}
-              {lastUpdated.toLocaleTimeString('th-TH', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              })}{' '}
-              น.
+              {lastUpdated
+                ? `${lastUpdated.toLocaleTimeString('th-TH', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })} น.`
+                : 'กำลังโหลด...'}
             </div>
             <button
               className={`refreshBtn ${isRefreshing ? 'spinning' : ''}`}
-              onClick={() => fetchData(true)}
+              onClick={refresh}
               disabled={isRefreshing}
               title="รีเฟรชข้อมูล"
             >

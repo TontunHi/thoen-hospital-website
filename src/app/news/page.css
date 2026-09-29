@@ -1,24 +1,83 @@
 .newsListPage {
-  padding-top: calc(var(--navbar-height) + 3rem);
+  padding-top: calc(var(--navbar-height, 80px) + 1.25rem);
   padding-bottom: 5rem;
 }
 
 .newsListHeader {
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2.25rem;
+}
+
+.newsHeaderBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 50px;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
 }
 
 .newsListHeader h1 {
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 4vw, 2.5rem);
   color: var(--primary);
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
+  font-weight: 800;
 }
 
 .newsListHeader p {
   color: var(--gray-600);
-  font-size: 1.1rem;
-  max-width: 600px;
-  margin: 0 auto;
+  font-size: 1.05rem;
+  max-width: 620px;
+  margin: 0 auto 1.5rem;
+}
+
+/* Category Filters */
+.newsCategoryFilters {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.categoryFilterBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.15rem;
+  border-radius: 9999px;
+  border: 1.5px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-700);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.categoryFilterBtn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+  transform: translateY(-1px);
+}
+
+.categoryFilterBtnActive {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  border-color: var(--primary);
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(13, 116, 70, 0.25);
+}
+
+.categoryFilterBtnActive:hover {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: #ffffff !important;
 }
 
 .newsListForum {

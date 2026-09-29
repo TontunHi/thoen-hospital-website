@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Save, Bold, Link as LinkIcon, RotateCcw } from 'lucide-react'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import '../page.css'
 
 export default function NewBlogPage() {
@@ -13,7 +14,17 @@ export default function NewBlogPage() {
   const [activeColor, setActiveColor] = useState('#000000')
   const [isBoldActive, setIsBoldActive] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
   const editorRef = useRef<HTMLDivElement>(null)
+
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
 
   // Setup styleWithCSS so formatting uses inline styles
   useEffect(() => {
@@ -92,13 +103,13 @@ export default function NewBlogPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) {
-      alert('กรุณากรอกชื่อเรื่อง')
+      addToast('กรุณากรอกชื่อเรื่อง', 'warning')
       return
     }
 
     const contentHtml = editorRef.current?.innerHTML || ''
     if (!contentHtml.trim() || contentHtml === '<br>') {
-      alert('กรุณากรอกเนื้อหาบทความ')
+      addToast('กรุณากรอกเนื้อหาบทความ', 'warning')
       return
     }
 
@@ -115,14 +126,16 @@ export default function NewBlogPage() {
 
       const data = await res.json()
       if (data.success) {
-        alert('สร้างบทความสำเร็จ')
-        router.push('/member/ita')
+        addToast('สร้างบทความสำเร็จ กำลังกลับสู่หน้ารายการ...', 'success')
+        setTimeout(() => {
+          router.push('/member/ita')
+        }, 800)
       } else {
-        alert(data.error?.message || 'เกิดข้อผิดพลาดในการบันทึก')
+        addToast(data.error?.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error')
       }
     } catch (error) {
       console.error('Save blog error:', error)
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+      addToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -264,6 +277,8 @@ export default function NewBlogPage() {
           </button>
         </div>
       </form>
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   )
 }

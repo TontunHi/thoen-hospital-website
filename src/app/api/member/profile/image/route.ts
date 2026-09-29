@@ -1,23 +1,18 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import fs from 'fs'
 import path from 'path'
 
 export async function GET(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session) {
-      return NextResponse.json(
-        { error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' },
-        { status: 401 }
-      )
-    }
+    const { member, error } = await requireMemberApi()
+    if (error || !member) return error
 
     const { searchParams } = new URL(request.url)
     const queryUserId = searchParams.get('userId')
 
-    let targetUsername = session.username
+    let targetUsername = member.username
 
     // Fetch target user's username if userId is provided
     if (queryUserId) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { usePolling } from '@/hooks/usePolling';
 import Link from 'next/link';
 import {
   Pill,
@@ -83,19 +84,8 @@ export default function LoratadineDispenseClient() {
     }
   }, [ageFilter]);
 
-  // Initial and on filter change
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Auto-refresh interval (20 seconds)
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const interval = setInterval(() => {
-      fetchData(true);
-    }, 20000);
-    return () => clearInterval(interval);
-  }, [autoRefresh, fetchData]);
+  // Polling with Page Visibility API (S1)
+  const { lastUpdated: pollingLastUpdated, refresh: pollRefresh } = usePolling(fetchData, 20000, { enabled: autoRefresh });
 
   // Unique Departments for filter
   const departments = useMemo(() => {

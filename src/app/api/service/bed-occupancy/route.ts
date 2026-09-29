@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
 import { logger } from '@/lib/logger'
@@ -128,14 +128,14 @@ export async function GET() {
         unclassifiedBedsWard09Result,
       ] = await Promise.all([
         // Group 1: OPD patient count today
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(DISTINCT o.hn) AS opdCount
           FROM ovst o
           WHERE o.vstdate = CURRENT_DATE
         `),
 
         // Group 2a: Ward occupancy — patients currently admitted per ward
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT i.ward, COUNT(i.an) AS occupiedBeds
           FROM ipt i
           WHERE i.dchtype IS NULL
@@ -145,7 +145,7 @@ export async function GET() {
 
         // Group 2b: VIP room (ward '04') — count distinct bedno LIKE 'v%'
         // PHP uses distinct bedno for room count vs person count
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(DISTINCT b.bedno) AS occupiedBeds
           FROM ipt i
           LEFT OUTER JOIN iptadm b ON i.an = b.an
@@ -153,7 +153,7 @@ export async function GET() {
         `),
 
         // Group 2b-extra: VIP room person count (non-distinct)
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(b.bedno) AS personCount
           FROM ipt i
           LEFT OUTER JOIN iptadm b ON i.an = b.an
@@ -161,7 +161,7 @@ export async function GET() {
         `),
 
         // Group 2c: ห้องคลอด รอคลอด (bedno LIKE 'C0%')
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(DISTINCT ip.bedno) AS occupiedBeds
           FROM ipt i
           LEFT OUTER JOIN iptadm ip ON i.an = ip.an
@@ -172,7 +172,7 @@ export async function GET() {
         `),
 
         // Group 2d: ห้องคลอด หลังคลอด (bedno LIKE 'CP%')
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(DISTINCT ip.bedno) AS occupiedBeds
           FROM ipt i
           LEFT OUTER JOIN iptadm ip ON i.an = ip.an
@@ -183,7 +183,7 @@ export async function GET() {
         `),
 
         // Group 3a: Admit today per ward
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT i.ward, COUNT(i.an) AS admitCount
           FROM ipt i
           WHERE i.regdate = CURRENT_DATE
@@ -192,7 +192,7 @@ export async function GET() {
         `),
 
         // Group 3b: Discharge today per ward
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT i.ward, COUNT(i.an) AS dischargeCount
           FROM ipt i
           WHERE i.dchdate = CURRENT_DATE
@@ -201,7 +201,7 @@ export async function GET() {
         `),
 
         // Group 4a: Occupancy rate overall — monthly sum from an_stat
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT
             SUM(admdate) AS totalAdmDays,
             DAY(LAST_DAY(CURRENT_DATE)) AS daysInMonth
@@ -212,7 +212,7 @@ export async function GET() {
         `),
 
         // Group 4b: Occupancy rate by ward
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT
             ward,
             SUM(admdate) AS totalAdmDays,
@@ -226,7 +226,7 @@ export async function GET() {
         `),
 
         // Group 6: ICU on ventilator (icode items for ventilator usage)
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(i.an) AS onVentilator
           FROM ipt i
           LEFT OUTER JOIN opitemrece o
@@ -239,35 +239,35 @@ export async function GET() {
         `),
 
         // Group 5: Specialty breakdown per ward
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
           FROM ipt i
           LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
           WHERE i.dchdate IS NULL AND i.ward = '06'
           GROUP BY i.spclty
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
           FROM ipt i
           LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
           WHERE i.dchdate IS NULL AND i.ward = '05'
           GROUP BY i.spclty
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
           FROM ipt i
           LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
           WHERE i.dchdate IS NULL AND i.ward = '04'
           GROUP BY i.spclty
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
           FROM ipt i
           LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
           WHERE i.dchdate IS NULL AND i.ward = '02'
           GROUP BY i.spclty
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(i.an) AS patientCount, s.name AS specialtyName
           FROM ipt i
           LEFT OUTER JOIN spclty s ON i.spclty = s.spclty
@@ -276,7 +276,7 @@ export async function GET() {
         `),
 
         // Group 7a: ICNP classification per ward (06, 05, 04, 02, 09)
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(ii.an) AS can, ic.icnp_classification_name AS icnpName
           FROM ipt_icnp i
           LEFT OUTER JOIN icnp_classification ic ON i.icnp_classification_id = ic.icnp_classification_id
@@ -285,7 +285,7 @@ export async function GET() {
           GROUP BY i.icnp_classification_id
           ORDER BY i.icnp_classification_id DESC
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(ii.an) AS can, ic.icnp_classification_name AS icnpName
           FROM ipt_icnp i
           LEFT OUTER JOIN icnp_classification ic ON i.icnp_classification_id = ic.icnp_classification_id
@@ -294,7 +294,7 @@ export async function GET() {
           GROUP BY i.icnp_classification_id
           ORDER BY i.icnp_classification_id DESC
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(b.bedno) AS can, ic.icnp_classification_name AS icnpName
           FROM ipt i
           LEFT OUTER JOIN ward w ON i.ward = w.ward
@@ -305,7 +305,7 @@ export async function GET() {
           GROUP BY ii.icnp_classification_id
           ORDER BY ic.icnp_classification_id DESC
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(ii.an) AS can, ic.icnp_classification_name AS icnpName
           FROM ipt_icnp i
           LEFT OUTER JOIN icnp_classification ic ON i.icnp_classification_id = ic.icnp_classification_id
@@ -314,7 +314,7 @@ export async function GET() {
           GROUP BY i.icnp_classification_id
           ORDER BY i.icnp_classification_id DESC
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT COUNT(ii.an) AS can, ic.icnp_classification_name AS icnpName
           FROM ipt_icnp i
           LEFT OUTER JOIN icnp_classification ic ON i.icnp_classification_id = ic.icnp_classification_id
@@ -325,7 +325,7 @@ export async function GET() {
         `),
 
         // Group 7b: Unclassified beds per ward (beds with no ICNP classification)
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT DISTINCT i.bedno
           FROM iptadm i
           LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
@@ -333,7 +333,7 @@ export async function GET() {
           WHERE a.dchdate IS NULL AND a.ward = '06' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
           ORDER BY i.bedno ASC
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT DISTINCT i.bedno
           FROM iptadm i
           LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
@@ -341,7 +341,7 @@ export async function GET() {
           WHERE a.dchdate IS NULL AND a.ward = '05' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
           ORDER BY i.bedno ASC
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT DISTINCT i.bedno
           FROM iptadm i
           LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
@@ -349,7 +349,7 @@ export async function GET() {
           WHERE a.dchdate IS NULL AND a.ward = '04' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
           ORDER BY i.bedno ASC
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT DISTINCT i.bedno
           FROM iptadm i
           LEFT OUTER JOIN ipt_icnp p ON i.an = p.an
@@ -357,7 +357,7 @@ export async function GET() {
           WHERE a.dchdate IS NULL AND a.ward = '02' AND p.icnp_classification_id IS NULL AND i.bedno IS NOT NULL AND i.bedno <> ''
           ORDER BY i.bedno ASC
         `),
-        queryHosDb(`
+        queryClinicalDb(`
           SELECT DISTINCT i.bedno
           FROM iptadm i
           LEFT OUTER JOIN ipt_icnp p ON i.an = p.an

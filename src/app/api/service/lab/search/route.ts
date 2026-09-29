@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
 import { checkRateLimit } from '@/lib/rateLimit'
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       ORDER BY o.vn DESC
     `
 
-    const results = await queryHosDb(sql, [searchQuery, searchQuery])
+    const results = await queryClinicalDb(sql, [searchQuery, searchQuery])
 
     if (!results || results.length === 0) {
       return NextResponse.json({

@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: 'เส้นทางการเติบโตของโรงพยาบาลเถินตั้งแต่จุดเริ่มต้น พ.ศ. ๒๕๓๕ จนถึงปัจจุบัน และพื้นที่รับผิดชอบการดูแลสุขภาพ',
 }
 
+import Breadcrumb from '@/components/ui/Breadcrumb'
+
 export default function HospitalHistoryPage() {
   const timelineEvents = [
     {
@@ -44,6 +46,7 @@ export default function HospitalHistoryPage() {
       {/* Hero Section */}
       <section className="historyHero">
         <div className="container">
+          <Breadcrumb variant="light" items={[{ label: 'เกี่ยวกับเรา', href: '/about' }, { label: 'ประวัติความเป็นมา' }]} />
           <h1 className="heroTitle">ประวัติความเป็นมา</h1>
           <p className="heroDesc">โรงพยาบาลเถินใส่ใจชุมชน</p>
         </div>

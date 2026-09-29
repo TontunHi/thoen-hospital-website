@@ -5,7 +5,7 @@
 .membersDashboardPage {
   min-height: calc(100vh - 60px);
   padding: 40px 20px 80px;
-  background-color: #f8fafc; /* Slate-50 background */
+  background-color: #f8fafc;
   background-image: 
     radial-gradient(circle at 50% 0%, rgba(209, 250, 229, 0.4) 0%, rgba(248, 250, 252, 1) 70%),
     radial-gradient(circle at 0% 100%, rgba(204, 251, 241, 0.3) 0%, transparent 50%),
@@ -16,18 +16,19 @@
   font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), sans-serif;
   color: #1e293b;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .membersDashboardPage .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1280px;
   z-index: 10;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 28px;
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideUp {
@@ -119,6 +120,13 @@
   line-height: 1.6;
 }
 
+.membersDashboardPage .headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .membersDashboardPage .addMemberBtn {
   display: inline-flex;
   align-items: center;
@@ -143,770 +151,6 @@
     0 10px 20px -5px rgba(15, 23, 42, 0.2),
     0 8px 16px -6px rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.2);
-}
-
-.membersDashboardPage .addMemberBtn:active {
-  transform: translateY(0);
-}
-
-/* Stats summary Cards Grid */
-.membersDashboardPage .statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-}
-
-.membersDashboardPage .statCard {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 24px;
-  padding: 26px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.01),
-    0 10px 20px -3px rgba(0, 0, 0, 0.02);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.membersDashboardPage .statCard:hover {
-  transform: translateY(-4px);
-  border-color: rgba(16, 185, 129, 0.25);
-  box-shadow: 
-    0 12px 20px -8px rgba(16, 185, 129, 0.1),
-    0 20px 30px -5px rgba(0, 0, 0, 0.05);
-  background: #ffffff;
-}
-
-.membersDashboardPage .statCardInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.membersDashboardPage .statLabel {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #64748b;
-  letter-spacing: 0.02em;
-}
-
-.membersDashboardPage .statValue {
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: -0.01em;
-}
-
-.membersDashboardPage .statCardIcon {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.3s ease;
-}
-
-.membersDashboardPage .statCard:hover .statCardIcon {
-  transform: scale(1.08) rotate(2deg);
-}
-
-.membersDashboardPage .statCardIcon.total {
-  background-color: rgba(13, 148, 136, 0.08);
-  color: #0d9488;
-  border: 1px solid rgba(13, 148, 136, 0.15);
-}
-
-.membersDashboardPage .statCardIcon.admins {
-  background-color: rgba(124, 58, 237, 0.08);
-  color: #7c3aed;
-  border: 1px solid rgba(124, 58, 237, 0.15);
-}
-
-.membersDashboardPage .statCardIcon.general {
-  background-color: rgba(2, 132, 199, 0.08);
-  color: #0284c7;
-  border: 1px solid rgba(2, 132, 199, 0.15);
-}
-
-.membersDashboardPage .statCardIcon.subdistrict {
-  background-color: rgba(16, 185, 129, 0.08);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.15);
-}
-
-/* Alerts banners */
-.membersDashboardPage .dashboardAlert {
-  padding: 16px 24px;
-  border-radius: 18px;
-  font-weight: 600;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
-}
-
-.membersDashboardPage .alertDanger {
-  background-color: rgba(239, 68, 68, 0.06);
-  color: #b91c1c;
-  border: 1px solid rgba(239, 68, 68, 0.15);
-}
-
-.membersDashboardPage .alertSuccess {
-  background-color: rgba(16, 185, 129, 0.06);
-  color: #047857;
-  border: 1px solid rgba(16, 185, 129, 0.15);
-}
-
-/* Action Panel & Filtering */
-.membersDashboardPage .actionPanel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 20px;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.01),
-    0 10px 20px -3px rgba(0, 0, 0, 0.02);
-}
-
-.membersDashboardPage .searchWrapper {
-  position: relative;
-  width: 100%;
-}
-
-.membersDashboardPage .searchWrapper input {
-  width: 100%;
-  padding: 11px 16px 11px 44px;
-  border: 1.5px solid rgba(203, 213, 225, 0.8);
-  border-radius: 14px;
-  font-size: 0.93rem;
-  font-weight: 500;
-  color: #0f172a;
-  background-color: #ffffff;
-  outline: none;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  font-family: inherit;
-}
-
-.membersDashboardPage .searchWrapper input:focus {
-  border-color: #0d9488;
-  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
-}
-
-.membersDashboardPage .searchIcon {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-}
-
-.membersDashboardPage .filterGroup {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  background: rgba(241, 245, 249, 0.9);
-  padding: 3px;
-  border-radius: 10px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
-}
-
-.membersDashboardPage .filterTab {
-  padding: 6px 12px;
-  border-radius: 8px;
-  background-color: transparent;
-  color: #64748b;
-  border: none;
-  font-weight: 500;
-  font-size: 0.84rem;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  white-space: nowrap;
-  font-family: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.membersDashboardPage .filterTab:hover {
-  color: #0f172a;
-  background: rgba(255, 255, 255, 0.6);
-}
-
-.membersDashboardPage .filterTab.active {
-  background-color: #ffffff;
-  color: #0f172a;
-  font-weight: 600;
-  box-shadow: 
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 2px 6px rgba(15, 23, 42, 0.04);
-}
-
-.membersDashboardPage .filterCount {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #64748b;
-  background: rgba(148, 163, 184, 0.15);
-  padding: 1px 6px;
-  border-radius: 9999px;
-  line-height: 1.3;
-}
-
-.membersDashboardPage .filterTab.active .filterCount {
-  color: #0d9488;
-  background: rgba(13, 148, 136, 0.1);
-}
-
-/* Members Table Card */
-.membersDashboardPage .tableCard {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 26px;
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.01),
-    0 12px 24px -4px rgba(0, 0, 0, 0.03);
-  padding: 10px;
-  overflow: hidden;
-}
-
-.membersDashboardPage .tableResponsive {
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.membersDashboardPage .membersTable {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  text-align: left;
-}
-
-.membersDashboardPage .membersTable th {
-  background-color: rgba(248, 250, 252, 0.8);
-  color: #475569;
-  font-weight: 600;
-  font-size: 0.85rem;
-  padding: 18px 20px;
-  border-bottom: 2px solid rgba(226, 232, 240, 0.8);
-  white-space: nowrap;
-  user-select: none;
-}
-
-.membersDashboardPage .membersTable td {
-  padding: 18px 20px;
-  border-bottom: 1px solid rgba(241, 245, 249, 0.8);
-  font-size: 0.92rem;
-  color: #334155;
-  vertical-align: middle;
-  transition: all 0.2s;
-}
-
-.membersDashboardPage .membersTable tr:last-child td {
-  border-bottom: none;
-}
-
-.membersDashboardPage .membersTable tr.rowSelf td {
-  background-color: rgba(13, 148, 136, 0.02);
-}
-
-.membersDashboardPage .membersTable tr:hover td {
-  background-color: rgba(248, 250, 252, 0.7);
-}
-
-/* Sorting Indicators */
-.membersDashboardPage .sortableHeader {
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.membersDashboardPage .sortableHeader:hover {
-  background-color: rgba(226, 232, 240, 0.5);
-  color: #0f172a;
-}
-
-.membersDashboardPage .headerFlex {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.membersDashboardPage .sortIcon {
-  opacity: 0.35;
-  transition: all 0.25s;
-}
-
-.membersDashboardPage .sortIconActive {
-  opacity: 1;
-  color: #0d9488;
-}
-
-/* Text styles inside table */
-.membersDashboardPage .memberId {
-  font-weight: 600;
-  color: #94a3b8;
-}
-
-.membersDashboardPage .userFlex {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.membersDashboardPage .userIcon {
-  color: #0d9488;
-}
-
-.membersDashboardPage .memberEmail {
-  font-weight: 500;
-  color: #475569;
-}
-
-.membersDashboardPage .roleBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
-  border: 1px solid transparent;
-}
-
-.membersDashboardPage .roleBadge.admin {
-  background-color: rgba(124, 58, 237, 0.06);
-  color: #6d28d9;
-  border-color: rgba(124, 58, 237, 0.15);
-}
-
-.membersDashboardPage .roleBadge.member {
-  background-color: rgba(2, 132, 199, 0.06);
-  color: #0369a1;
-  border-color: rgba(2, 132, 199, 0.15);
-}
-
-.membersDashboardPage .roleBadge.subdistrict {
-  background-color: rgba(16, 185, 129, 0.08);
-  color: #047857;
-  border-color: rgba(16, 185, 129, 0.2);
-}
-
-/* Table Column Widths */
-.membersDashboardPage .col-id { width: 70px; }
-.membersDashboardPage .col-user { min-width: 140px; }
-.membersDashboardPage .col-email { min-width: 180px; }
-.membersDashboardPage .col-name { min-width: 200px; }
-.membersDashboardPage .col-dept { min-width: 180px; }
-.membersDashboardPage .col-role { width: 130px; }
-.membersDashboardPage .col-actions { width: 120px; text-align: center; }
-
-/* Table Action Buttons */
-.membersDashboardPage .memberActions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-}
-
-.membersDashboardPage .actionBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.membersDashboardPage .actionBtn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.membersDashboardPage .editBtn {
-  background-color: rgba(16, 185, 129, 0.06);
-  color: #059669;
-  border-color: rgba(16, 185, 129, 0.12);
-}
-
-.membersDashboardPage .editBtn:not(:disabled):hover {
-  background-color: #059669;
-  color: #ffffff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-}
-
-.membersDashboardPage .deleteBtn {
-  background-color: rgba(239, 68, 68, 0.06);
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.12);
-}
-
-.membersDashboardPage .deleteBtn:not(:disabled):hover {
-  background-color: #ef4444;
-  color: #ffffff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-}
-
-/* Loading & Empty States */
-.membersDashboardPage .loadingContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  color: #64748b;
-  gap: 16px;
-}
-
-.membersDashboardPage .spinner {
-  animation: spin 1s linear infinite;
-  color: #0d9488;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.membersDashboardPage .emptyState {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  text-align: center;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.01);
-}
-
-.membersDashboardPage .emptyIcon {
-  color: #cbd5e1;
-  margin-bottom: 16px;
-}
-
-.membersDashboardPage .emptyState h3 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 8px 0;
-}
-
-.membersDashboardPage .emptyState p {
-  font-size: 0.95rem;
-  color: #64748b;
-  margin: 0;
-}
-
-/* ========================================================================
-   MODAL DIALOG - Premium Glassmorphism Redesign
-   ======================================================================== */
-
-.membersDashboardPage .modalOverlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 20px;
-}
-
-.membersDashboardPage .premiumModal {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 28px;
-  width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  animation: modalScaleIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes modalScaleIn {
-  from { opacity: 0; transform: scale(0.95) translateY(12px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.membersDashboardPage .modalHeader {
-  padding: 26px 32px;
-  background: linear-gradient(135deg, #10b981, #059669); /* Rich green gradient */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  position: relative;
-}
-
-.membersDashboardPage .headerIconContainer {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.15); /* White opacity */
-  color: #ffffff; /* White icon */
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.membersDashboardPage .modalHeader h2 {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #ffffff; /* White title */
-  margin: 0;
-  letter-spacing: -0.01em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.membersDashboardPage .headerSubtitle {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.9); /* Light white subtitle */
-  margin: 4px 0 0 0;
-}
-
-.membersDashboardPage .closeBtn {
-  position: absolute;
-  top: 26px;
-  right: 32px;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 10px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.membersDashboardPage .closeBtn:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-}
-
-/* Modal form inputs & wrappers */
-.membersDashboardPage .modalBody {
-  padding: 30px 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
-.membersDashboardPage .sectionTitleGroup {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1.5px dashed rgba(226, 232, 240, 0.8);
-  padding-bottom: 12px;
-  margin-bottom: 4px;
-}
-
-.membersDashboardPage .sectionTitleGroup.spacingTop {
-  margin-top: 16px;
-}
-
-.membersDashboardPage .sectionBadge {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background-color: #0f172a;
-  color: #ffffff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.membersDashboardPage .sectionTitleGroup h3 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-
-.membersDashboardPage .formGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.membersDashboardPage .formRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.membersDashboardPage .formGroup label {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #475569;
-}
-
-.membersDashboardPage .inputWrapper,
-.membersDashboardPage .selectWrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.membersDashboardPage .inputWrapper input,
-.membersDashboardPage .selectWrapper select {
-  width: 100%;
-  padding: 12px 16px;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 14px;
-  font-size: 0.92rem;
-  font-weight: 500;
-  color: #0f172a;
-  background-color: #ffffff;
-  outline: none;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  font-family: inherit;
-}
-
-.membersDashboardPage .inputWrapper input:focus,
-.membersDashboardPage .selectWrapper select:focus {
-  border-color: #0d9488;
-  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
-}
-
-.membersDashboardPage .inputIcon {
-  position: absolute;
-  left: 15px;
-  color: #94a3b8;
-  pointer-events: none;
-}
-
-/* Modal Actions Footer */
-.membersDashboardPage .modalFooter {
-  padding: 22px 32px;
-  border-top: 1px solid rgba(241, 245, 249, 0.8);
-  background-color: #f8fafc;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.membersDashboardPage .cancelBtn {
-  padding: 10px 22px;
-  border-radius: 14px;
-  border: 1.5px solid #cbd5e1;
-  background-color: #ffffff;
-  color: #475569;
-  font-weight: 600;
-  font-size: 0.92rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-family: inherit;
-}
-
-.membersDashboardPage .cancelBtn:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
-}
-
-.membersDashboardPage .saveBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 26px;
-  border-radius: 14px;
-  border: none;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 0.92rem;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
-  transition: all 0.2s;
-  font-family: inherit;
-}
-
-.membersDashboardPage .saveBtn:hover {
-  transform: translateY(-1px);
-  box-shadow: 
-    0 8px 16px -4px rgba(15, 23, 42, 0.2),
-    0 4px 10px rgba(13, 148, 136, 0.05);
-}
-
-.membersDashboardPage .modalAlert {
-  margin: 20px 32px 0 32px;
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-weight: 600;
-  font-size: 0.88rem;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.membersDashboardPage .modalAlert.alertDanger {
-  background-color: rgba(239, 68, 68, 0.06);
-  color: #b91c1c;
-  border: 1px solid rgba(239, 68, 68, 0.15);
-}
-
-@media (max-width: 768px) {
-  .membersDashboardPage {
-    padding: 24px 12px 60px;
-  }
-  .membersDashboardPage .pageHeader {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-  }
-  .membersDashboardPage .addMemberBtn {
-    justify-content: center;
-  }
-  .membersDashboardPage .actionPanel {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 16px;
-  }
-  .membersDashboardPage .searchWrapper {
-    min-width: 100%;
-  }
-  .membersDashboardPage .filterGroup {
-    width: 100%;
-  }
-  .membersDashboardPage .formRow {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  .membersDashboardPage .modalHeader {
-    padding: 20px 24px;
-  }
-  .membersDashboardPage .modalBody {
-    padding: 20px 24px;
-  }
-  .membersDashboardPage .modalFooter {
-    padding: 16px 24px;
-  }
 }
 
 .membersDashboardPage .syncSalaryBtn {
@@ -939,13 +183,732 @@
   cursor: not-allowed;
 }
 
+/* Stats summary Cards Grid */
+.membersDashboardPage .statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.membersDashboardPage .statCard {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 20px;
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.01),
+    0 10px 20px -3px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.membersDashboardPage .statCard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(16, 185, 129, 0.25);
+  background: #ffffff;
+}
+
+.membersDashboardPage .statCardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.membersDashboardPage .statLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.membersDashboardPage .statValue {
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.membersDashboardPage .statCardIcon {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.membersDashboardPage .statCardIcon.total {
+  background-color: rgba(13, 148, 136, 0.08);
+  color: #0d9488;
+  border: 1px solid rgba(13, 148, 136, 0.15);
+}
+
+.membersDashboardPage .statCardIcon.admins {
+  background-color: rgba(124, 58, 237, 0.08);
+  color: #7c3aed;
+  border: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.membersDashboardPage .statCardIcon.general {
+  background-color: rgba(2, 132, 199, 0.08);
+  color: #0284c7;
+  border: 1px solid rgba(2, 132, 199, 0.15);
+}
+
+.membersDashboardPage .statCardIcon.subdistrict {
+  background-color: rgba(16, 185, 129, 0.08);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+/* Alerts banners */
+.membersDashboardPage .dashboardAlert {
+  padding: 14px 20px;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.membersDashboardPage .alertDanger {
+  background-color: rgba(239, 68, 68, 0.06);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.membersDashboardPage .alertSuccess {
+  background-color: rgba(16, 185, 129, 0.06);
+  color: #047857;
+  border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+/* Action Panel & Filtering */
+.membersDashboardPage .actionPanel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 18px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.02);
+}
+
+.membersDashboardPage .searchWrapper {
+  position: relative;
+  flex: 1;
+  min-width: 260px;
+}
+
+.membersDashboardPage .searchWrapper input {
+  width: 100%;
+  padding: 10px 14px 10px 42px;
+  border: 1.5px solid rgba(203, 213, 225, 0.8);
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #0f172a;
+  background-color: #ffffff;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.membersDashboardPage .searchWrapper input:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+}
+
+.membersDashboardPage .searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.membersDashboardPage .filterGroup {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.membersDashboardPage .filterTab {
+  padding: 6px 14px;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #64748b;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.membersDashboardPage .filterTab:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.membersDashboardPage .filterTab.active {
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.membersDashboardPage .filterCount {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.15);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  line-height: 1.3;
+}
+
+.membersDashboardPage .filterTab.active .filterCount {
+  color: #0d9488;
+  background: rgba(13, 148, 136, 0.1);
+}
+
+/* ========================================================================
+   LOCKED MEMBERS TABLE - NO HORIZONTAL SCROLL
+   ======================================================================== */
+.membersDashboardPage .tableCard {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  padding: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.membersDashboardPage .tableResponsive {
+  width: 100%;
+  overflow: hidden; /* Lock table without horizontal scrolling */
+}
+
+.membersDashboardPage .membersTable {
+  width: 100%;
+  table-layout: fixed; /* Lock columns to exactly fit 100% width */
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.membersDashboardPage .membersTable th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 14px 12px;
+  border-bottom: 2px solid #e2e8f0;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.membersDashboardPage .membersTable td {
+  padding: 13px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.9rem;
+  color: #334155;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .membersTable tr:last-child td {
+  border-bottom: none;
+}
+
+.membersDashboardPage .membersTable tr.rowSelf td {
+  background-color: #f0fdf4;
+}
+
+.membersDashboardPage .membersTable tr:hover td {
+  background-color: #f8fafc;
+}
+
+/* Sorting Indicators */
+.membersDashboardPage .sortableHeader {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.membersDashboardPage .sortableHeader:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.membersDashboardPage .headerFlex {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .sortIcon {
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+
+.membersDashboardPage .sortIconActive {
+  opacity: 1;
+  color: #0d9488;
+}
+
+/* Column Specific Widths (Fixed 100% distribution) */
+.membersDashboardPage .col-id {
+  width: 55px;
+  text-align: center;
+}
+
+.membersDashboardPage .col-user {
+  width: 14%;
+}
+
+.membersDashboardPage .col-email {
+  width: 21%;
+}
+
+.membersDashboardPage .col-name {
+  width: 24%;
+}
+
+.membersDashboardPage .col-dept {
+  width: 18%;
+}
+
+.membersDashboardPage .col-role {
+  width: 95px;
+  text-align: center;
+}
+
+.membersDashboardPage .col-actions {
+  width: 90px;
+  text-align: center;
+}
+
+/* Inner Text Truncations & Highlights */
+.membersDashboardPage .truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .userFlex {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+}
+
+.membersDashboardPage .memberNameText {
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .memberPositionText {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .roleBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .roleBadge.admin {
+  background-color: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.membersDashboardPage .roleBadge.member {
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.membersDashboardPage .roleBadge.subdistrict {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.membersDashboardPage .memberActions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.membersDashboardPage .actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.membersDashboardPage .editBtn {
+  background-color: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.membersDashboardPage .editBtn:hover {
+  background-color: #059669;
+  color: #ffffff;
+}
+
+.membersDashboardPage .deleteBtn {
+  background-color: #fef2f2;
+  color: #ef4444;
+  border-color: #fecaca;
+}
+
+.membersDashboardPage .deleteBtn:not(:disabled):hover {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.membersDashboardPage .deleteBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Loading & Empty States */
+.membersDashboardPage .loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #64748b;
+  gap: 14px;
+}
+
+.membersDashboardPage .spinner {
+  animation: spin 1s linear infinite;
+  color: #0d9488;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.membersDashboardPage .emptyState {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.membersDashboardPage .emptyIcon {
+  color: #cbd5e1;
+  margin-bottom: 12px;
+}
+
+.membersDashboardPage .emptyState h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.membersDashboardPage .emptyState p {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ========================================================================
+   COMPACT MODAL DIALOG - ALL FIELDS VISIBLE WITHOUT SCROLLING
+   ======================================================================== */
+.membersDashboardPage .modalOverlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.membersDashboardPage .premiumModal {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 760px;
+  max-height: 96vh;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleIn {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.membersDashboardPage .modalHeader {
+  padding: 14px 22px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.membersDashboardPage .headerIconContainer {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.membersDashboardPage .modalHeader h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.membersDashboardPage .headerSubtitle {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 1px 0 0 0;
+}
+
+.membersDashboardPage .closeBtn {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.membersDashboardPage .closeBtn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.membersDashboardPage .compactModalBody {
+  padding: 16px 22px;
+  overflow-y: auto;
+}
+
+.membersDashboardPage .modalFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+
+.membersDashboardPage .col-span-2 {
+  grid-column: span 2;
+}
+
+.membersDashboardPage .modalSubSectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0d9488;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.membersDashboardPage .formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.membersDashboardPage .formGroup label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.membersDashboardPage .inputWrapper input,
+.membersDashboardPage .selectWrapper select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #0f172a;
+  background-color: #ffffff;
+  outline: none;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  height: 38px;
+}
+
+.membersDashboardPage .inputWrapper input:focus,
+.membersDashboardPage .selectWrapper select:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+}
+
+.membersDashboardPage .compactModalFooter {
+  padding: 12px 22px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.membersDashboardPage .cancelBtn {
+  padding: 7px 18px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.membersDashboardPage .saveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 22px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.membersDashboardPage .modalAlert {
+  margin: 10px 22px 0 22px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.membersDashboardPage .modalAlert.alertDanger {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
 @media (max-width: 768px) {
+  .membersDashboardPage {
+    padding: 20px 12px 60px;
+  }
+  .membersDashboardPage .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
   .membersDashboardPage .headerActions {
     width: 100%;
     flex-direction: column;
   }
+  .membersDashboardPage .addMemberBtn,
   .membersDashboardPage .syncSalaryBtn {
+    width: 100%;
     justify-content: center;
   }
+  .membersDashboardPage .actionPanel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .membersDashboardPage .searchWrapper {
+    width: 100%;
+  }
+  .membersDashboardPage .filterGroup {
+    width: 100%;
+  }
+  .membersDashboardPage .modalFormGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .membersDashboardPage .col-span-2 {
+    grid-column: span 1;
+  }
 }
-

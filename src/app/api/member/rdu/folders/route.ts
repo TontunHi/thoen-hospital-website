@@ -1,29 +1,14 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import fs from 'fs/promises'
 import path from 'path'
 
-// Helper: Check RDU permissions
-async function hasRduPermission(session: { username: string; email: string; role: string }) {
-  if (session.role === 'admin') return true
-  const members = await queryMemberDb('SELECT position FROM members WHERE username = ? LIMIT 1', [session.username])
-  const userPosition = members[0]?.position?.trim()
-  if (!userPosition) return false
-  const rduPerms = await queryMemberDb(
-    "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'manage_rdu' AND TRIM(position_name) = TRIM(?)",
-    [userPosition]
-  )
-  return (rduPerms[0]?.count || 0) > 0
-}
-
 // GET: List all folders with their files for the manager
 export async function GET() {
   try {
-    const session = await verifyMemberSession()
-    if (!session || !(await hasRduPermission(session))) {
-      return NextResponse.json({ success: false, error: 'ไม่มีสิทธิ์เข้าถึงส่วนนี้' }, { status: 403 })
-    }
+    const { error } = await requireMemberApi({ requiredPermission: 'manage_rdu' })
+    if (error) return error
 
     const folders = (await queryMemberDb(
       'SELECT id, folder_name, display_order, is_active, created_at, updated_at FROM rdu_folders ORDER BY id DESC'
@@ -67,10 +52,8 @@ export async function GET() {
 // POST: Create a new folder
 export async function POST(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || !(await hasRduPermission(session))) {
-      return NextResponse.json({ success: false, error: 'ไม่มีสิทธิ์สร้างโฟลเดอร์' }, { status: 403 })
-    }
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_rdu' })
+    if (error || !member) return error
 
     const body = await request.json()
     const folderName = (body.folder_name || '').trim()
@@ -114,10 +97,8 @@ export async function POST(request: Request) {
 // PUT: Update folder name or reorder folders
 export async function PUT(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || !(await hasRduPermission(session))) {
-      return NextResponse.json({ success: false, error: 'ไม่มีสิทธิ์แก้ไขโฟลเดอร์' }, { status: 403 })
-    }
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_rdu' })
+    if (error || !member) return error
 
     const body = await request.json()
 
@@ -193,10 +174,8 @@ export async function PUT(request: Request) {
 // DELETE: Delete folder and its physical directory
 export async function DELETE(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || !(await hasRduPermission(session))) {
-      return NextResponse.json({ success: false, error: 'ไม่มีสิทธิ์ลบโฟลเดอร์' }, { status: 403 })
-    }
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_rdu' })
+    if (error || !member) return error
 
     const { searchParams } = new URL(request.url)
     const folderId = searchParams.get('id')

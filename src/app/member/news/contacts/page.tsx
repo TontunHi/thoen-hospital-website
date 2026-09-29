@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Mail, MailOpen, Trash2, Eye, Calendar, User, Phone, X, Filter } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import './page.css'
 
 interface ContactItem {
@@ -19,6 +21,19 @@ export default function AdminContactsPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'ALL' | 'UNREAD' | 'READ'>('ALL')
   const [selectedContact, setSelectedContact] = useState<ContactItem | null>(null)
+  
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
 
   const fetchContacts = async () => {
     try {
@@ -66,8 +81,10 @@ export default function AdminContactsPage() {
     }
   }
 
-  const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`ต้องการลบข้อความของ "${name}" หรือไม่?`)) return
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    const { id } = deleteTarget
+    setIsDeleting(true)
 
     try {
       const res = await fetch(`/api/contact?id=${id}`, { method: 'DELETE' })
@@ -76,11 +93,15 @@ export default function AdminContactsPage() {
         if (selectedContact && selectedContact.id === id) {
           setSelectedContact(null)
         }
+        addToast('ลบข้อความติดต่อเรียบร้อยแล้ว', 'success')
       } else {
-        alert('เกิดข้อผิดพลาดในการลบข้อความ')
+        addToast('เกิดข้อผิดพลาดในการลบข้อความ', 'error')
       }
     } catch {
-      alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+      addToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error')
+    } finally {
+      setIsDeleting(false)
+      setDeleteTarget(null)
     }
   }
 
@@ -198,9 +219,10 @@ export default function AdminContactsPage() {
                           {contact.isRead ? <Mail size={14} /> : <MailOpen size={14} />}
                         </button>
                         <button
-                          onClick={() => handleDelete(contact.id, contact.name)}
+                          onClick={() => setDeleteTarget({ id: contact.id, name: contact.name })}
                           className="deleteBtn"
                           title="ลบข้อความ"
+                          type="button"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -296,8 +318,9 @@ export default function AdminContactsPage() {
                 {selectedContact.isRead ? 'ทำเป็นยังไม่อ่าน' : 'ทำเป็นอ่านแล้ว'}
               </button>
               <button
-                onClick={() => handleDelete(selectedContact.id, selectedContact.name)}
+                onClick={() => setDeleteTarget({ id: selectedContact.id, name: selectedContact.name })}
                 className="modalDangerBtn"
+                type="button"
               >
                 ลบข้อความนี้
               </button>
@@ -308,6 +331,21 @@ export default function AdminContactsPage() {
           </div>
         </div>
       )}
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="ยืนยันการลบข้อความติดต่อ"
+        description={`ต้องการลบข้อความของ "${deleteTarget?.name}" หรือไม่?`}
+        confirmText="ลบข้อความ"
+        cancelText="ยกเลิก"
+        type="danger"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   )
 }

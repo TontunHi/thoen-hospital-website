@@ -48,10 +48,18 @@ const servicesList = [
   },
 ]
 
+import Breadcrumb from '@/components/ui/Breadcrumb'
+
 export default function ThaiTraditionalMedicinePage() {
   return (
     <div className="traditionalMedicinePage">
-      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '5rem' }}>
+      <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '5rem' }}>
+        <Breadcrumb
+          items={[
+            { label: 'แพ็กเกจและบริการ', href: '/package' },
+            { label: 'แพทย์แผนไทยและการแพทย์ทางเลือก' },
+          ]}
+        />
         
         {/* Hero Section */}
         <section className="medicineHero">

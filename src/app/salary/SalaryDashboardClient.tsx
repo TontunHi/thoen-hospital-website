@@ -4,12 +4,23 @@ import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toPng } from 'html-to-image'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import './page.css'
 
 export default function SalaryDashboardPage() {
   const [name, setName] = useState('')
   const printDocRef = useRef<HTMLDivElement>(null)
   const [isExportingImage, setIsExportingImage] = useState(false)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
 
   const [years, setYears] = useState<string[]>([])
   const [selectedYear, setSelectedYear] = useState('')
@@ -211,9 +222,10 @@ export default function SalaryDashboardPage() {
       link.download = `สลิปเงินเดือน_${displayName.replace(/\s+/g, '_')}_${selectedMonth}_${selectedYear}.png`
       link.href = dataUrl
       link.click()
+      addToast('ดาวน์โหลดรูปภาพสลิปเงินเดือนเรียบร้อยแล้ว', 'success')
     } catch (err) {
       console.error('Failed to export image:', err)
-      alert('ไม่สามารถบันทึกเป็นรูปภาพได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง')
+      addToast('ไม่สามารถบันทึกเป็นรูปภาพได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง', 'error')
     } finally {
       if (cloneContainer && cloneContainer.parentNode) {
         cloneContainer.parentNode.removeChild(cloneContainer)
@@ -747,6 +759,8 @@ export default function SalaryDashboardPage() {
         )}
 
       </div>
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   )
 }

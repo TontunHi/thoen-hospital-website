@@ -7,27 +7,28 @@ import {
   Trash2, 
   Shield, 
   Settings, 
-  ArrowLeft,
-  CheckCircle2,
-  AlertCircle,
-  X,
-  PenTool,
-  Wallet,
-  BookOpen,
-  Wrench,
-  Eye,
-  FileUp,
-  Coins,
-  Newspaper,
-  Save,
-  RefreshCw,
-  UserCheck,
-  Sliders,
-  Users,
-  Pill,
-  FileSpreadsheet,
-  Scale
+  ArrowLeft, 
+  CheckCircle2, 
+  AlertCircle, 
+  X, 
+  PenTool, 
+  Wallet, 
+  BookOpen, 
+  Wrench, 
+  Eye, 
+  FileUp, 
+  Coins, 
+  Newspaper, 
+  Save, 
+  RefreshCw, 
+  UserCheck, 
+  Sliders, 
+  Users, 
+  Pill, 
+  FileSpreadsheet, 
+  Scale 
 } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface SettingsClientProps {
   initialSettings: Record<string, string>
@@ -58,6 +59,8 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [customPosition, setCustomPosition] = useState('')
   const [isCustomMode, setIsCustomMode] = useState(false)
   const [isAddingPerm, setIsAddingPerm] = useState(false)
+  const [deletePermTarget, setDeletePermTarget] = useState<{ permKey: string; positionName: string } | null>(null)
+  const [isDeletingPerm, setIsDeletingPerm] = useState(false)
 
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [loadingPerms, setLoadingPerms] = useState(false)
@@ -147,8 +150,11 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     }
   }
 
-  const handleDeletePermission = async (permKey: string, positionName: string) => {
-    if (!confirm(`คุณต้องการลบสิทธิ์ของตำแหน่ง "${positionName}" หรือไม่?`)) return
+  const handleConfirmDeletePermission = async () => {
+    if (!deletePermTarget) return
+    const { permKey, positionName } = deletePermTarget
+    setIsDeletingPerm(true)
+
     try {
       const res = await fetch(`/api/member/permissions?permission_key=${encodeURIComponent(permKey)}&position_name=${encodeURIComponent(positionName)}`, {
         method: 'DELETE'
@@ -159,6 +165,9 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       fetchPermissions()
     } catch (err: any) {
       notify(err.message, 'error')
+    } finally {
+      setIsDeletingPerm(false)
+      setDeletePermTarget(null)
     }
   }
 
@@ -573,7 +582,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                                 <span className="positionTagName">{mapping.position_name}</span>
                                 <button
                                   type="button"
-                                  onClick={() => handleDeletePermission(mapping.permission_key, mapping.position_name)}
+                                  onClick={() => setDeletePermTarget({ permKey: mapping.permission_key, positionName: mapping.position_name })}
                                   className="btnDeleteTag"
                                   title="ลบสิทธิ์ของตำแหน่งนี้"
                                   aria-label={`ลบสิทธิ์ ${mapping.position_name}`}
@@ -593,6 +602,19 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
           </div>
         </div>
       )}
+
+      {/* Confirm Delete Permission Dialog */}
+      <ConfirmDialog
+        isOpen={deletePermTarget !== null}
+        title="ยืนยันการลบสิทธิ์การใช้งาน"
+        description={`คุณต้องการลบสิทธิ์ "${deletePermTarget?.permKey}" ของตำแหน่ง "${deletePermTarget?.positionName}" หรือไม่?`}
+        confirmText="ลบสิทธิ์"
+        cancelText="ยกเลิก"
+        type="danger"
+        loading={isDeletingPerm}
+        onConfirm={handleConfirmDeletePermission}
+        onCancel={() => setDeletePermTarget(null)}
+      />
     </div>
   )
 }

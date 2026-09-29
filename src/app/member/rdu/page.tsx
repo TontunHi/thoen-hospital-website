@@ -1,4 +1,4 @@
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import RduManagerClient from './RduManagerClient'
@@ -7,43 +7,12 @@ import './rdu-manager.css'
 export const dynamic = 'force-dynamic'
 
 export default async function RduManagerPage() {
-  const session = await verifyMemberSession()
+  const member = await getAuthenticatedMember({
+    requiredPermission: 'manage_rdu',
+    redirectTo: '/unauthorized',
+  })
 
-  if (!session) {
-    redirect('/member/login')
-  }
-
-  // Get member details including position from DB
-  const members = await queryMemberDb(
-    'SELECT id, username, name, position, role FROM members WHERE username = ? LIMIT 1',
-    [session.username]
-  )
-
-  if (!members || members.length === 0) {
-    redirect('/member/login')
-  }
-
-  const member = members[0]
-
-  // Check permission: admin or manage_rdu
-  let isAuthorized = member.role === 'admin'
-  if (!isAuthorized && member.position) {
-    const rduPerms = await queryMemberDb(
-      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'manage_rdu' AND TRIM(position_name) = TRIM(?)",
-      [member.position]
-    )
-    isAuthorized = (rduPerms[0]?.count || 0) > 0
-  }
-
-  if (!isAuthorized) {
-    redirect('/unauthorized')
-  }
-
-  // Check if feature is enabled by admin
-  const settingsRows = await queryMemberDb("SELECT config_value FROM member_system_settings WHERE config_key = 'feature_rdu'")
-  const isFeatureEnabled = settingsRows.length === 0 || settingsRows[0].config_value !== '0'
-
-  if (!isFeatureEnabled && member.role !== 'admin') {
+  if (!member.hasAccess('feature_rdu')) {
     redirect('/member')
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession, attachRenewedMemberSessionCookie } from '@/lib/memberAuth'
 import { logThrottledAudit } from '@/lib/audit'
 
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       ORDER BY o.rxtime DESC
     `
 
-    const rows = await queryHosDb(sql)
+    const rows = await queryClinicalDb(sql)
 
     // 4. Compute daily statistics
     const totalCount = rows.length

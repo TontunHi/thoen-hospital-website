@@ -2,18 +2,19 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import HeroSlideshow from '@/components/common/HeroSlideshow';
-
-export const dynamic = 'force-dynamic';
-
-
 import { 
   Phone,
-  MessageSquare
+  MessageSquare,
+  ChevronRight,
+  ExternalLink
 } from 'lucide-react';
 import './page.css';
 import { FacebookIcon } from '@/components/common/Icons';
 import { services, relatedOrgs } from '@/config/home';
+import { siteConfig } from '@/config/site';
 import { DbNews, DbAttachment, NewsListItem } from '@/types/news';
+
+export const dynamic = 'force-dynamic';
 
 async function getLatestNews(): Promise<NewsListItem[]> {
   try {
@@ -115,24 +116,23 @@ async function getActiveSlides() {
   }
 }
 
-
 export default async function HomePage() {
   const latestNews = await getLatestNews();
   const activeSlides = await getActiveSlides();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const siteUrl = siteConfig.url;
 
-  // Schema.org structured data for Hospital
+  // Schema.org structured data for Hospital (W4)
   const hospitalJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Hospital',
-    name: 'โรงพยาบาลเถิน (Thoen Hospital)',
-    alternateName: 'Thoen Hospital',
+    name: `${siteConfig.name} (${siteConfig.englishName})`,
+    alternateName: siteConfig.englishName,
     url: siteUrl,
     logo: `${siteUrl}/images/common/logo-website.webp`,
     image: `${siteUrl}/images/common/logo-website.webp`,
-    description: 'โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ พร้อมดูแลสุขภาพของประชาชนในพื้นที่อำเภอเถินและใกล้เคียง',
-    telephone: '054-291568',
-    emergencyTelephone: '1669',
+    description: siteConfig.description,
+    telephone: siteConfig.contact.hospitalPhone,
+    emergencyTelephone: siteConfig.contact.emergencyPhone,
     address: {
       '@type': 'PostalAddress',
       streetAddress: '159 หมู่ 7 ถนนพหลโยธิน ตำบลล้อมแรด',
@@ -143,8 +143,8 @@ export default async function HomePage() {
     },
     geo: {
       '@type': 'GeoCoordinates',
-      latitude: '17.618683',
-      longitude: '99.219808',
+      latitude: String(siteConfig.contact.coordinates.latitude),
+      longitude: String(siteConfig.contact.coordinates.longitude),
     },
     openingHoursSpecification: [
       {
@@ -163,7 +163,7 @@ export default async function HomePage() {
       },
     ],
     sameAs: [
-      'https://www.facebook.com/thoenhospital',
+      siteConfig.contact.facebook,
     ],
   };
 
@@ -236,7 +236,7 @@ export default async function HomePage() {
                   }
 
                   return (
-                    <Link key={item.id} href={`/news/${item.slug}`} className="news-forum-row">
+                    <Link key={item.id} href={`/news/${item.slug}`} className="news-forum-row touch-target">
                       <div className="news-row-meta">
                         <span className={`news-row-category badge-${item.category.toLowerCase()}`}>
                           {getCategoryLabel(item.category)}
@@ -253,68 +253,31 @@ export default async function HomePage() {
                       <h3 className="news-row-title">{item.title}</h3>
                       
                       <span className="news-row-chevron">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 18l6-6-6-6"/>
-                        </svg>
+                        <ChevronRight size={18} />
                       </span>
                     </Link>
                   )
                 })}
               </div>
               <div className="news-section__more">
-                <Link href="/news" className="btn btn-outline">
+                <Link href="/news" className="btn btn-outline touch-target">
                   ดูข่าวสารทั้งหมด
                 </Link>
               </div>
             </>
           ) : (
             <div className="empty-state">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
-                <path d="M18 14h-8"/>
-                <path d="M15 18h-5"/>
-                <path d="M10 6h8v4h-8V6Z"/>
-              </svg>
-              <h3>ยังไม่มีข่าวสาร</h3>
               <p>ขณะนี้ยังไม่มีข่าวสารที่จะแสดง กรุณากลับมาอีกครั้งในภายหลัง</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* ===== SOCIAL & FACEBOOK SECTION ===== */}
-      <section className="section social-map-section bg-gray-50">
-        <div className="container">
-          <div className="social-map-grid full-width">
-            <div className="facebook-embed-card card">
-              <div className="card-header-with-icon">
-                <FacebookIcon className="text-primary" size={24} />
-                <h2>ติดตามเราบน Facebook</h2>
-              </div>
-              <p className="section-sub">เกาะติดข่าวสารและกิจกรรมผ่าน Facebook Fanpage โรงพยาบาลเถิน</p>
-              <div className="facebook-wrapper">
-                <iframe
-                  src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FThoenHospital1669&tabs=timeline&width=500&height=550&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
-                  width="100%"
-                  height="550"
-                  style={{ border: 'none', overflow: 'hidden', borderRadius: '8px' }}
-                  scrolling="no"
-                  frameBorder="0"
-                  allowFullScreen={true}
-                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                  title="Facebook Page - โรงพยาบาลเถิน"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ===== SERVICES SECTION ===== */}
-      <section className="section services-section">
+      <section className="section services-section bg-gray-50">
         <div className="container">
           <div className="section-header">
-            <h2>บริการของเรา</h2>
+            <h2>บริการและโปรแกรมการรักษา</h2>
             <p>เรามุ่งเน้นให้บริการสุขภาพที่ครอบคลุมทุกด้าน เพื่อคุณภาพชีวิตที่ดีของชุมชน</p>
           </div>
           <div className="services-grid">
@@ -333,7 +296,7 @@ export default async function HomePage() {
 
               if (service.link) {
                 return (
-                  <Link href={service.link} key={i} className="service-card card-glass" style={{ textDecoration: 'none', display: 'flex', cursor: 'pointer' }}>
+                  <Link href={service.link} key={i} className="service-card card-glass touch-target" style={{ textDecoration: 'none', display: 'flex', cursor: 'pointer' }}>
                     {CardContent}
                   </Link>
                 );
@@ -345,6 +308,34 @@ export default async function HomePage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== SOCIAL & FACEBOOK SECTION ===== */}
+      <section className="section social-map-section">
+        <div className="container">
+          <div className="social-map-grid full-width">
+            <div className="facebook-embed-card card">
+              <div className="card-header-with-icon">
+                <FacebookIcon className="text-primary" size={24} />
+                <h2>ติดตามเราบน Facebook</h2>
+              </div>
+              <p className="section-sub">เกาะติดข่าวสารและกิจกรรมผ่าน Facebook Fanpage โรงพยาบาลเถิน</p>
+              <div className="facebook-wrapper">
+                <iframe
+                  src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FThoenHospital1669&tabs=timeline&width=500&height=550&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true&appId"
+                  width="100%"
+                  height="550"
+                  style={{ border: 'none', overflow: 'hidden', borderRadius: '8px' }}
+                  scrolling="no"
+                  allowFullScreen={true}
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                  title="Facebook Page - โรงพยาบาลเถิน"
+                  loading="lazy"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -365,9 +356,10 @@ export default async function HomePage() {
                     href={org.url} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="org-link-badge card"
+                    className="org-link-badge card touch-target"
                   >
-                    {org.name}
+                    <span>{org.name}</span>
+                    <ExternalLink size={12} aria-hidden="true" style={{ marginLeft: '4px' }} />
                   </a>
                 );
               }
@@ -385,22 +377,22 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ===== QUICK CONTACT SECTION ===== */}
+      {/* ===== QUICK CONTACT CTA SECTION ===== */}
       <section className="cta-section">
         <div className="cta__bg" />
         <div className="container cta__content">
-          <h2 className="cta__title">ต้องการความช่วยเหลือ?</h2>
+          <h2 className="cta__title">ต้องการความช่วยเหลือด้านสุขภาพ?</h2>
           <p className="cta__desc">
-            ทีมแพทย์และบุคลากรของเราพร้อมให้บริการคุณ ติดต่อเราได้ตลอด 24 ชั่วโมง
+            ทีมแพทย์และบุคลากรโรงพยาบาลเถินพร้อมให้บริการและดูแลคุณตลอด 24 ชั่วโมง
           </p>
           <div className="cta__actions">
-            <a href="tel:054292016" className="btn btn-white btn-lg">
+            <a href={`tel:${siteConfig.contact.hospitalPhone}`} className="btn btn-white btn-lg touch-target">
               <Phone size={20} />
-              โทร 054-292016
+              <span>โทร {siteConfig.contact.hospitalPhone}</span>
             </a>
-            <Link href="/contact" className="btn btn-gold btn-lg">
+            <Link href="/contact" className="btn btn-gold btn-lg touch-target" style={{ backgroundColor: 'var(--accent-gold-dark)', color: '#ffffff', borderColor: 'transparent' }}>
               <MessageSquare size={20} />
-              ส่งข้อความถึงเรา
+              <span>ส่งข้อความ / ข้อเสนอแนะ</span>
             </Link>
           </div>
         </div>

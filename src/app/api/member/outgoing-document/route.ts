@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
@@ -14,24 +14,10 @@ const documentSchema = z.object({
   isActive: z.boolean().default(true),
 })
 
-async function checkManageAuth() {
-  const session = await verifyMemberSession()
-  if (!session) {
-    return { error: NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 }), session: null }
-  }
-
-  const isAuthorized = await checkPositionPermission(session.username, 'manage_outgoing_doc')
-  if (!isAuthorized) {
-    return { error: NextResponse.json({ error: 'ไม่มีสิทธิ์จัดการข้อมูลหนังสือส่งออก' }, { status: 403 }), session: null }
-  }
-
-  return { error: null, session }
-}
-
 // GET: Fetch all documents for CMS management (including inactive)
 export async function GET() {
   try {
-    const { error } = await checkManageAuth()
+    const { error } = await requireMemberApi({ requiredPermission: 'manage_outgoing_doc' })
     if (error) return error
 
     const documents = await prisma.outgoingDocument.findMany({
@@ -54,8 +40,8 @@ export async function GET() {
 // POST: Create a new document
 export async function POST(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_outgoing_doc' })
+    if (error || !member) return error
 
     const body = await request.json()
     const parsed = documentSchema.safeParse(body)
@@ -75,16 +61,16 @@ export async function POST(request: Request) {
         status,
         displayOrder,
         isActive,
-        createdBy: session.username,
-        updatedBy: session.username,
+        createdBy: member.username,
+        updatedBy: member.username,
       }
     })
 
     await logAudit(
       'CREATE',
       'outgoing_documents',
-      `เพิ่มลิงก์หนังสือส่งออกปีงบประมาณ ${year} (${label}) โดย ${session.username}`,
-      session
+      `เพิ่มลิงก์หนังสือส่งออกปีงบประมาณ ${year} (${label}) โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({
@@ -101,8 +87,8 @@ export async function POST(request: Request) {
 // PUT: Update an existing document
 export async function PUT(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_outgoing_doc' })
+    if (error || !member) return error
 
     const body = await request.json()
     const { id, ...dataToValidate } = body
@@ -137,15 +123,15 @@ export async function PUT(request: Request) {
         status,
         displayOrder,
         isActive,
-        updatedBy: session.username,
+        updatedBy: member.username,
       }
     })
 
     await logAudit(
       'UPDATE',
       'outgoing_documents',
-      `แก้ไขลิงก์หนังสือส่งออก ID: ${id} (${year} - ${label}) โดย ${session.username}`,
-      session
+      `แก้ไขลิงก์หนังสือส่งออก ID: ${id} (${year} - ${label}) โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({
@@ -162,8 +148,8 @@ export async function PUT(request: Request) {
 // DELETE: Remove a document
 export async function DELETE(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_outgoing_doc' })
+    if (error || !member) return error
 
     const { searchParams } = new URL(request.url)
     const idParam = searchParams.get('id')
@@ -188,8 +174,8 @@ export async function DELETE(request: Request) {
     await logAudit(
       'DELETE',
       'outgoing_documents',
-      `ลบรายการหนังสือส่งออก ID: ${id} (${existing.year} - ${existing.label}) โดย ${session.username}`,
-      session
+      `ลบรายการหนังสือส่งออก ID: ${id} (${existing.year} - ${existing.label}) โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({

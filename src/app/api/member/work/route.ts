@@ -1,47 +1,15 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-
-async function canCreateWork(username: string): Promise<{ authorized: boolean; memberId: number; name: string; position: string; role: string }> {
-  const members = await queryMemberDb(
-    'SELECT id, name, position, role FROM members WHERE username = ? LIMIT 1',
-    [username]
-  )
-  if (!members || members.length === 0) {
-    return { authorized: false, memberId: 0, name: '', position: '', role: '' }
-  }
-
-  const member = members[0]
-  const position = (member.position || '').trim()
-  
-  let isAuthorized = member.role === 'admin'
-  if (!isAuthorized && position) {
-    const createWorkPerms = await queryMemberDb(
-      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'create_work' AND TRIM(position_name) = TRIM(?)",
-      [position]
-    )
-    isAuthorized = (createWorkPerms[0]?.count || 0) > 0
-  }
-
-  return { 
-    authorized: isAuthorized, 
-    memberId: member.id, 
-    name: member.name,
-    position,
-    role: member.role
-  }
-}
 
 // POST: Create a new work request (Phase 1)
 export async function POST(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session) {
-      return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 })
-    }
+    const { member, error } = await requireMemberApi()
+    if (error || !member) return error
 
-    const { authorized, memberId, name, position } = await canCreateWork(session.username)
-    if (!authorized) {
+    const canCreate = member.role === 'admin' || member.can('create_work')
+    if (!canCreate) {
       return NextResponse.json({ error: 'คุณไม่มีสิทธิ์สร้างคำขอรับมอบหมายงาน' }, { status: 403 })
     }
 
@@ -69,7 +37,7 @@ export async function POST(request: Request) {
       file_type: att.type,
       file_path: att.path,
       original_name: att.name,
-      uploaded_by: memberId,
+      uploaded_by: member.id,
       uploaded_at: new Date().toISOString()
     }))
 
@@ -79,10 +47,10 @@ export async function POST(request: Request) {
       from_status: null,
       to_status: 'pending',
       comment: 'สร้างคำขอสำเร็จ',
-      changed_by: memberId,
+      changed_by: member.id,
       changed_at: new Date().toISOString(),
-      changer_name: name,
-      changer_position: position
+      changer_name: member.name,
+      changer_position: member.position
     }]
 
     // Insert work request with initial JSON data
@@ -94,7 +62,7 @@ export async function POST(request: Request) {
         requestNo, 
         title.trim(), 
         description.trim(), 
-        memberId, 
+        member.id, 
         JSON.stringify(phase1Attachments), 
         JSON.stringify(initialHistory)
       ]
@@ -105,18 +73,6 @@ export async function POST(request: Request) {
     console.error('Create work request error:', error)
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการสร้างคำขอ' }, { status: 500 })
   }
-}
-
-async function checkCanSeeAll(role: string, position: string): Promise<boolean> {
-  if (role === 'admin') return true
-  if (position) {
-    const seeAllPerms = await queryMemberDb(
-      "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'view_all_work' AND TRIM(position_name) = TRIM(?)",
-      [position]
-    )
-    return (seeAllPerms[0]?.count || 0) > 0
-  }
-  return false
 }
 
 function formatWorkRequest(req: any, memberId: number, canSeeAll: boolean) {
@@ -154,28 +110,12 @@ function formatWorkRequest(req: any, memberId: number, canSeeAll: boolean) {
 }
 
 // GET: Retrieve work requests based on permissions and dashboard scope
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const session = await verifyMemberSession()
-    if (!session) {
-      return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 })
-    }
+    const { member, error } = await requireMemberApi()
+    if (error || !member) return error
 
-    // Get current user details
-    const members = await queryMemberDb(
-      'SELECT id, position, role FROM members WHERE username = ? LIMIT 1',
-      [session.username]
-    )
-    if (!members || members.length === 0) {
-      return NextResponse.json({ error: 'ไม่พบข้อมูลผู้ใช้งาน' }, { status: 404 })
-    }
-
-    const currentMember = members[0]
-    const memberId = currentMember.id
-    const position = currentMember.position || ''
-    const role = currentMember.role
-
-    const canSeeAll = await checkCanSeeAll(role, position)
+    const canSeeAll = member.role === 'admin' || member.can('view_all_work')
 
     // Retrieve all work requests
     const query = `
@@ -188,7 +128,7 @@ export async function GET(request: Request) {
 
     const formattedRequests = []
     for (const req of requests) {
-      const formatted = formatWorkRequest(req, memberId, canSeeAll)
+      const formatted = formatWorkRequest(req, member.id, canSeeAll)
       if (formatted) {
         formattedRequests.push(formatted)
       }

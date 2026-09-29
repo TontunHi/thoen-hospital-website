@@ -1,29 +1,14 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-import fs from 'fs/promises'
+import { DocumentStorage, StorageValidationError, sanitizeName } from '@/lib/storage/documentStorage'
 import path from 'path'
-
-// Helper: Check RDU permissions
-async function hasRduPermission(session: { username: string; email: string; role: string }) {
-  if (session.role === 'admin') return true
-  const members = await queryMemberDb('SELECT position FROM members WHERE username = ? LIMIT 1', [session.username])
-  const userPosition = members[0]?.position?.trim()
-  if (!userPosition) return false
-  const rduPerms = await queryMemberDb(
-    "SELECT COUNT(*) as count FROM position_permissions WHERE permission_key = 'manage_rdu' AND TRIM(position_name) = TRIM(?)",
-    [userPosition]
-  )
-  return (rduPerms[0]?.count || 0) > 0
-}
 
 // POST: Upload PDF file to a folder
 export async function POST(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || !(await hasRduPermission(session))) {
-      return NextResponse.json({ success: false, error: 'ไม่มีสิทธิ์อัปโหลดไฟล์' }, { status: 403 })
-    }
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_rdu' })
+    if (error || !member) return error
 
     const formData = await request.formData()
     const folderId = formData.get('folder_id') as string
@@ -41,13 +26,8 @@ export async function POST(request: Request) {
     }
 
     const folderName = folderRes[0].folder_name
-
-    // Check MIME type or extension
     const originalFileName = file.name
     const ext = path.extname(originalFileName).toLowerCase()
-    if (ext !== '.pdf' && file.type !== 'application/pdf') {
-      return NextResponse.json({ success: false, error: 'รองรับเฉพาะไฟล์เอกสาร .pdf เท่านั้น' }, { status: 400 })
-    }
 
     // Prepare display name (auto clean: e.g. Antibiogram_All.pdf -> Antibiogram All)
     let displayName = (customDisplayName || '').trim()
@@ -56,34 +36,19 @@ export async function POST(request: Request) {
       displayName = baseWithoutExt.replace(/[_\-]+/g, ' ').trim()
     }
 
-    // Prepare storage path
-    const sanitizedFolderName = folderName.replace(/[\\/:*?"<>|]/g, '_')
-    const folderDirPath = path.join(process.cwd(), 'public', 'documents', 'rdu', sanitizedFolderName)
-    await fs.mkdir(folderDirPath, { recursive: true })
+    const sanitizedFolderName = sanitizeName(folderName)
+    const baseClean = sanitizeName(path.basename(originalFileName, ext))
 
-    // Clean, readable disk filename (e.g. Antibiogram_2568_All.pdf or Antibiogram_2568_All_2.pdf if duplicate)
-    const rawCleanBase = path.basename(originalFileName, ext).replace(/[\\/:*?"<>|\s]+/g, '_')
-    let candidateFileName = `${rawCleanBase}${ext}`
-    let counter = 1
-    while (true) {
-      try {
-        await fs.access(path.join(folderDirPath, candidateFileName))
-        candidateFileName = `${rawCleanBase}_${counter}${ext}`
-        counter++
-      } catch {
-        break
-      }
-    }
-    const safeDiskFileName = candidateFileName
-    const targetFilePath = path.join(folderDirPath, safeDiskFileName)
+    // Save using DocumentStorage
+    const saved = await DocumentStorage.save(file, {
+      destinationDir: `public/documents/rdu/${sanitizedFolderName}`,
+      baseName: baseClean,
+      allowedMimeTypes: ['application/pdf'],
+      allowedExtensions: ['.pdf'],
+      maxSizeBytes: 25 * 1024 * 1024,
+      collisionStrategy: 'increment',
+    })
 
-    // Write file buffer
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    await fs.writeFile(targetFilePath, buffer)
-
-    // Relative web path for browser access (via dynamic API streamer to bypass Next.js production static file cache)
-    // First insert to get ID
     const maxOrderRes = await queryMemberDb('SELECT MAX(display_order) as maxOrder FROM rdu_files WHERE folder_id = ?', [
       folderId
     ])
@@ -92,13 +57,9 @@ export async function POST(request: Request) {
     const insertRes = await queryMemberDb(
       `INSERT INTO rdu_files (folder_id, display_name, file_name, file_path, file_size, display_order) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [folderId, displayName, safeDiskFileName, '', buffer.length, nextOrder]
+      [folderId, displayName, saved.fileName, saved.publicUrl, saved.fileSize, nextOrder]
     )
     const newFileId = (insertRes as any).insertId
-
-    // Readable path for database reference: /documents/rdu/folderName/fileName.pdf
-    const readableFilePath = `/documents/rdu/${sanitizedFolderName}/${safeDiskFileName}`
-    await queryMemberDb('UPDATE rdu_files SET file_path = ? WHERE id = ?', [readableFilePath, newFileId])
 
     return NextResponse.json({
       success: true,
@@ -107,13 +68,16 @@ export async function POST(request: Request) {
         id: newFileId,
         folder_id: Number(folderId),
         display_name: displayName,
-        file_name: safeDiskFileName,
+        file_name: saved.fileName,
         file_path: `/api/rdu/file/${newFileId}`,
-        file_size: buffer.length,
+        file_size: saved.fileSize,
         display_order: nextOrder
       }
     })
   } catch (error: any) {
+    if (error instanceof StorageValidationError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 })
+    }
     console.error('Error in POST /api/member/rdu/files:', error)
     return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการอัปโหลดไฟล์' }, { status: 500 })
   }
@@ -122,10 +86,8 @@ export async function POST(request: Request) {
 // PUT: Edit file display name or reorder files
 export async function PUT(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || !(await hasRduPermission(session))) {
-      return NextResponse.json({ success: false, error: 'ไม่มีสิทธิ์แก้ไขข้อมูลไฟล์' }, { status: 403 })
-    }
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_rdu' })
+    if (error || !member) return error
 
     const body = await request.json()
 
@@ -159,10 +121,8 @@ export async function PUT(request: Request) {
 // DELETE: Delete file from disk and database
 export async function DELETE(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || !(await hasRduPermission(session))) {
-      return NextResponse.json({ success: false, error: 'ไม่มีสิทธิ์ลบไฟล์' }, { status: 403 })
-    }
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_rdu' })
+    if (error || !member) return error
 
     const { searchParams } = new URL(request.url)
     const fileId = searchParams.get('id')
@@ -171,9 +131,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'กรุณาระบุ id ของไฟล์' }, { status: 400 })
     }
 
-    // Get file info and folder name
     const fileRes = await queryMemberDb(
-      `SELECT f.id, f.file_name, d.folder_name 
+      `SELECT f.id, f.file_name, f.file_path, d.folder_name 
        FROM rdu_files f 
        JOIN rdu_folders d ON f.folder_id = d.id 
        WHERE f.id = ?`,
@@ -184,20 +143,14 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'ไม่พบไฟล์ที่ต้องการลบ' }, { status: 404 })
     }
 
-    const { file_name, folder_name } = fileRes[0]
+    const { file_name, file_path, folder_name } = fileRes[0]
 
     // Delete DB record
     await queryMemberDb('DELETE FROM rdu_files WHERE id = ?', [fileId])
 
-    // Delete physical file
-    const sanitizedFolderName = folder_name.replace(/[\\/:*?"<>|]/g, '_')
-    const physicalFilePath = path.join(process.cwd(), 'public', 'documents', 'rdu', sanitizedFolderName, file_name)
-
-    try {
-      await fs.unlink(physicalFilePath)
-    } catch (err) {
-      console.warn('Physical file not found or already deleted:', err)
-    }
+    // Delete physical file via DocumentStorage
+    const targetPath = file_path || `/documents/rdu/${sanitizeName(folder_name)}/${file_name}`
+    await DocumentStorage.delete(targetPath)
 
     return NextResponse.json({ success: true, message: 'ลบไฟล์เรียบร้อยแล้ว' })
   } catch (error: any) {
@@ -205,3 +158,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: 'เกิดข้อผิดพลาดในการลบไฟล์' }, { status: 500 })
   }
 }
+

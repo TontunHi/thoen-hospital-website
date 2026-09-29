@@ -1,26 +1,13 @@
-import { verifyMemberSession } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
-import { redirect } from 'next/navigation'
+import { getAuthenticatedMember } from '@/lib/memberAuth'
 import SettingsClient from './SettingsClient'
 import './settings.css'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminSettingsPage() {
-  const session = await verifyMemberSession()
-
-  if (!session) {
-    redirect('/member/login')
-  }
-
-  if (session.role !== 'admin') {
-    redirect('/unauthorized')
-  }
-
-  const settingsRows = await queryMemberDb('SELECT config_key, config_value FROM member_system_settings')
-  const settings: Record<string, string> = {}
-  settingsRows.forEach((row) => {
-    settings[row.config_key] = row.config_value
+  const member = await getAuthenticatedMember({
+    requiredRole: 'admin',
+    redirectTo: '/unauthorized',
   })
 
   return (
@@ -33,7 +20,7 @@ export default async function AdminSettingsPage() {
           <p>เปิด/ปิด การเข้าใช้ฟังก์ชันต่าง ๆ ภายในเว็บไซต์สำหรับสมาชิกทั่วไป</p>
         </div>
 
-        <SettingsClient initialSettings={settings} />
+        <SettingsClient initialSettings={member.settings} />
       </div>
     </div>
   )

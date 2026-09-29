@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Plus, Search, Trash2, Edit3, Eye, Calendar, Tag, Filter } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import './page.css'
 
 interface NewsItem {
@@ -21,6 +23,19 @@ export default function AdminNewsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [categoryFilter, setCategoryFilter] = useState('ALL')
+  
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
 
   const fetchNews = async () => {
     try {
@@ -39,18 +54,24 @@ export default function AdminNewsPage() {
     fetchNews()
   }, [])
 
-  const handleDelete = async (id: number, title: string) => {
-    if (!confirm(`ต้องการลบข่าว "${title}" หรือไม่?`)) return
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    const { id } = deleteTarget
+    setIsDeleting(true)
 
     try {
       const res = await fetch(`/api/news/${id}`, { method: 'DELETE' })
       if (res.ok) {
         setNews(news.filter((n) => n.id !== id))
+        addToast('ลบข่าวสารเรียบร้อยแล้ว', 'success')
       } else {
-        alert('เกิดข้อผิดพลาดในการลบข่าว')
+        addToast('เกิดข้อผิดพลาดในการลบข่าว', 'error')
       }
     } catch {
-      alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+      addToast('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error')
+    } finally {
+      setIsDeleting(false)
+      setDeleteTarget(null)
     }
   }
 
@@ -221,9 +242,10 @@ export default function AdminNewsPage() {
                             <span>แก้ไข</span>
                           </Link>
                           <button
-                            onClick={() => handleDelete(item.id, item.title)}
+                            onClick={() => setDeleteTarget({ id: item.id, title: item.title })}
                             className="deleteButtonAction"
                             title="ลบข่าว"
+                            type="button"
                           >
                             <Trash2 size={15} />
                             <span>ลบ</span>
@@ -245,6 +267,20 @@ export default function AdminNewsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="ยืนยันการลบข่าวสาร"
+        description={`ต้องการลบข่าว "${deleteTarget?.title}" หรือไม่? เมื่อลบแล้วจะไม่สามารถกู้คืนได้`}
+        confirmText="ลบข่าว"
+        cancelText="ยกเลิก"
+        type="danger"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   )
 }

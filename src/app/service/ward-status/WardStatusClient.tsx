@@ -13,6 +13,7 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import Link from 'next/link'
+import { usePolling } from '@/hooks/usePolling'
 import './page.css'
 
 interface PatientRecord {
@@ -48,36 +49,24 @@ export default function WardStatusClient() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
-
-  const fetchData = useCallback(async (manual = false) => {
-    if (manual) setIsRefreshing(true)
+  const fetchData = useCallback(async () => {
     try {
+      setIsRefreshing(true)
       const res = await fetch('/api/service/ward-status', { cache: 'no-store' })
       const json = await res.json()
       if (json.success && json.data) {
         setData(json.data)
-        setLastUpdated(new Date())
       }
     } catch (err) {
       console.error('Failed to fetch ward status:', err)
     } finally {
       setLoading(false)
-      if (manual) {
-        setTimeout(() => setIsRefreshing(false), 500)
-      }
+      setIsRefreshing(false)
     }
   }, [])
 
-  useEffect(() => {
-    fetchData()
-    // Poll background every 30 seconds
-    const interval = setInterval(() => {
-      fetchData()
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [fetchData])
+  // Use polling with Page Visibility API (S1)
+  const { lastUpdated, refresh } = usePolling(fetchData, 30000)
 
   // Filter sections and patients based on active tab and search query
   const filteredSections = useMemo(() => {
@@ -144,16 +133,17 @@ export default function WardStatusClient() {
           <div className="wardControls">
             <div className="lastUpdateText" suppressHydrationWarning>
               อัปเดตล่าสุด:{' '}
-              {lastUpdated.toLocaleTimeString('th-TH', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-              })}{' '}
-              น.
+              {lastUpdated
+                ? `${lastUpdated.toLocaleTimeString('th-TH', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  })} น.`
+                : 'กำลังโหลด...'}
             </div>
             <button
               className={`refreshBtn ${isRefreshing ? 'spinning' : ''}`}
-              onClick={() => fetchData(true)}
+              onClick={refresh}
               disabled={isRefreshing}
               title="รีเฟรชข้อมูล"
             >

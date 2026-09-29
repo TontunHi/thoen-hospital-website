@@ -157,10 +157,29 @@ const healthPrograms: HealthProgramItem[] = [
   },
 ]
 
+import type { Metadata } from 'next'
+import Breadcrumb from '@/components/ui/Breadcrumb'
+import { siteConfig } from '@/config/site'
+
+export const metadata: Metadata = {
+  title: 'โปรแกรมตรวจสุขภาพ รู้ผลได้ใน 1 วัน',
+  description: 'โปรแกรมตรวจสุขภาพประจำปี ตรวจวิเคราะห์ครบวงจร รู้ผลได้ใน 1 วัน โรงพยาบาลเถิน จังหวัดลำปาง',
+  openGraph: {
+    title: `โปรแกรมตรวจสุขภาพ 1 วัน | ${siteConfig.name}`,
+    description: 'โปรแกรมตรวจสุขภาพประจำปี รู้ผลได้ใน 1 วัน โรงพยาบาลเถิน',
+  },
+}
+
 export default function HealthCheckPage() {
   return (
     <div className="healthCheckPage">
-      <div className="container" style={{ paddingTop: '2rem' }}>
+      <div className="container" style={{ paddingTop: '1.5rem' }}>
+        <Breadcrumb
+          items={[
+            { label: 'แพ็กเกจและบริการ', href: '/package' },
+            { label: 'โปรแกรมตรวจสุขภาพ 1 วัน' },
+          ]}
+        />
         
 
 

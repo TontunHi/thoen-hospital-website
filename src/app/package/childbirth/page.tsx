@@ -1,9 +1,11 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Check, X, Phone, Calendar, Heart, ShieldCheck, AlertCircle, ArrowLeft } from 'lucide-react'
+import Breadcrumb from '@/components/ui/Breadcrumb'
 import './page.css'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'แพ็กเกจคลอดบุตร | โรงพยาบาลเถิน',
   description: 'แพ็กเกจคลอดบุตร โรงพยาบาลเถิน ลำปาง - บริการคลอดปกติ ผ่าตัดคลอด พร้อมอัตราค่าบริการและสิ่งอำนวยความสะดวกครบครัน',
 }
@@ -58,8 +60,13 @@ export default function ChildbirthPackagePage() {
 
   return (
     <div className="childbirthPage">
-      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '5rem' }}>
-        
+      <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '5rem' }}>
+        <Breadcrumb
+          items={[
+            { label: 'แพ็กเกจและบริการ', href: '/package' },
+            { label: 'แพ็กเกจคลอดบุตร' },
+          ]}
+        />
 
         {/* Hero Section */}
         <section className="childbirthHero">
@@ -202,33 +209,35 @@ export default function ChildbirthPackagePage() {
               <p className="sectionSubtitle">ติดต่อสอบถามข้อมูลการฝากครรภ์ การทำคลอด หรือการเข้าพักฟื้น</p>
               
               <div className="contactInfoGrid">
-                <div className="contactLinkCard">
+                <a href="tel:0882902395" className="contactLinkCard touch-target" aria-label="โทรติดต่อห้องคลอด โรงพยาบาลเถิน 088-2902395">
                   <div className="contactIconWrapper">
                     <Phone size={24} />
                   </div>
                   <div className="contactDetails">
                     <h4 className="contactTitleText">ห้องคลอด โรงพยาบาลเถิน</h4>
                     <span className="phoneNum">088-2902395</span>
+                    <span className="callActionHint">กดเพื่อโทรออก</span>
                   </div>
-                </div>
+                </a>
 
-                <div className="contactLinkCard">
+                <a href="tel:054291585" className="contactLinkCard touch-target" aria-label="โทรติดต่อเบอร์โทรศัพท์อัตโนมัติ (สายตรง) 054-291585 ต่อ 1504, 1509">
                   <div className="contactIconWrapper">
                     <Phone size={24} />
                   </div>
                   <div className="contactDetails">
                     <h4 className="contactTitleText">เบอร์โทรศัพท์อัตโนมัติ (สายตรง)</h4>
-                    <span className="phoneNum">054-291585 ต่อ 1504 , 1509</span>
+                    <span className="phoneNum">054-291585 <span className="phoneExt">ต่อ 1504 , 1509</span></span>
+                    <span className="callActionHint">กดเพื่อโทรออก</span>
                   </div>
-                </div>
+                </a>
               </div>
 
               <div className="socialLinks">
                 <div className="socialItem">
-                  <strong>Facebook Page:</strong> โรงพยาบาลเถิน ลำปาง
+                  <strong>Facebook Page:</strong> <span>โรงพยาบาลเถิน ลำปาง</span>
                 </div>
                 <div className="socialItem">
-                  <strong>LINE Official:</strong> ช่องทาง Scan QR Code ในสื่อประชาสัมพันธ์ของโรงพยาบาล
+                  <strong>LINE Official:</strong> <span>ช่องทาง Scan QR Code ในสื่อประชาสัมพันธ์ของโรงพยาบาล</span>
                 </div>
               </div>
             </section>

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 
 export async function GET() {
@@ -26,7 +26,7 @@ export async function GET() {
       GROUP BY lh.doctor_code 
       ORDER BY d.name
     `
-    const doctors = await queryHosDb(opdDoctorsSql)
+    const doctors = await queryClinicalDb(opdDoctorsSql)
 
     // 3. Fetch nurses & other group (provider_type_code not in '01','011','02')
     const otherStaffSql = `
@@ -40,7 +40,7 @@ export async function GET() {
       GROUP BY lh.doctor_code 
       ORDER BY d.name
     `
-    const others = await queryHosDb(otherStaffSql)
+    const others = await queryClinicalDb(otherStaffSql)
 
     // 4. Fetch total distinct patients ordered lab today
     const totalOrderedSql = `
@@ -51,7 +51,7 @@ export async function GET() {
         and lh.department = 'OPD' 
         and d.name is not null
     `
-    const allTotalData = await queryHosDb(totalOrderedSql)
+    const allTotalData = await queryClinicalDb(totalOrderedSql)
     const totalOrderedCount = allTotalData[0]?.cc || 0
 
     return NextResponse.json({

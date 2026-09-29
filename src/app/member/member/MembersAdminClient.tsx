@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Search, UserPlus, Edit3, Trash2, Mail, Shield, User, X, Check, Loader2, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import './page.css'
 
 interface Member {
@@ -38,6 +39,11 @@ export default function MembersAdminClient() {
   const [isCreateMode, setIsCreateMode] = useState(false)
   const [editingMember, setEditingMember] = useState<Member | null>(null)
   
+  // Confirmation states
+  const [confirmSyncOpen, setConfirmSyncOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; username: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
   // Form Fields
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -52,8 +58,6 @@ export default function MembersAdminClient() {
   const [syncing, setSyncing] = useState(false)
 
   const handleSyncSalary = async () => {
-    if (!confirm('คุณต้องการซิงค์ข้อมูลสลิปเงินเดือนจากฐานข้อมูลภายนอกใช่หรือไม่? การดำเนินการนี้จะทำการอัปเดตข้อมูลบัญชีสลิปเงินเดือนของสมาชิกทุกคนที่มีชื่อผู้ใช้ตรงกับระบบเงินเดือน')) return
-
     setSyncing(true)
     setError('')
     setSuccess('')
@@ -73,6 +77,7 @@ export default function MembersAdminClient() {
       setError('เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อซิงค์ข้อมูล')
     } finally {
       setSyncing(false)
+      setConfirmSyncOpen(false)
     }
   }
 
@@ -192,14 +197,18 @@ export default function MembersAdminClient() {
     }
   }
 
-  const handleDelete = async (id: number, memberUsername: string) => {
+  const requestDelete = (id: number, memberUsername: string) => {
     if (currentUser && memberUsername === currentUser.username) {
-      alert('คุณไม่สามารถลบบัญชีของตัวเองได้')
+      setError('คุณไม่สามารถลบบัญชีของตัวเองได้')
       return
     }
+    setDeleteTarget({ id, username: memberUsername })
+  }
 
-    if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสมาชิก "${memberUsername}"? การดำเนินการนี้ไม่สามารถย้อนกลับได้`)) return
-
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    const { id } = deleteTarget
+    setDeleting(true)
     setError('')
     setSuccess('')
 
@@ -217,6 +226,9 @@ export default function MembersAdminClient() {
       }
     } catch {
       setError('เกิดข้อผิดพลาดในการเชื่อมต่อระบบ')
+    } finally {
+      setDeleting(false)
+      setDeleteTarget(null)
     }
   }
 
@@ -281,11 +293,11 @@ export default function MembersAdminClient() {
             <p>เรียกดู เพิ่มสมาชิกใหม่ แก้ไขสิทธิ์การใช้งาน และข้อมูลรหัสผ่านบัญชีเงินเดือนของบุคลากรโรงพยาบาลเถิน</p>
           </div>
           <div className="headerActions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button className="syncSalaryBtn" onClick={handleSyncSalary} disabled={syncing}>
+            <button className="syncSalaryBtn" onClick={() => setConfirmSyncOpen(true)} disabled={syncing} type="button">
               <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} style={{ marginRight: '6px' }} />
               {syncing ? 'กำลังซิงค์ข้อมูล...' : 'ซิงค์ข้อมูลเงินเดือน'}
             </button>
-            <button className="addMemberBtn" onClick={handleCreateClick}>
+            <button className="addMemberBtn" onClick={handleCreateClick} type="button">
               <UserPlus size={18} style={{ marginRight: '6px' }} />
               เพิ่มสมาชิกใหม่
             </button>
@@ -383,7 +395,8 @@ export default function MembersAdminClient() {
           </div>
         ) : sortedMembers.length > 0 ? (
           <div className="tableCard card">
-            <div className="tableResponsive">
+            {/* Desktop Locked Table (No Horizontal Scroll) */}
+            <div className="tableResponsive desktopTableOnly">
               <table className="membersTable">
                 <thead>
                   <tr>
@@ -405,7 +418,7 @@ export default function MembersAdminClient() {
                     <th onClick={() => handleSort('role')} className="sortableHeader col-role">
                       <div className="headerFlex">สิทธิ์ {renderSortIcon('role')}</div>
                     </th>
-                    <th style={{ textAlign: 'center' }} className="col-actions">การจัดการ</th>
+                    <th className="col-actions">การจัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -419,16 +432,20 @@ export default function MembersAdminClient() {
                             <span className="truncate">{member.username}</span>
                           </div>
                         </td>
-                        <td className="memberEmail col-email" title={member.email}>{member.email}</td>
+                        <td className="memberEmail col-email" title={member.email}>
+                          <span className="truncate" title={member.email}>{member.email}</span>
+                        </td>
                         <td className="col-name" title={member.name || '-'}>
-                          <div>{member.name || '-'}</div>
+                          <div className="memberNameText">{member.name || '-'}</div>
                           {member.position && (
-                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                            <div className="memberPositionText">
                               {member.position}
                             </div>
                           )}
                         </td>
-                        <td className="col-dept" title={member.department || '-'}>{member.department || '-'}</td>
+                        <td className="col-dept" title={member.department || '-'}>
+                          <span className="truncate">{member.department || '-'}</span>
+                        </td>
                         <td className="col-role">
                           <span className={`roleBadge ${member.role}`}>
                             {member.role === 'admin' ? 'แอดมิน' : member.role === 'subdistrict' ? 'รพ.สต.' : 'ทั่วไป'}
@@ -437,17 +454,19 @@ export default function MembersAdminClient() {
                         <td className="col-actions">
                           <div className="memberActions">
                             <button
-                              className="actionBtn editBtn"
+                              className="actionBtn editBtn touch-target"
                               title="แก้ไขข้อมูลสมาชิก"
                               onClick={() => handleEditClick(member)}
+                              type="button"
                             >
                               <Edit3 size={14} />
                             </button>
                             <button
-                              className="actionBtn deleteBtn"
+                              className="actionBtn deleteBtn touch-target"
                               title={isSelf ? "ไม่สามารถลบบัญชีตนเองได้" : "ลบสมาชิก"}
                               disabled={!!isSelf}
-                              onClick={() => handleDelete(member.id, member.username)}
+                              onClick={() => requestDelete(member.id, member.username)}
+                              type="button"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -494,139 +513,133 @@ export default function MembersAdminClient() {
             )}
 
             <form onSubmit={handleSave}>
-              <div className="modalBody">
-                
-                <div className="sectionTitleGroup">
-                  <span className="sectionBadge">1</span>
-                  <h3>ข้อมูลบัญชีระบบสมาชิกทั่วไป</h3>
-                </div>
-
-                <div className="formGroup">
-                  <label>ชื่อผู้ใช้งาน (Username) *</label>
-                  <div className="inputWrapper">
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="เช่น รหัสบัตรประชาชน หรือ ชื่อล็อกอิน"
-                      required
-                    />
+              <div className="modalBody compactModalBody">
+                <div className="modalFormGrid">
+                  {/* Row 1 */}
+                  <div className="formGroup">
+                    <label>ชื่อผู้ใช้งาน (Username) *</label>
+                    <div className="inputWrapper">
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="รหัสบัตรประชาชน หรือ ชื่อล็อกอิน"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="formGroup">
-                  <label>ชื่อ-นามสกุล *</label>
-                  <div className="inputWrapper">
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="เช่น นาย พิสุทธิ์ ยิ้มกุศล"
-                      required
-                    />
+                  <div className="formGroup">
+                    <label>ชื่อ-นามสกุล *</label>
+                    <div className="inputWrapper">
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="เช่น นาย สมชาย ใจดี"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="formGroup">
-                  <label>กลุ่มงาน / แผนก *</label>
-                  <div className="inputWrapper">
-                    <input
-                      type="text"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      placeholder="เช่น กลุ่มงานดิจิทัลทางการแพทย์"
-                      required
-                    />
+                  {/* Row 2 */}
+                  <div className="formGroup">
+                    <label>กลุ่มงาน / แผนก *</label>
+                    <div className="inputWrapper">
+                      <input
+                        type="text"
+                        value={department}
+                        onChange={(e) => setDepartment(e.target.value)}
+                        placeholder="เช่น กลุ่มงานดิจิทัลทางการแพทย์"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="formGroup">
-                  <label>ตำแหน่ง</label>
-                  <div className="inputWrapper">
-                    <input
-                      type="text"
-                      value={position}
-                      onChange={(e) => setPosition(e.target.value)}
-                      placeholder="เช่น หัวหน้ากลุ่มงาน, นักวิชาการคอมพิวเตอร์"
-                    />
+                  <div className="formGroup">
+                    <label>ตำแหน่ง</label>
+                    <div className="inputWrapper">
+                      <input
+                        type="text"
+                        value={position}
+                        onChange={(e) => setPosition(e.target.value)}
+                        placeholder="เช่น พยาบาลวิชาชีพ, นักวิชาการ"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="formGroup">
-                  <label>อีเมลติดต่อ (Email) *</label>
-                  <div className="inputWrapper">
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="เช่น employee@thoenhospital.go.th"
-                      required
-                    />
+                  {/* Row 3 */}
+                  <div className="formGroup">
+                    <label>อีเมลติดต่อ (Email) *</label>
+                    <div className="inputWrapper">
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="employee@thoenhospital.go.th"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="sectionTitleGroup spacingTop">
-                  <span className="sectionBadge">2</span>
-                  <h3>สิทธิ์และข้อมูลล็อกอินบัญชีเงินเดือน (Salary)</h3>
-                </div>
+                  <div className="formGroup">
+                    <label>สิทธิ์การเข้าใช้งาน (Role)</label>
+                    <div className="selectWrapper">
+                      <select
+                        value={role}
+                        onChange={(e) => setRole(e.target.value as 'member' | 'admin' | 'subdistrict')}
+                        disabled={!isCreateMode && editingMember?.username === currentUser?.username}
+                      >
+                        <option value="member">สมาชิกทั่วไป (Member)</option>
+                        <option value="subdistrict">รพ.สต. (Sub-district)</option>
+                        <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                      </select>
+                    </div>
+                  </div>
 
-                <div className="formRow">
-                  <div className="formGroup col-6">
-                    <label>รหัสบุคลากรเงินเดือน (Username)</label>
+                  {/* Salary section divider inside grid (Span 2) */}
+                  <div className="modalSubSectionHeader col-span-2">
+                    <Shield size={14} />
+                    <span>ข้อมูลเข้าสู่ระบบสลิปเงินเดือน (Salary Credentials)</span>
+                  </div>
+
+                  {/* Row 4 (Salary) */}
+                  <div className="formGroup">
+                    <label>รหัสบุคลากรเงินเดือน (Salary User)</label>
                     <div className="inputWrapper">
                       <input
                         type="text"
                         value={salaryUser}
                         onChange={(e) => setSalaryUser(e.target.value)}
-                        placeholder="หากไม่มีให้เว้นว่าง"
+                        placeholder="เว้นว่างได้หากไม่มี"
                       />
                     </div>
                   </div>
 
-                  <div className="formGroup col-6">
-                    <label>รหัสผ่านระบบเงินเดือน (Password)</label>
+                  <div className="formGroup">
+                    <label>รหัสผ่านเงินเดือน (Salary Password)</label>
                     <div className="inputWrapper">
                       <input
                         type="text"
                         value={salaryPass}
                         onChange={(e) => setSalaryPass(e.target.value)}
-                        placeholder="หากไม่มีให้เว้นว่าง"
+                        placeholder="เว้นว่างได้หากไม่มี"
                       />
                     </div>
                   </div>
                 </div>
-
-                <div className="sectionTitleGroup spacingTop">
-                  <span className="sectionBadge">3</span>
-                  <h3>บทบาทการเข้าถึง (Role Permission)</h3>
-                </div>
-
-                <div className="formGroup">
-                  <label>สิทธิ์การเข้าใช้งานระบบสมาชิก</label>
-                  <div className="selectWrapper">
-                    <select
-                      value={role}
-                      onChange={(e) => setRole(e.target.value as 'member' | 'admin' | 'subdistrict')}
-                      disabled={!isCreateMode && editingMember?.username === currentUser?.username}
-                    >
-                      <option value="member">สมาชิกทั่วไป (Member) - บุคลากรภายในโรงพยาบาลเถิน</option>
-                      <option value="subdistrict">รพ.สต. (Sub-district Hospital) - ใช้งาน EMR และติดตามแลป</option>
-                      <option value="admin">ผู้ดูแลระบบสมาชิก (Admin) - จัดการสมาชิกและระบบหลังบ้านได้</option>
-                    </select>
-                  </div>
-                </div>
               </div>
 
-              <div className="modalFooter">
+              <div className="modalFooter compactModalFooter">
                 <button
                   type="button"
-                  className="cancelBtn"
+                  className="cancelBtn touch-target"
                   onClick={() => setIsModalOpen(false)}
                   disabled={saving}
                 >
                   ยกเลิก
                 </button>
-                <button type="submit" className="saveBtn" disabled={saving}>
+                <button type="submit" className="saveBtn touch-target" disabled={saving}>
                   {saving ? (
                     <>
                       <Loader2 size={16} className="spinner" style={{ marginRight: '6px' }} />
@@ -644,6 +657,32 @@ export default function MembersAdminClient() {
           </div>
         </div>
       )}
+
+      {/* Confirm Sync Salary Dialog */}
+      <ConfirmDialog
+        isOpen={confirmSyncOpen}
+        title="ยืนยันการซิงค์ข้อมูลสลิปเงินเดือน"
+        description="คุณต้องการซิงค์ข้อมูลสลิปเงินเดือนจากฐานข้อมูลภายนอกใช่หรือไม่? การดำเนินการนี้จะทำการอัปเดตข้อมูลบัญชีสลิปเงินเดือนของสมาชิกทุกคนที่มีชื่อผู้ใช้ตรงกับระบบเงินเดือน"
+        confirmText="ซิงค์ข้อมูล"
+        cancelText="ยกเลิก"
+        type="info"
+        loading={syncing}
+        onConfirm={handleSyncSalary}
+        onCancel={() => setConfirmSyncOpen(false)}
+      />
+
+      {/* Confirm Delete Member Dialog */}
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="ยืนยันการลบสมาชิก"
+        description={`คุณแน่ใจหรือไม่ว่าต้องการลบสมาชิก "${deleteTarget?.username}"? การดำเนินการนี้ไม่สามารถย้อนกลับได้`}
+        confirmText="ลบสมาชิก"
+        cancelText="ยกเลิก"
+        type="danger"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

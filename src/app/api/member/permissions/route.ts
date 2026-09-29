@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 
 // GET: Retrieve all permissions & a list of unique member positions
 export async function GET() {
   try {
-    const session = await verifyMemberSession()
-    if (!session || session.role !== 'admin') {
-      return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลส่วนนี้' }, { status: 403 })
-    }
+    const { error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error) return error
 
     // 1. Fetch current mappings
     const mappings = await queryMemberDb(
@@ -35,10 +33,8 @@ export async function GET() {
 // POST: Add a new position-permission mapping
 export async function POST(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || session.role !== 'admin') {
-      return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึงการจัดการสิทธิ์' }, { status: 403 })
-    }
+    const { error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error) return error
 
     const { permission_key, position_name } = await request.json()
 
@@ -61,10 +57,8 @@ export async function POST(request: Request) {
 // DELETE: Remove a position-permission mapping
 export async function DELETE(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || session.role !== 'admin') {
-      return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึงการจัดการสิทธิ์' }, { status: 403 })
-    }
+    const { error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error) return error
 
     const { searchParams } = new URL(request.url)
     const permission_key = searchParams.get('permission_key')

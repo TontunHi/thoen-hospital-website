@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData } from '@/lib/cache'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
@@ -32,7 +32,7 @@ export async function GET() {
             AND an.ward IN ('02', '04', '05', '06', '09')
         `
 
-        const rows = await queryHosDb(sql)
+        const rows = await queryClinicalDb(sql)
 
         let w1Count = 0 // สามัญ 1-20
         let w2Count = 0 // สามัญ 21-40

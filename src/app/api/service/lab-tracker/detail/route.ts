@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
@@ -63,8 +63,8 @@ export async function GET(request: Request) {
     `
 
     const [reportedRows, pendingRows] = await Promise.all([
-      queryHosDb(reportedSql, [hn]),
-      queryHosDb(pendingSql, [hn])
+      queryClinicalDb(reportedSql, [hn]),
+      queryClinicalDb(pendingSql, [hn])
     ])
 
     // Extract patient name

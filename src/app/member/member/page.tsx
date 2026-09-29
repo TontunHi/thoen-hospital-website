@@ -1,6 +1,7 @@
-import { verifyMemberSession } from '@/lib/memberAuth'
-import { redirect } from 'next/navigation'
+import { getAuthenticatedMember } from '@/lib/memberAuth'
 import MembersAdminClient from './MembersAdminClient'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'แดชบอร์ดจัดการสมาชิก | โรงพยาบาลเถิน',
@@ -8,15 +9,10 @@ export const metadata = {
 }
 
 export default async function MembersAdminPage() {
-  const session = await verifyMemberSession()
-
-  if (!session) {
-    redirect('/member/login')
-  }
-
-  if (session.role !== 'admin') {
-    redirect('/unauthorized')
-  }
+  await getAuthenticatedMember({
+    requiredRole: 'admin',
+    redirectTo: '/unauthorized',
+  })
 
   return <MembersAdminClient />
 }

@@ -1,22 +1,13 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 
 export async function GET() {
   try {
-    const session = await verifyMemberSession()
-    if (!session) {
-      return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 })
-    }
-    const settings = await queryMemberDb('SELECT config_key, config_value FROM member_system_settings')
-    
-    // Convert array to key-value object
-    const config: Record<string, string> = {}
-    settings.forEach((s) => {
-      config[s.config_key] = s.config_value
-    })
+    const { member, error } = await requireMemberApi()
+    if (error || !member) return error
 
-    return NextResponse.json({ success: true, settings: config })
+    return NextResponse.json({ success: true, settings: member.settings })
   } catch (error) {
     console.error('Fetch settings error:', error)
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลการตั้งค่า' }, { status: 500 })
@@ -25,10 +16,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const session = await verifyMemberSession()
-    if (!session || session.role !== 'admin') {
-      return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึง' }, { status: 403 })
-    }
+    const { error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error) return error
+
     const body = await request.json()
     
     // Save each config key-value

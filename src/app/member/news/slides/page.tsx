@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Plus, Trash2, Calendar, Link as LinkIcon, Image as ImageIcon, Eye, Clock, Edit2, ArrowUpDown } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import './page.css'
 
 interface SlideItem {
@@ -31,6 +32,8 @@ export default function AdminSlidesPage() {
   
   // Edit State
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -219,8 +222,10 @@ export default function AdminSlidesPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('ยืนยันที่จะลบสไลด์ภาพนี้ใช่หรือไม่? การลบจะทำให้ภาพหายไปจากหน้าแรกทันที')) return
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return
+    const id = deleteTargetId
+    setIsDeleting(true)
 
     try {
       const res = await fetch(`/api/hero-slides/${id}`, { method: 'DELETE' })
@@ -236,6 +241,9 @@ export default function AdminSlidesPage() {
       }
     } catch {
       setError('เกิดข้อผิดพลาดในการติดต่อระบบ')
+    } finally {
+      setIsDeleting(false)
+      setDeleteTargetId(null)
     }
   }
 
@@ -560,7 +568,7 @@ export default function AdminSlidesPage() {
                         <button type="button" onClick={() => handleEdit(slide)} className="deleteSlideBtn" style={{ color: '#0f766e', borderColor: '#ccfbf1' }} draggable={false}>
                           <Edit2 size={14} /> แก้ไขข้อมูล
                         </button>
-                        <button type="button" onClick={() => handleDelete(slide.id)} className="deleteSlideBtn" draggable={false}>
+                        <button type="button" onClick={() => setDeleteTargetId(slide.id)} className="deleteSlideBtn" draggable={false}>
                           <Trash2 size={14} /> ลบสไลด์
                         </button>
                       </div>
@@ -578,6 +586,18 @@ export default function AdminSlidesPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteTargetId !== null}
+        title="ยืนยันการลบสไลด์ภาพ"
+        description="ยืนยันที่จะลบสไลด์ภาพนี้ใช่หรือไม่? การลบจะทำให้ภาพหายไปจากหน้าแรกทันที"
+        confirmText="ลบสไลด์ภาพ"
+        cancelText="ยกเลิก"
+        type="danger"
+        loading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTargetId(null)}
+      />
     </div>
   )
 }

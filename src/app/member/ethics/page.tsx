@@ -1,7 +1,5 @@
-import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
-import { redirect } from 'next/navigation'
+import { getAuthenticatedMember } from '@/lib/memberAuth'
 import EthicsAdminClient from './EthicsAdminClient'
-
 import { prisma } from '@/lib/prisma'
 
 export const metadata = {
@@ -12,16 +10,10 @@ export const metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function MemberEthicsPage() {
-  const session = await verifyMemberSession()
-
-  if (!session) {
-    redirect('/member/login')
-  }
-
-  const isAuthorized = await checkPositionPermission(session.username, 'manage_ethics')
-  if (!isAuthorized) {
-    redirect('/member')
-  }
+  const member = await getAuthenticatedMember({
+    requiredPermission: 'manage_ethics',
+    redirectTo: '/member',
+  })
 
   const years = await prisma.ethicsYear.findMany({
     orderBy: [
@@ -46,6 +38,6 @@ export default async function MemberEthicsPage() {
     }))
   }))
 
-  return <EthicsAdminClient username={session.username} initialYears={safeYears} />
+  return <EthicsAdminClient username={member.username} initialYears={safeYears} />
 }
 

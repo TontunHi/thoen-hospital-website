@@ -3,48 +3,47 @@ import { Sarabun } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/common/Navbar/Navbar";
 import Footer from "@/components/common/Footer/Footer";
-
+import { siteConfig } from "@/config/site";
 import { Suspense } from "react";
 
+// Optimized Sarabun weights (P4)
 const sarabun = Sarabun({
   variable: "--font-sarabun",
   subsets: ["thai", "latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(siteConfig.url),
   title: {
-    default: "โรงพยาบาลเถิน | Thoen Hospital ลำปาง",
-    template: "%s | โรงพยาบาลเถิน",
+    default: `${siteConfig.name} | ${siteConfig.englishName} ${siteConfig.province}`,
+    template: `%s | ${siteConfig.name}`,
   },
-  description:
-    "โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ พร้อมดูแลสุขภาพของประชาชนในพื้นที่อำเภอเถินและใกล้เคียง",
+  description: siteConfig.description,
   keywords: [
     "โรงพยาบาลเถิน",
     "Thoen Hospital",
     "โรงพยาบาล ลำปาง",
     "สาธารณสุข เถิน",
     "บริการสุขภาพ เถิน",
+    "ตรวจสุขภาพ ลำปาง",
+    "ฉุกเฉิน 1669 ลำปาง",
   ],
-  authors: [{ name: "โรงพยาบาลเถิน" }],
-  creator: "โรงพยาบาลเถิน",
-  publisher: "โรงพยาบาลเถิน",
+  authors: [{ name: siteConfig.name }],
+  creator: siteConfig.name,
+  publisher: siteConfig.name,
   openGraph: {
-    title: "โรงพยาบาลเถิน | Thoen Hospital",
-    description:
-      "โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ",
-    url: siteUrl,
-    siteName: "โรงพยาบาลเถิน",
+    title: `${siteConfig.name} | ${siteConfig.englishName}`,
+    description: siteConfig.description,
+    url: siteConfig.url,
+    siteName: siteConfig.name,
     images: [
       {
         url: "/images/common/logo-website.webp",
         width: 800,
         height: 800,
-        alt: "ตราสัญลักษณ์โรงพยาบาลเถิน",
+        alt: `ตราสัญลักษณ์${siteConfig.name}`,
       },
     ],
     locale: "th_TH",
@@ -52,9 +51,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "โรงพยาบาลเถิน | Thoen Hospital",
-    description:
-      "โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร",
+    title: `${siteConfig.name} | ${siteConfig.englishName}`,
+    description: siteConfig.description,
     images: ["/images/common/logo-website.webp"],
   },
   icons: {
@@ -81,15 +79,19 @@ export default function RootLayout({
                   event.preventDefault();
                 }
               });
-            `
+            `,
           }}
         />
       </head>
-      <body style={{ fontFamily: "var(--font-family)" }}>
+      <body>
+        {/* Skip to main content link for keyboard & screen reader accessibility (A11) */}
+        <a href="#main-content" className="skip-to-content">
+          ข้ามไปเนื้อหาหลัก
+        </a>
         <Suspense fallback={<nav className="navbar" style={{ height: "var(--navbar-height)" }}></nav>}>
           <Navbar />
         </Suspense>
-        <main>{children}</main>
+        <main id="main-content">{children}</main>
         <Footer />
       </body>
     </html>

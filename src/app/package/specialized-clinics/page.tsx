@@ -95,10 +95,18 @@ const scheduleData: ScheduleDay[] = [
   },
 ]
 
+import Breadcrumb from '@/components/ui/Breadcrumb'
+
 export default function SpecializedClinicsPage() {
   return (
     <div className="specializedPage">
-      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '5rem' }}>
+      <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '5rem' }}>
+        <Breadcrumb
+          items={[
+            { label: 'แพ็กเกจและบริการ', href: '/package' },
+            { label: 'คลินิกเฉพาะทาง' },
+          ]}
+        />
         
         {/* Hero Banner */}
         <section className="specializedHero">

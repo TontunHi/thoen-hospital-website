@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
 import { logThrottledAudit } from '@/lib/audit'
@@ -55,7 +55,7 @@ export async function GET() {
         ORDER BY p.bedno ASC
       `
 
-      const rows = await queryHosDb(sql)
+      const rows = await queryClinicalDb(sql)
 
       // Map rows into groups based on ward and bedno conditions from original logic:
       // 1. ward '06', bedno W01-W20 (and variations Wท01-Wท20, W01ท-W20ท)

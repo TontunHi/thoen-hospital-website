@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryAppointmentDb } from '@/lib/appointmentDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { z } from 'zod'
 import { checkRateLimit } from '@/lib/rateLimit'
 
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
       ORDER BY ap.nextdate DESC, ap.nexttime DESC
     `
 
-    const appointments = await queryAppointmentDb(sql, [searchValue])
+    const appointments = await queryClinicalDb(sql, [searchValue])
 
     // Mask patient name for PDPA compliance (Readable & Secure):
     // e.g. "นาย สมชาย ใจดี" -> "นาย สมช** ใจ**"

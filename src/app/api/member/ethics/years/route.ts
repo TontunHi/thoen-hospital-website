@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
@@ -10,24 +10,10 @@ const yearSchema = z.object({
   isActive: z.boolean().default(true),
 })
 
-async function checkManageAuth() {
-  const session = await verifyMemberSession()
-  if (!session) {
-    return { error: NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 }), session: null }
-  }
-
-  const isAuthorized = await checkPositionPermission(session.username, 'manage_ethics')
-  if (!isAuthorized) {
-    return { error: NextResponse.json({ error: 'ไม่มีสิทธิ์จัดการข้อมูลชมรมจริยธรรม' }, { status: 403 }), session: null }
-  }
-
-  return { error: null, session }
-}
-
 // GET: Fetch all years and their documents for Member CMS
 export async function GET() {
   try {
-    const { error } = await checkManageAuth()
+    const { error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
     if (error) return error
 
     const years = await prisma.ethicsYear.findMany({
@@ -68,8 +54,8 @@ export async function GET() {
 // POST: Create a new year
 export async function POST(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
+    if (error || !member) return error
 
     const body = await request.json()
     const parsed = yearSchema.safeParse(body)
@@ -97,8 +83,8 @@ export async function POST(request: Request) {
     await logAudit(
       'CREATE',
       'ethics_years',
-      `เพิ่มปีงบประมาณชมรมจริยธรรม ${year} โดย ${session.username}`,
-      session
+      `เพิ่มปีงบประมาณชมรมจริยธรรม ${year} โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({
@@ -115,8 +101,8 @@ export async function POST(request: Request) {
 // PUT: Update an existing year
 export async function PUT(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
+    if (error || !member) return error
 
     const body = await request.json()
     const { id, ...dataToValidate } = body
@@ -144,8 +130,8 @@ export async function PUT(request: Request) {
     await logAudit(
       'UPDATE',
       'ethics_years',
-      `แก้ไขปีงบประมาณชมรมจริยธรรม ID: ${id} (${year}) โดย ${session.username}`,
-      session
+      `แก้ไขปีงบประมาณชมรมจริยธรรม ID: ${id} (${year}) โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({
@@ -162,8 +148,8 @@ export async function PUT(request: Request) {
 // DELETE: Delete a year (Cascade deletes its documents)
 export async function DELETE(request: Request) {
   try {
-    const { error, session } = await checkManageAuth()
-    if (error || !session) return error
+    const { member, error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
+    if (error || !member) return error
 
     const { searchParams } = new URL(request.url)
     const idParam = searchParams.get('id')
@@ -187,8 +173,8 @@ export async function DELETE(request: Request) {
     await logAudit(
       'DELETE',
       'ethics_years',
-      `ลบปีงบประมาณชมรมจริยธรรม ${existing.year} (ID: ${id}) พร้อมเอกสารทั้งหมด โดย ${session.username}`,
-      session
+      `ลบปีงบประมาณชมรมจริยธรรม ${existing.year} (ID: ${id}) พร้อมเอกสารทั้งหมด โดย ${member.username}`,
+      member.session
     )
 
     return NextResponse.json({

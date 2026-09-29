@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { Home, Phone, AlertCircle } from 'lucide-react'
+import { Home, Phone, AlertCircle, Calendar, Newspaper, Layers, Search } from 'lucide-react'
+import { siteConfig } from '@/config/site'
 import './not-found.css'
 
 export default function NotFound() {
   return (
     <div className="notfound-container">
-      <div className="notfound-card card-glass">
+      <div className="notfound-card card-glass animate-fadeInUp">
         {/* Animated ECG Pulse / Warning Icon area */}
         <div className="ecg-pulse-wrapper">
           <div className="pulse-svg-container">
@@ -15,7 +16,7 @@ export default function NotFound() {
               <path
                 d="M 0 50 L 80 50 L 90 35 L 100 65 L 110 50 L 140 50 L 148 10 L 156 90 L 164 50 L 180 50 L 190 40 L 200 60 L 210 50 L 300 50"
                 fill="none"
-                stroke="var(--primary-color, #008080)"
+                stroke="var(--primary, #0D7446)"
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -32,18 +33,39 @@ export default function NotFound() {
         <h1 className="notfound-title">404</h1>
         <h2 className="notfound-subtitle">ไม่พบหน้าเว็บที่คุณต้องการ</h2>
         <p className="notfound-text">
-          ขออภัยด้วยค่ะ หน้าเว็บที่คุณพยายามเข้าถึงอาจถูกลบไปแล้ว เปลี่ยนชื่อใหม่ หรือไม่เปิดให้บริการชั่วคราว
+          ขออภัย หน้าเว็บที่คุณพยายามเข้าถึงอาจถูกย้าย เปลี่ยนชื่อ หรือไม่มีอยู่ในระบบโรงพยาบาลเถิน
         </p>
+
+        {/* Popular Quick Links (F5) */}
+        <div style={{ margin: '1.5rem 0', width: '100%', textAlign: 'left' }}>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--gray-500)', display: 'block', marginBottom: '0.5rem', textAlign: 'center' }}>
+            บริการยอดนิยมที่คุณอาจกำลังมองหา:
+          </span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.5rem' }}>
+            <Link href="/check-date" className="btn btn-outline touch-target" style={{ fontSize: '0.8125rem', padding: '0.5rem 0.75rem' }}>
+              <Calendar size={14} />
+              <span>ตรวจตารางนัดหมาย</span>
+            </Link>
+            <Link href="/package" className="btn btn-outline touch-target" style={{ fontSize: '0.8125rem', padding: '0.5rem 0.75rem' }}>
+              <Layers size={14} />
+              <span>แพ็กเกจบริการ</span>
+            </Link>
+            <Link href="/news" className="btn btn-outline touch-target" style={{ fontSize: '0.8125rem', padding: '0.5rem 0.75rem' }}>
+              <Newspaper size={14} />
+              <span>ข่าวสารโรงพยาบาล</span>
+            </Link>
+          </div>
+        </div>
 
         {/* Action Buttons */}
         <div className="notfound-actions">
-          <Link href="/" className="btn-primary notfound-btn">
+          <Link href="/" className="btn btn-primary touch-target">
             <Home size={18} />
-            กลับสู่หน้าแรก
+            <span>กลับสู่หน้าแรก</span>
           </Link>
-          <Link href="/contact" className="btn-outline notfound-btn-outline">
+          <Link href="/contact" className="btn btn-outline touch-target">
             <Phone size={18} />
-            ติดต่อโรงพยาบาล
+            <span>ติดต่อโรงพยาบาล ({siteConfig.contact.hospitalPhone})</span>
           </Link>
         </div>
       </div>

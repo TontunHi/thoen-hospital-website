@@ -484,17 +484,18 @@
 
 /* Contact Section & Click-to-Call */
 .contactSection {
-  background: linear-gradient(135deg, #881337 0%, #6f0d2b 100%);
-  color: #ffffff;
-  box-shadow: 0 10px 30px rgba(136, 19, 55, 0.15);
+  background: #ffffff;
+  border: 1px solid #fecdd3;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(225, 29, 72, 0.04);
 }
 
 .contactSection .sectionTitle {
-  color: #ffffff;
+  color: #0f172a;
 }
 
 .contactSection .sectionSubtitle {
-  color: #fbcfe8;
+  color: #64748b;
 }
 
 .contactInfoGrid {
@@ -512,54 +513,100 @@
 }
 
 .contactLinkCard {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #fff1f2;
+  border: 1.5px solid #fecdd3;
   border-radius: 16px;
   padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 16px;
-  color: #ffffff;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(225, 29, 72, 0.04);
+}
+
+.contactLinkCard:hover {
+  background: #ffffff;
+  border-color: #be185d;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(190, 24, 93, 0.12);
 }
 
 .contactIconWrapper {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #881337;
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #db2777 0%, #be185d 100%);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(190, 24, 93, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.contactLinkCard:hover .contactIconWrapper {
+  transform: scale(1.08);
+}
+
+.contactDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .contactTitleText {
   font-size: 1.05rem;
   font-weight: 700;
-  margin: 0 0 4px 0;
-  color: #ffffff !important;
+  margin: 0;
+  color: #1e293b !important;
+  line-height: 1.3;
 }
 
 .phoneNum {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 800;
   display: block;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.5px;
+  color: #be185d;
+  margin-top: 2px;
+}
+
+.phoneExt {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-left: 4px;
+}
+
+.callActionHint {
+  font-size: 0.8rem;
+  color: #9d174d;
+  font-weight: 600;
+  margin-top: 2px;
+  opacity: 0.85;
 }
 
 .socialLinks {
-  background: rgba(0, 0, 0, 0.08);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 1.25rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 8px;
   font-size: 0.9rem;
-  border-left: 4px solid #fbcfe8;
+  border-left: 4px solid #db2777;
+}
+
+.socialItem {
+  color: #334155;
 }
 
 .socialItem strong {
-  color: #fbcfe8;
+  color: #881337;
+  font-weight: 700;
+  margin-right: 6px;
 }

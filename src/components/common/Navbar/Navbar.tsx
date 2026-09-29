@@ -1,20 +1,51 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { siteConfig } from '@/config/site';
+import { Calendar, User, ChevronDown, ChevronRight, Menu, X } from 'lucide-react';
 import './Navbar.css';
+
+interface SubmenuItem {
+  href: string;
+  label: string;
+}
+
+interface RduFile {
+  id: number;
+  display_name: string;
+  file_name: string;
+  file_path: string;
+}
+
+interface RduFolder {
+  id: number;
+  folder_name: string;
+  files: RduFile[];
+}
+
+interface NavItem {
+  label: string;
+  href?: string;
+  submenu?: SubmenuItem[];
+  isRdu?: boolean;
+  folders?: RduFolder[];
+}
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [member, setMember] = useState<{ username: string; email?: string; role?: string; name?: string | null } | null>(null);
-  const [rduFolders, setRduFolders] = useState<{ id: number; folder_name: string; files: { id: number; display_name: string; file_name: string; file_path: string }[] }[]>([]);
+  const [rduFolders, setRduFolders] = useState<RduFolder[]>([]);
   const [expandedFolderId, setExpandedFolderId] = useState<number | null>(null);
+  
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
+  const navRef = useRef<HTMLElement>(null);
 
   const getDisplayName = () => {
     if (!member) return '';
@@ -30,15 +61,42 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      setScrolled(window.scrollY > 15);
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Close menus on route change
   useEffect(() => {
     setIsOpen(false);
-  }, [pathname]);
+    setActiveDropdown(null);
+    setExpandedFolderId(null);
+  }, [pathname, searchParams]);
+
+  // Outside click & Escape key to close dropdowns
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveDropdown(null);
+        setIsOpen(false);
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Fetch RDU dynamic menu items
   useEffect(() => {
@@ -63,7 +121,6 @@ export default function Navbar() {
     async function checkMember() {
       try {
         const res = await fetch(`/api/member/me?t=${Date.now()}`, { cache: 'no-store' });
-
         if (res.ok) {
           const data = await res.json();
           if (data.authenticated) {
@@ -79,13 +136,13 @@ export default function Navbar() {
         setMember(null);
       }
     }
-    
-    // Only check if it's not administrative or salary systems
+
     if (pathname && !pathname.startsWith('/member/news') && !pathname.startsWith('/news-login') && !pathname.startsWith('/salary')) {
       checkMember();
     }
   }, [pathname]);
 
+  // Lock body scroll when mobile menu is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -115,10 +172,10 @@ export default function Navbar() {
     return null;
   }
 
-  const navLinks = [
+  const navLinks: NavItem[] = [
     { href: '/', label: 'หน้าแรก' },
     {
-      label: 'การบริการ',
+      label: 'แพ็กเกจและบริการ',
       href: '/package',
       submenu: [
         { href: '/package/health-check-1day', label: 'โปรแกรมตรวจสุขภาพ 1 วัน' },
@@ -131,6 +188,7 @@ export default function Navbar() {
     },
     {
       label: 'ข่าวสาร',
+      href: '/news',
       submenu: [
         { href: '/news', label: 'ข่าวสารทั้งหมด' },
         { href: '/news?category=PR', label: 'ข่าวสารประชาสัมพันธ์' },
@@ -142,6 +200,7 @@ export default function Navbar() {
     { href: '/systems', label: 'ระบบสารสนเทศ' },
     {
       label: 'ชมรมจริยธรรม',
+      href: '/ethics',
       submenu: [
         { href: '/ethics?year=2569', label: 'จริยธรรมปีงบประมาณ 2569' },
         { href: '/ethics?year=2568', label: 'จริยธรรมปีงบประมาณ 2568' },
@@ -157,6 +216,7 @@ export default function Navbar() {
     },
     {
       label: 'เกี่ยวกับเรา',
+      href: '/about',
       submenu: [
         { href: '/about', label: 'ผู้บริหารโรงพยาบาล' },
         { href: '/about/history', label: 'ประวัติความเป็นมา' },
@@ -171,47 +231,79 @@ export default function Navbar() {
     navLinks.push({ href: '/service', label: 'ระบบงานภายใน' });
   }
 
+  const toggleDropdown = (label: string) => {
+    setActiveDropdown((prev) => (prev === label ? null : label));
+  };
+
   return (
-    <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
-      <div className="navbar__mourning-ribbon">
-        <Image
-          src="/images/home/black.webp"
-          alt="ไว้อาลัย"
-          width={40}
-          height={80}
-          priority
-        />
-      </div>
+    <nav ref={navRef} className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`} aria-label="แถบนำทางหลัก">
+      {/* Mourning Ribbon (Configurable via siteConfig - D7) */}
+      {siteConfig.features.showMourningRibbon && (
+        <div className="navbar__mourning-ribbon">
+          <Image
+            src="/images/home/black.webp"
+            alt="ไว้อาลัย"
+            width={40}
+            height={80}
+            priority
+          />
+        </div>
+      )}
+
       <div className="navbar__container container">
-        <Link href="/" className="navbar__logo">
+        <Link href="/" className="navbar__logo" aria-label="กลับสู่หน้าแรกโรงพยาบาลเถิน">
           <Image
             src="/images/common/logo-website.webp"
-            alt="โรงพยาบาลเถิน"
-            width={50}
-            height={50}
+            alt="ตราสัญลักษณ์โรงพยาบาลเถิน"
+            width={46}
+            height={46}
             priority
           />
           <div className="navbar__logo-text">
-            <span className="navbar__logo-name">โรงพยาบาลเถิน</span>
-            <span className="navbar__logo-sub">Thoen Hospital</span>
+            <span className="navbar__logo-name">{siteConfig.name}</span>
+            <span className="navbar__logo-sub">{siteConfig.englishName}</span>
           </div>
         </Link>
 
-        <ul className={`navbar__links ${isOpen ? 'navbar__links--open' : ''}`}>
+        <ul className={`navbar__links ${isOpen ? 'navbar__links--open' : ''}`} id="primary-navigation">
           {navLinks.map((link) => {
-            if ((link as any).isRdu) {
+            if (link.isRdu) {
               const isRduActive = pathname === '/rdu';
-              const folders = (link as any).folders || [];
-              return (
-                <li key={link.label} className="navbar__dropdown navbar__dropdown--rdu">
-                  <Link
-                    href="/rdu"
-                    className={`navbar__link navbar__dropdown-toggle ${isRduActive ? 'navbar__link--active' : ''}`}
-                  >
-                    {link.label} <span className="dropdown-arrow">▼</span>
-                  </Link>
+              const folders = link.folders || [];
+              const isDropdownOpen = activeDropdown === link.label;
 
-                  <ul className="navbar__submenu navbar__submenu--rdu">
+              return (
+                <li
+                  key={link.label}
+                  className={`navbar__dropdown navbar__dropdown--rdu ${isDropdownOpen ? 'is-active-dropdown' : ''}`}
+                >
+                  <div className="navbar__dropdown-trigger-row">
+                    <Link
+                      href="/rdu"
+                      className={`navbar__link navbar__link--has-sub ${isRduActive ? 'navbar__link--active' : ''}`}
+                    >
+                      <span>{link.label}</span>
+                      <ChevronDown size={14} strokeWidth={2.5} className="dropdown-arrow" aria-hidden="true" />
+                    </Link>
+                    <button
+                      type="button"
+                      className="dropdown-arrow-btn dropdown-arrow-btn--mobile touch-target"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleDropdown(link.label);
+                      }}
+                      aria-expanded={isDropdownOpen}
+                      aria-haspopup="true"
+                      aria-label="เปิดเมนูย่อย RDU"
+                    >
+                      <ChevronDown size={14} strokeWidth={2.5} className="dropdown-arrow" aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  <ul
+                    className="navbar__submenu navbar__submenu--rdu"
+                    aria-hidden={!isDropdownOpen}
+                  >
                     <li key="rdu-main">
                       <Link
                         href="/rdu"
@@ -221,31 +313,32 @@ export default function Navbar() {
                       </Link>
                     </li>
                     {folders.length > 0 && <li className="navbar__submenu-divider" />}
-                    {folders.map((folder: any) => {
+                    {folders.map((folder) => {
                       const hasFiles = folder.files && folder.files.length > 0;
                       const isExpanded = expandedFolderId === folder.id;
+
                       return (
                         <li
                           key={`folder-${folder.id}`}
                           className={`navbar__nested-item ${hasFiles ? 'has-sub' : ''} ${isExpanded ? 'is-expanded' : ''}`}
                         >
-                          <div
+                          <button
+                            type="button"
                             className="navbar__nested-trigger"
-                            onClick={(e) => {
-                              // For mobile / click toggle
+                            aria-expanded={isExpanded}
+                            onClick={() => {
                               if (hasFiles) {
-                                e.preventDefault();
                                 setExpandedFolderId(isExpanded ? null : folder.id);
                               }
                             }}
                           >
                             <span className="navbar__nested-title">{folder.folder_name}</span>
-                            {hasFiles && <span className="nested-arrow">›</span>}
-                          </div>
+                            {hasFiles && <ChevronRight size={14} strokeWidth={2.5} className="nested-arrow" aria-hidden="true" />}
+                          </button>
 
                           {hasFiles && (
                             <ul className={`navbar__nested-menu ${isExpanded ? 'navbar__nested-menu--open' : ''}`}>
-                              {folder.files.map((file: any) => (
+                              {folder.files.map((file) => (
                                 <li key={`file-${file.id}`}>
                                   <a
                                     href={file.file_path}
@@ -270,24 +363,40 @@ export default function Navbar() {
 
             if (link.submenu) {
               const isSubActive = link.submenu.some((sub) => isActiveLink(sub.href));
-              const hasHeaderLink = !!link.href;
+              const isDropdownOpen = activeDropdown === link.label;
+
               return (
-                <li key={link.label} className="navbar__dropdown">
-                  {hasHeaderLink ? (
+                <li
+                  key={link.label}
+                  className={`navbar__dropdown ${isDropdownOpen ? 'is-active-dropdown' : ''}`}
+                >
+                  <div className="navbar__dropdown-trigger-row">
                     <Link
-                      href={link.href!}
-                      className={`navbar__link navbar__dropdown-toggle ${
-                        isSubActive || isActiveLink(link.href!) ? 'navbar__link--active' : ''
+                      href={link.href || '#'}
+                      className={`navbar__link navbar__link--has-sub ${
+                        isSubActive || (link.href && isActiveLink(link.href)) ? 'navbar__link--active' : ''
                       }`}
                     >
-                      {link.label} <span className="dropdown-arrow">▼</span>
+                      <span>{link.label}</span>
+                      <ChevronDown size={14} strokeWidth={2.5} className="dropdown-arrow" aria-hidden="true" />
                     </Link>
-                  ) : (
-                    <span className={`navbar__link navbar__dropdown-toggle ${isSubActive ? 'navbar__link--active' : ''}`}>
-                      {link.label} <span className="dropdown-arrow">▼</span>
-                    </span>
-                  )}
-                  <ul className="navbar__submenu">
+
+                    <button
+                      type="button"
+                      className="dropdown-arrow-btn dropdown-arrow-btn--mobile touch-target"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleDropdown(link.label);
+                      }}
+                      aria-expanded={isDropdownOpen}
+                      aria-haspopup="true"
+                      aria-label={`เปิดเมนูย่อย ${link.label}`}
+                    >
+                      <ChevronDown size={14} strokeWidth={2.5} className="dropdown-arrow" aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  <ul className="navbar__submenu" aria-hidden={!isDropdownOpen}>
                     {link.submenu.map((sub, idx) => (
                       <li key={`${sub.label}-${idx}`}>
                         {sub.href.startsWith('http') ? (
@@ -319,9 +428,9 @@ export default function Navbar() {
             return (
               <li key={link.href}>
                 <Link
-                  href={link.href}
+                  href={link.href || '#'}
                   className={`navbar__link ${
-                    isActiveLink(link.href) ? 'navbar__link--active' : ''
+                    link.href && isActiveLink(link.href) ? 'navbar__link--active' : ''
                   }`}
                 >
                   {link.label}
@@ -329,18 +438,50 @@ export default function Navbar() {
               </li>
             );
           })}
-          {/* Member link inside mobile menu */}
+
+          {/* Member link inside mobile drawer */}
           <li className="navbar__cta-mobile">
-            <Link href="/check-date" className="btn btn-outline" style={{ display: 'flex', justifyContent: 'center', borderColor: 'var(--primary)', color: 'var(--primary)' }}>
-              ตรวจสอบนัดหมาย
+            <Link
+              href="/check-date"
+              className="navbar__mobile-check-date-card"
+            >
+              <div className="navbar__mobile-card-icon">
+                <Calendar size={20} aria-hidden="true" />
+              </div>
+              <div className="navbar__mobile-card-info">
+                <span className="navbar__mobile-card-title">ตรวจสอบวันนัดหมาย</span>
+                <span className="navbar__mobile-card-sub">ค้นหาข้อมูลวันนัดตรวจของท่าน</span>
+              </div>
+              <ChevronRight size={16} className="navbar__mobile-card-arrow" />
             </Link>
+
             {member ? (
-              <Link href="/member" className="btn btn-primary" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                ระบบสมาชิก ({getDisplayName()})
+              <Link
+                href="/member"
+                className="navbar__mobile-member-card"
+              >
+                <div className="navbar__mobile-avatar-wrap">
+                  <User size={20} aria-hidden="true" />
+                  <span className="navbar__member-status-dot" />
+                </div>
+                <div className="navbar__mobile-card-info">
+                  <div className="navbar__mobile-card-header">
+                    <span className="navbar__mobile-card-title">{getDisplayName()}</span>
+                  </div>
+                  <span className="navbar__mobile-card-sub">เข้าสู่หน้าระบบสมาชิกและบริการภายใน</span>
+                </div>
+                <ChevronRight size={16} className="navbar__mobile-card-arrow" />
               </Link>
             ) : (
-              <Link href="/member/login" className="btn btn-outline">
-                เข้าสู่ระบบสมาชิก
+              <Link href="/member/login" className="navbar__mobile-login-card">
+                <div className="navbar__mobile-card-icon navbar__mobile-card-icon--gray">
+                  <User size={20} aria-hidden="true" />
+                </div>
+                <div className="navbar__mobile-card-info">
+                  <span className="navbar__mobile-card-title">เข้าสู่ระบบสมาชิก</span>
+                  <span className="navbar__mobile-card-sub">สำหรับบุคลากรโรงพยาบาลเถิน</span>
+                </div>
+                <ChevronRight size={16} className="navbar__mobile-card-arrow" />
               </Link>
             )}
           </li>
@@ -349,45 +490,57 @@ export default function Navbar() {
         <div className="navbar__actions">
           {/* Member status on desktop */}
           <div className="navbar__cta-desktop">
-            <Link href="/check-date" className="navbar__check-date-btn">
-              ตรวจสอบนัดหมาย
+            <Link href="/check-date" className="navbar__check-date-btn" title="ตรวจสอบวันนัดหมายผู้ป่วย">
+              <span className="navbar__check-date-icon-wrap">
+                <Calendar size={15} aria-hidden="true" />
+              </span>
+              <span>ตรวจสอบวันนัดหมาย</span>
             </Link>
 
             {member ? (
-              <Link href="/member" className="navbar__member-btn">
-                <span className="navbar__member-name">
-                  {getDisplayName()}
-                </span>
+              <Link href="/member" className="navbar__member-btn" title="เข้าสู่ระบบสมาชิก">
+                <div className="navbar__member-avatar">
+                  <User size={15} aria-hidden="true" />
+                  <span className="navbar__member-status-dot" aria-label="สถานะออนไลน์" />
+                </div>
+                <div className="navbar__member-info">
+                  <span className="navbar__member-name">{getDisplayName()}</span>
+                </div>
+                <ChevronRight size={14} className="navbar__member-arrow" aria-hidden="true" />
               </Link>
             ) : (
-              <Link href="/member/login" className="navbar__login-btn">
-                เข้าสู่ระบบสมาชิก
+              <Link href="/member/login" className="navbar__login-btn" title="เข้าสู่ระบบ">
+                <span className="navbar__login-icon-wrap">
+                  <User size={15} aria-hidden="true" />
+                </span>
+                <span>เข้าสู่ระบบ</span>
               </Link>
             )}
           </div>
 
           <button
-            className={`navbar__burger ${isOpen ? 'navbar__burger--active' : ''}`}
+            type="button"
+            className={`navbar__burger touch-target ${isOpen ? 'navbar__burger--active' : ''}`}
             onClick={() => setIsOpen(!isOpen)}
-            aria-label="เปิดเมนู"
+            aria-label={isOpen ? 'ปิดเมนู' : 'เปิดเมนู'}
             aria-expanded={isOpen}
+            aria-controls="primary-navigation"
           >
-            <span></span>
-            <span></span>
-            <span></span>
+            {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </div>
+
       {isOpen && (
-        <div 
-          className="navbar__overlay" 
-          onClick={() => setIsOpen(false)} 
+        <div
+          className="navbar__overlay"
+          onClick={() => setIsOpen(false)}
           role="button"
           aria-label="ปิดเมนู"
-          tabIndex={-1}
+          tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-              setIsOpen(false)
+              setIsOpen(false);
             }
           }}
         />

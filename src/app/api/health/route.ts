@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { querySalaryDb } from '@/lib/salaryDb'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
@@ -45,7 +45,7 @@ export async function GET() {
         await prisma.$queryRaw`SELECT 1`
       }),
       checkService(async () => {
-        await queryHosDb('SELECT 1')
+        await queryClinicalDb('SELECT 1')
       }),
       checkService(async () => {
         await querySalaryDb('SELECT 1')

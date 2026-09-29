@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { SkeletonCard, SkeletonTable } from '@/components/common/Skeleton'
+import { usePolling } from '@/hooks/usePolling'
+import { RefreshCw, Clock, ArrowLeft, Tv, AlertTriangle } from 'lucide-react'
 import './page.css'
 
 interface Patient {
@@ -55,15 +57,12 @@ export default function ERInStatusClient() {
   const [data, setData] = useState<ERData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // 1. Initial Fetch on Mount (Server Component already verified session)
-  useEffect(() => {
-    fetchStatus()
-  }, [])
-
-  // 2. Fetch function
+  // Fetch function
   const fetchStatus = async () => {
     try {
+      setIsRefreshing(true)
       const res = await fetch('/api/er/status')
       const result = await res.json()
       if (res.ok) {
@@ -76,18 +75,12 @@ export default function ERInStatusClient() {
       setError('ไม่สามารถเชื่อมต่อฐานข้อมูลห้องฉุกเฉินได้')
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }
 
-  // 3. Set interval after authentication
-  // 3. Auto-refresh polling every 15 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchStatus()
-    }, 15000)
-
-    return () => clearInterval(interval)
-  }, [])
+  // Polling with Page Visibility API (S1)
+  const { lastUpdated, refresh } = usePolling(fetchStatus, 15000)
 
   if (loading && !data) {
     return (
@@ -122,33 +115,57 @@ export default function ERInStatusClient() {
       <div className="container erContainer">
         
         {/* Navigation back */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <Link href="/service" style={{ color: 'var(--primary)', textDecoration: 'none', fontWeight: 600 }}>
-            ← กลับไปหน้าระบบงานภายใน
+        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <Link href="/service" className="btn btn-outline btn-sm touch-target">
+            <ArrowLeft size={16} />
+            <span>กลับสู่ระบบงานภายใน</span>
           </Link>
+
+          {/* Last Updated Status Indicator (S2) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <Clock size={14} />
+              <span>
+                อัปเดตล่าสุด: {lastUpdated ? lastUpdated.toLocaleTimeString('th-TH') : 'กำลังโหลด...'}
+              </span>
+            </span>
+
+            <button
+              type="button"
+              onClick={refresh}
+              disabled={isRefreshing}
+              className="btn btn-sm btn-outline touch-target"
+              aria-label="รีเฟรชข้อมูล"
+              title="รีเฟรชข้อมูลทันที"
+            >
+              <RefreshCw size={13} className={isRefreshing ? 'spinner' : ''} />
+              <span>{isRefreshing ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Dashboard Header */}
-        <header className="erHeaderCard card">
+        <header className="erHeaderCard card animate-fadeInUp">
           <div className="erTitleSection">
             <h1>ระบบแสดงผลสถานะห้องฉุกเฉิน (ER Live Status)</h1>
             <p className="erSubtitle">ข้อมูลอัปเดตเรียลไทม์เพื่อบริหารจัดการผู้ป่วย ณ จุดบริการฉุกเฉิน</p>
           </div>
           <div className="erControls">
-            <Link href="/service/er-in-status/tv-mode" target="_blank" className="tvToggleBtn" style={{ textDecoration: 'none' }}>
-              เปิดจอโหมดทีวี (TV Mode)
+            <Link href="/service/er-in-status/tv-mode" target="_blank" className="btn btn-primary touch-target">
+              <Tv size={16} />
+              <span>เปิดจอโหมดทีวี (TV Mode)</span>
             </Link>
           </div>
         </header>
 
         {/* Critical Alert Warning Alert */}
         {hasCritical && (
-          <section className="erAlertBanner">
-            <span className="alertIcon"></span>
+          <section className="erAlertBanner animate-pulse">
+            <AlertTriangle size={24} style={{ color: '#ffffff', flexShrink: 0 }} />
             <div className="alertMsg">
               คำเตือน: ขณะนี้มีผู้ป่วยวิกฤตฉุกเฉินกู้ชีพ (Resuscitate Red Level) จำนวน {data?.summary.critical} ราย กำลังรับการช่วยเหลือ!
               <br />
-              <span style={{ fontSize: '1rem', fontWeight: 'normal', opacity: 0.9 }}>
+              <span style={{ fontSize: '0.9375rem', fontWeight: 'normal', opacity: 0.95 }}>
                 ทีมแพทย์และพยาบาลกำลังระดมกำลังให้การกู้ชีพอย่างเร่งด่วนที่สุด
               </span>
             </div>
@@ -156,7 +173,7 @@ export default function ERInStatusClient() {
         )}
 
         {/* Real-time Summary Cards */}
-        <section className="erSummaryGrid">
+        <section className="erSummaryGrid animate-fadeInUp">
           <div className="erStatCard card">
             <div className="statVal">{data?.summary.totalActive}</div>
             <div className="statLabel">ผู้ป่วยในห้องฉุกเฉินทั้งหมด</div>
@@ -164,42 +181,42 @@ export default function ERInStatusClient() {
           
           <div className="erStatCard card criticalCard">
             <div className="statVal">{data?.summary.critical}</div>
-            <div className="statLabel">กู้ชีพทันที (Resuscitate)</div>
+            <div className="statLabel">🔴 กู้ชีพทันที (Resuscitate)</div>
           </div>
           
           <div className="erStatCard card emergencyCard">
             <div className="statVal">{data?.summary.emergency}</div>
-            <div className="statLabel">ฉุกเฉินวิกฤต (Emergency)</div>
+            <div className="statLabel">🟠 ฉุกเฉินวิกฤต (Emergency)</div>
           </div>
           
           <div className="erStatCard card urgencyCard">
             <div className="statVal">{data?.summary.urgency}</div>
-            <div className="statLabel">ฉุกเฉินเร่งด่วน (Urgency)</div>
+            <div className="statLabel">🟡 ฉุกเฉินเร่งด่วน (Urgency)</div>
           </div>
           
           <div className="erStatCard card semiUrgencyCard">
             <div className="statVal">{data?.summary.semiUrgency}</div>
-            <div className="statLabel">ฉุกเฉินไม่รุนแรง / ทั่วไป</div>
+            <div className="statLabel">🟢 ฉุกเฉินไม่รุนแรง (Semi Urgency)</div>
           </div>
         </section>
 
         {/* Active Patients Live Queue */}
-        <section className="patientsListCard card">
-          <h2 style={{ fontSize: '1.4rem', borderBottom: '2px solid var(--primary-light)', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>
+        <section className="patientsListCard card animate-fadeInUp">
+          <h2 style={{ fontSize: '1.3rem', borderBottom: '2px solid var(--primary-light)', paddingBottom: '0.5rem', marginBottom: '1.25rem' }}>
             รายชื่อผู้ป่วยที่กำลังตรวจรักษาในห้องฉุกเฉิน ({activePatients.length} ราย)
           </h2>
           
           {activePatients.length === 0 ? (
             <p className="emptyPatientsMessage">ในขณะนี้ไม่มีผู้ป่วยที่ค้างรอรับการรักษาในห้องฉุกเฉิน</p>
           ) : (
-            <div className="patientsTableWrapper">
-              <table className="patientsTable">
+            <div className="table-responsive">
+              <table className="data-table patientsTable">
                 <thead>
                   <tr>
                     <th>เวลาที่เข้า</th>
                     <th>HN</th>
                     <th>ชื่อผู้ป่วย</th>
-                    <th>อายุ (ปี)</th>
+                    <th>อายุ</th>
                     <th>เตียงสังเกตอาการ</th>
                     <th>ระดับความเร่งด่วน</th>
                     <th>เตียงสังเกต (Observe)</th>
@@ -218,7 +235,7 @@ export default function ERInStatusClient() {
                     return (
                       <tr key={patient.vn || idx} className={`level-${levelId}`}>
                         <td data-label="เวลาเข้า" style={{ fontWeight: 'bold' }}>{patient.enter_time ? patient.enter_time.substring(0, 5) : '-'}</td>
-                        <td data-label="HN">{patient.hn}</td>
+                        <td data-label="HN" style={{ fontWeight: 600 }}>{patient.hn}</td>
                         <td data-label="ชื่อ-สกุล" style={{ fontWeight: 600 }}>{patient.ptname}</td>
                         <td data-label="อายุ">{patient.age} ปี</td>
                         <td data-label="เตียง" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>
@@ -245,7 +262,7 @@ export default function ERInStatusClient() {
 
         {/* Error Status Warning & Table Section */}
         {data?.errorStatusList && (
-          <section className="errorStatusCard card">
+          <section className="errorStatusCard card animate-fadeInUp">
             <div className="errorStatusBanner">
               <span className="errorStatusIcon">⚠️</span>
               <span className="errorStatusTitle">
@@ -254,8 +271,8 @@ export default function ERInStatusClient() {
             </div>
 
             {data.errorStatusList.total > 0 && (
-              <div className="patientsTableWrapper errorTableWrapper">
-                <table className="patientsTable errorStatusTable">
+              <div className="table-responsive" style={{ marginTop: '1rem' }}>
+                <table className="data-table patientsTable errorStatusTable">
                   <thead>
                     <tr>
                       <th style={{ width: '22%' }}>วันที่มารับบริการ</th>
@@ -302,8 +319,7 @@ export default function ERInStatusClient() {
         )}
 
         {/* Monthly statistics */}
-        <section className="erMonthlyStatsGrid">
-          
+        <section className="erMonthlyStatsGrid animate-fadeInUp">
           {/* 1. Monthly Pt Types */}
           <div className="statsTableCard card cardTypeGreen">
             <h3>ประเภทผู้ป่วย (ประจำเดือนนี้)</h3>
@@ -351,7 +367,6 @@ export default function ERInStatusClient() {
               )}
             </ul>
           </div>
-          
         </section>
 
       </div>

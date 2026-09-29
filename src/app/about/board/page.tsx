@@ -15,6 +15,8 @@ interface BoardMember {
   image?: string
 }
 
+import Breadcrumb from '@/components/ui/Breadcrumb'
+
 export default function BoardOfDirectorsPage() {
   const boardMembers: BoardMember[] = [
     {
@@ -150,6 +152,7 @@ export default function BoardOfDirectorsPage() {
       {/* Hero Section */}
       <section className="boardHero">
         <div className="container">
+          <Breadcrumb variant="light" items={[{ label: 'เกี่ยวกับเรา', href: '/about' }, { label: 'คณะกรรมการบริหาร' }]} />
           <h1 className="heroTitle">คณะกรรมการบริหารโรงพยาบาลเถิน</h1>
           <p className="heroDesc">
             รายชื่อคณะกรรมการบริหารที่ร่วมกำหนดนโยบายและขับเคลื่อนการให้บริการ เพื่อดูแลประชาชนในพื้นที่อย่างทั่วถึง โปร่งใส และมีมาตรฐาน.

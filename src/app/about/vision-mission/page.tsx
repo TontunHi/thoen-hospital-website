@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: 'วิสัยทัศน์ พันธกิจ ค่านิยมองค์กร T-H-O-E-N และแผนพัฒนาเป้าหมายระยะยาว โรงพยาบาลเถิน อำเภอเถิน จังหวัดลำปาง',
 }
 
+import Breadcrumb from '@/components/ui/Breadcrumb'
+
 export default function VisionMissionPage() {
   const coreValues = [
     { letter: 'T', name: 'Team', desc: 'ทำงานร่วมกันอย่างเป็นหนึ่งเดียว', colorClass: 'value-t' },
@@ -66,6 +68,7 @@ export default function VisionMissionPage() {
       {/* Hero Section */}
       <section className="visionHero">
         <div className="container">
+          <Breadcrumb variant="light" items={[{ label: 'เกี่ยวกับเรา', href: '/about' }, { label: 'วิสัยทัศน์ ค่านิยม พันธกิจ' }]} />
           <h1 className="heroTitle">วิสัยทัศน์ ค่านิยม พันธกิจ</h1>
           <p className="heroDesc">
             โรงพยาบาลเถิน มุ่งมั่นสู่การบริการที่เป็นเลิศ ชุมชนเข้มแข็ง และพัฒนาคุณภาพมาตรฐานอย่างไม่หยุดยั้ง

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { parseUserAgent } from '@/lib/userAgentParser'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 
 interface AuditLog {
   id: number
@@ -82,6 +83,16 @@ export default function AuditLogsClient() {
 
   // Selected Log for details modal
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
+
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
 
   const fetchLogs = async (currentPage = page) => {
     setLoading(true)
@@ -148,9 +159,10 @@ export default function AuditLogsClient() {
       a.click()
       a.remove()
       window.URL.revokeObjectURL(url)
+      addToast('ส่งออกไฟล์รายงาน Audit Logs เรียบร้อยแล้ว', 'success')
     } catch (err) {
       console.error('Export error:', err)
-      alert('ไม่สามารถส่งออกไฟล์รายงานได้ กรุณาลองใหม่อีกครั้ง')
+      addToast('ไม่สามารถส่งออกไฟล์รายงานได้ กรุณาลองใหม่อีกครั้ง', 'error')
     } finally {
       setExporting(false)
     }
@@ -649,6 +661,8 @@ export default function AuditLogsClient() {
           </div>
         </div>
       )}
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </>
   )
 }

@@ -76,3 +76,67 @@ describe('telegramService - verifyAndLinkTelegram', () => {
     expect(memberDb.queryMemberDb).toHaveBeenCalledTimes(4)
   })
 })
+
+describe('telegramCore - processTelegramUpdate command dispatch', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, result: { message_id: 100 } }),
+    })
+  })
+
+  it('handles /start without token as help message', async () => {
+    const { processTelegramUpdate } = await import('../telegramService')
+    const update = {
+      update_id: 1,
+      message: {
+        chat: { id: 12345 },
+        from: { id: 12345, username: 'testuser' },
+        text: '/start',
+      },
+    }
+
+    const res = await processTelegramUpdate(update)
+    expect(res.handled).toBe(true)
+    expect(res.action).toBe('START_HELP')
+  })
+
+  it('handles /unlink command', async () => {
+    const { processTelegramUpdate } = await import('../telegramService')
+    vi.mocked(memberDb.queryMemberDb)
+      .mockResolvedValueOnce([{ id: 10, name: 'พยาบาล ทดสอบ', username: 'nurse_test' }])
+      .mockResolvedValueOnce([])
+
+    const update = {
+      update_id: 2,
+      message: {
+        chat: { id: 12345 },
+        from: { id: 12345, username: 'testuser' },
+        text: '/unlink',
+      },
+    }
+
+    const res = await processTelegramUpdate(update)
+    expect(res.handled).toBe(true)
+    expect(res.action).toBe('UNLINK_SUCCESS')
+    expect(res.memberName).toBe('พยาบาล ทดสอบ')
+  })
+
+  it('ignores non-command text messages gracefully', async () => {
+    const { processTelegramUpdate } = await import('../telegramService')
+    const update = {
+      update_id: 3,
+      message: {
+        chat: { id: 12345 },
+        from: { id: 12345, username: 'testuser' },
+        text: 'hello bot',
+      },
+    }
+
+    const res = await processTelegramUpdate(update)
+    expect(res.handled).toBe(false)
+    expect(res.action).toBe('IGNORED')
+  })
+})
+

@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Plus, Edit, Trash2, Search, FileText, Calendar, User, ArrowLeft, ExternalLink } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 
 interface Blog {
   id: number
@@ -23,11 +25,27 @@ export default function ItaManagementClient({ initialBlogs, isAdmin }: Props) {
   const [blogs, setBlogs] = useState<Blog[]>(initialBlogs)
   const [searchQuery, setSearchQuery] = useState('')
   const [isDeleting, setIsDeleting] = useState<number | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบบทความนี้?')) return
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
 
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  const confirmDelete = (id: number) => {
+    setDeleteTargetId(id)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (deleteTargetId === null) return
+    const id = deleteTargetId
     setIsDeleting(id)
+
     try {
       const res = await fetch(`/api/ita/blogs/${id}`, {
         method: 'DELETE',
@@ -36,15 +54,16 @@ export default function ItaManagementClient({ initialBlogs, isAdmin }: Props) {
 
       if (data.success) {
         setBlogs(blogs.filter((blog) => blog.id !== id))
-        alert('ลบบทความเรียบร้อยแล้ว')
+        addToast('ลบบทความเรียบร้อยแล้ว', 'success')
       } else {
-        alert(data.error?.message || 'เกิดข้อผิดพลาดในการลบ')
+        addToast(data.error?.message || 'เกิดข้อผิดพลาดในการลบ', 'error')
       }
     } catch (error) {
       console.error('Delete error:', error)
-      alert('เกิดข้อผิดพลาดในการลบ')
+      addToast('เกิดข้อผิดพลาดในการลบ', 'error')
     } finally {
       setIsDeleting(null)
+      setDeleteTargetId(null)
     }
   }
 
@@ -159,9 +178,10 @@ export default function ItaManagementClient({ initialBlogs, isAdmin }: Props) {
                             <span>แก้ไข</span>
                           </Link>
                           <button
-                            onClick={() => handleDelete(blog.id)}
+                            onClick={() => confirmDelete(blog.id)}
                             disabled={isDeleting === blog.id}
                             className="btn-action-delete"
+                            type="button"
                           >
                             <Trash2 size={16} />
                             <span>{isDeleting === blog.id ? 'กำลังลบ...' : 'ลบ'}</span>
@@ -176,6 +196,20 @@ export default function ItaManagementClient({ initialBlogs, isAdmin }: Props) {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteTargetId !== null}
+        title="ยืนยันการลบบทความ ITA"
+        description="คุณแน่ใจหรือไม่ว่าต้องการลบบทความนี้? เมื่อลบแล้วจะไม่สามารถกู้คืนได้"
+        confirmText="ลบบทความ"
+        cancelText="ยกเลิก"
+        type="danger"
+        loading={isDeleting !== null}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTargetId(null)}
+      />
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   )
 }

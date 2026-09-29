@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { queryHosDb } from '@/lib/hosDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { getCachedData } from '@/lib/cache'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
@@ -69,9 +69,9 @@ export async function GET() {
       `
 
       const [waitingList, inProgressList, recoveryList] = await Promise.all([
-        queryHosDb(waitingQuery),
-        queryHosDb(inProgressQuery),
-        queryHosDb(recoveryQuery),
+        queryClinicalDb(waitingQuery),
+        queryClinicalDb(inProgressQuery),
+        queryClinicalDb(recoveryQuery),
       ])
 
       const maskName = (name: string | null): string => {

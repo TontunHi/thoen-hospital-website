@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { usePolling } from '@/hooks/usePolling';
 import './page.css';
 
 interface DoctorItem {
@@ -99,20 +100,21 @@ export default function LabTrackerClient() {
     }
   }, []);
 
-  // Auto-refresh interval (every 60 seconds)
+  // Polling with Page Visibility API (S1)
+  const pollFn = useCallback(async () => {
+    if (activeDoctor) {
+      await fetchDoctorReport(activeDoctor.code, true);
+    } else {
+      await fetchDashboard(true);
+    }
+  }, [activeDoctor, fetchDoctorReport, fetchDashboard]);
+
+  const { lastUpdated: pollingLastUpdated, refresh: pollRefresh } = usePolling(pollFn, 30000, { immediate: false });
+
+  // Initial load
   useEffect(() => {
     fetchDashboard();
-
-    const interval = setInterval(() => {
-      if (activeDoctor) {
-        fetchDoctorReport(activeDoctor.code, true);
-      } else {
-        fetchDashboard(true);
-      }
-    }, 60000); // 60 seconds
-
-    return () => clearInterval(interval);
-  }, [activeDoctor, fetchDashboard, fetchDoctorReport]);
+  }, [fetchDashboard]);
 
   const handleSelectDoctor = (code: string, name: string) => {
     setActiveDoctor({ code, name });

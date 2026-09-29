@@ -55,7 +55,7 @@ export async function GET(
     }
 
     // Read file buffer
-    const fileBuffer = await fs.readFile(resolvedPath)
+    const fileBuffer = await fs.readFile(/*turbopackIgnore: true*/ resolvedPath)
 
     // Build headers for inline PDF stream
     const encodedDisplayName = encodeURIComponent(display_name || 'document')

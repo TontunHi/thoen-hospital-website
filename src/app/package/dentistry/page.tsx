@@ -1,7 +1,18 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
-import Link from 'next/link'
-import { Check, Info, Calendar, Clock, Phone, Sparkles, ShieldAlert, ArrowLeft } from 'lucide-react'
+import { Sparkles, Check, Clock } from 'lucide-react'
+import Breadcrumb from '@/components/ui/Breadcrumb'
+import { siteConfig } from '@/config/site'
 import './page.css'
+
+export const metadata: Metadata = {
+  title: 'บริการด้านทันตกรรม',
+  description: 'บริการทันตกรรมครบวงจร ตรวจสุขภาพฟัน อุดฟัน ขูดหินปูน ถอนฟัน รักษารากฟัน ผ่าฟันคุด โรงพยาบาลเถิน จังหวัดลำปาง',
+  openGraph: {
+    title: `บริการด้านทันตกรรม | ${siteConfig.name}`,
+    description: 'บริการทันตกรรมครบวงจร โรงพยาบาลเถิน จังหวัดลำปาง',
+  },
+}
 
 export default function DentistryPage() {
   const dentalServices = [
@@ -15,7 +26,13 @@ export default function DentistryPage() {
 
   return (
     <div className="dentistryPage">
-      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '5rem' }}>
+      <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '5rem' }}>
+        <Breadcrumb
+          items={[
+            { label: 'แพ็กเกจและบริการ', href: '/package' },
+            { label: 'บริการด้านทันตกรรม' },
+          ]}
+        />
         
 
 

@@ -21,6 +21,7 @@ import {
   Users,
   CreditCard
 } from 'lucide-react'
+import Breadcrumb from '@/components/ui/Breadcrumb'
 import './page.css'
 
 export const metadata: Metadata = {
@@ -72,7 +73,14 @@ const getAmenityIcon = (name: string) => {
 export default function VipRoomPage() {
   return (
     <div className="vip-page">
-      <div className="container" style={{ paddingTop: '2rem', paddingBottom: '5rem' }}>
+      <div className="container" style={{ paddingTop: '1.5rem', paddingBottom: '5rem' }}>
+        <Breadcrumb
+          items={[
+            { label: 'แพ็กเกจและบริการ', href: '/package' },
+            { label: 'อัตราค่าบริการห้องพิเศษ' },
+          ]}
+        />
+
         {/* Hero Banner */}
         <section className="vip-hero">
           <div className="vip-hero__bg" aria-hidden="true" />

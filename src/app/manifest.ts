@@ -1,14 +1,15 @@
 import type { MetadataRoute } from 'next'
+import { siteConfig } from '@/config/site'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'โรงพยาบาลเถิน | Thoen Hospital',
-    short_name: 'โรงพยาบาลเถิน',
-    description: 'ระบบสารสนเทศและการบริการออนไลน์ โรงพยาบาลเถิน จังหวัดลำปาง',
+    name: `${siteConfig.name} | ${siteConfig.englishName}`,
+    short_name: siteConfig.name,
+    description: siteConfig.description,
     start_url: '/',
     display: 'standalone',
     background_color: '#ffffff',
-    theme_color: '#0284c7',
+    theme_color: '#0D7446',
     icons: [
       {
         src: '/images/common/logo-website.webp',

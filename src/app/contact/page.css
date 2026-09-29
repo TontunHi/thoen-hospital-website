@@ -52,9 +52,9 @@
 /* ── Grid Layout ── */
 .contactGrid {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 3rem;
-  align-items: start;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2.5rem;
+  align-items: stretch;
   margin-bottom: 4rem;
 }
 
@@ -63,16 +63,19 @@
 .contactFormSection {
   background: #ffffff;
   border-radius: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+  border: 1.5px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
   padding: 2.5rem;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .infoCard:hover,
 .contactFormSection:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 25px 50px rgba(13, 116, 70, 0.06);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(13, 116, 70, 0.08);
 }
 
 .infoCard {
@@ -189,20 +192,29 @@
   margin: 0;
 }
 
+.infoCard__actions {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--gray-200);
+}
+
 /* Complaints form iframe container */
 .formSubtitle {
   color: #64748b;
   font-size: 0.95rem;
   margin-top: 0;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   line-height: 1.6;
 }
 
 .iframeContainer {
   width: 100%;
+  flex: 1;
+  min-height: 480px;
   overflow: hidden;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
 /* ── Social Media & Google Maps Side-by-Side ── */

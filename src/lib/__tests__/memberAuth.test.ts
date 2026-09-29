@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createToken, verifyToken, shouldRenewSession, renewToken } from '../memberAuth'
 import { createSalaryToken, verifySalaryToken } from '../salaryAuth'
 
@@ -112,3 +112,88 @@ describe('Member & Salary Authentication & JWT Audience', () => {
     expect(verifyToken(token)).toBeNull()
   })
 })
+
+describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
+  it('correctly computes permissions, roles, and feature access', async () => {
+    const { fetchAuthenticatedMember } = await import('../memberAuth')
+    const memberDb = await import('../memberDb')
+
+    // Mock queryMemberDb for user lookup, perms lookup, settings, and telegram link
+    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
+    querySpy
+      .mockResolvedValueOnce([
+        {
+          id: 101,
+          username: 'nurse_som',
+          email: 'som@hospital.go.th',
+          name: 'สมศรี มีสุข',
+          department: 'กลุ่มงานการพยาบาล',
+          position: 'พยาบาลวิชาชีพชำนาญการ',
+          salary_user: '1234567890123',
+          role: 'member',
+          signature_path: 'storage/nurse_som/signature.png',
+          profile_path: 'storage/nurse_som/profile.png',
+        },
+      ]) // members query
+      .mockResolvedValueOnce([{ permission_key: 'manage_ethics' }]) // position permissions
+      .mockResolvedValueOnce([
+        { config_key: 'feature_signature', config_value: '1' },
+        { config_key: 'feature_salary', config_value: '0' },
+      ]) // system settings
+      .mockResolvedValueOnce([{ id: 1 }]) // telegram link
+
+    const member = await fetchAuthenticatedMember('nurse_som', 'som@hospital.go.th')
+    expect(member).not.toBeNull()
+    expect(member?.username).toBe('nurse_som')
+    expect(member?.name).toBe('สมศรี มีสุข')
+    expect(member?.hasSignature).toBe(true)
+    expect(member?.hasSalary).toBe(true)
+    expect(member?.isTelegramLinked).toBe(true)
+    expect(member?.isAdmin).toBe(false)
+    expect(member?.can('manage_ethics')).toBe(true)
+    expect(member?.can('manage_news')).toBe(false)
+    expect(member?.isFeatureEnabled('feature_signature')).toBe(true)
+    expect(member?.isFeatureEnabled('feature_salary')).toBe(false)
+    expect(member?.hasAccess('feature_signature')).toBe(true)
+    expect(member?.hasAccess('feature_salary')).toBe(false)
+
+    querySpy.mockRestore()
+  })
+
+  it('grants all permissions and feature access to admin users', async () => {
+    const { fetchAuthenticatedMember } = await import('../memberAuth')
+    const memberDb = await import('../memberDb')
+
+    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
+    querySpy
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          username: 'admin_it',
+          email: 'admin@hospital.go.th',
+          name: 'แอดมิน โรงพยาบาล',
+          department: 'งานดิจิทัล',
+          position: 'นักวิชาการคอมพิวเตอร์',
+          salary_user: null,
+          role: 'admin',
+          signature_path: null,
+          profile_path: null,
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ config_key: 'feature_salary', config_value: '0' }])
+      .mockResolvedValueOnce([])
+
+    const member = await fetchAuthenticatedMember('admin_it', 'admin@hospital.go.th')
+    expect(member).not.toBeNull()
+    expect(member?.isAdmin).toBe(true)
+    expect(member?.can('manage_ethics')).toBe(true)
+    expect(member?.can('manage_news')).toBe(true)
+    expect(member?.can('upload_salary')).toBe(true)
+    // Even if setting is 0, admin has access
+    expect(member?.hasAccess('feature_salary')).toBe(true)
+
+    querySpy.mockRestore()
+  })
+})
+

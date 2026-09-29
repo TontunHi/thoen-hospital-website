@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockPrismaQueryRaw = vi.fn()
-const mockQueryHosDb = vi.fn()
+const mockQueryClinicalDb = vi.fn()
 const mockQuerySalaryDb = vi.fn()
 
 vi.mock('@/lib/prisma', () => ({
@@ -10,8 +10,8 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-vi.mock('@/lib/hosDb', () => ({
-  queryHosDb: (...args: any[]) => mockQueryHosDb(...args),
+vi.mock('@/lib/clinicalDb', () => ({
+  queryClinicalDb: (...args: any[]) => mockQueryClinicalDb(...args),
 }))
 
 vi.mock('@/lib/salaryDb', () => ({
@@ -37,7 +37,7 @@ describe('System Health Check API', () => {
 
   it('returns 200 and healthy when all databases respond', async () => {
     mockPrismaQueryRaw.mockResolvedValue([{ '1': 1 }])
-    mockQueryHosDb.mockResolvedValue([{ '1': 1 }])
+    mockQueryClinicalDb.mockResolvedValue([{ '1': 1 }])
     mockQuerySalaryDb.mockResolvedValue([{ '1': 1 }])
 
     const { GET } = await import('../route')
@@ -53,7 +53,7 @@ describe('System Health Check API', () => {
 
   it('returns 200 and degraded when non-critical replica fails but primary DB is UP', async () => {
     mockPrismaQueryRaw.mockResolvedValue([{ '1': 1 }])
-    mockQueryHosDb.mockRejectedValue(new Error('Replica connection refused'))
+    mockQueryClinicalDb.mockRejectedValue(new Error('Replica connection refused'))
     mockQuerySalaryDb.mockResolvedValue([{ '1': 1 }])
 
     const { GET } = await import('../route')
@@ -69,7 +69,7 @@ describe('System Health Check API', () => {
 
   it('returns 503 and unhealthy when primary database is DOWN', async () => {
     mockPrismaQueryRaw.mockRejectedValue(new Error('MySQL Primary dead'))
-    mockQueryHosDb.mockResolvedValue([{ '1': 1 }])
+    mockQueryClinicalDb.mockResolvedValue([{ '1': 1 }])
     mockQuerySalaryDb.mockResolvedValue([{ '1': 1 }])
 
     const { GET } = await import('../route')

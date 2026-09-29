@@ -20,6 +20,7 @@ import {
   Save,
   X
 } from 'lucide-react'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface RduFile {
   id: number
@@ -50,6 +51,12 @@ export default function RduManagerClient({ initialFolders }: Props) {
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
   const [editingFolderId, setEditingFolderId] = useState<number | null>(null)
   const [editingFolderName, setEditingFolderName] = useState('')
+
+  // Confirmation state
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<RduFolder | null>(null)
+  const [deleteFileTarget, setDeleteFileTarget] = useState<RduFile | null>(null)
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false)
+  const [isDeletingFile, setIsDeletingFile] = useState(false)
 
   // Uploading state: mapping folderId to boolean
   const [uploadingFolderId, setUploadingFolderId] = useState<number | null>(null)
@@ -131,8 +138,10 @@ export default function RduManagerClient({ initialFolders }: Props) {
   }
 
   // Delete Folder
-  const handleDeleteFolder = async (folder: RduFolder) => {
-    if (!confirm(`คุณต้องการลบโฟลเดอร์ "${folder.folder_name}" พร้อมไฟล์ทั้งหมดในโฟลเดอร์นี้หรือไม่?`)) return
+  const handleConfirmDeleteFolder = async () => {
+    if (!deleteFolderTarget) return
+    const folder = deleteFolderTarget
+    setIsDeletingFolder(true)
 
     try {
       const res = await fetch(`/api/member/rdu/folders?id=${folder.id}`, { method: 'DELETE' })
@@ -143,6 +152,9 @@ export default function RduManagerClient({ initialFolders }: Props) {
       await reloadData()
     } catch (err: any) {
       notify(err.message, 'error')
+    } finally {
+      setIsDeletingFolder(false)
+      setDeleteFolderTarget(null)
     }
   }
 
@@ -233,8 +245,10 @@ export default function RduManagerClient({ initialFolders }: Props) {
   }
 
   // Delete File
-  const handleDeleteFile = async (file: RduFile) => {
-    if (!confirm(`คุณต้องการลบไฟล์ "${file.display_name}" หรือไม่?`)) return
+  const handleConfirmDeleteFile = async () => {
+    if (!deleteFileTarget) return
+    const file = deleteFileTarget
+    setIsDeletingFile(true)
 
     try {
       const res = await fetch(`/api/member/rdu/files?id=${file.id}`, { method: 'DELETE' })
@@ -245,6 +259,9 @@ export default function RduManagerClient({ initialFolders }: Props) {
       await reloadData()
     } catch (err: any) {
       notify(err.message, 'error')
+    } finally {
+      setIsDeletingFile(false)
+      setDeleteFileTarget(null)
     }
   }
 
@@ -407,7 +424,7 @@ export default function RduManagerClient({ initialFolders }: Props) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDeleteFolder(folder)}
+                    onClick={() => setDeleteFolderTarget(folder)}
                     className="btnIconAction btnDelete"
                     title="ลบโฟลเดอร์"
                   >
@@ -542,7 +559,7 @@ export default function RduManagerClient({ initialFolders }: Props) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteFile(file)}
+                          onClick={() => setDeleteFileTarget(file)}
                           className="btnIconSmall btnDeleteSmall"
                           title="ลบไฟล์"
                         >
@@ -559,6 +576,32 @@ export default function RduManagerClient({ initialFolders }: Props) {
           ))
         )}
       </div>
+
+      {/* Confirm Delete Folder Dialog */}
+      <ConfirmDialog
+        isOpen={deleteFolderTarget !== null}
+        title="ยืนยันการลบโฟลเดอร์ RDU"
+        description={`คุณต้องการลบโฟลเดอร์ "${deleteFolderTarget?.folder_name}" พร้อมไฟล์ทั้งหมดในโฟลเดอร์นี้หรือไม่? เมื่อลบแล้วจะไม่สามารถกู้คืนได้`}
+        confirmText="ลบโฟลเดอร์"
+        cancelText="ยกเลิก"
+        type="danger"
+        loading={isDeletingFolder}
+        onConfirm={handleConfirmDeleteFolder}
+        onCancel={() => setDeleteFolderTarget(null)}
+      />
+
+      {/* Confirm Delete File Dialog */}
+      <ConfirmDialog
+        isOpen={deleteFileTarget !== null}
+        title="ยืนยันการลบไฟล์ RDU"
+        description={`คุณต้องการลบไฟล์ "${deleteFileTarget?.display_name}" หรือไม่?`}
+        confirmText="ลบไฟล์"
+        cancelText="ยกเลิก"
+        type="danger"
+        loading={isDeletingFile}
+        onConfirm={handleConfirmDeleteFile}
+        onCancel={() => setDeleteFileTarget(null)}
+      />
     </div>
   )
 }

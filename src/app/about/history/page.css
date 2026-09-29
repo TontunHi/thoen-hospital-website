@@ -6,9 +6,9 @@
 
 /* Hero Section */
 .historyHero {
-  background: linear-gradient(135deg, #0f766e 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #0D7446 0%, #0F9D58 50%, #0b633c 100%);
   color: #ffffff;
-  padding: 5.5rem 0;
+  padding: 5rem 0 5.5rem;
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -21,26 +21,26 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 20% 30%, rgba(20, 184, 166, 0.15) 0%, transparent 60%);
+  background: radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
   pointer-events: none;
 }
 
 .historyHero .heroTitle {
-  font-size: 2.75rem;
+  font-size: clamp(2.2rem, 4.5vw, 2.85rem);
   font-weight: 800;
-  margin: 0 0 1rem 0;
-  line-height: 1.2;
-  background: linear-gradient(135deg, #fcd34d 0%, #2dd4bf 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.25;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   display: inline-block;
 }
 
 .historyHero .heroDesc {
-  font-size: 1.25rem;
-  color: #e2e8f0;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.95);
   margin: 0;
   font-weight: 500;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Page Layout */
