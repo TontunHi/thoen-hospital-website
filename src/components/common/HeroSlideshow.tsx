@@ -158,14 +158,14 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
 
       {/* Navigation Arrows & Play/Pause Controls */}
       {slides.length > 1 && (
-        <div className="heroControls">
+        <>
           <button
             type="button"
             onClick={prevSlide}
             className="navBtn prev touch-target"
             aria-label="สไลด์ก่อนหน้า"
           >
-            <ChevronLeft size={24} />
+            <ChevronLeft size={20} />
           </button>
 
           <button
@@ -174,7 +174,7 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
             className="navBtn next touch-target"
             aria-label="สไลด์ถัดไป"
           >
-            <ChevronRight size={24} />
+            <ChevronRight size={20} />
           </button>
 
           <div className="heroBottomControls">
@@ -185,7 +185,7 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
               aria-label={isPlaying ? 'หยุดเล่นสไลด์อัตโนมัติ' : 'เล่นสไลด์อัตโนมัติ'}
               title={isPlaying ? 'หยุดเล่นสไลด์อัตโนมัติ' : 'เล่นสไลด์อัตโนมัติ'}
             >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+              {isPlaying ? <Pause size={12} /> : <Play size={12} />}
             </button>
 
             <div className="indicatorDots" role="tablist" aria-label="เลือกสไลด์">
@@ -202,7 +202,7 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
               ))}
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
