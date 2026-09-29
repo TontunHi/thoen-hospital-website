@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { notifyRepairAcceptedOnTelegram, notifyRepairCompletedOnTelegram, notifyRepairCancelledOnTelegram } from '@/lib/taskInboxService'
 import crypto from 'crypto'
 
 export async function POST(
@@ -53,10 +54,11 @@ export async function POST(
 
     const isAssignee = task.current_assignee === currentMember.id
     const isCoWorker = coWorkers.some((cw: any) => cw.id === currentMember.id)
+    const isRequester = task.requester_id === currentMember.id
     const isAdmin = currentMember.role === 'admin'
 
-    if (!isAssignee && !isCoWorker && !isAdmin) {
-      return NextResponse.json({ error: 'เฉพาะช่างผู้รับผิดชอบหรือผู้ร่วมงานเท่านั้นที่สามารถดำเนินการได้' }, { status: 403 })
+    if (!isAssignee && !isCoWorker && !isAdmin && !(action === 'CANCEL_JOB' && isRequester)) {
+      return NextResponse.json({ error: 'เฉพาะช่างผู้รับผิดชอบ ผู้ยื่นคำขอ หรือผู้ดูแลระบบเท่านั้นที่สามารถดำเนินการได้' }, { status: 403 })
     }
 
     // ── Action 1: ACCEPT_JOB (ช่างรับงาน) ──
@@ -86,6 +88,19 @@ export async function POST(
           JSON.stringify({ status: 'IN_PROGRESS', technician: currentMember.name }),
         ]
       )
+
+      // Notify Requester on Telegram that technician accepted the job
+      notifyRepairAcceptedOnTelegram({
+        taskId,
+        taskNo: task.task_no,
+        taskType: task.task_type,
+        title: task.title,
+        requesterId: task.requester_id,
+        technicianName: currentMember.name || session.username,
+        technicianPosition: currentMember.position,
+        equipmentNumber: repairDetail.equipment_number || null,
+        location: repairDetail.location_full_name || null,
+      }).catch((e) => console.error('Telegram dispatch error on accept job:', e))
 
       return NextResponse.json({
         success: true,
@@ -242,9 +257,88 @@ export async function POST(
         ]
       )
 
+      // Notify Requester on Telegram that repair is completed
+      notifyRepairCompletedOnTelegram({
+        taskId,
+        taskNo: task.task_no,
+        taskType: task.task_type,
+        title: task.title,
+        requesterId: task.requester_id,
+        technicianName: currentMember.name || session.username,
+        costType: costType || repairDetail.cost_type,
+        costAmount: costAmount ? Number(costAmount) : repairDetail.cost_amount,
+        location: repairDetail.location_full_name || null,
+        solutionStep: solutionStep?.trim() || repairDetail.solution_step || null,
+      }).catch((e) => console.error('Telegram dispatch error on complete repair:', e))
+
       return NextResponse.json({
         success: true,
         message: 'บันทึกการซ่อมเสร็จสิ้นสมบูรณ์',
+      })
+    }
+
+    // ── Action 5: CANCEL_JOB (ยกเลิก / ปฏิเสธงานแจ้งซ่อม) ──
+    if (action === 'CANCEL_JOB') {
+      const { reason } = body
+
+      if (task.status === 'APPROVED' || task.status === 'REJECTED') {
+        return NextResponse.json({ error: 'ไม่สามารถยกเลิกงานที่เสร็จสิ้นหรือถูกยกเลิกไปแล้วได้' }, { status: 400 })
+      }
+
+      const cancelReasonText = reason?.trim() || (isRequester ? 'ผู้ยื่นคำขอยกเลิกรายการ' : 'ช่างปฏิเสธ/ยกเลิกงานซ่อม')
+
+      await queryMemberDb(
+        `UPDATE inbox_tasks SET status = 'REJECTED', updated_at = NOW() WHERE id = ?`,
+        [taskId]
+      )
+
+      await queryMemberDb(
+        `UPDATE repair_details SET repair_status = 'CANCELLED', updated_at = NOW() WHERE task_id = ?`,
+        [taskId]
+      )
+
+      await queryMemberDb(
+        `UPDATE inbox_task_steps 
+         SET status = 'REJECTED', action_taken = 'REJECT', action_by = ?, action_by_name = ?, action_at = NOW(), comment = ?
+         WHERE task_id = ? AND step_no = 1`,
+        [currentMember.id, currentMember.name || session.username, cancelReasonText, taskId]
+      )
+
+      // Audit Log
+      await queryMemberDb(
+        `INSERT INTO inbox_task_audit_logs (id, task_id, action, performed_by, performer_name, details)
+         VALUES (?, ?, 'CANCEL_REPAIR', ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          taskId,
+          currentMember.id,
+          currentMember.name || session.username,
+          JSON.stringify({ status: 'REJECTED', reason: cancelReasonText }),
+        ]
+      )
+
+      // Determine who to notify:
+      // If cancelled by technician/admin -> notify requester
+      // If cancelled by requester -> notify technician (if assigned)
+      const targetMemberId = isRequester ? (task.current_assignee || repairDetail.assigned_technician_id) : task.requester_id
+
+      if (targetMemberId) {
+        notifyRepairCancelledOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          taskType: task.task_type,
+          title: task.title,
+          targetMemberId,
+          cancelledByName: currentMember.name || session.username,
+          cancelledByRole: currentMember.position || (isRequester ? 'ผู้ยื่นคำขอ' : 'ช่างผู้รับผิดชอบ'),
+          reason: cancelReasonText,
+          location: repairDetail.location_full_name || null,
+        }).catch((e) => console.error('Telegram dispatch error on cancel repair:', e))
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'ยกเลิกรายการแจ้งซ่อมเรียบร้อยแล้ว',
       })
     }
 

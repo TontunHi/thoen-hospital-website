@@ -271,4 +271,56 @@ export const DocumentStorage = {
     }
     return saved
   },
+
+  /**
+   * Helper to format standard date subdirectory path.
+   * - 'daily': public/uploads/<subDir>/DD-MM-YYYY
+   * - 'monthly': public/uploads/<subDir>/YYYY/MM
+   * - 'yearly': public/uploads/<subDir>/YYYY
+   */
+  formatDateDirectory(
+    subDir: string,
+    dateInput?: string | Date | null,
+    mode: 'daily' | 'monthly' | 'yearly' = 'daily'
+  ): string {
+    let d = new Date()
+    if (dateInput) {
+      const parsed = new Date(dateInput)
+      if (!isNaN(parsed.getTime())) {
+        d = parsed
+      }
+    }
+
+    const year = String(d.getFullYear())
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+
+    const cleanSubDir = subDir.replace(/^\/+|\/+$/g, '')
+
+    if (mode === 'monthly') {
+      return `${cleanSubDir}/${year}/${month}`
+    } else if (mode === 'yearly') {
+      return `${cleanSubDir}/${year}`
+    }
+    return `${cleanSubDir}/${day}-${month}-${year}`
+  },
+
+  /**
+   * Save multiple files in a batch operation.
+   */
+  async saveBatch(
+    files: (File | { name: string; type?: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> } | Buffer)[],
+    options: StorageSaveOptions
+  ): Promise<StoredFileResult[]> {
+    if (!files || files.length === 0) {
+      return []
+    }
+
+    const results: StoredFileResult[] = []
+    for (const file of files) {
+      const saved = await this.save(file, options)
+      results.push(saved)
+    }
+    return results
+  },
 }

@@ -359,6 +359,16 @@
   color: #006699;
 }
 
+/* Connected chip */
+.memberDashboardContainer .pb-chipConnected {
+  background: #f0f9ff;
+  border-color: #e0f2fe;
+}
+.memberDashboardContainer .pb-chipConnected:hover {
+  border-color: #bae6fd;
+  background: #e0f2fe;
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

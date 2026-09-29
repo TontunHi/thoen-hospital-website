@@ -34,8 +34,6 @@ export type MemberPermission =
   | 'manage_outgoing_doc'
   | 'view_all_salary'
   | 'upload_salary'
-  | 'create_work'
-  | 'view_all_work'
   | 'manage_locations'
   | 'manage_repairs'
   | 'manage_inbox'

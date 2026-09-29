@@ -20,24 +20,7 @@ export async function POST(request: Request) {
     const title = (formData.get('title') as string) || ''
     const publishedAt = (formData.get('publishedAt') as string) || ''
 
-    // Format date folder as DD-MM-YYYY
-    let dateStr = ''
-    if (publishedAt) {
-      const d = new Date(publishedAt)
-      if (!isNaN(d.getTime())) {
-        const day = String(d.getDate()).padStart(2, '0')
-        const month = String(d.getMonth() + 1).padStart(2, '0')
-        const year = d.getFullYear()
-        dateStr = `${day}-${month}-${year}`
-      }
-    }
-    if (!dateStr) {
-      const d = new Date()
-      const day = String(d.getDate()).padStart(2, '0')
-      const month = String(d.getMonth() + 1).padStart(2, '0')
-      const year = d.getFullYear()
-      dateStr = `${day}-${month}-${year}`
-    }
+    const dateStr = DocumentStorage.formatDateDirectory('', publishedAt, 'daily')
 
     const cleanTitle = sanitizeName(title) || 'untitled'
     const isPdf = file.type === 'application/pdf'

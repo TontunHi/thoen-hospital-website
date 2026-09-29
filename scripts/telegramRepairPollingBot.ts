@@ -89,11 +89,15 @@ async function main() {
         for (const update of res.result) {
           offset = update.update_id + 1
 
-          if (update.message) {
+          if (update.callback_query) {
+            console.log(`📩 Incoming callback_query: [${update.callback_query.data}] from user ${update.callback_query.from.id} (${update.callback_query.from.first_name || update.callback_query.from.username})`)
+          } else if (update.message?.text) {
+            console.log(`📩 Incoming text message: "${update.message.text}" from user ${update.message.from?.id} (${update.message.from?.first_name || update.message.from?.username})`)
+          }
+
+          if (update.message || update.callback_query) {
             const result = await processTelegramUpdate(update)
-            if (result.handled) {
-              console.log(`📡 Processed Telegram update [${result.action}] for member: ${result.memberName || 'N/A'}`)
-            }
+            console.log(`📡 Result: action=${result.action}, handled=${result.handled}, member=${result.memberName || 'N/A'}${result.error ? `, error=${result.error}` : ''}`)
           }
         }
       }

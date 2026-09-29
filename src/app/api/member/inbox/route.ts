@@ -54,11 +54,11 @@ export async function GET(request: Request) {
       }
       // If canViewAll, no restriction unless filtered
     } else {
-      // Default 'inbox': Tasks waiting for this specific user, user's assigned role/position, or where user is co-worker
+      // Default 'inbox': Tasks waiting for this specific user or currently in-progress by this user / role / co-worker
       whereClauses.push(
-        `(t.status = 'PENDING' AND (
+        `(t.status IN ('PENDING', 'IN_PROGRESS') AND (
           t.current_assignee = ? 
-          OR (t.current_role IS NOT NULL AND (t.current_role = ? OR t.current_role = ?))
+          OR (t.\`current_role\` IS NOT NULL AND (t.\`current_role\` = ? OR t.\`current_role\` = ?))
           OR EXISTS (
             SELECT 1 FROM repair_details rd 
             WHERE rd.task_id = t.id 
@@ -90,7 +90,7 @@ export async function GET(request: Request) {
       `SELECT 
         t.id, t.task_no, t.task_type, t.title, t.description, t.urgency,
         t.requester_id, t.requester_name, t.requester_dept,
-        t.status, t.current_step_no, t.current_assignee, t.current_role,
+        t.status, t.current_step_no, t.current_assignee, t.\`current_role\`,
         t.reference_id, t.created_at, t.updated_at,
         s.step_name as current_step_name
        FROM inbox_tasks t
@@ -106,10 +106,10 @@ export async function GET(request: Request) {
     // Summary count for badges and stats cards
     const inboxBadgeRows = await queryMemberDb(
       `SELECT COUNT(*) as cnt FROM inbox_tasks t 
-       WHERE t.status = 'PENDING' 
+       WHERE t.status IN ('PENDING', 'IN_PROGRESS') 
        AND (
          t.current_assignee = ? 
-         OR (t.current_role IS NOT NULL AND (t.current_role = ? OR t.current_role = ?))
+         OR (t.\`current_role\` IS NOT NULL AND (t.\`current_role\` = ? OR t.\`current_role\` = ?))
          OR EXISTS (
            SELECT 1 FROM repair_details rd 
            WHERE rd.task_id = t.id 
@@ -122,7 +122,7 @@ export async function GET(request: Request) {
 
     // Other stats for dashboard
     const allPendingRows = await queryMemberDb(
-      `SELECT COUNT(*) as cnt FROM inbox_tasks t WHERE t.status = 'PENDING'`
+      `SELECT COUNT(*) as cnt FROM inbox_tasks t WHERE t.status IN ('PENDING', 'IN_PROGRESS')`
     )
     const allPendingCount = allPendingRows[0]?.cnt || 0
 
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
     // 1. Insert into inbox_tasks
     await queryMemberDb(
       `INSERT INTO inbox_tasks 
-       (id, task_no, task_type, title, description, urgency, requester_id, requester_name, requester_dept, status, current_step_no, current_assignee, current_role, custom_payload) 
+       (\`id\`, \`task_no\`, \`task_type\`, \`title\`, \`description\`, \`urgency\`, \`requester_id\`, \`requester_name\`, \`requester_dept\`, \`status\`, \`current_step_no\`, \`current_assignee\`, \`current_role\`, \`custom_payload\`) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 1, ?, ?, ?)`,
       [
         taskId,

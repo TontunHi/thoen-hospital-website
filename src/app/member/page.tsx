@@ -16,10 +16,7 @@ import {
   Scale, 
   Inbox, 
   Wrench, 
-  MapPin, 
-  Lock, 
-  CheckCircle, 
-  AlertCircle 
+  MapPin 
 } from 'lucide-react'
 import './page.css'
 
@@ -68,47 +65,13 @@ function SalaryCard({ show }: { show: boolean }) {
 }
 
 function InboxCard({ show, pendingInboxCount }: { show: boolean; pendingInboxCount: number }) {
-  if (!show) {
-    return (
-      <div className="serviceCard serviceCardDisabled">
-        <div className="serviceCardHeader">
-          <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
-            <Lock size={24} />
-          </div>
-          <div className="statusIndicator error">
-            <span>ปิดบริการชั่วคราว</span>
-          </div>
-        </div>
-        <div className="serviceCardBody">
-          <h4>กล่องงาน</h4>
-          <p>ตรวจสอบและอนุมัติงานที่ส่งมาถึงคุณ พร้อมติดตามสถานะงานที่คุณยื่นขอ</p>
-        </div>
-        <div className="serviceCardFooter">
-          <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-          <ChevronRight size={16} className="chevronIcon" />
-        </div>
-      </div>
-    )
-  }
+  if (!show) return null
 
   return (
     <Link href="/member/inbox" className="serviceCard" style={{ border: pendingInboxCount > 0 ? '1.5px solid #3b82f6' : undefined }}>
       <div className="serviceCardHeader">
         <div className="serviceIconWrapper" style={{ backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
           <Inbox size={24} />
-        </div>
-        <div className={`statusIndicator ${pendingInboxCount > 0 ? 'warning' : 'success'}`} style={{ backgroundColor: pendingInboxCount > 0 ? '#fef3c7' : '#dcfce7', color: pendingInboxCount > 0 ? '#b45309' : '#15803d' }}>
-          {pendingInboxCount > 0 ? (
-            <>
-              <AlertCircle size={14} />
-              <span>รอคุณดำเนินการ {pendingInboxCount} รายการ</span>
-            </>
-          ) : (
-            <>
-              <CheckCircle size={14} />
-              <span>ไม่มีงานค้าง</span>
-            </>
-          )}
         </div>
       </div>
       <div className="serviceCardBody">
@@ -124,38 +87,13 @@ function InboxCard({ show, pendingInboxCount }: { show: boolean; pendingInboxCou
 }
 
 function RepairCard({ show }: { show: boolean }) {
-  if (!show) {
-    return (
-      <div className="serviceCard serviceCardDisabled">
-        <div className="serviceCardHeader">
-          <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
-            <Lock size={24} />
-          </div>
-          <div className="statusIndicator error">
-            <span>ปิดบริการชั่วคราว</span>
-          </div>
-        </div>
-        <div className="serviceCardBody">
-          <h4>แจ้งซ่อมบำรุง</h4>
-          <p>ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมระบุครุภัณฑ์และสถานที่</p>
-        </div>
-        <div className="serviceCardFooter">
-          <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
-          <ChevronRight size={16} className="chevronIcon" />
-        </div>
-      </div>
-    )
-  }
+  if (!show) return null
 
   return (
     <Link href="/member/repairs/new" className="serviceCard">
       <div className="serviceCardHeader">
         <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
           <Wrench size={24} />
-        </div>
-        <div className="statusIndicator success" style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
-          <CheckCircle size={14} />
-          <span>พร้อมให้บริการ</span>
         </div>
       </div>
       <div className="serviceCardBody">
@@ -179,7 +117,7 @@ export default async function MemberDashboardPage() {
     const inboxRows = await queryMemberDb(
       `SELECT COUNT(*) as cnt FROM inbox_tasks 
        WHERE status = 'PENDING' 
-       AND (current_assignee = ? OR (current_role IS NOT NULL AND (current_role = ? OR current_role = ?)))`,
+       AND (current_assignee = ? OR (\`current_role\` IS NOT NULL AND (\`current_role\` = ? OR \`current_role\` = ?)))`,
       [member.id, (member.position || '').trim(), member.role]
     )
     pendingInboxCount = inboxRows[0]?.cnt || 0
@@ -466,9 +404,6 @@ export default async function MemberDashboardPage() {
                   <div className="serviceCardHeader">
                     <div className="serviceIconWrapper" style={{ backgroundColor: '#ecfdf5', color: '#059669', borderColor: '#d1fae5', borderWidth: '1px', borderStyle: 'solid' }}>
                       <MapPin size={24} />
-                    </div>
-                    <div className="statusIndicator success" style={{ backgroundColor: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' }}>
-                      <span>ฐานข้อมูลสถานที่</span>
                     </div>
                   </div>
                   <div className="serviceCardBody">

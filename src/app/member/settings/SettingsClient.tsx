@@ -59,7 +59,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [permissions, setPermissions] = useState<PermissionMapping[]>([])
   const [availablePositions, setAvailablePositions] = useState<string[]>([])
   const [newPosition, setNewPosition] = useState('')
-  const [newPermKey, setNewPermKey] = useState('create_work')
+  const [newPermKey, setNewPermKey] = useState('manage_repairs')
   const [customPosition, setCustomPosition] = useState('')
   const [isCustomMode, setIsCustomMode] = useState(false)
   const [isAddingPerm, setIsAddingPerm] = useState(false)
@@ -178,19 +178,19 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   }
 
   const permMetadata: Record<string, { label: string; desc: string; icon: any; color: string; bg: string }> = {
-    create_work: {
-      label: 'เปิดคำขอใบงานช่าง (create_work)',
-      desc: 'สามารถเปิดใบแจ้งซ่อมหรือขอความช่วยเหลือจากหน่วยงานช่าง',
+    manage_repairs: {
+      label: 'ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (manage_repairs)',
+      desc: 'ทีมหัวหน้าช่างและผู้ดูแลระบบงานซ่อมบำรุง ตรวจสอบและมอบหมายงานซ่อมทั้งหมด',
       icon: Wrench,
+      color: '#2563eb',
+      bg: '#eff6ff'
+    },
+    manage_inbox: {
+      label: 'ดูแลระบบกล่องงานและสายการอนุมัติ (manage_inbox)',
+      desc: 'ผู้ดูแลระบบกล่องงานกลาง ตรวจสอบและติดตามขั้นตอนงานและสถานะเอกสารทั้งหมด',
+      icon: Inbox,
       color: '#0284c7',
       bg: '#e0f2fe'
-    },
-    view_all_work: {
-      label: 'ดูแลระบบ/ดูงานช่างทั้งหมด (view_all_work)',
-      desc: 'เจ้าหน้าที่ช่างสามารถตรวจสอบ อัปเดตสถานะ และปิดงานซ่อมทั้งหมด',
-      icon: Eye,
-      color: '#0d9488',
-      bg: '#ccfbf1'
     },
     upload_salary: {
       label: 'อัปโหลดเงินเดือน/ค่าตอบแทน (upload_salary)',
@@ -247,20 +247,6 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       icon: MapPin,
       color: '#059669',
       bg: '#d1fae5'
-    },
-    manage_repairs: {
-      label: 'ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (manage_repairs)',
-      desc: 'ทีมหัวหน้าช่างและผู้ดูแลระบบงานซ่อมบำรุง ตรวจสอบและมอบหมายงานซ่อมทั้งหมด',
-      icon: Wrench,
-      color: '#2563eb',
-      bg: '#eff6ff'
-    },
-    manage_inbox: {
-      label: 'ดูแลระบบกล่องงานและสายการอนุมัติ (manage_inbox)',
-      desc: 'ผู้ดูแลระบบกล่องงานกลาง ตรวจสอบและติดตามขั้นตอนงานและสถานะเอกสารทั้งหมด',
-      icon: Inbox,
-      color: '#0284c7',
-      bg: '#e0f2fe'
     }
   }
 

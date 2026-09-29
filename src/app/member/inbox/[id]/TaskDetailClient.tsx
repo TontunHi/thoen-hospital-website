@@ -14,12 +14,20 @@ import {
   Calendar, 
   Send, 
   ShieldCheck, 
-  FileText,
-  Edit3,
-  History,
-  CheckCircle2,
-  Wrench,
-  MapPin
+  FileText, 
+  Edit3, 
+  History, 
+  CheckCircle2, 
+  Wrench, 
+  MapPin,
+  ExternalLink,
+  Plus,
+  Trash2,
+  Building2,
+  Stethoscope,
+  Sparkles,
+  Info,
+  DollarSign
 } from 'lucide-react'
 
 interface TaskStep {
@@ -73,6 +81,8 @@ export default function TaskDetailClient({
   const [isCoWorkerModalOpen, setIsCoWorkerModalOpen] = useState(false)
   const [selectedCoWorkerId, setSelectedCoWorkerId] = useState('')
   const [isRepairProgressModalOpen, setIsRepairProgressModalOpen] = useState(false)
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
   const [repairProgressForm, setRepairProgressForm] = useState({
     repairNature: 'NORMAL',
     isExternalRepair: false,
@@ -165,7 +175,7 @@ export default function TaskDetailClient({
 
       const data = await res.json()
       if (res.ok && data.success) {
-        setSuccessMsg(`ดำเนินการ ${action} สำเร็จเรียบร้อยแล้ว`)
+        setSuccessMsg(`ดำเนินการ ${action === 'APPROVE' ? 'อนุมัติ' : action === 'SEND_BACK' ? 'ส่งกลับแก้ไข' : 'ไม่อนุมัติ'} สำเร็จเรียบร้อยแล้ว`)
         setActionComment('')
         setIsEditingPayload(false)
         await loadData()
@@ -204,6 +214,39 @@ export default function TaskDetailClient({
     }
   }
 
+  const handleCancelJob = async () => {
+    if (!cancelReason.trim()) {
+      alert('กรุณาระบุเหตุผลในการยกเลิกหรือปฏิเสธงาน')
+      return
+    }
+    setActionLoading(true)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      const res = await fetch(`/api/member/inbox/${taskId}/repair-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CANCEL_JOB',
+          reason: cancelReason.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccessMsg(data.message)
+        setIsCancelModalOpen(false)
+        setCancelReason('')
+        await loadData()
+      } else {
+        setError(data.error || 'เกิดข้อผิดพลาดในการยกเลิกงาน')
+      }
+    } catch (err) {
+      setError('ไม่สามารถทำรายการได้')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleAddCoWorker = async () => {
     if (!selectedCoWorkerId) return
     const target = allMembers.find(m => String(m.id) === String(selectedCoWorkerId))
@@ -233,7 +276,7 @@ export default function TaskDetailClient({
         alert(data.error || 'ไม่สามารถเพิ่มผู้ร่วมงานได้')
       }
     } catch (err) {
-      alert('เกิดข้อผิดพลาด')
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ')
     } finally {
       setActionLoading(false)
     }
@@ -335,11 +378,81 @@ export default function TaskDetailClient({
     }
   }
 
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case 'IT_REPAIR':
+        return (
+          <span className="typeBadge typeIT">
+            <Wrench size={13} />
+            <span>ซ่อมคอมฯ/ไอที</span>
+          </span>
+        )
+      case 'GENERAL_REPAIR':
+        return (
+          <span className="typeBadge typeGeneral">
+            <Wrench size={13} />
+            <span>ซ่อมงานช่างทั่วไป</span>
+          </span>
+        )
+      case 'MEDICAL_REPAIR':
+        return (
+          <span className="typeBadge typeMedical">
+            <Stethoscope size={13} />
+            <span>ซ่อมเครื่องมือแพทย์</span>
+          </span>
+        )
+      case 'ROOM_BOOKING':
+        return (
+          <span className="typeBadge typeRoom">
+            <Building2 size={13} />
+            <span>จองห้องประชุม</span>
+          </span>
+        )
+      case 'DOC_APPROVAL':
+        return (
+          <span className="typeBadge typeDoc">
+            <FileText size={13} />
+            <span>ขออนุมัติเอกสาร</span>
+          </span>
+        )
+      default:
+        return (
+          <span className="typeBadge">
+            <FileText size={13} />
+            <span>{type}</span>
+          </span>
+        )
+    }
+  }
+
+  const getUrgencyBadge = (urgency: string) => {
+    switch (urgency) {
+      case 'VERY_URGENT':
+        return (
+          <span className="urgencyDot dotVeryUrgent" style={{ backgroundColor: '#fef2f2', padding: '0.2rem 0.55rem', borderRadius: '9999px', border: '1px solid #fecaca', fontSize: '0.775rem' }}>
+            ● ด่วนที่สุด
+          </span>
+        )
+      case 'URGENT':
+        return (
+          <span className="urgencyDot dotUrgent" style={{ backgroundColor: '#fff7ed', padding: '0.2rem 0.55rem', borderRadius: '9999px', border: '1px solid #fed7aa', fontSize: '0.775rem' }}>
+            ● ด่วน
+          </span>
+        )
+      default:
+        return (
+          <span className="urgencyDot dotNormal" style={{ backgroundColor: '#f8fafc', padding: '0.2rem 0.55rem', borderRadius: '9999px', border: '1px solid #e2e8f0', fontSize: '0.775rem' }}>
+            ● ปกติ
+          </span>
+        )
+    }
+  }
+
   if (loading) {
     return (
       <div className="inboxWrapper" style={{ textAlign: 'center', padding: '5rem 0' }}>
         <Clock size={36} className="animate-spin mx-auto text-blue-600 mb-3" />
-        <p>กำลังโหลดรายละเอียดงาน...</p>
+        <p style={{ color: '#64748b', fontSize: '0.95rem' }}>กำลังโหลดรายละเอียดงาน...</p>
       </div>
     )
   }
@@ -348,8 +461,9 @@ export default function TaskDetailClient({
     return (
       <div className="inboxWrapper" style={{ textAlign: 'center', padding: '5rem 0' }}>
         <AlertCircle size={48} className="mx-auto text-red-500 mb-3" />
-        <h2>ไม่พบข้อมูลงาน</h2>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>ไม่พบข้อมูลงาน</h2>
         <Link href="/member/inbox" className="backBtn mt-4 inline-flex">
+          <ArrowLeft size={16} />
           กลับสู่กล่องงาน
         </Link>
       </div>
@@ -359,558 +473,485 @@ export default function TaskDetailClient({
   const isMyTurn = currentUser?.isCurrentAssignee && (task.status === 'PENDING' || task.status === 'IN_PROGRESS')
 
   return (
-    <div className="inboxWrapper" style={{ maxWidth: '950px' }}>
-      {/* Top Header */}
-      <div className="inboxHeader">
+    <div className="inboxWrapper" style={{ maxWidth: '1080px' }}>
+      {/* ── Top Header Card ── */}
+      <div className="detailHeaderCard">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-            <span className="taskNoBadge" style={{ fontSize: '1rem' }}>
-              {task.task_no}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
+            <span className="taskNoBadge">{task.task_no}</span>
+            {getTypeBadge(task.task_type)}
             <span className={`statusBadge ${
               task.status === 'APPROVED' ? 'statusApproved' :
               task.status === 'REJECTED' ? 'statusRejected' :
-              task.status === 'SENT_BACK' ? 'statusSentBack' : 'statusPending'
+              task.status === 'SENT_BACK' ? 'statusSentBack' : 
+              task.status === 'IN_PROGRESS' ? 'statusInProgress' : 'statusPending'
             }`}>
               {task.status === 'APPROVED' ? 'อนุมัติเรียบร้อย' :
                task.status === 'REJECTED' ? 'ไม่อนุมัติ' :
-               task.status === 'SENT_BACK' ? 'ส่งกลับแก้ไข' : 'รอดำเนินการ'}
+               task.status === 'SENT_BACK' ? 'ส่งกลับแก้ไข' : 
+               task.status === 'IN_PROGRESS' ? 'กำลังดำเนินการ' : 'รอดำเนินการ'}
             </span>
           </div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>{task.title}</h1>
+          <h1 className="detailHeaderTitle">{task.title}</h1>
         </div>
 
-        <div className="inboxActions">
+        <div className="headerActions">
           <Link href="/member/inbox" className="backBtn">
             <ArrowLeft size={16} />
-            กลับกล่องงาน
+            <span>กลับกล่องงาน</span>
           </Link>
-          <Link href={`/member/inbox/${taskId}/print`} target="_blank" className="backBtn" style={{ color: '#2563eb', borderColor: '#bfdbfe' }}>
+          <Link 
+            href={`/member/inbox/${taskId}/print`} 
+            target="_blank" 
+            className="backBtn" 
+            style={{ color: '#2563eb', borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }}
+          >
             <Printer size={16} />
-            พิมพ์ / บันทึกเอกสาร
+            <span>พิมพ์ใบงาน (A4)</span>
           </Link>
         </div>
       </div>
 
+      {/* ── Alerts Banner ── */}
       {error && (
-        <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <AlertCircle size={18} />
+        <div style={{ backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', padding: '0.85rem 1.15rem', borderRadius: '0.75rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+          <AlertCircle size={18} className="flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {successMsg && (
-        <div style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '1rem', borderRadius: '0.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <CheckCircle2 size={18} />
+        <div style={{ backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '0.85rem 1.15rem', borderRadius: '0.75rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+          <CheckCircle2 size={18} className="flex-shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      {/* Main Grid: Details + Workflow Timeline */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1.3fr', gap: '1.5rem' }}>
+      {/* ── Main Detail Grid ── */}
+      <div className="detailGrid">
         
-        {/* Left Column: Details & Specific Payload */}
+        {/* Left Column: Work Details (Repair Details or Non-Repair Content) + Approval Actions */}
         <div>
-          <div className="tasksTableCard" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
-              ข้อมูลคำร้อง
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '0.8rem' }}>ผู้ยื่นคำขอ</span>
-                <strong style={{ color: '#0f172a' }}>{task.requester_name}</strong>
-                <div style={{ color: '#64748b', fontSize: '0.8rem' }}>{task.requester_dept || '-'}</div>
+          {repairDetail ? (
+            <div className="contentCard">
+              <div className="contentCardHeader">
+                <h3 className="contentCardTitle">
+                  <Wrench size={18} className="text-emerald-600" />
+                  <span>รายละเอียดงานแจ้งซ่อมบำรุง</span>
+                </h3>
               </div>
-              <div>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '0.8rem' }}>วันที่ยื่นเรื่อง</span>
-                <strong style={{ color: '#0f172a' }}>{formatThaiDate(task.created_at)}</strong>
-              </div>
-            </div>
 
-            {task.description && (
-              <div style={{ marginBottom: '1.25rem' }}>
-                <span style={{ color: '#64748b', display: 'block', fontSize: '0.8rem', marginBottom: '0.25rem' }}>รายละเอียด / บันทึกข้อความ</span>
-                <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem', borderRadius: '0.35rem', color: '#334155', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                  {task.description}
+              {/* Repair Banner */}
+              <div className="repairBanner">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div className="repairIconWrap">
+                    {repairDetail.repair_type === 'MEDICAL_REPAIR' ? <Stethoscope size={20} /> : <Wrench size={20} />}
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block' }}>
+                      ประเภทงานแจ้งซ่อมบำรุง
+                    </span>
+                    <strong style={{ color: '#166534', fontSize: '1rem', fontWeight: 700 }}>
+                      {repairDetail.repair_type === 'IT_REPAIR' ? 'งานซ่อมระบบคอมพิวเตอร์ / สารสนเทศ' :
+                       repairDetail.repair_type === 'MEDICAL_REPAIR' ? 'งานซ่อมเครื่องมือทางการแพทย์' : 'งานซ่อมช่างทั่วไป / ซ่อมบำรุง'}
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Repair Status Tag */}
+                <span className={`statusBadge ${
+                  repairDetail.repair_status === 'COMPLETED' ? 'statusApproved' :
+                  repairDetail.repair_status === 'IN_PROGRESS' ? 'statusInProgress' :
+                  repairDetail.repair_status === 'EXTERNAL_REPAIR' ? 'statusExternal' : 'statusPending'
+                }`}>
+                  {repairDetail.repair_status === 'COMPLETED' ? '✓ ซ่อมเสร็จสิ้น' :
+                   repairDetail.repair_status === 'IN_PROGRESS' ? '⚙ กำลังดำเนินการซ่อม' :
+                   repairDetail.repair_status === 'EXTERNAL_REPAIR' ? '↗ ส่งซ่อมภายนอก' : '⏳ รอช่างรับงาน'}
+                </span>
+              </div>
+
+              {/* Location & Asset Grid */}
+              <div className="infoGrid2Col" style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.65rem', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
+                <div>
+                  <span className="infoItemLabel">ประเภทรายการ</span>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '0.35rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    backgroundColor: repairDetail.item_category === 'EQUIPMENT' ? '#dbeafe' : '#f1f5f9',
+                    color: repairDetail.item_category === 'EQUIPMENT' ? '#1e40af' : '#475569'
+                  }}>
+                    {repairDetail.item_category === 'EQUIPMENT' ? 'ครุภัณฑ์โรงพยาบาล' : 'ไม่ใช่ครุภัณฑ์ / งานทั่วไป'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="infoItemLabel" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <MapPin size={13} className="text-emerald-600" />
+                    สถานที่ตั้ง / ห้อง / ตึก
+                  </span>
+                  <div className="infoItemValue" style={{ fontSize: '0.9rem' }}>
+                    {repairDetail.location_full_name || '-'}
+                  </div>
+                </div>
+
+                {repairDetail.item_category === 'EQUIPMENT' ? (
+                  <>
+                    <div>
+                      <span className="infoItemLabel">หมายเลขครุภัณฑ์</span>
+                      <span className="taskNoBadge" style={{ fontSize: '0.875rem' }}>
+                        {repairDetail.equipment_number || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="infoItemLabel">ชื่อครุภัณฑ์</span>
+                      <div className="infoItemValue" style={{ fontSize: '0.9rem' }}>
+                        {repairDetail.equipment_name || '-'}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <span className="infoItemLabel">รายการที่ชำรุดเสียหาย</span>
+                    <div className="infoItemValue" style={{ fontSize: '0.9rem' }}>
+                      {repairDetail.non_equipment_item || '-'}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Symptom Box */}
+              <div className="symptomBox">
+                <div className="symptomBoxTitle">
+                  <AlertCircle size={15} />
+                  <span>อาการชำรุด / ปัญหาที่ผู้ใช้แจ้ง</span>
+                </div>
+                <div className="symptomBoxContent">
+                  {repairDetail.symptom_detail || '-'}
                 </div>
               </div>
-            )}
 
-            {/* Custom Payload (shown only when NOT a repair task) */}
-            {task.custom_payload && !repairDetail && (
-              <div style={{ backgroundColor: '#eff6ff', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #dbeafe', marginBottom: '1rem' }}>
+              {/* Photos Grid */}
+              {Array.isArray(repairDetail.photos) && repairDetail.photos.length > 0 && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <span className="infoItemLabel">รูปภาพความเสียหายแนบ ({repairDetail.photos.length} รูป)</span>
+                  <div className="photoThumbList">
+                    {repairDetail.photos.map((photo: string, idx: number) => (
+                      <a
+                        key={idx}
+                        href={photo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="photoThumbItem"
+                        title="คลิกเพื่อดูภาพขนาดเต็ม"
+                      >
+                        <img src={photo} alt={`รูปแนบ ${idx + 1}`} />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Assigned Technicians */}
+              <div style={{ borderTop: '1px dashed #e2e8f0', paddingTop: '0.85rem', marginTop: '0.85rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <strong style={{ color: '#1e40af', fontSize: '0.85rem' }}>ข้อมูลเฉพาะด้าน ({task.task_type})</strong>
-                  {isMyTurn && (
+                  <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#334155' }}>
+                    ทีมช่างผู้รับผิดชอบงาน
+                  </span>
+                  {(currentUser?.isCurrentAssignee || currentUser?.isCoWorker || currentUser?.isAdmin) && (
                     <button
                       type="button"
-                      onClick={() => setIsEditingPayload(!isEditingPayload)}
-                      style={{ fontSize: '0.75rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                      onClick={() => setIsCoWorkerModalOpen(true)}
+                      style={{
+                        fontSize: '0.75rem',
+                        color: '#16a34a',
+                        backgroundColor: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '0.35rem',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
                     >
-                      <Edit3 size={13} />
-                      {isEditingPayload ? 'ยกเลิกแก้ไข' : 'แก้ไขข้อมูล'}
+                      <Plus size={12} />
+                      เพิ่มช่างร่วมงาน
                     </button>
                   )}
                 </div>
 
-                <div style={{ fontSize: '0.85rem', color: '#1e3a8a', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                  {Object.entries(task.custom_payload).map(([k, v]) => (
-                    <div key={k}>
-                      <span style={{ color: '#60a5fa' }}>{k}: </span>
-                      <strong>{String(v)}</strong>
-                    </div>
-                  ))}
-                </div>
-
-                {isEditingPayload && (
-                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #bfdbfe' }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: '#1e3a8a', marginBottom: '0.25rem' }}>
-                      บันทึกความเห็น / ปรับงบประมาณก่อนอนุมัติ (Audit Logged)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="เช่น ระบุวงเงินงบประมาณ หรือหมายเหตุเพิ่มเติม..."
-                      value={editNote}
-                      onChange={(e) => setEditNote(e.target.value)}
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.35rem', border: '1px solid #93c5fd', fontSize: '0.85rem', backgroundColor: 'white' }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Repair Specific Card (Shown when repairDetail exists) */}
-            {repairDetail && (
-              <div style={{
-                background: '#ffffff',
-                borderRadius: '0.85rem',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 4px 12px -2px rgba(15, 23, 42, 0.05)',
-                overflow: 'hidden',
-                marginBottom: '1.25rem'
-              }}>
-                {/* Header Banner */}
-                <div style={{
-                  padding: '1rem 1.25rem',
-                  background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-                  borderBottom: '1px solid #bbf7d0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '0.75rem'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '0.5rem',
-                      backgroundColor: '#16a34a',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 4px rgba(22, 163, 74, 0.2)'
-                    }}>
-                      <Wrench size={18} />
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block' }}>
-                        ข้อมูลงานแจ้งซ่อมบำรุง
-                      </span>
-                      <strong style={{ color: '#166534', fontSize: '1.05rem', fontWeight: 700 }}>
-                        {repairDetail.repair_type === 'IT_REPAIR' ? 'งานซ่อมคอมพิวเตอร์ / ระบบสารสนเทศ' :
-                         repairDetail.repair_type === 'MEDICAL_REPAIR' ? 'งานซ่อมเครื่องมือทางการแพทย์' : 'งานซ่อมช่างทั่วไป / ซ่อมบำรุง'}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* Status Badge */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', alignItems: 'center' }}>
                   <span style={{
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    padding: '0.35rem 0.85rem',
-                    borderRadius: '9999px',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '0.35rem',
-                    backgroundColor: repairDetail.repair_status === 'COMPLETED' ? '#dcfce7' :
-                                     repairDetail.repair_status === 'IN_PROGRESS' ? '#dbeafe' :
-                                     repairDetail.repair_status === 'EXTERNAL_REPAIR' ? '#fef3c7' : '#f1f5f9',
-                    color: repairDetail.repair_status === 'COMPLETED' ? '#166534' :
-                           repairDetail.repair_status === 'IN_PROGRESS' ? '#1e40af' :
-                           repairDetail.repair_status === 'EXTERNAL_REPAIR' ? '#92400e' : '#475569',
-                    border: '1px solid rgba(0,0,0,0.06)'
+                    backgroundColor: '#dcfce7',
+                    color: '#166534',
+                    padding: '0.3rem 0.75rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    border: '1px solid #bbf7d0'
                   }}>
-                    {repairDetail.repair_status === 'COMPLETED' ? '✓ ซ่อมเสร็จสิ้น' :
-                     repairDetail.repair_status === 'IN_PROGRESS' ? '⚙ กำลังดำเนินการซ่อม' :
-                     repairDetail.repair_status === 'EXTERNAL_REPAIR' ? '↗ ส่งซ่อมภายนอก' : '⏳ รอช่างรับงาน'}
+                    <User size={13} />
+                    ช่างหลัก: {repairDetail.assigned_technician_name || 'ยังไม่ได้ระบุ'}
                   </span>
-                </div>
 
-                <div style={{ padding: '1.25rem' }}>
-                  {/* Grid 1: Basic Asset & Location Info */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                    gap: '1rem',
-                    backgroundColor: '#f8fafc',
-                    padding: '1rem',
-                    borderRadius: '0.65rem',
-                    border: '1px solid #edf2f7',
-                    marginBottom: '1rem'
-                  }}>
-                    <div>
-                      <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        ประเภทรายการ
-                      </span>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '0.2rem 0.6rem',
-                        borderRadius: '0.35rem',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        backgroundColor: repairDetail.item_category === 'EQUIPMENT' ? '#dbeafe' : '#f1f5f9',
-                        color: repairDetail.item_category === 'EQUIPMENT' ? '#1e40af' : '#475569'
-                      }}>
-                        {repairDetail.item_category === 'EQUIPMENT' ? 'ครุภัณฑ์โรงพยาบาล' : 'ไม่ใช่ครุภัณฑ์ / งานทั่วไป'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                        <MapPin size={12} className="text-emerald-600" />
-                        สถานที่ตั้ง / ห้อง / ตึก
-                      </span>
-                      <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>
-                        {repairDetail.location_full_name || '-'}
-                      </strong>
-                    </div>
-
-                    {repairDetail.item_category === 'EQUIPMENT' ? (
-                      <>
-                        <div>
-                          <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                            หมายเลขครุภัณฑ์
-                          </span>
-                          <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: '#1e40af', fontSize: '0.95rem', letterSpacing: '0.02em' }}>
-                            {repairDetail.equipment_number || '-'}
-                          </span>
-                        </div>
-                        <div>
-                          <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                            ชื่อครุภัณฑ์
-                          </span>
-                          <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>
-                            {repairDetail.equipment_name || '-'}
-                          </strong>
-                        </div>
-                      </>
-                    ) : (
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: '0.2rem' }}>
-                          รายการที่ชำรุดเสียหาย
-                        </span>
-                        <strong style={{ color: '#0f172a', fontSize: '0.95rem' }}>
-                          {repairDetail.non_equipment_item || '-'}
-                        </strong>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Problem & Symptom Box */}
-                  <div style={{
-                    backgroundColor: '#fffbeb',
-                    padding: '1rem',
-                    borderRadius: '0.65rem',
-                    border: '1px solid #fef3c7',
-                    marginBottom: '1rem'
-                  }}>
-                    <span style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                      <AlertCircle size={15} />
-                      อาการชำรุด / ปัญหาที่ผู้ใช้แจ้ง
-                    </span>
-                    <div style={{ color: '#78350f', whiteSpace: 'pre-line', fontSize: '0.9rem', lineHeight: '1.55' }}>
-                      {repairDetail.symptom_detail || '-'}
-                    </div>
-                  </div>
-
-                  {/* Attached Photos */}
-                  {Array.isArray(repairDetail.photos) && repairDetail.photos.length > 0 && (
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <span style={{ color: '#475569', display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                        รูปภาพความเสียหายที่แนบ ({repairDetail.photos.length} ภาพ)
-                      </span>
-                      <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
-                        {repairDetail.photos.map((photo: string, idx: number) => (
-                          <a
-                            key={idx}
-                            href={photo}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              display: 'inline-block',
-                              borderRadius: '0.5rem',
-                              overflow: 'hidden',
-                              border: '1px solid #cbd5e1',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                              transition: 'transform 0.15s ease'
-                            }}
-                          >
-                            <img
-                              src={photo}
-                              alt={`รูปแนบ ${idx + 1}`}
-                              style={{ width: '88px', height: '88px', objectFit: 'cover', display: 'block' }}
-                            />
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Assigned Technician Team */}
-                  <div style={{
-                    borderTop: '1px dashed #e2e8f0',
-                    paddingTop: '0.9rem',
-                    marginTop: '0.5rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-                      <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#334155' }}>
-                        ทีมช่างผู้รับผิดชอบงาน
-                      </span>
-                      {(currentUser?.isCurrentAssignee || currentUser?.isCoWorker || currentUser?.isAdmin) && (
-                        <button
-                          type="button"
-                          onClick={() => setIsCoWorkerModalOpen(true)}
-                          style={{
-                            fontSize: '0.75rem',
-                            color: '#16a34a',
-                            backgroundColor: '#f0fdf4',
-                            border: '1px solid #bbf7d0',
-                            padding: '0.25rem 0.65rem',
-                            borderRadius: '0.35rem',
-                            cursor: 'pointer',
-                            fontWeight: 600
-                          }}
-                        >
-                          + เพิ่มช่างร่วมงาน
-                        </button>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-                      <span style={{
+                  {Array.isArray(repairDetail.co_workers) && repairDetail.co_workers.map((cw: any) => (
+                    <span
+                      key={cw.id}
+                      style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.35rem',
-                        backgroundColor: '#dcfce7',
-                        color: '#166534',
-                        padding: '0.35rem 0.75rem',
+                        backgroundColor: '#f1f5f9',
+                        color: '#334155',
+                        padding: '0.3rem 0.75rem',
                         borderRadius: '9999px',
-                        fontSize: '0.825rem',
-                        fontWeight: 600,
-                        border: '1px solid #bbf7d0'
-                      }}>
-                        <User size={13} />
-                        ช่างหลัก: {repairDetail.assigned_technician_name || 'ยังไม่ได้ระบุ'}
-                      </span>
-
-                      {Array.isArray(repairDetail.co_workers) && repairDetail.co_workers.map((cw: any) => (
-                        <span
-                          key={cw.id}
+                        fontSize: '0.8rem',
+                        border: '1px solid #e2e8f0'
+                      }}
+                    >
+                      <span>{cw.name}</span>
+                      {(currentUser?.isCurrentAssignee || currentUser?.isAdmin) && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCoWorker(cw.id)}
                           style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            backgroundColor: '#f1f5f9',
-                            color: '#334155',
-                            padding: '0.35rem 0.75rem',
-                            borderRadius: '9999px',
-                            fontSize: '0.825rem',
-                            border: '1px solid #e2e8f0'
+                            background: 'none',
+                            border: 'none',
+                            color: '#94a3b8',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '1rem',
+                            lineHeight: 1,
+                            marginLeft: '0.2rem'
                           }}
+                          title="ลบออก"
                         >
-                          <span>{cw.name}</span>
-                          {(currentUser?.isCurrentAssignee || currentUser?.isAdmin) && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveCoWorker(cw.id)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: '#94a3b8',
-                                cursor: 'pointer',
-                                padding: 0,
-                                fontSize: '1rem',
-                                lineHeight: 1,
-                                marginLeft: '0.2rem'
-                              }}
-                              title="ลบออก"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </span>
-                      ))}
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Progress Result Highlights */}
+              {(Boolean(repairDetail.found_problem) || Boolean(repairDetail.solution_step) || Boolean(repairDetail.is_external_repair) || repairDetail.cost_type === 'HAS_COST') && (
+                <div style={{
+                  marginTop: '1rem',
+                  backgroundColor: '#f8fafc',
+                  padding: '1rem',
+                  borderRadius: '0.65rem',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '0.85rem'
+                }}>
+                  <strong style={{ color: '#0f172a', display: 'block', fontSize: '0.875rem', marginBottom: '0.5rem', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
+                    บันทึกผลการตรวจซ่อมและความคืบหน้า
+                  </strong>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div>
+                      <span style={{ color: '#64748b' }}>ลักษณะการส่งซ่อม: </span>
+                      <strong style={{ color: '#0f172a' }}>{repairDetail.repair_nature === 'RETROACTIVE' ? 'ส่งซ่อมย้อนหลัง' : 'ส่งซ่อมปกติ'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>ค่าใช้จ่าย: </span>
+                      <strong style={{ color: repairDetail.cost_type === 'HAS_COST' ? '#b45309' : '#15803d' }}>
+                        {repairDetail.cost_type === 'HAS_COST' ? `มีค่าใช้จ่าย (${Number(repairDetail.cost_amount || 0).toLocaleString()} บาท)` : 'ไม่มีค่าใช้จ่าย'}
+                      </strong>
                     </div>
                   </div>
 
-                  {/* Repair Results / Progress Details (Rendered if any problem/solution exists or external repair is true) */}
-                  {(Boolean(repairDetail.found_problem) || Boolean(repairDetail.solution_step) || Boolean(repairDetail.is_external_repair) || repairDetail.cost_type === 'HAS_COST') && (
-                    <div style={{
-                      marginTop: '1rem',
-                      backgroundColor: '#f8fafc',
-                      padding: '1rem',
-                      borderRadius: '0.65rem',
-                      border: '1px solid #e2e8f0',
-                      fontSize: '0.85rem'
-                    }}>
-                      <strong style={{ color: '#0f172a', display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', borderBottom: '1px solid #edf2f7', paddingBottom: '0.35rem' }}>
-                        บันทึกผลการตรวจซ่อมและความคืบหน้า
-                      </strong>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                        <div>
-                          <span style={{ color: '#64748b' }}>ลักษณะการส่งซ่อม: </span>
-                          <strong style={{ color: '#0f172a' }}>{repairDetail.repair_nature === 'RETROACTIVE' ? 'ส่งซ่อมย้อนหลัง' : 'ส่งซ่อมปกติ'}</strong>
-                        </div>
-                        <div>
-                          <span style={{ color: '#64748b' }}>ค่าใช้จ่าย: </span>
-                          <strong style={{ color: repairDetail.cost_type === 'HAS_COST' ? '#b45309' : '#15803d' }}>
-                            {repairDetail.cost_type === 'HAS_COST' ? `มีค่าใช้จ่าย (${Number(repairDetail.cost_amount || 0).toLocaleString()} บาท)` : 'ไม่มีค่าใช้จ่าย'}
-                          </strong>
-                        </div>
-                      </div>
-
-                      {Boolean(repairDetail.is_external_repair) && (
-                        <div style={{ backgroundColor: '#fef3c7', padding: '0.5rem 0.75rem', borderRadius: '0.35rem', color: '#92400e', marginBottom: '0.5rem' }}>
-                          <strong>ส่งซ่อมภายนอก: </strong> ร้าน/บริษัท {repairDetail.external_vendor_name || '-'}
-                          {repairDetail.external_reason && <span> (เหตุผล: {repairDetail.external_reason})</span>}
-                        </div>
-                      )}
-
-                      {repairDetail.found_problem && (
-                        <div style={{ marginTop: '0.4rem' }}>
-                          <span style={{ color: '#64748b', display: 'block', fontWeight: 600 }}>สาเหตุ/ปัญหาที่ตรวจพบ:</span>
-                          <div style={{ color: '#1e293b', whiteSpace: 'pre-line' }}>{repairDetail.found_problem}</div>
-                        </div>
-                      )}
-
-                      {repairDetail.solution_step && (
-                        <div style={{ marginTop: '0.4rem' }}>
-                          <span style={{ color: '#64748b', display: 'block', fontWeight: 600 }}>แนวทาง/ผลการดำเนินการแก้ไข:</span>
-                          <div style={{ color: '#1e293b', whiteSpace: 'pre-line' }}>{repairDetail.solution_step}</div>
-                        </div>
-                      )}
+                  {Boolean(repairDetail.is_external_repair) && (
+                    <div style={{ backgroundColor: '#fef3c7', padding: '0.5rem 0.75rem', borderRadius: '0.35rem', color: '#92400e', marginBottom: '0.5rem' }}>
+                      <strong>ส่งซ่อมภายนอก: </strong> ร้าน/บริษัท {repairDetail.external_vendor_name || '-'}
+                      {repairDetail.external_reason && <span> (เหตุผล: {repairDetail.external_reason})</span>}
                     </div>
                   )}
 
-                  {/* Technician Action Buttons (For Assigned Technician, Co-worker, or Admin) */}
-                  {(currentUser?.isCurrentAssignee || currentUser?.isCoWorker || currentUser?.isAdmin) && (
-                    <div style={{
-                      marginTop: '1.25rem',
-                      paddingTop: '1rem',
-                      borderTop: '1px solid #e2e8f0',
-                      display: 'flex',
-                      gap: '0.65rem',
-                      flexWrap: 'wrap'
-                    }}>
-                      {repairDetail.repair_status === 'WAITING' && (
+                  {repairDetail.found_problem && (
+                    <div style={{ marginTop: '0.4rem' }}>
+                      <span style={{ color: '#64748b', display: 'block', fontWeight: 600 }}>สาเหตุ/ปัญหาที่ตรวจพบ:</span>
+                      <div style={{ color: '#1e293b', whiteSpace: 'pre-line' }}>{repairDetail.found_problem}</div>
+                    </div>
+                  )}
+
+                  {repairDetail.solution_step && (
+                    <div style={{ marginTop: '0.4rem' }}>
+                      <span style={{ color: '#64748b', display: 'block', fontWeight: 600 }}>แนวทาง/ผลการดำเนินการแก้ไข:</span>
+                      <div style={{ color: '#1e293b', whiteSpace: 'pre-line' }}>{repairDetail.solution_step}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Technician Action Buttons Control */}
+              {(currentUser?.isCurrentAssignee || currentUser?.isCoWorker || currentUser?.isAdmin) && (
+                <div className="technicianActionBox">
+                  <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#475569', marginBottom: '0.65rem' }}>
+                    แผงควบคุมการดำเนินงานช่าง
+                  </span>
+                  <div className="actionButtonRow">
+                    {repairDetail.repair_status === 'WAITING' && (
+                      <>
                         <button
                           type="button"
                           disabled={actionLoading}
                           onClick={handleAcceptJob}
-                          style={{
-                            backgroundColor: '#2563eb',
-                            color: 'white',
-                            padding: '0.6rem 1.25rem',
-                            borderRadius: '0.5rem',
-                            border: 'none',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.4rem',
-                            boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
-                          }}
+                          className="btnAcceptJob"
                         >
                           <CheckCircle size={16} />
-                          กดรับงานซ่อม (Accept Job)
+                          <span>กดรับงานซ่อม (Accept Job)</span>
                         </button>
-                      )}
 
-                      {(repairDetail.repair_status === 'IN_PROGRESS' || repairDetail.repair_status === 'EXTERNAL_REPAIR') && (
-                        <>
-                          <button
-                            type="button"
-                            disabled={actionLoading}
-                            onClick={() => setIsRepairProgressModalOpen(true)}
-                            style={{
-                              backgroundColor: '#0284c7',
-                              color: 'white',
-                              padding: '0.6rem 1.15rem',
-                              borderRadius: '0.5rem',
-                              border: 'none',
-                              fontWeight: 600,
-                              fontSize: '0.875rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.4rem',
-                              boxShadow: '0 2px 4px rgba(2, 132, 199, 0.2)'
-                            }}
-                          >
-                            <Edit3 size={15} />
-                            บันทึกผลการซ่อม / ส่งภายนอก
-                          </button>
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => setIsCancelModalOpen(true)}
+                          className="btnCancelJob"
+                        >
+                          <XCircle size={16} />
+                          <span>ปฏิเสธ / ยกเลิกงาน</span>
+                        </button>
+                      </>
+                    )}
 
-                          <button
-                            type="button"
-                            disabled={actionLoading}
-                            onClick={handleCompleteRepair}
-                            style={{
-                              backgroundColor: '#16a34a',
-                              color: 'white',
-                              padding: '0.6rem 1.25rem',
-                              borderRadius: '0.5rem',
-                              border: 'none',
-                              fontWeight: 600,
-                              fontSize: '0.875rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.4rem',
-                              boxShadow: '0 2px 4px rgba(22, 163, 74, 0.2)'
-                            }}
-                          >
-                            <CheckCircle2 size={16} />
-                            ซ่อมเสร็จสิ้น (Complete Repair)
-                          </button>
-                        </>
-                      )}
+                    {(repairDetail.repair_status === 'IN_PROGRESS' || repairDetail.repair_status === 'EXTERNAL_REPAIR') && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => setIsRepairProgressModalOpen(true)}
+                          className="btnProgressAction"
+                        >
+                          <Edit3 size={15} />
+                          <span>บันทึกผลการซ่อม / ส่งภายนอก</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={handleCompleteRepair}
+                          className="btnCompleteJob"
+                        >
+                          <CheckCircle2 size={16} />
+                          <span>ซ่อมเสร็จสิ้น (Complete Repair)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => setIsCancelModalOpen(true)}
+                          className="btnCancelJob"
+                        >
+                          <XCircle size={16} />
+                          <span>ยกเลิกงานซ่อม</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Requester Cancel Option (if pending) */}
+              {currentUser?.isRequester && task.status === 'PENDING' && !currentUser?.isCurrentAssignee && !currentUser?.isCoWorker && !currentUser?.isAdmin && (
+                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => setIsCancelModalOpen(true)}
+                    className="btnCancelJob"
+                  >
+                    <XCircle size={16} />
+                    <span>ยกเลิกคำร้องแจ้งซ่อมนี้</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="contentCard">
+              <div className="contentCardHeader">
+                <h3 className="contentCardTitle">
+                  <FileText size={18} className="text-blue-600" />
+                  <span>รายละเอียดงาน / บันทึกข้อความ</span>
+                </h3>
+              </div>
+
+              {task.description ? (
+                <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', color: '#334155', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                  {task.description}
+                </div>
+              ) : (
+                <div style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.875rem' }}>
+                  ไม่มีรายละเอียดเพิ่มเติม
+                </div>
+              )}
+
+              {/* Custom Payload */}
+              {task.custom_payload && (
+                <div style={{ backgroundColor: '#eff6ff', padding: '1rem', borderRadius: '0.65rem', border: '1px solid #bfdbfe', marginTop: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <strong style={{ color: '#1e40af', fontSize: '0.85rem' }}>ข้อมูลเฉพาะด้าน ({task.task_type})</strong>
+                    {isMyTurn && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingPayload(!isEditingPayload)}
+                        style={{ fontSize: '0.75rem', color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}
+                      >
+                        <Edit3 size={13} />
+                        {isEditingPayload ? 'ยกเลิกแก้ไข' : 'แก้ไขข้อมูล'}
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ fontSize: '0.85rem', color: '#1e3a8a', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    {Object.entries(task.custom_payload).map(([k, v]) => (
+                      <div key={k}>
+                        <span style={{ color: '#60a5fa' }}>{k}: </span>
+                        <strong>{String(v)}</strong>
+                      </div>
+                    ))}
+                  </div>
+
+                  {isEditingPayload && (
+                    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #bfdbfe' }}>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#1e3a8a', marginBottom: '0.25rem' }}>
+                        บันทึกความเห็น / ปรับงบประมาณก่อนอนุมัติ (Audit Logged)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น ระบุวงเงินงบประมาณ หรือหมายเหตุเพิ่มเติม..."
+                        value={editNote}
+                        onChange={(e) => setEditNote(e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #93c5fd', fontSize: '0.85rem', backgroundColor: 'white' }}
+                      />
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
-          {/* Action Box: General Non-Repair Task Approval */}
-          {isMyTurn && !repairDetail ? (
-            <div className="tasksTableCard" style={{ padding: '1.5rem', border: '2px solid #3b82f6', backgroundColor: '#faf5ff' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#1e40af' }}>
+          {/* Action Box: General Non-Repair Task Approval or Step > 1 Signer */}
+          {isMyTurn && (!repairDetail || task.current_step_no > 1) ? (
+            <div className="approvalCard">
+              <div className="approvalHeader">
                 <ShieldCheck size={22} />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>คิวงานรอคุณพิจารณาดำเนินการ</h3>
+                <h3>คิวงานรอคุณลงนาม / พิจารณาอนุมัติ</h3>
               </div>
 
               {!currentUser?.hasSignature && (
-                <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fef3c7', padding: '0.75rem', borderRadius: '0.35rem', marginBottom: '1rem', fontSize: '0.825rem', color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <AlertCircle size={16} />
+                <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.825rem', color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <AlertCircle size={16} className="flex-shrink-0" />
                   <span>
                     คุณยังไม่ได้ตั้งค่าลายเซ็นดิจิทัล สามารถ{' '}
-                    <Link href="/member/signature" target="_blank" style={{ textDecoration: 'underline', fontWeight: 600 }}>
+                    <Link href="/member/signature" target="_blank" style={{ textDecoration: 'underline', fontWeight: 700 }}>
                       คลิกเพื่อตั้งค่าลายเซ็นที่นี่
                     </Link>{' '}
                     ก่อนกดอนุมัติเพื่อประทับลงในเอกสาร
@@ -919,7 +960,7 @@ export default function TaskDetailClient({
               )}
 
               <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontWeight: 500, fontSize: '0.85rem', marginBottom: '0.35rem', color: '#334155' }}>
+                <label style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', color: '#334155' }}>
                   ข้อความบันทึกความเห็น / คำสั่งการ
                 </label>
                 <textarea
@@ -927,196 +968,100 @@ export default function TaskDetailClient({
                   placeholder="เช่น อนุมัติเห็นชอบตามเสนอ, มอบหมายงาน, หรือเหตุผลที่ให้แก้ไข..."
                   value={actionComment}
                   onChange={(e) => setActionComment(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '0.35rem', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                  className="commentTextarea"
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div className="actionButtonRow">
                 <button
                   type="button"
                   disabled={actionLoading}
                   onClick={() => handleAction('APPROVE')}
-                  style={{
-                    backgroundColor: '#16a34a',
-                    color: 'white',
-                    padding: '0.65rem 1.25rem',
-                    borderRadius: '0.35rem',
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
+                  className="btnApprove"
                 >
                   <CheckCircle size={16} />
-                  ลงนามอนุมัติ (Approve)
+                  <span>ลงนามอนุมัติ (Approve)</span>
                 </button>
 
                 <button
                   type="button"
                   disabled={actionLoading}
                   onClick={() => handleAction('SEND_BACK')}
-                  style={{
-                    backgroundColor: '#ea580c',
-                    color: 'white',
-                    padding: '0.65rem 1.25rem',
-                    borderRadius: '0.35rem',
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
+                  className="btnSendBack"
                 >
                   <AlertCircle size={16} />
-                  ส่งกลับแก้ไข (Send Back)
+                  <span>ส่งกลับแก้ไข (Send Back)</span>
                 </button>
 
                 <button
                   type="button"
                   disabled={actionLoading}
                   onClick={() => handleAction('REJECT')}
-                  style={{
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    padding: '0.65rem 1.25rem',
-                    borderRadius: '0.35rem',
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
+                  className="btnReject"
                 >
                   <XCircle size={16} />
-                  ไม่อนุมัติ (Reject)
+                  <span>ไม่อนุมัติ (Reject)</span>
                 </button>
               </div>
             </div>
-          ) : isMyTurn && repairDetail && task.current_step_no > 1 ? (
-            /* For repair task where the user is in an approval step (e.g. director / department head signing step > 1) */
-            <div className="tasksTableCard" style={{ padding: '1.5rem', border: '2px solid #3b82f6', backgroundColor: '#faf5ff' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#1e40af' }}>
-                <ShieldCheck size={22} />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>คิวงานรอคุณลงนาม / พิจารณาอนุมัติ</h3>
-              </div>
-
-              {!currentUser?.hasSignature && (
-                <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fef3c7', padding: '0.75rem', borderRadius: '0.35rem', marginBottom: '1rem', fontSize: '0.825rem', color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <AlertCircle size={16} />
-                  <span>
-                    คุณยังไม่ได้ตั้งค่าลายเซ็นดิจิทัล สามารถ{' '}
-                    <Link href="/member/signature" target="_blank" style={{ textDecoration: 'underline', fontWeight: 600 }}>
-                      คลิกเพื่อตั้งค่าลายเซ็นที่นี่
-                    </Link>{' '}
-                    ก่อนกดอนุมัติเพื่อประทับลงในเอกสาร
-                  </span>
-                </div>
-              )}
-
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontWeight: 500, fontSize: '0.85rem', marginBottom: '0.35rem', color: '#334155' }}>
-                  ข้อความบันทึกความเห็น / คำสั่งการ
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="เช่น อนุมัติเห็นชอบตามเสนอ..."
-                  value={actionComment}
-                  onChange={(e) => setActionComment(e.target.value)}
-                  style={{ width: '100%', padding: '0.65rem', borderRadius: '0.35rem', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => handleAction('APPROVE')}
-                  style={{
-                    backgroundColor: '#16a34a',
-                    color: 'white',
-                    padding: '0.65rem 1.25rem',
-                    borderRadius: '0.35rem',
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
-                >
-                  <CheckCircle size={16} />
-                  ลงนามอนุมัติ (Approve)
-                </button>
-
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => handleAction('SEND_BACK')}
-                  style={{
-                    backgroundColor: '#ea580c',
-                    color: 'white',
-                    padding: '0.65rem 1.25rem',
-                    borderRadius: '0.35rem',
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
-                >
-                  <AlertCircle size={16} />
-                  ส่งกลับแก้ไข (Send Back)
-                </button>
-
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => handleAction('REJECT')}
-                  style={{
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    padding: '0.65rem 1.25rem',
-                    borderRadius: '0.35rem',
-                    border: 'none',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
-                >
-                  <XCircle size={16} />
-                  ไม่อนุมัติ (Reject)
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="tasksTableCard" style={{ padding: '1rem', backgroundColor: '#f8fafc', color: '#64748b', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Clock size={16} />
-                <span>
-                  {repairDetail ? 'ขณะนี้ใบแจ้งซ่อมอยู่ระหว่างขั้นตอนการปฏิบัติงานของทีมช่าง' : 'ขณะนี้งานกำลังอยู่ในขั้นตอนการพิจารณาของผู้รับผิดชอบตามลำดับสายงาน'}
-                </span>
-              </div>
-            </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Right Column: Workflow Steps Timeline & Audit Logs */}
+        {/* Right Column: Request Info, Workflow Timeline & Audit Logs */}
         <div>
-          {/* Steps Timeline Card */}
-          <div className="tasksTableCard" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.5rem' }}>
-              ขั้นตอนการอนุมัติ (Workflow Timeline)
-            </h3>
+          {/* 1. ข้อมูลคำร้อง (Request Info Card - Top Right) */}
+          <div className="contentCard">
+            <div className="contentCardHeader">
+              <h3 className="contentCardTitle">
+                <FileText size={18} className="text-blue-600" />
+                <span>ข้อมูลคำร้อง</span>
+              </h3>
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {steps.map((st, idx) => {
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <span className="infoItemLabel">ผู้ยื่นคำขอ</span>
+                <div className="infoItemValue">{task.requester_name}</div>
+                <div className="infoItemSub">{task.requester_dept || '-'}</div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px dashed #f1f5f9' }}>
+                <div>
+                  <span className="infoItemLabel">วันที่ยื่นเรื่อง</span>
+                  <div className="infoItemValue" style={{ fontVariantNumeric: 'tabular-nums', fontSize: '0.85rem' }}>
+                    {formatThaiDate(task.created_at)}
+                  </div>
+                </div>
+                <div>
+                  <span className="infoItemLabel">ความเร่งด่วน</span>
+                  <div>{getUrgencyBadge(task.urgency)}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px dashed #f1f5f9' }}>
+                <div>
+                  <span className="infoItemLabel">รหัสใบงาน</span>
+                  <span className="taskNoBadge">{task.task_no}</span>
+                </div>
+                <div>
+                  <span className="infoItemLabel">ประเภทงาน</span>
+                  <div>{getTypeBadge(task.task_type)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. ขั้นตอนการอนุมัติ (Workflow Timeline) */}
+          <div className="contentCard">
+            <div className="contentCardHeader">
+              <h3 className="contentCardTitle">
+                <Clock size={18} className="text-blue-600" />
+                <span>ขั้นตอนการอนุมัติ (Workflow Timeline)</span>
+              </h3>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {steps.map((st) => {
                 const isCurrent = st.step_no === task.current_step_no && task.status === 'PENDING'
                 const isDone = st.status === 'COMPLETED'
                 const isRejected = st.status === 'REJECTED'
@@ -1124,12 +1069,7 @@ export default function TaskDetailClient({
                 return (
                   <div
                     key={st.id}
-                    style={{
-                      padding: '1rem',
-                      borderRadius: '0.5rem',
-                      border: isCurrent ? '2px solid #3b82f6' : '1px solid #e2e8f0',
-                      backgroundColor: isDone ? '#f0fdf4' : isRejected ? '#fef2f2' : isCurrent ? '#eff6ff' : '#f8fafc',
-                    }}
+                    className={`timelineStepCard ${isDone ? 'isDone' : isRejected ? 'isRejected' : isCurrent ? 'isCurrent' : ''}`}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
                       <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
@@ -1137,36 +1077,38 @@ export default function TaskDetailClient({
                       </span>
                       <span style={{
                         fontSize: '0.75rem',
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: isDone ? '#16a34a' : isRejected ? '#dc2626' : isCurrent ? '#2563eb' : '#94a3b8',
                       }}>
-                        {isDone ? 'อนุมัติแล้ว' : isRejected ? 'ไม่อนุมัติ' : isCurrent ? 'กำลังรอพิจารณา' : 'รอดำเนินการ'}
+                        {isDone ? '✓ อนุมัติแล้ว' : isRejected ? '✗ ไม่อนุมัติ' : isCurrent ? '● กำลังรอพิจารณา' : 'รอดำเนินการ'}
                       </span>
                     </div>
 
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b', marginBottom: '0.2rem' }}>
                       {st.step_name}
                     </div>
 
                     <div style={{ fontSize: '0.8rem', color: '#475569' }}>
-                      ผู้มีอำนาจ: {st.assigned_to_name || st.assigned_role || 'ผู้รับมอบหมาย'}
+                      ผู้รับผิดชอบ: {st.assigned_to_name || st.assigned_role || 'ผู้รับมอบหมาย'}
                     </div>
 
                     {st.action_by_name && (
-                      <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #cbd5e1', fontSize: '0.8rem' }}>
+                      <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(0,0,0,0.06)', fontSize: '0.8rem' }}>
                         <div style={{ color: '#0f172a' }}>
                           ลงนามโดย: <strong>{st.action_by_name}</strong>
                         </div>
-                        <div style={{ color: '#64748b' }}>{formatThaiDate(st.action_at)}</div>
+                        <div style={{ color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                          {formatThaiDate(st.action_at)}
+                        </div>
                         {st.comment && (
                           <div style={{ marginTop: '0.25rem', fontStyle: 'italic', color: '#334155' }}>
                             "{st.comment}"
                           </div>
                         )}
                         {st.signature_path && (
-                          <div style={{ marginTop: '0.5rem' }}>
-                            <span style={{ fontSize: '0.7rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              <ShieldCheck size={12} />
+                          <div style={{ marginTop: '0.4rem' }}>
+                            <span style={{ fontSize: '0.725rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
+                              <ShieldCheck size={13} />
                               ประทับ e-Signature ยืนยันแล้ว
                             </span>
                           </div>
@@ -1179,19 +1121,21 @@ export default function TaskDetailClient({
             </div>
           </div>
 
-          {/* Audit Trail Card */}
-          <div className="tasksTableCard" style={{ padding: '1.25rem' }}>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#475569', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <History size={16} />
-              ประวัติการดำเนินการ (Audit Trail)
-            </h4>
+          {/* 3. ประวัติการดำเนินงาน (Audit Trail) */}
+          <div className="contentCard">
+            <div className="contentCardHeader">
+              <h3 className="contentCardTitle" style={{ fontSize: '0.95rem' }}>
+                <History size={16} className="text-slate-600" />
+                <span>ประวัติการดำเนินงาน (Audit Trail)</span>
+              </h3>
+            </div>
 
-            <div style={{ maxHeight: '200px', overflowY: 'auto', fontSize: '0.75rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ maxHeight: '240px', overflowY: 'auto', fontSize: '0.775rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {auditLogs.map((log) => (
                 <div key={log.id} style={{ borderBottom: '1px dashed #e2e8f0', paddingBottom: '0.35rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <strong style={{ color: '#334155' }}>{log.action}</strong>
-                    <span>{formatThaiDate(log.created_at)}</span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatThaiDate(log.created_at)}</span>
                   </div>
                   <div>โดย: {log.performer_name || `ID #${log.performed_by}`}</div>
                 </div>
@@ -1203,28 +1147,9 @@ export default function TaskDetailClient({
 
       {/* ── Modal 1: Add Co-Worker ── */}
       {isCoWorkerModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '1rem',
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.75rem',
-            padding: '1.5rem',
-            maxWidth: '450px',
-            width: '100%',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-          }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
+        <div className="modalBackdrop">
+          <div className="modalContent">
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
               เพิ่มผู้ร่วมงานซ่อมบำรุง
             </h3>
             <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '1.25rem' }}>
@@ -1238,7 +1163,7 @@ export default function TaskDetailClient({
               <select
                 value={selectedCoWorkerId}
                 onChange={(e) => setSelectedCoWorkerId(e.target.value)}
-                style={{ width: '100%', padding: '0.6rem', borderRadius: '0.35rem', border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
               >
                 <option value="">-- กรุณาเลือก --</option>
                 {allMembers
@@ -1255,14 +1180,7 @@ export default function TaskDetailClient({
               <button
                 type="button"
                 onClick={() => setIsCoWorkerModalOpen(false)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  borderRadius: '0.35rem',
-                  border: '1px solid #cbd5e1',
-                  background: 'white',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                }}
+                className="backBtn"
               >
                 ยกเลิก
               </button>
@@ -1270,16 +1188,7 @@ export default function TaskDetailClient({
                 type="button"
                 disabled={!selectedCoWorkerId || actionLoading}
                 onClick={handleAddCoWorker}
-                style={{
-                  padding: '0.5rem 1.25rem',
-                  borderRadius: '0.35rem',
-                  border: 'none',
-                  backgroundColor: '#16a34a',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                }}
+                className="btnApprove"
               >
                 เพิ่มผู้ร่วมงาน
               </button>
@@ -1290,29 +1199,8 @@ export default function TaskDetailClient({
 
       {/* ── Modal 2: Save Repair Progress / External Repair / Costs ── */}
       {isRepairProgressModalOpen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '1rem',
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '0.75rem',
-            padding: '1.75rem',
-            maxWidth: '560px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-          }}>
+        <div className="modalBackdrop">
+          <div className="modalContent" style={{ maxWidth: '560px' }}>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.35rem' }}>
               บันทึกผลการตรวจซ่อม / รายงานความคืบหน้า
             </h3>
@@ -1327,7 +1215,7 @@ export default function TaskDetailClient({
                   ลักษณะการส่งซ่อม (ตรงตามแบบฟอร์มเอกสาร)
                 </label>
                 <div style={{ display: 'flex', gap: '1.5rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.875rem', cursor: 'pointer' }}>
                     <input
                       type="radio"
                       name="repairNature"
@@ -1336,7 +1224,7 @@ export default function TaskDetailClient({
                     />
                     ส่งซ่อมปกติ
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.875rem', cursor: 'pointer' }}>
                     <input
                       type="radio"
                       name="repairNature"
@@ -1358,7 +1246,7 @@ export default function TaskDetailClient({
                   value={repairProgressForm.foundProblem}
                   onChange={(e) => setRepairProgressForm(prev => ({ ...prev, foundProblem: e.target.value }))}
                   placeholder="เช่น สายแพร์จอภาพขาด, Power Supply เสีย, ชุดซีลยางเสื่อมสภาพ..."
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '0.35rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
+                  style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
                 />
               </div>
 
@@ -1372,13 +1260,13 @@ export default function TaskDetailClient({
                   value={repairProgressForm.solutionStep}
                   onChange={(e) => setRepairProgressForm(prev => ({ ...prev, solutionStep: e.target.value }))}
                   placeholder="เช่น ทำการเปลี่ยนอะไหล่ Power Supply ตัวใหม่ และทดสอบการทำงาน..."
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '0.35rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
+                  style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
                 />
               </div>
 
               {/* ส่งซ่อมภายนอก หรือไม่ */}
               <div style={{ backgroundColor: '#f8fafc', padding: '0.85rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: '#1e293b' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem', color: '#1e293b' }}>
                   <input
                     type="checkbox"
                     checked={repairProgressForm.isExternalRepair}
@@ -1423,7 +1311,7 @@ export default function TaskDetailClient({
                   ค่าใช้จ่ายในการซ่อม
                 </label>
                 <div style={{ display: 'flex', gap: '1.5rem', marginBottom: repairProgressForm.costType === 'HAS_COST' ? '0.5rem' : 0 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.875rem', cursor: 'pointer' }}>
                     <input
                       type="radio"
                       name="costType"
@@ -1432,7 +1320,7 @@ export default function TaskDetailClient({
                     />
                     ไม่มีค่าใช้จ่าย
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.875rem', cursor: 'pointer' }}>
                     <input
                       type="radio"
                       name="costType"
@@ -1465,35 +1353,103 @@ export default function TaskDetailClient({
                 <button
                   type="button"
                   onClick={() => setIsRepairProgressModalOpen(false)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    borderRadius: '0.35rem',
-                    border: '1px solid #cbd5e1',
-                    background: 'white',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                  }}
+                  className="backBtn"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  style={{
-                    padding: '0.5rem 1.25rem',
-                    borderRadius: '0.35rem',
-                    border: 'none',
-                    backgroundColor: '#0284c7',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                  }}
+                  className="btnProgressAction"
                 >
                   บันทึกข้อมูล
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Cancel / Reject Job Confirmation ── */}
+      {isCancelModalOpen && (
+        <div className="modalBackdrop" onClick={() => setIsCancelModalOpen(false)}>
+          <div className="modalContent" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #fee2e2', paddingBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#dc2626', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #fecaca' }}>
+                  <XCircle size={18} className="text-red-600" />
+                </div>
+                <span>ยืนยันการยกเลิก / ปฏิเสธงาน</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsCancelModalOpen(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', padding: '0.25rem' }}
+                title="ปิดหน้าต่าง"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.15rem', lineHeight: 1.5 }}>
+              เมื่อยืนยันยกเลิก สถานะงานจะถูกปรับเป็น <strong style={{ color: '#dc2626' }}>&ldquo;ไม่อนุมัติ / ยกเลิก&rdquo;</strong> และระบบจะส่งการแจ้งเตือนพร้อมเหตุผลไปยังผู้เกี่ยวข้องทันที
+            </p>
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
+                ระบุเหตุผลในการยกเลิกหรือปฏิเสธ <span style={{ color: '#dc2626' }}>*</span>
+              </label>
+              <textarea
+                rows={3}
+                autoFocus
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="เช่น อุปกรณ์ไม่อยู่ในเงื่อนไขการซ่อม, มอบหมายผิดแผนก, ข้อมูลไม่ครบถ้วน, ผู้ใช้ขอยกเลิกเอง ฯลฯ"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid #cbd5e1',
+                  fontSize: '0.875rem',
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsCancelModalOpen(false)}
+                className="backBtn"
+              >
+                ปิดหน้าต่าง
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading || !cancelReason.trim()}
+                onClick={handleCancelJob}
+                style={{
+                  backgroundColor: !cancelReason.trim() ? '#fca5a5' : '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  padding: '0.6rem 1.35rem',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  cursor: !cancelReason.trim() ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {actionLoading ? <Clock size={16} className="animate-spin" /> : <XCircle size={16} />}
+                <span>ยืนยันยกเลิกงาน</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

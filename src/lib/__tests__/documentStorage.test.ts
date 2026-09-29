@@ -90,4 +90,29 @@ describe('DocumentStorage Module', () => {
     const readData = await fs.readFile(secondSave.diskPath, 'utf8')
     expect(readData).toBe('version 2')
   })
+
+  it('formats date directory with daily, monthly, and yearly modes', () => {
+    const fixedDate = new Date('2026-09-15T10:00:00Z')
+    expect(DocumentStorage.formatDateDirectory('public/uploads/news', fixedDate, 'daily')).toBe('public/uploads/news/15-09-2026')
+    expect(DocumentStorage.formatDateDirectory('public/uploads/repairs', fixedDate, 'monthly')).toBe('public/uploads/repairs/2026/09')
+    expect(DocumentStorage.formatDateDirectory('public/documents/ethics', fixedDate, 'yearly')).toBe('public/documents/ethics/2026')
+  })
+
+  it('saves multiple files in a batch with saveBatch', async () => {
+    const file1 = Buffer.from('photo 1')
+    const file2 = Buffer.from('photo 2')
+
+    const results = await DocumentStorage.saveBatch([file1, file2], {
+      destinationDir: 'public/uploads/test-batch',
+      baseName: 'batch_item',
+      allowedExtensions: ['.jpg', '.png'],
+    })
+
+    expect(results).toHaveLength(2)
+    for (const res of results) {
+      testFilesToClean.push(res.publicUrl)
+      expect(fsSync.existsSync(res.diskPath)).toBe(true)
+      expect(res.publicUrl).toMatch(/^\/uploads\/test-batch\/batch_item-/)
+    }
+  })
 })

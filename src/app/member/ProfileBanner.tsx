@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Camera, Briefcase, Building2, Loader2, Send, User } from 'lucide-react'
+import { Camera, Briefcase, Building2, Loader2, Send, User, CheckCircle2 } from 'lucide-react'
 import MemberLogoutButton from './LogoutButton'
 import TelegramLinkModal from './TelegramLinkModal'
 import TelegramPromptModal from './TelegramPromptModal'
@@ -38,6 +38,11 @@ export default function ProfileBanner({
   const [uploading, setUploading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState<boolean>(false)
+  const [telegramLinked, setTelegramLinked] = useState<boolean>(isTelegramLinked)
+
+  React.useEffect(() => {
+    setTelegramLinked(isTelegramLinked)
+  }, [isTelegramLinked])
 
   const handleAvatarClick = () => {
     if (fileInputRef.current) {
@@ -164,28 +169,54 @@ export default function ProfileBanner({
           <span className="pb-chipLabel">แผนก</span>
           <span className="pb-chipValue">{member.department || 'ไม่ได้ระบุ'}</span>
         </div>
-        <button 
-          type="button" 
-          className="pb-chip pb-chipAction" 
-          onClick={() => setIsTelegramModalOpen(true)}
-        >
-          <Send size={15} className="pb-chipIcon pb-chipIconTg" />
-          <span className="pb-chipLabel">การแจ้งเตือน</span>
-          <span className="pb-chipValue">เชื่อมระบบ Telegram</span>
-        </button>
+        {telegramLinked ? (
+          <button 
+            type="button" 
+            className="pb-chip pb-chipAction pb-chipConnected"
+            onClick={() => setIsTelegramModalOpen(true)}
+            title="คลิกเพื่อดูข้อมูลการเชื่อมต่อ Telegram"
+          >
+            <Send size={15} className="pb-chipIcon pb-chipIconTg" />
+            <span className="pb-chipLabel">การแจ้งเตือน</span>
+            <span className="pb-chipValue" style={{ color: '#0088cc', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <CheckCircle2 size={14} />
+              เชื่อมต่อแล้ว
+            </span>
+          </button>
+        ) : (
+          <button 
+            type="button" 
+            className="pb-chip pb-chipAction" 
+            onClick={() => setIsTelegramModalOpen(true)}
+          >
+            <Send size={15} className="pb-chipIcon pb-chipIconTg" />
+            <span className="pb-chipLabel">การแจ้งเตือน</span>
+            <span className="pb-chipValue">เชื่อมระบบ Telegram</span>
+          </button>
+        )}
       </div>
 
       <TelegramLinkModal 
         isOpen={isTelegramModalOpen} 
-        onClose={() => setIsTelegramModalOpen(false)} 
+        onClose={() => setIsTelegramModalOpen(false)}
+        onLinked={() => {
+          setTelegramLinked(true)
+          router.refresh()
+        }}
+        onUnlinked={() => {
+          setTelegramLinked(false)
+          router.refresh()
+        }}
       />
 
       {/* Auto Prompt for unlinked users */}
-      <TelegramPromptModal
-        isLinked={isTelegramLinked}
-        memberId={member.id}
-        onOpenConnectModal={() => setIsTelegramModalOpen(true)}
-      />
+      {!telegramLinked && (
+        <TelegramPromptModal
+          isLinked={telegramLinked}
+          memberId={member.id}
+          onOpenConnectModal={() => setIsTelegramModalOpen(true)}
+        />
+      )}
     </div>
   )
 }

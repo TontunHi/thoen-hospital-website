@@ -17,7 +17,10 @@ This is the always-on rule set. Domain-specific integration detail (HOSxP DB acc
 
 ### 1. Code Cleanliness & Structure
 - **Separation of Concerns:** Keep UI, business logic, and data-access separate. UI components handle layout/presentation only; business rules live in services/utilities; DB and third-party calls live in a dedicated data layer.
-- **Naming Conventions:** Names must reflect real hospital/medical domain terms (e.g. `PatientVisit`, `LabResult`, `AttendingPhysician`) — never generic names like `data`, `item`, `handleStuff`.
+- **Thin Route Adapters & Deep Domain Modules:** API Route handlers (`src/app/api/**`) must be thin HTTP adapters (~20–40 lines) responsible solely for request validation, session/RBAC checking, calling domain services, and returning JSON. Never place raw SQL queries, complex data transformations, or batch calculations directly inside route handlers.
+- **Dependency Injection for Testability:** Domain services (e.g. `@/lib/clinical/ipdWardService`) must accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb`. This enables 100% unit test coverage in Vitest without needing live DB connections.
+- **Unified File Storage Seam:** Never import raw Node.js `fs` or `fs/promises` in API routes. All file writes, batch uploads, deletions, replacements, and dated-directory formatting MUST use `@/lib/storage/documentStorage.ts` (`DocumentStorage`).
+- **Naming Conventions:** Names must reflect real hospital/medical domain terms (e.g. `PatientVisit`, `LabResult`, `AttendingPhysician`, `IpdWardService`) — never generic names like `data`, `item`, `handleStuff`.
 - **State & Data Flow:** Use a predictable state pattern (e.g. server state via React Query/SWR, local UI state via hooks). Never bind component state directly to raw DB models — map to view-specific types/DTOs.
 - **TypeScript Strictness:** `strict` mode on. No `any` without an inline comment explaining why. Explicit types/interfaces for all API payloads and DB models.
 
@@ -38,15 +41,15 @@ This is the always-on rule set. Domain-specific integration detail (HOSxP DB acc
 
 ### 3. Error Handling & Reliability
 - **Graceful Error Handling:** Wrap all async functions, API routes, and network calls in try-catch with a defined fallback UI state — never a blank screen or an unhandled promise rejection.
-- **Secure Logging:** Logs must be detailed enough to diagnose an issue but must never leak stack traces, raw queries, internal file paths, or PII/PHI to the client. Client-facing errors get a generic message plus an internal reference ID for support lookup. [TODO: name the actual logging library/sink your team uses, e.g. pino → your log aggregator, so agents don't invent one.]
+- **Secure Logging:** Logs must be detailed enough to diagnose an issue but must never leak stack traces, raw queries, internal file paths, or PII/PHI to the client. Client-facing errors get a generic message plus an internal reference ID for support lookup. Use `pino` (@/lib/logger) for structured backend logging.
 - **Consistent API Responses:** Every API route returns a predictable shape: `{ success: boolean, data?: T, error?: { code: string, message: string } }`, with correct HTTP status codes.
 - **Scalability:** Optimize loops/queries for concurrent load; avoid N+1 queries (use joins/includes); paginate any list endpoint that can grow unbounded.
 - **Rate Limiting:** Apply rate limits to public-facing and auth-sensitive endpoints (login, signature submission, contact forms) to reduce brute-force and abuse risk.
 
 ### 4. Testing, Data, & Maintenance
 - **Test Data:** Never seed dev/test databases with real patient records. Generate synthetic fixtures (fake names, fake citizen IDs that fail checksum validation on purpose so they can't be confused with real ones).
-- **Automated Testing:** New helper functions, business workflows, and core utilities get unit tests; critical flows (auth, signature submission, patient-data writes) get integration/E2E coverage.
-- **Technical Debt Prevention:** No deprecated, archived, or unmaintained libraries. Check `npm audit` (or equivalent) before adding a new dependency, and keep the lockfile committed. [TODO: state who approves a new dependency — tech lead sign-off, PR label, etc.]
+- **Automated Testing:** New helper functions, business workflows, and core utilities get unit tests via Vitest; critical flows (auth, signature submission, patient-data writes) get integration/E2E coverage.
+- **Technical Debt Prevention:** No deprecated, archived, or unmaintained libraries. Check `npm audit` (or equivalent) before adding a new dependency, verify overrides in `package.json`, and keep the lockfile committed.
 - **Documentation:** Non-obvious business logic — especially anything clinical or regulatory — gets a short comment explaining *why*, not just *what*. Update the README/CHANGELOG for changes to setup steps or public behavior.
 
 ### 5. Definition of Done — scaled by risk
@@ -59,7 +62,7 @@ Don't run the full checklist on every diff; scale it to what the change touches.
 | Auth, PHI, HOSxP/ER/lab data, signatures, audit logging, payments/salary | Lint + type-check + full test suite + manual trace of the auth/RBAC path + confirm audit log entry is written. State any assumption about clinical/compliance behavior explicitly and ask before proceeding — don't guess. |
 
 ### 6. Git & Review
-- Branch naming: [TODO: state your team's convention, e.g. `feature/`, `fix/`, `hotfix/`.]
+- Branch naming: `feature/<name>`, `fix/<name>`, `hotfix/<name>`.
 - Any change that touches auth, PHI-adjacent code, or the HOSxP/ER/lab/salary data layers requires human review before merging to the production branch — an agent should open a PR for these, not push directly, regardless of autonomy mode.
 - Trivial/non-clinical changes may follow your team's normal direct-commit workflow if that's already the convention.
 

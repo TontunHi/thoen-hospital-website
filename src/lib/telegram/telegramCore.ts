@@ -20,19 +20,58 @@ export interface TelegramUpdate {
     text?: string
     date?: number
   }
+  callback_query?: {
+    id: string
+    from: { id: number; username?: string; first_name?: string }
+    message?: {
+      message_id: number
+      chat: { id: number | string }
+      text?: string
+    }
+    data?: string
+  }
 }
 
 export interface SendMessageOptions {
   parseMode?: 'HTML' | 'MarkdownV2'
   timeoutMs?: number
+  replyMarkup?: any
 }
 
 export interface ProcessUpdateResult {
   handled: boolean
-  action?: 'START_HELP' | 'LINK_SUCCESS' | 'LINK_FAILED' | 'UNLINK_SUCCESS' | 'UNLINK_FAILED' | 'IGNORED'
+  action?:
+    | 'START_HELP'
+    | 'LINK_SUCCESS'
+    | 'LINK_FAILED'
+    | 'UNLINK_SUCCESS'
+    | 'UNLINK_FAILED'
+    | 'ACCEPT_REPAIR_SUCCESS'
+    | 'ACCEPT_REPAIR_FAILED'
+    | 'CANCEL_REPAIR_SUCCESS'
+    | 'CANCEL_REPAIR_FAILED'
+    | 'COMPLETE_REPAIR_PROMPT'
+    | 'COMPLETE_REPAIR_SUCCESS'
+    | 'COMPLETE_REPAIR_FAILED'
+    | 'IGNORED'
   memberName?: string
   error?: string
 }
+
+export interface PendingTechnicianAction {
+  action: 'AWAITING_REPAIR_COMPLETION_NOTE'
+  taskId: string
+  taskNo: string
+  taskTitle: string
+  memberId: number
+  memberName: string
+  groupChatId?: number | string
+  originalMessageId?: number
+  promptMessageId?: number
+  expiresAt: number
+}
+
+export const pendingTechnicianActions = new Map<number, PendingTechnicianAction>()
 
 /**
  * Robust Telegram API client with timeout and error handling
@@ -50,19 +89,25 @@ export async function sendTelegramMessage(
 
   const parseMode = typeof options === 'string' ? options : (options.parseMode || 'HTML')
   const timeoutMs = typeof options === 'object' && options.timeoutMs ? options.timeoutMs : 8000
+  const replyMarkup = typeof options === 'object' ? options.replyMarkup : undefined
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
+    const bodyPayload: any = {
+      chat_id: chatId,
+      text,
+      parse_mode: parseMode,
+    }
+    if (replyMarkup) {
+      bodyPayload.reply_markup = replyMarkup
+    }
+
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: parseMode,
-      }),
+      body: JSON.stringify(bodyPayload),
       signal: controller.signal,
     })
 
@@ -74,12 +119,79 @@ export async function sendTelegramMessage(
 
     return { success: true, result: data.result }
   } catch (err: any) {
-    const isAbort = err.name === 'AbortError'
-    const errorMsg = isAbort ? 'Telegram API request timed out' : err.message
-    logger.error({ err, isAbort }, 'Error sending Telegram message')
-    return { success: false, error: errorMsg }
+    if (err.name === 'AbortError') {
+      logger.error('Telegram sendMessage request timed out')
+      return { success: false, error: 'Telegram request timed out' }
+    }
+    logger.error({ err }, 'Error sending Telegram message')
+    return { success: false, error: err?.message || 'Unknown error sending Telegram message' }
   } finally {
     clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * Answer a Telegram Callback Query (stops the loading spinner on inline button)
+ */
+export async function answerTelegramCallbackQuery(
+  callbackQueryId: string,
+  text?: string,
+  showAlert: boolean = false
+): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return false
+
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        callback_query_id: callbackQueryId,
+        text: text || undefined,
+        show_alert: showAlert,
+      }),
+    })
+    return true
+  } catch (err) {
+    logger.error({ err }, 'Error answering Telegram callback query')
+    return false
+  }
+}
+
+/**
+ * Edit an existing Telegram message text and reply markup
+ */
+export async function editTelegramMessageText(
+  chatId: string | number,
+  messageId: number,
+  text: string,
+  replyMarkup?: any
+): Promise<boolean> {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  if (!token) return false
+
+  try {
+    const bodyPayload: any = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: 'HTML',
+    }
+    if (replyMarkup !== undefined) {
+      bodyPayload.reply_markup = replyMarkup
+    }
+
+    const res = await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyPayload),
+    })
+
+    const data = await res.json()
+    return Boolean(data.ok)
+  } catch (err) {
+    logger.error({ err }, 'Error editing Telegram message text')
+    return false
   }
 }
 
@@ -225,10 +337,696 @@ export async function verifyAndLinkTelegram(
 }
 
 /**
+ * Helper to finalize repair completion, update database, audit log, group message, and notify requester
+ */
+async function completeRepairTaskHelper(params: {
+  taskId: string
+  memberId: number
+  memberName: string
+  username?: string
+  solutionStep: string
+  chatId?: number | string
+  originalMessageId?: number
+}): Promise<{ success: boolean; taskNo?: string; title?: string; error?: string }> {
+  const { taskId, memberId, memberName, username, solutionStep, chatId, originalMessageId } = params
+
+  // 1. Fetch Task and Repair Detail
+  const tasks = await queryMemberDb('SELECT * FROM inbox_tasks WHERE id = ? LIMIT 1', [taskId])
+  if (!tasks || tasks.length === 0) {
+    return { success: false, error: 'Task not found' }
+  }
+  const task = tasks[0]
+
+  const repairRows = await queryMemberDb('SELECT * FROM repair_details WHERE task_id = ? LIMIT 1', [taskId])
+  const repair = repairRows?.[0]
+
+  // 2. Update Database
+  await queryMemberDb(
+    `UPDATE repair_details 
+     SET repair_status = 'COMPLETED',
+         solution_step = ?,
+         updated_at = NOW()
+     WHERE task_id = ?`,
+    [solutionStep, taskId]
+  )
+
+  await queryMemberDb(
+    `UPDATE inbox_tasks SET status = 'APPROVED', updated_at = NOW() WHERE id = ?`,
+    [taskId]
+  )
+
+  await queryMemberDb(
+    `UPDATE inbox_task_steps 
+     SET status = 'COMPLETED', action_taken = 'COMPLETE', action_by = ?, action_by_name = ?, action_at = NOW(), comment = ?
+     WHERE task_id = ? AND step_no = 1`,
+    [memberId, memberName, solutionStep, taskId]
+  )
+
+  // 3. Insert Audit Log
+  await queryMemberDb(
+    `INSERT INTO inbox_task_audit_logs (id, task_id, action, performed_by, performer_name, details)
+     VALUES (?, ?, 'COMPLETE_REPAIR_TELEGRAM', ?, ?, ?)`,
+    [
+      crypto.randomUUID(),
+      taskId,
+      memberId,
+      memberName || username || 'Technician',
+      JSON.stringify({ status: 'COMPLETED', source: 'TELEGRAM_BOT', solution_step: solutionStep }),
+    ]
+  )
+
+  const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+  const taskLink = `${domainUrl}/member/inbox/${taskId}`
+
+  const thaiDate = new Intl.DateTimeFormat('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date())
+
+  // 4. Update Original Message in Telegram Group / Chat
+  if (chatId && originalMessageId) {
+    const completedGroupMsg = `✅ <b>งานแจ้งซ่อมนี้ดำเนินการเสร็จสิ้นแล้ว</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}
+${repair?.equipment_number ? `🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(repair.equipment_number)}</code>\n` : ''}${repair?.location_full_name ? `📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}\n` : ''}👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(task.requester_name)}${task.requester_dept ? ` (${escapeHtml(task.requester_dept)})` : ''}
+👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> ${escapeHtml(memberName)}
+📝 <b>ผลการซ่อม/การแก้ไข :</b> ${escapeHtml(solutionStep)}
+
+📍 <b>สถานะปัจจุบัน :</b> ✓ เสร็จสิ้นสมบูรณ์ (COMPLETED)
+⏰ <b>เวลาปิดงาน :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ระบบได้บันทึกข้อมูลและส่งแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
+
+    await editTelegramMessageText(chatId, originalMessageId, completedGroupMsg, {
+      inline_keyboard: [
+        [
+          {
+            text: '📋 เปิดดูรายละเอียดบนเว็บไซต์',
+            url: taskLink,
+          },
+        ],
+      ],
+    })
+  }
+
+  // 5. Notify Requester on Telegram with solutionStep
+  if (task.requester_id) {
+    try {
+      const reqLinks = await queryMemberDb(
+        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+        [task.requester_id]
+      )
+
+      if (reqLinks && reqLinks.length > 0) {
+        const reqChatId = reqLinks[0].telegram_chat_id
+        const costText = repair?.cost_type === 'HAS_COST' && repair?.cost_amount
+          ? `มีค่าใช้จ่าย ${Number(repair.cost_amount).toLocaleString()} บาท`
+          : 'ไม่มีค่าใช้จ่าย'
+
+        const reqMsg = `✅ <b>งานแจ้งซ่อมของคุณดำเนินการเสร็จสิ้นแล้ว</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}
+${repair?.location_full_name ? `📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}\n` : ''}👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> ${escapeHtml(memberName)}
+${solutionStep ? `📝 <b>ผลการซ่อม/การแก้ไข :</b> ${escapeHtml(solutionStep)}\n` : ''}💵 <b>ค่าใช้จ่าย :</b> ${costText}
+
+📍 <b>สถานะ :</b> ✓ ซ่อมเสร็จสิ้นสมบูรณ์
+⏰ <b>เวลาปิดงาน :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดและพิมพ์ใบงาน</i>`
+
+        await sendTelegramMessage(reqChatId, reqMsg, {
+          parseMode: 'HTML',
+          replyMarkup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '📄 ดูรายละเอียดผลการซ่อม',
+                  url: taskLink,
+                },
+              ],
+            ],
+          },
+        })
+      }
+    } catch (e) {
+      logger.error({ e, taskId }, 'Failed to notify requester of repair completion from Telegram callback')
+    }
+  }
+
+  return { success: true, taskNo: task.task_no, title: task.title }
+}
+
+/**
  * Unified Telegram Command Router & Update Processor
  * Shared identically between Webhook API and Intranet Long-Polling Service
  */
 export async function processTelegramUpdate(update: TelegramUpdate): Promise<ProcessUpdateResult> {
+  // ── 0. Handle Interactive Inline Button Callbacks (e.g. Accept Job Directly from Telegram) ──
+  if (update?.callback_query) {
+    const cb = update.callback_query
+    const callbackId = cb.id
+    const data = cb.data || ''
+    const fromUser = cb.from
+    const chatId = cb.message?.chat?.id
+    const messageId = cb.message?.message_id
+
+    if (data.startsWith('accept_repair:')) {
+      const taskId = data.slice('accept_repair:'.length).trim()
+
+      // 1. Find linked member
+      const links = await queryMemberDb(
+        `SELECT m.id, m.name, m.username, m.position, m.role 
+         FROM member_telegram_links l
+         JOIN members m ON l.member_id = m.id
+         WHERE l.telegram_user_id = ? OR l.telegram_chat_id = ? 
+         LIMIT 1`,
+        [fromUser.id, chatId || 0]
+      )
+
+      if (!links || links.length === 0) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ บัญชี Telegram นี้ยังไม่ได้เชื่อมต่อกับระบบสมาชิกโรงพยาบาล', true)
+        return { handled: true, action: 'ACCEPT_REPAIR_FAILED', error: 'User not linked' }
+      }
+
+      const currentMember = links[0]
+
+      // 2. Fetch Task and Repair Detail
+      const tasks = await queryMemberDb(
+        'SELECT * FROM inbox_tasks WHERE id = ? LIMIT 1',
+        [taskId]
+      )
+
+      if (!tasks || tasks.length === 0) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ ไม่พบข้อมูลงานซ่อมนี้ในระบบ', true)
+        return { handled: true, action: 'ACCEPT_REPAIR_FAILED', error: 'Task not found' }
+      }
+
+      const task = tasks[0]
+
+      if (task.status !== 'PENDING') {
+        await answerTelegramCallbackQuery(callbackId, 'ℹ️ งานนี้มีผู้รับงานแล้ว หรือดำเนินการไปแล้วครับ', true)
+        return { handled: true, action: 'ACCEPT_REPAIR_FAILED', error: 'Already accepted' }
+      }
+
+      const repairRows = await queryMemberDb(
+        'SELECT * FROM repair_details WHERE task_id = ? LIMIT 1',
+        [taskId]
+      )
+      const repair = repairRows?.[0]
+
+      // 3. Perform Accept Job in Database
+      await queryMemberDb(
+        `UPDATE inbox_tasks SET status = 'IN_PROGRESS', current_assignee = ?, updated_at = NOW() WHERE id = ?`,
+        [currentMember.id, taskId]
+      )
+      await queryMemberDb(
+        `UPDATE repair_details SET repair_status = 'IN_PROGRESS', assigned_technician_id = ?, assigned_technician_name = ?, updated_at = NOW() WHERE task_id = ?`,
+        [currentMember.id, currentMember.name, taskId]
+      )
+      await queryMemberDb(
+        `UPDATE inbox_task_steps SET status = 'IN_PROGRESS', assigned_to_id = ? WHERE task_id = ? AND step_no = 1`,
+        [currentMember.id, taskId]
+      )
+
+      // 4. Write Audit Log
+      await queryMemberDb(
+        `INSERT INTO inbox_task_audit_logs (id, task_id, action, performed_by, performer_name, details)
+         VALUES (?, ?, 'ACCEPT_JOB_TELEGRAM', ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          taskId,
+          currentMember.id,
+          currentMember.name || currentMember.username,
+          JSON.stringify({ status: 'IN_PROGRESS', source: 'TELEGRAM_INLINE_BUTTON', technician: currentMember.name }),
+        ]
+      )
+
+      // 5. Answer Callback Query to stop spinner
+      await answerTelegramCallbackQuery(callbackId, '✓ คุณได้รับงานแจ้งซ่อมนี้เรียบร้อยแล้ว!', false)
+
+      const thaiDate = new Intl.DateTimeFormat('th-TH', {
+        timeZone: 'Asia/Bangkok',
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(new Date())
+
+      const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+      const taskLink = `${domainUrl}/member/inbox/${taskId}`
+
+      // 6. Update message in Telegram chat with "ปิดงาน / ซ่อมเสร็จสิ้น" and "ยกเลิกงาน" action buttons
+      if (chatId && messageId) {
+        const updatedMessage = `✅ <b>คุณได้รับงานแจ้งซ่อมนี้เรียบร้อยแล้ว</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}
+${repair?.equipment_number ? `🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(repair.equipment_number)}</code>\n` : ''}${repair?.location_full_name ? `📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}\n` : ''}👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(task.requester_name)}${task.requester_dept ? ` (${escapeHtml(task.requester_dept)})` : ''}
+👨‍🔧 <b>ช่างผู้รับงาน :</b> คุณ (${escapeHtml(currentMember.name)})
+
+📍 <b>สถานะปัจจุบัน :</b> ⚙️ กำลังอยู่ระหว่างดำเนินการตรวจซ่อม
+⏰ <b>เวลารับงาน :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ระบบได้ส่งการแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
+
+        await editTelegramMessageText(chatId, messageId, updatedMessage, {
+          inline_keyboard: [
+            [
+              {
+                text: '✅ ปิดงาน / ซ่อมเสร็จสิ้น',
+                callback_data: `complete_repair:${taskId}`,
+              },
+              {
+                text: '❌ ยกเลิกงาน',
+                callback_data: `cancel_repair:${taskId}`,
+              },
+            ],
+            [
+              {
+                text: '📋 เปิดดูรายละเอียดบนเว็บไซต์',
+                url: taskLink,
+              },
+            ],
+          ],
+        })
+      }
+
+      // 7. Notify Requester on Telegram that technician accepted the job
+      if (task.requester_id) {
+        try {
+          const reqLinks = await queryMemberDb(
+            'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+            [task.requester_id]
+          )
+
+          if (reqLinks && reqLinks.length > 0) {
+            const reqChatId = reqLinks[0].telegram_chat_id
+            const reqMsg = `👨‍🔧 <b>ช่างได้รับงานแจ้งซ่อมของคุณแล้ว</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}
+${repair?.equipment_number ? `🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(repair.equipment_number)}</code>\n` : ''}${repair?.location_full_name ? `📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}\n` : ''}🔧 <b>ช่างผู้รับงาน :</b> ${escapeHtml(currentMember.name)}${currentMember.position ? ` (${escapeHtml(currentMember.position)})` : ''}
+
+📍 <b>สถานะ :</b> ⚙️ กำลังอยู่ระหว่างดำเนินการตรวจซ่อม
+⏰ <b>เวลารับงาน :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อติดตามความคืบหน้าของงาน</i>`
+
+            await sendTelegramMessage(reqChatId, reqMsg, {
+              parseMode: 'HTML',
+              replyMarkup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: '📋 ติดตามสถานะงานซ่อม',
+                      url: taskLink,
+                    },
+                  ],
+                ],
+              },
+            })
+          }
+        } catch (e) {
+          logger.error({ e, taskId }, 'Failed to notify requester from Telegram callback')
+        }
+      }
+
+      return {
+        handled: true,
+        action: 'ACCEPT_REPAIR_SUCCESS',
+        memberName: currentMember.name,
+      }
+    }
+
+    // ── Complete Repair Action (Trigger Prompt for notes) ──
+    if (data.startsWith('complete_repair:')) {
+      const taskId = data.slice('complete_repair:'.length).trim()
+
+      const links = await queryMemberDb(
+        `SELECT m.id, m.name, m.username, m.position, m.role 
+         FROM member_telegram_links l
+         JOIN members m ON l.member_id = m.id
+         WHERE l.telegram_user_id = ? OR l.telegram_chat_id = ? 
+         LIMIT 1`,
+        [fromUser.id, chatId || 0]
+      )
+
+      if (!links || links.length === 0) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ บัญชี Telegram นี้ยังไม่ได้เชื่อมต่อกับระบบสมาชิกโรงพยาบาล', true)
+        return { handled: true, action: 'COMPLETE_REPAIR_FAILED', error: 'User not linked' }
+      }
+
+      const currentMember = links[0]
+
+      const tasks = await queryMemberDb(
+        'SELECT * FROM inbox_tasks WHERE id = ? LIMIT 1',
+        [taskId]
+      )
+
+      if (!tasks || tasks.length === 0) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ ไม่พบข้อมูลงานซ่อมนี้ในระบบ', true)
+        return { handled: true, action: 'COMPLETE_REPAIR_FAILED', error: 'Task not found' }
+      }
+
+      const task = tasks[0]
+
+      if (task.status === 'APPROVED') {
+        await answerTelegramCallbackQuery(callbackId, 'ℹ️ งานนี้ดำเนินการเสร็จสิ้นไปแล้วครับ', true)
+        return { handled: true, action: 'COMPLETE_REPAIR_FAILED', error: 'Already completed' }
+      }
+
+      if (task.status === 'REJECTED') {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ ไม่สามารถปิดงานที่ถูกยกเลิกไปแล้วได้', true)
+        return { handled: true, action: 'COMPLETE_REPAIR_FAILED', error: 'Already cancelled' }
+      }
+
+      const repairRows = await queryMemberDb(
+        'SELECT * FROM repair_details WHERE task_id = ? LIMIT 1',
+        [taskId]
+      )
+      const repair = repairRows?.[0]
+
+      let coWorkers: any[] = []
+      try {
+        coWorkers = repair?.co_workers ? (typeof repair.co_workers === 'string' ? JSON.parse(repair.co_workers) : repair.co_workers) : []
+      } catch {}
+
+      const isAssignee = task.current_assignee === currentMember.id || repair?.assigned_technician_id === currentMember.id
+      const isCoWorker = coWorkers.some((cw: any) => cw.id === currentMember.id)
+      const isAdmin = currentMember.role === 'admin'
+
+      if (!isAssignee && !isCoWorker && !isAdmin) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ เฉพาะช่างผู้รับผิดชอบงานนี้หรือผู้ดูแลระบบเท่านั้นที่สามารถปิดงานได้', true)
+        return { handled: true, action: 'COMPLETE_REPAIR_FAILED', error: 'Not authorized' }
+      }
+
+      // Record pending action for this technician (expires in 30 mins)
+      pendingTechnicianActions.set(Number(fromUser.id), {
+        action: 'AWAITING_REPAIR_COMPLETION_NOTE',
+        taskId,
+        taskNo: task.task_no,
+        taskTitle: task.title,
+        memberId: currentMember.id,
+        memberName: currentMember.name || currentMember.username,
+        groupChatId: chatId,
+        originalMessageId: messageId,
+        expiresAt: Date.now() + 30 * 60 * 1000,
+      })
+
+      await answerTelegramCallbackQuery(callbackId, '✍️ กรุณาพิมพ์รายละเอียดผลการซ่อมเพื่อปิดงาน', false)
+
+      const promptRes = await sendTelegramMessage(
+        chatId || fromUser.id,
+        `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> คุณ <b>${escapeHtml(currentMember.name)}</b>
+🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}
+
+✍️ <b>กรุณาพิมพ์ข้อความตอบกลับเพื่อระบุรายละเอียดผลการซ่อม/การแก้ไข</b>
+<i>(เช่น เปลี่ยนสายแพรใหม่, ลงโปรแกรมใหม่, ทำความสะอาดหัวพิมพ์ ฯลฯ หรือพิมพ์ <b>-</b> หากไม่มีรายละเอียด)</i>
+
+💡 หรือหากไม่ต้องการพิมพ์รายละเอียด สามารถกดปุ่มด้านล่างเพื่อยืนยันปิดงานได้ทันทีครับ`,
+        {
+          parseMode: 'HTML',
+          replyMarkup: {
+            force_reply: true,
+            selective: true,
+            inline_keyboard: [
+              [
+                {
+                  text: '⚡ ยืนยันปิดงานทันที (ไม่ระบุรายละเอียด)',
+                  callback_data: `confirm_complete:${taskId}`,
+                },
+                {
+                  text: '↩️ ยกเลิก / กลับไปก่อน',
+                  callback_data: `cancel_complete_prompt:${taskId}`,
+                },
+              ],
+            ],
+          },
+        }
+      )
+
+      if (promptRes.success && promptRes.result?.message_id) {
+        const existing = pendingTechnicianActions.get(Number(fromUser.id))
+        if (existing) {
+          pendingTechnicianActions.set(Number(fromUser.id), {
+            ...existing,
+            promptMessageId: promptRes.result.message_id
+          })
+        }
+      }
+
+      return {
+        handled: true,
+        action: 'COMPLETE_REPAIR_PROMPT',
+        memberName: currentMember.name,
+      }
+    }
+
+    // ── Quick Confirm Complete (Without typing notes) ──
+    if (data.startsWith('confirm_complete:')) {
+      const taskId = data.slice('confirm_complete:'.length).trim()
+
+      const links = await queryMemberDb(
+        `SELECT m.id, m.name, m.username, m.position, m.role 
+         FROM member_telegram_links l
+         JOIN members m ON l.member_id = m.id
+         WHERE l.telegram_user_id = ? OR l.telegram_chat_id = ? 
+         LIMIT 1`,
+        [fromUser.id, chatId || 0]
+      )
+
+      if (!links || links.length === 0) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ บัญชี Telegram นี้ยังไม่ได้เชื่อมต่อกับระบบสมาชิกโรงพยาบาล', true)
+        return { handled: true, action: 'COMPLETE_REPAIR_FAILED', error: 'User not linked' }
+      }
+
+      const currentMember = links[0]
+      const pending = pendingTechnicianActions.get(Number(fromUser.id))
+      const origMsgId = pending?.originalMessageId
+
+      const compResult = await completeRepairTaskHelper({
+        taskId,
+        memberId: currentMember.id,
+        memberName: currentMember.name || currentMember.username,
+        username: currentMember.username,
+        solutionStep: 'ซ่อมเสร็จสิ้นเรียบร้อย (ปิดงานผ่าน Telegram)',
+        chatId: pending?.groupChatId || chatId,
+        originalMessageId: origMsgId,
+      })
+
+      pendingTechnicianActions.delete(Number(fromUser.id))
+
+      if (!compResult.success) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ เกิดข้อผิดพลาดในการบันทึกปิดงาน', true)
+        return { handled: true, action: 'COMPLETE_REPAIR_FAILED', error: compResult.error }
+      }
+
+      // Remove the inline keyboard from the prompt message
+      if (chatId && messageId) {
+        await editTelegramMessageText(
+          chatId,
+          messageId,
+          `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> คุณ <b>${escapeHtml(currentMember.name)}</b>\n🏷️ <b>รหัสใบงาน :</b> <code>${compResult.taskNo || taskId}</code>\n\n⚡ <i>ยืนยันปิดงานเรียบร้อยแล้ว</i>`
+        )
+      }
+
+      await answerTelegramCallbackQuery(callbackId, '✓ บันทึกปิดงานซ่อมเสร็จสิ้นเรียบร้อยแล้ว!', false)
+
+      await sendTelegramMessage(
+        chatId || fromUser.id,
+        `🎉 <b>บันทึกปิดงานเรียบร้อยแล้ว</b>\n\n🏷️ <b>รหัสใบงาน :</b> <code>${compResult.taskNo}</code>\n👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> ${escapeHtml(currentMember.name)}\n\n✨ <i>ระบบได้บันทึกและส่งแจ้งเตือนไปยังผู้ยื่นคำขอแล้วครับ</i>`
+      )
+
+      return {
+        handled: true,
+        action: 'COMPLETE_REPAIR_SUCCESS',
+        memberName: currentMember.name,
+      }
+    }
+
+    // ── Cancel Complete Prompt ──
+    if (data.startsWith('cancel_complete_prompt:')) {
+      pendingTechnicianActions.delete(Number(fromUser.id))
+      if (chatId && messageId) {
+        await editTelegramMessageText(
+          chatId,
+          messageId,
+          `❌ <i>ยกเลิกขั้นตอนการปิดงานแล้ว</i>`
+        )
+      }
+      await answerTelegramCallbackQuery(callbackId, '↩️ ยกเลิกขั้นตอนการปิดงานแล้ว', false)
+      return { handled: true, action: 'IGNORED' }
+    }
+
+    if (data.startsWith('cancel_repair:') || data.startsWith('reject_repair:')) {
+      const taskId = (data.startsWith('cancel_repair:') ? data.slice('cancel_repair:'.length) : data.slice('reject_repair:'.length)).trim()
+
+      // 1. Find linked member
+      const links = await queryMemberDb(
+        `SELECT m.id, m.name, m.username, m.position, m.role 
+         FROM member_telegram_links l
+         JOIN members m ON l.member_id = m.id
+         WHERE l.telegram_user_id = ? OR l.telegram_chat_id = ? 
+         LIMIT 1`,
+        [fromUser.id, chatId || 0]
+      )
+
+      if (!links || links.length === 0) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ บัญชี Telegram นี้ยังไม่ได้เชื่อมต่อกับระบบสมาชิกโรงพยาบาล', true)
+        return { handled: true, action: 'CANCEL_REPAIR_FAILED', error: 'User not linked' }
+      }
+
+      const currentMember = links[0]
+
+      // 2. Fetch Task and Repair Detail
+      const tasks = await queryMemberDb(
+        'SELECT * FROM inbox_tasks WHERE id = ? LIMIT 1',
+        [taskId]
+      )
+
+      if (!tasks || tasks.length === 0) {
+        await answerTelegramCallbackQuery(callbackId, '⚠️ ไม่พบข้อมูลงานซ่อมนี้ในระบบ', true)
+        return { handled: true, action: 'CANCEL_REPAIR_FAILED', error: 'Task not found' }
+      }
+
+      const task = tasks[0]
+
+      if (task.status === 'APPROVED' || task.status === 'REJECTED') {
+        await answerTelegramCallbackQuery(callbackId, 'ℹ️ งานนี้ดำเนินการเสร็จสิ้นหรือถูกยกเลิกไปแล้วครับ', true)
+        return { handled: true, action: 'CANCEL_REPAIR_FAILED', error: 'Already completed or rejected' }
+      }
+
+      const repairRows = await queryMemberDb(
+        'SELECT * FROM repair_details WHERE task_id = ? LIMIT 1',
+        [taskId]
+      )
+      const repair = repairRows?.[0]
+
+      // 3. Perform Cancel / Reject in Database
+      await queryMemberDb(
+        `UPDATE inbox_tasks SET status = 'REJECTED', updated_at = NOW() WHERE id = ?`,
+        [taskId]
+      )
+      await queryMemberDb(
+        `UPDATE repair_details SET repair_status = 'CANCELLED', updated_at = NOW() WHERE task_id = ?`,
+        [taskId]
+      )
+      await queryMemberDb(
+        `UPDATE inbox_task_steps 
+         SET status = 'REJECTED', action_taken = 'REJECT', action_by = ?, action_by_name = ?, action_at = NOW(), comment = 'ยกเลิก / ปฏิเสธงานผ่าน Telegram' 
+         WHERE task_id = ? AND step_no = 1`,
+        [currentMember.id, currentMember.name || currentMember.username, taskId]
+      )
+
+      // 4. Write Audit Log
+      await queryMemberDb(
+        `INSERT INTO inbox_task_audit_logs (id, task_id, action, performed_by, performer_name, details)
+         VALUES (?, ?, 'CANCEL_JOB_TELEGRAM', ?, ?, ?)`,
+        [
+          crypto.randomUUID(),
+          taskId,
+          currentMember.id,
+          currentMember.name || currentMember.username,
+          JSON.stringify({ status: 'REJECTED', source: 'TELEGRAM_INLINE_BUTTON', cancelled_by: currentMember.name }),
+        ]
+      )
+
+      // 5. Answer Callback Query to stop spinner
+      await answerTelegramCallbackQuery(callbackId, '❌ คุณได้ยกเลิก/ปฏิเสธงานแจ้งซ่อมนี้เรียบร้อยแล้ว', false)
+
+      const thaiDate = new Intl.DateTimeFormat('th-TH', {
+        timeZone: 'Asia/Bangkok',
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(new Date())
+
+      const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+      const taskLink = `${domainUrl}/member/inbox/${taskId}`
+
+      // 6. Update message in Telegram chat
+      if (chatId && messageId) {
+        const updatedMessage = `❌ <b>คุณได้ยกเลิก / ปฏิเสธงานแจ้งซ่อมนี้แล้ว</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}
+${repair?.location_full_name ? `📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}\n` : ''}👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(task.requester_name)}${task.requester_dept ? ` (${escapeHtml(task.requester_dept)})` : ''}
+👨‍🔧 <b>ผู้ยกเลิก :</b> คุณ (${escapeHtml(currentMember.name)})
+
+📍 <b>สถานะปัจจุบัน :</b> ⛔ ปฏิเสธ / ยกเลิกรายการ
+⏰ <b>เวลายกเลิก :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ระบบได้ส่งการแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
+
+        await editTelegramMessageText(chatId, messageId, updatedMessage, {
+          inline_keyboard: [
+            [
+              {
+                text: '📋 เปิดดูรายละเอียดบนเว็บไซต์',
+                url: taskLink,
+              },
+            ],
+          ],
+        })
+      }
+
+      // 7. Notify Requester on Telegram that technician cancelled/rejected the job
+      if (task.requester_id) {
+        try {
+          const reqLinks = await queryMemberDb(
+            'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+            [task.requester_id]
+          )
+
+          if (reqLinks && reqLinks.length > 0) {
+            const reqChatId = reqLinks[0].telegram_chat_id
+            const reqMsg = `❌ <b>งานแจ้งซ่อมของคุณถูกปฏิเสธ / ยกเลิก</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}
+${repair?.location_full_name ? `📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}\n` : ''}🔧 <b>ผู้ดำเนินการ :</b> ${escapeHtml(currentMember.name)}${currentMember.position ? ` (${escapeHtml(currentMember.position)})` : ''}
+
+📍 <b>สถานะ :</b> ⛔ ยกเลิก / ปฏิเสธรายการ
+⏰ <b>เวลายกเลิก :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดในระบบ</i>`
+
+            await sendTelegramMessage(reqChatId, reqMsg, {
+              parseMode: 'HTML',
+              replyMarkup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: '📋 ตรวจสอบรายละเอียดงาน',
+                      url: taskLink,
+                    },
+                  ],
+                ],
+              },
+            })
+          }
+        } catch (e) {
+          logger.error({ e, taskId }, 'Failed to notify requester of cancellation from Telegram callback')
+        }
+      }
+
+      return {
+        handled: true,
+        action: 'CANCEL_REPAIR_SUCCESS',
+        memberName: currentMember.name,
+      }
+    }
+
+    return { handled: false, action: 'IGNORED' }
+  }
+
   const message = update?.message
   if (!message || !message.text) {
     return { handled: false, action: 'IGNORED' }
@@ -242,8 +1040,69 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
     return { handled: false, action: 'IGNORED' }
   }
 
-  // 1. Handle "/start" or "/start <token>"
+  // ── 1. Check if user is replying with repair completion notes ──
+  const pending = pendingTechnicianActions.get(Number(fromUser.id))
+  if (pending && pending.action === 'AWAITING_REPAIR_COMPLETION_NOTE') {
+    if (Date.now() > pending.expiresAt) {
+      pendingTechnicianActions.delete(Number(fromUser.id))
+    } else if (!text.startsWith('/')) {
+      const solutionStep = text === '-' ? 'ซ่อมเสร็จสิ้นเรียบร้อย' : text
+
+      const compResult = await completeRepairTaskHelper({
+        taskId: pending.taskId,
+        memberId: pending.memberId,
+        memberName: pending.memberName,
+        solutionStep,
+        chatId: pending.groupChatId,
+        originalMessageId: pending.originalMessageId,
+      })
+
+      pendingTechnicianActions.delete(Number(fromUser.id))
+
+      if (compResult.success) {
+        if (pending.promptMessageId) {
+          try {
+            await editTelegramMessageText(
+              chatId,
+              pending.promptMessageId,
+              `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> คุณ <b>${escapeHtml(pending.memberName)}</b>\n🏷️ <b>รหัสใบงาน :</b> <code>${pending.taskNo}</code>\n\n✅ <i>รับข้อมูลรายละเอียดการซ่อมเรียบร้อยแล้ว</i>`
+            )
+          } catch (e) {
+            logger.warn({ e }, 'Could not edit prompt message to remove buttons')
+          }
+        }
+
+        await sendTelegramMessage(
+          chatId,
+          `🎉 <b>บันทึกผลการซ่อมและปิดงานเรียบร้อยแล้ว!</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${pending.taskNo}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(pending.taskTitle)}
+📝 <b>ผลการดำเนินงาน :</b> ${escapeHtml(solutionStep)}
+👨‍🔧 <b>ช่างผู้บันทึก :</b> ${escapeHtml(pending.memberName)}
+
+✨ <i>ระบบได้บันทึกเข้าสู่ฐานข้อมูลและส่งแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้วครับ</i>`
+        )
+
+        return {
+          handled: true,
+          action: 'COMPLETE_REPAIR_SUCCESS',
+          memberName: pending.memberName,
+        }
+      } else {
+        await sendTelegramMessage(chatId, `⚠️ ไม่สามารถบันทึกผลการซ่อมได้: ${compResult.error || 'เกิดข้อผิดพลาด'}`)
+        return {
+          handled: true,
+          action: 'COMPLETE_REPAIR_FAILED',
+          error: compResult.error,
+        }
+      }
+    }
+  }
+
+  // ── 2. Handle "/start" or "/start <token>" ──
   if (text.startsWith('/start')) {
+    pendingTechnicianActions.delete(Number(fromUser.id))
     const parts = text.split(/\s+/)
     const token = parts[1]
 
@@ -331,9 +1190,21 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
   return { handled: false, action: 'IGNORED' }
 }
 
+function escapeHtml(str: string): string {
+  if (!str) return ''
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 export const TelegramBotCore = {
   processUpdate: processTelegramUpdate,
   sendMessage: sendTelegramMessage,
+  answerCallbackQuery: answerTelegramCallbackQuery,
+  editMessageText: editTelegramMessageText,
   createLinkChallenge: createTelegramLinkChallenge,
   getMemberLink: getMemberTelegramLink,
   unlinkMember: unlinkMemberTelegram,

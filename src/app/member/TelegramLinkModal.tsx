@@ -22,11 +22,19 @@ interface TelegramStatus {
   telegramChatIdMasked?: string | null
 }
 
-export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+interface TelegramLinkModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onLinked?: () => void
+  onUnlinked?: () => void
+}
+
+export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinked }: TelegramLinkModalProps) {
   const [status, setStatus] = useState<TelegramStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [challengeData, setChallengeData] = useState<{ botUrl: string; expiresAt: string } | null>(null)
+  const [justConnected, setJustConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   
@@ -38,10 +46,12 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
   // Fetch status on open
   useEffect(() => {
     if (isOpen) {
+      setJustConnected(false)
       loadStatus()
     } else {
       stopPolling()
       setChallengeData(null)
+      setJustConnected(false)
       setError(null)
       setShowConfirmUnlink(false)
     }
@@ -100,9 +110,15 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
         const res = await fetch('/api/member/telegram')
         const data = await res.json()
         if (data.success && data.data?.isLinked) {
+          stopPolling()
           setStatus(data.data)
           setChallengeData(null)
-          stopPolling()
+          setJustConnected(true)
+          onLinked?.()
+          setTimeout(() => {
+            setJustConnected(false)
+            onClose()
+          }, 1500)
         }
       } catch {
         // Silently retry on polling error
@@ -121,6 +137,7 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
         setStatus({ isLinked: false })
         setChallengeData(null)
         setShowConfirmUnlink(false)
+        onUnlinked?.()
       } else {
         setError(json.error || 'ไม่สามารถยกเลิกการเชื่อมต่อได้')
       }
@@ -164,7 +181,29 @@ export default function TelegramLinkModal({ isOpen, onClose }: { isOpen: boolean
             </div>
           )}
 
-          {loading ? (
+          {justConnected ? (
+            <div className="telegramSuccessState" style={{ textAlign: 'center', padding: '28px 16px' }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: '#eff6ff',
+                color: '#0088cc',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px'
+              }}>
+                <CheckCircle2 size={32} />
+              </div>
+              <h4 style={{ fontSize: '17px', fontWeight: 600, color: '#0f172a', marginBottom: '6px' }}>
+                เชื่อมต่อ Telegram เสร็จเรียบร้อยแล้ว
+              </h4>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+                ระบบบันทึกข้อมูลและเปิดรับการแจ้งเตือนแล้ว
+              </p>
+            </div>
+          ) : loading ? (
             <div className="telegramLoadingState compactLoading">
               <RefreshCw className="animate-spin text-emerald-600" size={22} />
               <span>กำลังตรวจสอบสถานะ...</span>

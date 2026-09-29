@@ -20,7 +20,7 @@ export async function GET(
       `SELECT 
         t.id, t.task_no, t.task_type, t.title, t.description, t.urgency,
         t.requester_id, t.requester_name, t.requester_dept,
-        t.status, t.current_step_no, t.current_assignee, t.current_role,
+        t.status, t.current_step_no, t.current_assignee, t.\`current_role\`,
         t.reference_id, t.custom_payload, t.created_at, t.updated_at
        FROM inbox_tasks t
        WHERE t.id = ? LIMIT 1`,

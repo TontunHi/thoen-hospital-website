@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-import { generateTaskNo, notifyAssigneeOnTelegram } from '@/lib/taskInboxService'
+import { generateTaskNo, notifyAssigneeOnTelegram, notifyRepairCreatedRequesterOnTelegram } from '@/lib/taskInboxService'
 import crypto from 'crypto'
 
 export async function POST(request: Request) {
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       ? (equipmentName ? `${equipmentName} (${equipmentNumber || 'ไม่ระบุเลข'})` : `ครุภัณฑ์เลขที่ ${equipmentNumber}`)
       : nonEquipmentItem
 
-    const taskTitle = `แจ้งซ่อม: ${itemName} (${locationFullName})`
+    const taskTitle = `แจ้งซ่อม: ${itemName}`
 
     // Determine target department / role for technician queue if not direct assignee
     let targetRole = null
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     // 5. Insert into inbox_tasks
     await queryMemberDb(
       `INSERT INTO inbox_tasks 
-       (id, task_no, task_type, title, description, urgency, requester_id, requester_name, requester_dept, status, current_step_no, current_assignee, current_role, custom_payload, created_at, updated_at)
+       (\`id\`, \`task_no\`, \`task_type\`, \`title\`, \`description\`, \`urgency\`, \`requester_id\`, \`requester_name\`, \`requester_dept\`, \`status\`, \`current_step_no\`, \`current_assignee\`, \`current_role\`, \`custom_payload\`, \`created_at\`, \`updated_at\`)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 1, ?, ?, ?, NOW(), NOW())`,
       [
         taskId,
@@ -170,18 +170,39 @@ export async function POST(request: Request) {
       ]
     )
 
-    // 9. Telegram Alert to Assignee if assigned
-    if (techId) {
-      notifyAssigneeOnTelegram({
+    // 9. Telegram Alert to Assignee (only the designated tech or technicians of that role)
+    notifyAssigneeOnTelegram({
+      taskId,
+      taskNo,
+      taskType: repairType,
+      title: taskTitle,
+      requesterName: currentMember.name || session.username,
+      requesterDept: currentMember.department,
+      assigneeId: techId,
+      targetRole: targetRole,
+      stepName: 'มีงานแจ้งซ่อมใหม่มอบหมายถึงคุณ',
+      equipmentNumber: itemCategory === 'EQUIPMENT' ? (equipmentNumber?.trim() || null) : null,
+      itemName: itemName,
+      location: locationFullName,
+      symptom: symptomDetail.trim(),
+      urgency: urgency,
+    }).catch((e) => console.error('Telegram assignee notification error:', e))
+
+    // 10. Telegram Alert to Requester (confirmation of ticket submission)
+    if (techId !== currentMember.id) {
+      notifyRepairCreatedRequesterOnTelegram({
         taskId,
         taskNo,
         taskType: repairType,
         title: taskTitle,
-        requesterName: currentMember.name || session.username,
-        requesterDept: currentMember.department,
-        assigneeId: techId,
-        stepName: 'มีงานแจ้งซ่อมใหม่มอบหมายถึงคุณ',
-      }).catch((e) => console.error('Telegram notification error:', e))
+        requesterId: currentMember.id,
+        itemName: itemName,
+        equipmentNumber: itemCategory === 'EQUIPMENT' ? (equipmentNumber?.trim() || null) : null,
+        location: locationFullName,
+        symptom: symptomDetail.trim(),
+        urgency: urgency,
+        assignedTechName: techName,
+      }).catch((e) => console.error('Telegram requester notification error:', e))
     }
 
     return NextResponse.json({

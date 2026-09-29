@@ -131,7 +131,7 @@ export async function POST(
         const nextAssignee = nextAssigneeId || nextStep.assigned_to_id || null
         await queryMemberDb(
           `UPDATE inbox_tasks 
-           SET current_step_no = ?, current_assignee = ?, current_role = ?, status = 'PENDING', updated_at = NOW()
+           SET current_step_no = ?, current_assignee = ?, \`current_role\` = ?, status = 'PENDING', updated_at = NOW()
            WHERE id = ?`,
           [nextStep.step_no, nextAssignee, nextStep.assigned_role, taskId]
         )
@@ -157,7 +157,7 @@ export async function POST(
       } else {
         // Final Step Completed! Entire Task is APPROVED
         await queryMemberDb(
-          `UPDATE inbox_tasks SET status = 'APPROVED', current_assignee = NULL, current_role = NULL, updated_at = NOW() WHERE id = ?`,
+          `UPDATE inbox_tasks SET status = 'APPROVED', current_assignee = NULL, \`current_role\` = NULL, updated_at = NOW() WHERE id = ?`,
           [taskId]
         )
 
@@ -184,7 +184,7 @@ export async function POST(
       )
 
       await queryMemberDb(
-        `UPDATE inbox_tasks SET status = 'REJECTED', current_assignee = NULL, current_role = NULL, updated_at = NOW() WHERE id = ?`,
+        `UPDATE inbox_tasks SET status = 'REJECTED', current_assignee = NULL, \`current_role\` = NULL, updated_at = NOW() WHERE id = ?`,
         [taskId]
       )
 
@@ -212,7 +212,7 @@ export async function POST(
 
       await queryMemberDb(
         `UPDATE inbox_tasks 
-         SET status = 'SENT_BACK', current_step_no = 1, current_assignee = requester_id, current_role = NULL, updated_at = NOW() 
+         SET status = 'SENT_BACK', current_step_no = 1, current_assignee = requester_id, \`current_role\` = NULL, updated_at = NOW() 
          WHERE id = ?`,
         [taskId]
       )

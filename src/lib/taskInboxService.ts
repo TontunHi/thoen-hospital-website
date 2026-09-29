@@ -127,8 +127,14 @@ export async function generateTaskNo(taskType: string): Promise<string> {
   return `${ymPrefix}${String(count).padStart(4, '0')}`
 }
 
+function formatUrgency(urgency?: string | null) {
+  if (urgency === 'VERY_URGENT') return '🔴 ด่วนที่สุด'
+  if (urgency === 'URGENT') return '🟡 ด่วน'
+  return '🟢 ปกติ'
+}
+
 /**
- * Dispatch Telegram Alert when a task reaches an assignee
+ * Dispatch Telegram Alert when a task reaches an assignee (e.g. Technician or Signer)
  */
 export async function notifyAssigneeOnTelegram(params: {
   taskId: string
@@ -138,23 +144,62 @@ export async function notifyAssigneeOnTelegram(params: {
   requesterName: string
   requesterDept?: string | null
   assigneeId?: number | null
+  targetRole?: string | null
   stepName: string
+  equipmentNumber?: string | null
+  itemName?: string | null
+  location?: string | null
+  symptom?: string | null
+  urgency?: string | null
 }) {
-  if (!params.assigneeId) return
-
   try {
-    // 1. Check if user is linked to Telegram
-    const links = await queryMemberDb(
-      'SELECT telegram_chat_id, first_name FROM member_telegram_links WHERE member_id = ? LIMIT 1',
-      [params.assigneeId]
-    )
+    let chatIds: (string | number)[] = []
 
-    if (!links || links.length === 0) {
-      // User hasn't linked Telegram; silently skip
+    const isRepair = ['IT_REPAIR', 'MEDICAL_REPAIR', 'GENERAL_REPAIR'].includes(params.taskType)
+
+    if (isRepair) {
+      // Route directly to Department Telegram Group
+      let groupChatId: string | undefined
+      if (params.taskType === 'IT_REPAIR') {
+        groupChatId = process.env.TELEGRAM_GROUP_IT_REPAIR || '-5547296760'
+      } else if (params.taskType === 'GENERAL_REPAIR') {
+        groupChatId = process.env.TELEGRAM_GROUP_GENERAL_REPAIR || '-5487353615'
+      } else if (params.taskType === 'MEDICAL_REPAIR') {
+        groupChatId = process.env.TELEGRAM_GROUP_MEDICAL_REPAIR || '-5477389393'
+      }
+
+      if (groupChatId) {
+        chatIds.push(groupChatId)
+      }
+    } else {
+      if (params.assigneeId) {
+        // 1. Check if direct assignee is linked to Telegram (Notify ONLY this assigned person)
+        const links = await queryMemberDb(
+          'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+          [params.assigneeId]
+        )
+        if (links && links.length > 0) {
+          chatIds.push(links[0].telegram_chat_id)
+        }
+      } else if (params.targetRole) {
+        // 2. If no direct assignee, notify ONLY members in that specific role/position/department (NO admin broadcast)
+        const links = await queryMemberDb(
+          `SELECT l.telegram_chat_id 
+           FROM member_telegram_links l
+           JOIN members m ON l.member_id = m.id
+           WHERE (m.position LIKE ? OR m.department LIKE ?)`,
+          [`%${params.targetRole}%`, `%${params.targetRole}%`]
+        )
+        if (links && links.length > 0) {
+          chatIds = links.map((r: any) => r.telegram_chat_id)
+        }
+      }
+    }
+
+    if (chatIds.length === 0) {
       return
     }
 
-    const chatId = links[0].telegram_chat_id
     const typeLabel = REGISTERED_TASK_TYPES[params.taskType]?.name || params.taskType
     const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
     const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
@@ -165,19 +210,351 @@ export async function notifyAssigneeOnTelegram(params: {
       timeStyle: 'short',
     }).format(new Date())
 
-    const message = `🔔 <b>มีงานใหม่รอคุณตรวจสอบ / อนุมัติ</b>
+    const urgencyLabel = formatUrgency(params.urgency)
 
-📋 <b>เรื่อง:</b> ${escapeHtml(params.title)}
-🏷️ <b>ประเภท:</b> ${escapeHtml(typeLabel)} (<code>${params.taskNo}</code>)
-👤 <b>ผู้ยื่นขอ:</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}
-📍 <b>ขั้นตอนปัจจุบัน:</b> ${escapeHtml(params.stepName)}
-⏰ <b>วันที่ส่ง:</b> ${thaiDate} น.
+    let message = ''
+    if (isRepair) {
+      message = `🔔 <b>มีงานแจ้งซ่อมใหม่เข้ามายังกลุ่มงาน</b>
 
-🔗 <a href="${taskLink}">กดที่นี่เพื่อเปิดดูและจัดการงานบนเว็บไซต์</a>`
+🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>
+⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}
+📂 <b>ประเภทงาน :</b> ${escapeHtml(typeLabel)}
 
-    await sendTelegramMessage(chatId, message, 'HTML')
+📋 <b>เรื่อง / รายการ :</b> ${escapeHtml(params.itemName || params.title)}
+${params.equipmentNumber ? `🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(params.equipmentNumber)}</code>\n` : ''}📍 <b>สถานที่ :</b> ${escapeHtml(params.location || 'โรงพยาบาลเถิน')}
+${params.symptom ? `📝 <b>อาการเสีย :</b> ${escapeHtml(params.symptom)}\n` : ''}
+👤 <b>ผู้ยื่นแจ้ง :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}
+⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ช่างในกลุ่มสามารถกดปุ่มด้านล่างเพื่อรับงานได้ทันที</i>`
+    } else {
+      message = `🔔 <b>มีงานใหม่รอคุณปฏิบัติหน้าที่ / ลงนาม</b>
+
+🏷️ <b>รหัสงาน :</b> <code>${params.taskNo}</code>
+⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}
+📂 <b>ประเภทงาน :</b> ${escapeHtml(typeLabel)}
+
+📋 <b>หัวข้อเรื่อง :</b> ${escapeHtml(params.title)}
+${params.location ? `📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}\n` : ''}
+👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}
+📍 <b>ขั้นตอน :</b> ${escapeHtml(params.stepName)}
+⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>กรุณากดปุ่มด้านล่างเพื่อเปิดดูรายละเอียดและดำเนินการ</i>`
+    }
+
+    const inlineKeyboard = isRepair
+      ? [
+          [
+            {
+              text: '🛠️ กดรับงานทันที (Accept Job)',
+              callback_data: `accept_repair:${params.taskId}`,
+            },
+            {
+              text: '❌ ปฏิเสธ/ยกเลิกงาน',
+              callback_data: `cancel_repair:${params.taskId}`,
+            },
+          ],
+          [
+            {
+              text: '📋 เปิดดูรายละเอียดบนเว็บไซต์',
+              url: taskLink,
+            },
+          ],
+        ]
+      : [
+          [
+            {
+              text: '📋 เปิดดูรายละเอียดและลงนาม',
+              url: taskLink,
+            },
+          ],
+        ]
+
+    for (const chatId of chatIds) {
+      await sendTelegramMessage(chatId, message, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          inline_keyboard: inlineKeyboard,
+        },
+      })
+    }
   } catch (error) {
     logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram notification for task')
+  }
+}
+
+/**
+ * Dispatch Telegram Confirmation Alert to Requester when a repair ticket is created
+ */
+export async function notifyRepairCreatedRequesterOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  taskType: string
+  title: string
+  requesterId?: number | null
+  itemName?: string | null
+  equipmentNumber?: string | null
+  location?: string | null
+  symptom?: string | null
+  urgency?: string | null
+  assignedTechName?: string | null
+}) {
+  if (!params.requesterId) return
+
+  try {
+    const links = await queryMemberDb(
+      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+      [params.requesterId]
+    )
+
+    if (!links || links.length === 0) return
+
+    const chatId = links[0].telegram_chat_id
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const typeLabel = REGISTERED_TASK_TYPES[params.taskType]?.name || params.taskType
+    const urgencyLabel = formatUrgency(params.urgency)
+
+    const message = `📝 <b>คุณได้ส่งใบแจ้งซ่อมเรียบร้อยแล้ว</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>
+⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}
+📂 <b>ประเภทงาน :</b> ${escapeHtml(typeLabel)}
+
+📋 <b>เรื่อง / รายการ :</b> ${escapeHtml(params.itemName || params.title)}
+${params.equipmentNumber ? `🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(params.equipmentNumber)}</code>\n` : ''}📍 <b>สถานที่ :</b> ${escapeHtml(params.location || 'โรงพยาบาลเถิน')}
+${params.symptom ? `📝 <b>อาการเสีย :</b> ${escapeHtml(params.symptom)}\n` : ''}
+🔧 <b>ผู้รับผิดชอบ :</b> ${params.assignedTechName ? escapeHtml(params.assignedTechName) : 'รอช่างรับงาน'}
+⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.
+
+──────────────────────
+⏳ <i>ระบบได้ส่งเรื่องไปยังทีมช่างแล้ว และจะแจ้งเตือนเมื่อช่างรับงาน</i>`
+
+    await sendTelegramMessage(chatId, message, {
+      parseMode: 'HTML',
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            {
+              text: '📋 ติดตามสถานะงานซ่อม',
+              url: taskLink,
+            },
+          ],
+        ],
+      },
+    })
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram repair create confirmation to requester')
+  }
+}
+
+/**
+ * Dispatch Telegram Alert to Requester when technician accepts the job
+ */
+export async function notifyRepairAcceptedOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  taskType: string
+  title: string
+  requesterId?: number | null
+  technicianName: string
+  technicianPosition?: string | null
+  equipmentNumber?: string | null
+  location?: string | null
+}) {
+  if (!params.requesterId) return
+
+  try {
+    const links = await queryMemberDb(
+      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+      [params.requesterId]
+    )
+
+    if (!links || links.length === 0) return
+
+    const chatId = links[0].telegram_chat_id
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const message = `👨‍🔧 <b>ช่างได้รับงานแจ้งซ่อมของคุณแล้ว</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(params.title)}
+${params.equipmentNumber ? `🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(params.equipmentNumber)}</code>\n` : ''}${params.location ? `📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}\n` : ''}
+🔧 <b>ช่างผู้รับงาน :</b> ${escapeHtml(params.technicianName)}${params.technicianPosition ? ` (${escapeHtml(params.technicianPosition)})` : ''}
+
+📍 <b>สถานะ :</b> ⚙️ กำลังอยู่ระหว่างดำเนินการตรวจซ่อม
+⏰ <b>เวลารับงาน :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อติดตามความคืบหน้าของงาน</i>`
+
+    await sendTelegramMessage(chatId, message, {
+      parseMode: 'HTML',
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            {
+              text: '📋 ติดตามสถานะงานซ่อม',
+              url: taskLink,
+            },
+          ],
+        ],
+      },
+    })
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram repair accept notification')
+  }
+}
+
+/**
+ * Dispatch Telegram Alert to Requester when technician completes the repair
+ */
+export async function notifyRepairCompletedOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  taskType: string
+  title: string
+  requesterId?: number | null
+  technicianName: string
+  costType?: string | null
+  costAmount?: number | null
+  location?: string | null
+  solutionStep?: string | null
+}) {
+  if (!params.requesterId) return
+
+  try {
+    const links = await queryMemberDb(
+      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+      [params.requesterId]
+    )
+
+    if (!links || links.length === 0) return
+
+    const chatId = links[0].telegram_chat_id
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const costText = params.costType === 'HAS_COST' && params.costAmount
+      ? `มีค่าใช้จ่าย ${Number(params.costAmount).toLocaleString()} บาท`
+      : 'ไม่มีค่าใช้จ่าย'
+
+    const message = `✅ <b>งานแจ้งซ่อมของคุณดำเนินการเสร็จสิ้นแล้ว</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(params.title)}
+${params.location ? `📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}\n` : ''}👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> ${escapeHtml(params.technicianName)}
+${params.solutionStep ? `📝 <b>ผลการซ่อม/การแก้ไข :</b> ${escapeHtml(params.solutionStep)}\n` : ''}💵 <b>ค่าใช้จ่าย :</b> ${costText}
+
+📍 <b>สถานะ :</b> ✓ ซ่อมเสร็จสิ้นสมบูรณ์
+⏰ <b>เวลาปิดงาน :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดและพิมพ์ใบงาน</i>`
+
+    await sendTelegramMessage(chatId, message, {
+      parseMode: 'HTML',
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            {
+              text: '📄 ดูรายละเอียดผลการซ่อม',
+              url: taskLink,
+            },
+          ],
+        ],
+      },
+    })
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram repair complete notification')
+  }
+}
+
+/**
+ * Dispatch Telegram Alert when a repair task is cancelled or rejected
+ */
+export async function notifyRepairCancelledOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  taskType: string
+  title: string
+  targetMemberId?: number | null
+  cancelledByName: string
+  cancelledByRole?: string | null
+  reason?: string | null
+  location?: string | null
+}) {
+  if (!params.targetMemberId) return
+
+  try {
+    const links = await queryMemberDb(
+      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+      [params.targetMemberId]
+    )
+
+    if (!links || links.length === 0) return
+
+    const chatId = links[0].telegram_chat_id
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const message = `❌ <b>งานแจ้งซ่อมถูกยกเลิก / ปฏิเสธ</b>
+
+🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>
+📋 <b>เรื่อง :</b> ${escapeHtml(params.title)}
+${params.location ? `📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}\n` : ''}
+👤 <b>ผู้ดำเนินการยกเลิก :</b> ${escapeHtml(params.cancelledByName)}${params.cancelledByRole ? ` (${escapeHtml(params.cancelledByRole)})` : ''}
+${params.reason ? `📝 <b>เหตุผล :</b> ${escapeHtml(params.reason)}\n` : ''}
+📍 <b>สถานะ :</b> ⛔ ยกเลิก / ปฏิเสธรายการ
+⏰ <b>เวลายกเลิก :</b> ${thaiDate} น.
+
+──────────────────────
+✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดในระบบ</i>`
+
+    await sendTelegramMessage(chatId, message, {
+      parseMode: 'HTML',
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            {
+              text: '📋 ตรวจสอบรายละเอียดงาน',
+              url: taskLink,
+            },
+          ],
+        ],
+      },
+    })
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram repair cancel notification')
   }
 }
 

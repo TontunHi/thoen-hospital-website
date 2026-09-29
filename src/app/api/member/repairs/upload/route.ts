@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
+import { DocumentStorage, StorageValidationError } from '@/lib/storage/documentStorage'
 
 export async function POST(request: Request) {
   try {
@@ -21,56 +20,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'สามารถอัปโหลดรูปภาพได้สูงสุดไม่เกิน 5 ไฟล์' }, { status: 400 })
     }
 
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
-    const maxFileSize = 10 * 1024 * 1024 // 10 MB per file
+    const destinationDir = DocumentStorage.formatDateDirectory('public/uploads/repairs', new Date(), 'monthly')
 
-    // Folder structured by Year/Month: e.g. public/uploads/repairs/2026/09
-    const now = new Date()
-    const year = String(now.getFullYear())
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const uploadRelativeDir = `/uploads/repairs/${year}/${month}`
-    const uploadAbsoluteDir = path.join(process.cwd(), 'public', 'uploads', 'repairs', year, month)
+    const savedFiles = await DocumentStorage.saveBatch(files, {
+      destinationDir,
+      baseName: 'repair',
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+      allowedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
+      maxSizeBytes: 10 * 1024 * 1024, // 10MB per file
+      collisionStrategy: 'timestamp',
+    })
 
-    await mkdir(uploadAbsoluteDir, { recursive: true })
-
-    const uploadedUrls: string[] = []
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-
-      // Validation
-      if (!allowedMimeTypes.includes(file.type)) {
-        return NextResponse.json(
-          { error: `ไฟล์ "${file.name}" ไม่ใช่รูปภาพที่รองรับ (รองรับ JPEG, PNG, WebP, GIF)` },
-          { status: 400 }
-        )
-      }
-
-      if (file.size > maxFileSize) {
-        return NextResponse.json(
-          { error: `ไฟล์ "${file.name}" มีขนาดเกิน 10MB (ขนาดปัจจุบัน: ${(file.size / (1024 * 1024)).toFixed(1)}MB)` },
-          { status: 400 }
-        )
-      }
-
-      const ext = (path.extname(file.name) || '.jpg').toLowerCase()
-      if (!allowedExtensions.includes(ext)) {
-        return NextResponse.json(
-          { error: `นามสกุลไฟล์ "${ext}" ไม่ได้รับอนุญาต` },
-          { status: 400 }
-        )
-      }
-
-      const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`
-      const safeFileName = `repair_${uniqueSuffix}${ext}`
-      const targetFilePath = path.join(uploadAbsoluteDir, safeFileName)
-
-      const buffer = Buffer.from(await file.arrayBuffer())
-      await writeFile(targetFilePath, buffer)
-
-      uploadedUrls.push(`${uploadRelativeDir}/${safeFileName}`)
-    }
+    const uploadedUrls = savedFiles.map((f) => f.publicUrl)
 
     return NextResponse.json({
       success: true,
@@ -80,7 +41,13 @@ export async function POST(request: Request) {
       },
     })
   } catch (error: any) {
+    if (error instanceof StorageValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     console.error('Repair photo upload error:', error)
-    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + error.message }, { status: 500 })
+    return NextResponse.json(
+      { error: 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: ' + (error.message || 'Unknown error') },
+      { status: 500 }
+    )
   }
 }
