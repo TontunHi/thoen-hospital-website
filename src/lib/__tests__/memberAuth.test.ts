@@ -195,5 +195,60 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
 
     querySpy.mockRestore()
   })
+
+  it('serializes AuthenticatedMember to a plain serializable DTO without functions or Set', async () => {
+    const { fetchAuthenticatedMember, toClientMember } = await import('../memberAuth')
+    const memberDb = await import('../memberDb')
+
+    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
+    querySpy
+      .mockResolvedValueOnce([
+        {
+          id: 303,
+          username: 'doctor_a',
+          email: 'doctor_a@thoen.go.th',
+          name: 'นพ. สมเกียรติ มั่นคง',
+          department: 'องค์กรแพทย์',
+          position: 'นายแพทย์ชำนาญการพิเศษ',
+          salary_user: '3520100123456',
+          role: 'member',
+          signature_path: '/uploads/signatures/doc_a.png',
+          profile_path: '/uploads/profiles/doc_a.jpg',
+        },
+      ])
+      .mockResolvedValueOnce([{ permission_key: 'manage_rdu' }])
+      .mockResolvedValueOnce([{ config_key: 'feature_signature', config_value: '1' }])
+      .mockResolvedValueOnce([{ id: 5 }])
+
+    const member = await fetchAuthenticatedMember('doctor_a', 'doctor_a@thoen.go.th')
+    expect(member).not.toBeNull()
+
+    const dto = toClientMember(member!)
+    expect(dto.id).toBe(303)
+    expect(dto.username).toBe('doctor_a')
+    expect(dto.email).toBe('doctor_a@thoen.go.th')
+    expect(dto.name).toBe('นพ. สมเกียรติ มั่นคง')
+    expect(dto.isTelegramLinked).toBe(true)
+    expect(dto.permissions).toEqual(['manage_rdu'])
+    expect(Array.isArray(dto.permissions)).toBe(true)
+
+    // Ensure no functions or Set exist on the DTO (RSC boundary safe)
+    expect((dto as any).can).toBeUndefined()
+    expect((dto as any).hasAccess).toBeUndefined()
+    expect((dto as any).isFeatureEnabled).toBeUndefined()
+    expect(dto.permissions instanceof Set).toBe(false)
+
+    // Also check member.toDto()
+    const dtoFromMethod = member!.toDto()
+    expect(dtoFromMethod).toEqual(dto)
+
+    // Verify it is JSON serializable
+    const jsonString = JSON.stringify(dto)
+    const parsed = JSON.parse(jsonString)
+    expect(parsed.id).toBe(303)
+    expect(parsed.permissions).toContain('manage_rdu')
+
+    querySpy.mockRestore()
+  })
 })
 

@@ -1,11 +1,11 @@
-import { getAuthenticatedMember } from '@/lib/memberAuth'
+import { getAuthenticatedMember, toClientMember } from '@/lib/memberAuth'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
 import { PenTool, FileText, ChevronRight, User, Shield, Globe, Newspaper, Building2, Pill, FileSpreadsheet, Scale } from 'lucide-react'
 import './page.css'
 
-function SignatureCard({ hasAccess }: { hasAccess: (k: string) => boolean }) {
-  if (!hasAccess('feature_signature')) return null
+function SignatureCard({ show }: { show: boolean }) {
+  if (!show) return null
 
   return (
     <Link href="/member/signature" className="serviceCard">
@@ -26,8 +26,8 @@ function SignatureCard({ hasAccess }: { hasAccess: (k: string) => boolean }) {
   )
 }
 
-function SalaryCard({ hasAccess }: { hasAccess: (k: string) => boolean }) {
-  if (!hasAccess('feature_salary')) return null
+function SalaryCard({ show }: { show: boolean }) {
+  if (!show) return null
 
   return (
     <Link href="/salary" className="serviceCard">
@@ -68,7 +68,7 @@ export default async function MemberDashboardPage() {
         
         {/* Banner Section / Profile Card */}
         <ProfileBanner
-          member={member}
+          member={toClientMember(member)}
           initials={member.initials}
           displayRole={member.displayRole}
           isTelegramLinked={member.isTelegramLinked}
@@ -96,10 +96,10 @@ export default async function MemberDashboardPage() {
             <div className="servicesGrid">
               
               {/* Card 1: Digital Signature */}
-              <SignatureCard hasAccess={member.hasAccess} />
+              <SignatureCard show={member.hasAccess('feature_signature')} />
 
               {/* Card 2: Salary Slip */}
-              <SalaryCard hasAccess={member.hasAccess} />
+              <SalaryCard show={member.hasAccess('feature_salary')} />
 
               {/* Card 6: Upload Salary (Visible only to admin or finance position) */}
               {isFinance && (

@@ -37,6 +37,29 @@ export type MemberPermission =
   | 'create_work'
   | 'view_all_work'
 
+export interface MemberDto {
+  id: number
+  username: string
+  email: string
+  name: string
+  department: string
+  position: string
+  salaryUser: string | null
+  role: string
+  displayRole: string
+  initials: string
+  signaturePath: string | null
+  profilePath: string | null
+  profile_path: string | null
+  hasSignature: boolean
+  hasSalary: boolean
+  hasSalaryCredentials: boolean
+  isTelegramLinked: boolean
+  isAdmin: boolean
+  permissions: string[]
+  settings: Record<string, string>
+}
+
 export interface AuthenticatedMember {
   id: number
   username: string
@@ -66,6 +89,7 @@ export interface AuthenticatedMember {
   can(permission: MemberPermission | MemberPermission[] | string | string[]): boolean
   isFeatureEnabled(featureKey: string): boolean
   hasAccess(featureKey: string): boolean
+  toDto(): MemberDto
 }
 
 export interface MemberAuthOptions {
@@ -320,7 +344,7 @@ export async function fetchAuthenticatedMember(username: string, email: string):
       return isAdmin || isFeatureEnabled(key)
     }
 
-    return {
+    const memberObj: AuthenticatedMember = {
       id: user.id,
       username: user.username,
       email: user.email,
@@ -349,10 +373,44 @@ export async function fetchAuthenticatedMember(username: string, email: string):
       can,
       isFeatureEnabled,
       hasAccess,
+      toDto() {
+        return toClientMember(this)
+      },
     }
+
+    return memberObj
   } catch (error) {
     logger.error({ error }, 'fetchAuthenticatedMember error')
     return null
+  }
+}
+
+/**
+ * Sanitizes an AuthenticatedMember instance into a plain, JSON-serializable DTO
+ * safe to pass across the React Server Component -> Client Component boundary.
+ */
+export function toClientMember(member: AuthenticatedMember): MemberDto {
+  return {
+    id: member.id,
+    username: member.username,
+    email: member.email,
+    name: member.name,
+    department: member.department,
+    position: member.position,
+    salaryUser: member.salaryUser,
+    role: member.role,
+    displayRole: member.displayRole,
+    initials: member.initials,
+    signaturePath: member.signaturePath,
+    profilePath: member.profilePath,
+    profile_path: member.profile_path,
+    hasSignature: member.hasSignature,
+    hasSalary: member.hasSalary,
+    hasSalaryCredentials: member.hasSalaryCredentials,
+    isTelegramLinked: member.isTelegramLinked,
+    isAdmin: member.isAdmin,
+    permissions: Array.from(member.permissions),
+    settings: { ...member.settings },
   }
 }
 
