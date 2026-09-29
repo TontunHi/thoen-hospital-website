@@ -3,7 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper, Building2, Pill, FileSpreadsheet, Scale } from 'lucide-react'
+import { PenTool, CheckCircle, AlertCircle, FileText, ChevronRight, User, Shield, Lock, Image as ImageIcon, ClipboardCheck, Laptop, Globe, Newspaper, Building2, Pill, FileSpreadsheet, Scale, Inbox, MapPin, Wrench } from 'lucide-react'
 import './page.css'
 
 async function getMemberDashboardData() {
@@ -31,6 +31,15 @@ async function getMemberDashboardData() {
     [member.id]
   )
   const isTelegramLinked = Boolean(telegramLinkRes && telegramLinkRes.length > 0)
+
+  // Query pending tasks count in Unified Inbox for this member
+  const inboxRows = await queryMemberDb(
+    `SELECT COUNT(*) as cnt FROM inbox_tasks 
+     WHERE status = 'PENDING' 
+     AND (current_assignee = ? OR (current_role IS NOT NULL AND (current_role = ? OR current_role = ?)))`,
+    [member.id, (member.position || '').trim(), member.role]
+  )
+  const pendingInboxCount = inboxRows[0]?.cnt || 0
 
   // Fetch settings config for features control
   const settingsRows = await queryMemberDb('SELECT config_key, config_value FROM member_system_settings')
@@ -145,6 +154,7 @@ async function getMemberDashboardData() {
     hasSignature,
     hasSalary,
     isTelegramLinked,
+    pendingInboxCount,
     initials
   }
 }
@@ -255,6 +265,101 @@ function SalaryCard({ hasAccess, hasSalary }: { hasAccess: (k: string) => boolea
   )
 }
 
+function InboxCard({ hasAccess, pendingInboxCount }: { hasAccess: (k: string) => boolean; pendingInboxCount: number }) {
+  return hasAccess('feature_inbox') ? (
+    <Link href="/member/inbox" className="serviceCard" style={{ border: pendingInboxCount > 0 ? '1.5px solid #3b82f6' : undefined }}>
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper" style={{ backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
+          <Inbox size={24} />
+        </div>
+        <div className={`statusIndicator ${pendingInboxCount > 0 ? 'warning' : 'success'}`} style={{ backgroundColor: pendingInboxCount > 0 ? '#fef3c7' : '#dcfce7', color: pendingInboxCount > 0 ? '#b45309' : '#15803d' }}>
+          {pendingInboxCount > 0 ? (
+            <>
+              <AlertCircle size={14} />
+              <span>รอคุณอนุมัติ {pendingInboxCount} รายการ</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle size={14} />
+              <span>ไม่มีงานค้าง</span>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>กล่องงาน</h4>
+        <p>ตรวจสอบและอนุมัติงานที่ส่งมาถึงคุณ พร้อมติดตามสถานะงานที่คุณยื่นขอ</p>
+      </div>
+      <div className="serviceCardFooter" style={{ color: '#2563eb' }}>
+        <span className="actionText">เปิดกล่องงาน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  ) : (
+    <div className="serviceCard serviceCardDisabled">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
+          <Lock size={24} />
+        </div>
+        <div className="statusIndicator error">
+          <span>ปิดบริการชั่วคราว</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>กล่องงาน</h4>
+        <p>ตรวจสอบและอนุมัติงานที่ส่งมาถึงคุณ พร้อมติดตามสถานะงานที่คุณยื่นขอ</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </div>
+  )
+}
+
+function RepairCard({ hasAccess }: { hasAccess: (k: string) => boolean }) {
+  return hasAccess('feature_repair') ? (
+    <Link href="/member/repairs/new" className="serviceCard">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
+          <Wrench size={24} />
+        </div>
+        <div className="statusIndicator success" style={{ backgroundColor: '#dcfce7', color: '#15803d' }}>
+          <CheckCircle size={14} />
+          <span>พร้อมให้บริการ</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>แจ้งซ่อมบำรุง</h4>
+        <p>ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมระบุครุภัณฑ์และสถานที่</p>
+      </div>
+      <div className="serviceCardFooter" style={{ color: '#16a34a' }}>
+        <span className="actionText">ยื่นใบแจ้งซ่อม</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  ) : (
+    <div className="serviceCard serviceCardDisabled">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper" style={{ opacity: 0.5, backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
+          <Lock size={24} />
+        </div>
+        <div className="statusIndicator error">
+          <span>ปิดบริการชั่วคราว</span>
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>แจ้งซ่อมบำรุง</h4>
+        <p>ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมระบุครุภัณฑ์และสถานที่</p>
+      </div>
+      <div className="serviceCardFooter">
+        <span className="actionText">ผู้ดูแลระบบปิดการใช้งาน</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </div>
+  )
+}
+
 
 
 export default async function MemberDashboardPage() {
@@ -274,6 +379,7 @@ export default async function MemberDashboardPage() {
     hasSignature,
     hasSalary,
     isTelegramLinked,
+    pendingInboxCount,
     initials
   } = await getMemberDashboardData()
 
@@ -316,6 +422,12 @@ export default async function MemberDashboardPage() {
             
             <div className="servicesGrid">
               
+              {/* Card 0: กล่องงาน (Task Inbox) */}
+              <InboxCard hasAccess={hasAccess} pendingInboxCount={pendingInboxCount} />
+
+              {/* Card 0.5: ระบบแจ้งซ่อม (Repair Request) */}
+              <RepairCard hasAccess={hasAccess} />
+
               {/* Card 1: Digital Signature */}
               <SignatureCard hasAccess={hasAccess} hasSignature={hasSignature} />
 
@@ -606,6 +718,26 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardFooter" style={{ color: '#e11d48' }}>
                   <span className="actionText">ตรวจสอบประวัติการใช้งาน</span>
+                  <ChevronRight size={16} className="chevronIcon" />
+                </div>
+              </Link>
+
+              {/* Card 11: Hospital Locations Management (Visible to Admins only) */}
+              <Link href="/member/locations" className="serviceCard">
+                <div className="serviceCardHeader">
+                  <div className="serviceIconWrapper" style={{ backgroundColor: '#ecfdf5', color: '#059669', borderColor: '#d1fae5', borderWidth: '1px', borderStyle: 'solid' }}>
+                    <MapPin size={24} />
+                  </div>
+                  <div className="statusIndicator success" style={{ backgroundColor: '#d1fae5', color: '#065f46', borderColor: '#a7f3d0' }}>
+                    <span>ฐานข้อมูลสถานที่</span>
+                  </div>
+                </div>
+                <div className="serviceCardBody">
+                  <h4>จัดการสถานที่ ตึก-ชั้น-ห้อง</h4>
+                  <p>แดชบอร์ดจัดการและซิงค์ข้อมูลสถานที่จาก Gotowin ตรวจสอบความถูกต้อง เปิด/ปิดใช้งาน และแก้ไขชื่อห้องสำหรับระบบแจ้งซ่อม</p>
+                </div>
+                <div className="serviceCardFooter" style={{ color: '#059669' }}>
+                  <span className="actionText">จัดการข้อมูลสถานที่</span>
                   <ChevronRight size={16} className="chevronIcon" />
                 </div>
               </Link>

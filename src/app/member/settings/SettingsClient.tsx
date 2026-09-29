@@ -26,7 +26,9 @@ import {
   Users,
   Pill,
   FileSpreadsheet,
-  Scale
+  Scale,
+  MapPin,
+  Inbox
 } from 'lucide-react'
 
 interface SettingsClientProps {
@@ -41,10 +43,12 @@ interface PermissionMapping {
 
 export default function SettingsClient({ initialSettings }: SettingsClientProps) {
   // Feature Toggles
+  const [featureInbox, setFeatureInbox] = useState(initialSettings['feature_inbox'] !== '0')
   const [featureSignature, setFeatureSignature] = useState(initialSettings['feature_signature'] !== '0')
   const [featureSalary, setFeatureSalary] = useState(initialSettings['feature_salary'] !== '0')
   const [featureIta, setFeatureIta] = useState(initialSettings['feature_ita'] !== '0')
   const [featureRdu, setFeatureRdu] = useState(initialSettings['feature_rdu'] !== '0')
+  const [featureRepair, setFeatureRepair] = useState(initialSettings['feature_repair'] !== '0')
   const [isSavingSettings, setIsSavingSettings] = useState(false)
 
   // Active View Tab
@@ -97,10 +101,12 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     setIsSavingSettings(true)
     try {
       const payload = {
+        feature_inbox: featureInbox ? '1' : '0',
         feature_signature: featureSignature ? '1' : '0',
         feature_salary: featureSalary ? '1' : '0',
         feature_ita: featureIta ? '1' : '0',
-        feature_rdu: featureRdu ? '1' : '0'
+        feature_rdu: featureRdu ? '1' : '0',
+        feature_repair: featureRepair ? '1' : '0'
       }
       const res = await fetch('/api/member/settings', {
         method: 'POST',
@@ -225,6 +231,27 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       icon: Scale,
       color: '#4f46e5',
       bg: '#eef2ff'
+    },
+    manage_locations: {
+      label: 'จัดการข้อมูลสถานที่ ตึก-ชั้น-ห้อง (manage_locations)',
+      desc: 'เจ้าหน้าที่ผู้ดูแลระบบสถานที่ ตึก ชั้น และห้อง สำหรับระบบงานและระบบแจ้งซ่อม',
+      icon: MapPin,
+      color: '#059669',
+      bg: '#d1fae5'
+    },
+    manage_repairs: {
+      label: 'ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (manage_repairs)',
+      desc: 'ทีมหัวหน้าช่างและผู้ดูแลระบบงานซ่อมบำรุง ตรวจสอบและมอบหมายงานซ่อมทั้งหมด',
+      icon: Wrench,
+      color: '#2563eb',
+      bg: '#eff6ff'
+    },
+    manage_inbox: {
+      label: 'ดูแลระบบกล่องงานและสายการอนุมัติ (manage_inbox)',
+      desc: 'ผู้ดูแลระบบกล่องงานกลาง ตรวจสอบและติดตามขั้นตอนงานและสถานะเอกสารทั้งหมด',
+      icon: Inbox,
+      color: '#0284c7',
+      bg: '#e0f2fe'
     }
   }
 
@@ -294,6 +321,32 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
 
           <form onSubmit={handleSaveSettings}>
             <div className="featuresGrid">
+              {/* Feature: Unified Task Inbox */}
+              <div className={`featureCard ${featureInbox ? 'isActive' : 'isInactive'}`}>
+                <div className="featureCardLeft">
+                  <div className="featureIconWrapper" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                    <Inbox size={22} />
+                  </div>
+                  <div className="featureMeta">
+                    <div className="featureTitleRow">
+                      <span className="featureTitle">ระบบกล่องงานกลาง (Unified Inbox)</span>
+                      <span className={`statusPill ${featureInbox ? 'pillActive' : 'pillInactive'}`}>
+                        {featureInbox ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
+                      </span>
+                    </div>
+                    <p className="featureDesc">อนุญาตให้สมาชิกทั่วไปเข้าใช้งานกล่องงาน ตรวจสอบงานที่ต้องลงนาม และติดตามคำขอ</p>
+                  </div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={featureInbox}
+                    onChange={(e) => setFeatureInbox(e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
+
               {/* Feature: Digital Signature */}
               <div className={`featureCard ${featureSignature ? 'isActive' : 'isInactive'}`}>
                 <div className="featureCardLeft">
@@ -398,6 +451,32 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                   <span className="slider"></span>
                 </label>
               </div>
+
+              {/* Feature: Repair System (ระบบแจ้งซ่อมบำรุง) */}
+              <div className={`featureCard ${featureRepair ? 'isActive' : 'isInactive'}`}>
+                <div className="featureCardLeft">
+                  <div className="featureIconWrapper" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                    <Wrench size={22} />
+                  </div>
+                  <div className="featureMeta">
+                    <div className="featureTitleRow">
+                      <span className="featureTitle">ระบบแจ้งซ่อมบำรุงโรงพยาบาล</span>
+                      <span className={`statusPill ${featureRepair ? 'pillActive' : 'pillInactive'}`}>
+                        {featureRepair ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
+                      </span>
+                    </div>
+                    <p className="featureDesc">อนุญาตให้สมาชิกทั่วไปยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์</p>
+                  </div>
+                </div>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={featureRepair}
+                    onChange={(e) => setFeatureRepair(e.target.checked)}
+                  />
+                  <span className="slider"></span>
+                </label>
+              </div>
             </div>
 
             <div className="formActions">
@@ -462,6 +541,9 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                   <option value="manage_rdu">จัดการข้อมูลและเอกสาร RDU (manage_rdu)</option>
                   <option value="manage_outgoing_doc">จัดการหนังสือส่งออก Online (manage_outgoing_doc)</option>
                   <option value="manage_ethics">จัดการเอกสารชมรมจริยธรรม (manage_ethics)</option>
+                  <option value="manage_locations">จัดการข้อมูลสถานที่ ตึก-ชั้น-ห้อง (manage_locations)</option>
+                  <option value="manage_repairs">ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (manage_repairs)</option>
+                  <option value="manage_inbox">ดูแลระบบกล่องงานและสายการอนุมัติ (manage_inbox)</option>
                 </select>
 
               </div>

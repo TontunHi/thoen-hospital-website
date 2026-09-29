@@ -294,6 +294,122 @@ async function initializeDb(poolInstance: mysql.Pool) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `)
 
+    // Initialize Unified Inbox System Tables
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS \`inbox_tasks\` (
+        \`id\` VARCHAR(36) PRIMARY KEY,
+        \`task_no\` VARCHAR(50) NOT NULL UNIQUE,
+        \`task_type\` VARCHAR(50) NOT NULL,
+        \`title\` VARCHAR(255) NOT NULL,
+        \`description\` TEXT NULL,
+        \`urgency\` VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+        \`requester_id\` INT NOT NULL,
+        \`requester_name\` VARCHAR(255) NOT NULL,
+        \`requester_dept\` VARCHAR(100) NULL,
+        \`status\` VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+        \`current_step_no\` INT NOT NULL DEFAULT 1,
+        \`current_assignee\` INT NULL,
+        \`current_role\` VARCHAR(100) NULL,
+        \`reference_id\` VARCHAR(100) NULL,
+        \`custom_payload\` LONGTEXT NULL,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX \`idx_task_assignee_status\` (\`current_assignee\`, \`status\`),
+        INDEX \`idx_task_type_status\` (\`task_type\`, \`status\`),
+        INDEX \`idx_task_requester\` (\`requester_id\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS \`inbox_task_steps\` (
+        \`id\` VARCHAR(36) PRIMARY KEY,
+        \`task_id\` VARCHAR(36) NOT NULL,
+        \`step_no\` INT NOT NULL,
+        \`step_name\` VARCHAR(255) NOT NULL,
+        \`assignee_type\` VARCHAR(30) NOT NULL DEFAULT 'INDIVIDUAL',
+        \`assigned_to_id\` INT NULL,
+        \`assigned_role\` VARCHAR(100) NULL,
+        \`status\` VARCHAR(30) NOT NULL DEFAULT 'WAITING',
+        \`action_taken\` VARCHAR(50) NULL,
+        \`action_by\` INT NULL,
+        \`action_by_name\` VARCHAR(255) NULL,
+        \`action_at\` DATETIME NULL,
+        \`comment\` TEXT NULL,
+        \`signature_path\` VARCHAR(255) NULL,
+        \`signature_hash\` VARCHAR(64) NULL,
+        UNIQUE KEY \`uq_task_step_no\` (\`task_id\`, \`step_no\`),
+        INDEX \`idx_step_assignee_status\` (\`assigned_to_id\`, \`status\`),
+        FOREIGN KEY (\`task_id\`) REFERENCES \`inbox_tasks\`(\`id\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS \`inbox_task_audit_logs\` (
+        \`id\` VARCHAR(36) PRIMARY KEY,
+        \`task_id\` VARCHAR(36) NOT NULL,
+        \`action\` VARCHAR(50) NOT NULL,
+        \`performed_by\` INT NOT NULL,
+        \`performer_name\` VARCHAR(255) NULL,
+        \`details\` LONGTEXT NULL,
+        \`ip_address\` VARCHAR(45) NULL,
+        \`user_agent\` VARCHAR(255) NULL,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX \`idx_audit_task_id\` (\`task_id\`),
+        FOREIGN KEY (\`task_id\`) REFERENCES \`inbox_tasks\`(\`id\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    // Initialize Hospital Locations Table (Sync from Gotowin)
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS \`hospital_locations\` (
+        \`id\` INT PRIMARY KEY,
+        \`room_name\` VARCHAR(200) NOT NULL,
+        \`floor_id\` INT NOT NULL,
+        \`floor_name\` VARCHAR(50) NOT NULL,
+        \`building_id\` INT NOT NULL,
+        \`building_name\` VARCHAR(200) NOT NULL,
+        \`full_name\` VARCHAR(500) NOT NULL,
+        \`is_active\` TINYINT(1) NOT NULL DEFAULT 1,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX \`idx_loc_building_floor\` (\`building_id\`, \`floor_id\`),
+        INDEX \`idx_loc_room_name\` (\`room_name\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
+    // Initialize Repair Details Table (linked 1:1 with inbox_tasks)
+    await connection.execute(`
+      CREATE TABLE IF NOT EXISTS \`repair_details\` (
+        \`id\` VARCHAR(36) PRIMARY KEY,
+        \`task_id\` VARCHAR(36) NOT NULL UNIQUE,
+        \`repair_type\` VARCHAR(50) NOT NULL,
+        \`item_category\` VARCHAR(30) NOT NULL DEFAULT 'EQUIPMENT',
+        \`equipment_number\` VARCHAR(100) NULL,
+        \`equipment_name\` VARCHAR(255) NULL,
+        \`non_equipment_item\` VARCHAR(255) NULL,
+        \`location_id\` INT NULL,
+        \`location_full_name\` VARCHAR(500) NOT NULL,
+        \`symptom_detail\` TEXT NOT NULL,
+        \`assigned_technician_id\` INT NULL,
+        \`assigned_technician_name\` VARCHAR(255) NULL,
+        \`co_workers\` JSON NULL,
+        \`repair_nature\` VARCHAR(50) NOT NULL DEFAULT 'NORMAL',
+        \`repair_status\` VARCHAR(50) NOT NULL DEFAULT 'WAITING',
+        \`is_external_repair\` TINYINT(1) NOT NULL DEFAULT 0,
+        \`external_vendor_name\` VARCHAR(255) NULL,
+        \`external_reason\` TEXT NULL,
+        \`cost_type\` VARCHAR(30) NOT NULL DEFAULT 'NO_COST',
+        \`cost_amount\` DECIMAL(10,2) NULL,
+        \`found_problem\` TEXT NULL,
+        \`solution_step\` TEXT NULL,
+        \`photos\` JSON NULL,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX \`idx_repair_type\` (\`repair_type\`),
+        INDEX \`idx_repair_status\` (\`repair_status\`),
+        FOREIGN KEY (\`task_id\`) REFERENCES \`inbox_tasks\`(\`id\`) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `)
+
     // Ensure default permission for view_all_salary and manage_rdu exists
     try {
       await connection.execute(

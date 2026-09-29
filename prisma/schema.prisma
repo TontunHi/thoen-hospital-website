@@ -264,4 +264,130 @@ model EthicsDocument {
   @@map("ethics_documents")
 }
 
+model Task {
+  id              String         @id @default(uuid()) @db.VarChar(36)
+  taskNo          String         @unique(map: "uq_task_no") @map("task_no") @db.VarChar(50)
+  taskType        String         @map("task_type") @db.VarChar(50)
+  title           String         @db.VarChar(255)
+  description     String?        @db.Text
+  urgency         String         @default("NORMAL") @db.VarChar(20)
+  
+  requesterId     Int            @map("requester_id")
+  requesterName   String         @map("requester_name") @db.VarChar(255)
+  requesterDept   String?        @map("requester_dept") @db.VarChar(100)
+  
+  status          String         @default("PENDING") @db.VarChar(30)
+  currentStepNo   Int            @default(1) @map("current_step_no")
+  currentAssignee Int?           @map("current_assignee")
+  currentRole     String?        @map("current_role") @db.VarChar(100)
 
+  referenceId     String?        @map("reference_id") @db.VarChar(100)
+  customPayload   String?        @map("custom_payload") @db.LongText
+
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  steps           TaskStep[]
+  auditLogs       TaskAuditLog[]
+  repairDetail    RepairDetail?
+
+  @@index([currentAssignee, status], map: "idx_task_assignee_status")
+  @@index([taskType, status], map: "idx_task_type_status")
+  @@index([requesterId], map: "idx_task_requester")
+  @@map("inbox_tasks")
+}
+
+model TaskStep {
+  id             String         @id @default(uuid()) @db.VarChar(36)
+  taskId         String         @map("task_id") @db.VarChar(36)
+  stepNo         Int            @map("step_no")
+  stepName       String         @map("step_name") @db.VarChar(255)
+  
+  assigneeType   String         @default("INDIVIDUAL") @map("assignee_type") @db.VarChar(30)
+  assignedToId   Int?           @map("assigned_to_id")
+  assignedRole   String?        @map("assigned_role") @db.VarChar(100)
+  
+  status         String         @default("WAITING") @db.VarChar(30)
+  
+  actionTaken    String?        @map("action_taken") @db.VarChar(50)
+  actionBy       Int?           @map("action_by")
+  actionByName   String?        @map("action_by_name") @db.VarChar(255)
+  actionAt       DateTime?      @map("action_at") @db.DateTime(0)
+  comment        String?        @db.Text
+  
+  signaturePath  String?        @map("signature_path") @db.VarChar(255)
+  signatureHash  String?        @map("signature_hash") @db.VarChar(64)
+
+  task           Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, stepNo], map: "uq_task_step_no")
+  @@index([assignedToId, status], map: "idx_step_assignee_status")
+  @@map("inbox_task_steps")
+}
+
+model TaskAuditLog {
+  id          String   @id @default(uuid()) @db.VarChar(36)
+  taskId      String   @map("task_id") @db.VarChar(36)
+  action      String   @db.VarChar(50)
+  performedBy Int      @map("performed_by")
+  performerName String? @map("performer_name") @db.VarChar(255)
+  details     String?  @db.LongText
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  userAgent   String?  @map("user_agent") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId], map: "idx_audit_task_id")
+  @@map("inbox_task_audit_logs")
+}
+
+model HospitalLocation {
+  id           Int      @id @map("id") // LEVEL_ROOM_ID from Gotowin
+  roomName     String   @map("room_name") @db.VarChar(200)
+  floorId      Int      @map("floor_id")
+  floorName    String   @map("floor_name") @db.VarChar(50)
+  buildingId   Int      @map("building_id")
+  buildingName String   @map("building_name") @db.VarChar(200)
+  fullName     String   @map("full_name") @db.VarChar(500)
+  isActive     Boolean  @default(true) @map("is_active")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([buildingId, floorId], map: "idx_loc_building_floor")
+  @@index([roomName], map: "idx_loc_room_name")
+  @@map("hospital_locations")
+}
+
+model RepairDetail {
+  id                    String   @id @default(uuid()) @db.VarChar(36)
+  taskId                String   @unique(map: "uq_repair_task_id") @map("task_id") @db.VarChar(36)
+  repairType            String   @map("repair_type") @db.VarChar(50)
+  itemCategory          String   @default("EQUIPMENT") @map("item_category") @db.VarChar(30)
+  equipmentNumber       String?  @map("equipment_number") @db.VarChar(100)
+  equipmentName         String?  @map("equipment_name") @db.VarChar(255)
+  nonEquipmentItem      String?  @map("non_equipment_item") @db.VarChar(255)
+  locationId            Int?     @map("location_id")
+  locationFullName      String   @map("location_full_name") @db.VarChar(500)
+  symptomDetail         String   @map("symptom_detail") @db.Text
+  assignedTechnicianId  Int?     @map("assigned_technician_id")
+  assignedTechnicianName String? @map("assigned_technician_name") @db.VarChar(255)
+  coWorkers             Json?    @map("co_workers")
+  repairNature          String   @default("NORMAL") @map("repair_nature") @db.VarChar(50)
+  repairStatus          String   @default("WAITING") @map("repair_status") @db.VarChar(50)
+  isExternalRepair      Boolean  @default(false) @map("is_external_repair")
+  externalVendorName    String?  @map("external_vendor_name") @db.VarChar(255)
+  externalReason        String?  @map("external_reason") @db.Text
+  costType              String   @default("NO_COST") @map("cost_type") @db.VarChar(30)
+  costAmount            Decimal? @map("cost_amount") @db.Decimal(10, 2)
+  foundProblem          String?  @map("found_problem") @db.Text
+  solutionStep          String?  @map("solution_step") @db.Text
+  photos                Json?
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  task                  Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([repairType], map: "idx_repair_type")
+  @@index([repairStatus], map: "idx_repair_status")
+  @@map("repair_details")
+}
