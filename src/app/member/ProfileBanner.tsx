@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react'
 import { Camera, Briefcase, Building2, Loader2, Send, User, CheckCircle2 } from 'lucide-react'
 import MemberLogoutButton from './LogoutButton'
 import TelegramLinkModal from './TelegramLinkModal'
+import TelegramPromptModal from './TelegramPromptModal'
 import { useRouter } from 'next/navigation'
 
 interface MemberInfo {
@@ -206,6 +207,13 @@ export default function ProfileBanner({
           setTelegramLinked(false)
           router.refresh()
         }}
+      />
+
+      {/* Auto Prompt for unlinked users */}
+      <TelegramPromptModal
+        isLinked={telegramLinked}
+        memberId={member.id}
+        onOpenConnectModal={() => setIsTelegramModalOpen(true)}
       />
     </div>
   )
