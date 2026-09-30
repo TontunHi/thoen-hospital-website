@@ -4,6 +4,7 @@ import { logger } from './logger'
 export interface ThaidConfig {
   clientId: string
   clientSecret: string
+  apiKey?: string
   redirectUri: string
   authUrl: string
   tokenUrl: string
@@ -18,6 +19,7 @@ const DEFAULT_TOKEN_URL = 'https://imauth.bora.dopa.go.th/api/v2/oauth2/token/'
 export function getThaidConfig(): ThaidConfig | null {
   const clientId = process.env.THAID_CLIENT_ID
   const clientSecret = process.env.THAID_CLIENT_SECRET
+  const apiKey = process.env.THAID_API_KEY
   
   if (!clientId || !clientSecret) {
     return null
@@ -30,6 +32,7 @@ export function getThaidConfig(): ThaidConfig | null {
   return {
     clientId,
     clientSecret,
+    apiKey: apiKey || undefined,
     redirectUri,
     authUrl: process.env.THAID_AUTH_URL || DEFAULT_AUTH_URL,
     tokenUrl: process.env.THAID_TOKEN_URL || DEFAULT_TOKEN_URL,
@@ -108,13 +111,20 @@ export async function exchangeThaidAuthorizationCode(
       redirect_uri: config.redirectUri,
     })
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Basic ${basicAuth}`,
+      Accept: 'application/json',
+    }
+
+    if (config.apiKey) {
+      headers['x-api-key'] = config.apiKey
+      headers['api-key'] = config.apiKey
+    }
+
     const response = await fetch(config.tokenUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${basicAuth}`,
-        Accept: 'application/json',
-      },
+      headers,
       body: bodyParams.toString(),
     })
 
