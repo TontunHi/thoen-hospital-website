@@ -57,12 +57,25 @@ function MemberLoginForm() {
     }
   }, [countdown])
 
-  const handleThaidLogin = () => {
+  const handleThaidLogin = async () => {
     setError('')
     setSuccess('')
     setThaidLoading(true)
-    // Redirect to backend authorize endpoint
-    window.location.href = '/api/auth/thaid/authorize'
+
+    try {
+      const res = await fetch('/api/auth/thaid/authorize?format=json')
+      const data = await res.json()
+
+      if (data.success && data.redirectUrl) {
+        window.location.href = data.redirectUrl
+      } else {
+        setError(data.error || 'ไม่สามารถเชื่อมต่อกับระบบ ThaID ได้ กรุณาลองใหม่อีกครั้ง')
+        setThaidLoading(false)
+      }
+    } catch {
+      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง')
+      setThaidLoading(false)
+    }
   }
 
   const handleRequestOtp = async (e: React.FormEvent) => {
