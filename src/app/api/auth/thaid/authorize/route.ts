@@ -22,5 +22,5 @@ export async function GET() {
     maxAge: 300, // 5 minutes
   })
 
-  return NextResponse.redirect(authUrl)
+  return NextResponse.redirect(new URL(authUrl), 302)
 }
