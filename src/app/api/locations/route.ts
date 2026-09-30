@@ -27,12 +27,15 @@ export async function GET(request: Request) {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`)
     }
 
+    const limitParam = searchParams.get('limit')
+    const limit = limitParam ? Math.min(1000, Math.max(1, parseInt(limitParam, 10))) : 500
+
     const locations = await queryMemberDb(
       `SELECT id, room_name, floor_id, floor_name, building_id, building_name, full_name 
        FROM hospital_locations 
        ${where} 
        ORDER BY building_name ASC, floor_id ASC, room_name ASC 
-       LIMIT 100`,
+       LIMIT ${limit}`,
       params
     )
 

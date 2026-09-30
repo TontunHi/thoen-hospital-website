@@ -21,7 +21,8 @@ import {
   Send,
   Loader2,
   Package,
-  Layers
+  Layers,
+  ShieldCheck
 } from 'lucide-react'
 import './repair.css'
 
@@ -71,6 +72,10 @@ export default function RepairFormClient({
   const [equipmentNumber, setEquipmentNumber] = useState('')
   const [equipmentName, setEquipmentName] = useState('')
   const [nonEquipmentItem, setNonEquipmentItem] = useState('')
+  const [assetSuggestions, setAssetSuggestions] = useState<any[]>([])
+  const [isSearchingAsset, setIsSearchingAsset] = useState(false)
+  const [selectedAssetWarranty, setSelectedAssetWarranty] = useState<{ isUnderWarranty: boolean; expireDate?: string } | null>(null)
+  const assetWrapperRef = useRef<HTMLDivElement>(null)
 
   // 3. Location State with Auto-complete
   const [locationSearch, setLocationSearch] = useState('')
@@ -148,6 +153,31 @@ export default function RepairFormClient({
 
     return () => clearTimeout(timer)
   }, [locationSearch, initialLocations])
+
+  // Search assets when user types in equipment number
+  useEffect(() => {
+    if (!equipmentNumber.trim() || equipmentNumber.length < 2) {
+      setAssetSuggestions([])
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingAsset(true)
+      try {
+        const res = await fetch(`/api/assets/lookup?q=${encodeURIComponent(equipmentNumber.trim())}`)
+        const data = await res.json()
+        if (data.success && data.data) {
+          setAssetSuggestions(data.data)
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setIsSearchingAsset(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [equipmentNumber])
 
   // Handle Photo selection
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -419,28 +449,119 @@ export default function RepairFormClient({
 
           {/* Conditional inputs */}
           {itemCategory === 'EQUIPMENT' ? (
-            <div className="grid2Cols" style={{ marginTop: '1rem' }}>
-              <div className="formGroup">
-                <label>เลขทะเบียนครุภัณฑ์</label>
-                <input
-                  type="text"
-                  className="repairInput"
-                  placeholder="เช่น 416-64-0012, 7440-001-0001 (ถ้าทราบ)"
-                  value={equipmentNumber}
-                  onChange={(e) => setEquipmentNumber(e.target.value)}
-                />
+            <div style={{ marginTop: '1rem' }}>
+              <div className="grid2Cols">
+                <div className="formGroup" style={{ position: 'relative' }}>
+                  <label>เลขทะเบียนครุภัณฑ์ (สแกนหรือพิมพ์เพื่อค้นหา)</label>
+                  <input
+                    type="text"
+                    className="repairInput"
+                    placeholder="เช่น 7440-013-0007/154/69"
+                    value={equipmentNumber}
+                    onChange={(e) => {
+                      setEquipmentNumber(e.target.value)
+                      setSelectedAssetWarranty(null)
+                    }}
+                  />
+                  {isSearchingAsset && (
+                    <span style={{ position: 'absolute', right: '12px', top: '38px', fontSize: '0.8rem', color: '#64748b' }}>
+                      กำลังค้นหา...
+                    </span>
+                  )}
+                  {assetSuggestions.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        zIndex: 20,
+                        background: 'white',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '0.5rem',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                        maxHeight: '220px',
+                        overflowY: 'auto',
+                        marginTop: '4px',
+                      }}
+                    >
+                      {assetSuggestions.map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            padding: '0.65rem 0.85rem',
+                            borderBottom: '1px solid #f1f5f9',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0f9ff')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
+                          onClick={() => {
+                            setEquipmentNumber(item.articleNum)
+                            setEquipmentName(item.name + (item.model ? ` (${item.model})` : ''))
+                            if (item.category === 'IT') setRepairType('IT_REPAIR')
+                            if (item.category === 'MEDICAL') setRepairType('MEDICAL_REPAIR')
+                            if (item.category === 'GENERAL') setRepairType('GENERAL_REPAIR')
+                            setSelectedAssetWarranty({
+                              isUnderWarranty: item.isUnderWarranty,
+                              expireDate: item.warrantyEndDate,
+                            })
+                            setAssetSuggestions([])
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, color: '#0284c7', fontSize: '0.875rem' }}>
+                            {item.articleNum}
+                          </div>
+                          <div style={{ fontSize: '0.825rem', color: '#334155' }}>
+                            {item.name} {item.model ? `• ${item.model}` : ''}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="formGroup">
+                  <label>ชื่อครุภัณฑ์</label>
+                  <input
+                    type="text"
+                    className="repairInput"
+                    placeholder="เช่น เครื่องตรวจคลื่นหัวใจ, เครื่องพิมพ์ HP LaserJet"
+                    value={equipmentName}
+                    onChange={(e) => setEquipmentName(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div className="formGroup">
-                <label>ชื่อครุภัณฑ์</label>
-                <input
-                  type="text"
-                  className="repairInput"
-                  placeholder="เช่น เครื่องตรวจคลื่นหัวใจ, เครื่องพิมพ์ HP LaserJet"
-                  value={equipmentName}
-                  onChange={(e) => setEquipmentName(e.target.value)}
-                />
-              </div>
+              {/* Warranty Alert Badge */}
+              {selectedAssetWarranty && (
+                <div
+                  style={{
+                    marginTop: '0.75rem',
+                    padding: '0.65rem 1rem',
+                    borderRadius: '0.6rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.875rem',
+                    background: selectedAssetWarranty.isUnderWarranty ? '#ecfdf5' : '#f8fafc',
+                    color: selectedAssetWarranty.isUnderWarranty ? '#047857' : '#64748b',
+                    border: `1px solid ${selectedAssetWarranty.isUnderWarranty ? '#a7f3d0' : '#e2e8f0'}`,
+                  }}
+                >
+                  {selectedAssetWarranty.isUnderWarranty ? (
+                    <>
+                      <ShieldCheck size={18} style={{ color: '#059669', flexShrink: 0 }} />
+                      <span>
+                        <strong>ครุภัณฑ์นี้อยู่ในระยะเวลารับประกัน</strong> (ถึงวันที่{' '}
+                        {new Date(selectedAssetWarranty.expireDate || '').toLocaleDateString('th-TH')})
+                      </span>
+                    </>
+                  ) : (
+                    <span>ครุภัณฑ์นี้พ้นระยะเวลารับประกันแล้ว (ซ่อมบำรุงโดยช่าง รพ.)</span>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="formGroup" style={{ marginTop: '1rem' }}>

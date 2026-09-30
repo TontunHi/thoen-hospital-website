@@ -16,7 +16,8 @@ import {
   Scale, 
   Inbox, 
   Wrench, 
-  MapPin 
+  MapPin,
+  Package 
 } from 'lucide-react'
 import './page.css'
 
@@ -133,6 +134,7 @@ export default async function MemberDashboardPage() {
   const isOutgoingDocAuthorized = member.can('manage_outgoing_doc')
   const isEthicsAuthorized = member.can('manage_ethics')
   const isLocationsAuthorized = member.can('manage_locations') || member.isAdmin
+  const isAssetsAuthorized = member.can('manage_assets') || member.isAdmin
 
   return (
     <div className="memberDashboardContainer">
@@ -315,6 +317,25 @@ export default async function MemberDashboardPage() {
                   </div>
                   <div className="serviceCardFooter" style={{ color: '#4f46e5' }}>
                     <span className="actionText">เข้าสู่หน้าจัดการเอกสารจริยธรรม</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+              )}
+
+              {/* Card 13: Hospital Asset Management (Visible to authorized members or admins) */}
+              {isAssetsAuthorized && (
+                <Link href="/member/assets" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper" style={{ backgroundColor: '#e0f2fe', color: '#0284c7', borderColor: '#bae6fd', borderWidth: '1px', borderStyle: 'solid' }}>
+                      <Package size={24} />
+                    </div>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>ระบบจัดการข้อมูลครุภัณฑ์</h4>
+                    <p>แดชบอร์ดตรวจสอบทะเบียนครุภัณฑ์ ตรวจสอบสถานะการรับประกัน ยี่ห้อ/รุ่น จุดติดตั้ง และประวัติพัสดุ</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#0284c7' }}>
+                    <span className="actionText">เข้าสู่ระบบจัดการครุภัณฑ์</span>
                     <ChevronRight size={16} className="chevronIcon" />
                   </div>
                 </Link>

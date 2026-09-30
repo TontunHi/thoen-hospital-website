@@ -102,6 +102,7 @@ model Member {
   member_telegram_links    member_telegram_links?
   telegram_link_challenges telegram_link_challenges[]
   work_requests            work_requests[]
+  hospital_assets          HospitalAsset[]
 
   @@map("members")
 }
@@ -268,7 +269,7 @@ model Task {
   id              String         @id @default(uuid()) @db.VarChar(36)
   taskNo          String         @unique(map: "uq_task_no") @map("task_no") @db.VarChar(50)
   taskType        String         @map("task_type") @db.VarChar(50)
-  title           String         @db.VarChar(255)
+  title           String         @db.VarChar(500)
   description     String?        @db.Text
   urgency         String         @default("NORMAL") @db.VarChar(20)
   
@@ -352,6 +353,7 @@ model HospitalLocation {
   fullName     String   @map("full_name") @db.VarChar(500)
   isActive     Boolean  @default(true) @map("is_active")
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+  hospital_assets HospitalAsset[]
 
   @@index([buildingId, floorId], map: "idx_loc_building_floor")
   @@index([roomName], map: "idx_loc_room_name")
@@ -391,3 +393,49 @@ model RepairDetail {
   @@index([repairStatus], map: "idx_repair_status")
   @@map("repair_details")
 }
+
+model HospitalAsset {
+  id                Int               @id @default(autoincrement())
+  articleNum        String            @unique(map: "uq_asset_article_num") @map("article_num") @db.VarChar(100)
+  fsnNum            String?           @map("fsn_num") @db.VarChar(50)
+  name              String            @map("name") @db.VarChar(255)
+  brand             String?           @map("brand") @db.VarChar(100)
+  model             String?           @map("model") @db.VarChar(100)
+  serialNo          String?           @map("serial_no") @db.VarChar(100)
+  category          String            @default("GENERAL") @map("category") @db.VarChar(30)
+  
+  locationId        Int?              @map("location_id")
+  locationFullName  String?           @map("location_full_name") @db.VarChar(500)
+  department        String?           @map("department") @db.VarChar(100)
+  custodianId       Int?              @map("custodian_id")
+  
+  receivedDate      DateTime?         @map("received_date") @db.Date
+  warrantyStartDate DateTime?         @map("warranty_start_date") @db.Date
+  warrantyEndDate   DateTime?         @map("warranty_end_date") @db.Date
+  expireDate        DateTime?         @map("expire_date") @db.Date
+  
+  price             Decimal?          @map("price") @db.Decimal(12, 2)
+  vendorName        String?           @map("vendor_name") @db.VarChar(255)
+  vendorContact     String?           @map("vendor_contact") @db.VarChar(255)
+  contractNo        String?           @map("contract_no") @db.VarChar(100)
+  
+  status            String            @default("ACTIVE") @map("status") @db.VarChar(30)
+  imageUrl          String?           @map("image_url") @db.VarChar(500)
+  notes             String?           @map("notes") @db.Text
+  
+  gtwArticleId      Int?              @map("gtw_article_id")
+  
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  custodian         Member?           @relation(fields: [custodianId], references: [id], onDelete: SetNull)
+  location          HospitalLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  @@index([category], map: "idx_asset_category")
+  @@index([status], map: "idx_asset_status")
+  @@index([department], map: "idx_asset_department")
+  @@index([locationId], map: "idx_asset_location")
+  @@index([warrantyEndDate], map: "idx_asset_warranty")
+  @@map("hospital_assets")
+}
+

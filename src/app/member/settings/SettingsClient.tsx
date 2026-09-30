@@ -28,7 +28,8 @@ import {
   FileSpreadsheet,
   Scale,
   MapPin,
-  Inbox
+  Inbox,
+  Package
 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
@@ -247,6 +248,13 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       icon: MapPin,
       color: '#059669',
       bg: '#d1fae5'
+    },
+    manage_assets: {
+      label: 'จัดการข้อมูลครุภัณฑ์และพัสดุ (manage_assets)',
+      desc: 'เจ้าหน้าที่พัสดุและผู้ดูแลระบบครุภัณฑ์ สำหรับจัดการข้อมูล ค้นหา และตรวจสอบสถานะประกัน',
+      icon: Package,
+      color: '#0284c7',
+      bg: '#e0f2fe'
     }
   }
 
@@ -537,6 +545,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                   <option value="manage_outgoing_doc">จัดการหนังสือส่งออก Online (manage_outgoing_doc)</option>
                   <option value="manage_ethics">จัดการเอกสารชมรมจริยธรรม (manage_ethics)</option>
                   <option value="manage_locations">จัดการข้อมูลสถานที่ ตึก-ชั้น-ห้อง (manage_locations)</option>
+                  <option value="manage_assets">จัดการข้อมูลครุภัณฑ์และพัสดุ (manage_assets)</option>
                   <option value="manage_repairs">ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (manage_repairs)</option>
                   <option value="manage_inbox">ดูแลระบบกล่องงานและสายการอนุมัติ (manage_inbox)</option>
                 </select>
