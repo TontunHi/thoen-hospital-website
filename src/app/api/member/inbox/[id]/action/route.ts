@@ -47,9 +47,27 @@ export async function POST(
     }
 
     // Verify authority
+    const userPos = (currentMember.position || '').trim()
+    const userRole = currentMember.role || 'member'
+
+    const permRows = await queryMemberDb(
+      'SELECT permission_key FROM position_permissions WHERE position_name = ?',
+      [userPos]
+    )
+    const hasPerm = (key: string) => permRows.some((p: any) => p.permission_key === key)
+
     const isDirectAssignee = task.current_assignee === currentMember.id
-    const isRoleAssignee = task.current_role && (task.current_role === currentMember.position || task.current_role === currentMember.role)
-    const isAdmin = currentMember.role === 'admin'
+    const isRoleAssignee = Boolean(
+      task.current_role &&
+      (task.current_role === userPos ||
+       task.current_role === userRole ||
+       (task.current_role === 'ผู้อำนวยการโรงพยาบาลเถิน' && userPos.includes('ผู้อำนวยการ')) ||
+       (task.current_role === 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์' && (userPos.includes('ดิจิทัลทางการแพทย์') || userPos.includes('หัวหน้ากลุ่มงานดิจิทัล'))) ||
+       (task.current_role === 'หัวหน้าเจ้าหน้าที่พัสดุ' && (userPos.includes('หัวหน้าเจ้าหน้าที่พัสดุ') || userPos.includes('หัวหน้าพัสดุ'))) ||
+       (task.current_role === 'เจ้าหน้าที่พัสดุ' && userPos.includes('พัสดุ')) ||
+       (task.current_role === 'นักประชาสัมพันธ์' && (userPos.includes('ประชาสัมพันธ์') || userPos.includes('นักประชาสัมพันธ์'))))
+    )
+    const isAdmin = userRole === 'admin' || hasPerm('manage_inbox')
 
     if (!isDirectAssignee && !isRoleAssignee && !isAdmin) {
       return NextResponse.json({ error: 'คุณไม่มีสิทธิ์ดำเนินการในขั้นตอนนี้' }, { status: 403 })

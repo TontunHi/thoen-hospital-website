@@ -37,7 +37,19 @@ export async function GET(request: Request) {
       [userPosition]
     )
     const hasPerm = (key: string) => permRows.some((p: any) => p.permission_key === key)
-    const canViewAll = userRole === 'admin' || hasPerm('manage_inbox') || hasPerm('manage_repairs') || hasPerm('view_all_work')
+    
+    const isPrStaff = userPosition.includes('นักประชาสัมพันธ์') || userPosition.includes('ประชาสัมพันธ์')
+    const isItStaff = userPosition.includes('คอมพิวเตอร์') || userPosition.includes('ไอที') || (currentMember.department && (currentMember.department.includes('ดิจิทัล') || currentMember.department.includes('สารสนเทศ')))
+    const isGeneralTechStaff = userPosition.includes('ช่าง') || (currentMember.department && currentMember.department.includes('ซ่อมบำรุง'))
+    const isMedicalTechStaff = userPosition.includes('เครื่องมือแพทย์') || (currentMember.department && currentMember.department.includes('เครื่องมือแพทย์'))
+
+    const canViewAll = userRole === 'admin' || hasPerm('manage_inbox') || hasPerm('manage_repairs') || hasPerm('view_all_work') || hasPerm('manage_media_requests')
+
+    const canViewItRepairs = canViewAll || hasPerm('view_it_repairs') || hasPerm('manage_repairs') || isItStaff
+    const canViewGeneralRepairs = canViewAll || hasPerm('view_general_repairs') || hasPerm('manage_repairs') || isGeneralTechStaff
+    const canViewMedicalRepairs = canViewAll || hasPerm('view_medical_repairs') || hasPerm('manage_repairs') || isMedicalTechStaff
+    const canViewMediaRequests = canViewAll || hasPerm('view_media_requests') || hasPerm('manage_media_requests') || isPrStaff
+    const canViewDeptTasks = canViewAll || hasPerm('view_department_tasks') || true // All members can view tasks in their own department
 
     let whereClauses: string[] = []
     let queryParams: any[] = []
@@ -46,19 +58,76 @@ export async function GET(request: Request) {
       // Tasks submitted by the user
       whereClauses.push('t.requester_id = ?')
       queryParams.push(memberId)
-    } else if (tab === 'all') {
-      // All tasks view (allowed for admin or managers; fallback to own tasks if not allowed)
-      if (!canViewAll) {
-        whereClauses.push('(t.requester_id = ? OR t.current_assignee = ?)')
-        queryParams.push(memberId, memberId)
+    } else if (tab === 'department') {
+      // Tasks in user's department or matching user's specific departmental responsibility
+      let deptConditions: string[] = []
+      let deptParams: any[] = []
+
+      if (currentMember.department && currentMember.department.trim()) {
+        deptConditions.push('t.requester_dept = ?')
+        deptParams.push(currentMember.department.trim())
       }
-      // If canViewAll, no restriction unless filtered
+
+      if (canViewItRepairs) {
+        deptConditions.push("t.task_type = 'IT_REPAIR'")
+      }
+      if (canViewGeneralRepairs) {
+        deptConditions.push("t.task_type = 'GENERAL_REPAIR'")
+      }
+      if (canViewMedicalRepairs) {
+        deptConditions.push("t.task_type = 'MEDICAL_REPAIR'")
+      }
+      if (canViewMediaRequests) {
+        deptConditions.push("t.task_type = 'MEDIA_REQUEST'")
+      }
+
+      if (deptConditions.length > 0) {
+        whereClauses.push(`(${deptConditions.join(' OR ')})`)
+        queryParams.push(...deptParams)
+      } else {
+        whereClauses.push('t.requester_id = ?')
+        queryParams.push(memberId)
+      }
+    } else if (tab === 'all') {
+      // All tasks view (allowed for admin or managers; fallback to allowed types if not admin)
+      if (!canViewAll) {
+        let allowedConditions: string[] = ['t.requester_id = ?', 't.current_assignee = ?']
+        let allowedParams: any[] = [memberId, memberId]
+
+        if (canViewMediaRequests) {
+          allowedConditions.push("t.task_type = 'MEDIA_REQUEST'")
+        }
+        if (canViewItRepairs) {
+          allowedConditions.push("t.task_type = 'IT_REPAIR'")
+        }
+        if (canViewGeneralRepairs) {
+          allowedConditions.push("t.task_type = 'GENERAL_REPAIR'")
+        }
+        if (canViewMedicalRepairs) {
+          allowedConditions.push("t.task_type = 'MEDICAL_REPAIR'")
+        }
+        if (currentMember.department && currentMember.department.trim()) {
+          allowedConditions.push('t.requester_dept = ?')
+          allowedParams.push(currentMember.department.trim())
+        }
+
+        whereClauses.push(`(${allowedConditions.join(' OR ')})`)
+        queryParams.push(...allowedParams)
+      }
     } else {
       // Default 'inbox': Tasks waiting for this specific user or currently in-progress by this user / role / co-worker
       whereClauses.push(
         `(t.status IN ('PENDING', 'IN_PROGRESS') AND (
           t.current_assignee = ? 
-          OR (t.\`current_role\` IS NOT NULL AND (t.\`current_role\` = ? OR t.\`current_role\` = ?))
+          OR (t.\`current_role\` IS NOT NULL AND (
+            t.\`current_role\` = ? 
+            OR t.\`current_role\` = ?
+            OR (t.\`current_role\` = 'ผู้อำนวยการโรงพยาบาลเถิน' AND ? LIKE '%ผู้อำนวยการ%')
+            OR (t.\`current_role\` = 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์' AND (? LIKE '%ดิจิทัลทางการแพทย์%' OR ? LIKE '%หัวหน้ากลุ่มงานดิจิทัล%'))
+            OR (t.\`current_role\` = 'หัวหน้าเจ้าหน้าที่พัสดุ' AND (? LIKE '%หัวหน้าเจ้าหน้าที่พัสดุ%' OR ? LIKE '%หัวหน้าพัสดุ%'))
+            OR (t.\`current_role\` = 'เจ้าหน้าที่พัสดุ' AND ? LIKE '%พัสดุ%')
+            OR (t.\`current_role\` = 'นักประชาสัมพันธ์' AND (? LIKE '%ประชาสัมพันธ์%' OR ? LIKE '%นักประชาสัมพันธ์%'))
+          ))
           OR EXISTS (
             SELECT 1 FROM repair_details rd 
             WHERE rd.task_id = t.id 
@@ -66,7 +135,7 @@ export async function GET(request: Request) {
           )
         ))`
       )
-      queryParams.push(memberId, userPosition, userRole, memberId)
+      queryParams.push(memberId, userPosition, userRole, userPosition, userPosition, userPosition, userPosition, userPosition, userPosition, userPosition, userPosition, memberId)
     }
 
     if (type) {
@@ -91,17 +160,25 @@ export async function GET(request: Request) {
         t.id, t.task_no, t.task_type, t.title, t.description, t.urgency,
         t.requester_id, t.requester_name, t.requester_dept,
         t.status, t.current_step_no, t.current_assignee, t.\`current_role\`,
-        t.reference_id, t.created_at, t.updated_at,
+        t.reference_id, t.custom_payload, t.created_at, t.updated_at,
         s.step_name as current_step_name
        FROM inbox_tasks t
        LEFT JOIN inbox_task_steps s ON t.id = s.task_id AND t.current_step_no = s.step_no
        ${whereSql}
        ORDER BY 
-         CASE WHEN t.urgency = 'VERY_URGENT' THEN 1 WHEN t.urgency = 'URGENT' THEN 2 ELSE 3 END ASC,
+         t.created_at DESC,
          t.updated_at DESC
        LIMIT 100`,
       queryParams
     )
+
+    const parsedTasks = tasks.map((t: any) => ({
+      ...t,
+      custom_payload:
+        typeof t.custom_payload === 'string'
+          ? JSON.parse(t.custom_payload)
+          : t.custom_payload,
+    }))
 
     // Summary count for badges and stats cards
     const inboxBadgeRows = await queryMemberDb(
@@ -109,16 +186,43 @@ export async function GET(request: Request) {
        WHERE t.status IN ('PENDING', 'IN_PROGRESS') 
        AND (
          t.current_assignee = ? 
-         OR (t.\`current_role\` IS NOT NULL AND (t.\`current_role\` = ? OR t.\`current_role\` = ?))
+         OR (t.\`current_role\` IS NOT NULL AND (
+           t.\`current_role\` = ? 
+           OR t.\`current_role\` = ?
+           OR (t.\`current_role\` = 'ผู้อำนวยการโรงพยาบาลเถิน' AND ? LIKE '%ผู้อำนวยการ%')
+           OR (t.\`current_role\` = 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์' AND (? LIKE '%ดิจิทัลทางการแพทย์%' OR ? LIKE '%หัวหน้ากลุ่มงานดิจิทัล%'))
+           OR (t.\`current_role\` = 'หัวหน้าเจ้าหน้าที่พัสดุ' AND (? LIKE '%หัวหน้าเจ้าหน้าที่พัสดุ%' OR ? LIKE '%หัวหน้าพัสดุ%'))
+           OR (t.\`current_role\` = 'เจ้าหน้าที่พัสดุ' AND ? LIKE '%พัสดุ%')
+           OR (t.\`current_role\` = 'นักประชาสัมพันธ์' AND (? LIKE '%ประชาสัมพันธ์%' OR ? LIKE '%นักประชาสัมพันธ์%'))
+         ))
          OR EXISTS (
            SELECT 1 FROM repair_details rd 
            WHERE rd.task_id = t.id 
            AND JSON_CONTAINS(rd.co_workers, JSON_OBJECT('id', ?))
          )
        )`,
-      [memberId, userPosition, userRole, memberId]
+      [memberId, userPosition, userRole, userPosition, userPosition, userPosition, userPosition, userPosition, userPosition, userPosition, userPosition, memberId]
     )
     const inboxCount = inboxBadgeRows[0]?.cnt || 0
+
+    // Department tasks count
+    let deptCountSql = 'SELECT COUNT(*) as cnt FROM inbox_tasks t WHERE 1=0'
+    let deptCountParams: any[] = []
+    let deptBadgeConditions: string[] = []
+    if (currentMember.department && currentMember.department.trim()) {
+      deptBadgeConditions.push('t.requester_dept = ?')
+      deptCountParams.push(currentMember.department.trim())
+    }
+    if (canViewItRepairs) deptBadgeConditions.push("t.task_type = 'IT_REPAIR'")
+    if (canViewGeneralRepairs) deptBadgeConditions.push("t.task_type = 'GENERAL_REPAIR'")
+    if (canViewMedicalRepairs) deptBadgeConditions.push("t.task_type = 'MEDICAL_REPAIR'")
+    if (canViewMediaRequests) deptBadgeConditions.push("t.task_type = 'MEDIA_REQUEST'")
+
+    if (deptBadgeConditions.length > 0) {
+      deptCountSql = `SELECT COUNT(*) as cnt FROM inbox_tasks t WHERE (${deptBadgeConditions.join(' OR ')})`
+    }
+    const deptBadgeRows = await queryMemberDb(deptCountSql, deptCountParams)
+    const departmentCount = deptBadgeRows[0]?.cnt || 0
 
     // Other stats for dashboard
     const allPendingRows = await queryMemberDb(
@@ -140,11 +244,14 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       data: {
-        tasks,
+        tasks: parsedTasks,
         inboxCount,
+        departmentCount,
         canViewAll,
+        userDepartment: currentMember.department || '',
         stats: {
           pendingCount: inboxCount,
+          departmentCount,
           allPendingCount,
           approvedCount,
           myRequestsCount,

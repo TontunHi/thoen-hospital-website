@@ -17,7 +17,8 @@ import {
   Inbox, 
   Wrench, 
   MapPin,
-  Package 
+  Package,
+  Palette
 } from 'lucide-react'
 import './page.css'
 
@@ -109,6 +110,28 @@ function RepairCard({ show }: { show: boolean }) {
   )
 }
 
+function MediaRequestCard({ show }: { show: boolean }) {
+  if (!show) return null
+
+  return (
+    <Link href="/member/media-requests" className="serviceCard">
+      <div className="serviceCardHeader">
+        <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdfa', color: '#0d9488', borderColor: '#ccfbf1', borderWidth: '1px', borderStyle: 'solid' }}>
+          <Palette size={24} />
+        </div>
+      </div>
+      <div className="serviceCardBody">
+        <h4>ระบบขอสื่อประชาสัมพันธ์</h4>
+        <p>ยื่นคำขอจัดทำสื่อ แผ่นพับ โปสเตอร์ AW วิดีโอ พร้อมระบบพิจารณาอนุมัติและลงนามดิจิทัล</p>
+      </div>
+      <div className="serviceCardFooter" style={{ color: '#0d9488' }}>
+        <span className="actionText">ขอสื่อประชาสัมพันธ์</span>
+        <ChevronRight size={16} className="chevronIcon" />
+      </div>
+    </Link>
+  )
+}
+
 export default async function MemberDashboardPage() {
   const member = await getAuthenticatedMember()
 
@@ -181,6 +204,11 @@ export default async function MemberDashboardPage() {
               {/* Card 0.5: ระบบแจ้งซ่อม (Repair Request) */}
               <RepairCard 
                 show={member.hasAccess('feature_repair')} 
+              />
+
+              {/* Card 0.75: ระบบขอสื่อประชาสัมพันธ์ (Media & PR Request) */}
+              <MediaRequestCard 
+                show={member.hasAccess('feature_media_request')} 
               />
 
               {/* Card 1: Digital Signature */}

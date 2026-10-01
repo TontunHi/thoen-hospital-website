@@ -37,6 +37,14 @@ export type MemberPermission =
   | 'manage_locations'
   | 'manage_repairs'
   | 'manage_inbox'
+  | 'manage_media_requests'
+  | 'manage_assets'
+  | 'view_it_repairs'
+  | 'view_general_repairs'
+  | 'view_medical_repairs'
+  | 'view_media_requests'
+  | 'view_department_tasks'
+  | 'view_all_work'
 
 export interface MemberDto {
   id: number

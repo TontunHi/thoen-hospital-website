@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { heroSlideSchema } from '@/lib/schemas/heroSlide'
+import { logAudit } from '@/lib/audit'
 
 export async function GET(request: Request) {
   try {
@@ -72,6 +73,13 @@ export async function POST(request: Request) {
         displayOrder: displayOrder || 0,
       },
     })
+
+    await logAudit(
+      'CREATE',
+      'hero_slides',
+      `สร้างสไลด์หัวเว็บ ID ${slide.id}: ${title || 'ไม่มีหัวข้อ'} (${imagePath.endsWith('.mp4') ? 'วิดีโอ MP4' : 'รูปภาพ'})`,
+      authResult.session
+    )
 
     return NextResponse.json({ success: true, slide }, { status: 201 })
   } catch (error: any) {

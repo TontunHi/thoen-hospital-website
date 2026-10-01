@@ -18,9 +18,11 @@ This is the always-on rule set. Domain-specific integration detail (HOSxP DB acc
 ### 1. Code Cleanliness & Structure
 - **Separation of Concerns:** Keep UI, business logic, and data-access separate. UI components handle layout/presentation only; business rules live in services/utilities; DB and third-party calls live in a dedicated data layer.
 - **Thin Route Adapters & Deep Domain Modules:** API Route handlers (`src/app/api/**`) must be thin HTTP adapters (~20–40 lines) responsible solely for request validation, session/RBAC checking, calling domain services, and returning JSON. Never place raw SQL queries, complex data transformations, or batch calculations directly inside route handlers.
-- **Dependency Injection for Testability:** Domain services (e.g. `@/lib/clinical/ipdWardService`) must accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb`. This enables 100% unit test coverage in Vitest without needing live DB connections.
+- **Dependency Injection for Testability:** Domain services (e.g. `@/lib/clinical/ipdWardService`, `@/lib/taskInboxService`) must accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb`. This enables 100% unit test coverage in Vitest without needing live DB connections.
+- **Unified Task Permission Resolver:** Always authorize inbox tasks through `@/lib/taskPermissionResolver.ts` (`resolveTaskPermissions`). Never compute ad-hoc `canEdit`, `canApprove`, or `canTakeJob` flags across different UI components or route handlers.
 - **Unified File Storage Seam:** Never import raw Node.js `fs` or `fs/promises` in API routes. All file writes, batch uploads, deletions, replacements, and dated-directory formatting MUST use `@/lib/storage/documentStorage.ts` (`DocumentStorage`).
-- **Naming Conventions:** Names must reflect real hospital/medical domain terms (e.g. `PatientVisit`, `LabResult`, `AttendingPhysician`, `IpdWardService`) — never generic names like `data`, `item`, `handleStuff`.
+- **Media & Video Delivery (HTTP 206):** For video files (e.g. Hero Slide MP4s), serve via `/api/stream?path=...` supporting HTTP 206 Partial Content (byte range requests) to enable smooth timeline seeking and Safari/iOS compatibility. Next.js CSP `media-src` must include `'self' data: blob: https:`.
+- **Naming Conventions:** Names must reflect real hospital/medical domain terms (e.g. `PatientVisit`, `LabResult`, `AttendingPhysician`, `IpdWardService`, `TaskInboxService`) — never generic names like `data`, `item`, `handleStuff`.
 - **State & Data Flow:** Use a predictable state pattern (e.g. server state via React Query/SWR, local UI state via hooks). Never bind component state directly to raw DB models — map to view-specific types/DTOs.
 - **TypeScript Strictness:** `strict` mode on. No `any` without an inline comment explaining why. Explicit types/interfaces for all API payloads and DB models.
 
@@ -35,7 +37,10 @@ This is the always-on rule set. Domain-specific integration detail (HOSxP DB acc
   - Default masking format when displaying PHI in any UI, log, or export: show only the **last 4 characters**, mask the rest (e.g. citizen ID `x-xxxx-xxxxx-xx-1` → last 4 digits visible). Do not invent a different masking scheme per feature.
   - Follow Thailand's PDPA (พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล) principles: collect only what's necessary, state the purpose of collection, and support access/deletion requests where applicable.
 - **AI / LLM Usage Safety:** When asking any AI agent (including this one) for help — debugging, writing sample code, generating test cases — never paste real patient records, real citizen IDs, or real lab results into the prompt or into files the agent reads. Use synthetic or already-masked sample data. This applies even when the AI tool runs "locally" in the IDE — assume anything typed into an agent prompt may leave the machine.
-- **Audit Trail:** Any create/read/update/delete on patient or medical-record data writes an audit log entry (who, what, when, from where). This is a compliance requirement, not a nice-to-have. See `.agents/skills/audit-logging/SKILL.md`.
+- **Two-Tier Audit Architecture:**
+  1. **Tier 1 (Hospital Compliance `audit_logs` via `@/lib/audit.ts`):** Any create/read/update/delete on patient health records (Lab, ER, IPD, Appointments), Salary data, Auth events, Admin settings, or CMS updates writes an immutable audit record.
+  2. **Tier 2 (Workflow Audit `inbox_task_audit_logs` via `@/lib/taskInboxService.ts`):** Tracks ticket lifecycle state transitions, HMAC-SHA256 signature hashes, and field-level diffs (`MANAGER_EDIT_TASK`).
+  See `.agents/skills/audit-logging/SKILL.md`.
 - **File Uploads / e-Signatures:** Validate MIME type and size server-side (never trust the client's declared type), store outside the public web root or behind signed/expiring URLs, and never build file paths from a user-supplied filename.
 - **Session Security:** Sensible, short session timeouts for clinical/admin roles; secure, `httpOnly`, `sameSite` cookies; CSRF protection on all state-changing requests.
 
@@ -59,7 +64,7 @@ Don't run the full checklist on every diff; scale it to what the change touches.
 |---|---|
 | Copy, styling, comments, non-clinical UI tweaks | Lint passes. That's it. |
 | Business logic, new components, non-PHI data flow | Lint + type-check + relevant unit tests. |
-| Auth, PHI, HOSxP/ER/lab data, signatures, audit logging, payments/salary | Lint + type-check + full test suite + manual trace of the auth/RBAC path + confirm audit log entry is written. State any assumption about clinical/compliance behavior explicitly and ask before proceeding — don't guess. |
+| Auth, PHI, HOSxP/ER/lab data, signatures, audit logging, payments/salary, task transitions | Lint + type-check + full test suite + manual trace of the auth/RBAC path + confirm audit log entry is written. State any assumption about clinical/compliance behavior explicitly and ask before proceeding — don't guess. |
 
 ### 6. Git & Review
 - Branch naming: `feature/<name>`, `fix/<name>`, `hotfix/<name>`.
@@ -93,5 +98,6 @@ Don't run the full checklist on every diff; scale it to what the change touches.
 
 ### 3. Authentication & Access Control Flow
 - **Hospital Staff Portal (`/member`):** Passwordless OTP auth. Full flow and required session-check pattern are in `.agents/skills/member-auth-flow/SKILL.md` — read that skill before touching any `/member` route or its APIs.
-- **Audit Logging:** Any access to PHI or sensitive employee records must call `logAudit()`. Required fields and call pattern are in `.agents/skills/audit-logging/SKILL.md`.
+- **Task Permission & Inbox Workflow:** Centralized authorization in `@/lib/taskPermissionResolver.ts` (`resolveTaskPermissions`). All field-level updates and state mutations route through `@/lib/taskInboxService.ts` (`updateTaskByManager`).
+- **Audit Logging:** Any access to PHI or sensitive employee records must call `logAudit()`. Workflow transitions must write to `inbox_task_audit_logs`. See `.agents/skills/audit-logging/SKILL.md`.
 <!-- END:hospital-project-context -->

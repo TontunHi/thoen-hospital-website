@@ -229,3 +229,32 @@
     transform: translateY(0);
   }
 }
+
+/* Floating Sound Toggle Button for Video Slides */
+.heroSoundToggleBtn {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+}
+
+.heroSoundToggleBtn:hover {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}

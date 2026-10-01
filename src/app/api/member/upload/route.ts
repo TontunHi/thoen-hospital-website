@@ -29,9 +29,22 @@ export async function POST(request: Request) {
     const saved = await DocumentStorage.save(file, {
       destinationDir: `public/uploads/member-pr/${dateStr}`,
       baseName: cleanTitle,
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'],
-      allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf'],
-      maxSizeBytes,
+      allowedMimeTypes: [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/zip',
+        'application/x-zip-compressed',
+      ],
+      allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.zip'],
+      maxSizeBytes: 25 * 1024 * 1024,
       collisionStrategy: 'timestamp',
     })
 

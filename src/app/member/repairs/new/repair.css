@@ -836,6 +836,228 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* ── 3 Columns Layout for Building/Floor/Room ── */
+.grid3Cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .grid3Cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Asset Suggestion Autocomplete Dropdown ── */
+.assetSuggestionDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.assetSuggestionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.assetSuggestionItem {
+  padding: 0.75rem 0.95rem;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.assetSuggestionItem:last-child {
+  border-bottom: none;
+}
+
+.assetSuggestionItem:hover {
+  background-color: #f0fdf4;
+}
+
+.assetItemTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.assetArtNum {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #059669;
+}
+
+.warrantyPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+}
+
+.warrantyPill.active {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.warrantyPill.expired {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.assetItemName {
+  font-size: 0.85rem;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+.assetItemName strong {
+  font-weight: 600;
+}
+
+.assetItemName span {
+  color: #64748b;
+  font-weight: 400;
+}
+
+.assetItemLoc {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.3rem;
+}
+
+/* ── Warranty Card Display ── */
+.warrantyCardContainer {
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  border: 1.5px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.warrantyCardContainer.active {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.warrantyCardContainer.expired {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.warrantyCardContainer.unknown {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.warrantyIconWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.warrantyCardBody {
+  flex: 1;
+}
+
+.warrantyCardTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.warrantyCardTitle strong {
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.warrantyCardContainer.active .warrantyCardTitle strong {
+  color: #065f46;
+}
+
+.warrantyCardContainer.expired .warrantyCardTitle strong {
+  color: #9f1239;
+}
+
+.warrantyDateBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #334155;
+}
+
+.warrantyCardDesc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+/* ── Specific Location Note ── */
+.specificLocationSection {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.specificLocationToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+
+.specificLocationToggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #059669;
+  cursor: pointer;
+}
+
 @media (max-width: 720px) {
   .repairHeaderCard { align-items: flex-start; padding: 1.25rem; }
   .repairHeaderLeft { align-items: flex-start; gap: 0.85rem; }

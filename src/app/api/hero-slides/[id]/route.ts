@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { heroSlideSchema } from '@/lib/schemas/heroSlide'
-import { unlink } from 'fs/promises'
-import path from 'path'
+import { DocumentStorage } from '@/lib/storage/documentStorage'
+import { logAudit } from '@/lib/audit'
 
 export async function DELETE(request: Request, props: any) {
   try {
@@ -26,21 +26,22 @@ export async function DELETE(request: Request, props: any) {
       return NextResponse.json({ error: 'ไม่พบสไลด์ภาพที่ต้องการลบ' }, { status: 404 })
     }
 
-    // Try deleting file from disk
-    try {
-      if (slide.imagePath) {
-        const absolutePath = path.join(process.cwd(), 'public', slide.imagePath)
-        await unlink(absolutePath)
-        console.log('Successfully deleted slide file from disk:', absolutePath)
-      }
-    } catch (fsError: any) {
-      console.warn('Failed to delete slide file from disk, it might not exist:', fsError.message)
+    // Delete file safely from storage seam
+    if (slide.imagePath) {
+      await DocumentStorage.delete(slide.imagePath)
     }
 
     // Delete record from Database
     await prisma.heroSlide.delete({
       where: { id },
     })
+
+    await logAudit(
+      'DELETE',
+      'hero_slides',
+      `ลบสไลด์หัวเว็บ ID ${id}: ${slide.title || 'ไม่มีหัวข้อ'} (${slide.imagePath})`,
+      authResult.session
+    )
 
     return NextResponse.json({ success: true, message: 'ลบสไลด์ภาพเรียบร้อยแล้ว' })
   } catch (error: any) {
@@ -86,6 +87,11 @@ export async function PUT(request: Request, props: any) {
       return NextResponse.json({ error: 'ไม่พบสไลด์ภาพที่ต้องการแก้ไข' }, { status: 404 })
     }
 
+    // If image path changed, clean up previous file safely
+    if (existingSlide.imagePath && existingSlide.imagePath !== imagePath) {
+      await DocumentStorage.delete(existingSlide.imagePath)
+    }
+
     // Update record in Database
     const slide = await prisma.heroSlide.update({
       where: { id },
@@ -98,6 +104,13 @@ export async function PUT(request: Request, props: any) {
         displayOrder: displayOrder || 0,
       },
     })
+
+    await logAudit(
+      'UPDATE',
+      'hero_slides',
+      `แก้ไขสไลด์หัวเว็บ ID ${id}: ${title || 'ไม่มีหัวข้อ'} (${imagePath.endsWith('.mp4') ? 'วิดีโอ MP4' : 'รูปภาพ'})`,
+      authResult.session
+    )
 
     return NextResponse.json({ success: true, slide })
   } catch (error: any) {

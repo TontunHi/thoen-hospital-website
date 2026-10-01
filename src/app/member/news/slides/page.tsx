@@ -1,8 +1,27 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
-import { Plus, Trash2, Calendar, Link as LinkIcon, Image as ImageIcon, Eye, Clock, Edit2, ArrowUpDown } from 'lucide-react'
+import { 
+  Plus, 
+  Trash2, 
+  Calendar, 
+  Link as LinkIcon, 
+  Image as ImageIcon, 
+  Eye, 
+  Clock, 
+  Edit2, 
+  ArrowUpDown, 
+  Video, 
+  Play, 
+  Pause, 
+  Volume2, 
+  VolumeX, 
+  Maximize2, 
+  X, 
+  Sparkles,
+  Film,
+  CheckCircle2
+} from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import './page.css'
 
@@ -16,20 +35,50 @@ interface SlideItem {
   displayOrder: number
 }
 
+const isVideoFile = (url?: string | null) => {
+  if (!url) return false
+  const lower = url.toLowerCase()
+  return (
+    lower.includes('.mp4') ||
+    lower.endsWith('.mp4') ||
+    lower.startsWith('blob:') ||
+    lower.startsWith('data:video/') ||
+    lower.includes('/stream')
+  )
+}
+
+const formatDuration = (seconds: number) => {
+  if (isNaN(seconds) || seconds < 0) return '00:00'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
 export default function AdminSlidesPage() {
   const [slides, setSlides] = useState<SlideItem[]>([])
   const [loading, setLoading] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const previewVideoRef = useRef<HTMLVideoElement>(null)
 
   // Form State
   const [imagePath, setImagePath] = useState('')
   const [localPreviewUrl, setLocalPreviewUrl] = useState('')
+  const [isVideoPreview, setIsVideoPreview] = useState(false)
   const [title, setTitle] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [displayOrder, setDisplayOrder] = useState<number>(0)
   
+  // Video Player Controls State (for upload form preview)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true)
+  const [isVideoMuted, setIsVideoMuted] = useState(true)
+  const [videoDuration, setVideoDuration] = useState(0)
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0)
+
+  // Video Preview Modal (for list item preview)
+  const [previewModalSlide, setPreviewModalSlide] = useState<SlideItem | null>(null)
+
   // Edit State
   const [editingId, setEditingId] = useState<number | null>(null)
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
@@ -71,6 +120,8 @@ export default function AdminSlidesPage() {
     setEditingId(slide.id)
     setImagePath(slide.imagePath)
     setLocalPreviewUrl(slide.imagePath)
+    const isVid = isVideoFile(slide.imagePath)
+    setIsVideoPreview(isVid)
     setTitle(slide.title || '')
     setLinkUrl(slide.linkUrl || '')
     setStartDate(formatToDatetimeLocal(slide.startDate))
@@ -78,6 +129,7 @@ export default function AdminSlidesPage() {
     setDisplayOrder(slide.displayOrder || 0)
     setError('')
     setSuccess('')
+    if (previewModalSlide) setPreviewModalSlide(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -85,6 +137,7 @@ export default function AdminSlidesPage() {
     setEditingId(null)
     setImagePath('')
     setLocalPreviewUrl('')
+    setIsVideoPreview(false)
     setTitle('')
     setLinkUrl('')
     setStartDate('')
@@ -101,7 +154,7 @@ export default function AdminSlidesPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // If there is an existing uploaded temp image (and we aren't in editing mode representing database record), delete it first
+    // Clean up temporary previous upload if not in edit mode
     if (imagePath && !editingId) {
       try {
         await fetch(`/api/upload?path=${encodeURIComponent(imagePath)}`, {
@@ -112,9 +165,20 @@ export default function AdminSlidesPage() {
       }
     }
 
+    const isVideo = file.type.includes('mp4') || file.type.includes('video') || file.name.toLowerCase().endsWith('.mp4')
+    setIsVideoPreview(isVideo)
+    if (file.size > (isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024)) {
+      setError(`ไฟล์มีขนาดใหญ่เกินกำหนด (รูปภาพไม่เกิน 10MB, วิดีโอ MP4 ไม่เกิน 100MB)`)
+      setIsVideoPreview(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     // Show local preview instantly
     const localUrl = URL.createObjectURL(file)
     setLocalPreviewUrl(localUrl)
+    setIsVideoPlaying(true)
+    setIsVideoMuted(true)
 
     setUploading(true)
     setError('')
@@ -132,15 +196,18 @@ export default function AdminSlidesPage() {
       const data = await res.json()
       if (res.ok) {
         setImagePath(data.url)
-        setSuccess('อัปโหลดไฟล์ภาพสำเร็จ')
+        setIsVideoPreview(Boolean(data.isVideo || isVideo))
+        setSuccess(isVideo ? 'อัปโหลดไฟล์วิดีโอ MP4 สำเร็จ (สามารถกดเล่นและทดสอบเปิดเสียงได้)' : 'อัปโหลดไฟล์ภาพสำเร็จ')
       } else {
-        setError(data.error || 'อัปโหลดภาพไม่สำเร็จ')
+        setError(data.error || 'อัปโหลดไฟล์ไม่สำเร็จ')
         setLocalPreviewUrl('')
+        setIsVideoPreview(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
     } catch {
       setError('เกิดข้อผิดพลาดในการอัปโหลด')
       setLocalPreviewUrl('')
+      setIsVideoPreview(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     } finally {
       setUploading(false)
@@ -151,11 +218,11 @@ export default function AdminSlidesPage() {
     const pathToClean = imagePath
     setImagePath('')
     setLocalPreviewUrl('')
+    setIsVideoPreview(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
 
-    // Only delete from disk if we aren't editing an existing slide (where it's already a saved slide path)
     if (pathToClean && !editingId) {
       try {
         await fetch(`/api/upload?path=${encodeURIComponent(pathToClean)}`, {
@@ -167,6 +234,32 @@ export default function AdminSlidesPage() {
     }
   }
 
+  const toggleVideoPlay = () => {
+    if (!previewVideoRef.current) return
+    if (previewVideoRef.current.paused) {
+      previewVideoRef.current.play()
+      setIsVideoPlaying(true)
+    } else {
+      previewVideoRef.current.pause()
+      setIsVideoPlaying(false)
+    }
+  }
+
+  const toggleVideoMute = () => {
+    if (!previewVideoRef.current) return
+    const newMute = !isVideoMuted
+    previewVideoRef.current.muted = newMute
+    setIsVideoMuted(newMute)
+  }
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value)
+    if (previewVideoRef.current) {
+      previewVideoRef.current.currentTime = time
+      setVideoCurrentTime(time)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -174,7 +267,7 @@ export default function AdminSlidesPage() {
     setSubmitting(true)
 
     if (!imagePath) {
-      setError('กรุณาอัปโหลดรูปภาพก่อน')
+      setError('กรุณาอัปโหลดรูปภาพหรือวิดีโอก่อน')
       setSubmitting(false)
       return
     }
@@ -203,6 +296,7 @@ export default function AdminSlidesPage() {
         setEditingId(null)
         setImagePath('')
         setLocalPreviewUrl('')
+        setIsVideoPreview(false)
         setTitle('')
         setLinkUrl('')
         setStartDate('')
@@ -267,7 +361,6 @@ export default function AdminSlidesPage() {
   const handleDragStart = (e: React.DragEvent, slide: SlideItem) => {
     setDraggedItem(slide)
     e.dataTransfer.effectAllowed = 'move'
-    // For Firefox compatibility
     e.dataTransfer.setData('text/plain', slide.id.toString())
   }
 
@@ -281,11 +374,9 @@ export default function AdminSlidesPage() {
     if (draggedIndex === targetIndex) return
 
     const newSlides = [...slides]
-    // Reorder array locally
     newSlides.splice(draggedIndex, 1)
     newSlides.splice(targetIndex, 0, draggedItem)
 
-    // Reactively update temporary order for preview
     const reorderedSlides = newSlides.map((slide, idx) => ({
       ...slide,
       displayOrder: idx
@@ -296,8 +387,6 @@ export default function AdminSlidesPage() {
 
   const handleDragEnd = async () => {
     setDraggedItem(null)
-    
-    // Save new orders to Database
     try {
       setError('')
       const updates = slides.map((slide, idx) => ({
@@ -305,16 +394,11 @@ export default function AdminSlidesPage() {
         displayOrder: idx
       }))
 
-      // Send new ordering to a batch API or update them individually
-      // In our Next.js backend, let's update them via loop or add a batch endpoint.
-      // Since we want to be safe, we can trigger PUT calls to update displayOrder, or we can send to a single endpoint.
-      // Let's call PUT for each changed slide to prevent adding new routes.
       const savePromises = updates.map(update => 
         fetch(`/api/hero-slides/${update.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            // Get original slide values to pass Zod schema verification
             ...slides.find(s => s.id === update.id),
             displayOrder: update.displayOrder
           })
@@ -339,12 +423,14 @@ export default function AdminSlidesPage() {
     )
   }
 
+  const isCurrentVideo = isVideoPreview || isVideoFile(imagePath) || isVideoFile(localPreviewUrl)
+
   return (
     <div className="slidesAdminPage">
       <div className="pageHeader">
         <div>
-          <h1>จัดการสไลด์โชว์</h1>
-          <p className="subtext">อัปโหลด ตั้งเวลาเริ่มแสดงและหมดอายุของสไลด์โชว์รูปภาพในหน้าแรกของเว็บไซต์</p>
+          <h1>จัดการสไลด์โชว์ & วิดีโอหัวเว็บ</h1>
+          <p className="subtext">อัปโหลด ตั้งเวลาเริ่มแสดงและหมดอายุของสไลด์โชว์รูปภาพและวิดีโอ MP4 ในหน้าแรกของเว็บไซต์</p>
         </div>
       </div>
 
@@ -357,21 +443,112 @@ export default function AdminSlidesPage() {
           <h2>{editingId ? 'แก้ไขข้อมูลสไลด์' : 'เพิ่มสไลด์ใหม่'}</h2>
           <form onSubmit={handleSubmit}>
             <div className="formGroup">
-              <label>อัปโหลดรูปภาพสไลด์ * (แนะนำขนาด 1920x800px)</label>
+              <label>อัปโหลดรูปภาพหรือวิดีโอสไลด์ * (รูปภาพแนะนำ 1920x800px หรือวิดีโอ .mp4 ไม่เกิน 100MB)</label>
               <input
                 ref={fileInputRef}
                 type="file"
                 className="formInput"
-                accept="image/jpeg,image/png,image/gif,image/webp"
+                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4"
                 onChange={handleImageUpload}
                 required={!localPreviewUrl && !imagePath}
               />
-              {uploading && <div className="uploadProgress">กำลังอัปโหลดรูปภาพ...</div>}
+              {uploading && <div className="uploadProgress">⏳ กำลังอัปโหลดและประมวลผลไฟล์...</div>}
+              
+              {/* Form Live Media Preview */}
               {(localPreviewUrl || imagePath) && (
-                <div className="previewUploadedSlide">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={localPreviewUrl || imagePath} alt="Uploaded preview" />
-                  <button type="button" className="removeImgBtn" onClick={handleRemoveSelectedImage}>✕ เปลี่ยนรูป</button>
+                <div className={`previewUploadedSlide ${isCurrentVideo ? 'videoPreviewBox' : ''}`}>
+                  {isCurrentVideo ? (
+                    <div className="customVideoPlayerContainer">
+                      <video
+                        ref={previewVideoRef}
+                        key={localPreviewUrl || imagePath}
+                        src={localPreviewUrl || imagePath}
+                        autoPlay
+                        muted={isVideoMuted}
+                        playsInline
+                        loop
+                        preload="auto"
+                        className="previewVideoEl"
+                        onLoadedMetadata={(e) => {
+                          setVideoDuration(e.currentTarget.duration)
+                          if (previewVideoRef.current) {
+                            previewVideoRef.current.play().catch(() => {})
+                          }
+                        }}
+                        onTimeUpdate={(e) => {
+                          setVideoCurrentTime(e.currentTarget.currentTime)
+                        }}
+                        onPlay={() => setIsVideoPlaying(true)}
+                        onPause={() => setIsVideoPlaying(false)}
+                        onError={(e) => {
+                          console.warn('Video preview playback notice:', e)
+                        }}
+                      >
+                        <source src={localPreviewUrl || imagePath} type="video/mp4" />
+                      </video>
+
+                      {/* Top Overlay Badges */}
+                      <div className="videoOverlayHeader">
+                        <div className="videoFormatBadge">
+                          <Film size={13} />
+                          <span>วิดีโอ MP4 HD</span>
+                          {videoDuration > 0 && (
+                            <span className="durationBadge">⏱️ {formatDuration(videoDuration)}</span>
+                          )}
+                        </div>
+                        <button type="button" className="removeImgBtn" onClick={handleRemoveSelectedImage}>
+                          ✕ เปลี่ยนไฟล์
+                        </button>
+                      </div>
+
+                      {/* Interactive Controls Overlay */}
+                      <div className="videoPlayerControls">
+                        <button
+                          type="button"
+                          className="videoControlBtn playPauseBtn"
+                          onClick={toggleVideoPlay}
+                          title={isVideoPlaying ? 'หยุดชั่วคราว' : 'เล่นต่อ'}
+                        >
+                          {isVideoPlaying ? <Pause size={15} /> : <Play size={15} />}
+                        </button>
+
+                        <div className="videoSeekWrapper">
+                          <input
+                            type="range"
+                            min="0"
+                            max={videoDuration || 100}
+                            step="0.1"
+                            value={videoCurrentTime}
+                            onChange={handleSeek}
+                            className="videoSeekRange"
+                          />
+                          <div className="videoTimeDisplay">
+                            <span>{formatDuration(videoCurrentTime)}</span>
+                            <span>/</span>
+                            <span>{formatDuration(videoDuration)}</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          className={`videoControlBtn soundToggleBtn ${!isVideoMuted ? 'soundActive' : ''}`}
+                          onClick={toggleVideoMute}
+                          title={isVideoMuted ? 'แตะเพื่อเปิดเสียง' : 'แตะเพื่อปิดเสียง'}
+                        >
+                          {isVideoMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                          <span>{isVideoMuted ? 'ปิดเสียง' : 'เปิดเสียง'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={localPreviewUrl || imagePath} alt="Uploaded preview" />
+                      <button type="button" className="removeImgBtn" onClick={handleRemoveSelectedImage}>
+                        ✕ เปลี่ยนไฟล์
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -516,6 +693,8 @@ export default function AdminSlidesPage() {
               {slides.map((slide, index) => {
                 const status = getSlideStatus(slide.startDate, slide.endDate)
                 const isDraggingThis = draggedItem?.id === slide.id
+                const isSlideVideo = isVideoFile(slide.imagePath)
+
                 return (
                   <div 
                     key={slide.id} 
@@ -527,9 +706,37 @@ export default function AdminSlidesPage() {
                     onDragEnd={handleDragEnd}
                     style={{ cursor: 'grab' }}
                   >
-                    <div className="slideImgWrapper">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={slide.imagePath} alt={slide.title || 'Slide Image'} draggable={false} />
+                    <div 
+                      className={`slideImgWrapper ${isSlideVideo ? 'videoThumbnailWrapper' : ''}`}
+                      onClick={() => {
+                        if (isSlideVideo) setPreviewModalSlide(slide)
+                      }}
+                    >
+                      {isSlideVideo ? (
+                        <div className="slideVideoContainer">
+                          <video
+                            src={slide.imagePath}
+                            muted
+                            playsInline
+                            loop
+                            preload="metadata"
+                            className="slideThumbnailVideo"
+                            onError={(e) => console.warn('Thumbnail video notice:', e)}
+                          >
+                            <source src={slide.imagePath} type="video/mp4" />
+                          </video>
+                          <div className="videoBadge">
+                            <Video size={12} />
+                            <span>MP4</span>
+                          </div>
+                          <div className="videoPlayOverlayHover">
+                            <Play size={20} fill="#ffffff" />
+                          </div>
+                        </div>
+                      ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={slide.imagePath} alt={slide.title || 'Slide Image'} draggable={false} />
+                      )}
                     </div>
                     <div className="slideItemDetails">
                       <div className="slideItemTitle">
@@ -538,6 +745,11 @@ export default function AdminSlidesPage() {
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#0d9488', fontWeight: 'bold', marginTop: '4px' }}>
                             <ArrowUpDown size={12} />
                             <span>ลำดับที่: {slide.displayOrder}</span>
+                            {isSlideVideo && (
+                              <span style={{ marginLeft: '6px', backgroundColor: '#e0f2fe', color: '#0284c7', padding: '1px 6px', borderRadius: '4px', fontSize: '11px' }}>
+                                🎥 วิดีโอ MP4
+                              </span>
+                            )}
                           </div>
                         </div>
                         <span className={`statusPill ${status.className}`}>{status.label}</span>
@@ -564,7 +776,17 @@ export default function AdminSlidesPage() {
                         )}
                       </div>
 
-                      <div className="slideItemActions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <div className="slideItemActions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                        {isSlideVideo && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewModalSlide(slide)}
+                            className="previewVideoBtn"
+                            draggable={false}
+                          >
+                            <Play size={13} fill="currentColor" /> ดูตัวอย่างวิดีโอ
+                          </button>
+                        )}
                         <button type="button" onClick={() => handleEdit(slide)} className="deleteSlideBtn" style={{ color: '#0f766e', borderColor: '#ccfbf1' }} draggable={false}>
                           <Edit2 size={14} /> แก้ไขข้อมูล
                         </button>
@@ -586,6 +808,74 @@ export default function AdminSlidesPage() {
           )}
         </div>
       </div>
+
+      {/* ── Video Player Modal ── */}
+      {previewModalSlide && (
+        <div className="videoModalBackdrop" onClick={() => setPreviewModalSlide(null)}>
+          <div className="videoModalContainer" onClick={(e) => e.stopPropagation()}>
+            <div className="videoModalHeader">
+              <div className="videoModalHeaderTitle">
+                <Film size={18} className="text-teal-600" />
+                <h3>{previewModalSlide.title || 'ตัวอย่างวิดีโอสไลด์'}</h3>
+                <span className="videoModalTypeBadge">MP4 Video</span>
+              </div>
+              <button
+                type="button"
+                className="videoModalCloseBtn"
+                onClick={() => setPreviewModalSlide(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="videoModalPlayerWrapper">
+              <video
+                src={previewModalSlide.imagePath}
+                controls
+                autoPlay
+                playsInline
+                preload="auto"
+                className="videoModalPlayer"
+                onError={(e) => console.warn('Modal video playback notice:', e)}
+              >
+                <source src={previewModalSlide.imagePath} type="video/mp4" />
+              </video>
+            </div>
+
+            <div className="videoModalFooter">
+              <div className="videoModalMeta">
+                <div>
+                  <span className="label">ช่วงเวลาแสดงผล:</span>
+                  <span className="val">
+                    {new Date(previewModalSlide.startDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น. - {new Date(previewModalSlide.endDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น.
+                  </span>
+                </div>
+                <div>
+                  <span className="label">ลำดับแสดงผล:</span>
+                  <span className="val">ลำดับที่ {previewModalSlide.displayOrder}</span>
+                </div>
+              </div>
+
+              <div className="videoModalActions">
+                <button
+                  type="button"
+                  onClick={() => handleEdit(previewModalSlide)}
+                  className="modalEditBtn"
+                >
+                  <Edit2 size={14} /> แก้ไขสไลด์นี้
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalSlide(null)}
+                  className="modalCloseBtn"
+                >
+                  ปิดหน้าต่าง
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={deleteTargetId !== null}

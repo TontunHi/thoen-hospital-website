@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-import crypto from 'crypto'
+import { resolveTaskPermissions } from '@/lib/taskPermissionResolver'
+import { updateTaskByManager } from '@/lib/taskInboxService'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export async function GET(
   request: Request,
@@ -98,16 +102,29 @@ export async function GET(
       [session.username]
     )
     const currentMember = currentMemberRows[0]
+    const userPos = (currentMember?.position || '').trim()
 
-    const isRequester = task.requester_id === currentMember?.id
-    const isCurrentAssignee = task.current_assignee === currentMember?.id || 
-      (task.current_role && (task.current_role === currentMember?.position || task.current_role === currentMember?.role))
-    const isStepSigner = steps.some((s: any) => s.assigned_to_id === currentMember?.id || s.action_by === currentMember?.id)
-    const isCoWorker = repairDetail?.co_workers?.some((cw: any) => cw.id === currentMember?.id)
-    const isAdmin = currentMember?.role === 'admin'
+    // Check position permissions
+    const permRows = await queryMemberDb(
+      'SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)',
+      [userPos]
+    )
+    const permissions = permRows.map((r: any) => r.permission_key)
 
-    // Strict Privacy: Only the requester, current/past assignees, co-workers, and admins can view
-    if (!isRequester && !isCurrentAssignee && !isStepSigner && !isCoWorker && !isAdmin) {
+    const memberLike = {
+      id: currentMember?.id,
+      username: currentMember?.username,
+      name: currentMember?.name,
+      role: currentMember?.role || session.role || 'member',
+      position: currentMember?.position,
+      department: currentMember?.department,
+      permissions,
+      isAdmin: Boolean(session.role === 'admin' || currentMember?.role === 'admin'),
+    }
+
+    const taskPerms = resolveTaskPermissions(memberLike, task, { repairDetail, steps })
+
+    if (!taskPerms.canView) {
       return NextResponse.json({ error: 'คุณไม่มีสิทธิ์เข้าถึงหรือดูรายละเอียดงานนี้' }, { status: 403 })
     }
 
@@ -127,15 +144,81 @@ export async function GET(
           position: currentMember?.position,
           role: currentMember?.role,
           hasSignature: !!currentMember?.signature_path,
-          isRequester,
-          isCurrentAssignee,
-          isCoWorker,
-          isAdmin,
+          isRequester: taskPerms.isRequester,
+          isCurrentAssignee: taskPerms.isCurrentAssignee,
+          isCoWorker: taskPerms.isCoWorker,
+          isAdmin: taskPerms.isAdmin,
+          canManageTask: taskPerms.canEdit,
+          permissions: taskPerms,
         },
       },
     })
   } catch (error: any) {
     console.error('Fetch task detail error:', error)
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูลงาน' }, { status: 500 })
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await verifyMemberSession()
+    if (!session) {
+      return NextResponse.json({ error: 'กรุณาเข้าสู่ระบบก่อนใช้งาน' }, { status: 401 })
+    }
+
+    const { id: taskId } = await params
+
+    const members = await queryMemberDb(
+      'SELECT id, username, name, department, position, role FROM members WHERE username = ? LIMIT 1',
+      [session.username]
+    )
+    if (!members || members.length === 0) {
+      return NextResponse.json({ error: 'ไม่พบข้อมูลสมาชิก' }, { status: 404 })
+    }
+    const currentMember = members[0]
+
+    const permRows = await queryMemberDb(
+      'SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)',
+      [(currentMember.position || '').trim()]
+    )
+    const permissions = permRows.map((r: any) => r.permission_key)
+
+    const memberLike = {
+      id: currentMember.id,
+      username: currentMember.username,
+      name: currentMember.name,
+      role: currentMember.role || session.role || 'member',
+      position: currentMember.position,
+      department: currentMember.department,
+      permissions,
+      isAdmin: Boolean(session.role === 'admin' || currentMember.role === 'admin'),
+    }
+
+    const body = await request.json()
+
+    const result = await updateTaskByManager({
+      taskId,
+      performer: memberLike,
+      updates: body,
+    })
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error || 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลงาน' },
+        { status: result.statusCode || 400 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: result.message,
+      diff: result.diff,
+    })
+  } catch (error: any) {
+    console.error('Manager edit task error:', error)
+    return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการแก้ไขข้อมูลงาน' }, { status: 500 })
   }
 }

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const heroSlideSchema = z.object({
-  imagePath: z.string().min(1, 'กรุณาอัปโหลดรูปภาพก่อนบันทึก'),
+  imagePath: z.string().min(1, 'กรุณาอัปโหลดรูปภาพหรือวิดีโอก่อนบันทึก'),
   title: z.string().optional().nullable(),
   linkUrl: z.string().url('รูปแบบ URL ไม่ถูกต้อง').or(z.literal('')).or(z.literal(null)).optional().nullable(),
   startDate: z.string().min(1, 'กรุณาระบุเวลาที่เริ่มแสดง'),

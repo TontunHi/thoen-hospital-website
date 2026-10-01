@@ -38,8 +38,12 @@ export async function GET(request: Request) {
         serialNo: item.serialNo,
         category: item.category,
         department: item.department,
+        locationId: item.locationId,
         locationFullName: item.locationFullName,
+        warrantyStartDate: item.warrantyStartDate,
         warrantyEndDate: item.warrantyEndDate || item.expireDate,
+        expireDate: item.expireDate,
+        status: item.status,
         isUnderWarranty: Boolean(isUnderWarranty),
       }
     })

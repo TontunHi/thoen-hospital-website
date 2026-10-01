@@ -3,24 +3,35 @@ name: audit-logging
 description: When and how to call logAudit() for PHI/sensitive-record access. Read before writing any code path that creates, reads, updates, or deletes patient or sensitive employee data.
 ---
 
-## What this covers
-`@/lib/audit.ts` — the audit trail required for compliance whenever PHI or sensitive employee records are touched.
+## Two-Tier Audit Architecture
 
-## When to call it
-Any create/read/update/delete on:
-- Patient health information (appointments, lab results, ER status, dispensing records, signatures, images)
-- Sensitive employee records (salary, personal identifiers)
+Thoen Hospital utilizes a two-tier auditing structure:
 
-This includes reads, not just writes — viewing a lab result is itself an auditable event.
+### Tier 1: Hospital Compliance & Security (`audit_logs` via `@/lib/audit.ts`)
+Required for legal, regulatory (PDPA/MOPH), and access auditing.
+- **When to call it:**
+  - Patient Health Information (PHI) reads and writes (appointments, lab results, ER status, dispensing records, signatures, IPD ward).
+  - Sensitive employee records (salary downloads, profile changes).
+  - Authentication events (OTP requests, login, logout, failed attempts).
+  - Administrative actions (role assignment, permission key bindings, CMS slides/news/ethics/outgoing docs).
+- **Functions:**
+  - `logAudit()`: Immediate write for standard and mutation events.
+  - `logThrottledAudit()`: Coalesced write (5-minute window per actor+action+target) for high-frequency polling/read endpoints to avoid database spam.
+- **Required fields:**
+  - `actor`: session user identifier (e.g. `user_123` or Thai ID)
+  - `action`: structured verb (e.g. `VIEW_LAB_RESULT`, `CREATE_SLIDE`, `UPDATE_SLIDE`, `DELETE_SLIDE`)
+  - `target`: identifier of the accessed resource (never embedding raw PHI)
+  - `ip`: client IP address
+  - `userAgent`: browser/client user agent string
 
-## Required fields
-Every `logAudit()` call needs:
-- **actor** — who performed the action (session user, not just "system")
-- **action** — what was done (e.g. `VIEW_LAB_RESULT`, `UPDATE_SIGNATURE`, `EXPORT_PATIENT_LIST`)
-- **target resource** — what record was touched, by ID, not by embedding the PHI value itself into the log entry
-- **client IP** — source of the request
+### Tier 2: Workflow & Task Lifecycle (`inbox_task_audit_logs` via `@/lib/taskInboxService.ts`)
+Required for ticket state machines, legal e-signature trails, and managerial edits.
+- **When it is recorded:**
+  - Ticket lifecycle state transitions (Draft -> Pending -> Approved -> In Progress -> Completed -> Closed).
+  - E-Signature stamping with HMAC-SHA256 integrity hashes.
+  - Manager / Admin field edits (`MANAGER_EDIT_TASK`) with automatic JSON diffing (`{ old: {...}, new: {...} }`).
 
 ## What not to do
-- Don't log the PHI value itself as part of the audit entry (e.g. don't put the citizen ID or diagnosis text in the `action` or a free-text field) — the audit log records *that* access happened and *by whom*, not a copy of the data.
-- Don't batch-skip audit calls in a loop for performance — if a route returns a list of N patient records, that's N auditable reads (or one entry covering the query with enough detail to reconstruct what was returned), not zero.
-- Don't make audit logging best-effort/fire-and-forget in a way that can silently fail — if the audit write fails, that's worth surfacing (per root AGENTS.md error-handling rules), not swallowing.
+- Don't log the PHI value itself as part of the audit entry (e.g. don't put citizen ID, patient name, or diagnosis in free-text fields) — record *that* access happened and *by whom*, referencing the ID.
+- Don't batch-skip audit calls in a loop for performance.
+- Don't make audit logging best-effort in a way that swallows fatal database errors.

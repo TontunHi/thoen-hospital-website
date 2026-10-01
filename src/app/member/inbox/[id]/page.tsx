@@ -1,4 +1,4 @@
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
 import TaskDetailClient from './TaskDetailClient'
 import '../inbox.css'
@@ -10,8 +10,8 @@ export default async function TaskDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const session = await verifyMemberSession()
-  if (!session) {
+  const member = await getAuthenticatedMember()
+  if (!member) {
     redirect('/member/login')
   }
 
@@ -19,7 +19,7 @@ export default async function TaskDetailPage({
 
   return (
     <div className="inboxPageContainer">
-      <TaskDetailClient taskId={id} sessionUser={session} />
+      <TaskDetailClient taskId={id} sessionUser={member.toDto()} />
     </div>
   )
 }

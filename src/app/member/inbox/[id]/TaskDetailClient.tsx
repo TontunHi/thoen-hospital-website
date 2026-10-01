@@ -27,8 +27,14 @@ import {
   Stethoscope,
   Sparkles,
   Info,
-  DollarSign
+  DollarSign,
+  Palette,
+  Share2,
+  Layers,
+  FileCheck,
+  Phone
 } from 'lucide-react'
+import { resolveTaskPermissions } from '@/lib/taskPermissionResolver'
 
 interface TaskStep {
   id: string
@@ -98,6 +104,72 @@ export default function TaskDetailClient({
   const [isEditingPayload, setIsEditingPayload] = useState<boolean>(false)
   const [editNote, setEditNote] = useState<string>('')
   const [editBudget, setEditBudget] = useState<string>('')
+
+  // Manager Edit Task Modal State
+  const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState<boolean>(false)
+  const [editTaskForm, setEditTaskForm] = useState({
+    title: '',
+    description: '',
+    urgency: 'NORMAL',
+    costType: 'NO_COST',
+    estimatedBudget: '',
+    deliveryDate: '',
+    objectives: '',
+    mediaDetails: '',
+    itemCategory: 'EQUIPMENT',
+    equipmentNumber: '',
+    equipmentName: '',
+    nonEquipmentItem: '',
+    locationFullName: '',
+    symptomDetail: '',
+  })
+
+  const handleOpenEditModal = () => {
+    const payload = task?.custom_payload || {}
+    setEditTaskForm({
+      title: task?.title || '',
+      description: task?.description || '',
+      urgency: task?.urgency || 'NORMAL',
+      costType: payload.costType || 'NO_COST',
+      estimatedBudget: payload.estimatedBudget ? String(payload.estimatedBudget) : '',
+      deliveryDate: payload.deliveryDate || '',
+      objectives: payload.objectives || '',
+      mediaDetails: payload.details || '',
+      itemCategory: repairDetail?.item_category || 'EQUIPMENT',
+      equipmentNumber: repairDetail?.equipment_number || '',
+      equipmentName: repairDetail?.equipment_name || '',
+      nonEquipmentItem: repairDetail?.non_equipment_item || '',
+      locationFullName: repairDetail?.location_full_name || '',
+      symptomDetail: repairDetail?.symptom_detail || '',
+    })
+    setIsEditTaskModalOpen(true)
+  }
+
+  const handleSaveTaskEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setActionLoading(true)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      const res = await fetch(`/api/member/inbox/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editTaskForm),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccessMsg(data.message || 'บันทึกการแก้ไขข้อมูลเรียบร้อยแล้ว')
+        setIsEditTaskModalOpen(false)
+        await loadData()
+      } else {
+        setError(data.error || 'เกิดข้อผิดพลาดในการแก้ไขข้อมูล')
+      }
+    } catch (err) {
+      setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -415,6 +487,13 @@ export default function TaskDetailClient({
             <span>ขออนุมัติเอกสาร</span>
           </span>
         )
+      case 'MEDIA_REQUEST':
+        return (
+          <span className="typeBadge" style={{ backgroundColor: '#ccfbf1', color: '#0f766e', border: '1px solid #99f6e4' }}>
+            <Palette size={13} />
+            <span>งานขอสื่อประชาสัมพันธ์</span>
+          </span>
+        )
       default:
         return (
           <span className="typeBadge">
@@ -470,7 +549,21 @@ export default function TaskDetailClient({
     )
   }
 
-  const isMyTurn = currentUser?.isCurrentAssignee && (task.status === 'PENDING' || task.status === 'IN_PROGRESS')
+  const memberLike = {
+    id: currentUser?.id ?? sessionUser?.id,
+    username: currentUser?.username ?? sessionUser?.username,
+    name: currentUser?.name ?? sessionUser?.name,
+    role: currentUser?.role ?? sessionUser?.role,
+    position: currentUser?.position ?? sessionUser?.position,
+    department: currentUser?.department ?? sessionUser?.department,
+    permissions: sessionUser?.permissions || currentUser?.permissions,
+    isAdmin: Boolean(sessionUser?.isAdmin || sessionUser?.role === 'admin' || currentUser?.isAdmin),
+  }
+
+  const taskPermissions = resolveTaskPermissions(memberLike, task, { repairDetail, steps })
+  const isMyTurn = taskPermissions.canApprove || (currentUser?.isCurrentAssignee && (task.status === 'PENDING' || task.status === 'IN_PROGRESS'))
+  const canEdit = taskPermissions.canEdit
+
 
   return (
     <div className="inboxWrapper" style={{ maxWidth: '1080px' }}>
@@ -486,10 +579,17 @@ export default function TaskDetailClient({
               task.status === 'SENT_BACK' ? 'statusSentBack' : 
               task.status === 'IN_PROGRESS' ? 'statusInProgress' : 'statusPending'
             }`}>
-              {task.status === 'APPROVED' ? 'อนุมัติเรียบร้อย' :
-               task.status === 'REJECTED' ? 'ไม่อนุมัติ' :
-               task.status === 'SENT_BACK' ? 'ส่งกลับแก้ไข' : 
-               task.status === 'IN_PROGRESS' ? 'กำลังดำเนินการ' : 'รอดำเนินการ'}
+              {task.status === 'APPROVED' && <CheckCircle2 size={13} className="flex-shrink-0" />}
+              {task.status === 'REJECTED' && <XCircle size={13} className="flex-shrink-0" />}
+              {task.status === 'SENT_BACK' && <AlertCircle size={13} className="flex-shrink-0" />}
+              {task.status === 'IN_PROGRESS' && <Wrench size={13} className="flex-shrink-0" />}
+              {task.status === 'PENDING' && <Clock size={13} className="flex-shrink-0" />}
+              <span>
+                {task.status === 'APPROVED' ? 'อนุมัติเรียบร้อย' :
+                 task.status === 'REJECTED' ? 'ไม่อนุมัติ' :
+                 task.status === 'SENT_BACK' ? 'ส่งกลับแก้ไข' : 
+                 task.status === 'IN_PROGRESS' ? 'กำลังดำเนินการ' : 'รอดำเนินการ'}
+              </span>
             </span>
           </div>
           <h1 className="detailHeaderTitle">{task.title}</h1>
@@ -509,6 +609,27 @@ export default function TaskDetailClient({
             <Printer size={16} />
             <span>พิมพ์ใบงาน (A4)</span>
           </Link>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleOpenEditModal}
+              className="backBtn"
+              style={{
+                backgroundColor: '#0f766e',
+                color: '#ffffff',
+                borderColor: '#0f766e',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                boxShadow: '0 2px 4px rgba(15, 118, 110, 0.25)',
+              }}
+            >
+              <Edit3 size={16} />
+              <span>แก้ไขข้อมูลคำขอ</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -530,15 +651,276 @@ export default function TaskDetailClient({
       {/* ── Main Detail Grid ── */}
       <div className="detailGrid">
         
-        {/* Left Column: Work Details (Repair Details or Non-Repair Content) + Approval Actions */}
+        {/* Left Column: Work Details (Media Request, Repair Details or Non-Repair Content) + Approval Actions */}
         <div>
-          {repairDetail ? (
+          {task.task_type === 'MEDIA_REQUEST' ? (
             <div className="contentCard">
-              <div className="contentCardHeader">
-                <h3 className="contentCardTitle">
+              <div className="contentCardHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 className="contentCardTitle" style={{ color: '#0f766e', margin: 0 }}>
+                  <Palette size={18} className="text-teal-600" />
+                  <span>รายละเอียดคำขอสื่อประชาสัมพันธ์</span>
+                </h3>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={handleOpenEditModal}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      backgroundColor: '#f0fdfa',
+                      color: '#0f766e',
+                      border: '1px solid #99f6e4',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Edit3 size={14} />
+                    <span>แก้ไขข้อมูล / ค่าใช้จ่าย</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Media Request Summary Banner */}
+              <div style={{
+                background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)',
+                border: '1px solid #99f6e4',
+                borderRadius: '0.75rem',
+                padding: '1.25rem',
+                marginBottom: '1.25rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem'
+              }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block' }}>
+                    รูปแบบค่าใช้จ่าย / การพิจารณา
+                  </span>
+                  <strong style={{ color: '#115e59', fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
+                    {task.custom_payload?.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย (ผ่าน 4 ขั้นตอน เสนอผู้อำนวยการ)' : '🟢 ไม่มีค่าใช้จ่าย (ผ่าน 3 ขั้นตอน สิ้นสุดที่หัวหน้าพัสดุ)'}
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {task.custom_payload?.deliveryDate && (
+                    <div style={{ background: '#ffffff', padding: '0.4rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #99f6e4', fontSize: '0.8rem', color: '#0f766e', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
+                      <Calendar size={14} />
+                      <span>ขอรับงานภายใน: {task.custom_payload.deliveryDate}</span>
+                    </div>
+                  )}
+                  {getUrgencyBadge(task.urgency)}
+                </div>
+              </div>
+
+              {/* Characteristics & Channels Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                {/* Work Types */}
+                <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem' }}>
+                    <Layers size={15} className="text-teal-600" />
+                    ลักษณะงานที่ขอรับบริการ ({task.custom_payload?.workTypes?.length || 0} รายการ)
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    {task.custom_payload?.workTypes && Array.isArray(task.custom_payload.workTypes) && task.custom_payload.workTypes.length > 0 ? (
+                      task.custom_payload.workTypes.map((wt: any, idx: number) => (
+                        <span key={idx} style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.35rem 0.65rem',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.825rem',
+                          fontWeight: 600,
+                          color: '#0f172a'
+                        }}>
+                          <span>✓ {wt.label}</span>
+                          {wt.customDetail && (
+                            <span style={{ color: '#0d9488', fontWeight: 500, fontSize: '0.775rem' }}>
+                              ({wt.customDetail})
+                            </span>
+                          )}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>-</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Publishing Channels */}
+                <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem' }}>
+                    <Share2 size={15} className="text-teal-600" />
+                    ช่องทางที่ต้องการเผยแพร่ ({task.custom_payload?.channels?.length || 0} ช่องทาง)
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    {task.custom_payload?.channels && Array.isArray(task.custom_payload.channels) && task.custom_payload.channels.length > 0 ? (
+                      task.custom_payload.channels.map((ch: any, idx: number) => (
+                        <span key={idx} style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.35rem 0.65rem',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.825rem',
+                          fontWeight: 600,
+                          color: '#0f172a'
+                        }}>
+                          <span>📢 {ch.label}</span>
+                          {ch.customDetail && (
+                            <span style={{ color: '#2563eb', fontWeight: 500, fontSize: '0.775rem' }}>
+                              ({ch.customDetail})
+                            </span>
+                          )}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>-</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Description */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                  <FileText size={15} className="text-teal-600" />
+                  รายละเอียดและเนื้อหาที่ต้องการให้ใส่ในสื่อ
+                </span>
+                <div style={{
+                  backgroundColor: '#f8fafc',
+                  padding: '1rem',
+                  borderRadius: '0.65rem',
+                  border: '1px solid #e2e8f0',
+                  color: '#1e293b',
+                  fontSize: '0.9rem',
+                  lineHeight: '1.65',
+                  whiteSpace: 'pre-line'
+                }}>
+                  {task.description || 'ไม่มีรายละเอียดเพิ่มเติม'}
+                </div>
+              </div>
+
+              {/* Requester & Contact Info */}
+              <div style={{
+                backgroundColor: '#f8fafc',
+                padding: '1rem',
+                borderRadius: '0.75rem',
+                border: '1px solid #e2e8f0',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '0.75rem',
+                marginBottom: '1.25rem',
+                fontSize: '0.85rem'
+              }}>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>ผู้ยื่นคำขอ</span>
+                  <strong style={{ color: '#0f172a' }}>{task.requester_name}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>กลุ่มงาน / หน่วยงาน</span>
+                  <strong style={{ color: '#0f172a' }}>{task.requester_dept || '-'}</strong>
+                </div>
+                {task.custom_payload?.phone && (
+                  <div>
+                    <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>เบอร์โทรติดต่อ</span>
+                    <strong style={{ color: '#0d9488' }}>📞 {task.custom_payload.phone}</strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Attachments & Cloud Links */}
+              {((task.custom_payload?.attachments && task.custom_payload.attachments.length > 0) || task.custom_payload?.driveLink) && (
+                <div style={{ backgroundColor: '#f0fdfa', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #99f6e4', marginBottom: '1rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0f766e', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                    <FileCheck size={15} />
+                    เอกสารแนบและลิงก์ประกอบ
+                  </span>
+
+                  {task.custom_payload?.attachments && task.custom_payload.attachments.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: task.custom_payload?.driveLink ? '0.75rem' : '0' }}>
+                      {task.custom_payload.attachments.map((att: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={att.filePath}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.4rem 0.75rem',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #99f6e4',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            color: '#0f766e',
+                            textDecoration: 'none'
+                          }}
+                        >
+                          <FileText size={14} />
+                          <span>{att.fileName}</span>
+                          <ExternalLink size={12} className="text-teal-500" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {task.custom_payload?.driveLink && (
+                    <div style={{ fontSize: '0.825rem', paddingTop: '0.5rem', borderTop: task.custom_payload?.attachments?.length ? '1px dashed #99f6e4' : 'none' }}>
+                      <span style={{ color: '#0f766e', fontWeight: 600 }}>🔗 ลิงก์ Google Drive / Cloud: </span>
+                      <a
+                        href={task.custom_payload.driveLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#2563eb', textDecoration: 'underline', wordBreak: 'break-all' }}
+                      >
+                        {task.custom_payload.driveLink}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : repairDetail ? (
+            <div className="contentCard">
+              <div className="contentCardHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 className="contentCardTitle" style={{ margin: 0 }}>
                   <Wrench size={18} className="text-emerald-600" />
                   <span>รายละเอียดงานแจ้งซ่อมบำรุง</span>
                 </h3>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={handleOpenEditModal}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      backgroundColor: '#eff6ff',
+                      color: '#1d4ed8',
+                      border: '1px solid #bfdbfe',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '0.375rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Edit3 size={14} />
+                    <span>แก้ไขข้อมูลแจ้งซ่อม</span>
+                  </button>
+                )}
               </div>
 
               {/* Repair Banner */}
@@ -876,11 +1258,33 @@ export default function TaskDetailClient({
             </div>
           ) : (
             <div className="contentCard">
-              <div className="contentCardHeader">
-                <h3 className="contentCardTitle">
+              <div className="contentCardHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 className="contentCardTitle" style={{ margin: 0 }}>
                   <FileText size={18} className="text-blue-600" />
                   <span>รายละเอียดงาน / บันทึกข้อความ</span>
                 </h3>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={handleOpenEditModal}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      backgroundColor: '#f8fafc',
+                      color: '#334155',
+                      border: '1px solid #cbd5e1',
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: '0.45rem',
+                      fontSize: '0.825rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Edit3 size={14} />
+                    <span>แก้ไขข้อมูลคำขอ</span>
+                  </button>
+                )}
               </div>
 
               {task.description ? (
@@ -1450,6 +1854,316 @@ export default function TaskDetailClient({
                 <span>ยืนยันยกเลิกงาน</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal 4: Manager Edit Task Details Modal ── */}
+      {isEditTaskModalOpen && (
+        <div className="modalBackdrop" onClick={() => setIsEditTaskModalOpen(false)}>
+          <div className="modalContent" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Edit3 size={18} className="text-teal-600" />
+                  <span>แก้ไขข้อมูลคำขอ</span>
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  สำหรับผู้ดูแลระบบและผู้มีสิทธิ์จัดการงาน ({task.task_no})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditTaskModalOpen(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', padding: '0.25rem' }}
+                title="ปิดหน้าต่าง"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTaskEdit}>
+              {/* ชื่องาน / หัวข้องาน */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+                  หัวข้องาน / รายการคำขอ <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editTaskForm.title}
+                  onChange={(e) => setEditTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                  style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
+                />
+              </div>
+
+              {/* ความเร่งด่วน */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+                  ระดับความเร่งด่วน
+                </label>
+                <select
+                  value={editTaskForm.urgency}
+                  onChange={(e) => setEditTaskForm(prev => ({ ...prev, urgency: e.target.value }))}
+                  style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', backgroundColor: 'white' }}
+                >
+                  <option value="NORMAL">● ปกติ</option>
+                  <option value="URGENT">● ด่วน</option>
+                  <option value="VERY_URGENT">● ด่วนที่สุด</option>
+                </select>
+              </div>
+
+              {/* Media Request Specific Fields */}
+              {task.task_type === 'MEDIA_REQUEST' && (
+                <div style={{ backgroundColor: '#f0fdfa', border: '1px solid #ccfbf1', borderRadius: '0.65rem', padding: '1rem', marginBottom: '1rem' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f766e', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Palette size={16} />
+                    <span>การตั้งค่าสื่อประชาสัมพันธ์</span>
+                  </h4>
+
+                  {/* Cost Type Radio */}
+                  <div style={{ marginBottom: '0.85rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.35rem' }}>
+                      รูปแบบค่าใช้จ่าย / การพิจารณา
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', cursor: 'pointer', color: '#0f766e' }}>
+                        <input
+                          type="radio"
+                          name="editCostType"
+                          value="NO_COST"
+                          checked={editTaskForm.costType === 'NO_COST'}
+                          onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'NO_COST', estimatedBudget: '' }))}
+                        />
+                        <span>🟢 <strong>ไม่มีค่าใช้จ่าย</strong> (3 ขั้นตอน สิ้นสุดที่หัวหน้าพัสดุ)</span>
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', cursor: 'pointer', color: '#b91c1c' }}>
+                        <input
+                          type="radio"
+                          name="editCostType"
+                          value="HAS_COST"
+                          checked={editTaskForm.costType === 'HAS_COST'}
+                          onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'HAS_COST' }))}
+                        />
+                        <span>🔴 <strong>มีค่าใช้จ่าย</strong> (4 ขั้นตอน เสนอผู้อำนวยการลงนามอนุมัติ)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Estimated Budget if HAS_COST */}
+                  {editTaskForm.costType === 'HAS_COST' && (
+                    <div style={{ marginBottom: '0.85rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
+                        ประมาณการงบประมาณ (บาท)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="เช่น 2500"
+                        value={editTaskForm.estimatedBudget}
+                        onChange={(e) => setEditTaskForm(prev => ({ ...prev, estimatedBudget: e.target.value }))}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Delivery Date */}
+                  <div style={{ marginBottom: '0.85rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
+                      ขอรับงานภายในวันที่ / กำหนดส่งมอบ
+                    </label>
+                    <input
+                      type="date"
+                      value={editTaskForm.deliveryDate}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, deliveryDate: e.target.value }))}
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                    />
+                  </div>
+
+                  {/* Objectives */}
+                  <div style={{ marginBottom: '0.85rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
+                      วัตถุประสงค์
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={editTaskForm.objectives}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, objectives: e.target.value }))}
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                    />
+                  </div>
+
+                  {/* Media Details */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
+                      ข้อความ / รายละเอียดเนื้อหาสื่อ
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={editTaskForm.mediaDetails}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, mediaDetails: e.target.value }))}
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Repair Tasks Specific Fields */}
+              {['IT_REPAIR', 'GENERAL_REPAIR', 'MEDICAL_REPAIR'].includes(task.task_type) && (
+                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.65rem', padding: '1rem', marginBottom: '1rem' }}>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#334155', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Wrench size={16} />
+                    <span>ข้อมูลรายการซ่อม</span>
+                  </h4>
+
+                  {/* Item Category */}
+                  <div style={{ marginBottom: '0.85rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+                      ประเภทรายการ
+                    </label>
+                    <div style={{ display: 'flex', gap: '1.25rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="editItemCategory"
+                          value="EQUIPMENT"
+                          checked={editTaskForm.itemCategory === 'EQUIPMENT'}
+                          onChange={() => setEditTaskForm(prev => ({ ...prev, itemCategory: 'EQUIPMENT' }))}
+                        />
+                        <span>ครุภัณฑ์ (มีหมายเลขครุภัณฑ์)</span>
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        <input
+                          type="radio"
+                          name="editItemCategory"
+                          value="NON_EQUIPMENT"
+                          checked={editTaskForm.itemCategory === 'NON_EQUIPMENT'}
+                          onChange={() => setEditTaskForm(prev => ({ ...prev, itemCategory: 'NON_EQUIPMENT' }))}
+                        />
+                        <span>งานซ่อมทั่วไป / สถานที่ (ไม่มีหมายเลข)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {editTaskForm.itemCategory === 'EQUIPMENT' ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                          หมายเลขครุภัณฑ์
+                        </label>
+                        <input
+                          type="text"
+                          value={editTaskForm.equipmentNumber}
+                          onChange={(e) => setEditTaskForm(prev => ({ ...prev, equipmentNumber: e.target.value }))}
+                          placeholder="เช่น 7440-001-0001"
+                          style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                          ชื่ออุปกรณ์ / รายการครุภัณฑ์
+                        </label>
+                        <input
+                          type="text"
+                          value={editTaskForm.equipmentName}
+                          onChange={(e) => setEditTaskForm(prev => ({ ...prev, equipmentName: e.target.value }))}
+                          placeholder="เช่น เครื่องคอมพิวเตอร์ All-in-One"
+                          style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: '0.85rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                        รายการสิ่งของ / รายการซ่อม
+                      </label>
+                      <input
+                        type="text"
+                        value={editTaskForm.nonEquipmentItem}
+                        onChange={(e) => setEditTaskForm(prev => ({ ...prev, nonEquipmentItem: e.target.value }))}
+                        placeholder="เช่น ซ่อมก๊อกน้ำห้องน้ำผู้ป่วย, หลอดไฟทางเดินดับ"
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Location */}
+                  <div style={{ marginBottom: '0.85rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                      สถานที่ตั้ง / หน่วยงาน / ห้อง
+                    </label>
+                    <input
+                      type="text"
+                      value={editTaskForm.locationFullName}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, locationFullName: e.target.value }))}
+                      placeholder="เช่น อาคารผู้ป่วยนอก ชั้น 1 ห้องตรวจ 3"
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  {/* Symptom Detail */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                      อาการชำรุด / ปัญหาที่พบ
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={editTaskForm.symptomDetail}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, symptomDetail: e.target.value }))}
+                      placeholder="ระบุอาการชำรุด หรือรายละเอียดปัญหาที่แจ้งซ่อม"
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* General task description (if not Media or Repair) */}
+              {task.task_type !== 'MEDIA_REQUEST' && !['IT_REPAIR', 'GENERAL_REPAIR', 'MEDICAL_REPAIR'].includes(task.task_type) && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+                    รายละเอียดคำขอ
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editTaskForm.description}
+                    onChange={(e) => setEditTaskForm(prev => ({ ...prev, description: e.target.value }))}
+                    style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
+                  />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', marginTop: '1.25rem', borderTop: '1px solid #f1f5f9', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditTaskModalOpen(false)}
+                  className="backBtn"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  style={{
+                    backgroundColor: '#0f766e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '0.5rem',
+                    padding: '0.6rem 1.35rem',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    cursor: actionLoading ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 2px 4px rgba(15, 118, 110, 0.2)',
+                  }}
+                >
+                  {actionLoading ? <Clock size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  <span>บันทึกการแก้ไข</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

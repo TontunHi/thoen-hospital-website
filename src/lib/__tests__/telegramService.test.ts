@@ -123,10 +123,25 @@ describe('telegramCore - processTelegramUpdate command dispatch', () => {
     expect(res.memberName).toBe('พยาบาล ทดสอบ')
   })
 
-  it('ignores non-command text messages gracefully', async () => {
+  it('handles /id command and replies with Chat ID info', async () => {
     const { processTelegramUpdate } = await import('../telegramService')
     const update = {
       update_id: 3,
+      message: {
+        chat: { id: -1002345678901, type: 'supergroup', title: 'งานประชาสัมพันธ์ รพ.เถิน' },
+        from: { id: 12345, username: 'pr_officer', first_name: 'เจ้าหน้าที่' },
+        text: '/id',
+      },
+    }
+    const res = await processTelegramUpdate(update)
+    expect(res.handled).toBe(true)
+    expect(res.action).toBe('START_HELP')
+  })
+
+  it('ignores non-command text messages gracefully', async () => {
+    const { processTelegramUpdate } = await import('../telegramService')
+    const update = {
+      update_id: 4,
       message: {
         chat: { id: 12345 },
         from: { id: 12345, username: 'testuser' },

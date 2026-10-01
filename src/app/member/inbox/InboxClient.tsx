@@ -10,6 +10,7 @@ import {
   Search, 
   Clock, 
   CheckCircle, 
+  CheckCircle2,
   XCircle, 
   AlertCircle, 
   ArrowLeft,
@@ -22,7 +23,8 @@ import {
   Stethoscope,
   Sparkles,
   User,
-  ShieldCheck
+  ShieldCheck,
+  Palette
 } from 'lucide-react'
 
 interface TaskSummary {
@@ -37,6 +39,7 @@ interface TaskSummary {
   status: string
   current_step_no: number
   current_step_name?: string
+  custom_payload?: any
   created_at: string
   updated_at: string
 }
@@ -58,9 +61,11 @@ interface InboxClientProps {
 
 export default function InboxClient({ sessionUser }: InboxClientProps) {
   const router = useRouter()
-  const [tab, setTab] = useState<'inbox' | 'my-requests' | 'all'>('inbox')
+  const [tab, setTab] = useState<'inbox' | 'my-requests' | 'department' | 'all'>('inbox')
   const [tasks, setTasks] = useState<TaskSummary[]>([])
   const [inboxCount, setInboxCount] = useState<number>(0)
+  const [departmentCount, setDepartmentCount] = useState<number>(0)
+  const [userDepartment, setUserDepartment] = useState<string>('')
   const [canViewAll, setCanViewAll] = useState<boolean>(sessionUser.role === 'admin')
   const [stats, setStats] = useState<StatsSummary>({
     pendingCount: 0,
@@ -94,6 +99,10 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
       if (json.success && json.data) {
         setTasks(json.data.tasks || [])
         setInboxCount(json.data.inboxCount || 0)
+        setDepartmentCount(json.data.departmentCount || 0)
+        if (json.data.userDepartment) {
+          setUserDepartment(json.data.userDepartment)
+        }
         if (json.data.canViewAll !== undefined) {
           setCanViewAll(json.data.canViewAll)
         }
@@ -234,6 +243,13 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             <span>ขออนุมัติเอกสาร</span>
           </span>
         )
+      case 'MEDIA_REQUEST':
+        return (
+          <span className="typeBadge typeMediaRequest">
+            <Palette size={13} />
+            <span>ขอสื่อประชาสัมพันธ์</span>
+          </span>
+        )
       default:
         return (
           <span className="typeBadge">
@@ -245,45 +261,45 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return (
-          <span className="statusBadge statusPending">
-            <Clock size={13} />
-            <span>รอดำเนินการ</span>
-          </span>
-        )
-      case 'APPROVED':
-        return (
-          <span className="statusBadge statusApproved">
-            <CheckCircle size={13} />
-            <span>อนุมัติเสร็จสิ้น</span>
-          </span>
-        )
-      case 'REJECTED':
-        return (
-          <span className="statusBadge statusRejected">
-            <XCircle size={13} />
-            <span>ไม่อนุมัติ</span>
-          </span>
-        )
-      case 'SENT_BACK':
-        return (
-          <span className="statusBadge statusSentBack">
-            <AlertCircle size={13} />
-            <span>ส่งกลับแก้ไข</span>
-          </span>
-        )
-      case 'IN_PROGRESS':
-        return (
-          <span className="statusBadge statusInProgress">
-            <Wrench size={13} />
-            <span>กำลังซ่อม</span>
-          </span>
-        )
-      default:
-        return <span className="statusBadge">{status}</span>
+    const s = (status || '').trim().toUpperCase()
+    if (s === 'APPROVED' || s === 'COMPLETED' || s === 'อนุมัติ' || s === 'อนุมัติเสร็จสิ้น' || s === 'อนุมัติแล้ว') {
+      return (
+        <span className="statusBadge statusApproved">
+          <CheckCircle2 size={13} strokeWidth={2.5} className="flex-shrink-0" />
+          <span>อนุมัติเสร็จสิ้น</span>
+        </span>
+      )
     }
+    if (s === 'REJECTED' || s === 'CANCELLED' || s === 'ไม่อนุมัติ' || s === 'ยกเลิก') {
+      return (
+        <span className="statusBadge statusRejected">
+          <XCircle size={13} strokeWidth={2.5} className="flex-shrink-0" />
+          <span>ไม่อนุมัติ</span>
+        </span>
+      )
+    }
+    if (s === 'SENT_BACK' || s === 'ส่งกลับแก้ไข') {
+      return (
+        <span className="statusBadge statusSentBack">
+          <AlertCircle size={13} strokeWidth={2.5} className="flex-shrink-0" />
+          <span>ส่งกลับแก้ไข</span>
+        </span>
+      )
+    }
+    if (s === 'IN_PROGRESS' || s === 'กำลังดำเนินการ' || s === 'กำลังซ่อม') {
+      return (
+        <span className="statusBadge statusInProgress">
+          <Wrench size={13} strokeWidth={2.5} className="flex-shrink-0" />
+          <span>กำลังซ่อม</span>
+        </span>
+      )
+    }
+    return (
+      <span className="statusBadge statusPending">
+        <Clock size={13} strokeWidth={2.5} className="flex-shrink-0" />
+        <span>{s === 'PENDING' || s === 'WAITING' || !status ? 'รอดำเนินการ' : status}</span>
+      </span>
+    )
   }
 
   const getUrgencyTag = (urgency: string) => {
@@ -321,12 +337,12 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             <Inbox size={26} />
           </div>
           <div className="inboxTitleArea">
-            <h1>กล่องงานกลาง (Unified Inbox)</h1>
+            <h1>กล่องงาน</h1>
             <p>รวมรายการคำร้อง งานแจ้งซ่อม และเอกสารที่รอคุณลงนามหรือปฏิบัติหน้าที่</p>
           </div>
         </div>
         <div className="headerActions">
-          <Link href="/member" className="backBtn" aria-label="กลับหน้าโปรไฟล์สมาชิก">
+          <Link href="/member" className="backBtn" aria-label="กลับหน้าหลักโปรไฟล์">
             <ArrowLeft size={16} />
             <span>หน้าหลักโปรไฟล์</span>
           </Link>
@@ -343,6 +359,13 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
         <div className="compactStatChip chipMyReq">
           <span className="compactStatNumber">{stats.myRequestsCount}</span>
           <span className="compactStatLabel">คำร้องที่ฉันส่งขอ</span>
+        </div>
+
+        <div className="compactStatChip" style={{ borderColor: '#a7f3d0', backgroundColor: '#f0fdf4' }}>
+          <span className="compactStatNumber" style={{ backgroundColor: '#dcfce7', color: '#166534' }}>
+            {departmentCount}
+          </span>
+          <span className="compactStatLabel">งานในหน่วยงาน{userDepartment ? ` (${userDepartment})` : ''}</span>
         </div>
 
         {canViewAll && (
@@ -380,6 +403,17 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             <span>คำร้องที่ฉันยื่นขอ</span>
           </button>
 
+          <button
+            role="tab"
+            aria-selected={tab === 'department'}
+            className={`tabPill ${tab === 'department' ? 'active' : ''}`}
+            onClick={() => setTab('department')}
+          >
+            <Building2 size={16} />
+            <span>งานในหน่วยงาน{userDepartment ? ` (${userDepartment})` : ''}</span>
+            {departmentCount > 0 && <span className="tabBadgeAlert" style={{ backgroundColor: '#10b981' }}>{departmentCount}</span>}
+          </button>
+
           {canViewAll && (
             <button
               role="tab"
@@ -400,7 +434,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             <input
               type="text"
               className="searchFieldInput"
-              placeholder="ค้นหาตามรหัสงาน (เช่น IT-...), ชื่อเรื่อง, หรือผู้ยื่นขอ..."
+              placeholder="ค้นหาตามรหัสงาน (เช่น IT-..., MR-...), ชื่อเรื่อง, หรือผู้ยื่นขอ..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="ค้นหากล่องงาน"
@@ -414,11 +448,10 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             aria-label="กรองตามประเภทงาน"
           >
             <option value="">ทุกประเภทงาน</option>
+            <option value="MEDIA_REQUEST">งานขอสื่อประชาสัมพันธ์</option>
             <option value="IT_REPAIR">งานซ่อมคอมฯ / ไอที</option>
             <option value="MEDICAL_REPAIR">งานซ่อมเครื่องมือแพทย์</option>
             <option value="GENERAL_REPAIR">งานซ่อมช่างทั่วไป</option>
-            <option value="ROOM_BOOKING">งานขอใช้ห้องประชุม</option>
-            <option value="DOC_APPROVAL">เอกสารขออนุมัติทั่วไป</option>
           </select>
 
           <select
@@ -482,6 +515,8 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             <p>
               {tab === 'inbox' 
                 ? 'ยอดเยี่ยม! ขณะนี้คุณไม่มีงานค้างที่ต้องพิจารณาหรือปฏิบัติหน้าที่'
+                : tab === 'department'
+                ? 'ไม่พบรายการงานในหน่วยงานของคุณตามเงื่อนไขที่เลือก'
                 : tab === 'all'
                 ? 'ไม่พบรายการงานในระบบตามเงื่อนไขที่เลือก'
                 : 'ไม่พบรายการคำร้องที่คุณยื่นขอในขณะนี้'}
@@ -494,13 +529,13 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
               <table className="modernTasksTable">
                 <thead>
                   <tr>
-                    <th style={{ width: '13%' }}>รหัสงาน</th>
-                    <th style={{ width: '15%' }}>ประเภทงาน</th>
-                    <th style={{ width: '28%' }}>หัวข้อเรื่อง / รายละเอียด</th>
+                    <th style={{ width: '13%', whiteSpace: 'nowrap' }}>รหัสงาน</th>
+                    <th style={{ width: '14%', whiteSpace: 'nowrap' }}>ประเภทงาน</th>
+                    <th style={{ width: '29%' }}>หัวข้อเรื่อง / รายละเอียด</th>
                     <th style={{ width: '15%' }}>ผู้ยื่นขอ</th>
-                    <th style={{ width: '12%' }}>ขั้นตอน</th>
-                    <th style={{ width: '10%' }}>สถานะ</th>
-                    <th style={{ width: '7%', textAlign: 'center' }}>จัดการ</th>
+                    <th style={{ width: '15%' }}>ขั้นตอนปัจจุบัน</th>
+                    <th style={{ width: '10%', whiteSpace: 'nowrap' }}>สถานะ</th>
+                    <th style={{ width: '4%', textAlign: 'center', whiteSpace: 'nowrap' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -522,35 +557,68 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                           }
                         }}
                       >
-                        <td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <span className="taskNoBadge">{task.task_no}</span>
                         </td>
-                        <td>{getTypeBadge(task.task_type)}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{getTypeBadge(task.task_type)}</td>
                         <td>
-                          <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '0.2rem', lineHeight: 1.4 }}>
+                          <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '0.25rem', lineHeight: 1.45 }}>
                             {task.title}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', fontSize: '0.8rem', color: '#64748b' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748b', flexWrap: 'wrap' }}>
                             {getUrgencyTag(task.urgency)}
                             <span>•</span>
-                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatThaiDate(task.created_at)}</span>
+                            <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formatThaiDate(task.created_at)}</span>
+                            {task.task_type === 'MEDIA_REQUEST' && task.custom_payload && (
+                              <>
+                                <span>•</span>
+                                {task.custom_payload.costType === 'HAS_COST' ? (
+                                  <span className="costPillHasCost">🔴 มีค่าใช้จ่าย</span>
+                                ) : (
+                                  <span className="costPillNoCost">🟢 ไม่มีค่าใช้จ่าย</span>
+                                )}
+                                {task.custom_payload.deliveryDate && (
+                                  <span className="deliveryDateTag">
+                                    <Calendar size={11} />
+                                    <span>กำหนดเสร็จ: {task.custom_payload.deliveryDate}</span>
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </div>
                         </td>
                         <td>
                           <div style={{ fontWeight: 600, color: '#1e293b' }}>{task.requester_name}</div>
                           {task.requester_dept && (
-                            <div style={{ fontSize: '0.785rem', color: '#64748b', marginTop: '0.1rem' }}>
+                            <div style={{ fontSize: '0.785rem', color: '#64748b', marginTop: '0.15rem', lineHeight: 1.35 }}>
                               {task.requester_dept}
                             </div>
                           )}
                         </td>
                         <td>
-                          <span style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 500 }}>
-                            {task.current_step_name || `ขั้นตอนที่ ${task.current_step_no}`}
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              fontSize: '0.725rem',
+                              fontWeight: 700,
+                              color: '#2563eb',
+                              backgroundColor: '#eff6ff',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '0.35rem',
+                              border: '1px solid #dbeafe',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              ขั้นตอนที่ {task.current_step_no}
+                            </span>
+                            <span style={{ fontSize: '0.825rem', color: '#334155', fontWeight: 500, lineHeight: 1.35 }}>
+                              {task.current_step_name || 'รอดำเนินการ'}
+                            </span>
+                          </div>
                         </td>
-                        <td>{getStatusBadge(task.status)}</td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td style={{ whiteSpace: 'nowrap' }}>{getStatusBadge(task.status)}</td>
+                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
                             {canQuickAccept && (
                               <button
@@ -571,6 +639,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                                   gap: '0.25rem',
                                   boxShadow: '0 1px 3px rgba(37, 99, 235, 0.2)',
                                   transition: 'all 0.15s ease',
+                                  whiteSpace: 'nowrap',
                                 }}
                                 title="คลิกเพื่อรับงานซ่อมนี้ทันที"
                               >
@@ -600,6 +669,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                                   alignItems: 'center',
                                   gap: '0.25rem',
                                   transition: 'all 0.15s ease',
+                                  whiteSpace: 'nowrap',
                                 }}
                                 title="คลิกเพื่อเปิดหน้าต่างยกเลิก/ปฏิเสธงาน"
                               >
@@ -646,10 +716,40 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
 
                     <div className="taskMobileCardTitle">{task.title}</div>
 
+                    {task.task_type === 'MEDIA_REQUEST' && task.custom_payload && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                        {task.custom_payload.costType === 'HAS_COST' ? (
+                          <span className="costPillHasCost">🔴 มีค่าใช้จ่าย</span>
+                        ) : (
+                          <span className="costPillNoCost">🟢 ไม่มีค่าใช้จ่าย</span>
+                        )}
+                        {task.custom_payload.deliveryDate && (
+                          <span className="deliveryDateTag">
+                            <Calendar size={11} />
+                            <span>กำหนดเสร็จ: {task.custom_payload.deliveryDate}</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <div className="taskMobileCardMeta">
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#1e293b', fontWeight: 500 }}>
                         <User size={13} className="text-slate-500" />
                         {task.requester_name} {task.requester_dept ? `(${task.requester_dept})` : ''}
+                      </span>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        fontSize: '0.725rem',
+                        fontWeight: 600,
+                        color: '#2563eb',
+                        backgroundColor: '#eff6ff',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '0.35rem',
+                        border: '1px solid #dbeafe',
+                      }}>
+                        ขั้นตอนที่ {task.current_step_no}: {task.current_step_name || 'รอดำเนินการ'}
                       </span>
                     </div>
 

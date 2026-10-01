@@ -24,18 +24,12 @@ export default async function NewRepairPage() {
     position: '',
   }
 
-  // Fetch initial locations for dropdown/search
+  // Fetch all active locations for building/floor/room dropdowns
   const initialLocations = await queryMemberDb(
     `SELECT id, room_name, floor_id, floor_name, building_id, building_name, full_name 
      FROM hospital_locations 
      WHERE is_active = 1 
-     ORDER BY building_name ASC, floor_id ASC, room_name ASC 
-     LIMIT 50`
-  )
-
-  // Fetch technicians list (all members for technician selection)
-  const technicians = await queryMemberDb(
-    'SELECT id, name, position, department FROM members ORDER BY name ASC'
+     ORDER BY building_name ASC, floor_id ASC, room_name ASC`
   )
 
   return (
@@ -47,7 +41,6 @@ export default async function NewRepairPage() {
       <RepairFormClient 
         currentUser={currentMember}
         initialLocations={initialLocations}
-        technicians={technicians}
       />
     </div>
   )

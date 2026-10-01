@@ -1,23 +1,9 @@
 import { NextResponse } from 'next/server'
-import { fetchAppointmentMismatches } from '@/lib/clinicalDb'
+import { ClinicalRecordsService } from '@/lib/clinical/clinicalRecordsService'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { getCachedData } from '@/lib/cache'
 import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
-
-interface AppointmentMismatch {
-  hn: string
-  department: string
-  vstdate: string
-  nextdate: string
-  appUser: string
-}
-
-interface AppointmentMismatchResponse {
-  totalMismatches: number
-  updatedAt: string
-  mismatches: AppointmentMismatch[]
-}
 
 export async function GET() {
   try {
@@ -41,19 +27,15 @@ export async function GET() {
       'oapp',
       'Viewed appointment mismatch list (wrong examination room)',
       { username: session.username, email: session.email }
-    ).catch(err => logger.error({ err }, 'Appointment mismatch audit log failed'))
+    ).catch((err) => logger.error({ err }, 'Appointment mismatch audit log failed'))
 
     const cacheKey = 'appointment-mismatch-data'
 
-    const data = await getCachedData<AppointmentMismatchResponse>(cacheKey, async () => {
-      const mismatches = await fetchAppointmentMismatches()
-
-      return {
-        totalMismatches: mismatches.length,
-        updatedAt: new Date().toISOString(),
-        mismatches,
-      }
-    }, 10000) // 10 seconds cache
+    const data = await getCachedData(
+      cacheKey,
+      () => ClinicalRecordsService.getAppointmentMismatches(),
+      10000
+    )
 
     return NextResponse.json({
       success: true,

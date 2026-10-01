@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "frame-src 'self' https://app.powerbi.com https://*.moph.go.th https://www.youtube.com https://youtube.com https://docs.google.com https://www.facebook.com https://facebook.com https://www.google.com https://google.com",
               "connect-src 'self' ws: wss:",
-              "media-src 'self'",
+              "media-src 'self' data: blob: https:",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

@@ -1,8 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { 
   Wrench, 
   Monitor, 
@@ -10,19 +9,21 @@ import {
   MapPin, 
   User, 
   Calendar, 
-  Image as ImageIcon, 
   X, 
   UploadCloud, 
   CheckCircle2, 
   AlertCircle, 
   ArrowLeft, 
   Search,
-  Sparkles,
   Send,
   Loader2,
   Package,
   Layers,
-  ShieldCheck
+  ShieldCheck,
+  ShieldAlert,
+  Building,
+  Check,
+  Info
 } from 'lucide-react'
 import './repair.css'
 
@@ -36,13 +37,6 @@ interface LocationItem {
   full_name: string
 }
 
-interface TechnicianItem {
-  id: number
-  name: string
-  position: string
-  department: string
-}
-
 interface RepairFormClientProps {
   currentUser: {
     id: number
@@ -54,16 +48,81 @@ interface RepairFormClientProps {
     phone?: string
   }
   initialLocations: LocationItem[]
-  technicians: TechnicianItem[]
+}
+
+interface WarrantyInfo {
+  status: 'ACTIVE' | 'EXPIRED' | 'UNKNOWN'
+  title: string
+  desc: string
+  expireDate?: string
+  remainingText?: string
+}
+
+function calculateWarrantyInfo(warrantyEndDateStr?: string | null, expireDateStr?: string | null): WarrantyInfo {
+  const targetDateStr = warrantyEndDateStr || expireDateStr
+  if (!targetDateStr) {
+    return {
+      status: 'UNKNOWN',
+      title: 'ไม่มีข้อมูลระยะเวลารับประกัน',
+      desc: 'ไม่พบประวัติวันสิ้นสุดการรับประกันในระบบ (ดำเนินการซ่อมบำรุงโดยทีมช่างโรงพยาบาล)',
+    }
+  }
+
+  const endDate = new Date(targetDateStr)
+  if (isNaN(endDate.getTime())) {
+    return {
+      status: 'UNKNOWN',
+      title: 'ไม่มีข้อมูลระยะเวลารับประกัน',
+      desc: 'ข้อมูลวันที่รับประกันไม่ถูกต้อง',
+    }
+  }
+
+  const now = new Date()
+  const isUnderWarranty = endDate.getTime() >= now.getTime()
+
+  const formattedDate = new Intl.DateTimeFormat('th-TH', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(endDate)
+
+  // Calculate relative difference in years, months, days
+  const diffMs = Math.abs(endDate.getTime() - now.getTime())
+  const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const years = Math.floor(totalDays / 365)
+  const remDaysAfterYears = totalDays % 365
+  const months = Math.floor(remDaysAfterYears / 30)
+  const days = remDaysAfterYears % 30
+
+  let durationParts: string[] = []
+  if (years > 0) durationParts.push(`${years} ปี`)
+  if (months > 0) durationParts.push(`${months} เดือน`)
+  if (days > 0 || durationParts.length === 0) durationParts.push(`${days} วัน`)
+  const durationText = durationParts.join(' ')
+
+  if (isUnderWarranty) {
+    return {
+      status: 'ACTIVE',
+      title: 'อยู่ในระยะเวลารับประกัน (บริษัท/ผู้จำหน่าย)',
+      desc: `รับประกันถึงวันที่ ${formattedDate} (เหลือระยะเวลารับประกันอีก ${durationText})`,
+      expireDate: formattedDate,
+      remainingText: durationText,
+    }
+  } else {
+    return {
+      status: 'EXPIRED',
+      title: 'หมดระยะเวลารับประกันแล้ว',
+      desc: `สิ้นสุดการรับประกันเมื่อวันที่ ${formattedDate} (หมดประกันมาแล้ว ${durationText} • ซ่อมบำรุงโดยทีมช่างโรงพยาบาล)`,
+      expireDate: formattedDate,
+      remainingText: durationText,
+    }
+  }
 }
 
 export default function RepairFormClient({
   currentUser,
   initialLocations,
-  technicians,
 }: RepairFormClientProps) {
-  const router = useRouter()
-
   // 1. Repair Category State
   const [repairType, setRepairType] = useState<'GENERAL_REPAIR' | 'IT_REPAIR' | 'MEDICAL_REPAIR'>('IT_REPAIR')
 
@@ -72,33 +131,30 @@ export default function RepairFormClient({
   const [equipmentNumber, setEquipmentNumber] = useState('')
   const [equipmentName, setEquipmentName] = useState('')
   const [nonEquipmentItem, setNonEquipmentItem] = useState('')
+  
+  // Asset Lookup State
   const [assetSuggestions, setAssetSuggestions] = useState<any[]>([])
   const [isSearchingAsset, setIsSearchingAsset] = useState(false)
-  const [selectedAssetWarranty, setSelectedAssetWarranty] = useState<{ isUnderWarranty: boolean; expireDate?: string } | null>(null)
+  const [showAssetSuggestions, setShowAssetSuggestions] = useState(false)
+  const [warrantyInfo, setWarrantyInfo] = useState<WarrantyInfo | null>(null)
   const assetWrapperRef = useRef<HTMLDivElement>(null)
 
-  // 3. Location State with Auto-complete
-  const [locationSearch, setLocationSearch] = useState('')
-  const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(null)
-  const [locationOptions, setLocationOptions] = useState<LocationItem[]>(initialLocations)
-  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false)
-  const [isSearchingLocation, setIsSearchingLocation] = useState(false)
-  const locationWrapperRef = useRef<HTMLDivElement>(null)
+  // 3. Location State (3-level Cascading Dropdown: Building -> Floor -> Room)
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>('')
+  const [selectedFloorId, setSelectedFloorId] = useState<string>('')
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('')
+  const [hasSpecificNote, setHasSpecificNote] = useState<boolean>(false)
+  const [specificNote, setSpecificNote] = useState<string>('')
 
   // 4. Symptom & Urgency
   const [symptomDetail, setSymptomDetail] = useState('')
   const [urgency, setUrgency] = useState<'NORMAL' | 'URGENT' | 'VERY_URGENT'>('NORMAL')
 
-  // 5. Technician Assignment
-  const [assignMode, setAssignMode] = useState<'AUTO' | 'SPECIFIC'>('AUTO')
-  const [assignedTechnicianId, setAssignedTechnicianId] = useState<string>('')
-
-  // 6. Photo Attachments (Max 5 files, 10MB each)
+  // 5. Photo Attachments (Max 5 files, 10MB each)
   const [photos, setPhotos] = useState<{ file: File; previewUrl: string }[]>([])
-  const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([])
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false)
 
-  // 7. Form Submission State
+  // 6. Form Submission State
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successInfo, setSuccessInfo] = useState<{ taskId: string; taskNo: string } | null>(null)
@@ -118,46 +174,22 @@ export default function RepairFormClient({
     setCurrentDateTimeThai(thaiFormatter.format(now))
   }, [])
 
-  // Close location dropdown when clicking outside
+  // Close asset dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (locationWrapperRef.current && !locationWrapperRef.current.contains(event.target as Node)) {
-        setIsLocationDropdownOpen(false)
+      if (assetWrapperRef.current && !assetWrapperRef.current.contains(event.target as Node)) {
+        setShowAssetSuggestions(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Search locations when user types
+  // Search assets when user types in equipment number or name
   useEffect(() => {
-    if (!locationSearch.trim()) {
-      setLocationOptions(initialLocations)
-      return
-    }
-
-    const timer = setTimeout(async () => {
-      setIsSearchingLocation(true)
-      try {
-        const res = await fetch(`/api/locations?search=${encodeURIComponent(locationSearch.trim())}`)
-        const data = await res.json()
-        if (data.success && data.data) {
-          setLocationOptions(data.data)
-        }
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setIsSearchingLocation(false)
-      }
-    }, 250)
-
-    return () => clearTimeout(timer)
-  }, [locationSearch, initialLocations])
-
-  // Search assets when user types in equipment number
-  useEffect(() => {
-    if (!equipmentNumber.trim() || equipmentNumber.length < 2) {
+    if (!equipmentNumber.trim() || equipmentNumber.trim().length < 2) {
       setAssetSuggestions([])
+      setShowAssetSuggestions(false)
       return
     }
 
@@ -166,18 +198,90 @@ export default function RepairFormClient({
       try {
         const res = await fetch(`/api/assets/lookup?q=${encodeURIComponent(equipmentNumber.trim())}`)
         const data = await res.json()
-        if (data.success && data.data) {
+        if (data.success && Array.isArray(data.data)) {
           setAssetSuggestions(data.data)
+          setShowAssetSuggestions(data.data.length > 0)
         }
       } catch (err) {
-        console.error(err)
+        console.error('Asset lookup error:', err)
       } finally {
         setIsSearchingAsset(false)
       }
-    }, 300)
+    }, 280)
 
     return () => clearTimeout(timer)
   }, [equipmentNumber])
+
+  // Extract unique Buildings from initialLocations
+  const buildingOptions = useMemo(() => {
+    const map = new Map<number, { id: number; name: string }>()
+    initialLocations.forEach((loc) => {
+      if (loc.building_id && loc.building_name && !map.has(loc.building_id)) {
+        map.set(loc.building_id, { id: loc.building_id, name: loc.building_name })
+      }
+    })
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'th'))
+  }, [initialLocations])
+
+  // Extract unique Floors based on selected Building
+  const floorOptions = useMemo(() => {
+    if (!selectedBuildingId) return []
+    const bId = Number(selectedBuildingId)
+    const map = new Map<number, { id: number; name: string }>()
+    initialLocations
+      .filter((loc) => loc.building_id === bId)
+      .forEach((loc) => {
+        if (loc.floor_id && loc.floor_name && !map.has(loc.floor_id)) {
+          map.set(loc.floor_id, { id: loc.floor_id, name: loc.floor_name })
+        }
+      })
+    return Array.from(map.values()).sort((a, b) => a.id - b.id)
+  }, [initialLocations, selectedBuildingId])
+
+  // Extract Rooms based on selected Building and Floor
+  const roomOptions = useMemo(() => {
+    if (!selectedBuildingId || !selectedFloorId) return []
+    const bId = Number(selectedBuildingId)
+    const fId = Number(selectedFloorId)
+    return initialLocations
+      .filter((loc) => loc.building_id === bId && loc.floor_id === fId)
+      .sort((a, b) => a.room_name.localeCompare(b.room_name, 'th'))
+  }, [initialLocations, selectedBuildingId, selectedFloorId])
+
+  // Auto-select floor & room if an asset with location is chosen
+  const handleSelectAsset = (asset: any) => {
+    setEquipmentNumber(asset.articleNum || '')
+    const fullName = asset.name + (asset.brand || asset.model ? ` (${[asset.brand, asset.model].filter(Boolean).join(' ')})` : '')
+    setEquipmentName(fullName)
+
+    // Auto switch repair type based on asset category
+    if (asset.category === 'IT') setRepairType('IT_REPAIR')
+    else if (asset.category === 'MEDICAL') setRepairType('MEDICAL_REPAIR')
+    else if (asset.category === 'GENERAL') setRepairType('GENERAL_REPAIR')
+
+    // Calculate warranty
+    const wInfo = calculateWarrantyInfo(asset.warrantyEndDate, asset.expireDate)
+    setWarrantyInfo(wInfo)
+
+    // Auto-match location if asset has locationId or locationFullName
+    if (asset.locationId) {
+      const match = initialLocations.find((l) => l.id === asset.locationId)
+      if (match) {
+        setSelectedBuildingId(String(match.building_id))
+        setSelectedFloorId(String(match.floor_id))
+        setSelectedRoomId(String(match.id))
+      }
+    } else if (asset.locationFullName) {
+      const match = initialLocations.find((l) => l.full_name === asset.locationFullName || asset.locationFullName.includes(l.room_name))
+      if (match) {
+        setSelectedBuildingId(String(match.building_id))
+        setSelectedFloorId(String(match.floor_id))
+        setSelectedRoomId(String(match.id))
+      }
+    }
+
+    setShowAssetSuggestions(false)
+  }
 
   // Handle Photo selection
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,10 +336,20 @@ export default function RepairFormClient({
       return
     }
 
-    if (!selectedLocation && !locationSearch.trim()) {
-      setErrorMessage('กรุณาเลือกสถานที่ (อาคาร/ชั้น/ห้อง)')
+    if (!selectedRoomId) {
+      setErrorMessage('กรุณาเลือกสถานที่ (อาคาร, ชั้น และห้อง/แผนก) ให้ครบถ้วน')
       return
     }
+
+    const pickedRoom = initialLocations.find((l) => l.id === Number(selectedRoomId))
+    if (!pickedRoom) {
+      setErrorMessage('ไม่พบข้อมูลห้องที่เลือก กรุณาเลือกใหม่')
+      return
+    }
+
+    const finalLocationFullName = hasSpecificNote && specificNote.trim()
+      ? `${pickedRoom.full_name} (${specificNote.trim()})`
+      : pickedRoom.full_name
 
     if (!symptomDetail.trim()) {
       setErrorMessage('กรุณาระบุรายละเอียดหรืออาการเสีย')
@@ -264,17 +378,17 @@ export default function RepairFormClient({
         setIsUploadingPhotos(false)
       }
 
-      // 2. Submit repair ticket
+      // 2. Submit repair ticket (technician selection is removed; assignedTechnicianId is always null for queue dispatch)
       const payload = {
         repairType,
         itemCategory,
         equipmentNumber: equipmentNumber.trim(),
         equipmentName: equipmentName.trim(),
         nonEquipmentItem: nonEquipmentItem.trim(),
-        locationId: selectedLocation?.id || null,
-        locationFullName: selectedLocation ? selectedLocation.full_name : locationSearch.trim(),
+        locationId: pickedRoom.id,
+        locationFullName: finalLocationFullName,
         symptomDetail: symptomDetail.trim(),
-        assignedTechnicianId: assignMode === 'SPECIFIC' && assignedTechnicianId ? assignedTechnicianId : null,
+        assignedTechnicianId: null,
         urgency,
         photos: finalPhotoUrls,
       }
@@ -309,7 +423,7 @@ export default function RepairFormClient({
           </div>
           <h2>ส่งใบแจ้งซ่อมสำเร็จเรียบร้อย!</h2>
           <p>
-            ระบบได้บันทึกคำขอและนำส่งเข้าสู่กล่องงานเรียบร้อยแล้ว ช่างและผู้เกี่ยวข้องได้รับการแจ้งเตือน
+            ระบบได้นำส่งใบงานเข้าสู่ระบบและแจ้งเตือนเข้ากลุ่มงานช่างเรียบร้อยแล้ว ช่างสามารถกดรับงานเพื่อเข้าดำเนินการได้ทันที
           </p>
           <div className="repairTicketBox">
             <span className="ticketLabel">เลขที่ใบแจ้งซ่อม</span>
@@ -340,7 +454,7 @@ export default function RepairFormClient({
           <div>
             <span className="repairEyebrow">ศูนย์บริการบุคลากร</span>
             <h1>แจ้งซ่อมบำรุง</h1>
-            <p>ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมส่งตรงเข้ากล่องงาน</p>
+            <p>ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมส่งตรงเข้ากลุ่มงานช่างและกล่องงาน</p>
           </div>
         </div>
 
@@ -422,12 +536,15 @@ export default function RepairFormClient({
                 name="itemCategory"
                 value="EQUIPMENT"
                 checked={itemCategory === 'EQUIPMENT'}
-                onChange={() => setItemCategory('EQUIPMENT')}
+                onChange={() => {
+                  setItemCategory('EQUIPMENT')
+                  setWarrantyInfo(null)
+                }}
               />
               <Package size={20} />
               <div>
-                <strong>ครุภัณฑ์ (มีเลขทะเบียน / ครุภัณฑ์โรงพยาบาล)</strong>
-                <span>อุปกรณ์ที่มีรหัสครุภัณฑ์ติดอยู่ เช่น คอมพิวเตอร์, แอร์, เครื่องวัดความดัน</span>
+                <strong>ครุภัณฑ์ (ค้นหาจากคลังข้อมูลครุภัณฑ์โรงพยาบาล)</strong>
+                <span>พิมพ์เลขครุภัณฑ์หรือชื่อเพื่อค้นหา ระบบจะเติมชื่อและตรวจสอบประกันให้อัตโนมัติ</span>
               </div>
             </label>
 
@@ -437,12 +554,15 @@ export default function RepairFormClient({
                 name="itemCategory"
                 value="NON_EQUIPMENT"
                 checked={itemCategory === 'NON_EQUIPMENT'}
-                onChange={() => setItemCategory('NON_EQUIPMENT')}
+                onChange={() => {
+                  setItemCategory('NON_EQUIPMENT')
+                  setWarrantyInfo(null)
+                }}
               />
               <Layers size={20} />
               <div>
-                <strong>ไม่ใช่ครุภัณฑ์ / วัสดุ / อาคารสถานที่</strong>
-                <span>สิ่งของทั่วไป เช่น หลอดไฟ, ก๊อกน้ำ, ลูกบิดประตู, สายแลน, เมาส์</span>
+                <strong>ไม่ใช่ครุภัณฑ์ / วัสดุ / ระบบอาคารสถานที่</strong>
+                <span>สิ่งของทั่วไป เช่น หลอดไฟ, ก๊อกน้ำ, ลูกบิดประตู, ท่อน้ำ, ปลั๊กไฟ, โต๊ะ/เก้าอี้</span>
               </div>
             </label>
           </div>
@@ -451,70 +571,66 @@ export default function RepairFormClient({
           {itemCategory === 'EQUIPMENT' ? (
             <div style={{ marginTop: '1rem' }}>
               <div className="grid2Cols">
-                <div className="formGroup" style={{ position: 'relative' }}>
-                  <label>เลขทะเบียนครุภัณฑ์ (สแกนหรือพิมพ์เพื่อค้นหา)</label>
-                  <input
-                    type="text"
-                    className="repairInput"
-                    placeholder="เช่น 7440-013-0007/154/69"
-                    value={equipmentNumber}
-                    onChange={(e) => {
-                      setEquipmentNumber(e.target.value)
-                      setSelectedAssetWarranty(null)
-                    }}
-                  />
-                  {isSearchingAsset && (
-                    <span style={{ position: 'absolute', right: '12px', top: '38px', fontSize: '0.8rem', color: '#64748b' }}>
-                      กำลังค้นหา...
-                    </span>
-                  )}
-                  {assetSuggestions.length > 0 && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        right: 0,
-                        zIndex: 20,
-                        background: 'white',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '0.5rem',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                        maxHeight: '220px',
-                        overflowY: 'auto',
-                        marginTop: '4px',
+                <div className="formGroup" ref={assetWrapperRef} style={{ position: 'relative' }}>
+                  <label>
+                    เลขทะเบียนครุภัณฑ์ (พิมพ์ค้นหาจากระบบ) <span className="reqStar">*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      className="repairInput withIcon"
+                      placeholder="เช่น 7440-013-0007/154/69 หรือชื่อเครื่อง..."
+                      value={equipmentNumber}
+                      onChange={(e) => {
+                        setEquipmentNumber(e.target.value)
+                        setWarrantyInfo(null)
                       }}
-                    >
+                      onFocus={() => {
+                        if (assetSuggestions.length > 0) setShowAssetSuggestions(true)
+                      }}
+                    />
+                    <Search size={18} className="locIcon" style={{ color: '#94a3b8' }} />
+                    {isSearchingAsset && (
+                      <span style={{ position: 'absolute', right: '12px', top: '10px', fontSize: '0.8rem', color: '#64748b' }}>
+                        <Loader2 size={16} className="animate-spin" />
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Autocomplete suggestions */}
+                  {showAssetSuggestions && assetSuggestions.length > 0 && (
+                    <div className="assetSuggestionDropdown">
+                      <div className="assetSuggestionHeader">
+                        <Search size={14} />
+                        <span>พบข้อมูลครุภัณฑ์ในคลัง ({assetSuggestions.length} รายการ) - คลิกเพื่อเลือก</span>
+                      </div>
                       {assetSuggestions.map((item) => (
                         <div
                           key={item.id}
-                          style={{
-                            padding: '0.65rem 0.85rem',
-                            borderBottom: '1px solid #f1f5f9',
-                            cursor: 'pointer',
-                            transition: 'background 0.15s',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f0f9ff')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'white')}
-                          onClick={() => {
-                            setEquipmentNumber(item.articleNum)
-                            setEquipmentName(item.name + (item.model ? ` (${item.model})` : ''))
-                            if (item.category === 'IT') setRepairType('IT_REPAIR')
-                            if (item.category === 'MEDICAL') setRepairType('MEDICAL_REPAIR')
-                            if (item.category === 'GENERAL') setRepairType('GENERAL_REPAIR')
-                            setSelectedAssetWarranty({
-                              isUnderWarranty: item.isUnderWarranty,
-                              expireDate: item.warrantyEndDate,
-                            })
-                            setAssetSuggestions([])
-                          }}
+                          className="assetSuggestionItem"
+                          onClick={() => handleSelectAsset(item)}
                         >
-                          <div style={{ fontWeight: 600, color: '#0284c7', fontSize: '0.875rem' }}>
-                            {item.articleNum}
+                          <div className="assetItemTop">
+                            <span className="assetArtNum">{item.articleNum}</span>
+                            {item.isUnderWarranty ? (
+                              <span className="warrantyPill active">
+                                <ShieldCheck size={12} /> ในประกัน
+                              </span>
+                            ) : (
+                              <span className="warrantyPill expired">
+                                <ShieldAlert size={12} /> หมดประกัน
+                              </span>
+                            )}
                           </div>
-                          <div style={{ fontSize: '0.825rem', color: '#334155' }}>
-                            {item.name} {item.model ? `• ${item.model}` : ''}
+                          <div className="assetItemName">
+                            <strong>{item.name}</strong>
+                            {item.brand || item.model ? <span> • {[item.brand, item.model].filter(Boolean).join(' ')}</span> : null}
                           </div>
+                          {item.locationFullName && (
+                            <div className="assetItemLoc">
+                              <MapPin size={12} /> {item.locationFullName}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -522,44 +638,41 @@ export default function RepairFormClient({
                 </div>
 
                 <div className="formGroup">
-                  <label>ชื่อครุภัณฑ์</label>
+                  <label>ชื่อครุภัณฑ์ (เติมให้อัตโนมัติเมื่อเลือกครุภัณฑ์)</label>
                   <input
                     type="text"
                     className="repairInput"
-                    placeholder="เช่น เครื่องตรวจคลื่นหัวใจ, เครื่องพิมพ์ HP LaserJet"
+                    placeholder="เช่น คอมพิวเตอร์ All-in-One Dell OptiPlex, ปริ้นเตอร์ HP"
                     value={equipmentName}
                     onChange={(e) => setEquipmentName(e.target.value)}
                   />
                 </div>
               </div>
 
-              {/* Warranty Alert Badge */}
-              {selectedAssetWarranty && (
-                <div
-                  style={{
-                    marginTop: '0.75rem',
-                    padding: '0.65rem 1rem',
-                    borderRadius: '0.6rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: '0.875rem',
-                    background: selectedAssetWarranty.isUnderWarranty ? '#ecfdf5' : '#f8fafc',
-                    color: selectedAssetWarranty.isUnderWarranty ? '#047857' : '#64748b',
-                    border: `1px solid ${selectedAssetWarranty.isUnderWarranty ? '#a7f3d0' : '#e2e8f0'}`,
-                  }}
-                >
-                  {selectedAssetWarranty.isUnderWarranty ? (
-                    <>
-                      <ShieldCheck size={18} style={{ color: '#059669', flexShrink: 0 }} />
-                      <span>
-                        <strong>ครุภัณฑ์นี้อยู่ในระยะเวลารับประกัน</strong> (ถึงวันที่{' '}
-                        {new Date(selectedAssetWarranty.expireDate || '').toLocaleDateString('th-TH')})
-                      </span>
-                    </>
-                  ) : (
-                    <span>ครุภัณฑ์นี้พ้นระยะเวลารับประกันแล้ว (ซ่อมบำรุงโดยช่าง รพ.)</span>
-                  )}
+              {/* Warranty Card Display */}
+              {warrantyInfo && (
+                <div className={`warrantyCardContainer ${warrantyInfo.status.toLowerCase()}`}>
+                  <div className="warrantyIconWrap">
+                    {warrantyInfo.status === 'ACTIVE' ? (
+                      <ShieldCheck size={26} className="text-emerald-600" />
+                    ) : warrantyInfo.status === 'EXPIRED' ? (
+                      <ShieldAlert size={26} className="text-rose-600" />
+                    ) : (
+                      <Info size={26} className="text-slate-500" />
+                    )}
+                  </div>
+                  <div className="warrantyCardBody">
+                    <div className="warrantyCardTitle">
+                      <strong>{warrantyInfo.title}</strong>
+                      {warrantyInfo.expireDate && (
+                        <span className="warrantyDateBadge">
+                          {warrantyInfo.status === 'ACTIVE' ? 'หมดประกัน: ' : 'สิ้นสุดเมื่อ: '}
+                          {warrantyInfo.expireDate}
+                        </span>
+                      )}
+                    </div>
+                    <p className="warrantyCardDesc">{warrantyInfo.desc}</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -569,7 +682,7 @@ export default function RepairFormClient({
               <input
                 type="text"
                 className="repairInput"
-                placeholder="ระบุสิ่งของที่ชำรุด เช่น เครื่องปริ้นสติ๊กเกอร์, ก๊อกน้ำอ่างล้างมือ, หลอดไฟนีออน"
+                placeholder="ระบุสิ่งของที่ชำรุด เช่น ก๊อกน้ำอ่างล้างมือรั่วซึม, หลอดไฟนีออนหน้าห้องดับ, ปลั๊กไฟชำรุด"
                 value={nonEquipmentItem}
                 onChange={(e) => setNonEquipmentItem(e.target.value)}
                 required
@@ -578,73 +691,108 @@ export default function RepairFormClient({
           )}
         </div>
 
-        {/* Step 3: Location Selector (Auto-complete from hospital_locations) */}
-        <div className="repairSection" ref={locationWrapperRef}>
+        {/* Step 3: Location Selector (3 Cascading Dropdowns: Building -> Floor -> Room) */}
+        <div className="repairSection">
           <label className="sectionHeaderLabel">
             <span className="stepNum">3</span> สถานที่ตั้งอุปกรณ์ / จุดที่เกิดความเสียหาย <span className="reqStar">*</span>
           </label>
+          <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '-0.25rem 0 0.5rem 0' }}>
+            กรุณาเลือก อาคาร ➔ ชั้น ➔ ห้อง/แผนก จากระบบ เพื่อให้ทีมช่างเข้าถึงหน้างานได้ถูกต้องและรวดเร็ว
+          </p>
 
-          <div style={{ position: 'relative' }}>
-            <div className="locationSearchInputWrap">
-              <MapPin size={18} className="locIcon" />
-              <input
-                type="text"
-                className="repairInput withIcon"
-                placeholder="พิมพ์ค้นหาชื่อห้อง, ตึก หรือชั้น (เช่น OPD, ชั้น 4, ห้องพิเศษ, บัตร)..."
-                value={selectedLocation ? selectedLocation.full_name : locationSearch}
+          <div className="grid3Cols">
+            {/* 1. Building Dropdown */}
+            <div className="formGroup">
+              <label>1. อาคาร / ตึก <span className="reqStar">*</span></label>
+              <select
+                className="repairSelect"
+                value={selectedBuildingId}
                 onChange={(e) => {
-                  setSelectedLocation(null)
-                  setLocationSearch(e.target.value)
-                  setIsLocationDropdownOpen(true)
+                  setSelectedBuildingId(e.target.value)
+                  setSelectedFloorId('')
+                  setSelectedRoomId('')
                 }}
-                onFocus={() => setIsLocationDropdownOpen(true)}
-              />
-              {selectedLocation && (
-                <button
-                  type="button"
-                  className="clearLocBtn"
-                  onClick={() => {
-                    setSelectedLocation(null)
-                    setLocationSearch('')
-                  }}
-                  title="ล้างค่า"
-                >
-                  <X size={16} />
-                </button>
-              )}
+                required
+              >
+                <option value="">-- เลือกอาคาร ({buildingOptions.length} อาคาร) --</option>
+                {buildingOptions.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Dropdown Results */}
-            {isLocationDropdownOpen && (
-              <div className="locDropdownMenu">
-                {isSearchingLocation ? (
-                  <div className="dropdownNotice">
-                    <Loader2 size={16} className="animate-spin inline mr-2 text-emerald-600" />
-                    กำลังค้นหาสถานที่...
-                  </div>
-                ) : locationOptions.length === 0 ? (
-                  <div className="dropdownNotice">
-                    ไม่พบสถานที่ตามคำค้นหา (คุณสามารถพิมพ์ระบุเองได้)
-                  </div>
-                ) : (
-                  locationOptions.map((loc) => (
-                    <div
-                      key={loc.id}
-                      className="locDropdownItem"
-                      onClick={() => {
-                        setSelectedLocation(loc)
-                        setLocationSearch(loc.full_name)
-                        setIsLocationDropdownOpen(false)
-                      }}
-                    >
-                      <div className="locItemMain">
-                        <strong>{loc.room_name}</strong>
-                        <span className="locItemSub">{loc.building_name} • {loc.floor_name}</span>
-                      </div>
-                      <span className="locBadge">#{loc.id}</span>
-                    </div>
-                  ))
-                )}
+            {/* 2. Floor Dropdown */}
+            <div className="formGroup">
+              <label>2. ชั้น <span className="reqStar">*</span></label>
+              <select
+                className="repairSelect"
+                value={selectedFloorId}
+                onChange={(e) => {
+                  setSelectedFloorId(e.target.value)
+                  setSelectedRoomId('')
+                }}
+                disabled={!selectedBuildingId}
+                required
+              >
+                <option value="">
+                  {!selectedBuildingId ? '-- กรุณาเลือกอาคารก่อน --' : `-- เลือกชั้น (${floorOptions.length} ชั้น) --`}
+                </option>
+                {floorOptions.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 3. Room Dropdown */}
+            <div className="formGroup">
+              <label>3. ห้อง / แผนก / จุดบริการ <span className="reqStar">*</span></label>
+              <select
+                className="repairSelect"
+                value={selectedRoomId}
+                onChange={(e) => setSelectedRoomId(e.target.value)}
+                disabled={!selectedFloorId}
+                required
+              >
+                <option value="">
+                  {!selectedFloorId ? '-- กรุณาเลือกชั้นก่อน --' : `-- เลือกห้อง (${roomOptions.length} ห้อง) --`}
+                </option>
+                {roomOptions.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.room_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Specific Location Note Toggle */}
+          <div className="specificLocationSection">
+            <label className="specificLocationToggle">
+              <input
+                type="checkbox"
+                checked={hasSpecificNote}
+                onChange={(e) => {
+                  setHasSpecificNote(e.target.checked)
+                  if (!e.target.checked) setSpecificNote('')
+                }}
+              />
+              <span>ระบุจุดเพิ่มเติม / รายละเอียดตำแหน่งเฉพาะเจาะจง (เช่น หน้าห้องน้ำ, เสาต้นที่ 3, โต๊ะพยาบาลหมายเลข 2)</span>
+            </label>
+
+            {hasSpecificNote && (
+              <div className="formGroup" style={{ marginTop: '0.65rem' }}>
+                <input
+                  type="text"
+                  className="repairInput"
+                  placeholder="พิมพ์ระบุจุดหรือตำแหน่งเฉพาะเจาะจง..."
+                  value={specificNote}
+                  onChange={(e) => setSpecificNote(e.target.value)}
+                  autoFocus
+                />
               </div>
             )}
           </div>
@@ -677,7 +825,7 @@ export default function RepairFormClient({
                   checked={urgency === 'NORMAL'}
                   onChange={() => setUrgency('NORMAL')}
                 />
-                <span>ปกติ (ตามคิวงาน)</span>
+                <span>🟢 ปกติ (ตามคิวงาน)</span>
               </label>
 
               <label className={`urgencyRadio ${urgency === 'URGENT' ? 'selected urgent' : ''}`}>
@@ -688,7 +836,7 @@ export default function RepairFormClient({
                   checked={urgency === 'URGENT'}
                   onChange={() => setUrgency('URGENT')}
                 />
-                <span>ด่วน (กระทบการทำงาน)</span>
+                <span>🟡 ด่วน (กระทบการทำงาน)</span>
               </label>
 
               <label className={`urgencyRadio ${urgency === 'VERY_URGENT' ? 'selected veryUrgent' : ''}`}>
@@ -699,72 +847,16 @@ export default function RepairFormClient({
                   checked={urgency === 'VERY_URGENT'}
                   onChange={() => setUrgency('VERY_URGENT')}
                 />
-                <span>ด่วนที่สุด (บริการคนไข้หยุดชะงัก / ฉุกเฉิน)</span>
+                <span>🔴 ด่วนที่สุด (บริการคนไข้หยุดชะงัก / ฉุกเฉิน)</span>
               </label>
             </div>
           </div>
         </div>
 
-        {/* Step 5: Technician Selection */}
+        {/* Step 5: Photo Uploads (Max 5 files, 10MB each) */}
         <div className="repairSection">
           <label className="sectionHeaderLabel">
-            <span className="stepNum">5</span> การระบุช่างผู้รับผิดชอบ
-          </label>
-          
-          <div className="grid2Cols">
-            <label className={`technicianModeCard ${assignMode === 'AUTO' ? 'selected' : ''}`}>
-              <input
-                type="radio"
-                name="assignMode"
-                value="AUTO"
-                checked={assignMode === 'AUTO'}
-                onChange={() => setAssignMode('AUTO')}
-              />
-              <div>
-                <strong>ให้ระบบจัดสรรช่างให้ (อัตโนมัติ)</strong>
-                <span>ส่งงานเข้ากองกลางแผนกช่างตามประเภทงาน เพื่อให้หัวหน้าช่างหรือช่างเวรรับเรื่อง</span>
-              </div>
-            </label>
-
-            <label className={`technicianModeCard ${assignMode === 'SPECIFIC' ? 'selected' : ''}`}>
-              <input
-                type="radio"
-                name="assignMode"
-                value="SPECIFIC"
-                checked={assignMode === 'SPECIFIC'}
-                onChange={() => setAssignMode('SPECIFIC')}
-              />
-              <div>
-                <strong>ระบุชื่อช่างเจาะจง</strong>
-                <span>เลือกรายชื่อช่างหรือเจ้าหน้าที่ที่ต้องการมอบหมายงานโดยตรง</span>
-              </div>
-            </label>
-          </div>
-
-          {assignMode === 'SPECIFIC' && (
-            <div className="formGroup" style={{ marginTop: '0.85rem' }}>
-              <label>เลือกช่างผู้รับผิดชอบ <span className="reqStar">*</span></label>
-              <select
-                className="repairSelect"
-                value={assignedTechnicianId}
-                onChange={(e) => setAssignedTechnicianId(e.target.value)}
-                required={assignMode === 'SPECIFIC'}
-              >
-                <option value="">-- เลือกเจ้าหน้าที่ / ช่าง ({technicians.length} ท่าน) --</option>
-                {technicians.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.position || t.department || 'เจ้าหน้าที่'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-
-        {/* Step 6: Photo Uploads (Max 5 files, 10MB each) */}
-        <div className="repairSection">
-          <label className="sectionHeaderLabel">
-            <span className="stepNum">6</span> แนบรูปถ่ายประกอบความเสียหาย (สูงสุด 5 รูป, รูปละไม่เกิน 10MB)
+            <span className="stepNum">5</span> แนบรูปถ่ายประกอบความเสียหาย (สูงสุด 5 รูป, รูปละไม่เกิน 10MB)
           </label>
 
           <div className="photoUploadContainer">
@@ -798,7 +890,7 @@ export default function RepairFormClient({
           </div>
         </div>
 
-        {/* Step 7: Auto Detected Reporter & Date Info */}
+        {/* Reporter & Date Info */}
         <div className="reporterInfoBox">
           <div className="reporterMeta">
             <User size={16} />

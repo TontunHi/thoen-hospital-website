@@ -65,9 +65,10 @@ const DEFAULT_ALLOWED_MIME_TYPES = [
   'image/gif',
   'image/webp',
   'application/pdf',
+  'video/mp4',
 ]
 
-const DEFAULT_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf']
+const DEFAULT_ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.mp4']
 
 const DEFAULT_MAX_SIZE = 25 * 1024 * 1024 // 25MB
 

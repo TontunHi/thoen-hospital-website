@@ -30,14 +30,19 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
 2. **HOSxP DB (Read-Only):** `@/lib/clinicalDb`, `@/lib/clinical/ipdWardService` — Appointments, Lab, ER, IPD, Bed Occupancy, OR. Never write/mutate.
 3. **Salary DB (Read-Only):** `@/lib/salaryDb` — Encrypted pay slip data.
 4. **File Storage Seam:** `@/lib/storage/documentStorage` (`DocumentStorage`) — Never import raw `fs` in API routes.
+5. **Video Streaming Seam:** `/api/stream?path=...` — HTTP 206 Partial Content byte-range streaming for MP4 video delivery.
 
 ## Architectural & Coding Standards
 - **Thin Route Adapters:** API routes (`src/app/api/**`) must be thin (~20–40 lines) delegating to deep domain modules in `@/lib/`.
+- **Task Permissions (Single Source of Truth):** Use `@/lib/taskPermissionResolver` (`resolveTaskPermissions`) for all inbox authorization (`canView`, `canEdit`, `canApprove`, `canTakeJob`, `canCancel`).
+- **Task Mutations & Auditing:** Route manager edits and status transitions through `@/lib/taskInboxService` (`updateTaskByManager`) for automatic structured field diffs (`MANAGER_EDIT_TASK`).
 - **Test Seams:** Domain services accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb` for 100% Vitest unit testability.
 - **File Uploads:** Use `DocumentStorage.save()`, `saveBatch()`, or `formatDateDirectory()`.
 
 ## Critical Hospital Rules (Zero Exception)
 - **PHI / PDPA:** Never log patient data in plaintext. Always mask Thai ID/HN to **last 4 digits** (e.g. `x-xxxx-xxxxx-xx-1`) and patient names to `first 3 chars + ***`.
-- **Audit Logging:** Any access to PHI or sensitive records MUST call `logAudit()` / `logThrottledAudit()`.
+- **Two-Tier Audit Trail:** 
+  1. `audit_logs` via `logAudit()`: PHI, Salary, Auth, Admin settings, CMS slides/docs.
+  2. `inbox_task_audit_logs`: Ticket state machines, HMAC-SHA256 signature stamps, manager field diffs.
 - **Auth & RBAC:** Enforce server-side session and role check on all protected pages & APIs.
 - **Date Display:** Thai Buddhist Calendar (พ.ศ.) for UI shown to staff/patients. Timezone `Asia/Bangkok`.

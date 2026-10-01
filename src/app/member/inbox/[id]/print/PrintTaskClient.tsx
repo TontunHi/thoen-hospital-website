@@ -69,6 +69,7 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
 
   const { task, steps, repairDetail } = data
   const isRepair = Boolean(repairDetail)
+  const isMediaRequest = task.task_type === 'MEDIA_REQUEST'
 
   const getRepairTitleHeader = () => {
     if (task.task_type === 'IT_REPAIR') return 'ใบแจ้งซ่อมอุปกรณ์คอมพิวเตอร์'
@@ -119,13 +120,17 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
           </Link>
           <span style={{ color: '#94a3b8' }}>|</span>
           <span style={{ fontSize: '0.9rem' }}>
-            {isRepair ? `${getRepairTitleHeader()}: ${task.task_no}` : `แบบฟอร์มบันทึกข้อความ: ${task.task_no}`}
+            {isMediaRequest
+              ? `แบบฟอร์มขอรับบริการสื่อประชาสัมพันธ์: ${task.task_no}`
+              : isRepair
+              ? `${getRepairTitleHeader()}: ${task.task_no}`
+              : `แบบฟอร์มบันทึกข้อความ: ${task.task_no}`}
           </span>
         </div>
         <button
           type="button"
           onClick={handlePrint}
-          style={{ backgroundColor: '#2563eb', color: 'white', padding: '0.5rem 1.25rem', borderRadius: '0.35rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
+          style={{ backgroundColor: '#0d9488', color: 'white', padding: '0.5rem 1.25rem', borderRadius: '0.35rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}
         >
           <Printer size={16} />
           สั่งพิมพ์เอกสาร (Print / PDF)
@@ -135,7 +140,210 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
       {/* Printable Sheet */}
       <div className="print-container" style={{ maxWidth: '800px', margin: '2rem auto', padding: '2.5rem', backgroundColor: 'white', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', color: '#0f172a', fontFamily: 'Sarabun, "IBM Plex Sans Thai", system-ui, sans-serif' }}>
         
-        {isRepair ? (
+        {isMediaRequest ? (
+          /* ── LAYOUT 3: OFFICIAL MEDIA REQUEST FORM (แบบฟอร์มขอรับบริการงานสื่อประชาสัมพันธ์) ── */
+          <div>
+            {/* Header */}
+            <div style={{ textAlign: 'center', marginBottom: '1.25rem', borderBottom: '2px solid #0f172a', paddingBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                <div style={{ fontSize: '1.75rem' }}>🏥</div>
+                <div>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                    โรงพยาบาลเถิน อำเภอเถิน จังหวัดลำปาง
+                  </h2>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0.2rem 0', color: '#0f766e' }}>
+                    แบบฟอร์มขอรับบริการงานสื่อประชาสัมพันธ์
+                  </h3>
+                  <div style={{ fontSize: '0.85rem', color: '#475569' }}>
+                    กลุ่มงานดิจิทัลทางการแพทย์ โรงพยาบาลเถิน
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', marginTop: '0.75rem', color: '#334155' }}>
+                <div>เลขที่คำขอ: <strong style={{ color: '#0f766e', fontSize: '0.95rem' }}>{task.task_no}</strong></div>
+                <div>วันที่ยื่นคำขอ: <strong>{formatThaiDate(task.created_at)}</strong></div>
+              </div>
+            </div>
+
+            {/* Recipient & Requester */}
+            <div style={{ fontSize: '0.95rem', lineHeight: '1.8', marginBottom: '1rem' }}>
+              <div><strong>เรียน:</strong> หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์</div>
+              <div style={{ textIndent: '2.5rem', marginTop: '0.35rem' }}>
+                ด้วยข้าพเจ้า <u>{task.requester_name}</u> กลุ่มงาน/หน่วยงาน <u>{task.requester_dept || 'โรงพยาบาลเถิน'}</u>
+                {task.custom_payload?.phone && <span> เบอร์โทรติดต่อ <u>{task.custom_payload.phone}</u></span>}
+                &nbsp;มีความประสงค์ขอความอนุเคราะห์ผลิต/จัดทำสื่อประชาสัมพันธ์ ดังมีรายละเอียดต่อไปนี้
+              </div>
+            </div>
+
+            {/* Section 1: Subject, Urgency, Delivery Date, Cost Type */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              <tbody>
+                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '0.5rem', fontWeight: 700, width: '25%', color: '#334155', backgroundColor: '#f8fafc' }}>
+                    เรื่อง / หัวข้องาน
+                  </td>
+                  <td style={{ padding: '0.5rem', fontWeight: 600, color: '#0f172a' }} colSpan={3}>
+                    {task.title}
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '0.5rem', fontWeight: 700, color: '#334155', backgroundColor: '#f8fafc' }}>
+                    ระดับความเร่งด่วน
+                  </td>
+                  <td style={{ padding: '0.5rem', width: '25%' }}>
+                    [{task.urgency === 'NORMAL' ? ' ✓ ' : '   '}] ปกติ &nbsp;
+                    [{task.urgency === 'URGENT' ? ' ✓ ' : '   '}] ด่วน &nbsp;
+                    [{task.urgency === 'VERY_URGENT' ? ' ✓ ' : '   '}] ด่วนที่สุด
+                  </td>
+                  <td style={{ padding: '0.5rem', fontWeight: 700, width: '25%', color: '#334155', backgroundColor: '#f8fafc' }}>
+                    วันที่ขอรับงานเสร็จ
+                  </td>
+                  <td style={{ padding: '0.5rem', width: '25%', fontWeight: 600, color: '#0f766e' }}>
+                    {task.custom_payload?.deliveryDate || '-'}
+                  </td>
+                </tr>
+                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '0.5rem', fontWeight: 700, color: '#334155', backgroundColor: '#f8fafc' }}>
+                    รูปแบบค่าใช้จ่าย
+                  </td>
+                  <td style={{ padding: '0.5rem' }} colSpan={3}>
+                    [{task.custom_payload?.costType === 'NO_COST' ? ' ✓ ' : '   '}] <strong>ไม่มีค่าใช้จ่าย</strong> (ดำเนินการภายใน ไม่มีการจัดซื้อจ้างภายนอก)
+                    &nbsp;&nbsp;&nbsp;&nbsp;
+                    [{task.custom_payload?.costType === 'HAS_COST' ? ' ✓ ' : '   '}] <strong>มีค่าใช้จ่าย</strong> (มีจัดซื้อจ้างผลิต เสนอผู้อำนวยการโรงพยาบาลเถิน)
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* Section 2: Work Characteristics & Channels */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+              <div style={{ border: '1px solid #cbd5e1', borderRadius: '0.35rem', padding: '0.75rem', backgroundColor: '#f8fafc' }}>
+                <strong style={{ display: 'block', marginBottom: '0.35rem', color: '#0f766e' }}>
+                  1. ลักษณะงานที่ขอรับบริการ:
+                </strong>
+                <ul style={{ margin: 0, paddingLeft: '1.25rem', lineHeight: '1.6' }}>
+                  {task.custom_payload?.workTypes && Array.isArray(task.custom_payload.workTypes) && task.custom_payload.workTypes.length > 0 ? (
+                    task.custom_payload.workTypes.map((wt: any, idx: number) => (
+                      <li key={idx}>
+                        <strong>{wt.label}</strong>
+                        {wt.customDetail && <span> ({wt.customDetail})</span>}
+                      </li>
+                    ))
+                  ) : (
+                    <li>-</li>
+                  )}
+                </ul>
+              </div>
+
+              <div style={{ border: '1px solid #cbd5e1', borderRadius: '0.35rem', padding: '0.75rem', backgroundColor: '#f8fafc' }}>
+                <strong style={{ display: 'block', marginBottom: '0.35rem', color: '#0f766e' }}>
+                  2. ช่องทางที่ต้องการเผยแพร่:
+                </strong>
+                <ul style={{ margin: 0, paddingLeft: '1.25rem', lineHeight: '1.6' }}>
+                  {task.custom_payload?.channels && Array.isArray(task.custom_payload.channels) && task.custom_payload.channels.length > 0 ? (
+                    task.custom_payload.channels.map((ch: any, idx: number) => (
+                      <li key={idx}>
+                        <strong>{ch.label}</strong>
+                        {ch.customDetail && <span> ({ch.customDetail})</span>}
+                      </li>
+                    ))
+                  ) : (
+                    <li>-</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            {/* Section 3: Detailed Specifications */}
+            <div style={{ border: '1px solid #cbd5e1', borderRadius: '0.35rem', padding: '0.75rem', marginBottom: '1rem', fontSize: '0.875rem' }}>
+              <strong style={{ display: 'block', marginBottom: '0.35rem', color: '#334155' }}>
+                3. รายละเอียดและข้อความที่ต้องการระบุในสื่อ:
+              </strong>
+              <div style={{ whiteSpace: 'pre-line', lineHeight: '1.6', color: '#1e293b' }}>
+                {task.description || '-'}
+              </div>
+            </div>
+
+            {/* Requester Signature */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '1.25rem 0' }}>
+              <div style={{ width: '280px', textAlign: 'center', fontSize: '0.875rem', lineHeight: '1.7' }}>
+                <div>ลงชื่อ ................................................................ ผู้ยื่นคำขอ</div>
+                <div style={{ fontWeight: 600, color: '#0f172a' }}>({task.requester_name})</div>
+                <div style={{ color: '#64748b', fontSize: '0.8rem' }}>วันที่ {formatThaiDate(task.created_at)}</div>
+              </div>
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1.5px solid #0f172a', margin: '1.25rem 0' }} />
+
+            {/* Section 4: Approval Chains (Digital Signatures Grid) */}
+            <div>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.75rem 0', color: '#0f172a' }}>
+                การพิจารณาและลายมือชื่ออิเล็กทรอนิกส์ (Approval Trail & e-Signatures)
+              </h4>
+
+              <div style={{ display: 'grid', gridTemplateColumns: steps.length === 4 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                {steps.map((st: any) => (
+                  <div
+                    key={st.id}
+                    style={{
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '0.35rem',
+                      padding: '0.75rem',
+                      textAlign: 'center',
+                      backgroundColor: st.status === 'COMPLETED' ? '#f0fdfa' : '#ffffff',
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#0f172a', minHeight: '32px' }}>
+                        {st.step_name}
+                      </div>
+                      <div style={{ fontStyle: 'italic', color: '#475569', margin: '0.35rem 0', fontSize: '0.775rem' }}>
+                        "{st.comment || (st.status === 'COMPLETED' ? 'อนุมัติ/เห็นชอบ' : 'รอดำเนินการ')}"
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ height: '55px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0.35rem 0' }}>
+                        {st.signature_path ? (
+                          <img
+                            src={`/api/signatures/image?path=${encodeURIComponent(st.signature_path)}`}
+                            alt="ลายเซ็น"
+                            style={{ maxHeight: '50px', maxWidth: '130px', objectFit: 'contain' }}
+                          />
+                        ) : st.status === 'COMPLETED' ? (
+                          <div style={{ color: '#0d9488', fontWeight: 700, fontSize: '0.8rem' }}>
+                            [อนุมัติแล้วในระบบ]
+                          </div>
+                        ) : (
+                          <div style={{ color: '#94a3b8', borderBottom: '1px dotted #cbd5e1', width: '85%' }}>
+                            (ยังไม่ถึงคิวลงนาม)
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                        ({st.action_by_name || st.assigned_to_name || '...................................................'})
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.15rem' }}>
+                        {st.assigned_role || st.assigned_to_position || '-'}
+                      </div>
+                      {st.action_at && (
+                        <div style={{ color: '#0d9488', fontSize: '0.7rem', marginTop: '0.15rem', fontWeight: 500 }}>
+                          ลงนาม: {formatThaiDateTime(st.action_at)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : isRepair ? (
           /* ── LAYOUT 1: HOSPITAL REPAIR FORM (EXACTLY MATCHING document.pdf) ── */
           <div>
             {/* Header */}
