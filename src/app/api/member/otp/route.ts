@@ -1,31 +1,9 @@
-import crypto from 'crypto'
 import { NextResponse } from 'next/server'
-import { queryMemberDb } from '@/lib/memberDb'
-import nodemailer from 'nodemailer'
 import { memberOtpRequestSchema } from '@/lib/schemas/member'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { MemberAuthService } from '@/lib/auth/MemberAuthService'
 
-const isBrevoConfigured = Boolean(process.env.BREVO_SMTP_USER && process.env.BREVO_SMTP_PASS);
-
-const transporter = nodemailer.createTransport(
-  isBrevoConfigured
-    ? {
-        host: process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com',
-        port: Number(process.env.BREVO_SMTP_PORT) || 587,
-        secure: false, // TLS on port 587
-        auth: {
-          user: process.env.BREVO_SMTP_USER,
-          pass: process.env.BREVO_SMTP_PASS,
-        },
-      }
-    : {
-        service: 'gmail',
-        auth: {
-          user: process.env.MEMBER_OTP_EMAIL_USER!,
-          pass: process.env.MEMBER_OTP_EMAIL_PASS!,
-        },
-      }
-);
+const authService = new MemberAuthService()
 
 export async function POST(request: Request) {
   try {
@@ -51,99 +29,16 @@ export async function POST(request: Request) {
     })
     if (!rateCheck.allowed) return rateCheck.response!
 
-    // 1. Check if user exists in database
-    const users = await queryMemberDb(
-      'SELECT id, username, email FROM members WHERE username = ?',
-      [trimmedUsername]
-    )
+    const result = await authService.requestOtp(trimmedUsername, trimmedEmail)
 
-    if (!users || users.length === 0) {
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'ไม่พบข้อมูลผู้ใช้งานนี้ในระบบสมาชิก กรุณาติดต่อเจ้าหน้าที่ดูแลระบบหรือกลุ่มงานทรัพยากรบุคคล' },
-        { status: 404 }
-      )
-    }
-
-    const user = users[0]
-    // Username exists, check if email matches
-    if (user.email.toLowerCase() !== trimmedEmail.toLowerCase()) {
-      return NextResponse.json(
-        { error: 'อีเมลไม่ตรงกับข้อมูลที่ลงทะเบียนไว้ในระบบ' },
+        { error: result.error },
         { status: 400 }
       )
     }
 
-    // 2. Generate 6-digit OTP
-    const otp = crypto.randomInt(100000, 999999).toString()
-
-    // Update existing user with new OTP using DB-native server time
-    await queryMemberDb(
-      'UPDATE members SET otp_code = ?, otp_expiry = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
-      [otp, user.id]
-    )
-
-    // Log OTP dispatch without sensitive PHI
-    console.log('[MEMBER OTP] OTP generated successfully and dispatching to registered email')
-
-    // 3. Send OTP to email
-    try {
-      const smtpUser = process.env.BREVO_SMTP_FROM_EMAIL || process.env.MEMBER_OTP_EMAIL_USER || ''
-      const fromName = process.env.BREVO_SMTP_FROM || `"ระบบสมาชิก โรงพยาบาลเถิน" <${smtpUser}>`
-      await transporter.sendMail({
-        from: fromName,
-        to: trimmedEmail,
-        replyTo: smtpUser,
-        subject: `[โรงพยาบาลเถิน] รหัสยืนยัน OTP สำหรับเข้าสู่ระบบสมาชิก`,
-        text: `เรียนคุณ ${trimmedUsername},\n\nรหัสยืนยันตัวตน (OTP) สำหรับเข้าสู่ระบบสมาชิก โรงพยาบาลเถิน คือ: ${otp}\n\n* รหัสนี้มีอายุการใช้งาน 5 นาที\nหากท่านไม่ได้เป็นผู้ทำรายการ โปรดติดต่อผู้ดูแลระบบโรงพยาบาลเถิน\nโทร: 054-291316-8`,
-        headers: {
-          'X-Priority': '1 (Highest)',
-          'X-MSMail-Priority': 'High',
-          'Importance': 'High',
-          'X-Mailer': 'Thoen Hospital Member Auth Service',
-        },
-        html: `
-          <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 500px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h2 style="color: #0d9488; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">โรงพยาบาลเถิน</h2>
-              <p style="color: #64748b; font-size: 14px; margin: 5px 0 0 0; font-weight: 500;">ระบบตรวจสอบสิทธิ์เข้าใช้งานสมาชิก</p>
-            </div>
-            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
-            
-            <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 10px 0;">
-              สวัสดีครับ นี่เป็นข้อความแจ้งเตือนอัตโนมัติจากระบบความปลอดภัย
-            </p>
-            <p style="font-size: 15px; color: #334155; line-height: 1.6; margin: 0 0 15px 0;">
-              ระบบได้รับคำขอตรวจสอบการยืนยันตัวตนเพื่อลงชื่อเข้าสู่ระบบในชื่อบัญชี <strong>${trimmedUsername}</strong> ของทางโรงพยาบาลเถิน รหัสยืนยันของคุณคือ:
-            </p>
-            
-            <div style="font-size: 38px; font-weight: 800; letter-spacing: 8px; color: #d97706; margin: 25px 0; text-align: center; background: #fffbeb; padding: 18px; border-radius: 10px; border: 1.5px dashed #f59e0b;">
-              ${otp}
-            </div>
-            
-            <p style="color: #dc2626; font-size: 13px; text-align: center; margin: 20px 0; font-weight: 500;">
-              * รหัสความปลอดภัยนี้มีอายุการใช้งานจำกัดเพียง 5 นาทีเท่านั้นเพื่อความปลอดภัย
-            </p>
-            
-            <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 25px 0;" />
-            
-            <div style="text-align: center; color: #94a3b8; font-size: 11px; line-height: 1.6;">
-              <p style="margin: 0 0 5px 0; font-weight: 600;">โรงพยาบาลเถิน จังหวัดลำปาง</p>
-              <p style="margin: 0 0 5px 0;">364 หมู่ 2 ถนนพหลโยธิน ตำบลล้อมแรด อำเภอเถิน จังหวัดลำปาง 52160</p>
-              <p style="margin: 0 0 10px 0;">โทรศัพท์: 054-291316-8</p>
-              <p style="margin: 0; color: #cbd5e1;">อีเมลฉบับนี้เป็นการส่งจากระบบอัตโนมัติ กรุณาอย่าตอบกลับอีเมลนี้</p>
-            </div>
-          </div>
-        `,
-      })
-    } catch (mailError: any) {
-      console.error('Failed to send member OTP email:', mailError)
-      return NextResponse.json(
-        { error: 'ไม่สามารถส่งอีเมลยืนยัน OTP ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' },
-        { status: 500 }
-      )
-    }
-
-    return NextResponse.json({ success: true, message: 'ส่งรหัส OTP เรียบร้อยแล้ว' })
+    return NextResponse.json({ success: true, message: result.message })
   } catch (error: any) {
     console.error('Member OTP Request error:', error)
     return NextResponse.json(

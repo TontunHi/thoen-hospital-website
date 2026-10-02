@@ -29,15 +29,21 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
 1. **Primary DB (Prisma):** `@/lib/prisma` — CMS, users, tickets, approvals, audit logs.
 2. **HOSxP DB (Read-Only):** `@/lib/clinicalDb`, `@/lib/clinical/ipdWardService` — Appointments, Lab, ER, IPD, Bed Occupancy, OR. Never write/mutate.
 3. **Salary DB (Read-Only):** `@/lib/salaryDb` — Encrypted pay slip data.
-4. **File Storage Seam:** `@/lib/storage/documentStorage` (`DocumentStorage`) — Never import raw `fs` in API routes.
-5. **Video Streaming Seam:** `/api/stream?path=...` — HTTP 206 Partial Content byte-range streaming for MP4 video delivery.
+4. **File Storage Seam:** `@/lib/storage/documentStorage` (`DocumentStorage`) — Never import raw `fs` in API routes. Use `readBuffer()` for image/binary reads, `serveFile()` for HTTP 206 byte-range streaming (video/Safari), `save()`/`saveBatch()`/`delete()` for writes.
+5. **Member Auth Seam:** `@/lib/auth/MemberAuthService` — All OTP, JWT build/verify, and ThaID OAuth flows. Route handlers: read cookie/body → call service → set cookie. Never create or verify JWTs inside a route handler.
+6. **Ethics CMS Seam:** `@/lib/cms/EthicsDocumentService` — Tree building, year aggregation, cascading file+record delete. Ethics route handlers are thin adapters only.
 
 ## Architectural & Coding Standards
 - **Thin Route Adapters:** API routes (`src/app/api/**`) must be thin (~20–40 lines) delegating to deep domain modules in `@/lib/`.
 - **Task Permissions (Single Source of Truth):** Use `@/lib/taskPermissionResolver` (`resolveTaskPermissions`) for all inbox authorization (`canView`, `canEdit`, `canApprove`, `canTakeJob`, `canCancel`).
-- **Task Mutations & Auditing:** Route manager edits and status transitions through `@/lib/taskInboxService` (`updateTaskByManager`) for automatic structured field diffs (`MANAGER_EDIT_TASK`).
+- **Task Workflow Actions:** All APPROVE/REJECT/SEND_BACK transitions go through `@/lib/taskInboxService` (`executeWorkflowAction`) — handles permission check, HMAC verify, step advance, audit log, and Telegram notify. Manager field edits use `updateTaskByManager`.
 - **Test Seams:** Domain services accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb` for 100% Vitest unit testability.
 - **File Uploads:** Use `DocumentStorage.save()`, `saveBatch()`, or `formatDateDirectory()`.
+
+## Testing Gotchas
+- **Mock `logAudit` in service unit tests:** Services that call `logAudit()` internally (e.g. `MemberAuthService.buildSession`, `EthicsDocumentService.deleteDocument`) need: `vi.mock('../audit', () => ({ logAudit: vi.fn().mockResolvedValue(undefined) }))`
+- **`buildSession` is async:** `MemberAuthService.buildSession()` returns `Promise<string>` — always `await` it. The old `createToken` was sync and is now deprecated (throws).
+
 
 ## Critical Hospital Rules (Zero Exception)
 - **PHI / PDPA:** Never log patient data in plaintext. Always mask Thai ID/HN to **last 4 digits** (e.g. `x-xxxx-xxxxx-xx-1`) and patient names to `first 3 chars + ***`.

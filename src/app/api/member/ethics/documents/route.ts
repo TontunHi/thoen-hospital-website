@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit'
 import { DocumentStorage, StorageValidationError } from '@/lib/storage/documentStorage'
 import path from 'path'
 import { z } from 'zod'
+import { EthicsDocumentService } from '@/lib/cms/EthicsDocumentService'
 
 const documentSchema = z.object({
   yearId: z.coerce.number().int(),
@@ -45,53 +46,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: parsed.error.issues.map(i => i.message).join(', ') }, { status: 400 })
     }
 
-    const yearRecord = await prisma.ethicsYear.findUnique({
-      where: { id: yearId }
-    })
-    if (!yearRecord) {
-      return NextResponse.json({ error: 'ไม่พบปีงบประมาณที่ระบุ' }, { status: 404 })
-    }
-
-    let filePath: string | null = null
-    let fileSize: bigint | null = null
-
-    if (file && file.size > 0) {
-      const saved = await DocumentStorage.save(file, {
-        destinationDir: `public/documents/ethics/${yearRecord.year}`,
-        allowedMimeTypes: ['application/pdf'],
-        allowedExtensions: ['.pdf'],
-        maxSizeBytes: 25 * 1024 * 1024,
-        collisionStrategy: 'timestamp',
-      })
-      filePath = saved.publicUrl
-      fileSize = BigInt(saved.fileSize)
-    }
-
-    const created = await prisma.ethicsDocument.create({
-      data: {
-        yearId,
-        parentId,
-        title,
-        filePath,
-        fileSize,
-        displayOrder,
-        isActive,
-      }
-    })
-
-    await logAudit(
-      'CREATE',
-      'ethics_documents',
-      `เพิ่มเอกสารจริยธรรม "${title}" ปี ${yearRecord.year} โดย ${member.username}`,
-      member.session
+    const created = await EthicsDocumentService.createDocument(
+      parsed.data, 
+      { username: member.username, session: member.session }
     )
 
     return NextResponse.json({
       success: true,
-      document: {
-        ...created,
-        fileSize: created.fileSize ? created.fileSize.toString() : null
-      },
+      document: created,
       message: 'บันทึกเอกสารสำเร็จ'
     })
   } catch (error: any) {
@@ -193,35 +155,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'รหัสเอกสารไม่ถูกต้อง' }, { status: 400 })
     }
 
-    const existing = await prisma.ethicsDocument.findUnique({
-      where: { id },
-      include: { children: true }
-    })
-    if (!existing) {
-      return NextResponse.json({ error: 'ไม่พบเอกสารที่ต้องการลบ' }, { status: 404 })
-    }
-
-    // Delete child files
-    for (const child of existing.children) {
-      if (child.filePath) {
-        await DocumentStorage.delete(child.filePath)
-      }
-    }
-    // Delete parent file
-    if (existing.filePath) {
-      await DocumentStorage.delete(existing.filePath)
-    }
-
-    await prisma.ethicsDocument.delete({
-      where: { id }
-    })
-
-    await logAudit(
-      'DELETE',
-      'ethics_documents',
-      `ลบเอกสารจริยธรรม "${existing.title}" (ID: ${id}) พร้อมเอกสารย่อย โดย ${member.username}`,
-      member.session
-    )
+    await EthicsDocumentService.deleteDocument(id.toString(), member.username, member.session)
 
     return NextResponse.json({
       success: true,

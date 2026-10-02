@@ -324,4 +324,148 @@ export const DocumentStorage = {
     }
     return results
   },
+
+  /**
+   * Reads a file and returns its raw Buffer.
+   * Throws StorageValidationError with code 'FILE_NOT_FOUND' if it doesn't exist.
+   */
+  async readBuffer(relativePath: string, allowedRoots: string[] = DEFAULT_ALLOWED_ROOT_PREFIXES): Promise<Buffer> {
+    let relPath = relativePath.trim().replace(/\\/g, '/')
+    if (relPath.startsWith('/')) relPath = relPath.substring(1)
+    if (relPath.startsWith('uploads/') || relPath.startsWith('documents/')) relPath = 'public/' + relPath
+
+    assertSafePath(relPath, allowedRoots)
+
+    const absolutePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relPath)
+    try {
+      const stat = await fs.stat(absolutePath)
+      if (!stat.isFile()) throw new StorageValidationError('Not a file', 'FILE_NOT_FOUND')
+      return await fs.readFile(absolutePath)
+    } catch (e: any) {
+      if (e.code === 'ENOENT') throw new StorageValidationError('File not found', 'FILE_NOT_FOUND')
+      throw e
+    }
+  },
+
+  /**
+   * Serves a file as a streaming Response (HTTP 206) or full file (HTTP 200).
+   */
+  async serveFile(relativePath: string, req: Request, allowedRoots: string[] = DEFAULT_ALLOWED_ROOT_PREFIXES): Promise<Response> {
+    let relPath = relativePath.trim().replace(/\\/g, '/')
+    if (relPath.startsWith('/')) relPath = relPath.substring(1)
+    if (relPath.startsWith('uploads/') || relPath.startsWith('documents/')) relPath = 'public/' + relPath
+
+    try {
+      assertSafePath(relPath, allowedRoots)
+    } catch (e: any) {
+      return new Response('Forbidden', { status: 403 })
+    }
+
+    const absolutePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relPath)
+    let stat;
+    try {
+      stat = await fs.stat(absolutePath)
+      if (!stat.isFile()) return new Response('Not Found', { status: 404 })
+    } catch (e: any) {
+      return new Response('Not Found', { status: 404 })
+    }
+
+    const fileSize = stat.size
+    const ext = path.extname(absolutePath).toLowerCase()
+
+    let contentType = 'application/octet-stream'
+    if (ext === '.mp4') contentType = 'video/mp4'
+    else if (ext === '.webm') contentType = 'video/webm'
+    else if (ext === '.png') contentType = 'image/png'
+    else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg'
+    else if (ext === '.webp') contentType = 'image/webp'
+    else if (ext === '.gif') contentType = 'image/gif'
+    else if (ext === '.pdf') contentType = 'application/pdf'
+
+    const rangeHeader = req.headers.get('range')
+
+    if (rangeHeader) {
+      const parts = rangeHeader.replace(/bytes=/, '').split('-')
+      const start = parseInt(parts[0], 10)
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
+
+      if (start >= fileSize || end >= fileSize || start > end || isNaN(start)) {
+        return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${fileSize}` } })
+      }
+
+      const chunksize = end - start + 1
+      const stream = fsSync.createReadStream(absolutePath, { start, end })
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const webStream = require('stream').Readable.toWeb(stream) as ReadableStream
+
+      return new Response(webStream, {
+        status: 206,
+        headers: {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': String(chunksize),
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      })
+    }
+
+    const stream = fsSync.createReadStream(absolutePath)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const webStream = require('stream').Readable.toWeb(stream) as ReadableStream
+
+    return new Response(webStream, {
+      status: 200,
+      headers: {
+        'Content-Length': String(fileSize),
+        'Content-Type': contentType,
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=86400',
+      },
+    })
+  },
+
+  async createDirectory(relativePath: string, allowedRoots: string[] = DEFAULT_ALLOWED_ROOT_PREFIXES): Promise<void> {
+    let relPath = relativePath.trim().replace(/\\/g, '/')
+    if (relPath.startsWith('/')) relPath = relPath.substring(1)
+    if (relPath.startsWith('uploads/') || relPath.startsWith('documents/')) relPath = 'public/' + relPath
+    assertSafePath(relPath, allowedRoots)
+    const absolutePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relPath)
+    await fs.mkdir(absolutePath, { recursive: true })
+  },
+
+  async renameDirectory(oldRelPath: string, newRelPath: string, allowedRoots: string[] = DEFAULT_ALLOWED_ROOT_PREFIXES): Promise<void> {
+    let oldP = oldRelPath.trim().replace(/\\/g, '/')
+    if (oldP.startsWith('/')) oldP = oldP.substring(1)
+    if (oldP.startsWith('uploads/') || oldP.startsWith('documents/')) oldP = 'public/' + oldP
+    assertSafePath(oldP, allowedRoots)
+    const absoluteOld = path.join(/*turbopackIgnore: true*/ process.cwd(), oldP)
+
+    let newP = newRelPath.trim().replace(/\\/g, '/')
+    if (newP.startsWith('/')) newP = newP.substring(1)
+    if (newP.startsWith('uploads/') || newP.startsWith('documents/')) newP = 'public/' + newP
+    assertSafePath(newP, allowedRoots)
+    const absoluteNew = path.join(/*turbopackIgnore: true*/ process.cwd(), newP)
+
+    try {
+      await fs.access(absoluteOld)
+      await fs.rename(absoluteOld, absoluteNew)
+    } catch {
+      await fs.mkdir(absoluteNew, { recursive: true })
+    }
+  },
+
+  async deleteDirectory(relativePath: string, allowedRoots: string[] = DEFAULT_ALLOWED_ROOT_PREFIXES): Promise<void> {
+    let relPath = relativePath.trim().replace(/\\/g, '/')
+    if (relPath.startsWith('/')) relPath = relPath.substring(1)
+    if (relPath.startsWith('uploads/') || relPath.startsWith('documents/')) relPath = 'public/' + relPath
+    assertSafePath(relPath, allowedRoots)
+    const absolutePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relPath)
+    try {
+      await fs.rm(absolutePath, { recursive: true, force: true })
+    } catch {
+      // ignore
+    }
+  }
 }
+

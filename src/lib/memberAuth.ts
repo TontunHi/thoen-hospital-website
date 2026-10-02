@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { logger } from './logger'
+import { MemberAuthService } from './auth/MemberAuthService'
 
 function getSecret(): string {
   const secret = process.env.MEMBER_SESSION_SECRET
@@ -114,23 +115,14 @@ function sign(value: string): string {
   return hmac.digest('hex')
 }
 
+const authService = new MemberAuthService()
+
 export function createToken(
   payloadData: { username: string; email: string; role: string },
   customIat?: number,
   customExp?: number
 ): string {
-  const now = Date.now()
-  const iat = customIat ?? now
-  const exp = customExp ?? (now + SESSION_MAX_AGE * 1000)
-  const payload: MemberSessionPayload = {
-    ...payloadData,
-    aud: 'member',
-    iat,
-    exp,
-  }
-  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const signature = sign(encoded)
-  return `${encoded}.${signature}`
+  throw new Error("createToken is deprecated. Use MemberAuthService.buildSession instead.")
 }
 
 export function verifyToken(token: string): (MemberSessionPayload & { username: string; email: string; role: string }) | null {
@@ -191,18 +183,11 @@ export function shouldRenewSession(payload: { iat: number; exp: number }): boole
  * Generates a renewed token preserving the original `iat` while extending `exp` by SESSION_MAX_AGE.
  */
 export function renewToken(payload: { username: string; email: string; role: string; iat: number }): string {
-  return createToken(
-    {
-      username: payload.username,
-      email: payload.email,
-      role: payload.role,
-    },
-    payload.iat
-  )
+  throw new Error("renewToken is deprecated. Use MemberAuthService.buildSession instead.")
 }
 
 export async function createMemberSession(username: string, email: string, role: string): Promise<void> {
-  const token = createToken({ username, email, role })
+  const token = await authService.buildSession({ username, email, role })
   const cookieStore = await cookies()
 
   cookieStore.set(COOKIE_NAME, token, {
@@ -222,13 +207,22 @@ export async function verifyMemberSession(): Promise<(MemberSessionPayload & { u
 
   if (!token) return null
 
-  const session = verifyToken(token)
-  if (!session) return null
+  let session
+  try {
+    session = await authService.verifySession(token)
+  } catch {
+    return null
+  }
 
   // If in server route context that allows cookie mutation, refresh if eligible
-  if (shouldRenewSession(session)) {
+  if (shouldRenewSession(session as any)) {
     try {
-      const renewedToken = renewToken(session)
+      const renewedToken = await authService.buildSession({
+        username: session.username,
+        email: session.email,
+        role: session.role,
+        iat: session.iat
+      })
       cookieStore.set(COOKIE_NAME, renewedToken, {
         httpOnly: true,
         secure: process.env.COOKIE_SECURE === 'true',
@@ -241,28 +235,20 @@ export async function verifyMemberSession(): Promise<(MemberSessionPayload & { u
     }
   }
 
-  try {
-    const { queryMemberDb } = await import('./memberDb')
-    const users = await queryMemberDb(
-      'SELECT role FROM members WHERE username = ? AND email = ? LIMIT 1',
-      [session.username, session.email]
-    )
-    if (users && users.length > 0) {
-      session.role = users[0].role || 'member'
-    }
-  } catch (error) {
-    console.error('Failed to fetch fresh session role from DB:', error)
-  }
-
-  return session
+  return session as any
 }
 
 /**
  * Explicit helper for API Route handlers to ensure renewed session cookie is attached to NextResponse
  */
-export function attachRenewedMemberSessionCookie<T>(response: NextResponse<T>, session: MemberSessionPayload): NextResponse<T> {
-  if (shouldRenewSession(session)) {
-    const renewedToken = renewToken(session)
+export async function attachRenewedMemberSessionCookie<T>(response: NextResponse<T>, session: MemberSessionPayload): Promise<NextResponse<T>> {
+  if (shouldRenewSession(session as any)) {
+    const renewedToken = await authService.buildSession({
+      username: session.username,
+      email: session.email,
+      role: session.role,
+      iat: session.iat
+    })
     response.cookies.set(COOKIE_NAME, renewedToken, {
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === 'true',

@@ -115,23 +115,9 @@ export const REGISTERED_TASK_TYPES: Record<string, TaskTypeDefinition> = {
     defaultSteps: [
       {
         stepNo: 1,
-        stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ ตรวจสอบและมอบหมายงาน',
+        stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
         assigneeType: 'ROLE',
         assignedRole: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
-        canEditFields: ['comment'],
-      },
-      {
-        stepNo: 2,
-        stepName: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง',
-        assigneeType: 'ROLE',
-        assignedRole: 'เจ้าหน้าที่พัสดุ',
-        canEditFields: ['comment'],
-      },
-      {
-        stepNo: 3,
-        stepName: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ',
-        assigneeType: 'ROLE',
-        assignedRole: 'หัวหน้าเจ้าหน้าที่พัสดุ',
         canEditFields: ['comment'],
       },
     ],
@@ -149,35 +135,37 @@ export function getMediaRequestWorkflowSteps(hasCost: boolean): WorkflowStepDefi
   const steps: WorkflowStepDefinition[] = [
     {
       stepNo: 1,
-      stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ ตรวจสอบและมอบหมายงาน',
+      stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
       assigneeType: 'ROLE',
       assignedRole: MEDIA_REQUEST_ROLES.DIGITAL_HEAD,
-      canEditFields: ['comment'],
-    },
-    {
-      stepNo: 2,
-      stepName: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง',
-      assigneeType: 'ROLE',
-      assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER,
-      canEditFields: ['comment'],
-    },
-    {
-      stepNo: 3,
-      stepName: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ',
-      assigneeType: 'ROLE',
-      assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD,
       canEditFields: ['comment'],
     },
   ]
 
   if (hasCost) {
-    steps.push({
-      stepNo: 4,
-      stepName: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ',
-      assigneeType: 'ROLE',
-      assignedRole: MEDIA_REQUEST_ROLES.DIRECTOR,
-      canEditFields: ['comment'],
-    })
+    steps.push(
+      {
+        stepNo: 2,
+        stepName: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง',
+        assigneeType: 'ROLE',
+        assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER,
+        canEditFields: ['comment'],
+      },
+      {
+        stepNo: 3,
+        stepName: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ',
+        assigneeType: 'ROLE',
+        assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD,
+        canEditFields: ['comment'],
+      },
+      {
+        stepNo: 4,
+        stepName: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ',
+        assigneeType: 'ROLE',
+        assignedRole: MEDIA_REQUEST_ROLES.DIRECTOR,
+        canEditFields: ['comment'],
+      }
+    )
   }
 
   return steps
@@ -209,9 +197,10 @@ export async function generateTaskNo(
   return `${ymPrefix}${String(count).padStart(4, '0')}`
 }
 
-function formatUrgency(urgency?: string | null) {
+function formatUrgency(urgency?: string | null, taskType?: string | null) {
   if (urgency === 'VERY_URGENT') return '🔴 ด่วนที่สุด (Emergency)'
   if (urgency === 'URGENT') return '🟡 ด่วน (Urgent)'
+  if (taskType === 'MEDIA_REQUEST') return '🟢 ไม่ด่วน (Non-urgent)'
   return '🟢 ปกติ (Normal)'
 }
 
@@ -302,7 +291,7 @@ export async function notifyAssigneeOnTelegram(params: {
       timeStyle: 'short',
     }).format(new Date())
 
-    const urgencyLabel = formatUrgency(params.urgency)
+    const urgencyLabel = formatUrgency(params.urgency, params.taskType)
 
     let message = ''
     if (isRepair) {
@@ -1184,24 +1173,31 @@ export async function updateTaskByManager(
         diff.costType = { from: oldCostType, to: updates.costType }
         customPayload.costType = updates.costType
 
-        // Step 4 (Director) dynamic insertion / removal
-        if (updates.costType === 'HAS_COST' && oldCostType !== 'HAS_COST') {
-          const step4Rows = await executor(
-            'SELECT id FROM inbox_task_steps WHERE task_id = ? AND step_no = 4 LIMIT 1',
-            [taskId]
-          )
-          if (!step4Rows || step4Rows.length === 0) {
-            const step4Id = crypto.randomUUID()
-            await executor(
-              `INSERT INTO inbox_task_steps 
-               (id, task_id, step_no, step_name, assignee_type, assigned_role, status)
-               VALUES (?, ?, 4, 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ', 'ROLE', 'ผู้อำนวยการโรงพยาบาลเถิน', 'PENDING')`,
-              [step4Id, taskId]
+        // Steps 2, 3, 4 dynamic insertion / removal for Media Request
+        if (updates.costType === 'HAS_COST') {
+          const stepsToAdd = [
+            { stepNo: 2, name: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง', role: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER },
+            { stepNo: 3, name: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ', role: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD },
+            { stepNo: 4, name: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ', role: MEDIA_REQUEST_ROLES.DIRECTOR },
+          ]
+          for (const s of stepsToAdd) {
+            const stepRows = await executor(
+              'SELECT id FROM inbox_task_steps WHERE task_id = ? AND step_no = ? LIMIT 1',
+              [taskId, s.stepNo]
             )
+            if (!stepRows || stepRows.length === 0) {
+              const stepId = crypto.randomUUID()
+              await executor(
+                `INSERT INTO inbox_task_steps 
+                 (id, task_id, step_no, step_name, assignee_type, assigned_role, status)
+                 VALUES (?, ?, ?, ?, 'ROLE', ?, 'WAITING')`,
+                [stepId, taskId, s.stepNo, s.name, s.role]
+              )
+            }
           }
-        } else if (updates.costType === 'NO_COST' && oldCostType === 'HAS_COST') {
+        } else if (updates.costType === 'NO_COST') {
           await executor(
-            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no = 4 AND status = 'PENDING'`,
+            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no IN (2, 3, 4) AND status IN ('PENDING', 'WAITING')`,
             [taskId]
           )
         }
@@ -1355,3 +1351,236 @@ export async function updateTaskByManager(
 }
 
 
+
+export interface WorkflowActionInput {
+  taskId: string
+  actorMemberId: number
+  actorUsername: string
+  actorName?: string | null
+  actorPosition?: string | null
+  actorRole?: string | null
+  action: 'APPROVE' | 'REJECT' | 'SEND_BACK'
+  comment?: string
+  signaturePath?: string | null
+  nextAssigneeId?: number | null
+  partialEdits?: any
+}
+
+export interface WorkflowActionResult {
+  success: boolean
+  message?: string
+  error?: string
+  statusCode?: number
+}
+
+export async function executeWorkflowAction(
+  input: WorkflowActionInput,
+  executor: MemberDbExecutor = queryMemberDb
+): Promise<WorkflowActionResult> {
+  const { taskId, action, actorMemberId, actorUsername, actorName, actorPosition, actorRole, signaturePath, comment, nextAssigneeId, partialEdits } = input
+
+  // 1. Fetch Task
+  const tasks = await executor('SELECT * FROM inbox_tasks WHERE id = ? LIMIT 1', [taskId])
+  if (!tasks || tasks.length === 0) {
+    throw new Error('ไม่พบงานที่ระบุ')
+  }
+  const task = tasks[0]
+
+  if (task.status !== 'PENDING' && task.status !== 'IN_PROGRESS') {
+    throw new Error('งานนี้ไม่อยู่ในสถานะที่สามารถดำเนินการได้')
+  }
+
+  // 2. Fetch steps
+  const steps = await executor('SELECT * FROM inbox_task_steps WHERE task_id = ? ORDER BY step_no ASC', [taskId])
+  const currentStep = steps.find((s: any) => s.step_no === task.current_step_no)
+  if (!currentStep) {
+    throw new Error('ไม่พบขั้นตอนปัจจุบันของงาน')
+  }
+
+  // 3. Permission check using resolveTaskPermissions
+  const memberObj: MemberLike = {
+    id: actorMemberId,
+    username: actorUsername,
+    name: actorName,
+    position: actorPosition,
+    role: actorRole,
+  }
+  const perms = resolveTaskPermissions(memberObj, task, { steps })
+  if (!perms.canApprove && !perms.isAdmin && !perms.isCurrentAssignee) {
+    throw new Error('คุณไม่มีสิทธิ์ดำเนินการในขั้นตอนนี้')
+  }
+
+  // 4. Handle Partial Edits
+  if (partialEdits && typeof partialEdits === 'object' && Object.keys(partialEdits).length > 0) {
+    let existingPayload = {}
+    try {
+      existingPayload = task.custom_payload ? JSON.parse(task.custom_payload) : {}
+    } catch {}
+
+    const updatedPayload = { ...existingPayload, ...partialEdits }
+    await executor(
+      'UPDATE inbox_tasks SET custom_payload = ?, updated_at = NOW() WHERE id = ?',
+      [JSON.stringify(updatedPayload), taskId]
+    )
+
+    const auditEditId = crypto.randomUUID()
+    await executor(
+      `INSERT INTO inbox_task_audit_logs 
+       (id, task_id, action, performed_by, performer_name, details)
+       VALUES (?, ?, 'PARTIAL_EDIT', ?, ?, ?)`,
+      [
+        auditEditId,
+        taskId,
+        actorMemberId,
+        actorName || actorUsername,
+        JSON.stringify({ changes: partialEdits, previous: existingPayload }),
+      ]
+    )
+  }
+
+  const nowStr = new Date().toISOString()
+  
+  // 5. Handle Actions
+  if (action === 'APPROVE') {
+    let sigHash = null
+    if (signaturePath) {
+      sigHash = generateSignatureStampHash({
+        taskId,
+        stepNo: currentStep.step_no,
+        signerId: actorMemberId,
+        timestamp: nowStr,
+      })
+    }
+
+    await executor(
+      `UPDATE inbox_task_steps 
+       SET status = 'COMPLETED', action_taken = 'APPROVE', action_by = ?, action_by_name = ?, action_at = NOW(), comment = ?, signature_path = ?, signature_hash = ?
+       WHERE id = ?`,
+      [
+        actorMemberId,
+        actorName || actorUsername,
+        comment || 'อนุมัติเรียบร้อย',
+        signaturePath || null,
+        sigHash,
+        currentStep.id,
+      ]
+    )
+
+    const nextStep = steps.find((s: any) => s.step_no === task.current_step_no + 1)
+    if (nextStep) {
+      const nextAssignee = nextAssigneeId || nextStep.assigned_to_id || null
+      await executor(
+        `UPDATE inbox_tasks 
+         SET current_step_no = ?, current_assignee = ?, \`current_role\` = ?, status = 'PENDING', updated_at = NOW()
+         WHERE id = ?`,
+        [nextStep.step_no, nextAssignee, nextStep.assigned_role, taskId]
+      )
+
+      await executor(
+        `UPDATE inbox_task_steps SET status = 'PENDING', assigned_to_id = ? WHERE id = ?`,
+        [nextAssignee, nextStep.id]
+      )
+
+      if (nextAssignee) {
+        notifyAssigneeOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          taskType: task.task_type,
+          title: task.title,
+          requesterName: task.requester_name,
+          requesterDept: task.requester_dept,
+          assigneeId: nextAssignee,
+          stepName: nextStep.step_name,
+        }).catch(() => {})
+      }
+    } else {
+      await executor(
+        `UPDATE inbox_tasks SET status = 'APPROVED', current_assignee = NULL, \`current_role\` = NULL, updated_at = NOW() WHERE id = ?`,
+        [taskId]
+      )
+      notifyAssigneeOnTelegram({
+        taskId,
+        taskNo: task.task_no,
+        taskType: task.task_type,
+        title: `[อนุมัติแล้ว] ${task.title}`,
+        requesterName: task.requester_name,
+        requesterDept: task.requester_dept,
+        assigneeId: task.requester_id,
+        stepName: 'การอนุมัติเสร็จสิ้นสมบูรณ์',
+      }).catch(() => {})
+    }
+  } else if (action === 'REJECT') {
+    await executor(
+      `UPDATE inbox_task_steps 
+       SET status = 'REJECTED', action_taken = 'REJECT', action_by = ?, action_by_name = ?, action_at = NOW(), comment = ?
+       WHERE id = ?`,
+      [actorMemberId, actorName || actorUsername, comment || 'ไม่อนุมัติ', currentStep.id]
+    )
+    await executor(
+      `UPDATE inbox_tasks SET status = 'REJECTED', current_assignee = NULL, \`current_role\` = NULL, updated_at = NOW() WHERE id = ?`,
+      [taskId]
+    )
+    notifyAssigneeOnTelegram({
+      taskId,
+      taskNo: task.task_no,
+      taskType: task.task_type,
+      title: `[ไม่อนุมัติ] ${task.title}`,
+      requesterName: task.requester_name,
+      requesterDept: task.requester_dept,
+      assigneeId: task.requester_id,
+      stepName: `ถูกปฏิเสธในขั้นตอน: ${currentStep.step_name}`,
+    }).catch(() => {})
+  } else if (action === 'SEND_BACK') {
+    await executor(
+      `UPDATE inbox_task_steps 
+       SET status = 'WAITING', action_taken = 'SEND_BACK', action_by = ?, action_by_name = ?, action_at = NOW(), comment = ?
+       WHERE id = ?`,
+      [actorMemberId, actorName || actorUsername, comment || 'ส่งกลับแก้ไข', currentStep.id]
+    )
+    await executor(
+      `UPDATE inbox_tasks 
+       SET status = 'SENT_BACK', current_step_no = 1, current_assignee = requester_id, \`current_role\` = NULL, updated_at = NOW() 
+       WHERE id = ?`,
+      [taskId]
+    )
+    if (steps.length > 0) {
+      await executor(
+        `UPDATE inbox_task_steps SET status = 'PENDING' WHERE task_id = ? AND step_no = 1`,
+        [taskId]
+      )
+    }
+    notifyAssigneeOnTelegram({
+      taskId,
+      taskNo: task.task_no,
+      taskType: task.task_type,
+      title: `[ส่งกลับแก้ไข] ${task.title}`,
+      requesterName: task.requester_name,
+      requesterDept: task.requester_dept,
+      assigneeId: task.requester_id,
+      stepName: `ส่งกลับแก้ไขโดย ${actorName || actorUsername} (เหตุผล: ${comment || '-'})`,
+    }).catch(() => {})
+  }
+
+  const auditActionId = crypto.randomUUID()
+  await executor(
+    `INSERT INTO inbox_task_audit_logs 
+     (id, task_id, action, performed_by, performer_name, details)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      auditActionId,
+      taskId,
+      action,
+      actorMemberId,
+      actorName || actorUsername,
+      JSON.stringify({ stepNo: currentStep.step_no, stepName: currentStep.step_name, comment }),
+    ]
+  )
+
+  const { logAudit } = await import('@/lib/audit')
+  await logAudit('UPDATE', 'inbox_tasks', `${action} task ${taskId} (Step ${currentStep.step_no})`, { username: actorUsername, email: '' })
+
+  return {
+    success: true,
+    message: `ดำเนินการ ${action} สำเร็จ`,
+  }
+}

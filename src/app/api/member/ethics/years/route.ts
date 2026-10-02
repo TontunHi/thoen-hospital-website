@@ -3,6 +3,7 @@ import { requireMemberApi } from '@/lib/memberAuth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
+import { EthicsDocumentService } from '@/lib/cms/EthicsDocumentService'
 
 const yearSchema = z.object({
   year: z.string().trim().min(1, 'กรุณาระบุปีงบประมาณ เช่น 2570').max(10),
@@ -16,29 +17,7 @@ export async function GET() {
     const { error } = await requireMemberApi({ requiredPermission: 'manage_ethics' })
     if (error) return error
 
-    const years = await prisma.ethicsYear.findMany({
-      orderBy: [
-        { displayOrder: 'asc' },
-        { year: 'desc' }
-      ],
-      include: {
-        documents: {
-          orderBy: [
-            { displayOrder: 'asc' },
-            { id: 'asc' }
-          ]
-        }
-      }
-    })
-
-    const safeYears = years.map((y: any) => ({
-      ...y,
-      documents: y.documents.map((d: any) => ({
-        ...d,
-        fileSize: d.fileSize ? d.fileSize.toString() : null
-      }))
-    }))
-
+    const safeYears = await EthicsDocumentService.getYears()
 
     return NextResponse.json({
       success: true,
