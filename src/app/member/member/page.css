@@ -1,20 +1,20 @@
 /* ========================================================================
-   MEMBERS DIRECTORY ADMIN DASHBOARD - Premium Modern CSS
+   MEMBERS DIRECTORY ADMIN DASHBOARD - Zero-Scroll Modern UI
+   Design System: Emerald/Slate Hospital Theme (Clean, Fast, Responsive)
    ======================================================================== */
 
 .membersDashboardPage {
   min-height: calc(100vh - 60px);
-  padding: 40px 20px 80px;
+  padding: 36px 20px 80px;
   background-color: #f8fafc;
   background-image: 
-    radial-gradient(circle at 50% 0%, rgba(209, 250, 229, 0.4) 0%, rgba(248, 250, 252, 1) 70%),
-    radial-gradient(circle at 0% 100%, rgba(204, 251, 241, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 100% 100%, rgba(224, 242, 254, 0.3) 0%, transparent 50%);
+    radial-gradient(ellipse at 15% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 100%, rgba(14, 165, 233, 0.06) 0%, transparent 50%);
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), sans-serif;
-  color: #1e293b;
+  font-family: var(--font-ibm-thai), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #0f172a;
   position: relative;
   overflow-x: hidden;
   width: 100%;
@@ -27,19 +27,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  gap: 22px;
 }
 
 /* Background Glowing Orbs */
@@ -49,133 +37,107 @@
   filter: blur(120px);
   z-index: 1;
   pointer-events: none;
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
 .membersDashboardPage .glowOrb1 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, transparent 70%);
   top: -100px;
   right: 5%;
-  animation: orbFloat 14s ease-in-out infinite alternate;
 }
 
 .membersDashboardPage .glowOrb2 {
-  width: 400px;
-  height: 400px;
+  width: 420px;
+  height: 420px;
   background: radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%, transparent 70%);
   top: 35%;
   left: -80px;
-  animation: orbFloat 18s ease-in-out infinite alternate-reverse;
 }
 
 .membersDashboardPage .glowOrb3 {
-  width: 450px;
-  height: 450px;
-  background: radial-gradient(circle, rgba(124, 58, 237, 0.08) 0%, transparent 70%);
-  bottom: -120px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+  bottom: -100px;
   right: 15%;
-  animation: orbFloat 22s ease-in-out infinite alternate;
 }
 
-@keyframes orbFloat {
-  0% { transform: translateY(0) scale(1) rotate(0deg); }
-  100% { transform: translateY(30px) scale(1.06) rotate(10deg); }
-}
+/* ========================================================================
+   Header Section
+   ======================================================================== */
 
-/* Header Section */
 .membersDashboardPage .pageHeader {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px 28px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.membersDashboardPage .pageHeaderTop {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 20px;
-}
-
-.membersDashboardPage .headerText h1 {
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: #064e3b;
-  margin: 0 0 8px 0;
-  letter-spacing: -0.02em;
-  display: flex;
-  align-items: center;
   gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.membersDashboardPage .headerText h1::before {
-  content: '';
-  display: block;
-  width: 4px;
-  height: 28px;
-  background: linear-gradient(to bottom, #10b981, #059669);
-  border-radius: 4px;
-}
-
-.membersDashboardPage .headerText p {
-  font-size: 0.95rem;
+.membersDashboardPage .backLinkBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: #64748b;
-  margin: 0;
-  line-height: 1.6;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.membersDashboardPage .backLinkBtn:hover {
+  color: #059669;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  transform: translateX(-2px);
 }
 
 .membersDashboardPage .headerActions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-}
-
-.membersDashboardPage .addMemberBtn {
-  display: inline-flex;
-  align-items: center;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  font-weight: 600;
-  font-size: 0.95rem;
-  cursor: pointer;
-  box-shadow: 
-    0 4px 6px -1px rgba(15, 23, 42, 0.1),
-    0 10px 15px -3px rgba(15, 23, 42, 0.05);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  font-family: inherit;
-}
-
-.membersDashboardPage .addMemberBtn:hover {
-  transform: translateY(-2px);
-  box-shadow: 
-    0 10px 20px -5px rgba(15, 23, 42, 0.2),
-    0 8px 16px -6px rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.2);
 }
 
 .membersDashboardPage .syncSalaryBtn {
   display: inline-flex;
   align-items: center;
-  padding: 12px 24px;
+  gap: 8px;
+  padding: 8px 18px;
   background: #ecfdf5;
-  color: #059669;
+  color: #047857;
   border: 1px solid #a7f3d0;
-  border-radius: 16px;
+  border-radius: 10px;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   cursor: pointer;
-  box-shadow: 
-    0 4px 6px -1px rgba(16, 185, 129, 0.05),
-    0 10px 15px -3px rgba(16, 185, 129, 0.02);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease;
   font-family: inherit;
 }
 
 .membersDashboardPage .syncSalaryBtn:hover:not(:disabled) {
   background: #d1fae5;
-  color: #047857;
-  border-color: #34d399;
-  transform: translateY(-2px);
+  border-color: #6ee7b7;
+  transform: translateY(-1px);
 }
 
 .membersDashboardPage .syncSalaryBtn:disabled {
@@ -183,115 +145,219 @@
   cursor: not-allowed;
 }
 
-/* Stats summary Cards Grid */
-.membersDashboardPage .statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
-}
-
-.membersDashboardPage .statCard {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  border-radius: 20px;
-  padding: 22px;
-  display: flex;
-  justify-content: space-between;
+.membersDashboardPage .addMemberBtn {
+  display: inline-flex;
   align-items: center;
-  box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.01),
-    0 10px 20px -3px rgba(0, 0, 0, 0.02);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 8px;
+  padding: 8px 20px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
 
-.membersDashboardPage .statCard:hover {
-  transform: translateY(-3px);
-  border-color: rgba(16, 185, 129, 0.25);
-  background: #ffffff;
+.membersDashboardPage .addMemberBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
 }
 
-.membersDashboardPage .statCardInfo {
+.membersDashboardPage .headerText {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
+.membersDashboardPage .titleWithBadge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.membersDashboardPage .headerText h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.membersDashboardPage .totalBadge {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.membersDashboardPage .headerText p {
+  font-size: 0.92rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ========================================================================
+   Stats KPI Cards
+   ======================================================================== */
+
+.membersDashboardPage .statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .membersDashboardPage .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .membersDashboardPage .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.membersDashboardPage .statCard {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
+  padding: 18px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.membersDashboardPage .statCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.membersDashboardPage .statCard.total::before { background: linear-gradient(90deg, #0d9488, #2dd4bf); }
+.membersDashboardPage .statCard.admins::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
+.membersDashboardPage .statCard.general::before { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+.membersDashboardPage .statCard.subdistrict::before { background: linear-gradient(90deg, #10b981, #34d399); }
+
+.membersDashboardPage .statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  border-color: #cbd5e1;
+}
+
+.membersDashboardPage .statCardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .membersDashboardPage .statLabel {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #64748b;
 }
 
 .membersDashboardPage .statValue {
-  font-size: 1.65rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
 .membersDashboardPage .statCardIcon {
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .membersDashboardPage .statCardIcon.total {
-  background-color: rgba(13, 148, 136, 0.08);
+  background-color: #f0fdfa;
   color: #0d9488;
-  border: 1px solid rgba(13, 148, 136, 0.15);
 }
 
 .membersDashboardPage .statCardIcon.admins {
-  background-color: rgba(124, 58, 237, 0.08);
+  background-color: #f5f3ff;
   color: #7c3aed;
-  border: 1px solid rgba(124, 58, 237, 0.15);
 }
 
 .membersDashboardPage .statCardIcon.general {
-  background-color: rgba(2, 132, 199, 0.08);
+  background-color: #f0f9ff;
   color: #0284c7;
-  border: 1px solid rgba(2, 132, 199, 0.15);
 }
 
 .membersDashboardPage .statCardIcon.subdistrict {
-  background-color: rgba(16, 185, 129, 0.08);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.15);
+  background-color: #ecfdf5;
+  color: #059669;
 }
 
-/* Alerts banners */
+/* ========================================================================
+   Alert Banners
+   ======================================================================== */
+
 .membersDashboardPage .dashboardAlert {
-  padding: 14px 20px;
-  border-radius: 16px;
+  padding: 12px 18px;
+  border-radius: 12px;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .membersDashboardPage .alertDanger {
-  background-color: rgba(239, 68, 68, 0.06);
-  color: #b91c1c;
-  border: 1px solid rgba(239, 68, 68, 0.15);
+  background-color: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
 }
 
 .membersDashboardPage .alertSuccess {
-  background-color: rgba(16, 185, 129, 0.06);
+  background-color: #ecfdf5;
   color: #047857;
-  border: 1px solid rgba(16, 185, 129, 0.15);
+  border: 1px solid #a7f3d0;
 }
 
-/* Action Panel & Filtering */
+.membersDashboardPage .alertCloseBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.membersDashboardPage .alertCloseBtn:hover {
+  opacity: 1;
+}
+
+/* ========================================================================
+   Action & Filter Bar
+   ======================================================================== */
+
 .membersDashboardPage .actionPanel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 18px;
   padding: 14px 18px;
   display: flex;
@@ -299,50 +365,72 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.02);
 }
 
 .membersDashboardPage .searchWrapper {
   position: relative;
   flex: 1;
   min-width: 260px;
+  display: flex;
+  align-items: center;
 }
 
 .membersDashboardPage .searchWrapper input {
   width: 100%;
-  padding: 10px 14px 10px 42px;
-  border: 1.5px solid rgba(203, 213, 225, 0.8);
-  border-radius: 12px;
-  font-size: 0.92rem;
+  height: 42px;
+  padding: 8px 36px 8px 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.9rem;
   font-weight: 500;
   color: #0f172a;
-  background-color: #ffffff;
+  background-color: #f8fafc;
   outline: none;
   transition: all 0.2s ease;
   font-family: inherit;
 }
 
 .membersDashboardPage .searchWrapper input:focus {
-  border-color: #0d9488;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+  border-color: #059669;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .membersDashboardPage .searchIcon {
   position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
+  left: 12px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.membersDashboardPage .clearSearchBtn {
+  position: absolute;
+  right: 10px;
+  background: #e2e8f0;
+  border: none;
+  color: #64748b;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.membersDashboardPage .clearSearchBtn:hover {
+  background: #cbd5e1;
+  color: #0f172a;
 }
 
 .membersDashboardPage .filterGroup {
   display: inline-flex;
-  flex-wrap: wrap;
   gap: 4px;
-  background: rgba(241, 245, 249, 0.9);
+  background: #f1f5f9;
   padding: 4px;
-  border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-radius: 10px;
 }
 
 .membersDashboardPage .filterTab {
@@ -352,7 +440,7 @@
   color: #64748b;
   border: none;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -370,45 +458,45 @@
 .membersDashboardPage .filterTab.active {
   background-color: #ffffff;
   color: #0f172a;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
 
 .membersDashboardPage .filterCount {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #64748b;
-  background: rgba(148, 163, 184, 0.15);
+  background: #e2e8f0;
   padding: 1px 6px;
   border-radius: 9999px;
   line-height: 1.3;
 }
 
 .membersDashboardPage .filterTab.active .filterCount {
-  color: #0d9488;
-  background: rgba(13, 148, 136, 0.1);
+  color: #047857;
+  background: #d1fae5;
 }
 
 /* ========================================================================
-   LOCKED MEMBERS TABLE - NO HORIZONTAL SCROLL
+   Content Card & Zero-Scroll Desktop Table
    ======================================================================== */
+
 .membersDashboardPage .tableCard {
   background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid #e2e8f0;
   border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-  padding: 0;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
   overflow: hidden;
   width: 100%;
 }
 
-.membersDashboardPage .tableResponsive {
+.membersDashboardPage .desktopTableContainer {
   width: 100%;
-  overflow: hidden; /* Lock table without horizontal scrolling */
+  overflow: hidden; /* Strict zero horizontal scroll */
 }
 
 .membersDashboardPage .membersTable {
   width: 100%;
-  table-layout: fixed; /* Lock columns to exactly fit 100% width */
+  table-layout: fixed; /* Strictly divide columns to fit 100% */
   border-collapse: collapse;
   text-align: left;
 }
@@ -417,8 +505,8 @@
   background-color: #f8fafc;
   color: #475569;
   font-weight: 700;
-  font-size: 0.85rem;
-  padding: 14px 12px;
+  font-size: 0.82rem;
+  padding: 14px 14px;
   border-bottom: 2px solid #e2e8f0;
   user-select: none;
   white-space: nowrap;
@@ -427,14 +515,13 @@
 }
 
 .membersDashboardPage .membersTable td {
-  padding: 13px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid #f1f5f9;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: #334155;
   vertical-align: middle;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .membersDashboardPage .membersTable tr:last-child td {
@@ -449,14 +536,13 @@
   background-color: #f8fafc;
 }
 
-/* Sorting Indicators */
 .membersDashboardPage .sortableHeader {
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .membersDashboardPage .sortableHeader:hover {
-  background-color: #e2e8f0;
+  background-color: #f1f5f9;
   color: #0f172a;
 }
 
@@ -476,81 +562,137 @@
 
 .membersDashboardPage .sortIconActive {
   opacity: 1;
-  color: #0d9488;
+  color: #059669;
 }
 
-/* Column Specific Widths (Fixed 100% distribution) */
+/* Desktop Fixed Proportions */
 .membersDashboardPage .col-id {
-  width: 55px;
+  width: 50px;
   text-align: center;
 }
 
-.membersDashboardPage .col-user {
-  width: 14%;
+.membersDashboardPage .col-member {
+  width: 28%;
 }
 
-.membersDashboardPage .col-email {
-  width: 21%;
-}
-
-.membersDashboardPage .col-name {
-  width: 24%;
+.membersDashboardPage .col-account {
+  width: 26%;
 }
 
 .membersDashboardPage .col-dept {
-  width: 18%;
+  width: 20%;
 }
 
 .membersDashboardPage .col-role {
-  width: 95px;
+  width: 12%;
   text-align: center;
 }
 
 .membersDashboardPage .col-actions {
-  width: 90px;
+  width: 14%;
   text-align: center;
 }
 
-/* Inner Text Truncations & Highlights */
-.membersDashboardPage .truncate {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* Cells Styling */
+.membersDashboardPage .indexBadge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
 }
 
-.membersDashboardPage .userFlex {
+.membersDashboardPage .memberDetails {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.membersDashboardPage .memberNameRow {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 600;
-  color: #0f172a;
   overflow: hidden;
 }
 
-.membersDashboardPage .memberNameText {
-  font-weight: 600;
+.membersDashboardPage .memberName {
+  font-weight: 700;
   color: #0f172a;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.membersDashboardPage .memberPositionText {
+.membersDashboardPage .selfTag {
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.membersDashboardPage .memberPosition {
   font-size: 0.78rem;
   color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-top: 1px;
+}
+
+.membersDashboardPage .accountCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  font-size: 0.82rem;
+}
+
+.membersDashboardPage .accountUsername,
+.membersDashboardPage .accountEmail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.membersDashboardPage .accountUsername {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.membersDashboardPage .accountEmail {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.membersDashboardPage .accountIcon {
+  flex-shrink: 0;
+  color: #94a3b8;
+}
+
+.membersDashboardPage .truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.membersDashboardPage .deptText {
+  color: #334155;
+  font-weight: 500;
 }
 
 .membersDashboardPage .roleBadge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 0.78rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -584,34 +726,44 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
+  gap: 4px;
   height: 32px;
   border-radius: 8px;
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.8rem;
 }
 
 .membersDashboardPage .editBtn {
   background-color: #ecfdf5;
-  color: #059669;
+  color: #047857;
   border-color: #a7f3d0;
+  padding: 0 10px;
 }
 
 .membersDashboardPage .editBtn:hover {
   background-color: #059669;
   color: #ffffff;
+  border-color: #059669;
+  transform: translateY(-1px);
 }
 
 .membersDashboardPage .deleteBtn {
-  background-color: #fef2f2;
-  color: #ef4444;
-  border-color: #fecaca;
+  width: 32px;
+  background-color: #fff1f2;
+  color: #e11d48;
+  border-color: #fecdd3;
+  padding: 0;
 }
 
 .membersDashboardPage .deleteBtn:not(:disabled):hover {
-  background-color: #ef4444;
+  background-color: #e11d48;
   color: #ffffff;
+  border-color: #e11d48;
+  transform: translateY(-1px);
 }
 
 .membersDashboardPage .deleteBtn:disabled {
@@ -619,7 +771,153 @@
   cursor: not-allowed;
 }
 
-/* Loading & Empty States */
+/* ========================================================================
+   Mobile / Tablet Cards View (Zero Horizontal Scroll Guarantee)
+   ======================================================================== */
+
+.membersDashboardPage .mobileCardsContainer {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+@media (max-width: 860px) {
+  .membersDashboardPage .desktopTableContainer {
+    display: none;
+  }
+  .membersDashboardPage .mobileCardsContainer {
+    display: flex;
+  }
+}
+
+.membersDashboardPage .memberCardItem {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
+}
+
+.membersDashboardPage .memberCardItem.cardSelf {
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.membersDashboardPage .cardTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.membersDashboardPage .cardProfileInfo {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.membersDashboardPage .cardNameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.membersDashboardPage .cardMemberName {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.membersDashboardPage .cardPositionText {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.membersDashboardPage .cardDetailsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.membersDashboardPage .cardDetailRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.membersDashboardPage .cardDetailLabel {
+  font-weight: 600;
+  color: #64748b;
+  min-width: 65px;
+}
+
+.membersDashboardPage .cardDetailValue {
+  color: #1e293b;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .cardActionRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.membersDashboardPage .mobileEditBtn {
+  flex: 1;
+  height: 42px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.membersDashboardPage .mobileEditBtn:active {
+  background: #059669;
+  color: #ffffff;
+}
+
+.membersDashboardPage .mobileDeleteBtn {
+  width: 42px;
+  height: 42px;
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.membersDashboardPage .mobileDeleteBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ========================================================================
+   Loading & Empty States
+   ======================================================================== */
+
 .membersDashboardPage .loadingContainer {
   display: flex;
   flex-direction: column;
@@ -632,7 +930,7 @@
 
 .membersDashboardPage .spinner {
   animation: spin 1s linear infinite;
-  color: #0d9488;
+  color: #059669;
 }
 
 @keyframes spin {
@@ -669,15 +967,38 @@
   margin: 0;
 }
 
+.membersDashboardPage .clearFilterBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px 16px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.membersDashboardPage .clearFilterBtn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
 /* ========================================================================
-   COMPACT MODAL DIALOG - ALL FIELDS VISIBLE WITHOUT SCROLLING
+   Modern Modal Dialog
    ======================================================================== */
+
 .membersDashboardPage .modalOverlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -688,11 +1009,11 @@
 .membersDashboardPage .premiumModal {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 20px;
+  border-radius: 22px;
   width: 100%;
-  max-width: 760px;
-  max-height: 96vh;
-  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+  max-width: 740px;
+  max-height: 94vh;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -700,31 +1021,38 @@
 }
 
 @keyframes modalScaleIn {
-  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  from { opacity: 0; transform: scale(0.97) translateY(12px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .membersDashboardPage .modalHeader {
-  padding: 14px 22px;
-  background: linear-gradient(135deg, #10b981, #059669);
+  padding: 18px 24px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   position: relative;
   flex-shrink: 0;
 }
 
 .membersDashboardPage .headerIconContainer {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.membersDashboardPage .modalHeaderTitles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
 }
 
 .membersDashboardPage .modalHeader h2 {
@@ -732,23 +1060,24 @@
   font-weight: 700;
   color: #ffffff;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .membersDashboardPage .headerSubtitle {
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.9);
-  margin: 1px 0 0 0;
+  margin: 0;
 }
 
 .membersDashboardPage .closeBtn {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  background: none;
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.15);
   border: none;
-  color: rgba(255, 255, 255, 0.85);
+  color: #ffffff;
   cursor: pointer;
-  padding: 5px;
+  padding: 6px;
   border-radius: 8px;
   transition: all 0.2s;
   display: flex;
@@ -757,19 +1086,24 @@
 }
 
 .membersDashboardPage .closeBtn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+.membersDashboardPage .modalForm {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .membersDashboardPage .compactModalBody {
-  padding: 16px 22px;
+  padding: 20px 24px;
   overflow-y: auto;
 }
 
 .membersDashboardPage .modalFormGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px 16px;
+  gap: 12px 16px;
 }
 
 .membersDashboardPage .col-span-2 {
@@ -779,12 +1113,12 @@
 .membersDashboardPage .modalSubSectionHeader {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #0d9488;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
   padding: 6px 12px;
   border-radius: 8px;
   margin-top: 4px;
@@ -798,34 +1132,41 @@
 
 .membersDashboardPage .formGroup label {
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #475569;
 }
 
 .membersDashboardPage .inputWrapper input,
 .membersDashboardPage .selectWrapper select {
   width: 100%;
+  height: 40px;
   padding: 8px 12px;
-  border: 1.5px solid #cbd5e1;
+  border: 1px solid #cbd5e1;
   border-radius: 10px;
   font-size: 0.88rem;
   font-weight: 500;
   color: #0f172a;
-  background-color: #ffffff;
+  background-color: #f8fafc;
   outline: none;
   transition: all 0.2s ease;
   font-family: inherit;
-  height: 38px;
 }
 
 .membersDashboardPage .inputWrapper input:focus,
 .membersDashboardPage .selectWrapper select:focus {
-  border-color: #0d9488;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+  border-color: #059669;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+.membersDashboardPage .inputHint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 
 .membersDashboardPage .compactModalFooter {
-  padding: 12px 22px;
+  padding: 14px 24px;
   border-top: 1px solid #e2e8f0;
   background-color: #f8fafc;
   display: flex;
@@ -835,33 +1176,49 @@
 }
 
 .membersDashboardPage .cancelBtn {
-  padding: 7px 18px;
+  padding: 8px 18px;
   border-radius: 10px;
-  border: 1.5px solid #cbd5e1;
+  border: 1px solid #cbd5e1;
   background-color: #ffffff;
   color: #475569;
   font-weight: 600;
   font-size: 0.88rem;
   cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.membersDashboardPage .cancelBtn:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  color: #0f172a;
 }
 
 .membersDashboardPage .saveBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 7px 22px;
+  gap: 6px;
+  padding: 8px 22px;
   border-radius: 10px;
   border: none;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #ffffff;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.88rem;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.membersDashboardPage .saveBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
 }
 
 .membersDashboardPage .modalAlert {
-  margin: 10px 22px 0 22px;
-  padding: 8px 14px;
+  margin: 12px 24px 0 24px;
+  padding: 10px 14px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 0.82rem;
@@ -871,19 +1228,25 @@
 }
 
 .membersDashboardPage .modalAlert.alertDanger {
-  background-color: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background-color: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
 }
+
+/* ========================================================================
+   Mobile Media Query Adjustments
+   ======================================================================== */
 
 @media (max-width: 768px) {
   .membersDashboardPage {
     padding: 20px 12px 60px;
   }
   .membersDashboardPage .pageHeader {
+    padding: 18px 16px;
+  }
+  .membersDashboardPage .pageHeaderTop {
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
   }
   .membersDashboardPage .headerActions {
     width: 100%;
@@ -897,12 +1260,22 @@
   .membersDashboardPage .actionPanel {
     flex-direction: column;
     align-items: stretch;
+    padding: 14px;
   }
   .membersDashboardPage .searchWrapper {
     width: 100%;
+    min-width: unset;
   }
   .membersDashboardPage .filterGroup {
     width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    text-align: center;
+  }
+  .membersDashboardPage .filterTab {
+    justify-content: center;
+    padding: 6px 4px;
+    font-size: 0.75rem;
   }
   .membersDashboardPage .modalFormGrid {
     grid-template-columns: 1fr;

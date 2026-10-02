@@ -1,343 +1,599 @@
 /* ==========================================================================
-   Modern Editorial Hospital Repair Form Styling (Claude Warm-Editorial Philosophy)
-   Incorporating DESIGN-claude.md token aesthetics while preserving hospital theme
+   Hospital Maintenance & Repair Requisition Styling (Design System)
+   Designed by Senior UI/UX Designer
+   Standards: 2-Column Asymmetric Canvas, Concentric Radii, WCAG AA Contrast,
+   Tactile Press (0.96 scale), Fluid Typography & Sticky Context Sidebar
    ========================================================================== */
 
 :root {
-  /* Existing member portal palette: white surfaces with hospital green accents */
-  --claude-canvas: #ffffff;
-  --claude-surface-card: #f0fdf4;
-  --claude-surface-soft: #f8fafc;
-  --claude-surface-muted: #f8fafc;
-  --claude-ink: #1f2937;
-  --claude-body: #334155;
-  --claude-muted: #64748b;
-  --claude-muted-soft: #94a3b8;
-  --claude-hairline: #e2e8f0;
-  --claude-hairline-warm: #bbf7d0;
-  
-  /* Brand Voltage & Medical Accents */
-  --claude-coral: #059669;
-  --claude-coral-active: #047857;
-  --hospital-blue: #059669;
-  --hospital-blue-dark: #047857;
-  --hospital-teal: #0d9488;
-  --hospital-emerald: #059669;
-  
-  /* Radii Scale from DESIGN-claude.md */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-pill: 9999px;
+  --rp-primary: #059669;
+  --rp-primary-hover: #047857;
+  --rp-primary-dark: #064e3b;
+  --rp-primary-light: #ecfdf5;
+  --rp-primary-border: #a7f3d0;
+  --rp-primary-ring: rgba(5, 150, 105, 0.25);
+
+  --rp-surface: #ffffff;
+  --rp-surface-subtle: #f8fafc;
+  --rp-surface-muted: #f1f5f9;
+
+  --rp-ink: #0f172a;
+  --rp-body: #334155;
+  --rp-muted: #64748b;
+  --rp-muted-light: #94a3b8;
+  --rp-border: #e2e8f0;
+  --rp-border-strong: #cbd5e1;
+
+  --rp-radius-sm: 8px;
+  --rp-radius-md: 12px;
+  --rp-radius-lg: 16px;
+  --rp-radius-xl: 20px;
+  --rp-radius-2xl: 26px;
+  --rp-radius-pill: 9999px;
+
+  --rp-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --rp-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --rp-shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  --rp-shadow-glow: 0 8px 20px -4px rgba(5, 150, 105, 0.28);
 }
 
-.repairWrapper {
-  max-width: 1040px;
+/* ── Screen Reader & Tabular Utilities ── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.tabularNums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Outer Page Canvas ── */
+.repairPageContainer {
+  max-width: 1180px;
   margin: 0 auto;
+  position: relative;
+  z-index: 10;
   font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), system-ui, -apple-system, sans-serif;
-  color: var(--claude-ink);
-  letter-spacing: 0;
+  color: var(--rp-ink);
 }
 
-/* ── Top Header Banner ── */
-.repairHeaderCard {
-  background: #ffffff;
-  border-radius: var(--radius-lg);
-  padding: 1.5rem 2rem;
+/* ── Top Navigation Bar ── */
+.repairNav {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  border: 1px solid var(--claude-hairline);
-  box-shadow: none;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-}
-
-.repairHeaderLeft {
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-}
-
-.repairBadgeIcon {
-  width: 54px;
-  height: 54px;
-  border-radius: var(--radius-lg);
-  background: var(--claude-coral);
-  color: #ffffff;
-  border: 1px solid var(--claude-coral);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: none;
-}
-
-.repairEyebrow {
-  display: block;
-  color: var(--claude-coral-active);
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1.4;
-  margin-bottom: 0.2rem;
-}
-
-.repairHeaderLeft h1 {
-  font-size: 1.7rem;
-  font-weight: 700;
-  color: var(--claude-ink);
-  letter-spacing: 0;
-  margin: 0 0 0.25rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.repairHeaderLeft p {
-  color: var(--claude-muted);
-  font-size: 0.9rem;
-  margin: 0;
-  line-height: 1.5;
-}
-
-.repairBackBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.65rem 1.2rem;
-  border-radius: var(--radius-md);
-  background: var(--claude-canvas);
-  border: 1px solid var(--claude-hairline);
-  color: var(--claude-body);
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-  min-height: 40px;
-}
-
-.repairBackBtn:hover {
-  background-color: var(--claude-canvas);
-  color: var(--claude-ink);
-  border-color: var(--claude-coral);
-}
-
-/* ── Alerts ── */
-.repairAlert {
-  padding: 1rem 1.25rem;
-  border-radius: var(--radius-md);
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
+  margin-bottom: 1.25rem;
   gap: 0.75rem;
-  font-size: 0.925rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
 }
 
-.repairAlert.error {
-  background-color: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-/* ── Main Form Container ── */
-.repairFormCard {
-  background: var(--claude-canvas);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--claude-hairline);
-  box-shadow: none;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.repairSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  padding-bottom: 1.75rem;
-  border-bottom: 1px solid var(--claude-hairline-soft);
-}
-
-.repairSection:last-of-type {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.sectionHeaderLabel {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--claude-ink);
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  letter-spacing: -0.01em;
-}
-
-.stepNum {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-pill);
-  background-color: var(--claude-surface-card);
-  color: var(--claude-coral-active);
-  border: 1px solid var(--claude-hairline);
-  font-size: 0.8rem;
-  font-weight: 700;
+.repairNavBackLink {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  gap: 0.5rem;
+  background: #ffffff;
+  color: var(--rp-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 0.95rem;
+  border-radius: var(--rp-radius-md);
+  border: 1px solid var(--rp-border);
+  box-shadow: var(--rp-shadow-sm);
+  text-decoration: none;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease;
 }
 
-.reqStar {
-  color: #dc2626;
-  font-weight: 700;
+.repairNavBackLink:hover {
+  background: var(--rp-primary-light);
+  color: var(--rp-primary-hover);
+  border-color: var(--rp-primary-border);
+  transform: translateX(-2px);
 }
 
-/* ── Step 1: Repair Type Cards (Editorial Tabs) ── */
-.repairTypeTabs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 0.95rem;
+.repairNavBackLink:focus-visible {
+  outline: 2px solid var(--rp-primary);
+  outline-offset: 2px;
 }
 
-.repairTabBtn {
-  background: var(--claude-canvas);
-  border: 1.5px solid var(--claude-hairline);
-  border-radius: var(--radius-lg);
-  padding: 1.25rem 1.2rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  cursor: pointer;
-  text-align: left;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-  color: var(--claude-body);
+.repairNavLocationBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--rp-muted);
+  background: #ffffff;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--rp-radius-pill);
+  border: 1px solid var(--rp-border);
+  box-shadow: var(--rp-shadow-sm);
+}
+
+/* ── Main Form Shell Card ── */
+.repairFormShell {
+  background: #ffffff;
+  border-radius: var(--rp-radius-2xl);
+  box-shadow: var(--rp-shadow-lg);
+  border: 1px solid var(--rp-border);
+  overflow: hidden;
+}
+
+/* ── Hero Banner Header ── */
+.repairHeroHeader {
+  background: linear-gradient(135deg, #047857 0%, #059669 55%, #065f46 100%);
+  color: #ffffff;
+  padding: 2.25rem 2.25rem;
   position: relative;
   overflow: hidden;
 }
 
-.repairTabBtn:hover {
-  background-color: var(--claude-canvas);
-  border-color: var(--claude-coral);
-}
-
-.repairTabBtn.active {
-  background: var(--claude-surface-card);
-  border-color: var(--hospital-blue);
-  color: #065f46;
-  box-shadow: none;
-}
-
-.repairTabBtn.active::before {
+.repairHeroHeader::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: var(--hospital-blue);
+  top: -40%;
+  right: -15%;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
-.repairTabBtn.active svg {
-  color: var(--hospital-blue);
-  background-color: #ecfdf5;
+.repairHeroHeader::after {
+  content: '';
+  position: absolute;
+  bottom: -35%;
+  left: 15%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.22) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
-.tabIconWrap {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-md);
-  background: var(--claude-surface-soft);
+.repairHeroInner {
+  position: relative;
+  z-index: 2;
   display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .repairHeroInner {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.repairHeroBadge {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  color: #64748b;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ecfdf5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--rp-radius-pill);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  margin-bottom: 0.5rem;
 }
 
-.tabText strong {
-  display: block;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--claude-ink);
-  letter-spacing: -0.01em;
-}
-
-.tabText span {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--claude-muted);
-  margin-top: 0.25rem;
-  line-height: 1.4;
-}
-
-/* ── Step 2: Item Category Toggles ── */
-.itemCategoryToggles {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+.repairHeroTitle {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
 @media (max-width: 640px) {
-  .itemCategoryToggles {
+  .repairHeroTitle {
+    font-size: 1.4rem;
+  }
+}
+
+.repairHeroSubtitle {
+  color: #a7f3d0;
+  font-size: 0.925rem;
+  margin-top: 0.4rem;
+  margin-bottom: 0;
+  line-height: 1.5;
+  max-width: 620px;
+  text-wrap: pretty;
+}
+
+.repairHeroDateBox {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 0.75rem 1.15rem;
+  border-radius: var(--rp-radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@media (min-width: 640px) {
+  .repairHeroDateBox {
+    align-self: center;
+    text-align: right;
+  }
+}
+
+.repairDateLabel {
+  font-size: 0.725rem;
+  color: #a7f3d0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.repairDateValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 0.15rem;
+}
+
+/* ── 2-Column Responsive Layout Grid ── */
+.repairLayoutGrid {
+  padding: 2rem 2rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+@media (min-width: 1024px) {
+  .repairLayoutGrid {
+    display: grid;
+    grid-template-columns: 1fr 370px;
+    gap: 1.75rem;
+    align-items: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .repairLayoutGrid {
+    padding: 1.25rem 1rem 1.75rem;
+    gap: 1.25rem;
+  }
+}
+
+/* ── Left Column: Primary Repair Canvas ── */
+.repairCanvasCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Right Column: Sidebar ── */
+.repairSidebarCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .repairSidebarCol {
+    position: sticky;
+    top: 1.5rem;
+  }
+}
+
+/* ── Section Card Container (Concentric 18px radius) ── */
+.repairSectionBox {
+  background: #ffffff;
+  border: 1px solid var(--rp-border);
+  border-radius: 18px;
+  padding: 1.5rem 1.65rem;
+  box-shadow: var(--rp-shadow-sm);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.repairSectionBox:focus-within {
+  border-color: var(--rp-primary);
+  box-shadow: 0 0 0 3px var(--rp-primary-ring);
+}
+
+@media (max-width: 640px) {
+  .repairSectionBox {
+    padding: 1.15rem 1rem;
+    border-radius: 14px;
+  }
+}
+
+/* ── Section Header ── */
+.repairSectionHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.repairStepBadge {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--rp-primary-light);
+  color: var(--rp-primary-dark);
+  font-size: 0.9rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rp-primary-border);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.repairSectionTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--rp-ink);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.repairSectionSubtext {
+  font-size: 0.8rem;
+  color: var(--rp-muted);
+  margin-top: 0.2rem;
+  margin-bottom: 0;
+}
+
+.reqStar {
+  color: #ef4444;
+  font-weight: 800;
+}
+
+/* ── Step 1: Repair Category Selector (Compact & Fast) ── */
+.repairSectionHeader.compact {
+  margin-bottom: 0.85rem;
+}
+
+.repairCompactGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .repairCompactGrid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+}
+
+.repairCompactCard {
+  border: 1.5px solid var(--rp-border);
+  border-radius: var(--rp-radius-md);
+  background: #ffffff;
+  padding: 0.75rem 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+
+.repairCompactCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--rp-border-strong);
+  box-shadow: var(--rp-shadow-sm);
+}
+
+.repairCompactCard:focus-visible {
+  outline: 2px solid var(--rp-primary);
+  outline-offset: 2px;
+}
+
+.repairCompactCard:active {
+  transform: scale(0.97);
+}
+
+/* Category Selected State Styles */
+.repairCompactCard.it.isSelected {
+  border-color: #0284c7;
+  background-color: #f0f9ff;
+  box-shadow: 0 0 0 1.5px #0284c7, 0 4px 12px rgba(2, 132, 199, 0.12);
+}
+
+.repairCompactCard.general.isSelected {
+  border-color: #d97706;
+  background-color: #fffbeb;
+  box-shadow: 0 0 0 1.5px #d97706, 0 4px 12px rgba(217, 119, 6, 0.12);
+}
+
+.repairCompactCard.medical.isSelected {
+  border-color: #e11d48;
+  background-color: #fff1f2;
+  box-shadow: 0 0 0 1.5px #e11d48, 0 4px 12px rgba(225, 29, 72, 0.12);
+}
+
+/* Icon Box inside Compact Card */
+.repairCompactIconBox {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.repairCompactIconBox.it { color: #0284c7; background: #e0f2fe; }
+.repairCompactIconBox.general { color: #d97706; background: #fef3c7; }
+.repairCompactIconBox.medical { color: #e11d48; background: #ffe4e6; }
+
+.repairCompactCard.it.isSelected .repairCompactIconBox {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.repairCompactCard.general.isSelected .repairCompactIconBox {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.repairCompactCard.medical.isSelected .repairCompactIconBox {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+/* Typography inside Compact Card */
+.repairCompactBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.repairCompactTitle {
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: var(--rp-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.repairCompactSubtitle {
+  font-size: 0.725rem;
+  color: var(--rp-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.repairCompactCard.it.isSelected .repairCompactSubtitle {
+  color: #0369a1;
+}
+
+.repairCompactCard.general.isSelected .repairCompactSubtitle {
+  color: #92400e;
+}
+
+.repairCompactCard.medical.isSelected .repairCompactSubtitle {
+  color: #9f1239;
+}
+
+.repairCompactCheckBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.repairCompactCard.it .repairCompactCheckBadge {
+  background: #0284c7;
+}
+
+.repairCompactCard.general .repairCompactCheckBadge {
+  background: #d97706;
+}
+
+.repairCompactCard.medical .repairCompactCheckBadge {
+  background: #e11d48;
+}
+
+/* ── Step 2: Item Category Switcher ── */
+.itemCategorySwitcher {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .itemCategorySwitcher {
     grid-template-columns: 1fr;
   }
 }
 
-.categoryRadioCard {
-  border: 1.5px solid var(--claude-hairline);
-  background-color: var(--claude-canvas);
-  border-radius: var(--radius-lg);
-  padding: 1.15rem 1.25rem;
+.categorySwitchCard {
+  border: 1.5px solid var(--rp-border);
+  background-color: #ffffff;
+  border-radius: var(--rp-radius-md);
+  padding: 1rem 1.15rem;
   display: flex;
   align-items: flex-start;
   gap: 0.85rem;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-  position: relative;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
 }
 
-.categoryRadioCard:hover {
-  background-color: var(--claude-canvas);
-  border-color: var(--claude-coral);
+.categorySwitchCard:hover {
+  border-color: var(--rp-primary);
+  transform: translateY(-1px);
 }
 
-.categoryRadioCard.selected {
-  background-color: var(--claude-surface-card);
-  border-color: var(--hospital-emerald);
-  box-shadow: none;
+.categorySwitchCard:focus-visible {
+  outline: 2px solid var(--rp-primary);
+  outline-offset: 2px;
 }
 
-.categoryRadioCard.selected svg {
-  color: var(--hospital-emerald);
+.categorySwitchCard:active {
+  transform: scale(0.96);
 }
 
-.categoryRadioCard input {
-  margin-top: 0.25rem;
-  accent-color: var(--hospital-emerald);
-  cursor: pointer;
-  width: 16px;
-  height: 16px;
+.categorySwitchCard.selected {
+  background-color: var(--rp-primary-light);
+  border-color: var(--rp-primary);
+  box-shadow: 0 0 0 2px var(--rp-primary-ring);
 }
 
-.categoryRadioCard strong {
+.categorySwitchIcon {
+  color: var(--rp-muted);
+  margin-top: 0.1rem;
+}
+
+.categorySwitchCard.selected .categorySwitchIcon {
+  color: var(--rp-primary);
+}
+
+.categorySwitchText strong {
   display: block;
-  font-size: 0.925rem;
-  font-weight: 600;
-  color: var(--claude-ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--rp-ink);
 }
 
-.categoryRadioCard span {
+.categorySwitchText span {
   display: block;
-  font-size: 0.8rem;
-  color: var(--claude-muted);
-  margin-top: 0.25rem;
+  font-size: 0.775rem;
+  color: var(--rp-muted);
+  margin-top: 0.2rem;
   line-height: 1.4;
 }
 
@@ -346,6 +602,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.15rem;
+  margin-top: 1rem;
 }
 
 @media (max-width: 640px) {
@@ -357,552 +614,139 @@
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 
-.formGroup label {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--claude-body);
+.formLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--rp-body);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-.repairInput, 
-.repairSelect, 
-.repairTextarea {
+.formInput, .formTextarea, .formSelect {
   width: 100%;
+  font-size: 1rem; /* 16px prevents iOS Safari auto zoom */
+  line-height: 1.5;
+  color: var(--rp-ink);
+  background-color: #ffffff;
+  border: 1.5px solid var(--rp-border-strong);
+  border-radius: var(--rp-radius-md);
   padding: 0.75rem 1rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--claude-hairline);
-  background-color: var(--claude-canvas);
-  font-size: 0.925rem;
-  color: var(--claude-ink);
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  box-sizing: border-box;
+  transition: all 0.15s ease;
   font-family: inherit;
 }
 
-.repairInput:hover, 
-.repairSelect:hover, 
-.repairTextarea:hover {
-  border-color: var(--claude-muted-soft);
+.formInput:focus, .formTextarea:focus, .formSelect:focus {
+  outline: none;
+  border-color: var(--rp-primary);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px var(--rp-primary-ring);
 }
 
-.repairInput:focus, 
-.repairSelect:focus, 
-.repairTextarea:focus {
-  border-color: var(--hospital-blue);
-  background-color: var(--claude-canvas);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+.formInput:focus-visible, .formTextarea:focus-visible, .formSelect:focus-visible {
+  outline: none;
+  border-color: var(--rp-primary);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px var(--rp-primary-ring);
 }
 
-.repairInput.withIcon {
-  padding-left: 2.75rem;
+.formInput::placeholder, .formTextarea::placeholder {
+  color: var(--rp-muted-light);
 }
 
-/* ── Location Search Component ── */
-.locationSearchInputWrap {
+.formTextarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.inputWithIconWrap {
   position: relative;
+  width: 100%;
 }
 
-.locationSearchInputWrap .locIcon {
+.inputLeadingIcon {
   position: absolute;
-  left: 1rem;
+  left: 0.85rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--claude-muted);
+  width: 1.1rem;
+  height: 1.1rem;
+  color: var(--rp-muted-light);
   pointer-events: none;
 }
 
-.clearLocBtn {
+.inputWithLeadingIcon {
+  padding-left: 2.45rem !important;
+}
+
+.inputTrailingSpinner {
   position: absolute;
   right: 0.85rem;
   top: 50%;
   transform: translateY(-50%);
-  border: none;
-  background: var(--claude-surface-card);
-  color: var(--claude-body);
-  border-radius: var(--radius-pill);
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s;
 }
 
-.clearLocBtn:hover {
-  background: var(--claude-surface-soft);
-  color: var(--claude-ink);
-}
-
-.locDropdownMenu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  background: var(--claude-canvas);
-  border: 1px solid var(--claude-hairline);
-  border-radius: var(--radius-lg);
-  max-height: 280px;
-  overflow-y: auto;
-  box-shadow: 0 8px 20px rgba(20, 20, 19, 0.08);
-  z-index: 50;
-}
-
-.locDropdownItem {
-  padding: 0.85rem 1.15rem;
-  border-bottom: 1px solid var(--claude-hairline-soft);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.locDropdownItem:last-child {
-  border-bottom: none;
-}
-
-.locDropdownItem:hover {
-  background-color: var(--claude-canvas);
-}
-
-.locItemMain strong {
-  display: block;
-  font-size: 0.925rem;
-  font-weight: 600;
-  color: var(--claude-ink);
-}
-
-.locItemSub {
-  font-size: 0.8rem;
-  color: var(--claude-muted);
-  margin-top: 0.15rem;
-}
-
-.locBadge {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.charCounter {
   font-size: 0.75rem;
-  background: var(--claude-surface-card);
-  color: var(--claude-body);
-  padding: 0.2rem 0.55rem;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
+  color: var(--rp-muted-light);
 }
 
-.dropdownNotice {
-  padding: 1.25rem;
-  text-align: center;
-  color: var(--claude-muted);
-  font-size: 0.875rem;
-}
-
-/* ── Urgency Selector ── */
-.urgencyOptions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 0.85rem;
-}
-
-.urgencyRadio {
-  border: 1px solid var(--claude-hairline);
-  background-color: var(--claude-canvas);
-  border-radius: var(--radius-md);
-  padding: 0.85rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-  color: var(--claude-body);
-}
-
-.urgencyRadio:hover {
-  background-color: var(--claude-canvas);
-  border-color: var(--claude-muted-soft);
-}
-
-.urgencyRadio input {
-  accent-color: var(--hospital-emerald);
-  cursor: pointer;
-  width: 16px;
-  height: 16px;
-}
-
-.urgencyRadio.selected {
-  background-color: #f0fdf4;
-  border-color: var(--hospital-emerald);
-  color: #065f46;
-  font-weight: 600;
-}
-
-.urgencyRadio.selected.urgent {
-  background-color: #fff7ed;
-  border-color: #ea580c;
-  color: #9a3412;
-  font-weight: 600;
-}
-
-.urgencyRadio.selected.urgent input {
-  accent-color: #ea580c;
-}
-
-.urgencyRadio.selected.veryUrgent {
-  background-color: #fef2f2;
-  border-color: #dc2626;
-  color: #991b1b;
-  font-weight: 600;
-}
-
-.urgencyRadio.selected.veryUrgent input {
-  accent-color: #dc2626;
-}
-
-/* ── Step 5: Technician Mode Selection ── */
-.technicianModeCard {
-  border: 1.5px solid var(--claude-hairline);
-  background-color: var(--claude-canvas);
-  border-radius: var(--radius-lg);
-  padding: 1.1rem 1.25rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.85rem;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.technicianModeCard:hover {
-  background-color: var(--claude-canvas);
-  border-color: var(--claude-coral);
-}
-
-.technicianModeCard.selected {
-  background-color: var(--claude-surface-card);
-  border-color: var(--hospital-blue);
-  box-shadow: none;
-}
-
-.technicianModeCard input {
-  margin-top: 0.25rem;
-  accent-color: var(--hospital-blue);
-  cursor: pointer;
-  width: 16px;
-  height: 16px;
-}
-
-.technicianModeCard strong {
-  display: block;
-  font-size: 0.925rem;
-  font-weight: 600;
-  color: var(--claude-ink);
-}
-
-.technicianModeCard span {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--claude-muted);
-  margin-top: 0.25rem;
-  line-height: 1.4;
-}
-
-/* ── Photo Upload Zone ── */
-.photoUploadContainer {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.photoThumbWrap {
-  position: relative;
-  width: 96px;
-  height: 96px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--claude-hairline);
-  box-shadow: none;
-}
-
-.photoThumbImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.2s;
-}
-
-.photoThumbWrap:hover .photoThumbImg {
-  transform: scale(1.05);
-}
-
-.photoDeleteBtn {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  background-color: rgba(20, 20, 19, 0.75);
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-pill);
-  width: 22px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  backdrop-filter: blur(4px);
-}
-
-.photoDeleteBtn:hover {
-  background-color: #dc2626;
-}
-
-.photoUploadBox {
-  width: 140px;
-  height: 96px;
-  border: 1.5px dashed var(--claude-muted-soft);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  cursor: pointer;
-  background-color: var(--claude-canvas);
-  color: var(--claude-muted);
-  font-size: 0.775rem;
-  font-weight: 500;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.photoUploadBox:hover {
-  background-color: var(--claude-canvas);
-  border-color: var(--hospital-blue);
-  color: var(--hospital-blue);
-}
-
-/* ── Reporter Info Meta Band ── */
-.reporterInfoBox {
-  background-color: var(--claude-canvas);
-  border: 1px solid var(--claude-hairline-warm);
-  border-radius: var(--radius-lg);
-  padding: 1.15rem 1.5rem;
-  display: flex;
-  gap: 2.5rem;
-  flex-wrap: wrap;
-}
-
-.reporterMeta {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 0.875rem;
-  color: var(--claude-body);
-}
-
-.reporterMeta svg {
-  color: var(--claude-coral);
-}
-
-.reporterMeta strong {
-  color: var(--claude-ink);
-  font-weight: 600;
-}
-
-/* ── Form Actions ── */
-.formActionRow {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-}
-
-.repairCancelBtn {
-  padding: 0.75rem 1.6rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--claude-hairline);
-  background: var(--claude-canvas);
-  color: var(--claude-body);
-  font-size: 0.925rem;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.repairCancelBtn:hover {
-  background-color: var(--claude-canvas);
-  color: var(--claude-ink);
-  border-color: var(--claude-coral);
-}
-
-.submitRepairBtn {
-  background: var(--hospital-blue);
-  color: #ffffff;
-  padding: 0.75rem 2rem;
-  border-radius: var(--radius-md);
-  border: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  box-shadow: none;
-  transition: background-color 0.15s ease;
-  letter-spacing: 0;
-}
-
-.submitRepairBtn:hover:not(:disabled) {
-  background: var(--hospital-blue-dark);
-  box-shadow: none;
-}
-
-.submitRepairBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* ── Success Screen (Editorial Card) ── */
-.repairSuccessCard {
-  background: var(--claude-canvas);
-  border-radius: var(--radius-lg);
-  padding: 4rem 2.5rem;
-  border: 1px solid var(--claude-hairline);
-  text-align: center;
-  box-shadow: none;
-}
-
-.repairSuccessIcon {
-  width: 84px;
-  height: 84px;
-  border-radius: var(--radius-pill);
-  background-color: #ecfdf5;
-  color: var(--hospital-emerald);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.75rem;
-  border: 1px solid #a7f3d0;
-}
-
-.repairSuccessCard h2 {
-  font-size: 1.85rem;
-  font-weight: 700;
-  color: var(--claude-ink);
-  letter-spacing: -0.02em;
-  margin-bottom: 0.6rem;
-}
-
-.repairSuccessCard p {
-  color: var(--claude-muted);
-  max-width: 520px;
-  margin: 0 auto 1.75rem;
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.repairTicketBox {
-  background-color: var(--claude-canvas);
-  border: 1.5px dashed var(--claude-hairline-warm);
-  padding: 1.25rem 2.5rem;
-  border-radius: var(--radius-lg);
-  display: inline-block;
-}
-
-.ticketLabel {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--claude-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
-}
-
-.ticketNo {
-  display: block;
-  font-size: 1.85rem;
-  font-weight: 800;
-  color: var(--hospital-blue);
-  letter-spacing: 0.05em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-/* ── 3 Columns Layout for Building/Floor/Room ── */
-.grid3Cols {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-
-@media (max-width: 768px) {
-  .grid3Cols {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ── Asset Suggestion Autocomplete Dropdown ── */
+/* ── Asset Suggestion Dropdown ── */
 .assetSuggestionDropdown {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  z-index: 50;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border-radius: var(--rp-radius-lg);
+  border: 1.5px solid var(--rp-primary);
+  box-shadow: var(--rp-shadow-lg);
   max-height: 280px;
   overflow-y: auto;
+  z-index: 50;
+  padding: 0.4rem;
 }
 
 .assetSuggestionHeader {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.85rem;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  gap: 0.4rem;
   font-size: 0.75rem;
-  font-weight: 600;
-  color: #64748b;
+  font-weight: 700;
+  color: var(--rp-muted);
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--rp-border);
 }
 
 .assetSuggestionItem {
-  padding: 0.75rem 0.95rem;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--rp-radius-sm);
   cursor: pointer;
   transition: background-color 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.assetSuggestionItem:last-child {
-  border-bottom: none;
-}
-
-.assetSuggestionItem:hover {
-  background-color: #f0fdf4;
+.assetSuggestionItem:hover, .assetSuggestionItem:focus-visible {
+  background-color: var(--rp-primary-light);
+  outline: none;
 }
 
 .assetItemTop {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem;
+  justify-content: space-between;
 }
 
 .assetArtNum {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: 'JetBrains Mono', monospace, ui-monospace;
+  font-size: 0.825rem;
   font-weight: 700;
-  font-size: 0.85rem;
-  color: #059669;
+  color: var(--rp-primary-dark);
 }
 
 .warrantyPill {
@@ -910,167 +754,697 @@
   align-items: center;
   gap: 0.25rem;
   font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-pill);
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--rp-radius-pill);
 }
 
 .warrantyPill.active {
   background: #ecfdf5;
-  color: #059669;
+  color: #065f46;
   border: 1px solid #a7f3d0;
 }
 
 .warrantyPill.expired {
   background: #fef2f2;
-  color: #dc2626;
+  color: #991b1b;
   border: 1px solid #fecaca;
 }
 
 .assetItemName {
   font-size: 0.85rem;
-  color: #1e293b;
-  line-height: 1.4;
-}
-
-.assetItemName strong {
-  font-weight: 600;
-}
-
-.assetItemName span {
-  color: #64748b;
-  font-weight: 400;
+  color: var(--rp-ink);
 }
 
 .assetItemLoc {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 0.3rem;
+  color: var(--rp-muted);
 }
 
-/* ── Warranty Card Display ── */
+/* ── Warranty Card Container ── */
 .warrantyCardContainer {
-  margin-top: 1rem;
-  padding: 1rem 1.25rem;
-  border-radius: var(--radius-lg);
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  border: 1.5px solid #e2e8f0;
-  transition: all 0.2s ease;
+  gap: 0.85rem;
+  border-radius: var(--rp-radius-md);
+  padding: 0.95rem 1.15rem;
+  margin-top: 0.85rem;
 }
 
 .warrantyCardContainer.active {
-  background: #f0fdf4;
-  border-color: #86efac;
+  background-color: #ecfdf5;
+  border: 1.5px solid #a7f3d0;
 }
 
 .warrantyCardContainer.expired {
-  background: #fff1f2;
-  border-color: #fecdd3;
+  background-color: #fef2f2;
+  border: 1.5px solid #fecaca;
 }
 
 .warrantyCardContainer.unknown {
-  background: #f8fafc;
-  border-color: #e2e8f0;
+  background-color: #f8fafc;
+  border: 1.5px solid var(--rp-border);
 }
 
 .warrantyIconWrap {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.warrantyCardBody {
-  flex: 1;
+  margin-top: 0.1rem;
 }
 
 .warrantyCardTitle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.65rem;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.35rem;
 }
 
 .warrantyCardTitle strong {
-  font-size: 0.95rem;
-  color: #1e293b;
-}
-
-.warrantyCardContainer.active .warrantyCardTitle strong {
-  color: #065f46;
-}
-
-.warrantyCardContainer.expired .warrantyCardTitle strong {
-  color: #9f1239;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--rp-ink);
 }
 
 .warrantyDateBadge {
   font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.2rem 0.65rem;
-  border-radius: var(--radius-pill);
+  font-weight: 700;
+  color: var(--rp-primary-dark);
   background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  color: #334155;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--rp-radius-pill);
+  border: 1px solid var(--rp-primary-border);
 }
 
 .warrantyCardDesc {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #475569;
-  line-height: 1.5;
+  font-size: 0.8rem;
+  color: var(--rp-body);
+  margin-top: 0.25rem;
+  margin-bottom: 0;
+  line-height: 1.45;
 }
 
-/* ── Specific Location Note ── */
+/* ── Quick Tags Bar & Description Helper ── */
+.quickTagsBar, .descHelperBar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.45rem;
+}
+
+.quickTagsLabel, .descHelperLabel {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--rp-muted);
+}
+
+.quickTagBtn, .descHelperBtn {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--rp-body);
+  background: #f1f5f9;
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius-pill);
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quickTagBtn:hover, .descHelperBtn:hover {
+  background-color: var(--rp-primary-light);
+  color: var(--rp-primary-dark);
+  border-color: var(--rp-primary-border);
+}
+
+.quickTagBtn:active, .descHelperBtn:active {
+  transform: scale(0.96);
+}
+
+/* ── Photo Upload Container ── */
+.photoUploadContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.photoThumbWrap {
+  width: 90px;
+  height: 90px;
+  border-radius: var(--rp-radius-md);
+  border: 1px solid var(--rp-border);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--rp-shadow-sm);
+}
+
+.photoThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photoDeleteBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.photoDeleteBtn:hover {
+  background: #ef4444;
+}
+
+.photoUploadBox {
+  width: 120px;
+  height: 90px;
+  border: 2px dashed var(--rp-border-strong);
+  border-radius: var(--rp-radius-md);
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-align: center;
+  padding: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.photoUploadBox:hover {
+  border-color: var(--rp-primary);
+  background-color: var(--rp-primary-light);
+}
+
+.photoUploadBox.isDragging {
+  border-color: var(--rp-primary);
+  background-color: #ecfdf5;
+  transform: scale(1.02);
+}
+
+.photoUploadTitle {
+  font-size: 0.725rem;
+  font-weight: 700;
+  color: var(--rp-ink);
+  margin-top: 0.25rem;
+}
+
+.photoUploadSub {
+  font-size: 0.675rem;
+  color: var(--rp-muted);
+}
+
+/* ── Sidebar Box Containers ── */
+.sidebarBox {
+  background: #ffffff;
+  border: 1px solid var(--rp-border);
+  border-radius: 16px;
+  padding: 1.25rem 1.35rem;
+  box-shadow: var(--rp-shadow-sm);
+}
+
+.sidebarBoxHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.sidebarBoxTitle {
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: var(--rp-ink);
+  margin: 0;
+}
+
+.locationCascadeWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
 .specificLocationSection {
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
-  border-top: 1px dashed #e2e8f0;
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--rp-border);
 }
 
 .specificLocationToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--rp-body);
+  cursor: pointer;
+}
+
+.specificLocationToggle input {
+  accent-color: var(--rp-primary);
+}
+
+/* ── Urgency Selector Cards Grid ── */
+.urgencyCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.urgencyCard {
+  border: 1.5px solid var(--rp-border);
+  border-radius: var(--rp-radius-md);
+  background: #ffffff;
+  padding: 0.65rem 0.4rem;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.urgencyCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--rp-border-strong);
+  box-shadow: var(--rp-shadow-sm);
+}
+
+.urgencyCard:focus-visible {
+  outline: 2px solid var(--rp-primary);
+  outline-offset: 2px;
+}
+
+.urgencyCard:active {
+  transform: scale(0.96);
+}
+
+.urgencyCard.normal.active {
+  border-color: #10b981;
+  background-color: #ecfdf5;
+  color: #065f46;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.urgencyCard.urgent.active {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
+  color: #92400e;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.urgencyCard.veryUrgent.active {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+  color: #991b1b;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.urgencyCardIcon {
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 0.1rem;
+}
+
+.urgencyCardTitle {
+  font-size: 0.825rem;
+  font-weight: 700;
+  display: block;
+}
+
+.urgencyCardSub {
+  font-size: 0.675rem;
+  color: var(--rp-muted);
+  margin-top: 0.1rem;
+  display: block;
+}
+
+.urgencyNoticeBadge {
+  display: flex;
+  align-items: flex-start;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #b45309;
+  background-color: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: var(--rp-radius-sm);
+  padding: 0.35rem 0.55rem;
+  margin-top: 0.4rem;
+  line-height: 1.4;
+}
+
+/* ── Requester Profile Mini Card ── */
+.requesterProfileCard {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius-md);
+  padding: 0.65rem 0.85rem;
+}
+
+.requesterAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #059669 0%, #065f46 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.requesterDetails {
+  overflow: hidden;
+}
+
+.requesterName {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--rp-ink);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.requesterDept {
+  font-size: 0.75rem;
+  color: var(--rp-muted);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Submission Checklist & Action Box ── */
+.submissionBox {
+  background: #fafbfc;
+  border: 1.5px solid var(--rp-primary-border);
+}
+
+.checklistTitle {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--rp-ink);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.checklistItems {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--rp-muted);
+  transition: color 0.15s ease;
+}
+
+.checklistItem.isValid {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.checkIcon {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.checklistItem.isValid .checkIcon {
+  color: #10b981;
+}
+
+.sidebarActionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btnSubmitPrimary {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff !important;
+  font-size: 0.925rem;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--rp-radius-md);
+  cursor: pointer;
+  box-shadow: var(--rp-shadow-glow);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.btnSubmitPrimary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #047857 0%, #064e3b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -4px rgba(5, 150, 105, 0.4);
+}
+
+.btnSubmitPrimary:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btnSubmitPrimary:focus-visible {
+  outline: 2px solid var(--rp-primary-dark);
+  outline-offset: 2px;
+}
+
+.btnSubmitPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnCancelSecondary {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--rp-muted);
+  background: #ffffff;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.btnCancelSecondary:hover {
+  background-color: #f1f5f9;
+  color: var(--rp-ink);
+}
+
+.btnCancelSecondary:active {
+  transform: scale(0.96);
+}
+
+.btnCancelSecondary:focus-visible {
+  outline: 2px solid var(--rp-primary);
+  outline-offset: 2px;
+}
+
+/* ── Error Banner ── */
+.repairAlert {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  border-radius: 0 var(--rp-radius-md) var(--rp-radius-md) 0;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 2rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.repairAlertText {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #991b1b;
+  line-height: 1.5;
+}
+
+/* ── Success Screen ── */
+.repairSuccessCard {
+  background: #ffffff;
+  border-radius: var(--rp-radius-2xl);
+  max-width: 520px;
+  margin: 2rem auto;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  box-shadow: var(--rp-shadow-lg);
+  border: 1px solid var(--rp-border);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.repairSuccessIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+  box-shadow: 0 0 0 10px #f0fdf4;
+}
+
+.repairSuccessTitle {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--rp-ink);
+  letter-spacing: -0.01em;
+}
+
+.repairSuccessDesc {
+  font-size: 0.9rem;
+  color: var(--rp-muted);
+  margin-top: 0.4rem;
+  line-height: 1.5;
+}
+
+.repairTicketBox {
+  background: #f8fafc;
+  border: 1px solid var(--rp-border);
+  border-radius: var(--rp-radius-lg);
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.ticketLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--rp-muted);
+  text-transform: uppercase;
+  display: block;
+}
+
+.ticketNo {
+  font-family: 'JetBrains Mono', monospace, ui-monospace;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--rp-primary-dark);
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.repairSuccessActions {
+  display: flex;
+  flex-direction: column;
   gap: 0.6rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #475569;
-  cursor: pointer;
-  user-select: none;
 }
 
-.specificLocationToggle input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #059669;
-  cursor: pointer;
+.btnSuccessPrimary {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  background: var(--rp-primary);
+  color: #ffffff !important;
+  font-size: 0.925rem;
+  font-weight: 700;
+  border-radius: var(--rp-radius-md);
+  text-decoration: none;
+  transition: all 0.15s ease;
 }
 
-@media (max-width: 720px) {
-  .repairHeaderCard { align-items: flex-start; padding: 1.25rem; }
-  .repairHeaderLeft { align-items: flex-start; gap: 0.85rem; }
-  .repairBadgeIcon { width: 46px; height: 46px; }
-  .repairHeaderLeft h1 { font-size: 1.4rem; }
-  .repairBackBtn { width: 100%; justify-content: center; }
-  .repairFormCard { padding: 1.25rem; gap: 1.5rem; }
-  .repairSection { padding-bottom: 1.5rem; }
-  .repairTypeTabs { grid-template-columns: 1fr; }
-  .repairTabBtn { min-height: 84px; }
-  .urgencyOptions { grid-template-columns: 1fr; }
-  .formActionRow { flex-direction: column-reverse; }
-  .repairCancelBtn, .submitRepairBtn { min-height: 46px; width: 100%; }
-  .reporterInfoBox { gap: 0.85rem; padding: 1rem; }
-  .repairSuccessCard { padding: 2.5rem 1.25rem; }
+.btnSuccessPrimary:hover {
+  background: var(--rp-primary-hover);
+}
+
+.btnSuccessPrimary:active {
+  transform: scale(0.96);
+}
+
+.btnSuccessPrimary:focus-visible {
+  outline: 2px solid var(--rp-primary-dark);
+  outline-offset: 2px;
+}
+
+.btnSuccessSecondary {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  color: var(--rp-body);
+  border: 1px solid var(--rp-border);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--rp-radius-md);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.btnSuccessSecondary:hover {
+  background: #f8fafc;
+  color: var(--rp-ink);
+}
+
+.btnSuccessSecondary:active {
+  transform: scale(0.96);
+}
+
+.btnSuccessSecondary:focus-visible {
+  outline: 2px solid var(--rp-primary);
+  outline-offset: 2px;
+}
+
+/* ── Keyframe Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Accessibility: Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .repairTabCard:hover,
+  .categorySwitchCard:hover,
+  .urgencyCard:hover,
+  .btnSubmitPrimary:hover:not(:disabled),
+  .repairNavBackLink:hover {
+    transform: none !important;
+  }
 }

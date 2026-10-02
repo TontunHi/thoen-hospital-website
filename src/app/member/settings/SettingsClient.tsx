@@ -44,6 +44,7 @@ import {
   ListFilter
 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 
 interface SettingsClientProps {
   initialSettings: Record<string, string>
@@ -299,7 +300,7 @@ const PERMISSIONS_METADATA: Record<string, PermissionMetaItem> = {
 }
 
 const CATEGORY_TABS: { id: PermCategory; label: string; icon: any }[] = [
-  { id: 'all', label: 'ทั้งหมด', icon: Layers },
+  { id: 'all', label: 'ทั้งหมด (All)', icon: Layers },
   { id: 'repairs', label: 'งานซ่อมบำรุง & ช่าง', icon: Wrench },
   { id: 'media', label: 'สื่อ & ประชาสัมพันธ์', icon: Palette },
   { id: 'facility', label: 'พัสดุ & สถานที่', icon: Package },
@@ -363,12 +364,16 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [deletePermTarget, setDeletePermTarget] = useState<{ permKey: string; positionName: string } | null>(null)
   const [isDeletingPerm, setIsDeletingPerm] = useState(false)
 
-  // Alert Toasts
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  // Toasts
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
 
-  const notify = (text: string, type: 'success' | 'error' = 'success') => {
-    setMessage({ text, type })
-    setTimeout(() => setMessage(null), 4000)
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
   const fetchPermissions = async () => {
@@ -426,9 +431,9 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         featureRepair,
         featureMediaRequest,
       })
-      notify('บันทึกการตั้งค่าสิทธิ์เข้าใช้งานระบบเรียบร้อยแล้ว')
+      addToast('บันทึกการตั้งค่าสิทธิ์เข้าใช้งานระบบเรียบร้อยแล้ว', 'success')
     } catch (err: any) {
-      notify(err.message, 'error')
+      addToast(err.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error')
     } finally {
       setIsSavingSettings(false)
     }
@@ -438,7 +443,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     e.preventDefault()
     const position = isCustomMode ? customPosition.trim() : newPosition
     if (!position) {
-      notify('กรุณาระบุหรือเลือกตำแหน่งงาน', 'error')
+      addToast('กรุณาระบุหรือเลือกตำแหน่งงาน', 'error')
       return
     }
 
@@ -455,11 +460,11 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด')
       
-      notify(`มอบสิทธิ์ให้ตำแหน่ง "${position}" สำเร็จแล้ว`)
+      addToast(`มอบสิทธิ์ให้ตำแหน่ง "${position}" สำเร็จแล้ว`, 'success')
       if (isCustomMode) setCustomPosition('')
       fetchPermissions()
     } catch (err: any) {
-      notify(err.message, 'error')
+      addToast(err.message || 'เกิดข้อผิดพลาด', 'error')
     } finally {
       setIsAddingPerm(false)
     }
@@ -476,10 +481,10 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด')
-      notify(`ลบสิทธิ์ของตำแหน่ง "${positionName}" เรียบร้อยแล้ว`)
+      addToast(`ลบสิทธิ์ของตำแหน่ง "${positionName}" เรียบร้อยแล้ว`, 'success')
       fetchPermissions()
     } catch (err: any) {
-      notify(err.message, 'error')
+      addToast(err.message || 'เกิดข้อผิดพลาด', 'error')
     } finally {
       setIsDeletingPerm(false)
       setDeletePermTarget(null)
@@ -570,51 +575,10 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
 
   return (
     <div className="settingsClientModern">
-      {/* Top Header Navigation */}
-      <div className="modernHeaderNav">
-        <div className="navBreadcrumb">
-          <Link href="/member" className="backToDashboardBtn">
-            <ArrowLeft size={16} />
-            <span>กลับหน้าหลักสมาชิก</span>
-          </Link>
-          <span className="navDivider">/</span>
-          <span className="navCurrent">ตั้งค่าระบบ</span>
-        </div>
-
-        <div className="headerBadgesGroup">
-          <span className="adminSecurityBadge">
-            <Shield size={14} className="shieldIcon" />
-            <span>สิทธิ์ผู้ดูแลระบบ (Admin)</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Floating Action Notifications */}
-      {message && (
-        <div className={`floatingToastNotification ${message.type} animate-slideDown`}>
-          <div className="toastIconCircle">
-            {message.type === 'success' ? (
-              <CheckCircle2 size={18} />
-            ) : (
-              <AlertCircle size={18} />
-            )}
-          </div>
-          <div className="toastText">{message.text}</div>
-          <button 
-            type="button" 
-            onClick={() => setMessage(null)} 
-            className="toastCloseBtn"
-            aria-label="ปิดการแจ้งเตือน"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
       {/* Overview Stat Cards */}
-      <div className="overviewStatsGrid">
+      <section className="overviewStatsGrid" aria-label="สรุปภาพรวมการตั้งค่า">
         <div className="statCard">
-          <div className="statIconCircle" style={{ background: '#f0fdfa', color: '#0d9488' }}>
+          <div className="statIconCircle statIconTeal">
             <SlidersHorizontal size={20} />
           </div>
           <div className="statInfo">
@@ -627,7 +591,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         </div>
 
         <div className="statCard">
-          <div className="statIconCircle" style={{ background: '#eff6ff', color: '#2563eb' }}>
+          <div className="statIconCircle statIconBlue">
             <Users size={20} />
           </div>
           <div className="statInfo">
@@ -640,21 +604,21 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         </div>
 
         <div className="statCard">
-          <div className="statIconCircle" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
+          <div className="statIconCircle statIconPurple">
             <Layers size={20} />
           </div>
           <div className="statInfo">
             <span className="statLabel">กฎสิทธิ์ในระบบ</span>
             <div className="statValueRow">
               <span className="statNumber">{permissions.length}</span>
-              <span className="statTotal">การจับคู่</span>
+              <span className="statTotal">การจับคู่สิทธิ์</span>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Main Tab Navigation */}
-      <div className="modernTabsContainer">
+      <nav className="modernTabsContainer" aria-label="แถบเมนูการตั้งค่า">
         <div className="tabPillsGroup">
           <button
             type="button"
@@ -676,7 +640,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
             <span className="tabCountBadge">{permissions.length}</span>
           </button>
         </div>
-      </div>
+      </nav>
 
       {/* ======================================================== */}
       {/* TAB 1: FEATURE TOGGLES                                  */}
@@ -1355,6 +1319,8 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         onConfirm={handleConfirmDeletePermission}
         onCancel={() => setDeletePermTarget(null)}
       />
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   )
 }

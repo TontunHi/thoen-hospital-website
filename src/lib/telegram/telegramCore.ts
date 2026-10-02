@@ -407,9 +407,9 @@ async function completeRepairTaskHelper(params: {
   // 4. Update Original Message in Telegram Group / Chat
   if (chatId && originalMessageId) {
     const lines: string[] = [
-      `✅ <b>งานแจ้งซ่อมนี้ดำเนินการเสร็จสิ้นแล้ว</b>`,
+      `🎉 <b>งานแจ้งซ่อมนี้ดำเนินการเสร็จสิ้นแล้ว</b>`,
       `🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>`,
-      `📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}`,
+      `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(task.title)}</b>`,
     ]
     if (repair?.equipment_number) {
       lines.push(`🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(repair.equipment_number)}</code>`)
@@ -418,18 +418,18 @@ async function completeRepairTaskHelper(params: {
       lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}`)
     }
     lines.push(`👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(task.requester_name)}${task.requester_dept ? ` (${escapeHtml(task.requester_dept)})` : ''}`)
-    lines.push(`👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> ${escapeHtml(memberName)}`)
-    lines.push(`📝 <b>ผลการซ่อม/การแก้ไข :</b> ${escapeHtml(solutionStep)}`)
-    lines.push(`📍 <b>สถานะปัจจุบัน :</b> ✓ เสร็จสิ้นสมบูรณ์ (COMPLETED)`)
+    lines.push(`👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> <b>${escapeHtml(memberName)}</b>`)
+    lines.push(`📝 <b>ผลการซ่อม / การแก้ไข :</b>\n<i>${escapeHtml(solutionStep)}</i>`)
+    lines.push(`📍 <b>สถานะปัจจุบัน :</b> ✅ เสร็จสิ้นสมบูรณ์ (COMPLETED)`)
     lines.push(`⏰ <b>เวลาปิดงาน :</b> ${thaiDate} น.`)
 
-    const completedGroupMsg = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ระบบได้บันทึกข้อมูลและส่งแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
+    const completedGroupMsg = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ระบบได้บันทึกข้อมูลเข้าสู่ฐานข้อมูลและส่งแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
 
     await editTelegramMessageText(chatId, originalMessageId, completedGroupMsg, {
       inline_keyboard: [
         [
           {
-            text: '📋 เปิดดูรายละเอียดบนเว็บไซต์',
+            text: '📋 ดูรายละเอียดบนเว็บไซต์ ↗',
             url: taskLink,
           },
         ],
@@ -452,22 +452,22 @@ async function completeRepairTaskHelper(params: {
           : 'ไม่มีค่าใช้จ่าย'
 
         const lines: string[] = [
-          `✅ <b>งานแจ้งซ่อมของคุณดำเนินการเสร็จสิ้นแล้ว</b>`,
+          `🎉 <b>งานแจ้งซ่อมของคุณดำเนินการเสร็จสิ้นแล้ว</b>`,
           `🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>`,
-          `📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}`,
+          `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(task.title)}</b>`,
         ]
         if (repair?.location_full_name) {
           lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}`)
         }
-        lines.push(`👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> ${escapeHtml(memberName)}`)
+        lines.push(`👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> <b>${escapeHtml(memberName)}</b>`)
         if (solutionStep) {
-          lines.push(`📝 <b>ผลการซ่อม/การแก้ไข :</b> ${escapeHtml(solutionStep)}`)
+          lines.push(`📝 <b>ผลการซ่อม / การแก้ไข :</b>\n<i>${escapeHtml(solutionStep)}</i>`)
         }
         lines.push(`💵 <b>ค่าใช้จ่าย :</b> ${costText}`)
-        lines.push(`📍 <b>สถานะ :</b> ✓ ซ่อมเสร็จสิ้นสมบูรณ์`)
+        lines.push(`📍 <b>สถานะ :</b> ✅ เสร็จสิ้นสมบูรณ์ (COMPLETED)`)
         lines.push(`⏰ <b>เวลาปิดงาน :</b> ${thaiDate} น.`)
 
-        const reqMsg = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดและพิมพ์ใบงาน</i>`
+        const reqMsg = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดและพิมพ์ใบงาน</i>`
 
         await sendTelegramMessage(reqChatId, reqMsg, {
           parseMode: 'HTML',
@@ -475,7 +475,7 @@ async function completeRepairTaskHelper(params: {
             inline_keyboard: [
               [
                 {
-                  text: '📄 ดูรายละเอียดผลการซ่อม',
+                  text: '📄 ดูผลการซ่อมและพิมพ์ใบงาน ↗',
                   url: taskLink,
                 },
               ],
@@ -593,7 +593,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
         const lines: string[] = [
           `✅ <b>คุณได้รับงานแจ้งซ่อมนี้เรียบร้อยแล้ว</b>`,
           `🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>`,
-          `📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}`,
+          `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(task.title)}</b>`,
         ]
         if (repair?.equipment_number) {
           lines.push(`🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(repair.equipment_number)}</code>`)
@@ -602,11 +602,11 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
           lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}`)
         }
         lines.push(`👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(task.requester_name)}${task.requester_dept ? ` (${escapeHtml(task.requester_dept)})` : ''}`)
-        lines.push(`👨‍🔧 <b>ช่างผู้รับงาน :</b> คุณ (${escapeHtml(currentMember.name)})`)
-        lines.push(`📍 <b>สถานะปัจจุบัน :</b> ⚙️ กำลังอยู่ระหว่างดำเนินการตรวจซ่อม`)
+        lines.push(`👨‍🔧 <b>ช่างผู้รับงาน :</b> <b>คุณ (${escapeHtml(currentMember.name)})</b>`)
+        lines.push(`📍 <b>สถานะปัจจุบัน :</b> ⚙️ กำลังอยู่ระหว่างดำเนินการตรวจซ่อม (IN PROGRESS)`)
         lines.push(`⏰ <b>เวลารับงาน :</b> ${thaiDate} น.`)
 
-        const updatedMessage = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ระบบได้ส่งการแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
+        const updatedMessage = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ระบบได้ส่งการแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
 
         await editTelegramMessageText(chatId, messageId, updatedMessage, {
           inline_keyboard: [
@@ -622,7 +622,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
             ],
             [
               {
-                text: '📋 เปิดดูรายละเอียดบนเว็บไซต์',
+                text: '📋 ดูรายละเอียดบนเว็บไซต์ ↗',
                 url: taskLink,
               },
             ],
@@ -643,7 +643,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
             const lines: string[] = [
               `👨‍🔧 <b>ช่างได้รับงานแจ้งซ่อมของคุณแล้ว</b>`,
               `🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>`,
-              `📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}`,
+              `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(task.title)}</b>`,
             ]
             if (repair?.equipment_number) {
               lines.push(`🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(repair.equipment_number)}</code>`)
@@ -651,11 +651,11 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
             if (repair?.location_full_name) {
               lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}`)
             }
-            lines.push(`🔧 <b>ช่างผู้รับงาน :</b> ${escapeHtml(currentMember.name)}${currentMember.position ? ` (${escapeHtml(currentMember.position)})` : ''}`)
-            lines.push(`📍 <b>สถานะ :</b> ⚙️ กำลังอยู่ระหว่างดำเนินการตรวจซ่อม`)
+            lines.push(`🔧 <b>ช่างผู้รับงาน :</b> <b>${escapeHtml(currentMember.name)}</b>${currentMember.position ? ` (${escapeHtml(currentMember.position)})` : ''}`)
+            lines.push(`📍 <b>สถานะ :</b> ⚙️ กำลังอยู่ระหว่างดำเนินการตรวจซ่อม (IN PROGRESS)`)
             lines.push(`⏰ <b>เวลารับงาน :</b> ${thaiDate} น.`)
 
-            const reqMsg = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อติดตามความคืบหน้าของงาน</i>`
+            const reqMsg = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อติดตามความคืบหน้าของงาน</i>`
 
             await sendTelegramMessage(reqChatId, reqMsg, {
               parseMode: 'HTML',
@@ -663,7 +663,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
                 inline_keyboard: [
                   [
                     {
-                      text: '📋 ติดตามสถานะงานซ่อม',
+                      text: '🔍 ติดตามสถานะงานซ่อม ↗',
                       url: taskLink,
                     },
                   ],
@@ -761,9 +761,9 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
       await answerTelegramCallbackQuery(callbackId, '✍️ กรุณาพิมพ์รายละเอียดผลการซ่อมเพื่อปิดงาน', false)
 
       const promptLines: string[] = [
-        `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> คุณ <b>${escapeHtml(currentMember.name)}</b>`,
+        `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> <b>คุณ ${escapeHtml(currentMember.name)}</b>`,
         `🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>`,
-        `📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}`,
+        `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(task.title)}</b>`,
         `✍️ <b>กรุณาพิมพ์ข้อความตอบกลับเพื่อระบุรายละเอียดผลการซ่อม/การแก้ไข</b>\n<i>(เช่น เปลี่ยนสายแพรใหม่, ลงโปรแกรมใหม่, ทำความสะอาดหัวพิมพ์ ฯลฯ หรือพิมพ์ <b>-</b> หากไม่มีรายละเอียด)</i>`,
         `💡 <i>หรือหากไม่ต้องการพิมพ์รายละเอียด สามารถกดปุ่มด้านล่างเพื่อยืนยันปิดงานได้ทันทีครับ</i>`,
       ]
@@ -797,7 +797,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
         if (existing) {
           pendingTechnicianActions.set(Number(fromUser.id), {
             ...existing,
-            promptMessageId: promptRes.result.message_id
+            promptMessageId: promptRes.result.message_id,
           })
         }
       }
@@ -851,7 +851,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
       // Remove the inline keyboard from the prompt message
       if (chatId && messageId) {
         const editLines: string[] = [
-          `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> คุณ <b>${escapeHtml(currentMember.name)}</b>`,
+          `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> <b>คุณ ${escapeHtml(currentMember.name)}</b>`,
           `🏷️ <b>รหัสใบงาน :</b> <code>${compResult.taskNo || taskId}</code>`,
           `⚡ <i>ยืนยันปิดงานเรียบร้อยแล้ว</i>`,
         ]
@@ -867,8 +867,8 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
       const successLines: string[] = [
         `🎉 <b>บันทึกปิดงานเรียบร้อยแล้ว</b>`,
         `🏷️ <b>รหัสใบงาน :</b> <code>${compResult.taskNo}</code>`,
-        `👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> ${escapeHtml(currentMember.name)}`,
-        `✨ <i>ระบบได้บันทึกและส่งแจ้งเตือนไปยังผู้ยื่นคำขอแล้วครับ</i>`,
+        `👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> <b>${escapeHtml(currentMember.name)}</b>`,
+        `✨ <i>ระบบได้บันทึกเข้าสู่ฐานข้อมูลและส่งแจ้งเตือนไปยังผู้ยื่นคำขอแล้วครับ</i>`,
       ]
 
       await sendTelegramMessage(
@@ -987,23 +987,23 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
         const lines: string[] = [
           `❌ <b>คุณได้ยกเลิก / ปฏิเสธงานแจ้งซ่อมนี้แล้ว</b>`,
           `🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>`,
-          `📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}`,
+          `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(task.title)}</b>`,
         ]
         if (repair?.location_full_name) {
           lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}`)
         }
         lines.push(`👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(task.requester_name)}${task.requester_dept ? ` (${escapeHtml(task.requester_dept)})` : ''}`)
-        lines.push(`👨‍🔧 <b>ผู้ยกเลิก :</b> คุณ (${escapeHtml(currentMember.name)})`)
-        lines.push(`📍 <b>สถานะปัจจุบัน :</b> ⛔ ปฏิเสธ / ยกเลิกรายการ`)
+        lines.push(`👨‍🔧 <b>ผู้ยกเลิก :</b> <b>คุณ (${escapeHtml(currentMember.name)})</b>`)
+        lines.push(`📍 <b>สถานะปัจจุบัน :</b> ⛔ ปฏิเสธ / ยกเลิกรายการ (CANCELLED)`)
         lines.push(`⏰ <b>เวลายกเลิก :</b> ${thaiDate} น.`)
 
-        const updatedMessage = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ระบบได้ส่งการแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
+        const updatedMessage = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ระบบได้ส่งการแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้ว</i>`
 
         await editTelegramMessageText(chatId, messageId, updatedMessage, {
           inline_keyboard: [
             [
               {
-                text: '📋 เปิดดูรายละเอียดบนเว็บไซต์',
+                text: '📋 ดูรายละเอียดบนเว็บไซต์ ↗',
                 url: taskLink,
               },
             ],
@@ -1024,16 +1024,16 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
             const lines: string[] = [
               `❌ <b>งานแจ้งซ่อมของคุณถูกปฏิเสธ / ยกเลิก</b>`,
               `🏷️ <b>รหัสใบงาน :</b> <code>${task.task_no}</code>`,
-              `📋 <b>เรื่อง :</b> ${escapeHtml(task.title)}`,
+              `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(task.title)}</b>`,
             ]
             if (repair?.location_full_name) {
               lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(repair.location_full_name)}`)
             }
-            lines.push(`🔧 <b>ผู้ดำเนินการ :</b> ${escapeHtml(currentMember.name)}${currentMember.position ? ` (${escapeHtml(currentMember.position)})` : ''}`)
-            lines.push(`📍 <b>สถานะ :</b> ⛔ ยกเลิก / ปฏิเสธรายการ`)
+            lines.push(`🔧 <b>ผู้ดำเนินการ :</b> <b>${escapeHtml(currentMember.name)}</b>${currentMember.position ? ` (${escapeHtml(currentMember.position)})` : ''}`)
+            lines.push(`📍 <b>สถานะ :</b> ⛔ ยกเลิก / ปฏิเสธรายการ (CANCELLED)`)
             lines.push(`⏰ <b>เวลายกเลิก :</b> ${thaiDate} น.`)
 
-            const reqMsg = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดในระบบ</i>`
+            const reqMsg = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดในระบบ</i>`
 
             await sendTelegramMessage(reqChatId, reqMsg, {
               parseMode: 'HTML',
@@ -1041,7 +1041,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
                 inline_keyboard: [
                   [
                     {
-                      text: '📋 ตรวจสอบรายละเอียดงาน',
+                      text: '📋 ตรวจสอบรายละเอียดงาน ↗',
                       url: taskLink,
                     },
                   ],
@@ -1100,7 +1100,7 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
         if (pending.promptMessageId) {
           try {
             const editPromptLines: string[] = [
-              `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> คุณ <b>${escapeHtml(pending.memberName)}</b>`,
+              `👨‍🔧 <b>บันทึกปิดงานซ่อม:</b> <b>คุณ ${escapeHtml(pending.memberName)}</b>`,
               `🏷️ <b>รหัสใบงาน :</b> <code>${pending.taskNo}</code>`,
               `✅ <i>รับข้อมูลรายละเอียดการซ่อมเรียบร้อยแล้ว</i>`,
             ]
@@ -1117,9 +1117,9 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
         const doneLines: string[] = [
           `🎉 <b>บันทึกผลการซ่อมและปิดงานเรียบร้อยแล้ว!</b>`,
           `🏷️ <b>รหัสใบงาน :</b> <code>${pending.taskNo}</code>`,
-          `📋 <b>เรื่อง :</b> ${escapeHtml(pending.taskTitle)}`,
-          `📝 <b>ผลการดำเนินงาน :</b> ${escapeHtml(solutionStep)}`,
-          `👨‍🔧 <b>ช่างผู้บันทึก :</b> ${escapeHtml(pending.memberName)}`,
+          `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(pending.taskTitle)}</b>`,
+          `📝 <b>ผลการดำเนินงาน :</b>\n<i>${escapeHtml(solutionStep)}</i>`,
+          `👨‍🔧 <b>ช่างผู้บันทึก :</b> <b>${escapeHtml(pending.memberName)}</b>`,
           `✨ <i>ระบบได้บันทึกเข้าสู่ฐานข้อมูลและส่งแจ้งเตือนไปยังผู้ยื่นคำขอเรียบร้อยแล้วครับ</i>`,
         ]
 
@@ -1152,8 +1152,8 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
 
     if (!token) {
       const helpLines: string[] = [
-        `👋 <b>ยินดีต้อนรับสู่ระบบแจ้งเตือน โรงพยาบาลเถิน</b>`,
-        `หากท่านต้องการผูกบัญชีเพื่อรับแจ้งเตือน กรุณาเข้าสู่ระบบเว็บไซต์โรงพยาบาล ไปที่ <b>หน้าโปรไฟล์สมาชิก</b> แล้วกดปุ่ม <b>"เชื่อมต่อ Telegram"</b> ครับ`,
+        `🏥 <b>ยินดีต้อนรับสู่ระบบแจ้งเตือน โรงพยาบาลเถิน</b>`,
+        `หากท่านต้องการผูกบัญชีเพื่อรับการแจ้งเตือนงานและเอกสาร กรุณาเข้าสู่ระบบเว็บไซต์โรงพยาบาล ไปที่ <b>หน้าโปรไฟล์สมาชิก</b> แล้วกดปุ่ม <b>"เชื่อมต่อ Telegram"</b> ครับ ✨`,
       ]
       await sendTelegramMessage(
         chatId,
@@ -1178,9 +1178,9 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
       )
 
       const linkSuccessLines: string[] = [
-        `✅ <b>ผูกบัญชีสำเร็จเรียบร้อยแล้ว!</b>`,
-        `สวัสดีครับคุณ <b>${linkResult.memberName}</b>\nบัญชี Telegram ของท่านได้เชื่อมต่อกับระบบเว็บไซต์โรงพยาบาลเถินแล้ว`,
-        `ท่านจะได้รับการแจ้งเตือนส่วนตัวผ่านทางนี้ เมื่อมีงานหรือเอกสารที่เกี่ยวข้องกับท่านครับ ✨`,
+        `🎉 <b>ผูกบัญชีสำเร็จเรียบร้อยแล้ว!</b>`,
+        `สวัสดีครับคุณ <b>${linkResult.memberName}</b>\nบัญชี Telegram ของท่านได้เชื่อมต่อกับระบบเว็บไซต์โรงพยาบาลเถินสมบูรณ์แล้ว`,
+        `ท่านจะได้รับการแจ้งเตือนส่วนตัวผ่านทางนี้ เมื่อมีงาน ใบแจ้งซ่อม หรือเอกสารที่เกี่ยวข้องกับท่านครับ ✨`,
       ]
       await sendTelegramMessage(
         chatId,
@@ -1267,19 +1267,19 @@ export async function processTelegramUpdate(update: TelegramUpdate): Promise<Pro
     let idMsg = ''
     if (isGroup) {
       const groupLines: string[] = [
-        `🆔 <b>ข้อมูล Telegram Group ID:</b>`,
-        `👥 <b>ชื่อกลุ่ม:</b> ${escapeHtml(chatTitle)}`,
-        `📌 <b>Group Chat ID:</b> <code>${chatId}</code>`,
-        `👤 <b>User ID ของคุณ:</b> <code>${fromUser.id}</code>`,
+        `🆔 <b>ข้อมูล Telegram Group ID</b>`,
+        `👥 <b>ชื่อกลุ่ม :</b> <b>${escapeHtml(chatTitle)}</b>`,
+        `📌 <b>Group Chat ID :</b> <code>${chatId}</code>`,
+        `👤 <b>User ID ของคุณ :</b> <code>${fromUser.id}</code>`,
       ]
-      idMsg = `${groupLines.join('\n\n')}\n\n──────────────────────\n💡 <i>คัดลอกค่า Group Chat ID ด้านบนไปใส่ในไฟล์ .env ได้เลยครับ เช่น:</i>\n<code>TELEGRAM_GROUP_MEDIA_REQUEST="${chatId}"</code>`
+      idMsg = `${groupLines.join('\n\n')}\n\n────────────────────────\n💡 <i>คัดลอกค่า Group Chat ID ด้านบนไปใส่ในไฟล์ .env ได้เลยครับ เช่น:</i>\n<code>TELEGRAM_GROUP_MEDIA_REQUEST="${chatId}"</code>`
     } else {
       const userLines: string[] = [
-        `🆔 <b>ข้อมูล Telegram ID ของคุณ:</b>`,
-        `📌 <b>Chat ID / User ID:</b> <code>${chatId}</code>`,
-        `👤 <b>ชื่อผู้ใช้:</b> ${escapeHtml(fromUser.first_name || '')} (${fromUser.username ? '@' + fromUser.username : '-'})`,
+        `🆔 <b>ข้อมูล Telegram ID ของคุณ</b>`,
+        `📌 <b>Chat ID / User ID :</b> <code>${chatId}</code>`,
+        `👤 <b>ชื่อผู้ใช้ :</b> <b>${escapeHtml(fromUser.first_name || '')}</b> (${fromUser.username ? '@' + fromUser.username : '-'})`,
       ]
-      idMsg = `${userLines.join('\n\n')}\n\n──────────────────────\n💡 <i>หากต้องการผูกบัญชีเพื่อรับแจ้งเตือน กรุณากดปุ่มเชื่อมต่อ Telegram ที่หน้าเว็บไซต์โรงพยาบาลครับ</i>`
+      idMsg = `${userLines.join('\n\n')}\n\n────────────────────────\n💡 <i>หากต้องการผูกบัญชีเพื่อรับแจ้งเตือน กรุณากดปุ่มเชื่อมต่อ Telegram ที่หน้าเว็บไซต์โรงพยาบาลครับ</i>`
     }
 
     await sendTelegramMessage(chatId, idMsg)

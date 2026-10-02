@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   Search, 
   RefreshCw, 
@@ -19,11 +19,22 @@ import {
   ArrowLeft,
   Download,
   Shield,
+  ShieldCheck,
   HardDrive,
   Laptop,
   Smartphone,
   Tablet,
-  Bot
+  Bot,
+  Copy,
+  Check,
+  Clock,
+  User,
+  PlusCircle,
+  Edit3,
+  Trash2,
+  Filter,
+  Activity,
+  Server
 } from 'lucide-react'
 import Link from 'next/link'
 import { parseUserAgent } from '@/lib/userAgentParser'
@@ -73,6 +84,7 @@ export default function AuditLogsClient() {
   const [actionType, setActionType] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [activeDatePreset, setActiveDatePreset] = useState<string>('all')
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
@@ -83,6 +95,7 @@ export default function AuditLogsClient() {
 
   // Selected Log for details modal
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
   const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -94,24 +107,43 @@ export default function AuditLogsClient() {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
-  const fetchLogs = async (currentPage = page) => {
+  const copyToClipboard = async (text: string, fieldName: string, successMsg?: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedField(fieldName)
+      addToast(successMsg || `คัดลอก ${fieldName} เรียบร้อยแล้ว`, 'success')
+      setTimeout(() => {
+        setCopiedField((prev) => (prev === fieldName ? null : prev))
+      }, 2000)
+    } catch {
+      addToast('ไม่สามารถคัดลอกข้อความได้', 'error')
+    }
+  }
+
+  const fetchLogs = useCallback(async (currentPage = page, customFilters?: { search?: string; actionType?: string; startDate?: string; endDate?: string }) => {
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
       params.append('page', currentPage.toString())
       params.append('limit', '25')
-      if (search) params.append('search', search)
-      if (actionType) params.append('actionType', actionType)
-      if (startDate) params.append('startDate', startDate)
-      if (endDate) params.append('endDate', endDate)
+      
+      const s = customFilters?.search !== undefined ? customFilters.search : search
+      const a = customFilters?.actionType !== undefined ? customFilters.actionType : actionType
+      const sd = customFilters?.startDate !== undefined ? customFilters.startDate : startDate
+      const ed = customFilters?.endDate !== undefined ? customFilters.endDate : endDate
+
+      if (s) params.append('search', s)
+      if (a) params.append('actionType', a)
+      if (sd) params.append('startDate', sd)
+      if (ed) params.append('endDate', ed)
 
       const response = await fetch(`/api/admin/audit-logs?${params.toString()}`)
       const data = await response.json()
 
       if (response.ok && data.success) {
         setLogs(data.logs || [])
-        setPagination(data.pagination)
+        setPagination(data.pagination || { page: currentPage, limit: 25, total: 0, totalPages: 1 })
       } else {
         setError(data.error || 'ไม่สามารถดึงข้อมูลประวัติการใช้งานได้')
       }
@@ -121,7 +153,7 @@ export default function AuditLogsClient() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, search, actionType, startDate, endDate])
 
   const fetchStats = async () => {
     setStatsLoading(true)
@@ -159,7 +191,7 @@ export default function AuditLogsClient() {
       a.click()
       a.remove()
       window.URL.revokeObjectURL(url)
-      addToast('ส่งออกไฟล์รายงาน Audit Logs เรียบร้อยแล้ว', 'success')
+      addToast('ส่งออกไฟล์รายงาน Audit Logs (UTF-8 BOM) เรียบร้อยแล้ว', 'success')
     } catch (err) {
       console.error('Export error:', err)
       addToast('ไม่สามารถส่งออกไฟล์รายงานได้ กรุณาลองใหม่อีกครั้ง', 'error')
@@ -168,10 +200,10 @@ export default function AuditLogsClient() {
     }
   }
 
-  // Trigger fetch on filters or page change
+  // Trigger fetch on page or actionType change
   useEffect(() => {
     fetchLogs(page)
-  }, [page, actionType])
+  }, [page, actionType, fetchLogs])
 
   useEffect(() => {
     fetchStats()
@@ -183,16 +215,48 @@ export default function AuditLogsClient() {
     fetchLogs(1)
   }
 
+  const handleDatePresetChange = (preset: 'all' | 'today' | '7days' | '30days') => {
+    setActiveDatePreset(preset)
+    const now = new Date()
+    let s = ''
+    let e = ''
+
+    if (preset === 'today') {
+      const todayStr = now.toISOString().slice(0, 10)
+      s = todayStr
+      e = todayStr
+    } else if (preset === '7days') {
+      const past = new Date()
+      past.setDate(now.getDate() - 7)
+      s = past.toISOString().slice(0, 10)
+      e = now.toISOString().slice(0, 10)
+    } else if (preset === '30days') {
+      const past = new Date()
+      past.setDate(now.getDate() - 30)
+      s = past.toISOString().slice(0, 10)
+      e = now.toISOString().slice(0, 10)
+    }
+
+    setStartDate(s)
+    setEndDate(e)
+    setPage(1)
+    fetchLogs(1, { startDate: s, endDate: e })
+  }
+
   const handleResetFilters = () => {
     setSearch('')
     setActionType('')
     setStartDate('')
     setEndDate('')
+    setActiveDatePreset('all')
     setPage(1)
-    // Fetch directly after resetting states
-    setTimeout(() => {
-      fetchLogs(1)
-    }, 0)
+    fetchLogs(1, { search: '', actionType: '', startDate: '', endDate: '' })
+  }
+
+  const handleRefreshAll = () => {
+    fetchStats()
+    fetchLogs(page)
+    addToast('อัปเดตข้อมูลล่าสุดเรียบร้อยแล้ว', 'info')
   }
 
   const getActionBadge = (type: string) => {
@@ -200,57 +264,57 @@ export default function AuditLogsClient() {
       case 'LOGIN':
         return (
           <span className="logBadge badgeLogin">
-            <LogIn size={12} style={{ marginRight: '4px' }} />
-            LOGIN
+            <LogIn size={13} className="badgeIcon" />
+            <span>LOGIN</span>
           </span>
         )
       case 'LOGOUT':
         return (
           <span className="logBadge badgeLogout">
-            <LogOut size={12} style={{ marginRight: '4px' }} />
-            LOGOUT
+            <LogOut size={13} className="badgeIcon" />
+            <span>LOGOUT</span>
           </span>
         )
       case 'CREATE':
         return (
           <span className="logBadge badgeCreate">
-            <Database size={12} style={{ marginRight: '4px' }} />
-            CREATE
+            <PlusCircle size={13} className="badgeIcon" />
+            <span>CREATE</span>
           </span>
         )
       case 'UPDATE':
         return (
           <span className="logBadge badgeUpdate">
-            <Database size={12} style={{ marginRight: '4px' }} />
-            UPDATE
+            <Edit3 size={13} className="badgeIcon" />
+            <span>UPDATE</span>
           </span>
         )
       case 'READ':
         return (
           <span className="logBadge badgeRead">
-            <Eye size={12} style={{ marginRight: '4px' }} />
-            READ
+            <Eye size={13} className="badgeIcon" />
+            <span>READ</span>
           </span>
         )
       case 'DELETE':
         return (
           <span className="logBadge badgeDelete">
-            <Database size={12} style={{ marginRight: '4px' }} />
-            DELETE
+            <Trash2 size={13} className="badgeIcon" />
+            <span>DELETE</span>
           </span>
         )
       case 'REQUEST':
         return (
           <span className="logBadge badgeRequest">
-            <Globe size={12} style={{ marginRight: '4px' }} />
-            REQUEST
+            <Globe size={13} className="badgeIcon" />
+            <span>REQUEST</span>
           </span>
         )
       case 'SYSTEM':
         return (
           <span className="logBadge badgeSystem">
-            <Settings size={12} style={{ marginRight: '4px' }} />
-            SYSTEM
+            <Settings size={13} className="badgeIcon" />
+            <span>SYSTEM</span>
           </span>
         )
       default:
@@ -261,13 +325,15 @@ export default function AuditLogsClient() {
   const getTargetTableName = (table: string | null) => {
     if (!table) return '-'
     switch (table.toLowerCase()) {
-      case 'members': return 'ข้อมูลสมาชิก (members)'
+      case 'members': return 'ข้อมูลบุคลากร (members)'
       case 'pr_requests': return 'คำขอผลิตสื่อ PR (pr_requests)'
       case 'approval_tickets': return 'งานรออนุมัติ (approval_tickets)'
       case 'work_requests': return 'ใบงานช่าง (work_requests)'
       case 'ita_blogs': return 'บทความ ITA (ita_blogs)'
       case 'member_system_settings': return 'ตั้งค่าระบบ (settings)'
       case 'position_permissions': return 'ตั้งค่าสิทธิ์ (permissions)'
+      case 'salary_slips': return 'สลิปเงินเดือน (salary_slips)'
+      case 'inbox_tasks': return 'งานในกล่องข้อความ (inbox_tasks)'
       default: return table
     }
   }
@@ -283,7 +349,7 @@ export default function AuditLogsClient() {
       : <Laptop size={13} className="deviceIcon" />
 
     const deviceName = parsed.deviceModel || parsed.os
-    const tooltipText = `${parsed.os} • ${parsed.browser} (${uaString || 'ไม่ระบุ User-Agent'})`
+    const tooltipText = `${parsed.os} • ${parsed.browser}\n${uaString || 'ไม่ระบุ User-Agent'}`
 
     return (
       <div className={`deviceBadge deviceBadge-${parsed.deviceType}`} title={tooltipText}>
@@ -313,187 +379,396 @@ export default function AuditLogsClient() {
     }
   }
 
+  const formatRelativeTime = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr)
+      const now = new Date()
+      const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+      if (diffSec < 60) return 'เมื่อสักครู่'
+      if (diffSec < 3600) return `${Math.floor(diffSec / 60)} นาทีที่แล้ว`
+      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ชม. ที่แล้ว`
+      if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} วันที่แล้ว`
+      return ''
+    } catch {
+      return ''
+    }
+  }
+
+  const isLocalIp = (ip: string | null) => {
+    if (!ip) return false
+    return ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')
+  }
+
+  const hasActiveFilters = Boolean(search || actionType || startDate || endDate)
+
   return (
     <>
-      {/* Header */}
-      <div className="auditHeader">
-        <div className="backBtnWrapper">
+      {/* Header Bar */}
+      <header className="auditHeader">
+        <div className="auditHeaderTop">
           <Link href="/member" className="backBtn">
             <ArrowLeft size={16} />
-            <span>กลับไปแดชบอร์ด</span>
+            <span>กลับไปศูนย์ควบคุมสมาชิก</span>
           </Link>
+          
+          <div className="headerStatusBadges">
+            <div className="livePulseBadge" title="ระบบบันทึก Audit Logs ทำงานตลอด 24 ชั่วโมง">
+              <span className="pulseDot"></span>
+              <span className="pulseText">บันทึกเรียลไทม์ Tier-1 Audit</span>
+            </div>
+            <button 
+              type="button" 
+              className="refreshHeaderBtn" 
+              onClick={handleRefreshAll}
+              disabled={loading || statsLoading}
+              title="รีเฟรชข้อมูลทั้งหมด"
+            >
+              <RefreshCw size={14} className={loading || statsLoading ? 'animate-spin' : ''} />
+              <span>อัปเดตข้อมูล</span>
+            </button>
+          </div>
         </div>
+
         <div className="titleWrapper">
           <div className="titleIcon">
-            <Settings size={28} />
+            <ShieldCheck size={32} />
           </div>
-          <div>
-            <h1>ระบบประวัติการใช้งาน (Audit Logs)</h1>
-            <p className="subtitle">ประวัติบันทึกการเข้าสู่ระบบ, การดำเนินการฐานข้อมูล (CRUD) และการเข้าถึง API ทั้งหมดเพื่อความปลอดภัย</p>
+          <div className="titleText">
+            <div className="titleRow">
+              <h1>ระบบประวัติความปลอดภัยและ Audit Logs</h1>
+              <span className="complianceBadge">PDPA & Hospital Security Standard</span>
+            </div>
+            <p className="subtitle">
+              ตรวจสอบและบันทึกประวัติการเข้าใช้งาน, การสืบค้นข้อมูลสำคัญ (PHI/Salary), การเปลี่ยนแปลงสิทธิ และการดำเนินงาน CRUD ทั้งหมดของโรงพยาบาลเถิน
+            </p>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Stats Dashboard Cards */}
-      {stats && (
-        <div className="auditStatsGrid">
-          <div className="statCard">
+      <section className="auditStatsGrid" aria-label="สถิติความปลอดภัย">
+        <div className="statCard statCardTotal">
+          <div className="statCardHeader">
             <div className="statIconWrapper statIconTotal">
-              <Database size={24} />
+              <Database size={22} />
             </div>
-            <div className="statInfo">
-              <span className="statLabel">บันทึกทั้งหมด (Total Logs)</span>
-              <span className="statValue">{stats.totalLogs.toLocaleString()}</span>
-              <span className="statSubtext">ขนาดข้อมูล ~{stats.sizeMb} MB</span>
-            </div>
+            <span className="statBadge">ระบบทั้งหมด</span>
           </div>
-
-          <div className="statCard">
-            <div className="statIconWrapper statIconLogin">
-              <LogIn size={24} />
-            </div>
-            <div className="statInfo">
-              <span className="statLabel">เข้าสู่ระบบวันนี้ (Logins Today)</span>
-              <span className="statValue">{stats.loginsToday.toLocaleString()} ครั้ง</span>
-              <span className="statSubtext">กิจกรรม Login รอบวัน</span>
-            </div>
-          </div>
-
-          <div className="statCard">
-            <div className="statIconWrapper statIconRead">
-              <Shield size={24} />
-            </div>
-            <div className="statInfo">
-              <span className="statLabel">เข้าดูข้อมูลสำคัญ (Reads Today)</span>
-              <span className="statValue">{stats.readsToday.toLocaleString()} ครั้ง</span>
-              <span className="statSubtext">ตรวจสอบการเข้าถึงเงินเดือน/ข้อมูล</span>
-            </div>
-          </div>
-
-          <div className="statCard">
-            <div className="statIconWrapper statIconRetention">
-              <HardDrive size={24} />
-            </div>
-            <div className="statInfo">
-              <span className="statLabel">อายุจัดเก็บ (Retention Span)</span>
-              <span className="statValue">{stats.retainedDays} วัน</span>
-              <span className="statSubtext">ตามเกณฑ์ พ.ร.บ. 90 วัน</span>
-            </div>
+          <div className="statInfo">
+            <span className="statLabel">บันทึกทั้งหมด (Total Logs)</span>
+            <span className="statValue">
+              {statsLoading ? <span className="statSkeleton"></span> : (stats?.totalLogs ?? 0).toLocaleString()}
+            </span>
+            <span className="statSubtext">
+              <Server size={12} /> ขนาดข้อมูลสะสม ~{stats?.sizeMb ?? 0} MB
+            </span>
           </div>
         </div>
-      )}
 
-      {/* Filter Card */}
-      <div className="filterCard">
+        <div className="statCard statCardLogin">
+          <div className="statCardHeader">
+            <div className="statIconWrapper statIconLogin">
+              <LogIn size={22} />
+            </div>
+            <span className="statBadge statBadgeSuccess">วันนี้</span>
+          </div>
+          <div className="statInfo">
+            <span className="statLabel">เข้าสู่ระบบวันนี้ (Logins Today)</span>
+            <span className="statValue">
+              {statsLoading ? <span className="statSkeleton"></span> : `${(stats?.loginsToday ?? 0).toLocaleString()} ครั้ง`}
+            </span>
+            <span className="statSubtext">
+              <Activity size={12} /> ตรวจสอบกิจกรรมการยืนยันตัวตน
+            </span>
+          </div>
+        </div>
+
+        <div className="statCard statCardRead">
+          <div className="statCardHeader">
+            <div className="statIconWrapper statIconRead">
+              <Shield size={22} />
+            </div>
+            <span className="statBadge statBadgePurple">Sensitive Access</span>
+          </div>
+          <div className="statInfo">
+            <span className="statLabel">เข้าดูข้อมูลสำคัญ (Reads Today)</span>
+            <span className="statValue">
+              {statsLoading ? <span className="statSkeleton"></span> : `${(stats?.readsToday ?? 0).toLocaleString()} ครั้ง`}
+            </span>
+            <span className="statSubtext">
+              <Eye size={12} /> เข้าถึงข้อมูลเงินเดือนและเวชระเบียน
+            </span>
+          </div>
+        </div>
+
+        <div className="statCard statCardRetention">
+          <div className="statCardHeader">
+            <div className="statIconWrapper statIconRetention">
+              <HardDrive size={22} />
+            </div>
+            <span className="statBadge statBadgeAmber">มาตรฐาน 90 วัน</span>
+          </div>
+          <div className="statInfo">
+            <span className="statLabel">อายุจัดเก็บข้อมูล (Retention)</span>
+            <span className="statValue">
+              {statsLoading ? <span className="statSkeleton"></span> : `${stats?.retainedDays ?? 0} วัน`}
+            </span>
+            <span className="statSubtext">
+              <Clock size={12} /> จัดเก็บตามเกณฑ์ พ.ร.บ.ฯ คุ้มครองข้อมูล
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Filter & Search Bar */}
+      <section className="filterCard" aria-label="ตัวกรองและค้นหา">
         <form onSubmit={handleSearchSubmit} className="filterForm">
+          {/* Action Types Filter Chips */}
+          <div className="actionChipsRow">
+            <span className="chipsLabel">
+              <Filter size={14} /> ประเภทกิจกรรม:
+            </span>
+            <div className="chipsList">
+              {[
+                { id: '', label: 'ทั้งหมด (All)' },
+                { id: 'LOGIN', label: 'LOGIN (เข้าสู่ระบบ)' },
+                { id: 'LOGOUT', label: 'LOGOUT (ออกจากระบบ)' },
+                { id: 'READ', label: 'READ (ดูข้อมูลสำคัญ)' },
+                { id: 'CREATE', label: 'CREATE (เพิ่มข้อมูล)' },
+                { id: 'UPDATE', label: 'UPDATE (แก้ไข)' },
+                { id: 'DELETE', label: 'DELETE (ลบ)' },
+                { id: 'REQUEST', label: 'REQUEST (API)' },
+                { id: 'SYSTEM', label: 'SYSTEM (ตั้งค่า)' }
+              ].map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  className={`actionChip ${actionType === chip.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setActionType(chip.id)
+                    setPage(1)
+                  }}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="filterGrid">
             {/* Search Input */}
             <div className="filterField flex-2">
-              <label>ค้นหาข้อความ</label>
+              <label htmlFor="audit-search">คำค้นหา (Keyword)</label>
               <div className="inputWrapper">
                 <Search size={18} className="searchIcon" />
                 <input
+                  id="audit-search"
                   type="text"
-                  placeholder="ค้นหาชื่อผู้ใช้, อีเมล, IP, ตาราง..."
+                  placeholder="ค้นหาชื่อผู้ใช้, อีเมล, หมายเลข IP, ชื่อตาราง หรือรายละเอียด..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
+                {search && (
+                  <button 
+                    type="button" 
+                    className="clearInputBtn" 
+                    onClick={() => {
+                      setSearch('')
+                      setPage(1)
+                      fetchLogs(1, { search: '' })
+                    }}
+                    title="ล้างคำค้นหา"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Action Type Dropdown */}
+            {/* Quick Date Range Presets & Date Pickers */}
             <div className="filterField">
-              <label>ประเภทรายการ</label>
-              <select
-                value={actionType}
-                onChange={(e) => {
-                  setActionType(e.target.value)
-                  setPage(1)
-                }}
-              >
-                <option value="">ทั้งหมด (All)</option>
-                <option value="LOGIN">LOGIN (เข้าสู่ระบบ)</option>
-                <option value="LOGOUT">LOGOUT (ออกจากระบบ)</option>
-                <option value="READ">READ (เข้าดูข้อมูลสำคัญ/เงินเดือน)</option>
-                <option value="CREATE">CREATE (เพิ่มข้อมูล)</option>
-                <option value="UPDATE">UPDATE (แก้ไขข้อมูล)</option>
-                <option value="DELETE">DELETE (ลบข้อมูล)</option>
-                <option value="REQUEST">REQUEST (เข้าชมหน้า/API)</option>
-                <option value="SYSTEM">SYSTEM (ตั้งค่าระบบ)</option>
-              </select>
+              <label>ช่วงวันที่ (Date Range)</label>
+              <div className="datePresetsRow">
+                <button
+                  type="button"
+                  className={`presetBtn ${activeDatePreset === 'all' ? 'active' : ''}`}
+                  onClick={() => handleDatePresetChange('all')}
+                >
+                  ทั้งหมด
+                </button>
+                <button
+                  type="button"
+                  className={`presetBtn ${activeDatePreset === 'today' ? 'active' : ''}`}
+                  onClick={() => handleDatePresetChange('today')}
+                >
+                  วันนี้
+                </button>
+                <button
+                  type="button"
+                  className={`presetBtn ${activeDatePreset === '7days' ? 'active' : ''}`}
+                  onClick={() => handleDatePresetChange('7days')}
+                >
+                  7 วัน
+                </button>
+                <button
+                  type="button"
+                  className={`presetBtn ${activeDatePreset === '30days' ? 'active' : ''}`}
+                  onClick={() => handleDatePresetChange('30days')}
+                >
+                  30 วัน
+                </button>
+              </div>
             </div>
 
             {/* Start Date */}
             <div className="filterField">
-              <label>วันที่เริ่มต้น</label>
+              <label htmlFor="start-date">จากวันที่</label>
               <div className="inputWrapper">
                 <Calendar size={18} className="dateIcon" />
                 <input
+                  id="start-date"
                   type="date"
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setStartDate(e.target.value)
+                    setActiveDatePreset('custom')
+                  }}
                 />
               </div>
             </div>
 
             {/* End Date */}
             <div className="filterField">
-              <label>วันที่สิ้นสุด</label>
+              <label htmlFor="end-date">ถึงวันที่</label>
               <div className="inputWrapper">
                 <Calendar size={18} className="dateIcon" />
                 <input
+                  id="end-date"
                   type="date"
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => {
+                    setEndDate(e.target.value)
+                    setActiveDatePreset('custom')
+                  }}
                 />
               </div>
             </div>
           </div>
 
+          {/* Action Buttons & Filter Summary */}
           <div className="filterActions">
-            <button type="submit" className="btnPrimary" disabled={loading}>
-              <Search size={16} />
-              <span>ค้นหา</span>
-            </button>
-            <button type="button" className="btnSecondary" onClick={handleResetFilters} disabled={loading}>
-              <RefreshCw size={16} />
-              <span>ล้างตัวกรอง</span>
-            </button>
-            <button 
-              type="button" 
-              className="btnExport" 
-              onClick={handleExportCsv} 
-              disabled={loading || exporting}
-              title="ส่งออกรายการตามตัวกรองปัจจุบันเป็นไฟล์ CSV รองรับภาษาไทยใน Excel"
-            >
-              {exporting ? (
-                <RefreshCw size={16} className="animate-spin" />
+            <div className="filterActiveStatus">
+              {hasActiveFilters ? (
+                <div className="activeFilterTags">
+                  <span className="activeFilterNote">
+                    ตัวกรองที่ใช้งาน:
+                  </span>
+                  {search && (
+                    <span className="filterTag">
+                      คำค้นหา: &ldquo;{search}&rdquo;
+                      <button type="button" onClick={() => { setSearch(''); fetchLogs(1, { search: '' }) }}><X size={12} /></button>
+                    </span>
+                  )}
+                  {actionType && (
+                    <span className="filterTag">
+                      ประเภท: {actionType}
+                      <button type="button" onClick={() => { setActionType(''); fetchLogs(1, { actionType: '' }) }}><X size={12} /></button>
+                    </span>
+                  )}
+                  {(startDate || endDate) && (
+                    <span className="filterTag">
+                      วันที่: {startDate || '...'} ถึง {endDate || '...'}
+                      <button type="button" onClick={() => { setStartDate(''); setEndDate(''); setActiveDatePreset('all'); fetchLogs(1, { startDate: '', endDate: '' }) }}><X size={12} /></button>
+                    </span>
+                  )}
+                </div>
               ) : (
-                <Download size={16} />
+                <span className="inactiveFilterNote">แสดงข้อมูลประวัติการใช้งานทั้งหมด</span>
               )}
-              <span>{exporting ? 'กำลังส่งออก...' : 'ส่งออกรายงาน (CSV)'}</span>
-            </button>
+            </div>
+
+            <div className="filterButtonCluster">
+              {hasActiveFilters && (
+                <button type="button" className="btnSecondary" onClick={handleResetFilters} disabled={loading}>
+                  <RefreshCw size={15} />
+                  <span>ล้างตัวกรองทั้งหมด</span>
+                </button>
+              )}
+              
+              <button type="submit" className="btnPrimary" disabled={loading}>
+                <Search size={16} />
+                <span>ค้นหารายการ</span>
+              </button>
+
+              <button 
+                type="button" 
+                className="btnExport" 
+                onClick={handleExportCsv} 
+                disabled={loading || exporting}
+                title="ส่งออกรายการที่กรองเป็นไฟล์ CSV (รองรับ Excel UTF-8 BOM)"
+              >
+                {exporting ? (
+                  <RefreshCw size={16} className="animate-spin" />
+                ) : (
+                  <Download size={16} />
+                )}
+                <span>{exporting ? 'กำลังส่งออก...' : 'ส่งออกรายงาน CSV'}</span>
+              </button>
+            </div>
           </div>
         </form>
-      </div>
+      </section>
 
-      {/* Main logs view */}
-      <div className="logsContainer">
+      {/* Main Logs Table View */}
+      <section className="logsContainer" aria-label="ตารางประวัติการใช้งาน">
+        <div className="tableControlBar">
+          <div className="tableTitle">
+            <h3>รายการประวัติความปลอดภัย ({pagination.total.toLocaleString()} รายการ)</h3>
+            <span className="tableSubtitle">แสดงผลหน้าละ 25 รายการ</span>
+          </div>
+        </div>
+
         {loading ? (
-          <div className="loadingState">
-            <RefreshCw className="animate-spin" size={32} />
-            <p>กำลังโหลดประวัติการใช้งาน...</p>
+          <div className="skeletonTableWrapper">
+            <div className="skeletonHeader"></div>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="skeletonRow">
+                <div className="skeletonCell skeletonTime"></div>
+                <div className="skeletonCell skeletonUser"></div>
+                <div className="skeletonCell skeletonBadge"></div>
+                <div className="skeletonCell skeletonTarget"></div>
+                <div className="skeletonCell skeletonIp"></div>
+                <div className="skeletonCell skeletonDevice"></div>
+                <div className="skeletonCell skeletonBtn"></div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="errorState">
-            <AlertCircle size={32} />
+            <div className="stateIconWrapper stateIconError">
+              <AlertCircle size={36} />
+            </div>
+            <h4>เกิดข้อผิดพลาดในการโหลดข้อมูล</h4>
             <p>{error}</p>
-            <button onClick={() => fetchLogs()} className="btnRetry">ลองใหม่อีกครั้ง</button>
+            <button onClick={() => fetchLogs()} className="btnRetry">
+              <RefreshCw size={16} />
+              <span>ลองใหม่อีกครั้ง</span>
+            </button>
           </div>
         ) : logs.length === 0 ? (
           <div className="emptyState">
-            <AlertCircle size={32} />
-            <p>ไม่พบรายการที่ตรงกับเงื่อนไขการค้นหาของคุณ</p>
+            <div className="stateIconWrapper stateIconEmpty">
+              <Search size={36} />
+            </div>
+            <h4>ไม่พบบันทึกประวัติการใช้งาน</h4>
+            <p>ไม่มีรายการที่ตรงกับเงื่อนไขการค้นหา หรือยังไม่มีกิจกรรมในช่วงเวลาที่เลือก</p>
+            {hasActiveFilters && (
+              <button onClick={handleResetFilters} className="btnSecondary">
+                <RefreshCw size={15} />
+                <span>ล้างตัวกรองเพื่อดูทั้งหมด</span>
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -501,162 +776,296 @@ export default function AuditLogsClient() {
               <table className="logsTable">
                 <thead>
                   <tr>
-                    <th>วัน-เวลา</th>
-                    <th>ผู้ใช้งาน (User)</th>
-                    <th>ประเภท</th>
-                    <th>ตาราง/หน้า (Target)</th>
-                    <th>IP Address</th>
-                    <th>อุปกรณ์ / เบราว์เซอร์</th>
-                    <th>รายละเอียด</th>
+                    <th scope="col" style={{ width: '175px' }}>วัน-เวลา (Timestamp)</th>
+                    <th scope="col" style={{ width: '220px' }}>ผู้ใช้งาน (Account)</th>
+                    <th scope="col" style={{ width: '130px' }}>ประเภท (Action)</th>
+                    <th scope="col" style={{ minWidth: '180px' }}>เป้าหมาย (Target)</th>
+                    <th scope="col" style={{ width: '150px' }}>IP Address</th>
+                    <th scope="col" style={{ width: '180px' }}>อุปกรณ์ / เบราว์เซอร์</th>
+                    <th scope="col" style={{ width: '110px', textAlign: 'center' }}>จัดการ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {logs.map((log) => (
-                    <tr key={log.id} className="logRow">
-                      <td className="timeCell">{formatDate(log.timestamp)}</td>
-                      <td className="userCell">
-                        {log.username ? (
-                          <div className="userDetails">
-                            <span className="usernameText">{log.username}</span>
-                            {log.email && <span className="emailText">{log.email}</span>}
+                  {logs.map((log) => {
+                    const relative = formatRelativeTime(log.timestamp)
+                    const isLocal = isLocalIp(log.ip_address)
+
+                    return (
+                      <tr key={log.id} className="logRow">
+                        <td className="timeCell">
+                          <div className="timeCellWrapper">
+                            <span className="timePrimary">{formatDate(log.timestamp)}</span>
+                            {relative && <span className="timeRelative">{relative}</span>}
                           </div>
-                        ) : (
-                          <span className="guestText">Guest/System</span>
-                        )}
-                      </td>
-                      <td>{getActionBadge(log.action_type)}</td>
-                      <td className="targetCell">
-                        <span className="targetBadge" title={log.target_table || ''}>
-                          {getTargetTableName(log.target_table)}
-                        </span>
-                      </td>
-                      <td className="ipCell">{log.ip_address || '-'}</td>
-                      <td className="deviceCell">{getDeviceBadge(log.user_agent)}</td>
-                      <td>
-                        <button 
-                          className="viewDetailBtn"
-                          onClick={() => setSelectedLog(log)}
-                        >
-                          <Eye size={14} />
-                          <span>รายละเอียด</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+
+                        <td className="userCell">
+                          {log.username ? (
+                            <div className="userDetails">
+                              <div className="userAvatarCircle">
+                                <User size={14} />
+                              </div>
+                              <div className="userTextWrapper">
+                                <span className="usernameText">{log.username}</span>
+                                {log.email && <span className="emailText">{log.email}</span>}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="guestUserDetails">
+                              <div className="guestAvatarCircle">
+                                <Globe size={13} />
+                              </div>
+                              <span className="guestText">Guest / System</span>
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="badgeCell">
+                          {getActionBadge(log.action_type)}
+                        </td>
+
+                        <td className="targetCell">
+                          <span className="targetBadge" title={log.target_table || ''}>
+                            {getTargetTableName(log.target_table)}
+                          </span>
+                        </td>
+
+                        <td className="ipCell">
+                          {log.ip_address ? (
+                            <div className="ipBadgeWrapper">
+                              <span className="ipText">{log.ip_address}</span>
+                              {isLocal && <span className="lanBadge">LAN</span>}
+                              <button
+                                type="button"
+                                className="copyIpBtn"
+                                onClick={() => copyToClipboard(log.ip_address!, `IP Address ${log.ip_address}`)}
+                                title="คัดลอก IP Address"
+                              >
+                                {copiedField === `IP Address ${log.ip_address}` ? (
+                                  <Check size={12} className="copySuccessIcon" />
+                                ) : (
+                                  <Copy size={12} />
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="emptyText">-</span>
+                          )}
+                        </td>
+
+                        <td className="deviceCell">
+                          {getDeviceBadge(log.user_agent)}
+                        </td>
+
+                        <td className="actionCell">
+                          <button 
+                            className="viewDetailBtn"
+                            onClick={() => setSelectedLog(log)}
+                            title="ดูข้อมูลเจาะลึกความปลอดภัย"
+                          >
+                            <Eye size={14} />
+                            <span>ดูบันทึก</span>
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* Pagination */}
+            {/* Pagination Controls */}
             <div className="pagination">
               <div className="paginationInfo">
-                แสดงผล <span>{logs.length}</span> รายการ จากทั้งหมด <span>{pagination.total}</span> รายการ
+                แสดงผล <span>{logs.length}</span> จากทั้งหมด <span>{pagination.total.toLocaleString()}</span> รายการ
               </div>
+              
               <div className="paginationBtns">
                 <button
-                  disabled={page <= 1}
-                  onClick={() => setPage((prev) => prev - 1)}
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage(1)}
+                  className="pageBtn pageBtnSquare"
+                  title="หน้าแรก"
+                >
+                  «
+                </button>
+                <button
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                   className="pageBtn"
                 >
                   <ChevronLeft size={16} />
                   <span>ก่อนหน้า</span>
                 </button>
+                
                 <div className="pageIndicator">
-                  หน้า {page} จาก {pagination.totalPages || 1}
+                  หน้า <strong>{page}</strong> จาก <strong>{pagination.totalPages || 1}</strong>
                 </div>
+
                 <button
-                  disabled={page >= pagination.totalPages}
-                  onClick={() => setPage((prev) => prev + 1)}
+                  disabled={page >= pagination.totalPages || loading}
+                  onClick={() => setPage((prev) => Math.min(pagination.totalPages, prev + 1))}
                   className="pageBtn"
                 >
                   <span>ถัดไป</span>
                   <ChevronRight size={16} />
                 </button>
+                <button
+                  disabled={page >= pagination.totalPages || loading}
+                  onClick={() => setPage(pagination.totalPages)}
+                  className="pageBtn pageBtnSquare"
+                  title="หน้าสุดท้าย"
+                >
+                  »
+                </button>
               </div>
             </div>
           </>
         )}
-      </div>
+      </section>
 
       {/* Details Modal */}
       {selectedLog && (
-        <div className="modalOverlay" onClick={() => setSelectedLog(null)}>
+        <div className="modalOverlay" onClick={() => setSelectedLog(null)} role="dialog" aria-modal="true">
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
-              <h3>รายละเอียดประวัติความปลอดภัย</h3>
-              <button className="closeBtn" onClick={() => setSelectedLog(null)}>
+              <div className="modalHeaderTitle">
+                <div className="modalHeaderIcon">
+                  <ShieldCheck size={24} />
+                </div>
+                <div>
+                  <h3>รายละเอียดบันทึกความปลอดภัย</h3>
+                  <span className="modalHeaderSub">Audit Log Entry ID #{selectedLog.id}</span>
+                </div>
+              </div>
+              <button 
+                className="closeBtn" 
+                onClick={() => setSelectedLog(null)}
+                aria-label="ปิดหน้าต่าง"
+              >
                 <X size={20} />
               </button>
             </div>
             
             <div className="modalBody">
-              <div className="detailGrid">
-                <div className="detailItem">
-                  <span className="detailLabel">วัน-เวลา (Timestamp)</span>
-                  <span className="detailValue">{formatDate(selectedLog.timestamp)}</span>
+              {/* Quick Info Banner */}
+              <div className="modalSummaryBanner">
+                <div className="modalSummaryItem">
+                  <span className="summaryLabel">ประเภทการดำเนินการ</span>
+                  <span className="summaryValue">{getActionBadge(selectedLog.action_type)}</span>
                 </div>
-                <div className="detailItem">
-                  <span className="detailLabel">ผู้ใช้ระบบ (Account)</span>
-                  <span className="detailValue">
-                    {selectedLog.username ? `${selectedLog.username} (${selectedLog.email})` : 'ไม่ได้เข้าสู่ระบบ (Guest / System)'}
+                <div className="modalSummaryItem">
+                  <span className="summaryLabel">วัน-เวลาบันทึก (Timestamp)</span>
+                  <span className="summaryValue">{formatDate(selectedLog.timestamp)}</span>
+                </div>
+                <div className="modalSummaryItem">
+                  <span className="summaryLabel">สถานะเครือข่าย</span>
+                  <span className="summaryValue ipModalTag">
+                    {selectedLog.ip_address || '-'} 
+                    {isLocalIp(selectedLog.ip_address) && <span className="lanBadge">Internal LAN</span>}
                   </span>
                 </div>
+              </div>
+
+              {/* 2-Column Info Grid */}
+              <div className="detailGrid">
                 <div className="detailItem">
-                  <span className="detailLabel">ประเภทการทำงาน</span>
-                  <span className="detailValue">{getActionBadge(selectedLog.action_type)}</span>
+                  <span className="detailLabel">ผู้ใช้งาน (Account)</span>
+                  <div className="detailValueWithCopy">
+                    <span className="detailValue">
+                      {selectedLog.username ? `${selectedLog.username} (${selectedLog.email || 'ไม่มีอีเมล'})` : 'ไม่ได้เข้าสู่ระบบ (Guest / System)'}
+                    </span>
+                    {selectedLog.username && (
+                      <button 
+                        type="button" 
+                        className="modalCopyBtn"
+                        onClick={() => copyToClipboard(selectedLog.username!, 'ชื่อผู้ใช้')}
+                        title="คัดลอกชื่อผู้ใช้"
+                      >
+                        <Copy size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
+
                 <div className="detailItem">
-                  <span className="detailLabel">เป้าหมาย (Target/Table)</span>
-                  <span className="detailValue code">{selectedLog.target_table || '-'}</span>
+                  <span className="detailLabel">เป้าหมายที่เข้าถึง (Target Resource)</span>
+                  <div className="detailValue">
+                    <span className="targetBadge">{getTargetTableName(selectedLog.target_table)}</span>
+                  </div>
                 </div>
+
                 <div className="detailItem">
-                  <span className="detailLabel">หมายเลข IP Address</span>
-                  <span className="detailValue code">{selectedLog.ip_address || '-'}</span>
-                </div>
-                <div className="detailItem">
-                  <span className="detailLabel">ประเภทอุปกรณ์ (Device)</span>
+                  <span className="detailLabel">ประเภทอุปกรณ์ (Device Type)</span>
                   <span className="detailValue">
                     {(() => {
                       const p = parseUserAgent(selectedLog.user_agent)
                       return p.deviceType === 'desktop' 
-                        ? '💻 คอมพิวเตอร์ (Desktop)' 
+                        ? '💻 เครื่องคอมพิวเตอร์ (Desktop PC / Mac)' 
                         : p.deviceType === 'mobile' 
-                        ? `📱 มือถือ (${p.deviceModel || 'Mobile'})` 
+                        ? `📱 โทรศัพท์มือถือ (${p.deviceModel || 'Smartphone'})` 
                         : p.deviceType === 'tablet' 
                         ? `📟 แท็บเล็ต (${p.deviceModel || 'Tablet'})` 
                         : p.deviceType === 'bot' 
-                        ? '🤖 บอท / สคริปต์อัตโนมัติ' 
-                        : 'ไม่ระบุ'
+                        ? '🤖 สคริปต์อัตโนมัติ / บอท (Bot Crawler)' 
+                        : 'ไม่สามารถระบุอุปกรณ์ได้'
                     })()}
                   </span>
                 </div>
+
                 <div className="detailItem">
-                  <span className="detailLabel">ระบบปฏิบัติการ (OS)</span>
-                  <span className="detailValue">{parseUserAgent(selectedLog.user_agent).os}</span>
+                  <span className="detailLabel">ระบบปฏิบัติการและเบราว์เซอร์</span>
+                  <span className="detailValue">
+                    {parseUserAgent(selectedLog.user_agent).os} • {parseUserAgent(selectedLog.user_agent).browser}
+                  </span>
                 </div>
-                <div className="detailItem">
-                  <span className="detailLabel">เบราว์เซอร์ (Browser)</span>
-                  <span className="detailValue">{parseUserAgent(selectedLog.user_agent).browser}</span>
-                </div>
+
                 <div className="detailItem fullWidth">
-                  <span className="detailLabel">User-Agent แบบเต็ม (Raw Header)</span>
+                  <div className="detailHeaderWithAction">
+                    <span className="detailLabel">User-Agent Header แบบเต็ม</span>
+                    {selectedLog.user_agent && (
+                      <button 
+                        type="button" 
+                        className="modalTextActionBtn"
+                        onClick={() => copyToClipboard(selectedLog.user_agent!, 'User-Agent')}
+                      >
+                        <Copy size={12} />
+                        <span>คัดลอก User-Agent</span>
+                      </button>
+                    )}
+                  </div>
                   <span className="detailValue userAgentText code">{selectedLog.user_agent || '-'}</span>
                 </div>
               </div>
 
+              {/* Raw Action Details Viewer */}
               <div className="detailDetails">
                 <div className="detailDetailsHeader">
-                  <FileCode size={16} />
-                  <span>ข้อมูลดิบ / คำสั่งเชิงเทคนิค (Details)</span>
+                  <div className="detailsHeaderTitle">
+                    <FileCode size={16} />
+                    <span>ข้อมูลเชิงเทคนิค / พารามิเตอร์ (Action Payload Details)</span>
+                  </div>
+                  {selectedLog.action_details && (
+                    <button 
+                      type="button" 
+                      className="modalCopyCodeBtn"
+                      onClick={() => copyToClipboard(selectedLog.action_details!, 'Action Details JSON')}
+                    >
+                      <Copy size={13} />
+                      <span>คัดลอก JSON</span>
+                    </button>
+                  )}
                 </div>
                 <pre className="detailDetailsContent">
-                  <code>{selectedLog.action_details || 'ไม่มีข้อมูลเพิ่มเติม'}</code>
+                  <code>{selectedLog.action_details || 'ไม่มีข้อมูลเชิงเทคนิคเพิ่มเติม (No payload details)'}</code>
                 </pre>
               </div>
             </div>
             
             <div className="modalFooter">
-              <button className="btnSecondary" onClick={() => setSelectedLog(null)}>ปิดหน้าต่าง</button>
+              <button type="button" className="btnSecondary" onClick={() => setSelectedLog(null)}>
+                ปิดหน้าต่าง
+              </button>
             </div>
           </div>
         </div>

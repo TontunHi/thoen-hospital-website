@@ -1,12 +1,12 @@
-/* =========================================================
+/* ==========================================================================
    HOSPITAL SETTINGS & ACCESS CONTROLS — MODERN UX/UI DESIGN
-   Crafted adhering to Frontend Design & Superfuture Guidelines
-   ========================================================= */
+   Design System: Emerald/Slate Hospital Theme (Clean, Fast, Zero-Scroll)
+   ========================================================================== */
 
 /* Container & Layout */
 .adminSettingsContainer {
   min-height: calc(100vh - 60px);
-  padding: 32px 24px 80px;
+  padding: 36px 20px 80px;
   background-color: #f8fafc;
   background-image:
     radial-gradient(ellipse at 12% 0%, rgba(13, 148, 136, 0.08) 0%, transparent 45%),
@@ -14,10 +14,11 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  font-family: var(--font-family, var(--font-ibm-thai), sans-serif);
+  font-family: var(--font-ibm-thai), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: #0f172a;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .adminSettingsContainer .glowOrb {
@@ -26,7 +27,7 @@
   filter: blur(140px);
   z-index: 1;
   pointer-events: none;
-  opacity: 0.4;
+  opacity: 0.35;
 }
 
 .adminSettingsContainer .glowOrb1 {
@@ -47,93 +48,59 @@
 
 .adminSettingsWrapper {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1200px;
   z-index: 10;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 22px;
 }
 
-/* Header Section */
+/* ==========================================================================
+   Header Section
+   ========================================================================== */
+
 .adminSettingsHeader {
-  padding-bottom: 4px;
-}
-
-.adminSettingsHeader h1 {
-  font-size: 2rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #0d9488 0%, #0284c7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin: 0 0 6px 0;
-  letter-spacing: -0.02em;
-}
-
-.adminSettingsHeader p {
-  font-size: 0.95rem;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* Header Navigation Bar */
-.settingsClientModern {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px 28px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  width: 100%;
+  gap: 16px;
 }
 
-.modernHeaderNav {
+.adminSettingsHeaderTop {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.navBreadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-
-.backToDashboardBtn {
+.backLinkBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: #475569;
-  padding: 6px 12px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: all 0.15s ease-out;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 600;
   text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.backToDashboardBtn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-}
-
-.backToDashboardBtn:active {
-  transform: scale(0.96);
-}
-
-.navDivider {
-  color: #94a3b8;
-}
-
-.navCurrent {
-  color: #0d9488;
-  font-weight: 700;
+.backLinkBtn:hover {
+  color: #059669;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  transform: translateX(-2px);
 }
 
 .adminSecurityBadge {
@@ -141,110 +108,104 @@
   align-items: center;
   gap: 6px;
   padding: 5px 14px;
-  background: #fef2f2;
-  color: #991b1b;
+  background: #fff1f2;
+  color: #be123c;
   font-size: 0.8rem;
   font-weight: 700;
-  border-radius: 999px;
-  border: 1px solid #fecaca;
-  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.08);
+  border-radius: 9999px;
+  border: 1px solid #fecdd3;
+  box-shadow: 0 1px 2px rgba(225, 29, 72, 0.06);
 }
 
 .adminSecurityBadge .shieldIcon {
-  color: #dc2626;
+  color: #e11d48;
 }
 
-/* Floating Toast Notifications */
-.floatingToastNotification {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  z-index: 9999;
+.adminSettingsHeaderMain {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-  border-radius: 14px;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adminSettingsHeaderMain h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.adminSettingsHeaderMain p {
   font-size: 0.92rem;
-  font-weight: 600;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
-  max-width: 440px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
 }
 
-.floatingToastNotification.success {
-  background: #064e3b;
-  color: #ffffff;
-  border: 1px solid #059669;
-}
+/* ==========================================================================
+   Settings Client Container & KPI Cards
+   ========================================================================== */
 
-.floatingToastNotification.error {
-  background: #7f1d1d;
-  color: #ffffff;
-  border: 1px solid #dc2626;
-}
-
-.toastIconCircle {
+.settingsClientModern {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
 }
 
-.toastText {
-  flex: 1;
-  line-height: 1.4;
-}
-
-.toastCloseBtn {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.75);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease-out;
-}
-
-.toastCloseBtn:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* Overview Stats Grid */
 .overviewStatsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
+@media (max-width: 860px) {
+  .overviewStatsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .statCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 16px 20px;
+  border-radius: 18px;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .statCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  border-color: #cbd5e1;
 }
 
 .statIconCircle {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.statIconTeal {
+  background-color: #ecfdf5;
+  color: #059669;
+}
+
+.statIconBlue {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.statIconPurple {
+  background-color: #f5f3ff;
+  color: #7c3aed;
 }
 
 .statInfo {
@@ -266,10 +227,10 @@
 }
 
 .statNumber {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: #0f172a;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
   line-height: 1;
 }
 
@@ -279,34 +240,37 @@
   font-weight: 500;
 }
 
-/* Modern Tab Switcher */
+/* ==========================================================================
+   Modern Tab Switcher
+   ========================================================================== */
+
 .modernTabsContainer {
   display: flex;
   justify-content: flex-start;
-  margin-top: 4px;
 }
 
 .tabPillsGroup {
   display: inline-flex;
-  background: #e2e8f0;
+  background: #f1f5f9;
   padding: 4px;
-  border-radius: 14px;
+  border-radius: 12px;
   gap: 4px;
+  border: 1px solid #e2e8f0;
 }
 
 .mainTabButton {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
-  border-radius: 10px;
+  padding: 9px 20px;
+  border-radius: 9px;
   border: none;
   background: transparent;
-  color: #475569;
+  color: #64748b;
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  transition: all 0.2s ease;
   font-family: inherit;
   position: relative;
 }
@@ -317,23 +281,22 @@
 
 .mainTabButton.isActive {
   background: #ffffff;
-  color: #0d9488;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  color: #047857;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 .tabCountBadge {
   font-size: 0.75rem;
   font-weight: 700;
   padding: 2px 7px;
-  border-radius: 999px;
-  background: #e0f2fe;
-  color: #0369a1;
-  font-variant-numeric: tabular-nums;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .mainTabButton.isActive .tabCountBadge {
-  background: #ccfbf1;
-  color: #0f766e;
+  background: #d1fae5;
+  color: #047857;
 }
 
 .tabUnsavedDot {
@@ -344,34 +307,37 @@
   animation: pulse 1.5s infinite;
 }
 
-/* Section Header Card */
+/* ==========================================================================
+   TAB 1: Feature Toggles
+   ========================================================================== */
+
 .sectionHeaderCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 18px;
-  padding: 24px;
+  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
 }
 
 .sectionHeaderTitleGroup {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 14px;
   flex: 1;
 }
 
 .sectionIconWrapper {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: 12px;
-  background: #f0fdfa;
-  color: #0d9488;
-  border: 1px solid #ccfbf1;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -380,11 +346,10 @@
 }
 
 .sectionHeaderTitleGroup h2 {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: #0f172a;
   margin: 0 0 4px 0;
-  line-height: 1.4;
 }
 
 .sectionHeaderTitleGroup p {
@@ -403,11 +368,10 @@
   color: #b45309;
   border: 1px solid #fde68a;
   border-radius: 10px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
 }
 
-/* Feature Groups & Cards */
 .featureGroupContainer {
   display: flex;
   flex-direction: column;
@@ -423,15 +387,14 @@
 }
 
 .groupTitleHeader .groupIcon {
-  color: #0d9488;
+  color: #059669;
 }
 
 .groupTitleHeader h3 {
-  font-size: 0.98rem;
+  font-size: 0.95rem;
   font-weight: 800;
   color: #334155;
   margin: 0;
-  letter-spacing: -0.01em;
 }
 
 .featureCardsGrid {
@@ -448,9 +411,8 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
-  position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
 }
 
 .modernFeatureCard:hover {
@@ -461,8 +423,8 @@
 
 .modernFeatureCard.featureActive {
   background: #ffffff;
-  border-color: #99f6e4;
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.06);
+  border-color: #a7f3d0;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.06);
 }
 
 .modernFeatureCard.featureInactive {
@@ -500,7 +462,7 @@
 }
 
 .featureTitleWrap h4 {
-  font-size: 0.96rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #0f172a;
   margin: 0;
@@ -511,14 +473,14 @@
   font-size: 0.72rem;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 9999px;
   white-space: nowrap;
 }
 
 .badgeOn {
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #bbf7d0;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
 }
 
 .badgeOff {
@@ -534,7 +496,7 @@
   line-height: 1.5;
 }
 
-/* Modern iOS Toggle Switch */
+/* iOS Toggle Switch */
 .toggleSwitch {
   position: relative;
   display: inline-block;
@@ -552,12 +514,9 @@
 .toggleSlider {
   position: absolute;
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background-color: #cbd5e1;
-  transition: 0.25s cubic-bezier(0.2, 0, 0, 1);
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 34px;
 }
 
@@ -569,13 +528,13 @@
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: 0.25s cubic-bezier(0.2, 0, 0, 1);
+  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .toggleSwitch input:checked + .toggleSlider {
-  background-color: #0d9488;
+  background-color: #059669;
 }
 
 .toggleSwitch input:checked + .toggleSlider:before {
@@ -583,7 +542,7 @@
 }
 
 .toggleSwitch input:focus-visible + .toggleSlider {
-  outline: 2px solid #0d9488;
+  outline: 2px solid #059669;
   outline-offset: 2px;
 }
 
@@ -643,21 +602,17 @@
   font-weight: 700;
   border-radius: 10px;
   cursor: pointer;
-  background: #0d9488;
+  background: #059669;
   color: #ffffff;
   border: none;
-  transition: all 0.15s ease-out;
+  transition: all 0.2s ease;
   font-family: inherit;
   white-space: nowrap;
 }
 
 .btnSaveSettings:hover:not(:disabled) {
-  background: #0f766e;
+  background: #047857;
   transform: translateY(-1px);
-}
-
-.btnSaveSettings:active:not(:disabled) {
-  transform: scale(0.96);
 }
 
 .btnSaveSettings:disabled {
@@ -666,17 +621,16 @@
   background: #334155;
 }
 
-/* =========================================================
-   TAB 2: POSITION PERMISSIONS STYLING
-   ========================================================= */
+/* ==========================================================================
+   TAB 2: Position Permissions Manager
+   ========================================================================== */
 
-/* Smart Add Permission Card */
 .smartAddPermCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 20px;
   padding: 24px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -700,9 +654,9 @@
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: #f0fdfa;
-  color: #0d9488;
-  border: 1px solid #ccfbf1;
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -724,7 +678,7 @@
 
 .addPermFormGrid {
   display: grid;
-  grid-template-columns: 1.2fr 1fr auto;
+  grid-template-columns: 1.3fr 1fr auto;
   gap: 14px;
   align-items: flex-end;
 }
@@ -768,20 +722,20 @@
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 8px 14px;
   font-size: 0.88rem;
   color: #0f172a;
   outline: none;
   font-family: inherit;
-  transition: all 0.15s ease-out;
+  transition: all 0.2s ease;
   height: 42px;
 }
 
 .modernSelectInput:focus,
 .modernTextInput:focus {
   background: #ffffff;
-  border-color: #0d9488;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .formSubmitGroup {
@@ -793,7 +747,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #0d9488;
+  background: #059669;
   color: #ffffff;
   border: none;
   border-radius: 10px;
@@ -802,18 +756,14 @@
   font-weight: 700;
   font-size: 0.88rem;
   cursor: pointer;
-  transition: all 0.15s ease-out;
+  transition: all 0.2s ease;
   font-family: inherit;
   white-space: nowrap;
 }
 
 .btnSubmitPermission:hover:not(:disabled) {
-  background: #0f766e;
+  background: #047857;
   transform: translateY(-1px);
-}
-
-.btnSubmitPermission:active:not(:disabled) {
-  transform: scale(0.96);
 }
 
 .btnSubmitPermission:disabled {
@@ -850,19 +800,19 @@
   width: 100%;
   padding: 10px 38px 10px 38px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   background: #ffffff;
   font-size: 0.88rem;
   color: #0f172a;
   outline: none;
   font-family: inherit;
-  transition: all 0.15s ease-out;
+  transition: all 0.2s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .searchInput:focus {
-  border-color: #0d9488;
-  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
 }
 
 .clearSearchBtn {
@@ -936,12 +886,12 @@
   padding: 6px 14px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 999px;
+  border-radius: 9999px;
   color: #475569;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease-out;
+  transition: all 0.2s ease;
   white-space: nowrap;
   font-family: inherit;
 }
@@ -973,8 +923,8 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  transition: all 0.15s ease-out;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
+  transition: all 0.2s ease;
 }
 
 .permissionCardItem:hover {
@@ -1132,8 +1082,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  transition: all 0.15s ease-out;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
+  transition: all 0.2s ease;
 }
 
 .positionProfileCard:hover {
@@ -1197,9 +1147,9 @@
 }
 
 .btnQuickAddForPos:hover {
-  background: #0d9488;
+  background: #059669;
   color: #ffffff;
-  border-color: #0d9488;
+  border-color: #059669;
 }
 
 .positionProfileBody {
@@ -1319,9 +1269,9 @@
 }
 
 .btnResetFilter:hover {
-  background: #0d9488;
+  background: #059669;
   color: #ffffff;
-  border-color: #0d9488;
+  border-color: #059669;
 }
 
 /* Utilities & Animations */
@@ -1348,18 +1298,10 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-slideDown {
-  animation: slideDown 0.25s cubic-bezier(0.2, 0, 0, 1) forwards;
-}
+/* ==========================================================================
+   Responsive Breakpoints
+   ========================================================================== */
 
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* =========================================================
-   RESPONSIVE DESIGN (BREAKPOINTS)
-   ========================================================= */
 @media (max-width: 900px) {
   .overviewStatsGrid {
     grid-template-columns: 1fr;
@@ -1378,7 +1320,11 @@
 
 @media (max-width: 640px) {
   .adminSettingsContainer {
-    padding: 16px 12px 60px;
+    padding: 20px 12px 60px;
+  }
+
+  .adminSettingsHeader {
+    padding: 18px 16px;
   }
 
   .sectionHeaderTitleGroup {
@@ -1386,9 +1332,9 @@
     gap: 10px;
   }
 
-  .modernHeaderNav {
+  .adminSettingsHeaderTop {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .tabPillsGroup {

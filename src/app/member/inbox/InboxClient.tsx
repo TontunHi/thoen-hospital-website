@@ -24,7 +24,13 @@ import {
   Sparkles,
   User,
   ShieldCheck,
-  Palette
+  Palette,
+  Plus,
+  X,
+  ArrowUpRight,
+  Check,
+  Monitor,
+  HeartPulse
 } from 'lucide-react'
 
 interface TaskSummary {
@@ -211,7 +217,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
       case 'IT_REPAIR':
         return (
           <span className="typeBadge typeIT">
-            <Wrench size={13} />
+            <Monitor size={13} />
             <span>ซ่อมคอมฯ/ไอที</span>
           </span>
         )
@@ -225,7 +231,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
       case 'MEDICAL_REPAIR':
         return (
           <span className="typeBadge typeMedical">
-            <Stethoscope size={13} />
+            <HeartPulse size={13} />
             <span>ซ่อมเครื่องมือแพทย์</span>
           </span>
         )
@@ -337,48 +343,153 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             <Inbox size={26} />
           </div>
           <div className="inboxTitleArea">
-            <h1>กล่องงาน</h1>
-            <p>รวมรายการคำร้อง งานแจ้งซ่อม และเอกสารที่รอคุณลงนามหรือปฏิบัติหน้าที่</p>
+            <div className="inboxHeaderMetaRow">
+              <span className="inboxHospTag">
+                <Building2 size={12} />
+                โรงพยาบาลเถิน จ.ลำปาง
+              </span>
+              <span className="inboxRoleTag">
+                <ShieldCheck size={12} />
+                {sessionUser.role === 'admin' ? 'ผู้ดูแลระบบ (Admin)' : 'เจ้าหน้าที่โรงพยาบาล'}
+              </span>
+            </div>
+            <h1>กล่องงานและคำร้อง</h1>
+            <p>ระบบติดตามคำร้อง งานแจ้งซ่อมบำรุง และเอกสารที่รอคุณลงนามหรือเข้าดำเนินการ</p>
           </div>
         </div>
+
+        {/* Header Action Shortcuts */}
         <div className="headerActions">
+          <Link href="/member/repairs/new" className="btnHeaderAction btnHeaderRepair">
+            <Plus size={15} />
+            <span>แจ้งซ่อมบำรุง</span>
+          </Link>
+          <Link href="/member/media-requests/new" className="btnHeaderAction btnHeaderMedia">
+            <Plus size={15} />
+            <span>ขอสื่อประชาสัมพันธ์</span>
+          </Link>
           <Link href="/member" className="backBtn" aria-label="กลับหน้าหลักโปรไฟล์">
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
             <span>หน้าหลักโปรไฟล์</span>
           </Link>
         </div>
       </div>
 
-      {/* ── Compact Quick Stats Chips ── */}
-      <div className="compactStatsRow" role="region" aria-label="สถิติกล่องงานด่วน">
-        <div className="compactStatChip chipPending">
-          <span className="compactStatNumber">{stats.pendingCount}</span>
-          <span className="compactStatLabel">งานรอฉันดำเนินการ</span>
+      {/* ── Interactive KPI Stats Cards ── */}
+      <div className="inboxKpiGrid" role="region" aria-label="สรุปภาพรวมกล่องงาน">
+        {/* KPI 1: Pending Tasks for User */}
+        <div
+          role="button"
+          tabIndex={0}
+          className={`inboxKpiCard kpiPending ${tab === 'inbox' ? 'isSelected' : ''}`}
+          onClick={() => setTab('inbox')}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault()
+              setTab('inbox')
+            }
+          }}
+        >
+          <div className="kpiTopRow">
+            <span className="kpiLabel">งานรอฉันปฏิบัติ / ตรวจสอบ</span>
+            <div className="kpiIconBox kpiPendingIcon">
+              <Inbox size={18} />
+            </div>
+          </div>
+          <div className="kpiBottomRow">
+            <span className="kpiNumber tabularNums">{stats.pendingCount}</span>
+            {stats.pendingCount > 0 ? (
+              <span className="kpiAlertBadge">
+                <span className="kpiPulseDot" />
+                มีงานค้าง
+              </span>
+            ) : (
+              <span className="kpiOkBadge">เรียบร้อย</span>
+            )}
+          </div>
         </div>
 
-        <div className="compactStatChip chipMyReq">
-          <span className="compactStatNumber">{stats.myRequestsCount}</span>
-          <span className="compactStatLabel">คำร้องที่ฉันส่งขอ</span>
+        {/* KPI 2: My Requisitions */}
+        <div
+          role="button"
+          tabIndex={0}
+          className={`inboxKpiCard kpiMyReq ${tab === 'my-requests' ? 'isSelected' : ''}`}
+          onClick={() => setTab('my-requests')}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault()
+              setTab('my-requests')
+            }
+          }}
+        >
+          <div className="kpiTopRow">
+            <span className="kpiLabel">คำร้องที่ฉันยื่นขอ</span>
+            <div className="kpiIconBox kpiMyReqIcon">
+              <Send size={18} />
+            </div>
+          </div>
+          <div className="kpiBottomRow">
+            <span className="kpiNumber tabularNums">{stats.myRequestsCount}</span>
+            <span className="kpiSubtext">ติดตามสถานะคำร้อง</span>
+          </div>
         </div>
 
-        <div className="compactStatChip" style={{ borderColor: '#a7f3d0', backgroundColor: '#f0fdf4' }}>
-          <span className="compactStatNumber" style={{ backgroundColor: '#dcfce7', color: '#166534' }}>
-            {departmentCount}
-          </span>
-          <span className="compactStatLabel">งานในหน่วยงาน{userDepartment ? ` (${userDepartment})` : ''}</span>
-        </div>
-
-        {canViewAll && (
-          <div className="compactStatChip" style={{ borderColor: '#cbd5e1', backgroundColor: '#f8fafc' }}>
-            <span className="compactStatNumber" style={{ backgroundColor: '#e2e8f0', color: '#334155' }}>
-              {stats.allPendingCount || 0}
+        {/* KPI 3: Department Tasks */}
+        <div
+          role="button"
+          tabIndex={0}
+          className={`inboxKpiCard kpiDept ${tab === 'department' ? 'isSelected' : ''}`}
+          onClick={() => setTab('department')}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault()
+              setTab('department')
+            }
+          }}
+        >
+          <div className="kpiTopRow">
+            <span className="kpiLabel">
+              งานในหน่วยงาน {userDepartment ? `(${userDepartment})` : ''}
             </span>
-            <span className="compactStatLabel">งานรอปฏิบัติทั้งหมดในระบบ</span>
+            <div className="kpiIconBox kpiDeptIcon">
+              <Building2 size={18} />
+            </div>
+          </div>
+          <div className="kpiBottomRow">
+            <span className="kpiNumber tabularNums">{departmentCount}</span>
+            <span className="kpiSubtext">งานภายในแผนก</span>
+          </div>
+        </div>
+
+        {/* KPI 4: All System Tasks (for Admin / Manager) */}
+        {canViewAll && (
+          <div
+            role="button"
+            tabIndex={0}
+            className={`inboxKpiCard kpiAll ${tab === 'all' ? 'isSelected' : ''}`}
+            onClick={() => setTab('all')}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault()
+                setTab('all')
+              }
+            }}
+          >
+            <div className="kpiTopRow">
+              <span className="kpiLabel">งานรอปฏิบัติทั้งหมด (Admin)</span>
+              <div className="kpiIconBox kpiAllIcon">
+                <Layers size={18} />
+              </div>
+            </div>
+            <div className="kpiBottomRow">
+              <span className="kpiNumber tabularNums">{stats.allPendingCount || 0}</span>
+              <span className="kpiSubtext">ภาพรวมทั้งโรงพยาบาล</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* ── Tab & Filter Toolbar ── */}
+      {/* ── Tab & Filter Toolbar Card ── */}
       <div className="navFilterCard">
         {/* Navigation Tabs */}
         <div className="inboxTabsRow" role="tablist">
@@ -401,6 +512,9 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
           >
             <Send size={16} />
             <span>คำร้องที่ฉันยื่นขอ</span>
+            {stats.myRequestsCount > 0 && (
+              <span className="tabBadgeNeutral">{stats.myRequestsCount}</span>
+            )}
           </button>
 
           <button
@@ -411,7 +525,9 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
           >
             <Building2 size={16} />
             <span>งานในหน่วยงาน{userDepartment ? ` (${userDepartment})` : ''}</span>
-            {departmentCount > 0 && <span className="tabBadgeAlert" style={{ backgroundColor: '#10b981' }}>{departmentCount}</span>}
+            {departmentCount > 0 && (
+              <span className="tabBadgeDept">{departmentCount}</span>
+            )}
           </button>
 
           {canViewAll && (
@@ -427,7 +543,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
           )}
         </div>
 
-        {/* Search & Filter Bar */}
+        {/* Search & Filter Controls Toolbar */}
         <form onSubmit={handleSearchSubmit} className="toolbarRow">
           <div className="searchFieldWrap">
             <Search size={16} className="searchFieldIcon" aria-hidden="true" />
@@ -439,6 +555,19 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
               onChange={(e) => setSearch(e.target.value)}
               aria-label="ค้นหากล่องงาน"
             />
+            {search && (
+              <button
+                type="button"
+                className="searchClearBtn"
+                onClick={() => {
+                  setSearch('')
+                  setTimeout(() => fetchTasks(), 50)
+                }}
+                title="ล้างคำค้นหา"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           <select
@@ -448,10 +577,12 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             aria-label="กรองตามประเภทงาน"
           >
             <option value="">ทุกประเภทงาน</option>
-            <option value="MEDIA_REQUEST">งานขอสื่อประชาสัมพันธ์</option>
-            <option value="IT_REPAIR">งานซ่อมคอมฯ / ไอที</option>
-            <option value="MEDICAL_REPAIR">งานซ่อมเครื่องมือแพทย์</option>
-            <option value="GENERAL_REPAIR">งานซ่อมช่างทั่วไป</option>
+            <option value="IT_REPAIR">💻 ซ่อมคอมฯ / ไอที</option>
+            <option value="GENERAL_REPAIR">🔧 ซ่อมช่างทั่วไป</option>
+            <option value="MEDICAL_REPAIR">🩺 ซ่อมเครื่องมือแพทย์</option>
+            <option value="MEDIA_REQUEST">🎨 ขอสื่อประชาสัมพันธ์</option>
+            <option value="ROOM_BOOKING">🏢 จองห้องประชุม</option>
+            <option value="DOC_APPROVAL">📄 ขออนุมัติเอกสาร</option>
           </select>
 
           <select
@@ -461,18 +592,39 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
             aria-label="กรองตามสถานะ"
           >
             <option value="">ทุกสถานะ</option>
-            <option value="PENDING">รอดำเนินการ / รอรับงาน</option>
-            <option value="IN_PROGRESS">กำลังดำเนินการ (รับงานแล้ว)</option>
-            <option value="APPROVED">เสร็จสิ้น / อนุมัติแล้ว</option>
-            <option value="REJECTED">ไม่อนุมัติ / ยกเลิก</option>
-            <option value="SENT_BACK">ส่งกลับแก้ไข</option>
+            <option value="PENDING">⏳ รอดำเนินการ / รอรับงาน</option>
+            <option value="IN_PROGRESS">🛠️ กำลังดำเนินการ (รับงานแล้ว)</option>
+            <option value="APPROVED">✅ เสร็จสิ้น / อนุมัติแล้ว</option>
+            <option value="REJECTED">❌ ไม่อนุมัติ / ยกเลิก</option>
+            <option value="SENT_BACK">🔄 ส่งกลับแก้ไข</option>
           </select>
 
           <button type="submit" className="refreshBtn" title="ค้นหาและรีเฟรชข้อมูล">
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={15} className={loading ? 'animate-spin text-teal-600' : ''} />
             <span>ค้นหา</span>
           </button>
         </form>
+
+        {/* Results Counter Sub-bar */}
+        <div className="inboxResultsBar">
+          <span className="resultsCountText">
+            พบรายการงานทั้งหมด <strong className="tabularNums">{tasks.length}</strong> รายการ
+          </span>
+          {(search || selectedType || selectedStatus) && (
+            <button
+              type="button"
+              className="btnResetFilters"
+              onClick={() => {
+                setSearch('')
+                setSelectedType('')
+                setSelectedStatus('')
+              }}
+            >
+              <X size={13} />
+              ล้างตัวกรองทั้งหมด
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Toast Success Message ── */}
@@ -521,6 +673,16 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                 ? 'ไม่พบรายการงานในระบบตามเงื่อนไขที่เลือก'
                 : 'ไม่พบรายการคำร้องที่คุณยื่นขอในขณะนี้'}
             </p>
+            <div className="emptyStateActions">
+              <Link href="/member/repairs/new" className="emptyActionBtn btnRepairNew">
+                <Plus size={14} />
+                <span>แจ้งซ่อมบำรุงใหม่</span>
+              </Link>
+              <Link href="/member/media-requests/new" className="emptyActionBtn btnMediaRequestNew">
+                <Plus size={14} />
+                <span>ขอสื่อประชาสัมพันธ์</span>
+              </Link>
+            </div>
           </div>
         ) : (
           <>

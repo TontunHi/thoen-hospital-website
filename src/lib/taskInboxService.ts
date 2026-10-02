@@ -210,9 +210,9 @@ export async function generateTaskNo(
 }
 
 function formatUrgency(urgency?: string | null) {
-  if (urgency === 'VERY_URGENT') return '🔴 ด่วนที่สุด'
-  if (urgency === 'URGENT') return '🟡 ด่วน'
-  return '🟢 ปกติ'
+  if (urgency === 'VERY_URGENT') return '🔴 ด่วนที่สุด (Emergency)'
+  if (urgency === 'URGENT') return '🟡 ด่วน (Urgent)'
+  return '🟢 ปกติ (Normal)'
 }
 
 /**
@@ -310,28 +310,28 @@ export async function notifyAssigneeOnTelegram(params: {
         `🔔 <b>มีงานแจ้งซ่อมใหม่เข้ามายังกลุ่มงาน</b>`,
         `🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>`,
         `⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}`,
-        `📂 <b>ประเภทงาน :</b> ${escapeHtml(typeLabel)}`,
-        `📋 <b>เรื่อง / รายการ :</b> ${escapeHtml(params.itemName || params.title)}`,
+        `📂 <b>หมวดหมู่งาน :</b> ${escapeHtml(typeLabel)}`,
+        `📋 <b>รายการ / อุปกรณ์ :</b> <b>${escapeHtml(params.itemName || params.title)}</b>`,
       ]
       if (params.equipmentNumber) {
         lines.push(`🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(params.equipmentNumber)}</code>`)
       }
       lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(params.location || 'โรงพยาบาลเถิน')}`)
       if (params.symptom) {
-        lines.push(`📝 <b>อาการเสีย :</b> ${escapeHtml(params.symptom)}`)
+        lines.push(`📝 <b>อาการเสีย / ปัญหา :</b>\n<i>${escapeHtml(params.symptom)}</i>`)
       }
-      lines.push(`👤 <b>ผู้ยื่นแจ้ง :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`)
+      lines.push(`👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`)
       lines.push(`⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.`)
 
-      message = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ช่างในกลุ่มสามารถกดปุ่มด้านล่างเพื่อรับงานได้ทันที</i>`
+      message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ช่างในกลุ่มสามารถกดปุ่มด้านล่างเพื่อรับงานเข้าสู่ระบบได้ทันที</i>`
     } else if (isMediaRequest) {
-      const costLabel = params.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย' : '🟢 ไม่มีค่าใช้จ่าย'
+      const costLabel = params.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย (งบประมาณ)' : '🟢 ไม่มีค่าใช้จ่าย'
       const lines: string[] = [
-        `🎨 <b>มีงานขอสื่อประชาสัมพันธ์รอคุณพิจารณา / ลงนาม</b>`,
+        `🎨 <b>คำขอจัดทำสื่อประชาสัมพันธ์ใหม่</b>`,
         `🏷️ <b>รหัสคำขอ :</b> <code>${params.taskNo}</code>`,
         `⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}`,
-        `📂 <b>ประเภทงาน :</b> ${escapeHtml(typeLabel)}`,
-        `📋 <b>เรื่อง :</b> ${escapeHtml(params.title)}`,
+        `📂 <b>หมวดหมู่งาน :</b> ${escapeHtml(typeLabel)}`,
+        `📋 <b>เรื่อง / หัวข้องาน :</b> <b>${escapeHtml(params.title)}</b>`,
       ]
       if (params.deliveryDate) {
         lines.push(`📅 <b>วันที่ขอรับงาน :</b> ${escapeHtml(params.deliveryDate)}`)
@@ -344,14 +344,14 @@ export async function notifyAssigneeOnTelegram(params: {
       lines.push(`📍 <b>ขั้นตอนปัจจุบัน :</b> ${escapeHtml(params.stepName)}`)
       lines.push(`⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.`)
 
-      message = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>กรุณากดปุ่มด้านล่างเพื่อเปิดดูรายละเอียดและดำเนินการลงนาม</i>`
+      message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>กรุณากดปุ่มด้านล่างเพื่อเปิดดูเอกสารและดำเนินการพิจารณาลงนาม</i>`
     } else {
       const lines: string[] = [
-        `🔔 <b>มีงานใหม่รอคุณปฏิบัติหน้าที่ / ลงนาม</b>`,
-        `🏷️ <b>รหัสงาน :</b> <code>${params.taskNo}</code>`,
+        `📋 <b>มีงานใหม่รอคุณพิจารณา / ลงนาม</b>`,
+        `🏷️ <b>รหัสเอกสาร :</b> <code>${params.taskNo}</code>`,
         `⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}`,
-        `📂 <b>ประเภทงาน :</b> ${escapeHtml(typeLabel)}`,
-        `📋 <b>หัวข้อเรื่อง :</b> ${escapeHtml(params.title)}`,
+        `📂 <b>หมวดหมู่งาน :</b> ${escapeHtml(typeLabel)}`,
+        `📋 <b>หัวข้อเรื่อง :</b> <b>${escapeHtml(params.title)}</b>`,
       ]
       if (params.location) {
         lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}`)
@@ -360,24 +360,24 @@ export async function notifyAssigneeOnTelegram(params: {
       lines.push(`📍 <b>ขั้นตอน :</b> ${escapeHtml(params.stepName)}`)
       lines.push(`⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.`)
 
-      message = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>กรุณากดปุ่มด้านล่างเพื่อเปิดดูรายละเอียดและดำเนินการ</i>`
+      message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>กรุณากดปุ่มด้านล่างเพื่อเปิดดูรายละเอียดและดำเนินการ</i>`
     }
 
     const inlineKeyboard = isRepair
       ? [
           [
             {
-              text: '🛠️ กดรับงานทันที (Accept Job)',
+              text: '🛠️ กดรับงานทันที (Accept)',
               callback_data: `accept_repair:${params.taskId}`,
             },
             {
-              text: '❌ ปฏิเสธ/ยกเลิกงาน',
+              text: '❌ ปฏิเสธงาน',
               callback_data: `cancel_repair:${params.taskId}`,
             },
           ],
           [
             {
-              text: '📋 เปิดดูรายละเอียดบนเว็บไซต์',
+              text: '📋 ดูรายละเอียดบนเว็บไซต์ ↗',
               url: taskLink,
             },
           ],
@@ -385,7 +385,7 @@ export async function notifyAssigneeOnTelegram(params: {
       : [
           [
             {
-              text: '📋 เปิดดูรายละเอียดและลงนาม',
+              text: '✍️ ตรวจสอบและลงนาม ↗',
               url: taskLink,
             },
           ],
@@ -444,23 +444,24 @@ export async function notifyRepairCreatedRequesterOnTelegram(params: {
     const urgencyLabel = formatUrgency(params.urgency)
 
     const lines: string[] = [
-      `📝 <b>คุณได้ส่งใบแจ้งซ่อมเรียบร้อยแล้ว</b>`,
+      `📝 <b>คุณได้ยื่นใบแจ้งซ่อมเรียบร้อยแล้ว</b>`,
       `🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>`,
       `⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}`,
-      `📂 <b>ประเภทงาน :</b> ${escapeHtml(typeLabel)}`,
-      `📋 <b>เรื่อง / รายการ :</b> ${escapeHtml(params.itemName || params.title)}`,
+      `📂 <b>หมวดหมู่งาน :</b> ${escapeHtml(typeLabel)}`,
+      `📋 <b>รายการ / อุปกรณ์ :</b> <b>${escapeHtml(params.itemName || params.title)}</b>`,
     ]
     if (params.equipmentNumber) {
       lines.push(`🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(params.equipmentNumber)}</code>`)
     }
     lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(params.location || 'โรงพยาบาลเถิน')}`)
     if (params.symptom) {
-      lines.push(`📝 <b>อาการเสีย :</b> ${escapeHtml(params.symptom)}`)
+      lines.push(`📝 <b>อาการเสีย / ปัญหา :</b>\n<i>${escapeHtml(params.symptom)}</i>`)
     }
-    lines.push(`🔧 <b>ผู้รับผิดชอบ :</b> ${params.assignedTechName ? escapeHtml(params.assignedTechName) : 'รอช่างรับงาน'}`)
+    lines.push(`🔧 <b>ผู้รับผิดชอบ :</b> ${params.assignedTechName ? escapeHtml(params.assignedTechName) : 'รอทีมช่างรับงาน'}`)
+    lines.push(`📍 <b>สถานะ :</b> ⏳ รอดำเนินการ (PENDING)`)
     lines.push(`⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.`)
 
-    const message = `${lines.join('\n\n')}\n\n──────────────────────\n⏳ <i>ระบบได้ส่งเรื่องไปยังทีมช่างแล้ว และจะแจ้งเตือนเมื่อช่างรับงาน</i>`
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n⏳ <i>ระบบได้ส่งข้อมูลเข้ากลุ่มงานช่างแล้ว และจะแจ้งเตือนทันทีเมื่อช่างกดรับงาน</i>`
 
     await sendTelegramMessage(chatId, message, {
       parseMode: 'HTML',
@@ -468,7 +469,7 @@ export async function notifyRepairCreatedRequesterOnTelegram(params: {
         inline_keyboard: [
           [
             {
-              text: '📋 ติดตามสถานะงานซ่อม',
+              text: '🔍 ติดตามสถานะงานซ่อม ↗',
               url: taskLink,
             },
           ],
@@ -517,7 +518,7 @@ export async function notifyRepairAcceptedOnTelegram(params: {
     const lines: string[] = [
       `👨‍🔧 <b>ช่างได้รับงานแจ้งซ่อมของคุณแล้ว</b>`,
       `🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>`,
-      `📋 <b>เรื่อง :</b> ${escapeHtml(params.title)}`,
+      `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(params.title)}</b>`,
     ]
     if (params.equipmentNumber) {
       lines.push(`🔢 <b>เลขครุภัณฑ์ :</b> <code>${escapeHtml(params.equipmentNumber)}</code>`)
@@ -525,11 +526,11 @@ export async function notifyRepairAcceptedOnTelegram(params: {
     if (params.location) {
       lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}`)
     }
-    lines.push(`🔧 <b>ช่างผู้รับงาน :</b> ${escapeHtml(params.technicianName)}${params.technicianPosition ? ` (${escapeHtml(params.technicianPosition)})` : ''}`)
-    lines.push(`📍 <b>สถานะ :</b> ⚙️ กำลังอยู่ระหว่างดำเนินการตรวจซ่อม`)
+    lines.push(`🔧 <b>ช่างผู้รับงาน :</b> <b>${escapeHtml(params.technicianName)}</b>${params.technicianPosition ? ` (${escapeHtml(params.technicianPosition)})` : ''}`)
+    lines.push(`📍 <b>สถานะปัจจุบัน :</b> ⚙️ อยู่ระหว่างดำเนินการตรวจซ่อม (IN PROGRESS)`)
     lines.push(`⏰ <b>เวลารับงาน :</b> ${thaiDate} น.`)
 
-    const message = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อติดตามความคืบหน้าของงาน</i>`
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบความคืบหน้าของงาน</i>`
 
     await sendTelegramMessage(chatId, message, {
       parseMode: 'HTML',
@@ -537,7 +538,7 @@ export async function notifyRepairAcceptedOnTelegram(params: {
         inline_keyboard: [
           [
             {
-              text: '📋 ติดตามสถานะงานซ่อม',
+              text: '🔍 ติดตามสถานะงานซ่อม ↗',
               url: taskLink,
             },
           ],
@@ -589,22 +590,22 @@ export async function notifyRepairCompletedOnTelegram(params: {
       : 'ไม่มีค่าใช้จ่าย'
 
     const lines: string[] = [
-      `✅ <b>งานแจ้งซ่อมของคุณดำเนินการเสร็จสิ้นแล้ว</b>`,
+      `🎉 <b>งานแจ้งซ่อมของคุณดำเนินการเสร็จสิ้นแล้ว</b>`,
       `🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>`,
-      `📋 <b>เรื่อง :</b> ${escapeHtml(params.title)}`,
+      `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(params.title)}</b>`,
     ]
     if (params.location) {
       lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}`)
     }
-    lines.push(`👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> ${escapeHtml(params.technicianName)}`)
+    lines.push(`👨‍🔧 <b>ช่างผู้ดำเนินการ :</b> <b>${escapeHtml(params.technicianName)}</b>`)
     if (params.solutionStep) {
-      lines.push(`📝 <b>ผลการซ่อม/การแก้ไข :</b> ${escapeHtml(params.solutionStep)}`)
+      lines.push(`📝 <b>ผลการซ่อม / การแก้ไข :</b>\n<i>${escapeHtml(params.solutionStep)}</i>`)
     }
     lines.push(`💵 <b>ค่าใช้จ่าย :</b> ${costText}`)
-    lines.push(`📍 <b>สถานะ :</b> ✓ ซ่อมเสร็จสิ้นสมบูรณ์`)
+    lines.push(`📍 <b>สถานะ :</b> ✅ เสร็จสิ้นสมบูรณ์ (COMPLETED)`)
     lines.push(`⏰ <b>เวลาปิดงาน :</b> ${thaiDate} น.`)
 
-    const message = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดและพิมพ์ใบงาน</i>`
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดและพิมพ์ใบงาน</i>`
 
     await sendTelegramMessage(chatId, message, {
       parseMode: 'HTML',
@@ -612,7 +613,7 @@ export async function notifyRepairCompletedOnTelegram(params: {
         inline_keyboard: [
           [
             {
-              text: '📄 ดูรายละเอียดผลการซ่อม',
+              text: '📄 ดูผลการซ่อมและพิมพ์ใบงาน ↗',
               url: taskLink,
             },
           ],
@@ -661,19 +662,19 @@ export async function notifyRepairCancelledOnTelegram(params: {
     const lines: string[] = [
       `❌ <b>งานแจ้งซ่อมถูกยกเลิก / ปฏิเสธ</b>`,
       `🏷️ <b>รหัสใบงาน :</b> <code>${params.taskNo}</code>`,
-      `📋 <b>เรื่อง :</b> ${escapeHtml(params.title)}`,
+      `📋 <b>เรื่อง / รายการ :</b> <b>${escapeHtml(params.title)}</b>`,
     ]
     if (params.location) {
       lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}`)
     }
-    lines.push(`👤 <b>ผู้ดำเนินการยกเลิก :</b> ${escapeHtml(params.cancelledByName)}${params.cancelledByRole ? ` (${escapeHtml(params.cancelledByRole)})` : ''}`)
+    lines.push(`👤 <b>ผู้ดำเนินการยกเลิก :</b> <b>${escapeHtml(params.cancelledByName)}</b>${params.cancelledByRole ? ` (${escapeHtml(params.cancelledByRole)})` : ''}`)
     if (params.reason) {
-      lines.push(`📝 <b>เหตุผล :</b> ${escapeHtml(params.reason)}`)
+      lines.push(`📝 <b>เหตุผลการยกเลิก :</b>\n<i>${escapeHtml(params.reason)}</i>`)
     }
-    lines.push(`📍 <b>สถานะ :</b> ⛔ ยกเลิก / ปฏิเสธรายการ`)
+    lines.push(`📍 <b>สถานะ :</b> ⛔ ยกเลิก / ปฏิเสธรายการ (CANCELLED)`)
     lines.push(`⏰ <b>เวลายกเลิก :</b> ${thaiDate} น.`)
 
-    const message = `${lines.join('\n\n')}\n\n──────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดในระบบ</i>`
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ท่านสามารถกดปุ่มด้านล่างเพื่อตรวจสอบรายละเอียดในระบบ</i>`
 
     await sendTelegramMessage(chatId, message, {
       parseMode: 'HTML',
@@ -681,7 +682,7 @@ export async function notifyRepairCancelledOnTelegram(params: {
         inline_keyboard: [
           [
             {
-              text: '📋 ตรวจสอบรายละเอียดงาน',
+              text: '📋 ตรวจสอบรายละเอียดงาน ↗',
               url: taskLink,
             },
           ],

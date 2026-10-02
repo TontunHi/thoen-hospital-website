@@ -1,7 +1,8 @@
 /* ==========================================================================
    Hospital Media & PR Requisition Form Styling (Design System)
-   Standards: Concentric Radii, WCAG AA Contrast, 16px Mobile Inputs,
-   Tactile Press Affordance, Fluid Typography & Glass Header
+   Designed by Senior UI/UX Designer
+   Standards: 2-Column Asymmetric Canvas, Concentric Radii, WCAG AA Contrast,
+   Tactile Press (0.96 scale), Fluid Typography & Sticky Context Sidebar
    ========================================================================== */
 
 :root {
@@ -10,7 +11,7 @@
   --mr-primary-dark: #115e59;
   --mr-primary-light: #f0fdfa;
   --mr-primary-border: #99f6e4;
-  --mr-primary-ring: rgba(13, 148, 136, 0.16);
+  --mr-primary-ring: rgba(13, 148, 136, 0.25);
 
   --mr-surface: #ffffff;
   --mr-surface-subtle: #f8fafc;
@@ -26,8 +27,8 @@
   --mr-radius-sm: 8px;
   --mr-radius-md: 12px;
   --mr-radius-lg: 16px;
-  --mr-radius-xl: 22px;
-  --mr-radius-2xl: 28px;
+  --mr-radius-xl: 20px;
+  --mr-radius-2xl: 26px;
   --mr-radius-pill: 9999px;
 
   --mr-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
@@ -36,15 +37,32 @@
   --mr-shadow-glow: 0 8px 20px -4px rgba(13, 148, 136, 0.28);
 }
 
-/* ── Outer Page Layout ── */
+/* ── Screen Reader & Tabular Utilities ── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.tabularNums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Outer Page Canvas ── */
 .mediaFormPageWrapper {
   min-height: calc(100vh - 60px);
-  padding: 32px 20px 80px;
+  padding: 28px 20px 80px;
   background-color: #f8fafc;
   background-image: 
-    radial-gradient(circle at 12% 0%, rgba(204, 251, 241, 0.65) 0%, rgba(248, 250, 252, 1) 60%),
-    radial-gradient(circle at 88% 90%, rgba(224, 242, 254, 0.5) 0%, transparent 60%),
-    radial-gradient(circle at 50% 30%, rgba(241, 245, 249, 0.6) 0%, transparent 80%);
+    radial-gradient(circle at 10% 0%, rgba(204, 251, 241, 0.6) 0%, rgba(248, 250, 252, 1) 50%),
+    radial-gradient(circle at 90% 80%, rgba(224, 242, 254, 0.45) 0%, transparent 50%),
+    radial-gradient(circle at 50% 30%, rgba(241, 245, 249, 0.7) 0%, transparent 70%);
   font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), system-ui, -apple-system, sans-serif;
   color: var(--mr-ink);
   position: relative;
@@ -58,13 +76,13 @@
 }
 
 .media-form-container {
-  max-width: 960px;
+  max-width: 1180px;
   margin: 0 auto;
   position: relative;
   z-index: 10;
 }
 
-/* ── Top Navigation / Breadcrumb ── */
+/* ── Top Navigation Bar ── */
 .mediaFormNav {
   display: flex;
   align-items: center;
@@ -87,7 +105,7 @@
   border: 1px solid var(--mr-border);
   box-shadow: var(--mr-shadow-sm);
   text-decoration: none;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .mediaNavBackLink:hover {
@@ -97,14 +115,23 @@
   transform: translateX(-2px);
 }
 
+.mediaNavBackLink:focus-visible {
+  outline: 2px solid var(--mr-primary);
+  outline-offset: 2px;
+}
+
 .mediaNavLocationBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 0.775rem;
   font-weight: 600;
   color: var(--mr-muted);
-  background: #f1f5f9;
-  padding: 0.35rem 0.85rem;
+  background: #ffffff;
+  padding: 0.4rem 0.9rem;
   border-radius: var(--mr-radius-pill);
   border: 1px solid var(--mr-border);
+  box-shadow: var(--mr-shadow-sm);
 }
 
 /* ── Main Form Shell Card ── */
@@ -118,7 +145,7 @@
 
 /* ── Hero Form Header ── */
 .mediaFormHeader {
-  background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #115e59 100%);
+  background: linear-gradient(135deg, #0f766e 0%, #0d9488 55%, #115e59 100%);
   color: #ffffff;
   padding: 2.25rem 2.25rem;
   position: relative;
@@ -129,10 +156,10 @@
   content: '';
   position: absolute;
   top: -40%;
-  right: -20%;
-  width: 320px;
-  height: 320px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, transparent 70%);
+  right: -15%;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -140,11 +167,11 @@
 .mediaFormHeader::after {
   content: '';
   position: absolute;
-  bottom: -30%;
-  left: 20%;
-  width: 260px;
-  height: 260px;
-  background: radial-gradient(circle, rgba(20, 184, 166, 0.25) 0%, transparent 70%);
+  bottom: -35%;
+  left: 15%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.22) 0%, transparent 70%);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -190,11 +217,12 @@
   letter-spacing: -0.02em;
   margin: 0;
   line-height: 1.25;
+  text-wrap: balance;
 }
 
 @media (max-width: 640px) {
   .mediaHeaderTitle {
-    font-size: 1.45rem;
+    font-size: 1.4rem;
   }
 }
 
@@ -204,7 +232,8 @@
   margin-top: 0.4rem;
   margin-bottom: 0;
   line-height: 1.5;
-  max-width: 580px;
+  max-width: 620px;
+  text-wrap: pretty;
 }
 
 .mediaHeaderDateBox {
@@ -242,18 +271,48 @@
   margin-top: 0.15rem;
 }
 
-/* ── Form Body & Inner Sections ── */
-.mediaFormBody {
+/* ── 2-Column Responsive Form Layout Grid ── */
+.mediaLayoutGrid {
   padding: 2rem 2rem 2.5rem;
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
 }
 
+@media (min-width: 1024px) {
+  .mediaLayoutGrid {
+    display: grid;
+    grid-template-columns: 1fr 370px;
+    gap: 1.75rem;
+    align-items: start;
+  }
+}
+
 @media (max-width: 640px) {
-  .mediaFormBody {
+  .mediaLayoutGrid {
     padding: 1.25rem 1rem 1.75rem;
     gap: 1.25rem;
+  }
+}
+
+/* ── Left Column: Requisition Canvas ── */
+.mediaCanvasCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Right Column: Context & Workflow Sidebar ── */
+.mediaSidebarCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .mediaSidebarCol {
+    position: sticky;
+    top: 1.5rem;
   }
 }
 
@@ -272,10 +331,6 @@
   box-shadow: 0 0 0 3px var(--mr-primary-ring);
 }
 
-.sectionBox.highlightBg {
-  background-color: #fafbfc;
-}
-
 @media (max-width: 640px) {
   .sectionBox {
     padding: 1.15rem 1rem;
@@ -286,7 +341,7 @@
 /* ── Section Header ── */
 .sectionHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
@@ -304,6 +359,7 @@
   justify-content: center;
   border: 1px solid var(--mr-primary-border);
   flex-shrink: 0;
+  margin-top: 0.1rem;
 }
 
 .sectionTitleText {
@@ -314,6 +370,15 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.sectionSubtext {
+  font-size: 0.8rem;
+  color: var(--mr-muted);
+  margin-top: 0.2rem;
+  margin-bottom: 0;
 }
 
 .requiredAsterisk {
@@ -321,7 +386,7 @@
   font-weight: 800;
 }
 
-/* ── Standard Input Fields (16px minimum on mobile for iOS Safari) ── */
+/* ── Form Controls & Inputs (16px minimum on mobile for iOS Safari) ── */
 .formGroup {
   display: flex;
   flex-direction: column;
@@ -329,17 +394,17 @@
 }
 
 .formLabel {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--mr-body);
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
 }
 
 .formInput, .formTextarea, .formSelect {
   width: 100%;
-  font-size: 1rem; /* 16px to prevent iOS Safari auto zoom */
+  font-size: 1rem; /* 16px prevents iOS Safari auto zoom */
   line-height: 1.5;
   color: var(--mr-ink);
   background-color: #ffffff;
@@ -350,7 +415,18 @@
   font-family: inherit;
 }
 
+.formInput.titleInput {
+  font-weight: 600;
+}
+
 .formInput:focus, .formTextarea:focus, .formSelect:focus {
+  outline: none;
+  border-color: var(--mr-primary);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px var(--mr-primary-ring);
+}
+
+.formInput:focus-visible, .formTextarea:focus-visible, .formSelect:focus-visible {
   outline: none;
   border-color: var(--mr-primary);
   background-color: #ffffff;
@@ -363,262 +439,55 @@
 
 .formTextarea {
   resize: vertical;
-  min-height: 120px;
+  min-height: 130px;
 }
 
-/* ── Urgency Selector Cards Grid ── */
-.urgencyCardsGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
+.charCounter {
+  font-size: 0.75rem;
+  color: var(--mr-muted-light);
 }
 
-@media (max-width: 500px) {
-  .urgencyCardsGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.urgencyCard {
-  border: 2px solid var(--mr-border);
-  border-radius: var(--mr-radius-md);
-  background: #ffffff;
-  padding: 0.9rem 0.75rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  user-select: none;
-}
-
-.urgencyCard:hover {
-  transform: translateY(-2px);
-  border-color: var(--mr-border-strong);
-  box-shadow: var(--mr-shadow-sm);
-}
-
-.urgencyCard:active {
-  transform: scale(0.98);
-}
-
-.urgencyCard.normal.active {
-  border-color: #10b981;
-  background-color: #ecfdf5;
-  color: #065f46;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-}
-
-.urgencyCard.urgent.active {
-  border-color: #f59e0b;
-  background-color: #fffbeb;
-  color: #92400e;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
-}
-
-.urgencyCard.veryUrgent.active {
-  border-color: #ef4444;
-  background-color: #fef2f2;
-  color: #991b1b;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
-}
-
-.urgencyCardIcon {
-  font-size: 1.25rem;
-  display: block;
-  margin-bottom: 0.2rem;
-}
-
-.urgencyCardTitle {
-  font-size: 0.9rem;
-  font-weight: 700;
-  display: block;
-}
-
-/* ── Quick Date Buttons ── */
-.quickDateButtons {
+/* ── Description Helper Buttons Bar ── */
+.descHelperBar {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   flex-wrap: wrap;
   margin-top: 0.45rem;
 }
 
-.quickDateLabel {
-  font-size: 0.775rem;
+.descHelperLabel {
+  font-size: 0.725rem;
   font-weight: 600;
   color: var(--mr-muted);
 }
 
-.quickDateBtn {
-  font-size: 0.75rem;
+.descHelperBtn {
+  font-size: 0.725rem;
   font-weight: 600;
-  padding: 0.2rem 0.65rem;
-  background-color: #f1f5f9;
-  border: 1px solid var(--mr-border);
   color: var(--mr-body);
-  border-radius: var(--mr-radius-sm);
+  background: #f1f5f9;
+  border: 1px solid var(--mr-border);
+  border-radius: var(--mr-radius-pill);
+  padding: 0.2rem 0.55rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.quickDateBtn:hover {
-  background-color: #e2e8f0;
-  color: var(--mr-ink);
-}
-
-/* ── Cost Model Cards (No Cost vs Has Cost) ── */
-.costCardsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.costCard {
-  border: 2px solid var(--mr-border);
-  border-radius: var(--mr-radius-lg);
-  background: #ffffff;
-  padding: 1.25rem 1.35rem;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  user-select: none;
-}
-
-.costCard:hover {
-  border-color: var(--mr-primary);
-  transform: translateY(-2px);
-  box-shadow: var(--mr-shadow-sm);
-}
-
-.costCard:active {
-  transform: scale(0.98);
-}
-
-.costCard.active {
-  border-color: var(--mr-primary);
+.descHelperBtn:hover {
   background-color: var(--mr-primary-light);
-  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.12);
-}
-
-.costRadioCircle {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid var(--mr-border-strong);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 0.15rem;
-  transition: all 0.15s ease;
-}
-
-.costCard.active .costRadioCircle {
-  border-color: var(--mr-primary);
-  background-color: #ffffff;
-}
-
-.costRadioInner {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: var(--mr-primary);
-}
-
-.costCardHeading {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--mr-ink);
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.costCardDescription {
-  font-size: 0.825rem;
-  color: var(--mr-muted);
-  line-height: 1.5;
-  display: block;
-}
-
-/* ── Approval Workflow Chain Preview ── */
-.workflowChainBox {
-  background: #ffffff;
-  border: 1px solid var(--mr-border);
-  border-radius: var(--mr-radius-md);
-  padding: 1rem 1.25rem;
-}
-
-.workflowChainTitle {
-  font-size: 0.775rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--mr-muted);
-  display: block;
-  margin-bottom: 0.75rem;
-}
-
-.workflowStepList {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.workflowStepPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  background: #f8fafc;
-  border: 1px solid var(--mr-border);
-  border-radius: var(--mr-radius-sm);
-  padding: 0.4rem 0.75rem;
-  font-size: 0.825rem;
-  font-weight: 600;
-  color: var(--mr-body);
-  transition: all 0.2s ease;
-}
-
-.workflowStepPill.active {
-  background: var(--mr-primary-light);
-  border-color: var(--mr-primary-border);
   color: var(--mr-primary-dark);
+  border-color: var(--mr-primary-border);
 }
 
-.workflowStepPill.director {
-  background: #fffbeb;
-  border-color: #fde68a;
-  color: #92400e;
+.descHelperBtn:active {
+  transform: scale(0.96);
 }
 
-.workflowStepNumber {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--mr-primary);
-  color: #ffffff;
-  font-size: 0.7rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.workflowStepPill.director .workflowStepNumber {
-  background: #d97706;
-}
-
-.workflowArrow {
-  color: var(--mr-muted-light);
-  font-size: 0.85rem;
-}
-
-/* ── Grid Multi-select Cards (Work Types & Channels) ── */
+/* ── Checkbox Matrix Cards (Work Types & Channels) ── */
 .checkboxCardGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 0.75rem;
 }
 
@@ -634,7 +503,7 @@
   background-color: #f8fafc;
   padding: 0.95rem 1rem;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease;
   display: flex;
   flex-direction: column;
   user-select: none;
@@ -646,8 +515,13 @@
   transform: translateY(-1px);
 }
 
+.selectableCard:focus-visible {
+  outline: 2px solid var(--mr-primary);
+  outline-offset: 2px;
+}
+
 .selectableCard:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 .selectableCard.selected {
@@ -710,61 +584,46 @@
   font-family: inherit;
 }
 
-.customDetailInput:focus {
+.customDetailInput:focus-visible {
   outline: none;
   border-color: var(--mr-primary);
   box-shadow: 0 0 0 2px var(--mr-primary-ring);
 }
 
-/* ── Requester Profile Info Box ── */
-.requesterInfoGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-}
-
-.requesterInfoBox {
-  background: #ffffff;
-  border: 1px solid var(--mr-border);
-  border-radius: var(--mr-radius-md);
-  padding: 0.75rem 1rem;
+/* ── Quick Tags for Custom Detail ── */
+.quickTagsWrap {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.45rem;
 }
 
-.requesterInfoIcon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--mr-radius-sm);
-  background: var(--mr-primary-light);
-  color: var(--mr-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.requesterInfoText {
-  overflow: hidden;
-}
-
-.requesterInfoLabel {
-  font-size: 0.725rem;
+.quickTagsLabel {
+  font-size: 0.7rem;
   font-weight: 600;
   color: var(--mr-muted);
-  text-transform: uppercase;
-  display: block;
 }
 
-.requesterInfoValue {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--mr-ink);
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.quickTagPill {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--mr-primary-dark);
+  background-color: #ffffff;
+  border: 1px solid var(--mr-primary-border);
+  border-radius: var(--mr-radius-pill);
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quickTagPill:hover {
+  background-color: var(--mr-primary);
+  color: #ffffff;
+}
+
+.quickTagPill:active {
+  transform: scale(0.96);
 }
 
 /* ── File Upload Drag & Drop Area ── */
@@ -781,6 +640,13 @@
 .fileUploadZone:hover {
   border-color: var(--mr-primary);
   background-color: var(--mr-primary-light);
+}
+
+.fileUploadZone.isDragging {
+  border-color: var(--mr-primary);
+  background-color: #ecfdf5;
+  transform: scale(1.01);
+  box-shadow: 0 0 0 3px var(--mr-primary-ring);
 }
 
 .fileUploadIcon {
@@ -836,16 +702,29 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 180px;
+  max-width: 140px;
+}
+
+.uploadedFileSize {
+  font-size: 0.75rem;
+  color: var(--mr-muted);
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.25rem;
+  white-space: nowrap;
 }
 
 .btnRemoveFile {
   color: var(--mr-muted-light);
-  padding: 0.25rem;
-  border-radius: 4px;
+  padding: 0.35rem;
+  border-radius: 6px;
   border: none;
   background: transparent;
   cursor: pointer;
+  min-width: 32px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.15s ease;
 }
 
@@ -854,67 +733,503 @@
   background-color: #fee2e2;
 }
 
-/* ── Form Actions Bar (Submit & Cancel) ── */
-.formActionBar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.85rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--mr-border);
-  flex-wrap: wrap;
+.btnRemoveFile:active {
+  transform: scale(0.96);
 }
 
-.btnCancel {
-  display: inline-flex;
+.btnRemoveFile:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 1px;
+}
+
+/* ── Sidebar Box Containers ── */
+.sidebarBox {
+  background: #ffffff;
+  border: 1px solid var(--mr-border);
+  border-radius: 16px;
+  padding: 1.25rem 1.35rem;
+  box-shadow: var(--mr-shadow-sm);
+}
+
+.sidebarBoxHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.sidebarBoxTitle {
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: var(--mr-ink);
+  margin: 0;
+}
+
+/* ── Requester Profile Mini Card ── */
+.requesterProfileCard {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid var(--mr-border);
+  border-radius: var(--mr-radius-md);
+  padding: 0.65rem 0.85rem;
+}
+
+.requesterAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d9488 0%, #115e59 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 1.5rem;
-  border: 1px solid var(--mr-border);
-  border-radius: var(--mr-radius-lg);
-  font-size: 0.925rem;
-  font-weight: 600;
-  color: var(--mr-body);
+  flex-shrink: 0;
+}
+
+.requesterDetails {
+  overflow: hidden;
+}
+
+.requesterName {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--mr-ink);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.requesterDept {
+  font-size: 0.75rem;
+  color: var(--mr-muted);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Urgency Selector Cards Grid ── */
+.urgencyCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.urgencyCard {
+  border: 1.5px solid var(--mr-border);
+  border-radius: var(--mr-radius-md);
   background: #ffffff;
-  text-decoration: none;
+  padding: 0.65rem 0.4rem;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.urgencyCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--mr-border-strong);
+  box-shadow: var(--mr-shadow-sm);
+}
+
+.urgencyCard:focus-visible {
+  outline: 2px solid var(--mr-primary);
+  outline-offset: 2px;
+}
+
+.urgencyCard:active {
+  transform: scale(0.96);
+}
+
+.urgencyCard.normal.active {
+  border-color: #10b981;
+  background-color: #ecfdf5;
+  color: #065f46;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.urgencyCard.urgent.active {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
+  color: #92400e;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.urgencyCard.veryUrgent.active {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+  color: #991b1b;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.urgencyCardIcon {
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 0.1rem;
+}
+
+.urgencyCardTitle {
+  font-size: 0.825rem;
+  font-weight: 700;
+  display: block;
+}
+
+.urgencyCardSub {
+  font-size: 0.675rem;
+  color: var(--mr-muted);
+  margin-top: 0.1rem;
+  display: block;
+}
+
+.urgencyNoticeBadge {
+  display: flex;
+  align-items: flex-start;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #b45309;
+  background-color: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: var(--mr-radius-sm);
+  padding: 0.35rem 0.55rem;
+  margin-top: 0.4rem;
+  line-height: 1.4;
+}
+
+/* ── Delivery Date Thai Preview Box ── */
+.deliveryDatePreviewBox {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: var(--mr-radius-sm);
+  padding: 0.4rem 0.65rem;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--mr-primary-dark);
+  margin-top: 0.35rem;
+}
+
+/* ── Quick Date Buttons ── */
+.quickDateButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.45rem;
+}
+
+.quickDateLabel {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: var(--mr-muted);
+}
+
+.quickDateBtn {
+  font-size: 0.725rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  background-color: #f1f5f9;
+  border: 1px solid var(--mr-border);
+  color: var(--mr-body);
+  border-radius: var(--mr-radius-sm);
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.btnCancel:hover {
-  background-color: #f1f5f9;
+.quickDateBtn:hover {
+  background-color: #e2e8f0;
   color: var(--mr-ink);
 }
 
-.btnSubmit {
+.quickDateBtn:active {
+  transform: scale(0.96);
+}
+
+.quickDateBtn:focus-visible {
+  outline: 2px solid var(--mr-primary);
+  outline-offset: 1px;
+}
+
+/* ── Sidebar Cost Cards ── */
+.costCardsGridSidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.costCard {
+  border: 1.5px solid var(--mr-border);
+  border-radius: var(--mr-radius-md);
+  background: #ffffff;
+  padding: 0.85rem 0.95rem;
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  user-select: none;
+}
+
+.costCard:hover {
+  border-color: var(--mr-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--mr-shadow-sm);
+}
+
+.costCard:focus-visible {
+  outline: 2px solid var(--mr-primary);
+  outline-offset: 2px;
+}
+
+.costCard:active {
+  transform: scale(0.96);
+}
+
+.costCard.active {
+  border-color: var(--mr-primary);
+  background-color: var(--mr-primary-light);
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.1);
+}
+
+.costRadioCircle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--mr-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  transition: all 0.15s ease;
+}
+
+.costCard.active .costRadioCircle {
+  border-color: var(--mr-primary);
+  background-color: #ffffff;
+}
+
+.costRadioInner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--mr-primary);
+}
+
+.costCardHeading {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--mr-ink);
+  display: block;
+}
+
+.costCardDescription {
+  font-size: 0.75rem;
+  color: var(--mr-muted);
+  line-height: 1.4;
+  display: block;
+  margin-top: 0.15rem;
+}
+
+/* ── Smart Hint Box ── */
+.smartHintBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--mr-radius-md);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.775rem;
+  color: #1e40af;
+  line-height: 1.4;
+}
+
+/* ── Vertical Approval Pipeline ── */
+.workflowPipelineBox {
+  background: #f8fafc;
+  border: 1px solid var(--mr-border);
+  border-radius: var(--mr-radius-md);
+  padding: 0.75rem 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.workflowPipelineTitle {
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--mr-muted);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.workflowVerticalSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.workflowVerticalStep {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--mr-body);
+}
+
+.workflowVerticalStep .stepNum {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--mr-primary);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.workflowVerticalStep.director .stepNum {
+  background: #d97706;
+}
+
+.workflowVerticalStep.director .stepText {
+  color: #92400e;
+  font-weight: 700;
+}
+
+/* ── Submission Checklist & Action Box ── */
+.submissionBox {
+  background: #fafbfc;
+  border: 1.5px solid var(--mr-primary-border);
+}
+
+.checklistTitle {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--mr-ink);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.checklistItems {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.checklistItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--mr-muted);
+  transition: color 0.15s ease;
+}
+
+.checklistItem.isValid {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.checkIcon {
+  font-weight: 800;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.checklistItem.isValid .checkIcon {
+  color: #10b981;
+}
+
+.sidebarActionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btnSubmitPrimary {
+  width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.85rem 2rem;
+  padding: 0.85rem 1.25rem;
   background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
   color: #ffffff !important;
-  font-size: 0.95rem;
+  font-size: 0.925rem;
   font-weight: 700;
   border: none;
-  border-radius: var(--mr-radius-lg);
+  border-radius: var(--mr-radius-md);
   cursor: pointer;
   box-shadow: var(--mr-shadow-glow);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, background 0.15s ease;
 }
 
-.btnSubmit:hover:not(:disabled) {
+.btnSubmitPrimary:hover:not(:disabled) {
   background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
   transform: translateY(-2px);
   box-shadow: 0 10px 24px -4px rgba(13, 148, 136, 0.4);
 }
 
-.btnSubmit:active:not(:disabled) {
+.btnSubmitPrimary:active:not(:disabled) {
   transform: scale(0.96);
 }
 
-.btnSubmit:disabled {
+.btnSubmitPrimary:focus-visible {
+  outline: 2px solid var(--mr-primary-dark);
+  outline-offset: 2px;
+}
+
+.btnSubmitPrimary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btnCancelSecondary {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--mr-border);
+  border-radius: var(--mr-radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--mr-muted);
+  background: #ffffff;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.btnCancelSecondary:hover {
+  background-color: #f1f5f9;
+  color: var(--mr-ink);
+}
+
+.btnCancelSecondary:active {
+  transform: scale(0.96);
+}
+
+.btnCancelSecondary:focus-visible {
+  outline: 2px solid var(--mr-primary);
+  outline-offset: 2px;
 }
 
 /* ── Error Banner ── */
@@ -924,6 +1239,7 @@
   border-left: 4px solid #ef4444;
   border-radius: 0 var(--mr-radius-md) var(--mr-radius-md) 0;
   padding: 1rem 1.25rem;
+  margin: 1.25rem 2rem 0;
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
@@ -1038,6 +1354,15 @@
   background: var(--mr-primary-hover);
 }
 
+.btnModalPrimary:active {
+  transform: scale(0.96);
+}
+
+.btnModalPrimary:focus-visible {
+  outline: 2px solid var(--mr-primary-dark);
+  outline-offset: 2px;
+}
+
 .btnModalSecondary {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -1054,6 +1379,15 @@
 .btnModalSecondary:hover {
   background: #f8fafc;
   color: var(--mr-ink);
+}
+
+.btnModalSecondary:active {
+  transform: scale(0.96);
+}
+
+.btnModalSecondary:focus-visible {
+  outline: 2px solid var(--mr-primary);
+  outline-offset: 2px;
 }
 
 /* ── Keyframe Animations ── */
@@ -1074,5 +1408,25 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Accessibility: Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .urgencyCard:hover,
+  .costCard:hover,
+  .selectableCard:hover,
+  .btnSubmitPrimary:hover:not(:disabled),
+  .mediaNavBackLink:hover {
+    transform: none !important;
   }
 }

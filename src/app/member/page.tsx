@@ -18,119 +18,12 @@ import {
   Wrench, 
   MapPin,
   Package,
-  Palette
+  Palette,
+  Sparkles,
+  LayoutGrid,
+  Settings2
 } from 'lucide-react'
 import './page.css'
-
-function SignatureCard({ show }: { show: boolean }) {
-  if (!show) return null
-
-  return (
-    <Link href="/member/signature" className="serviceCard">
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper signatureIcon">
-          <PenTool size={24} />
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>จัดการลายเซ็นดิจิทัล</h4>
-        <p>ลงทะเบียน วาดลายเส้น หรืออัปโหลดรูปภาพลายเซ็นของคุณสำหรับใช้ลงนามอนุมัติเอกสารภายในโรงพยาบาล</p>
-      </div>
-      <div className="serviceCardFooter">
-        <span className="actionText">ตั้งค่าลายเซ็น</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </Link>
-  )
-}
-
-function SalaryCard({ show }: { show: boolean }) {
-  if (!show) return null
-
-  return (
-    <Link href="/salary" className="serviceCard">
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper salaryIcon">
-          <FileText size={24} />
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>ระบบสลิปเงินเดือนออนไลน์</h4>
-        <p>เรียกดูข้อมูลสลิปเงินเดือน ประวัติรายได้ประจำเดือน และข้อมูลสวัสดิการของทางโรงพยาบาล</p>
-      </div>
-      <div className="serviceCardFooter">
-        <span className="actionText">เข้าสู่ระบบสลิปเงินเดือน</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </Link>
-  )
-}
-
-function InboxCard({ show, pendingInboxCount }: { show: boolean; pendingInboxCount: number }) {
-  if (!show) return null
-
-  return (
-    <Link href="/member/inbox" className="serviceCard" style={{ border: pendingInboxCount > 0 ? '1.5px solid #3b82f6' : undefined }}>
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper" style={{ backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
-          <Inbox size={24} />
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>กล่องงาน</h4>
-        <p>ตรวจสอบและดำเนินการงานที่ส่งมาถึงคุณ พร้อมติดตามสถานะงานที่คุณยื่นขอ</p>
-      </div>
-      <div className="serviceCardFooter" style={{ color: '#2563eb' }}>
-        <span className="actionText">เปิดกล่องงาน</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </Link>
-  )
-}
-
-function RepairCard({ show }: { show: boolean }) {
-  if (!show) return null
-
-  return (
-    <Link href="/member/repairs/new" className="serviceCard">
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
-          <Wrench size={24} />
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>แจ้งซ่อมบำรุง</h4>
-        <p>ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมระบุครุภัณฑ์และสถานที่</p>
-      </div>
-      <div className="serviceCardFooter" style={{ color: '#16a34a' }}>
-        <span className="actionText">ยื่นใบแจ้งซ่อม</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </Link>
-  )
-}
-
-function MediaRequestCard({ show }: { show: boolean }) {
-  if (!show) return null
-
-  return (
-    <Link href="/member/media-requests" className="serviceCard">
-      <div className="serviceCardHeader">
-        <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdfa', color: '#0d9488', borderColor: '#ccfbf1', borderWidth: '1px', borderStyle: 'solid' }}>
-          <Palette size={24} />
-        </div>
-      </div>
-      <div className="serviceCardBody">
-        <h4>ระบบขอสื่อประชาสัมพันธ์</h4>
-        <p>ยื่นคำขอจัดทำสื่อ แผ่นพับ โปสเตอร์ AW วิดีโอ พร้อมระบบพิจารณาอนุมัติและลงนามดิจิทัล</p>
-      </div>
-      <div className="serviceCardFooter" style={{ color: '#0d9488' }}>
-        <span className="actionText">ขอสื่อประชาสัมพันธ์</span>
-        <ChevronRight size={16} className="chevronIcon" />
-      </div>
-    </Link>
-  )
-}
 
 export default async function MemberDashboardPage() {
   const member = await getAuthenticatedMember()
@@ -159,14 +52,25 @@ export default async function MemberDashboardPage() {
   const isLocationsAuthorized = member.can('manage_locations') || member.isAdmin
   const isAssetsAuthorized = member.can('manage_assets') || member.isAdmin
 
+  // Check if there are any departmental/hospital management features available
+  const hasHospitalAdminFeatures =
+    isAssetsAuthorized ||
+    (isNewsAuthorized && !member.isAdmin) ||
+    (isItaAuthorized && member.hasAccess('feature_ita')) ||
+    (isRduAuthorized && member.hasAccess('feature_rdu')) ||
+    isOutgoingDocAuthorized ||
+    isEthicsAuthorized ||
+    isFinance ||
+    isAllSalaryAuthorized
+
   return (
     <div className="memberDashboardContainer">
-      <div className="glowOrb glowOrb1"></div>
-      <div className="glowOrb glowOrb2"></div>
-      <div className="glowOrb glowOrb3"></div>
+      <div className="glowOrb glowOrb1" aria-hidden="true" />
+      <div className="glowOrb glowOrb2" aria-hidden="true" />
+      <div className="glowOrb glowOrb3" aria-hidden="true" />
+
       <div className="dashboardWrapper">
-        
-        {/* Banner Section / Profile Card */}
+        {/* ── Banner Section / Profile Card ── */}
         <ProfileBanner
           member={toClientMember(member)}
           initials={member.initials}
@@ -174,7 +78,7 @@ export default async function MemberDashboardPage() {
           isTelegramLinked={member.isTelegramLinked}
         />
 
-        {/* Services / Features Section */}
+        {/* ── Subdistrict (รพ.สต.) Notice ── */}
         {member.role === 'subdistrict' ? (
           <div className="subdistrictNotice">
             <div className="subdistrictNoticeIcon">
@@ -191,285 +95,427 @@ export default async function MemberDashboardPage() {
           </div>
         ) : (
           <>
-            <h3 className="sectionTitle">บริการและฟังก์ชันการใช้งานภายใน</h3>
-            
-            <div className="servicesGrid">
-              
-              {/* Card 0: กล่องงาน (Unified Task Inbox) */}
-              <InboxCard 
-                show={member.hasAccess('feature_inbox')} 
-                pendingInboxCount={pendingInboxCount} 
-              />
+            {/* ══════════════════════════════════════════════════════════════
+               Category 1: Primary Daily Services & Requisitions
+               ══════════════════════════════════════════════════════════════ */}
+            <section aria-labelledby="section-primary-services">
+              <div className="sectionHeaderRow">
+                <div className="sectionTitleWrap">
+                  <h3 id="section-primary-services" className="sectionTitle">
+                    <Sparkles size={18} className="text-emerald-600" />
+                    บริการและคำร้องหลักประจำวัน
+                  </h3>
+                  <p className="sectionSubtitle">
+                    ศูนย์รวมการยื่นคำร้อง ติดตามสถานะงาน สลิปเงินเดือน และจัดการลายเซ็นดิจิทัล
+                  </p>
+                </div>
+              </div>
 
-              {/* Card 0.5: ระบบแจ้งซ่อม (Repair Request) */}
-              <RepairCard 
-                show={member.hasAccess('feature_repair')} 
-              />
-
-              {/* Card 0.75: ระบบขอสื่อประชาสัมพันธ์ (Media & PR Request) */}
-              <MediaRequestCard 
-                show={member.hasAccess('feature_media_request')} 
-              />
-
-              {/* Card 1: Digital Signature */}
-              <SignatureCard show={member.hasAccess('feature_signature')} />
-
-              {/* Card 2: Salary Slip */}
-              <SalaryCard show={member.hasAccess('feature_salary')} />
-
-              {/* Card 6: Upload Salary (Visible only to admin or finance position) */}
-              {isFinance && (
-                <Link href="/member/upload-salary" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper salaryIcon" style={{ backgroundColor: '#fff7ed', color: '#ea580c', borderColor: '#ffedd5', borderWidth: '1px', borderStyle: 'solid' }}>
-                      <FileText size={24} />
+              <div className="servicesGrid">
+                {/* 1. กล่องงานและคำร้อง (Unified Task Inbox) */}
+                {member.hasAccess('feature_inbox') && (
+                  <Link 
+                    href="/member/inbox" 
+                    className={`serviceCard cardInbox ${pendingInboxCount > 0 ? 'hasPendingTasks' : ''}`}
+                  >
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper inboxIcon">
+                        <Inbox size={24} />
+                      </div>
+                      {pendingInboxCount > 0 ? (
+                        <span className="cardStatusBadge badgeAlert">
+                          <span className="badgePulseDot" />
+                          {pendingInboxCount} งานรอคุณ
+                        </span>
+                      ) : (
+                        <span className="cardStatusBadge badgeOk">
+                          อัปเดตล่าสุด
+                        </span>
+                      )}
                     </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>ระบบนำเข้าข้อมูลการเงิน</h4>
-                    <p>ระบบบันทึกงวดนำเข้า และอัปโหลดไฟล์ Excel/CSV ข้อมูลสลิปเงินเดือนและ OT ของบุคลากรโรงพยาบาลเถิน</p>
-                  </div>
-                  <div className="serviceCardFooter" style={{ color: '#ea580c' }}>
-                    <span className="actionText">เข้าสู่หน้านำเข้าข้อมูลการเงิน</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
-
-              {/* Card 7: ITA Blog Management */}
-              {isItaAuthorized && member.hasAccess('feature_ita') && (
-                <Link href="/member/ita" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper" style={{ backgroundColor: '#eff6ff', color: '#2563eb', borderColor: '#dbeafe', borderWidth: '1px', borderStyle: 'solid' }}>
-                      <Globe size={24} />
+                    <div className="serviceCardBody">
+                      <h4>กล่องงานและคำร้อง</h4>
+                      <p>ตรวจสอบและพิจารณาอนุมัติงานที่ส่งถึงคุณ พร้อมติดตามสถานะใบแจ้งซ่อมและคำร้องที่คุณส่งขอ</p>
                     </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>จัดการบทความ ITA</h4>
-                    <p>ระบบเขียนบทความ ปรับแต่งเนื้อหา และเผยแพร่ข้อมูลการประเมินคุณธรรมและความโปร่งใสสู่สาธารณะ</p>
-                  </div>
-                  <div className="serviceCardFooter" style={{ color: '#2563eb' }}>
-                    <span className="actionText">เข้าสู่หน้าจัดการบทความ</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
-
-              {/* Card 8: PR News Posting Program (Visible to authorized members who are not admins) */}
-              {isNewsAuthorized && !member.isAdmin && (
-                <Link href="/member/news" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper" style={{ backgroundColor: '#f0f9ff', color: '#0284c7', borderColor: '#e0f2fe', borderWidth: '1px', borderStyle: 'solid' }}>
-                      <Newspaper size={24} />
+                    <div className="serviceCardFooter">
+                      <span className="actionText">เปิดกล่องงาน</span>
+                      <ChevronRight size={16} className="chevronIcon" />
                     </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>โปรแกรมโพสข่าวประชาสัมพันธ์</h4>
-                    <p>ระบบจัดการและโพสข่าวประชาสัมพันธ์ กิจกรรม ข่าวรับสมัครงาน เพื่อแสดงผลบนหน้าเว็บไซต์หลักโรงพยาบาลเถิน</p>
-                  </div>
-                  <div className="serviceCardFooter" style={{ color: '#0284c7' }}>
-                    <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
+                  </Link>
+                )}
 
-              {/* Card 9: All Staff Salary Slip (Visible to authorized members or admins) */}
-              {isAllSalaryAuthorized && (
-                <Link href="/member/all-salary" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdf4', color: '#16a34a', borderColor: '#dcfce7', borderWidth: '1px', borderStyle: 'solid' }}>
-                      <FileText size={24} />
+                {/* 2. ระบบแจ้งซ่อมบำรุง (Maintenance & Asset Repairs) */}
+                {member.hasAccess('feature_repair') && (
+                  <Link href="/member/repairs/new" className="serviceCard cardRepair">
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper repairIcon">
+                        <Wrench size={24} />
+                      </div>
+                      <span className="cardTagPill tagRepair">แจ้งซ่อมด่วน</span>
                     </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>สลิปเงินเดือนบุคลากรทั้งหมด</h4>
-                    <p>ระบบค้นหาและเรียกดูข้อมูลสลิปเงินเดือนและค่าล่วงเวลา (OT) ของบุคลากรทุกคนในโรงพยาบาลเถิน</p>
-                  </div>
-                  <div className="serviceCardFooter" style={{ color: '#16a34a' }}>
-                    <span className="actionText">ค้นหาสลิปเงินเดือนบุคลากร</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
-
-              {/* Card 10: RDU Document Management */}
-              {isRduAuthorized && member.hasAccess('feature_rdu') && (
-                <Link href="/member/rdu" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper" style={{ backgroundColor: '#f0fdfa', color: '#0d9488', borderColor: '#ccfbf1', borderWidth: '1px', borderStyle: 'solid' }}>
-                      <Pill size={24} />
+                    <div className="serviceCardBody">
+                      <h4>แจ้งซ่อมบำรุงและอุปกรณ์</h4>
+                      <p>ยื่นคำขอแจ้งซ่อมคอมพิวเตอร์ งานช่างทั่วไป และเครื่องมือแพทย์ พร้อมส่งแจ้งเตือนเข้ากลุ่มช่างทันที</p>
                     </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>ระบบจัดการเอกสาร RDU</h4>
-                    <p>จัดการโฟลเดอร์ปี อัปโหลดและแก้ไขชื่อไฟล์ PDF การใช้ยาอย่างสมเหตุผล พร้อมเผยแพร่บน Navbar</p>
-                  </div>
-                  <div className="serviceCardFooter" style={{ color: '#0d9488' }}>
-                    <span className="actionText">เข้าสู่ระบบจัดการ RDU</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
-
-              {/* Card 11: Outgoing Document Management (Visible to authorized members or admins) */}
-              {isOutgoingDocAuthorized && (
-                <Link href="/member/outgoing-document" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper" style={{ backgroundColor: '#ecfdf5', color: '#059669', borderColor: '#d1fae5', borderWidth: '1px', borderStyle: 'solid' }}>
-                      <FileSpreadsheet size={24} />
+                    <div className="serviceCardFooter">
+                      <span className="actionText">ยื่นใบแจ้งซ่อมใหม่</span>
+                      <ChevronRight size={16} className="chevronIcon" />
                     </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>จัดการระบบหนังสือส่งออก Online</h4>
-                    <p>ระบบจัดการลิงก์ Google Sheets ทะเบียนหนังสือส่งออกโรงพยาบาลเถิน แยกตามปีงบประมาณ</p>
-                  </div>
-                  <div className="serviceCardFooter" style={{ color: '#059669' }}>
-                    <span className="actionText">เข้าสู่หน้าจัดการหนังสือส่งออก</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
+                  </Link>
+                )}
 
-              {/* Card 12: Ethics Document Management (Visible to authorized members or admins) */}
-              {isEthicsAuthorized && (
-                <Link href="/member/ethics" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper" style={{ backgroundColor: '#eef2ff', color: '#4f46e5', borderColor: '#e0e7ff', borderWidth: '1px', borderStyle: 'solid' }}>
-                      <Scale size={24} />
+                {/* 3. ระบบขอสื่อประชาสัมพันธ์ (Media & PR Request) */}
+                {member.hasAccess('feature_media_request') && (
+                  <Link href="/member/media-requests" className="serviceCard cardMedia">
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper mediaIcon">
+                        <Palette size={24} />
+                      </div>
+                      <span className="cardTagPill tagMedia">PR Service</span>
                     </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>จัดการเอกสารชมรมจริยธรรม</h4>
-                    <p>จัดการปีงบประมาณ คำสั่งคณะทำงาน แผนปฏิบัติการ และอัปโหลดไฟล์ PDF รายงานผลชมรมจริยธรรม</p>
-                  </div>
-                  <div className="serviceCardFooter" style={{ color: '#4f46e5' }}>
-                    <span className="actionText">เข้าสู่หน้าจัดการเอกสารจริยธรรม</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
-
-              {/* Card 13: Hospital Asset Management (Visible to authorized members or admins) */}
-              {isAssetsAuthorized && (
-                <Link href="/member/assets" className="serviceCard">
-                  <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper" style={{ backgroundColor: '#e0f2fe', color: '#0284c7', borderColor: '#bae6fd', borderWidth: '1px', borderStyle: 'solid' }}>
-                      <Package size={24} />
+                    <div className="serviceCardBody">
+                      <h4>ระบบขอสื่อประชาสัมพันธ์</h4>
+                      <p>ยื่นคำขอจัดทำป้ายไวนิล แผ่นพับ Infographic โปสเตอร์ AW และวิดีโอ พร้อมระบบลงนามอนุมัติ</p>
                     </div>
-                  </div>
-                  <div className="serviceCardBody">
-                    <h4>ระบบจัดการข้อมูลครุภัณฑ์</h4>
-                    <p>แดชบอร์ดตรวจสอบทะเบียนครุภัณฑ์ ตรวจสอบสถานะการรับประกัน ยี่ห้อ/รุ่น จุดติดตั้ง และประวัติพัสดุ</p>
-                  </div>
-                  <div className="serviceCardFooter" style={{ color: '#0284c7' }}>
-                    <span className="actionText">เข้าสู่ระบบจัดการครุภัณฑ์</span>
-                    <ChevronRight size={16} className="chevronIcon" />
-                  </div>
-                </Link>
-              )}
+                    <div className="serviceCardFooter">
+                      <span className="actionText">จัดการและขอสื่อประชาสัมพันธ์</span>
+                      <ChevronRight size={16} className="chevronIcon" />
+                    </div>
+                  </Link>
+                )}
 
-            </div>
+                {/* 4. สลิปเงินเดือนออนไลน์ (E-Pay Slip) */}
+                {member.hasAccess('feature_salary') && (
+                  <Link href="/salary" className="serviceCard cardSalary">
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper salaryIcon">
+                        <FileText size={24} />
+                      </div>
+                      <span className="cardTagPill tagSalary">ความปลอดภัยสูง</span>
+                    </div>
+                    <div className="serviceCardBody">
+                      <h4>ระบบสลิปเงินเดือนออนไลน์</h4>
+                      <p>เรียกดูข้อมูลสลิปเงินเดือน ประวัติรายได้ประจำเดือน และค่าตอบแทนล่วงเวลา (OT) ผ่านระบบรหัสผ่านคุ้มครอง</p>
+                    </div>
+                    <div className="serviceCardFooter">
+                      <span className="actionText">เข้าสู่ระบบสลิปเงินเดือน</span>
+                      <ChevronRight size={16} className="chevronIcon" />
+                    </div>
+                  </Link>
+                )}
+
+                {/* 5. จัดการลายเซ็นดิจิทัล (Digital E-Signature) */}
+                {member.hasAccess('feature_signature') && (
+                  <Link href="/member/signature" className="serviceCard cardSignature">
+                    <div className="serviceCardHeader">
+                      <div className="serviceIconWrapper signatureIcon">
+                        <PenTool size={24} />
+                      </div>
+                      <span className="cardTagPill tagSignature">e-Signature</span>
+                    </div>
+                    <div className="serviceCardBody">
+                      <h4>จัดการลายเซ็นดิจิทัล</h4>
+                      <p>ลงทะเบียน วาดลายเส้น หรืออัปโหลดรูปภาพลายเซ็นอิเล็กทรอนิกส์สำหรับใช้ลงนามอนุมัติเอกสาร</p>
+                    </div>
+                    <div className="serviceCardFooter">
+                      <span className="actionText">ตั้งค่าลายเซ็นดิจิทัล</span>
+                      <ChevronRight size={16} className="chevronIcon" />
+                    </div>
+                  </Link>
+                )}
+              </div>
+            </section>
+
+            {/* ══════════════════════════════════════════════════════════════
+               Category 2: Hospital Management & Information Systems
+               ══════════════════════════════════════════════════════════════ */}
+            {hasHospitalAdminFeatures && (
+              <section aria-labelledby="section-hospital-mgmt" className="mt-8">
+                <div className="sectionHeaderRow">
+                  <div className="sectionTitleWrap">
+                    <h3 id="section-hospital-mgmt" className="sectionTitle sectionTitleInfo">
+                      <LayoutGrid size={18} className="text-blue-600" />
+                      ระบบงานสารสนเทศและบริหารจัดการข้อมูล
+                    </h3>
+                    <p className="sectionSubtitle">
+                      ระบบข้อมูลครุภัณฑ์ ข่าวสาร เอกสารเผยแพร่ และงานสารสนเทศตามสิทธิ์การปฏิบัติงาน
+                    </p>
+                  </div>
+                </div>
+
+                <div className="servicesGrid">
+                  {/* ระบบจัดการข้อมูลครุภัณฑ์ */}
+                  {isAssetsAuthorized && (
+                    <Link href="/member/assets" className="serviceCard">
+                      <div className="serviceCardHeader">
+                        <div className="serviceIconWrapper assetIcon">
+                          <Package size={24} />
+                        </div>
+                      </div>
+                      <div className="serviceCardBody">
+                        <h4>ระบบจัดการข้อมูลครุภัณฑ์</h4>
+                        <p>ตรวจสอบทะเบียนครุภัณฑ์โรงพยาบาล ตรวจสอบสถานะการรับประกัน ยี่ห้อ/รุ่น จุดติดตั้ง และประวัติพัสดุ</p>
+                      </div>
+                      <div className="serviceCardFooter footerBlue">
+                        <span className="actionText">เข้าสู่ระบบจัดการครุภัณฑ์</span>
+                        <ChevronRight size={16} className="chevronIcon" />
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* โปรแกรมโพสข่าวประชาสัมพันธ์ */}
+                  {isNewsAuthorized && !member.isAdmin && (
+                    <Link href="/member/news" className="serviceCard">
+                      <div className="serviceCardHeader">
+                        <div className="serviceIconWrapper newsIcon">
+                          <Newspaper size={24} />
+                        </div>
+                      </div>
+                      <div className="serviceCardBody">
+                        <h4>โปรแกรมโพสข่าวประชาสัมพันธ์</h4>
+                        <p>จัดการและโพสข่าวประชาสัมพันธ์ กิจกรรม ข่าวรับสมัครงาน เพื่อแสดงผลบนหน้าเว็บไซต์หลักโรงพยาบาลเถิน</p>
+                      </div>
+                      <div className="serviceCardFooter footerSky">
+                        <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
+                        <ChevronRight size={16} className="chevronIcon" />
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* จัดการบทความ ITA */}
+                  {isItaAuthorized && member.hasAccess('feature_ita') && (
+                    <Link href="/member/ita" className="serviceCard">
+                      <div className="serviceCardHeader">
+                        <div className="serviceIconWrapper itaIcon">
+                          <Globe size={24} />
+                        </div>
+                      </div>
+                      <div className="serviceCardBody">
+                        <h4>จัดการบทความ ITA</h4>
+                        <p>เขียนบทความ ปรับแต่งเนื้อหา และเผยแพร่ข้อมูลการประเมินคุณธรรมและความโปร่งใสสู่สาธารณะ</p>
+                      </div>
+                      <div className="serviceCardFooter footerBlue">
+                        <span className="actionText">เข้าสู่หน้าจัดการบทความ</span>
+                        <ChevronRight size={16} className="chevronIcon" />
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* ระบบจัดการเอกสาร RDU */}
+                  {isRduAuthorized && member.hasAccess('feature_rdu') && (
+                    <Link href="/member/rdu" className="serviceCard">
+                      <div className="serviceCardHeader">
+                        <div className="serviceIconWrapper rduIcon">
+                          <Pill size={24} />
+                        </div>
+                      </div>
+                      <div className="serviceCardBody">
+                        <h4>ระบบจัดการเอกสาร RDU</h4>
+                        <p>จัดการโฟลเดอร์ปี อัปโหลดและแก้ไขไฟล์ PDF การใช้ยาอย่างสมเหตุผล พร้อมเผยแพร่บน Navbar</p>
+                      </div>
+                      <div className="serviceCardFooter footerTeal">
+                        <span className="actionText">เข้าสู่ระบบจัดการ RDU</span>
+                        <ChevronRight size={16} className="chevronIcon" />
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* จัดการระบบหนังสือส่งออก Online */}
+                  {isOutgoingDocAuthorized && (
+                    <Link href="/member/outgoing-document" className="serviceCard">
+                      <div className="serviceCardHeader">
+                        <div className="serviceIconWrapper outgoingIcon">
+                          <FileSpreadsheet size={24} />
+                        </div>
+                      </div>
+                      <div className="serviceCardBody">
+                        <h4>จัดการระบบหนังสือส่งออก Online</h4>
+                        <p>ระบบจัดการลิงก์ Google Sheets ทะเบียนหนังสือส่งออกโรงพยาบาลเถิน แยกตามปีงบประมาณ</p>
+                      </div>
+                      <div className="serviceCardFooter footerEmerald">
+                        <span className="actionText">เข้าสู่หน้าจัดการหนังสือส่งออก</span>
+                        <ChevronRight size={16} className="chevronIcon" />
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* จัดการเอกสารชมรมจริยธรรม */}
+                  {isEthicsAuthorized && (
+                    <Link href="/member/ethics" className="serviceCard">
+                      <div className="serviceCardHeader">
+                        <div className="serviceIconWrapper ethicsIcon">
+                          <Scale size={24} />
+                        </div>
+                      </div>
+                      <div className="serviceCardBody">
+                        <h4>จัดการเอกสารชมรมจริยธรรม</h4>
+                        <p>จัดการปีงบประมาณ คำสั่งคณะทำงาน แผนปฏิบัติการ และอัปโหลดไฟล์ PDF รายงานผลชมรมจริยธรรม</p>
+                      </div>
+                      <div className="serviceCardFooter footerIndigo">
+                        <span className="actionText">เข้าสู่หน้าจัดการเอกสารจริยธรรม</span>
+                        <ChevronRight size={16} className="chevronIcon" />
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* ระบบนำเข้าข้อมูลการเงิน (Finance) */}
+                  {isFinance && (
+                    <Link href="/member/upload-salary" className="serviceCard">
+                      <div className="serviceCardHeader">
+                        <div className="serviceIconWrapper uploadSalaryIcon">
+                          <FileText size={24} />
+                        </div>
+                      </div>
+                      <div className="serviceCardBody">
+                        <h4>ระบบนำเข้าข้อมูลการเงิน</h4>
+                        <p>บันทึกงวดนำเข้า และอัปโหลดไฟล์ Excel/CSV ข้อมูลสลิปเงินเดือนและ OT ของบุคลากรโรงพยาบาลเถิน</p>
+                      </div>
+                      <div className="serviceCardFooter footerOrange">
+                        <span className="actionText">เข้าสู่หน้านำเข้าข้อมูลการเงิน</span>
+                        <ChevronRight size={16} className="chevronIcon" />
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* สลิปเงินเดือนบุคลากรทั้งหมด */}
+                  {isAllSalaryAuthorized && (
+                    <Link href="/member/all-salary" className="serviceCard">
+                      <div className="serviceCardHeader">
+                        <div className="serviceIconWrapper allSalaryIcon">
+                          <FileText size={24} />
+                        </div>
+                      </div>
+                      <div className="serviceCardBody">
+                        <h4>สลิปเงินเดือนบุคลากรทั้งหมด</h4>
+                        <p>ค้นหาและเรียกดูข้อมูลสลิปเงินเดือนและค่าล่วงเวลา (OT) ของบุคลากรทุกคนในโรงพยาบาลเถิน</p>
+                      </div>
+                      <div className="serviceCardFooter footerGreen">
+                        <span className="actionText">ค้นหาสลิปเงินเดือนบุคลากร</span>
+                        <ChevronRight size={16} className="chevronIcon" />
+                      </div>
+                    </Link>
+                  )}
+                </div>
+              </section>
+            )}
           </>
         )}
 
-        {/* Admin Section (Visible only to admins) */}
+        {/* ══════════════════════════════════════════════════════════════
+           Category 3: System Administration (Admin Only)
+           ══════════════════════════════════════════════════════════════ */}
         {member.role === 'admin' && (
-          <>
-            <div className="adminSectionDivider"></div>
-            <h3 className="sectionTitle adminSectionTitle">ระบบควบคุมและตั้งค่า (สำหรับผู้ดูแลระบบ)</h3>
+          <section aria-labelledby="section-admin-settings" className="mt-8">
+            <div className="adminSectionDivider" />
+            <div className="sectionHeaderRow">
+              <div className="sectionTitleWrap">
+                <h3 id="section-admin-settings" className="sectionTitle adminSectionTitle">
+                  <Settings2 size={18} className="text-red-600" />
+                  ระบบควบคุมและตั้งค่า (สำหรับผู้ดูแลระบบ)
+                </h3>
+                <p className="sectionSubtitle">
+                  ศูนย์ควบคุมสิทธิ์สมาชิก การเปิด/ปิดฟังก์ชัน จัดการสถานที่ และตรวจสอบความปลอดภัย
+                </p>
+              </div>
+            </div>
+
             <div className="servicesGrid">
-              {/* Card 7: System Feature Access Toggles */}
+              {/* เปิด/ปิดฟังก์ชันและตั้งค่าระบบ */}
               <Link href="/member/settings" className="serviceCard">
                 <div className="serviceCardHeader">
-                  <div className="serviceIconWrapper" style={{ backgroundColor: '#ecfdf5', color: '#059669', borderColor: '#d1fae5', borderWidth: '1px', borderStyle: 'solid' }}>
+                  <div className="serviceIconWrapper settingsIcon">
                     <Shield size={24} />
                   </div>
+                  <span className="cardTagPill tagAdmin">ตั้งค่าระบบ</span>
                 </div>
                 <div className="serviceCardBody">
                   <h4>เปิด/ปิดฟังก์ชันและตั้งค่าระบบ</h4>
                   <p>จัดการสิทธิ์และควบคุมการเข้าใช้งานของสมาชิกทั่วไป เช่น เปิด/ปิดฟังก์ชันกล่องงาน, แจ้งซ่อม, ลายเซ็น และสลิปเงินเดือน</p>
                 </div>
-                <div className="serviceCardFooter" style={{ color: '#059669' }}>
+                <div className="serviceCardFooter footerEmerald">
                   <span className="actionText">เข้าสู่หน้าตั้งค่าระบบ</span>
                   <ChevronRight size={16} className="chevronIcon" />
                 </div>
               </Link>
 
-              {/* Card 8: PR News Posting Program */}
+              {/* โปรแกรมโพสข่าวประชาสัมพันธ์ */}
               <Link href="/member/news" className="serviceCard">
                 <div className="serviceCardHeader">
-                  <div className="serviceIconWrapper" style={{ backgroundColor: '#f0f9ff', color: '#0284c7', borderColor: '#e0f2fe', borderWidth: '1px', borderStyle: 'solid' }}>
-                    <FileText size={24} />
+                  <div className="serviceIconWrapper newsIcon">
+                    <Newspaper size={24} />
                   </div>
+                  <span className="cardTagPill tagAdmin">ประชาสัมพันธ์</span>
                 </div>
                 <div className="serviceCardBody">
                   <h4>โปรแกรมโพสข่าวประชาสัมพันธ์</h4>
-                  <p>ระบบจัดการและโพสข่าวประชาสัมพันธ์ กิจกรรม ข่าวรับสมัครงาน เพื่อแสดงผลบนหน้าเว็บไซต์หลักโรงพยาบาลเถิน</p>
+                  <p>จัดการและโพสข่าวประชาสัมพันธ์ กิจกรรม ข่าวรับสมัครงาน เพื่อแสดงผลบนหน้าเว็บไซต์หลักโรงพยาบาลเถิน</p>
                 </div>
-                <div className="serviceCardFooter" style={{ color: '#0284c7' }}>
+                <div className="serviceCardFooter footerSky">
                   <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
                   <ChevronRight size={16} className="chevronIcon" />
                 </div>
               </Link>
 
-              {/* Card 9: Members Directory Management */}
+              {/* แดชบอร์ดจัดการสมาชิก */}
               <Link href="/member/member" className="serviceCard">
                 <div className="serviceCardHeader">
-                  <div className="serviceIconWrapper" style={{ backgroundColor: '#faf5ff', color: '#7c3aed', borderColor: '#f3e8ff', borderWidth: '1px', borderStyle: 'solid' }}>
+                  <div className="serviceIconWrapper membersIcon">
                     <User size={24} />
                   </div>
+                  <span className="cardTagPill tagAdmin">บัญชีผู้ใช้</span>
                 </div>
                 <div className="serviceCardBody">
                   <h4>แดชบอร์ดจัดการสมาชิก</h4>
-                  <p>ระบบตรวจสอบรายชื่อบุคลากรทั้งหมด แก้ไขข้อมูลสมาชิก จัดการบัญชีเงินเดือน และสิทธิ์การเข้าใช้งานทั่วไป</p>
+                  <p>ตรวจสอบรายชื่อบุคลากรทั้งหมด แก้ไขข้อมูลสมาชิก จัดการบัญชีเงินเดือน และสิทธิ์การเข้าใช้งานทั่วไป</p>
                 </div>
-                <div className="serviceCardFooter" style={{ color: '#7c3aed' }}>
+                <div className="serviceCardFooter footerPurple">
                   <span className="actionText">จัดการข้อมูลสมาชิก</span>
                   <ChevronRight size={16} className="chevronIcon" />
                 </div>
               </Link>
 
-              {/* Card 10: Audit Log Viewer */}
-              <Link href="/member/audit-logs" className="serviceCard">
-                <div className="serviceCardHeader">
-                  <div className="serviceIconWrapper" style={{ backgroundColor: '#fff1f2', color: '#e11d48', borderColor: '#ffe4e6', borderWidth: '1px', borderStyle: 'solid' }}>
-                    <Shield size={24} />
-                  </div>
-                </div>
-                <div className="serviceCardBody">
-                  <h4>ระบบประวัติการใช้งาน (Audit Logs)</h4>
-                  <p>ระบบติดตามความปลอดภัยและประวัติการทำรายการต่างๆ ตรวจสอบข้อมูลการเข้าสู่ระบบ, การทำ CRUD บนฐานข้อมูล, และการเข้าชมเว็บของเจ้าหน้าที่</p>
-                </div>
-                <div className="serviceCardFooter" style={{ color: '#e11d48' }}>
-                  <span className="actionText">ตรวจสอบประวัติการใช้งาน</span>
-                  <ChevronRight size={16} className="chevronIcon" />
-                </div>
-              </Link>
-
-              {/* Card 11: Hospital Locations Management */}
+              {/* จัดการสถานที่ ตึก-ชั้น-ห้อง */}
               {isLocationsAuthorized && (
                 <Link href="/member/locations" className="serviceCard">
                   <div className="serviceCardHeader">
-                    <div className="serviceIconWrapper" style={{ backgroundColor: '#ecfdf5', color: '#059669', borderColor: '#d1fae5', borderWidth: '1px', borderStyle: 'solid' }}>
+                    <div className="serviceIconWrapper locationsIcon">
                       <MapPin size={24} />
                     </div>
+                    <span className="cardTagPill tagAdmin">สถานที่ รพ.</span>
                   </div>
                   <div className="serviceCardBody">
                     <h4>จัดการสถานที่ ตึก-ชั้น-ห้อง</h4>
                     <p>แดชบอร์ดจัดการข้อมูลสถานที่ ตรวจสอบความถูกต้อง เปิด/ปิดใช้งาน และแก้ไขชื่อห้องสำหรับระบบแจ้งซ่อม</p>
                   </div>
-                  <div className="serviceCardFooter" style={{ color: '#059669' }}>
+                  <div className="serviceCardFooter footerEmerald">
                     <span className="actionText">จัดการข้อมูลสถานที่</span>
                     <ChevronRight size={16} className="chevronIcon" />
                   </div>
                 </Link>
               )}
-            </div>
-          </>
-        )}
 
+              {/* ระบบประวัติการใช้งาน (Audit Logs) */}
+              <Link href="/member/audit-logs" className="serviceCard">
+                <div className="serviceCardHeader">
+                  <div className="serviceIconWrapper auditIcon">
+                    <Shield size={24} />
+                  </div>
+                  <span className="cardTagPill tagAudit">ความปลอดภัย</span>
+                </div>
+                <div className="serviceCardBody">
+                  <h4>ระบบประวัติการใช้งาน (Audit Logs)</h4>
+                  <p>ระบบติดตามความปลอดภัยและประวัติการทำรายการ ตรวจสอบข้อมูลการเข้าสู่ระบบ การแก้ไขข้อมูล และสถิติการใช้งาน</p>
+                </div>
+                <div className="serviceCardFooter footerRose">
+                  <span className="actionText">ตรวจสอบประวัติการใช้งาน</span>
+                  <ChevronRight size={16} className="chevronIcon" />
+                </div>
+              </Link>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   )
 }
+
