@@ -116,23 +116,10 @@ async function getActiveSlides() {
   }
 }
 
-async function getSlideDuration(): Promise<number> {
-  try {
-    const setting = await prisma.memberSystemSetting.findUnique({
-      where: { configKey: 'hero_slide_duration_seconds' }
-    })
-    const val = setting ? parseInt(setting.configValue, 10) : 6
-    return !isNaN(val) && val >= 2 && val <= 30 ? val : 6
-  } catch {
-    return 6
-  }
-}
-
 export default async function HomePage() {
-  const [latestNews, activeSlides, slideDuration] = await Promise.all([
+  const [latestNews, activeSlides] = await Promise.all([
     getLatestNews(),
     getActiveSlides(),
-    getSlideDuration(),
   ]);
   const siteUrl = siteConfig.url;
 
@@ -192,7 +179,7 @@ export default async function HomePage() {
 
       {/* ===== HERO SECTION ===== */}
       <section className="hero">
-        <HeroSlideshow slides={activeSlides} slideDuration={slideDuration} />
+        <HeroSlideshow slides={activeSlides} />
       </section>
 
       {/* ===== DIRECTOR MESSAGE SECTION ===== */}

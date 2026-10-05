@@ -5,7 +5,11 @@ import { heroSlideSchema } from '@/lib/schemas/heroSlide'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
 
-export async function DELETE(request: Request, props: any) {
+interface RouteProps {
+  params: Promise<{ id: string }>
+}
+
+export async function DELETE(request: Request, props: RouteProps) {
   try {
     const authResult = await requireNewsPermission()
     if (authResult.error) return authResult.error
@@ -53,7 +57,7 @@ export async function DELETE(request: Request, props: any) {
   }
 }
 
-export async function PUT(request: Request, props: any) {
+export async function PUT(request: Request, props: RouteProps) {
   try {
     const authResult = await requireNewsPermission()
     if (authResult.error) return authResult.error
@@ -74,7 +78,7 @@ export async function PUT(request: Request, props: any) {
       )
     }
 
-    const { imagePath, title, linkUrl, startDate, endDate, displayOrder } = parsed.data
+    const { imagePath, title, linkUrl, startDate, endDate, displayOrder, duration } = parsed.data
 
     const start = new Date(startDate)
     const end = new Date(endDate)
@@ -102,6 +106,7 @@ export async function PUT(request: Request, props: any) {
         startDate: start,
         endDate: end,
         displayOrder: displayOrder || 0,
+        duration: duration || 6,
       },
     })
 

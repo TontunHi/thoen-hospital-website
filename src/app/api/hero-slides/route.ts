@@ -114,10 +114,19 @@ export async function POST(request: Request) {
       )
     }
 
-    const { imagePath, title, linkUrl, startDate, endDate, displayOrder } = parsed.data
+    const { imagePath, title, linkUrl, startDate, endDate, displayOrder, duration } = parsed.data
 
     const start = new Date(startDate)
     const end = new Date(endDate)
+
+    let finalOrder = displayOrder
+    if (!finalOrder || finalOrder <= 0) {
+      const maxSlide = await prisma.heroSlide.findFirst({
+        orderBy: { displayOrder: 'desc' },
+        select: { displayOrder: true },
+      })
+      finalOrder = (maxSlide?.displayOrder ?? 0) + 1
+    }
 
     const slide = await prisma.heroSlide.create({
       data: {
@@ -126,7 +135,8 @@ export async function POST(request: Request) {
         linkUrl: linkUrl || null,
         startDate: start,
         endDate: end,
-        displayOrder: displayOrder || 0,
+        displayOrder: finalOrder,
+        duration: duration || 6,
       },
     })
 

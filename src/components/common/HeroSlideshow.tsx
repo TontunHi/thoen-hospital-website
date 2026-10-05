@@ -11,11 +11,11 @@ interface Slide {
   imagePath: string
   title: string | null
   linkUrl: string | null
+  duration?: number | null
 }
 
 interface HeroSlideshowProps {
   slides: Slide[]
-  slideDuration?: number
 }
 
 function SlideVideo({
@@ -74,7 +74,7 @@ function SlideVideo({
   )
 }
 
-export default function HeroSlideshow({ slides, slideDuration = 6 }: HeroSlideshowProps) {
+export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(true)
   const [isHovered, setIsHovered] = useState(false)
@@ -126,9 +126,12 @@ export default function HeroSlideshow({ slides, slideDuration = 6 }: HeroSlidesh
   )
   const hasAnyVideo = slides.some((s) => s.imagePath?.toLowerCase().includes('.mp4'))
 
-  const effectiveDuration = Math.max(2, Math.min(30, slideDuration || 6))
+  // Individual slide display duration in seconds (defaults to 6 seconds for images)
+  const currentDurationSec = typeof currentSlide?.duration === 'number' && currentSlide.duration >= 1
+    ? currentSlide.duration
+    : 6
 
-  // Autoplay timer for static image slides
+  // Autoplay timer for static image slides (MP4 videos automatically advance via onEnded when finished)
   useEffect(() => {
     if (slides.length <= 1 || !isPlaying || isHovered || prefersReducedMotion || currentIsVideo) {
       return
@@ -136,10 +139,10 @@ export default function HeroSlideshow({ slides, slideDuration = 6 }: HeroSlidesh
 
     const timer = setInterval(() => {
       nextSlide()
-    }, effectiveDuration * 1000)
+    }, currentDurationSec * 1000)
 
     return () => clearInterval(timer)
-  }, [slides.length, isPlaying, isHovered, prefersReducedMotion, currentIsVideo, nextSlide, effectiveDuration])
+  }, [slides.length, isPlaying, isHovered, prefersReducedMotion, currentIsVideo, nextSlide, currentDurationSec, currentIndex])
 
   // Handle video completion: when the video finishes, advance to the next slide
   const handleVideoEnded = useCallback(() => {

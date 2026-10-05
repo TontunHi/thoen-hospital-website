@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { 
-  Plus, 
   Trash2, 
   Calendar, 
   Link as LinkIcon, 
   Image as ImageIcon, 
-  Eye, 
   Clock, 
   Edit2, 
   ArrowUpDown, 
@@ -17,20 +15,13 @@ import {
   Volume2, 
   VolumeX, 
   X, 
-  Sparkles,
-  Film,
-  CheckCircle2,
-  AlertCircle,
-  Timer,
-  Zap,
-  Sliders,
-  Search,
-  RefreshCw,
-  CalendarCheck,
-  CalendarClock,
+  Film, 
+  AlertCircle, 
+  Timer, 
+  Search, 
+  CalendarClock, 
   CalendarX,
-  FastForward,
-  Check,
+  Sparkles,
   Info
 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -44,6 +35,7 @@ interface SlideItem {
   startDate: string
   endDate: string
   displayOrder: number
+  duration: number
 }
 
 type SlideStatusType = 'active' | 'upcoming' | 'expired'
@@ -96,11 +88,6 @@ export default function AdminSlidesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previewVideoRef = useRef<HTMLVideoElement>(null)
 
-  // Global Slide Duration Setting (seconds)
-  const [slideDuration, setSlideDuration] = useState<number>(6)
-  const [savingDuration, setSavingDuration] = useState(false)
-  const [durationSavedFeedback, setDurationSavedFeedback] = useState(false)
-
   // Filter & Search State
   const [activeTab, setActiveTab] = useState<'all' | 'active' | 'upcoming' | 'expired'>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -113,8 +100,9 @@ export default function AdminSlidesPage() {
   const [linkUrl, setLinkUrl] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [displayOrder, setDisplayOrder] = useState<number>(0)
-  
+  const [displayOrder, setDisplayOrder] = useState<number>(1)
+  const [duration, setDuration] = useState<number>(6) // Display duration in seconds for this slide
+
   // Video Player Controls State (for upload form preview)
   const [isVideoPlaying, setIsVideoPlaying] = useState(true)
   const [isVideoMuted, setIsVideoMuted] = useState(true)
@@ -124,11 +112,10 @@ export default function AdminSlidesPage() {
   // Video Preview Modal (for list item preview)
   const [previewModalSlide, setPreviewModalSlide] = useState<SlideItem | null>(null)
 
-  // Edit State
+  // Edit & Delete State
   const [editingId, setEditingId] = useState<number | null>(null)
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [quickActionLoadingId, setQuickActionLoadingId] = useState<number | null>(null)
 
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -140,9 +127,10 @@ export default function AdminSlidesPage() {
       const res = await fetch('/api/hero-slides?all=true')
       const data = await res.json()
       if (res.ok) {
-        setSlides(data.slides || [])
-        if (typeof data.slideDuration === 'number') {
-          setSlideDuration(data.slideDuration)
+        const fetchedSlides = data.slides || []
+        setSlides(fetchedSlides)
+        if (!editingId) {
+          setDisplayOrder(fetchedSlides.length + 1)
         }
       }
     } catch (err) {
@@ -156,102 +144,6 @@ export default function AdminSlidesPage() {
     fetchSlides()
   }, [])
 
-  // Quick Preset Helper for Start Date
-  const setStartNow = () => {
-    const nowStr = formatToDatetimeLocal(new Date().toISOString())
-    setStartDate(nowStr)
-    // If end date is empty or in the past, set default +30 days
-    if (!endDate || new Date(endDate) <= new Date()) {
-      const end = new Date()
-      end.setDate(end.getDate() + 30)
-      setEndDate(formatToDatetimeLocal(end.toISOString()))
-    }
-  }
-
-  const setStartTomorrowMorning = () => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(8, 0, 0, 0)
-    setStartDate(formatToDatetimeLocal(tomorrow.toISOString()))
-
-    if (!endDate || new Date(endDate) <= tomorrow) {
-      const end = new Date(tomorrow)
-      end.setDate(end.getDate() + 30)
-      setEndDate(formatToDatetimeLocal(end.toISOString()))
-    }
-  }
-
-  const setStartNextMonthFirst = () => {
-    const nextMonth = new Date()
-    nextMonth.setMonth(nextMonth.getMonth() + 1, 1)
-    nextMonth.setHours(0, 0, 0, 0)
-    setStartDate(formatToDatetimeLocal(nextMonth.toISOString()))
-
-    const end = new Date(nextMonth)
-    end.setMonth(end.getMonth() + 1, 0) // last day of next month
-    end.setHours(23, 59, 0, 0)
-    setEndDate(formatToDatetimeLocal(end.toISOString()))
-  }
-
-  // Quick Preset Helper for Duration / End Date
-  const applyDurationPreset = (days: number | 'fiscal' | 'year_end' | 'full_year') => {
-    const base = startDate ? new Date(startDate) : new Date()
-    const validBase = isNaN(base.getTime()) ? new Date() : base
-
-    if (!startDate) {
-      setStartDate(formatToDatetimeLocal(validBase.toISOString()))
-    }
-
-    const end = new Date(validBase)
-
-    if (days === 'fiscal') {
-      // Fiscal year ends on 30 September
-      const curYear = validBase.getFullYear()
-      const fiscalThisYear = new Date(curYear, 8, 30, 23, 59, 0) // Sep 30
-      if (validBase > fiscalThisYear) {
-        end.setFullYear(curYear + 1, 8, 30)
-      } else {
-        end.setFullYear(curYear, 8, 30)
-      }
-      end.setHours(23, 59, 0, 0)
-    } else if (days === 'year_end') {
-      // Calendar year ends on 31 December
-      end.setMonth(11, 31)
-      end.setHours(23, 59, 0, 0)
-    } else if (days === 'full_year') {
-      end.setFullYear(end.getFullYear() + 1)
-    } else {
-      end.setDate(end.getDate() + days)
-    }
-
-    setEndDate(formatToDatetimeLocal(end.toISOString()))
-  }
-
-  // Save Global Autoplay Duration
-  const handleSaveGlobalDuration = async (newDuration: number) => {
-    setSavingDuration(true)
-    setError('')
-    try {
-      const res = await fetch('/api/hero-slides', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slideDuration: newDuration }),
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setSlideDuration(newDuration)
-        setDurationSavedFeedback(true)
-        setTimeout(() => setDurationSavedFeedback(false), 3000)
-      } else {
-        setError(data.error || 'ไม่สามารถบันทึกความเร็วสไลด์ได้')
-      }
-    } catch {
-      setError('เกิดข้อผิดพลาดในการบันทึกความเร็วสไลด์')
-    } finally {
-      setSavingDuration(false)
-    }
-  }
-
   const handleEdit = (slide: SlideItem) => {
     setEditingId(slide.id)
     setImagePath(slide.imagePath)
@@ -262,7 +154,8 @@ export default function AdminSlidesPage() {
     setLinkUrl(slide.linkUrl || '')
     setStartDate(formatToDatetimeLocal(slide.startDate))
     setEndDate(formatToDatetimeLocal(slide.endDate))
-    setDisplayOrder(slide.displayOrder || 0)
+    setDisplayOrder(slide.displayOrder || 1)
+    setDuration(typeof slide.duration === 'number' && slide.duration >= 1 ? slide.duration : 6)
     setError('')
     setSuccess('')
     if (previewModalSlide) setPreviewModalSlide(null)
@@ -278,7 +171,8 @@ export default function AdminSlidesPage() {
     setLinkUrl('')
     setStartDate('')
     setEndDate('')
-    setDisplayOrder(0)
+    setDisplayOrder(slides.length + 1)
+    setDuration(6)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -318,8 +212,16 @@ export default function AdminSlidesPage() {
     setError('')
     setSuccess('')
 
-    // Default dates if empty
-    if (!startDate) setStartNow()
+    // Set default dates if empty
+    if (!startDate) {
+      const now = new Date()
+      setStartDate(formatToDatetimeLocal(now.toISOString()))
+      if (!endDate) {
+        const end = new Date(now)
+        end.setDate(end.getDate() + 30)
+        setEndDate(formatToDatetimeLocal(end.toISOString()))
+      }
+    }
 
     const formData = new FormData()
     formData.append('file', file)
@@ -397,6 +299,8 @@ export default function AdminSlidesPage() {
     }
   }
 
+  const isCurrentVideo = isVideoPreview || isVideoFile(imagePath) || isVideoFile(localPreviewUrl)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -424,6 +328,8 @@ export default function AdminSlidesPage() {
       return
     }
 
+    const durationNum = isCurrentVideo ? 6 : Math.max(1, Math.min(300, Number(duration) || 6))
+
     try {
       const url = editingId ? `/api/hero-slides/${editingId}` : '/api/hero-slides'
       const method = editingId ? 'PUT' : 'POST'
@@ -438,12 +344,13 @@ export default function AdminSlidesPage() {
           startDate: start.toISOString(),
           endDate: end.toISOString(),
           displayOrder: Number(displayOrder) || 0,
+          duration: durationNum,
         }),
       })
 
       const data = await res.json()
       if (res.ok) {
-        setSuccess(editingId ? 'แก้ไขข้อมูลสไลด์ภาพเรียบร้อยแล้ว' : 'บันทึกและตั้งเวลาแสดงผลสไลด์เรียบร้อยแล้ว')
+        setSuccess(editingId ? 'แก้ไขข้อมูลสไลด์เรียบร้อยแล้ว' : 'บันทึกและตั้งเวลาแสดงผลสไลด์เรียบร้อยแล้ว')
         handleCancelEdit()
         fetchSlides()
       } else {
@@ -456,116 +363,6 @@ export default function AdminSlidesPage() {
     }
   }
 
-  // Quick Action on Slide (Extend time or Publish Now)
-  const handleQuickExtend = async (slide: SlideItem, extraDays: number) => {
-    setQuickActionLoadingId(slide.id)
-    setError('')
-    try {
-      const now = new Date()
-      const currentEnd = new Date(slide.endDate)
-      
-      let newStart = new Date(slide.startDate)
-      let newEnd = new Date()
-
-      if (currentEnd < now) {
-        // Expired -> Reactivate from NOW + extraDays
-        newStart = now
-        newEnd = new Date(now)
-        newEnd.setDate(newEnd.getDate() + extraDays)
-      } else {
-        // Still active -> Extend from current end date + extraDays
-        newEnd = new Date(currentEnd)
-        newEnd.setDate(newEnd.getDate() + extraDays)
-      }
-
-      const res = await fetch(`/api/hero-slides/${slide.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...slide,
-          startDate: newStart.toISOString(),
-          endDate: newEnd.toISOString(),
-        }),
-      })
-
-      if (res.ok) {
-        setSuccess(`ขยายเวลาแสดงผลสไลด์ "${slide.title || 'ID ' + slide.id}" เพิ่ม ${extraDays} วันเรียบร้อยแล้ว`)
-        fetchSlides()
-      } else {
-        const data = await res.json()
-        setError(data.error || 'ไม่สามารถขยายเวลาแสดงผลได้')
-      }
-    } catch {
-      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
-    } finally {
-      setQuickActionLoadingId(null)
-    }
-  }
-
-  const handleQuickPublishNow = async (slide: SlideItem) => {
-    setQuickActionLoadingId(slide.id)
-    setError('')
-    try {
-      const now = new Date()
-      let newEnd = new Date(slide.endDate)
-      
-      if (newEnd <= now) {
-        newEnd = new Date(now)
-        newEnd.setDate(newEnd.getDate() + 30) // Default 30 days if it was expired
-      }
-
-      const res = await fetch(`/api/hero-slides/${slide.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...slide,
-          startDate: now.toISOString(),
-          endDate: newEnd.toISOString(),
-        }),
-      })
-
-      if (res.ok) {
-        setSuccess(`เปิดแสดงผลสไลด์ "${slide.title || 'ID ' + slide.id}" บนหน้าแรกทันทีเรียบร้อยแล้ว`)
-        fetchSlides()
-      } else {
-        const data = await res.json()
-        setError(data.error || 'ไม่สามารถเปิดแสดงผลได้')
-      }
-    } catch {
-      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
-    } finally {
-      setQuickActionLoadingId(null)
-    }
-  }
-
-  const handleQuickDeactivate = async (slide: SlideItem) => {
-    setQuickActionLoadingId(slide.id)
-    setError('')
-    try {
-      const now = new Date()
-      const res = await fetch(`/api/hero-slides/${slide.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...slide,
-          endDate: now.toISOString(), // Expire immediately
-        }),
-      })
-
-      if (res.ok) {
-        setSuccess(`ปิดการแสดงผลสไลด์ "${slide.title || 'ID ' + slide.id}" เรียบร้อยแล้ว`)
-        fetchSlides()
-      } else {
-        const data = await res.json()
-        setError(data.error || 'ไม่สามารถปิดการแสดงผลได้')
-      }
-    } catch {
-      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
-    } finally {
-      setQuickActionLoadingId(null)
-    }
-  }
-
   const handleConfirmDelete = async () => {
     if (!deleteTargetId) return
     const id = deleteTargetId
@@ -575,7 +372,7 @@ export default function AdminSlidesPage() {
       const res = await fetch(`/api/hero-slides/${id}`, { method: 'DELETE' })
       if (res.ok) {
         setSlides(slides.filter((slide) => slide.id !== id))
-        setSuccess('ลบสไลด์ภาพเรียบร้อยแล้ว')
+        setSuccess('ลบสไลด์เรียบร้อยแล้ว')
         if (editingId === id) {
           handleCancelEdit()
         }
@@ -591,7 +388,7 @@ export default function AdminSlidesPage() {
     }
   }
 
-  // Get detailed status of a slide
+  // Get status of a slide
   const getSlideStatus = (startStr: string, endStr: string): {
     key: SlideStatusType
     label: string
@@ -607,18 +404,18 @@ export default function AdminSlidesPage() {
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
       const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
       const timeDetail = diffDays > 0 ? `จะเริ่มในอีก ${diffDays} วัน ${diffHours} ชม.` : `จะเริ่มในอีก ${diffHours} ชม.`
-      return { key: 'upcoming', label: 'กำลังมาถึง (Upcoming)', className: 'status-upcoming', timeDetail }
+      return { key: 'upcoming', label: 'ตั้งเวลาล่วงหน้า', className: 'status-upcoming', timeDetail }
     } else if (now > end) {
       const diffMs = now.getTime() - end.getTime()
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
       const timeDetail = diffDays > 0 ? `หมดอายุไปแล้ว ${diffDays} วัน` : `เพิ่งหมดอายุวันนี้`
-      return { key: 'expired', label: 'หมดอายุแล้ว (Expired)', className: 'status-expired', timeDetail }
+      return { key: 'expired', label: 'หมดอายุแล้ว', className: 'status-expired', timeDetail }
     } else {
       const diffMs = end.getTime() - now.getTime()
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
       const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
       const timeDetail = diffDays > 0 ? `เหลือเวลาอีก ${diffDays} วัน ${diffHours} ชม.` : `เหลือเวลาอีก ${diffHours} ชม.`
-      return { key: 'active', label: 'กำลังแสดงผล (Live)', className: 'status-active', timeDetail }
+      return { key: 'active', label: 'กำลังแสดงผล', className: 'status-active', timeDetail }
     }
   }
 
@@ -631,11 +428,11 @@ export default function AdminSlidesPage() {
     e.dataTransfer.setData('text/plain', slide.id.toString())
   }
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
   }
 
-  const handleDragEnter = (e: React.DragEvent, targetIndex: number) => {
+  const handleDragEnter = (_e: React.DragEvent, targetIndex: number) => {
     if (!draggedItem) return
     const draggedIndex = slides.findIndex((item) => item.id === draggedItem.id)
     if (draggedIndex === targetIndex) return
@@ -646,7 +443,7 @@ export default function AdminSlidesPage() {
 
     const reorderedSlides = newSlides.map((slide, idx) => ({
       ...slide,
-      displayOrder: idx
+      displayOrder: idx + 1
     }))
 
     setSlides(reorderedSlides)
@@ -658,7 +455,7 @@ export default function AdminSlidesPage() {
       setError('')
       const updates = slides.map((slide, idx) => ({
         id: slide.id,
-        displayOrder: idx
+        displayOrder: idx + 1
       }))
 
       const savePromises = updates.map(update => 
@@ -725,13 +522,13 @@ export default function AdminSlidesPage() {
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
 
     let previewStatus = 'active'
-    let statusText = '🟢 สไลด์จะเริ่มแสดงผลทันทีหลังบันทึก'
+    let statusText = 'สไลด์จะเริ่มแสดงผลทันทีตามช่วงเวลาที่กำหนด'
     if (now < s) {
       previewStatus = 'upcoming'
-      statusText = '🟡 สไลด์จะรอเริ่มแสดงผลตามเวลาที่กำหนด (ตั้งเวลาล่วงหน้า)'
+      statusText = 'สไลด์จะรอเริ่มแสดงผลเมื่อถึงเวลาเริ่มต้น (ตั้งเวลาล่วงหน้า)'
     } else if (now > e) {
       previewStatus = 'expired'
-      statusText = '🔴 เวลาสิ้นสุดผ่านไปแล้ว สไลด์นี้จะไม่แสดงบนหน้าแรก'
+      statusText = 'เวลาสิ้นสุดผ่านไปแล้ว สไลด์นี้จะไม่แสดงบนหน้าแรก'
     }
 
     return {
@@ -753,8 +550,6 @@ export default function AdminSlidesPage() {
     )
   }
 
-  const isCurrentVideo = isVideoPreview || isVideoFile(imagePath) || isVideoFile(localPreviewUrl)
-
   return (
     <div className="slidesAdminPage">
       {/* ── Page Header & Stats Summary ── */}
@@ -762,7 +557,7 @@ export default function AdminSlidesPage() {
         <div className="headerLeft">
           <h1>จัดการสไลด์โชว์ & กำหนดเวลาแสดงผล</h1>
           <p className="subtext">
-            อัปโหลด กำหนดช่วงวัน-เวลาเริ่มและสิ้นสุดการแสดงผล และปรับความเร็วของสไลด์โชว์หน้าแรก
+            อัปโหลด กำหนดช่วงวัน-เวลาที่แสดง และกำหนดเวลาความนานของแต่ละสไลด์
           </p>
         </div>
 
@@ -789,49 +584,12 @@ export default function AdminSlidesPage() {
       {error && <div className="slidesAlert alert-danger">{error}</div>}
       {success && <div className="slidesAlert alert-success">{success}</div>}
 
-      {/* ── Global Autoplay Speed Control Card ── */}
-      <div className="durationControlCard card">
-        <div className="durationHeader">
-          <div className="durationTitle">
-            <Sliders size={18} className="icon-emerald" />
-            <div>
-              <h3>ความเร็วในการเปลี่ยนสไลด์อัตโนมัติ (Autoplay Duration)</h3>
-              <p className="durationSub">กำหนดเวลาแสดงผลของแต่ละภาพนิ่งบนหน้าแรก ก่อนจะเปลี่ยนไปสไลด์ถัดไป (วิดีโอจะเล่นจนจบอัตโนมัติ)</p>
-            </div>
-          </div>
-          <div className="durationCurrentBadge">
-            <Timer size={14} />
-            <span>ปัจจุบัน: <strong>{slideDuration} วินาที</strong> ต่อสไลด์</span>
-            {durationSavedFeedback && (
-              <span className="savedFeedbackBadge">
-                <Check size={12} /> บันทึกแล้ว
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="durationPresetsRow">
-          <span className="presetLabel">เลือกความเร็ว:</span>
-          {[3, 4, 5, 6, 8, 10, 15].map((sec) => (
-            <button
-              key={sec}
-              type="button"
-              className={`durationPresetBtn ${slideDuration === sec ? 'active' : ''}`}
-              onClick={() => handleSaveGlobalDuration(sec)}
-              disabled={savingDuration}
-            >
-              {sec} วินาที {sec === 6 ? '(มาตรฐาน)' : ''}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* ── Main Grid Layout ── */}
       <div className="slidesGrid">
         {/* Creation / Edit Form */}
         <div className="formSection card">
           <div className="formHeaderTitle">
-            <h2>{editingId ? 'แก้ไขข้อมูลและกำหนดเวลาสไลด์' : 'เพิ่มสไลด์ใหม่ & กำหนดเวลา'}</h2>
+            <h2>{editingId ? 'แก้ไขข้อมูลสไลด์' : 'เพิ่มสไลด์ใหม่'}</h2>
             {editingId && (
               <span className="editingBadge">กำลังแก้ไข ID: {editingId}</span>
             )}
@@ -973,31 +731,90 @@ export default function AdminSlidesPage() {
               />
             </div>
 
+            {/* ── Per-Slide Display Duration Control ── */}
+            <div className="formGroup durationSettingBox">
+              <label htmlFor="slideDurationInput" className="durationLabel">
+                <Timer size={16} className="text-teal-700" />
+                <span>เวลาในการโชว์สไลด์นี้ (Display Duration)</span>
+              </label>
+
+              {isCurrentVideo ? (
+                <div className="videoDurationNotice">
+                  <Film size={18} className="videoNoticeIcon" />
+                  <div>
+                    <strong>ไฟล์วิดีโอ MP4:</strong>
+                    <p>สไลด์จะเล่นจนจบความยาววิดีโอโดยอัตโนมัติ แล้วจึงเปลี่ยนไปสไลด์ถัดไป (ไม่ต้องกำหนดเวลา)</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="durationInputContainer">
+                  <div className="durationInputWrapper">
+                    <button
+                      type="button"
+                      onClick={() => setDuration((prev) => Math.max(1, prev - 1))}
+                      className="durationCounterBtn"
+                      title="ลดเวลา 1 วินาที"
+                    >
+                      -
+                    </button>
+                    <input
+                      id="slideDurationInput"
+                      type="number"
+                      min="1"
+                      max="300"
+                      className="formInput durationInput"
+                      value={duration}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10)
+                        setDuration(isNaN(val) ? 6 : Math.max(1, Math.min(300, val)))
+                      }}
+                      placeholder="6"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDuration((prev) => Math.min(300, prev + 1))}
+                      className="durationCounterBtn"
+                      title="เพิ่มเวลา 1 วินาที"
+                    >
+                      +
+                    </button>
+                    <span className="durationUnitText">วินาที</span>
+                  </div>
+
+                  {/* Quick preset selector buttons for fast selection */}
+                  <div className="durationPills">
+                    {[3, 4, 5, 6, 8, 10, 15].map((sec) => (
+                      <button
+                        key={sec}
+                        type="button"
+                        className={`durationPillBtn ${duration === sec ? 'active' : ''}`}
+                        onClick={() => setDuration(sec)}
+                      >
+                        {sec}s {sec === 6 ? '(มาตรฐาน)' : ''}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="fieldHint">
+                    * กำหนดระยะเวลาที่ต้องการให้ภาพนี้แสดงผลบนหน้าแรกก่อนเปลี่ยนไปสไลด์ถัดไป
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* ── Scheduling Date & Time Section ── */}
             <div className="timingSectionBox">
               <div className="timingSectionHeader">
                 <div className="timingSectionTitle">
-                  <CalendarClock size={16} className="text-emerald-700" />
-                  <span>กำหนดเวลาแสดงผล (Schedule Period) *</span>
+                  <CalendarClock size={16} className="text-teal-700" />
+                  <span>ช่วงเวลาที่เปิดแสดงผลบนเว็บ (Schedule Period) *</span>
                 </div>
               </div>
 
-              {/* Start Date & Presets */}
+              {/* Start Date */}
               <div className="formGroup">
-                <div className="labelWithPresets">
-                  <label htmlFor="startDate">วันและเวลาที่เริ่มแสดงผล *</label>
-                  <div className="presetTags">
-                    <button type="button" className="presetTagBtn" onClick={setStartNow}>
-                      ⚡ เริ่มทันที
-                    </button>
-                    <button type="button" className="presetTagBtn" onClick={setStartTomorrowMorning}>
-                      🌅 พรุ่งนี้ 08:00
-                    </button>
-                    <button type="button" className="presetTagBtn" onClick={setStartNextMonthFirst}>
-                      📅 วันที่ 1 เดือนหน้า
-                    </button>
-                  </div>
-                </div>
+                <label htmlFor="startDate">วันและเวลาที่เริ่มแสดงผล *</label>
                 <input
                   id="startDate"
                   type="datetime-local"
@@ -1009,38 +826,9 @@ export default function AdminSlidesPage() {
                 />
               </div>
 
-              {/* End Date & Duration Presets */}
+              {/* End Date */}
               <div className="formGroup">
-                <div className="labelWithPresets">
-                  <label htmlFor="endDate">วันและเวลาที่สิ้นสุดการแสดงผล *</label>
-                  <div className="presetTags durationTagList">
-                    <span className="tagGroupLabel">ระยะเวลา:</span>
-                    <button type="button" className="presetTagBtn" onClick={() => applyDurationPreset(7)}>
-                      7 วัน
-                    </button>
-                    <button type="button" className="presetTagBtn" onClick={() => applyDurationPreset(15)}>
-                      15 วัน
-                    </button>
-                    <button type="button" className="presetTagBtn" onClick={() => applyDurationPreset(30)}>
-                      30 วัน (1 ด.)
-                    </button>
-                    <button type="button" className="presetTagBtn" onClick={() => applyDurationPreset(60)}>
-                      60 วัน (2 ด.)
-                    </button>
-                    <button type="button" className="presetTagBtn" onClick={() => applyDurationPreset(90)}>
-                      90 วัน (3 ด.)
-                    </button>
-                    <button type="button" className="presetTagBtn tagSpecial" onClick={() => applyDurationPreset('fiscal')} title="สิ้นปีงบประมาณ 30 กันยายน">
-                      สิ้นปีงบฯ
-                    </button>
-                    <button type="button" className="presetTagBtn tagSpecial" onClick={() => applyDurationPreset('year_end')} title="สิ้นปีปฏิทิน 31 ธันวาคม">
-                      สิ้นปี 31 ธ.ค.
-                    </button>
-                    <button type="button" className="presetTagBtn" onClick={() => applyDurationPreset('full_year')}>
-                      1 ปี
-                    </button>
-                  </div>
-                </div>
+                <label htmlFor="endDate">วันและเวลาที่สิ้นสุดการแสดงผล *</label>
                 <input
                   id="endDate"
                   type="datetime-local"
@@ -1064,7 +852,7 @@ export default function AdminSlidesPage() {
                     <div className="summaryContent">
                       <div className="summaryDates">
                         <span className="summaryDaysBadge">
-                          ⏱️ รวม {formSchedulePreview.diffDays} วัน
+                          🗓️ รวมระยะเวลา {formSchedulePreview.diffDays} วัน
                         </span>
                         <span className="summaryRange">
                           {formSchedulePreview.startFormatted} — {formSchedulePreview.endFormatted}
@@ -1084,7 +872,7 @@ export default function AdminSlidesPage() {
               <div className="displayOrderWrapper">
                 <button
                   type="button"
-                  onClick={() => setDisplayOrder(prev => Math.max(0, prev - 1))}
+                  onClick={() => setDisplayOrder(prev => Math.max(1, prev - 1))}
                   className="counterBtn"
                 >
                   -
@@ -1092,11 +880,11 @@ export default function AdminSlidesPage() {
                 <input
                   id="displayOrder"
                   type="number"
-                  min="0"
+                  min="1"
                   className="formInput orderInput"
                   value={displayOrder}
-                  onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
-                  placeholder="0"
+                  onChange={(e) => setDisplayOrder(Math.max(1, parseInt(e.target.value) || 1))}
+                  placeholder="1"
                 />
                 <button
                   type="button"
@@ -1119,18 +907,18 @@ export default function AdminSlidesPage() {
                 className="submitBtn" 
                 disabled={submitting || uploading || (formSchedulePreview?.isInvalid ?? false)}
               >
-                {submitting ? 'กำลังบันทึก...' : (editingId ? 'บันทึกการแก้ไข' : 'บันทึกและเปิดใช้งานตามกำหนดเวลา')}
+                {submitting ? 'กำลังบันทึก...' : (editingId ? 'บันทึกการแก้ไข' : 'บันทึกและเปิดใช้งาน')}
               </button>
             </div>
           </form>
         </div>
 
-        {/* ── Slide List Section with Filters & Quick Controls ── */}
+        {/* ── Slide List Section with Filters ── */}
         <div className="listSection card">
           <div className="listHeader">
             <h2>รายการสไลด์ทั้งหมด ({slides.length})</h2>
             <p className="listSubtext">
-              <ArrowUpDown size={14} /> ลากวางเพื่อสลับลำดับ หรือใช้ปุ่มด่วนเพื่อขยายเวลาแสดงผลได้ทันที
+              <ArrowUpDown size={14} /> สามารถคลิกลากวางการ์ดเพื่อสลับลำดับการแสดงผลได้
             </p>
           </div>
 
@@ -1149,21 +937,21 @@ export default function AdminSlidesPage() {
                 className={`filterTab tab-active ${activeTab === 'active' ? 'active' : ''}`}
                 onClick={() => setActiveTab('active')}
               >
-                🟢 กำลังแสดงผล ({counts.active})
+                กำลังแสดงผล ({counts.active})
               </button>
               <button
                 type="button"
                 className={`filterTab tab-upcoming ${activeTab === 'upcoming' ? 'active' : ''}`}
                 onClick={() => setActiveTab('upcoming')}
               >
-                🟡 ตั้งเวลาล่วงหน้า ({counts.upcoming})
+                ตั้งเวลาล่วงหน้า ({counts.upcoming})
               </button>
               <button
                 type="button"
                 className={`filterTab tab-expired ${activeTab === 'expired' ? 'active' : ''}`}
                 onClick={() => setActiveTab('expired')}
               >
-                🔴 หมดอายุ ({counts.expired})
+                หมดอายุ ({counts.expired})
               </button>
             </div>
 
@@ -1190,7 +978,7 @@ export default function AdminSlidesPage() {
                 const status = getSlideStatus(slide.startDate, slide.endDate)
                 const isDraggingThis = draggedItem?.id === slide.id
                 const isSlideVideo = isVideoFile(slide.imagePath)
-                const isActionBusy = quickActionLoadingId === slide.id
+                const slideDurationSec = typeof slide.duration === 'number' && slide.duration >= 1 ? slide.duration : 6
 
                 return (
                   <div 
@@ -1198,7 +986,7 @@ export default function AdminSlidesPage() {
                     className={`slideItemCard ${isDraggingThis ? 'dragging' : ''} card-${status.key}`}
                     draggable
                     onDragStart={(e) => handleDragStart(e, slide)}
-                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragOver={handleDragOver}
                     onDragEnter={(e) => handleDragEnter(e, index)}
                     onDragEnd={handleDragEnd}
                   >
@@ -1240,10 +1028,17 @@ export default function AdminSlidesPage() {
                         <div>
                           {slide.title ? <h3>{slide.title}</h3> : <p className="noTitle">ไม่มีหัวข้อคำอธิบาย</p>}
                           <div className="slideSubInfo">
-                            <ArrowUpDown size={12} />
-                            <span>ลำดับที่: {slide.displayOrder}</span>
-                            {isSlideVideo && (
-                              <span className="videoTag">🎥 วิดีโอ MP4</span>
+                            <span className="orderBadge">
+                              <ArrowUpDown size={11} /> ลำดับ {slide.displayOrder}
+                            </span>
+                            {isSlideVideo ? (
+                              <span className="slideDurationBadge videoDurationBadge">
+                                <Film size={11} /> เล่นตามความยาววิดีโอ (จบแล้วเปลี่ยน)
+                              </span>
+                            ) : (
+                              <span className="slideDurationBadge imageDurationBadge">
+                                <Timer size={11} /> โชว์ {slideDurationSec} วินาที
+                              </span>
                             )}
                           </div>
                         </div>
@@ -1257,16 +1052,16 @@ export default function AdminSlidesPage() {
                       
                       <div className="slideItemMeta">
                         <div className="metaRow">
-                          <Calendar size={14} className="metaIcon" />
+                          <Calendar size={13} className="metaIcon" />
                           <span><strong>เริ่ม:</strong> {formatThaiDateTime(slide.startDate)}</span>
                         </div>
                         <div className="metaRow">
-                          <Clock size={14} className="metaIcon" />
+                          <Clock size={13} className="metaIcon" />
                           <span><strong>สิ้นสุด:</strong> {formatThaiDateTime(slide.endDate)}</span>
                         </div>
                         {slide.linkUrl && (
                           <div className="metaRow urlRow">
-                            <LinkIcon size={14} className="metaIcon" />
+                            <LinkIcon size={13} className="metaIcon" />
                             <a href={slide.linkUrl} target="_blank" rel="noopener noreferrer" draggable={false}>
                               ลิงก์: {slide.linkUrl}
                             </a>
@@ -1274,70 +1069,8 @@ export default function AdminSlidesPage() {
                         )}
                       </div>
 
-                      {/* ── Quick Timing Actions & Admin Buttons ── */}
+                      {/* ── Slide Action Buttons ── */}
                       <div className="slideBottomActions">
-                        {/* Quick Timing Extenders */}
-                        <div className="quickTimingButtons">
-                          {status.key === 'expired' && (
-                            <>
-                              <button
-                                type="button"
-                                className="quickBtn extendBtn"
-                                onClick={() => handleQuickExtend(slide, 7)}
-                                disabled={isActionBusy}
-                                title="เปิดแสดงผลใหม่เป็นเวลา 7 วัน"
-                              >
-                                ⚡ ต่อเวลา +7 วัน
-                              </button>
-                              <button
-                                type="button"
-                                className="quickBtn extendBtn"
-                                onClick={() => handleQuickExtend(slide, 30)}
-                                disabled={isActionBusy}
-                                title="เปิดแสดงผลใหม่เป็นเวลา 30 วัน"
-                              >
-                                ⚡ ต่อเวลา +30 วัน
-                              </button>
-                            </>
-                          )}
-
-                          {status.key === 'upcoming' && (
-                            <button
-                              type="button"
-                              className="quickBtn publishNowBtn"
-                              onClick={() => handleQuickPublishNow(slide)}
-                              disabled={isActionBusy}
-                              title="เริ่มแสดงผลบนหน้าแรกทันที (ไม่ต้องรอเวลาเริ่มต้น)"
-                            >
-                              🚀 แสดงผลทันที
-                            </button>
-                          )}
-
-                          {status.key === 'active' && (
-                            <>
-                              <button
-                                type="button"
-                                className="quickBtn extendBtn"
-                                onClick={() => handleQuickExtend(slide, 30)}
-                                disabled={isActionBusy}
-                                title="ขยายเวลาสิ้นสุดเพิ่มอีก 30 วัน"
-                              >
-                                ⏰ +30 วัน
-                              </button>
-                              <button
-                                type="button"
-                                className="quickBtn deactivateBtn"
-                                onClick={() => handleQuickDeactivate(slide)}
-                                disabled={isActionBusy}
-                                title="ปิดการแสดงผลบนหน้าแรกทันที"
-                              >
-                                ⏹️ พักสไลด์
-                              </button>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Standard Edit/Delete Actions */}
                         <div className="slideItemActions">
                           {isSlideVideo && (
                             <button
@@ -1346,7 +1079,7 @@ export default function AdminSlidesPage() {
                               className="previewVideoBtn"
                               draggable={false}
                             >
-                              <Play size={13} fill="currentColor" /> ตัวอย่าง
+                              <Play size={13} fill="currentColor" /> เล่นตัวอย่าง
                             </button>
                           )}
                           <button
