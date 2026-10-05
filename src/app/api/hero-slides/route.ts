@@ -33,11 +33,67 @@ export async function GET(request: Request) {
       })
     }
 
-    return NextResponse.json({ success: true, slides })
+    // Fetch slide duration setting
+    let slideDuration = 6
+    try {
+      const durationSetting = await prisma.memberSystemSetting.findUnique({
+        where: { configKey: 'hero_slide_duration_seconds' },
+      })
+      if (durationSetting?.configValue) {
+        const parsedSec = parseInt(durationSetting.configValue, 10)
+        if (!isNaN(parsedSec) && parsedSec >= 2 && parsedSec <= 30) {
+          slideDuration = parsedSec
+        }
+      }
+    } catch {
+      // Fallback to default
+    }
+
+    return NextResponse.json({ success: true, slides, slideDuration })
   } catch (error: any) {
     console.error('Fetch slides error:', error)
     return NextResponse.json(
       { error: 'ไม่สามารถดึงข้อมูลสไลด์ภาพได้' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const authResult = await requireNewsPermission()
+    if (authResult.error) return authResult.error
+
+    const body = await request.json()
+    const { slideDuration } = body
+
+    const durationNum = typeof slideDuration === 'number' ? slideDuration : parseInt(String(slideDuration), 10)
+
+    if (isNaN(durationNum) || durationNum < 2 || durationNum > 30) {
+      return NextResponse.json(
+        { error: 'ความเร็วการเปลี่ยนสไลด์ต้องอยู่ระหว่าง 2 ถึง 30 วินาที' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.memberSystemSetting.upsert({
+      where: { configKey: 'hero_slide_duration_seconds' },
+      update: { configValue: String(durationNum) },
+      create: { configKey: 'hero_slide_duration_seconds', configValue: String(durationNum) },
+    })
+
+    await logAudit(
+      'UPDATE',
+      'member_system_settings',
+      `ตั้งค่าความเร็วสไลด์โชว์หน้าแรกเป็น ${durationNum} วินาที`,
+      authResult.session
+    )
+
+    return NextResponse.json({ success: true, slideDuration: durationNum })
+  } catch (error: any) {
+    console.error('Update slide duration error:', error)
+    return NextResponse.json(
+      { error: 'เกิดข้อผิดพลาดในการบันทึกการตั้งค่าความเร็วสไลด์' },
       { status: 500 }
     )
   }

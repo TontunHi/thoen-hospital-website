@@ -116,9 +116,24 @@ async function getActiveSlides() {
   }
 }
 
+async function getSlideDuration(): Promise<number> {
+  try {
+    const setting = await prisma.memberSystemSetting.findUnique({
+      where: { configKey: 'hero_slide_duration_seconds' }
+    })
+    const val = setting ? parseInt(setting.configValue, 10) : 6
+    return !isNaN(val) && val >= 2 && val <= 30 ? val : 6
+  } catch {
+    return 6
+  }
+}
+
 export default async function HomePage() {
-  const latestNews = await getLatestNews();
-  const activeSlides = await getActiveSlides();
+  const [latestNews, activeSlides, slideDuration] = await Promise.all([
+    getLatestNews(),
+    getActiveSlides(),
+    getSlideDuration(),
+  ]);
   const siteUrl = siteConfig.url;
 
   // Schema.org structured data for Hospital (W4)
@@ -177,7 +192,7 @@ export default async function HomePage() {
 
       {/* ===== HERO SECTION ===== */}
       <section className="hero">
-        <HeroSlideshow slides={activeSlides} />
+        <HeroSlideshow slides={activeSlides} slideDuration={slideDuration} />
       </section>
 
       {/* ===== DIRECTOR MESSAGE SECTION ===== */}

@@ -15,6 +15,7 @@ interface Slide {
 
 interface HeroSlideshowProps {
   slides: Slide[]
+  slideDuration?: number
 }
 
 function SlideVideo({
@@ -73,7 +74,7 @@ function SlideVideo({
   )
 }
 
-export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
+export default function HeroSlideshow({ slides, slideDuration = 6 }: HeroSlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPlaying, setIsPlaying] = useState(true)
   const [isHovered, setIsHovered] = useState(false)
@@ -125,7 +126,9 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
   )
   const hasAnyVideo = slides.some((s) => s.imagePath?.toLowerCase().includes('.mp4'))
 
-  // Autoplay timer for static image slides (6 seconds)
+  const effectiveDuration = Math.max(2, Math.min(30, slideDuration || 6))
+
+  // Autoplay timer for static image slides
   useEffect(() => {
     if (slides.length <= 1 || !isPlaying || isHovered || prefersReducedMotion || currentIsVideo) {
       return
@@ -133,10 +136,10 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
 
     const timer = setInterval(() => {
       nextSlide()
-    }, 6000)
+    }, effectiveDuration * 1000)
 
     return () => clearInterval(timer)
-  }, [slides.length, isPlaying, isHovered, prefersReducedMotion, currentIsVideo, nextSlide])
+  }, [slides.length, isPlaying, isHovered, prefersReducedMotion, currentIsVideo, nextSlide, effectiveDuration])
 
   // Handle video completion: when the video finishes, advance to the next slide
   const handleVideoEnded = useCallback(() => {
