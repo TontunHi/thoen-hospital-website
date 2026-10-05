@@ -308,7 +308,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
     )
   }
 
-  const getUrgencyTag = (urgency: string) => {
+  const getUrgencyTag = (urgency: string, taskType?: string) => {
     switch (urgency) {
       case 'VERY_URGENT':
         return (
@@ -328,7 +328,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
         return (
           <span className="urgencyDot dotNormal">
             <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#94a3b8' }}></span>
-            ปกติ
+            {taskType === 'MEDIA_REQUEST' ? 'ไม่ด่วน' : 'ปกติ'}
           </span>
         )
     }
@@ -728,7 +728,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                             {task.title}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748b', flexWrap: 'wrap' }}>
-                            {getUrgencyTag(task.urgency)}
+                            {getUrgencyTag(task.urgency, task.task_type)}
                             <span>•</span>
                             <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formatThaiDate(task.created_at)}</span>
                             {task.task_type === 'MEDIA_REQUEST' && task.custom_payload && (
@@ -917,7 +917,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
 
                     <div className="taskMobileCardFooter">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {getUrgencyTag(task.urgency)}
+                        {getUrgencyTag(task.urgency, task.task_type)}
                         <span style={{ color: '#cbd5e1' }}>|</span>
                         <span style={{ color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
                           {formatThaiDate(task.created_at)}

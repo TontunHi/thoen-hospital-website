@@ -16,6 +16,7 @@ cmd.exe /c "npm run build:full"   # Run prisma generate + build
 # Testing & Quality
 cmd.exe /c "npm run test"         # Run Vitest test suite
 cmd.exe /c "npm run test:watch"   # Run Vitest in watch mode
+cmd.exe /c "npx tsc --noEmit"     # Run TypeScript type check
 cmd.exe /c "npm run lint"         # Run ESLint
 
 # Database & Maintenance
@@ -32,6 +33,7 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
 4. **File Storage Seam:** `@/lib/storage/documentStorage` (`DocumentStorage`) — Never import raw `fs` in API routes. Use `readBuffer()` for image/binary reads, `serveFile()` for HTTP 206 byte-range streaming (video/Safari), `save()`/`saveBatch()`/`delete()` for writes.
 5. **Member Auth Seam:** `@/lib/auth/MemberAuthService` — All OTP, JWT build/verify, and ThaID OAuth flows. Route handlers: read cookie/body → call service → set cookie. Never create or verify JWTs inside a route handler.
 6. **Ethics CMS Seam:** `@/lib/cms/EthicsDocumentService` — Tree building, year aggregation, cascading file+record delete. Ethics route handlers are thin adapters only.
+7. **Hospital Asset Seam:** `@/lib/assets/assetService` (`HospitalAssetService`) — Auto-categorization (IT/Medical/General), FSN mapping, Gotowin integration. Route handlers: `@/app/api/assets/**`.
 
 ## Architectural & Coding Standards
 - **Thin Route Adapters:** API routes (`src/app/api/**`) must be thin (~20–40 lines) delegating to deep domain modules in `@/lib/`.

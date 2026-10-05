@@ -25,8 +25,10 @@ export async function GET(
         t.id, t.task_no, t.task_type, t.title, t.description, t.urgency,
         t.requester_id, t.requester_name, t.requester_dept,
         t.status, t.current_step_no, t.current_assignee, t.\`current_role\`,
-        t.reference_id, t.custom_payload, t.created_at, t.updated_at
+        t.reference_id, t.custom_payload, t.created_at, t.updated_at,
+        req.signature_path as requester_signature_path
        FROM inbox_tasks t
+       LEFT JOIN members req ON t.requester_id = req.id
        WHERE t.id = ? LIMIT 1`,
       [taskId]
     )

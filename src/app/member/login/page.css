@@ -251,6 +251,30 @@
   margin-top: 4px;
 }
 
+.memberLoginContainer .otpInput {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 10px;
+  font-family: 'SFMono-Regular', Consolas, 'Courier New', monospace;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #a7f3d0;
+  padding: 12px 14px;
+}
+
+.memberLoginContainer .otpInput:focus {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: #34d399;
+  box-shadow: 0 0 15px rgba(52, 211, 153, 0.3);
+}
+
+.memberLoginContainer .otpInput::placeholder {
+  letter-spacing: 6px;
+  opacity: 0.4;
+  color: #94a3b8;
+}
+
 .memberLoginContainer .otpActions {
   display: flex;
   align-items: center;

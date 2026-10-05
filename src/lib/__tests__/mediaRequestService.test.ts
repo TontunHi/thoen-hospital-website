@@ -13,21 +13,13 @@ describe('MEDIA_REQUEST Workflow Configuration', () => {
     expect(config.name).toBe('งานขอสื่อประชาสัมพันธ์')
   })
 
-  it('generates 3 steps when hasCost is false (NO_COST)', () => {
+  it('generates 1 step when hasCost is false (NO_COST)', () => {
     const steps = getMediaRequestWorkflowSteps(false)
-    expect(steps).toHaveLength(3)
+    expect(steps).toHaveLength(1)
 
     expect(steps[0].stepNo).toBe(1)
     expect(steps[0].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIGITAL_HEAD)
     expect(steps[0].stepName).toContain('หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์')
-
-    expect(steps[1].stepNo).toBe(2)
-    expect(steps[1].assignedRole).toBe(MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER)
-    expect(steps[1].stepName).toContain('เจ้าหน้าที่พัสดุ')
-
-    expect(steps[2].stepNo).toBe(3)
-    expect(steps[2].assignedRole).toBe(MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD)
-    expect(steps[2].stepName).toContain('หัวหน้าเจ้าหน้าที่พัสดุ')
   })
 
   it('generates 4 steps including Hospital Director when hasCost is true (HAS_COST)', () => {

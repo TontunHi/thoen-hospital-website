@@ -4,11 +4,9 @@ import { getMediaRequestWorkflowSteps } from '../taskInboxService'
 describe('Media Request Submission and Validation Logic', () => {
   it('correctly constructs workflow steps for NO_COST request', () => {
     const steps = getMediaRequestWorkflowSteps(false)
-    expect(steps.length).toBe(3)
+    expect(steps.length).toBe(1)
     expect(steps.map((s) => s.assignedRole)).toEqual([
       'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
-      'เจ้าหน้าที่พัสดุ',
-      'หัวหน้าเจ้าหน้าที่พัสดุ',
     ])
   })
 

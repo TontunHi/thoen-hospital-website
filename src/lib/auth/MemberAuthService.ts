@@ -4,6 +4,7 @@ import { getThaidConfig, exchangeThaidAuthorizationCode } from '@/lib/thaidAuth'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { queryMemberDb } from '@/lib/memberDb'
+import { renderOtpEmailHtml, renderOtpEmailText } from '@/lib/auth/otpEmailTemplate'
 
 export interface OtpRequestResult {
   success: boolean
@@ -44,7 +45,7 @@ export class MemberAuthService {
     const trimmedUsername = citizenId.trim()
     
     const users = await this.queryExecutor(
-      'SELECT id, username, email FROM members WHERE username = ?',
+      'SELECT id, username, name, email FROM members WHERE username = ?',
       [trimmedUsername]
     )
 
@@ -93,12 +94,27 @@ export class MemberAuthService {
     try {
       const smtpUser = process.env.BREVO_SMTP_FROM_EMAIL || process.env.MEMBER_OTP_EMAIL_USER || ''
       const fromName = process.env.BREVO_SMTP_FROM || `"ระบบสมาชิก โรงพยาบาลเถิน" <${smtpUser}>`
+      
+      const emailHtml = renderOtpEmailHtml({
+        otp,
+        username: user.username,
+        name: user.name,
+        expiryMinutes: 5,
+      })
+      const emailText = renderOtpEmailText({
+        otp,
+        username: user.username,
+        name: user.name,
+        expiryMinutes: 5,
+      })
+
       await transporter.sendMail({
         from: fromName,
         to: targetEmail,
         replyTo: smtpUser,
-        subject: `[โรงพยาบาลเถิน] รหัสยืนยัน OTP สำหรับเข้าสู่ระบบสมาชิก`,
-        text: `เรียนคุณ ${trimmedUsername},\n\nรหัสยืนยันตัวตน (OTP) สำหรับเข้าสู่ระบบสมาชิก โรงพยาบาลเถิน คือ: ${otp}\n\n* รหัสนี้มีอายุการใช้งาน 5 นาที\nหากท่านไม่ได้เป็นผู้ทำรายการ โปรดติดต่อผู้ดูแลระบบโรงพยาบาลเถิน\nโทร: 054-291316-8`,
+        subject: `[โรงพยาบาลเถิน] รหัสยืนยัน OTP สำหรับเข้าสู่ระบบสมาชิก: ${otp}`,
+        text: emailText,
+        html: emailHtml,
         headers: {
           'X-Priority': '1 (Highest)',
           'X-MSMail-Priority': 'High',

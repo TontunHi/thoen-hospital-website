@@ -230,11 +230,14 @@ function MemberLoginForm() {
               <input
                 id="otp"
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
                 maxLength={6}
-                className="formInput"
+                className="formInput otpInput"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="กรอกรหัส OTP 6 หลัก"
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                placeholder="• • • • • •"
                 required
                 disabled={loading}
                 autoFocus

@@ -504,7 +504,7 @@ export default function TaskDetailClient({
     }
   }
 
-  const getUrgencyBadge = (urgency: string) => {
+  const getUrgencyBadge = (urgency: string, taskType?: string) => {
     switch (urgency) {
       case 'VERY_URGENT':
         return (
@@ -521,7 +521,7 @@ export default function TaskDetailClient({
       default:
         return (
           <span className="urgencyDot dotNormal" style={{ backgroundColor: '#f8fafc', padding: '0.2rem 0.55rem', borderRadius: '9999px', border: '1px solid #e2e8f0', fontSize: '0.775rem' }}>
-            ● ปกติ
+            ● {taskType === 'MEDIA_REQUEST' ? 'ไม่ด่วน' : 'ปกติ'}
           </span>
         )
     }
@@ -702,7 +702,7 @@ export default function TaskDetailClient({
                     รูปแบบค่าใช้จ่าย / การพิจารณา
                   </span>
                   <strong style={{ color: '#115e59', fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
-                    {task.custom_payload?.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย (ผ่าน 4 ขั้นตอน เสนอผู้อำนวยการ)' : '🟢 ไม่มีค่าใช้จ่าย (ผ่าน 3 ขั้นตอน สิ้นสุดที่หัวหน้าพัสดุ)'}
+                    {task.custom_payload?.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย' : '🟢 ไม่มีค่าใช้จ่าย'}
                   </strong>
                 </div>
 
@@ -713,7 +713,7 @@ export default function TaskDetailClient({
                       <span>ขอรับงานภายใน: {task.custom_payload.deliveryDate}</span>
                     </div>
                   )}
-                  {getUrgencyBadge(task.urgency)}
+                  {getUrgencyBadge(task.urgency, task.task_type)}
                 </div>
               </div>
 
@@ -1438,7 +1438,7 @@ export default function TaskDetailClient({
                 </div>
                 <div>
                   <span className="infoItemLabel">ความเร่งด่วน</span>
-                  <div>{getUrgencyBadge(task.urgency)}</div>
+                  <div>{getUrgencyBadge(task.urgency, task.task_type)}</div>
                 </div>
               </div>
 
@@ -1907,7 +1907,7 @@ export default function TaskDetailClient({
                   onChange={(e) => setEditTaskForm(prev => ({ ...prev, urgency: e.target.value }))}
                   style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem', backgroundColor: 'white' }}
                 >
-                  <option value="NORMAL">● ปกติ</option>
+                  <option value="NORMAL">● {task.task_type === 'MEDIA_REQUEST' ? 'ไม่ด่วน' : 'ปกติ'}</option>
                   <option value="URGENT">● ด่วน</option>
                   <option value="VERY_URGENT">● ด่วนที่สุด</option>
                 </select>
@@ -1935,7 +1935,7 @@ export default function TaskDetailClient({
                           checked={editTaskForm.costType === 'NO_COST'}
                           onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'NO_COST', estimatedBudget: '' }))}
                         />
-                        <span>🟢 <strong>ไม่มีค่าใช้จ่าย</strong> (3 ขั้นตอน สิ้นสุดที่หัวหน้าพัสดุ)</span>
+                        <span>🟢 <strong>ไม่มีค่าใช้จ่าย</strong></span>
                       </label>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', cursor: 'pointer', color: '#b91c1c' }}>
                         <input
@@ -1945,7 +1945,7 @@ export default function TaskDetailClient({
                           checked={editTaskForm.costType === 'HAS_COST'}
                           onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'HAS_COST' }))}
                         />
-                        <span>🔴 <strong>มีค่าใช้จ่าย</strong> (4 ขั้นตอน เสนอผู้อำนวยการลงนามอนุมัติ)</span>
+                        <span>🔴 <strong>มีค่าใช้จ่าย</strong></span>
                       </label>
                     </div>
                   </div>

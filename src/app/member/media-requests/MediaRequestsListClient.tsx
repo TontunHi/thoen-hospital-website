@@ -310,6 +310,11 @@ export default function MediaRequestsListClient({
                             🟡 ด่วน
                           </span>
                         )}
+                        {t.urgency === 'NORMAL' && (
+                          <span className="badgeUrgent normal">
+                            🟢 ไม่ด่วน
+                          </span>
+                        )}
                       </div>
 
                       {/* Title */}

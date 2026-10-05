@@ -47,7 +47,7 @@ describe('MemberAuthService', () => {
     it('sends OTP and writes OTP record for valid flow', async () => {
       mockDb.mockImplementation((query: string) => {
         if (query.includes('SELECT')) {
-          return Promise.resolve([{ id: 1, username: '1234567890123', email: 'test@example.com' }])
+          return Promise.resolve([{ id: 1, username: '1234567890123', name: 'นายทดสอบ ระบบ', email: 'test@example.com' }])
         }
         return Promise.resolve()
       })

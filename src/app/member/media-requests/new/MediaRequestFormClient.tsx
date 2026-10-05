@@ -1002,7 +1002,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                     onClick={() => setUrgency('NORMAL')}
                   >
                     <span className="urgencyCardIcon" aria-hidden="true">🟢</span>
-                    <span className="urgencyCardTitle">ปกติ</span>
+                    <span className="urgencyCardTitle">ไม่ด่วน</span>
                     <span className="urgencyCardSub">7–14 วัน</span>
                   </button>
                   <button
@@ -1110,7 +1110,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                   </div>
                   <div>
                     <span className="costCardHeading">🟢 ไม่มีค่าใช้จ่าย (No Cost)</span>
-                    <span className="costCardDescription">งานผลิตภายใน ผ่าน 3 ขั้นตอน (สิ้นสุดที่หัวหน้าพัสดุ)</span>
+                    <span className="costCardDescription">งานผลิตภายใน</span>
                   </div>
                 </div>
 
@@ -1132,7 +1132,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                   </div>
                   <div>
                     <span className="costCardHeading">🔴 มีค่าใช้จ่าย (With Cost)</span>
-                    <span className="costCardDescription">มีจัดจ้างพิมพ์/ผลิตภายนอก ผ่าน 4 ขั้นตอน (เสนอ ผอ.)</span>
+                    <span className="costCardDescription">มีจัดซื้อจ้างพิมพ์/ผลิตภายนอก (เสนอ ผอ.)</span>
                   </div>
                 </div>
               </div>
@@ -1152,21 +1152,23 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 <div className="workflowVerticalSteps">
                   <div className="workflowVerticalStep active">
                     <span className="stepNum">1</span>
-                    <span className="stepText">หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์</span>
-                  </div>
-                  <div className="workflowVerticalStep active">
-                    <span className="stepNum">2</span>
-                    <span className="stepText">เจ้าหน้าที่พัสดุ</span>
-                  </div>
-                  <div className="workflowVerticalStep active">
-                    <span className="stepNum">3</span>
-                    <span className="stepText">หัวหน้าเจ้าหน้าที่พัสดุ</span>
+                    <span className="stepText">หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ ตรวจสอบและมอบหมายงาน</span>
                   </div>
                   {costType === 'HAS_COST' && (
-                    <div className="workflowVerticalStep active director">
-                      <span className="stepNum">4</span>
-                      <span className="stepText">ผู้อำนวยการโรงพยาบาลเถิน</span>
-                    </div>
+                    <>
+                      <div className="workflowVerticalStep active">
+                        <span className="stepNum">2</span>
+                        <span className="stepText">เจ้าหน้าที่พัสดุ</span>
+                      </div>
+                      <div className="workflowVerticalStep active">
+                        <span className="stepNum">3</span>
+                        <span className="stepText">หัวหน้าเจ้าหน้าที่พัสดุ</span>
+                      </div>
+                      <div className="workflowVerticalStep active director">
+                        <span className="stepNum">4</span>
+                        <span className="stepText">ผู้อำนวยการโรงพยาบาลเถิน</span>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

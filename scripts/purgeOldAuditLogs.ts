@@ -72,12 +72,16 @@ async function runCleanup() {
 
     // 3. Record audit entry for maintenance
     await connection.execute(
-      `INSERT INTO audit_logs (action, resource, details, timestamp, user) VALUES (?, ?, ?, NOW(), ?)`,
+      `INSERT INTO audit_logs (username, email, action_type, target_table, action_details, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
+        'CLI_MAINTENANCE',
+        'system@hospital.local',
         'DELETE',
         'audit_logs',
         `CLI Maintenance: purged ${totalPurged} audit log records older than ${retentionDays} days`,
-        'CLI_MAINTENANCE',
+        '127.0.0.1',
+        'Node.js CLI Script'
       ]
     )
 

@@ -286,11 +286,9 @@ describe('taskInboxService', () => {
         if (sql.includes('SELECT * FROM inbox_task_steps')) {
           return Promise.resolve([
             { id: 's1', step_no: 1, status: 'PENDING' },
-            { id: 's2', step_no: 2, status: 'PENDING' },
-            { id: 's3', step_no: 3, status: 'PENDING' },
           ])
         }
-        if (sql.includes('SELECT id FROM inbox_task_steps WHERE task_id = ? AND step_no = 4')) {
+        if (sql.includes('SELECT id FROM inbox_task_steps WHERE task_id = ? AND step_no = ?')) {
           return Promise.resolve([])
         }
         return Promise.resolve({ affectedRows: 1 })
@@ -327,7 +325,7 @@ describe('taskInboxService', () => {
       )
     })
 
-    it('removes Step 4 when media request is changed back to NO_COST', async () => {
+    it('removes Steps 2, 3, 4 when media request is changed back to NO_COST', async () => {
       const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
         if (sql.includes('SELECT * FROM inbox_tasks')) {
           return Promise.resolve([
@@ -381,7 +379,7 @@ describe('taskInboxService', () => {
       expect(res.success).toBe(true)
       expect(res.diff?.costType).toEqual({ from: 'HAS_COST', to: 'NO_COST' })
       expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining("DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no = 4 AND status = 'PENDING'"),
+        expect.stringContaining('DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no IN (2, 3, 4)'),
         ['task-pr-2']
       )
     })
