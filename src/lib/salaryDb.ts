@@ -22,7 +22,7 @@ function getPool() {
 
 export async function querySalaryDb(sql: string, params: any[] = []) {
   const currentPool = getPool()
-  const [results] = await currentPool.execute(sql, params)
+  const [results] = await currentPool.query(sql, params)
   return results as any[]
 }
 
@@ -48,6 +48,6 @@ function getEditPool() {
 
 export async function querySalaryEditDb(sql: string, params: any[] = []) {
   const currentPool = getEditPool()
-  const [results] = await currentPool.execute(sql, params)
+  const [results] = await currentPool.query(sql, params)
   return results as any[]
 }

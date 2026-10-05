@@ -56,11 +56,22 @@ export function getClinicalPool(): mysql.Pool {
 
 /**
  * Execute raw SQL with parameter binding on the HOSxP pool.
+ * Uses pool.query (text protocol) instead of pool.execute (binary prepared statements)
+ * to prevent MySQL ER_NEED_REPREPARE (errno 1615) errors on complex clinical JOINs and views.
  */
 export async function queryClinicalDb<T = any>(sql: string, params: any[] = []): Promise<T[]> {
   const currentPool = getClinicalPool()
-  const [results] = await currentPool.execute(sql, params)
-  return results as T[]
+  try {
+    const [results] = await currentPool.query(sql, params)
+    return results as T[]
+  } catch (error: any) {
+    if (error?.code === 'ER_NEED_REPREPARE' || error?.errno === 1615) {
+      // Retry once if MySQL table definition cache was invalidated
+      const [retryResults] = await currentPool.query(sql, params)
+      return retryResults as T[]
+    }
+    throw error
+  }
 }
 
 // -------------------------------------------------------------
