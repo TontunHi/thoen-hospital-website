@@ -85,13 +85,9 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setPrefersReducedMotion(mediaQuery.matches)
-    if (mediaQuery.matches) {
-      setIsPlaying(false)
-    }
 
     const handler = (e: MediaQueryListEvent) => {
       setPrefersReducedMotion(e.matches)
-      if (e.matches) setIsPlaying(false)
     }
 
     mediaQuery.addEventListener('change', handler)
@@ -133,7 +129,7 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
 
   // Autoplay timer for static image slides (MP4 videos automatically advance via onEnded when finished)
   useEffect(() => {
-    if (slides.length <= 1 || !isPlaying || isHovered || prefersReducedMotion || currentIsVideo) {
+    if (slides.length <= 1 || !isPlaying || isHovered || currentIsVideo) {
       return
     }
 
@@ -142,7 +138,7 @@ export default function HeroSlideshow({ slides }: HeroSlideshowProps) {
     }, currentDurationSec * 1000)
 
     return () => clearInterval(timer)
-  }, [slides.length, isPlaying, isHovered, prefersReducedMotion, currentIsVideo, nextSlide, currentDurationSec, currentIndex])
+  }, [slides.length, isPlaying, isHovered, currentIsVideo, nextSlide, currentDurationSec, currentIndex])
 
   // Handle video completion: when the video finishes, advance to the next slide
   const handleVideoEnded = useCallback(() => {

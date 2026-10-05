@@ -18,6 +18,27 @@ export async function GET(request: Request) {
           { createdAt: 'desc' },
         ],
       })
+
+      // Normalize gaps if any exist
+      let hasGap = false
+      for (let i = 0; i < slides.length; i++) {
+        if (slides[i].displayOrder !== i + 1) {
+          hasGap = true
+          break
+        }
+      }
+
+      if (hasGap) {
+        for (let i = 0; i < slides.length; i++) {
+          if (slides[i].displayOrder !== i + 1) {
+            await prisma.heroSlide.update({
+              where: { id: slides[i].id },
+              data: { displayOrder: i + 1 },
+            })
+            slides[i].displayOrder = i + 1
+          }
+        }
+      }
     } else {
       // For Public: fetch only scheduled/active slides
       const now = new Date()

@@ -40,6 +40,23 @@ export async function DELETE(request: Request, props: RouteProps) {
       where: { id },
     })
 
+    // Re-index remaining slides to 1..N sequentially so no gaps exist
+    const remainingSlides = await prisma.heroSlide.findMany({
+      orderBy: [
+        { displayOrder: 'asc' },
+        { createdAt: 'desc' },
+      ],
+    })
+
+    for (let i = 0; i < remainingSlides.length; i++) {
+      if (remainingSlides[i].displayOrder !== i + 1) {
+        await prisma.heroSlide.update({
+          where: { id: remainingSlides[i].id },
+          data: { displayOrder: i + 1 },
+        })
+      }
+    }
+
     await logAudit(
       'DELETE',
       'hero_slides',
