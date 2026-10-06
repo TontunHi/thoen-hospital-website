@@ -32,8 +32,95 @@ import {
   Share2,
   Layers,
   FileCheck,
-  Phone
+  Phone,
+  UploadCloud,
+  X,
+  FileImage,
+  FileSpreadsheet,
+  FileArchive,
+  Link as LinkIcon,
+  Loader2
 } from 'lucide-react'
+
+// Predefined Work Types with quick assist tags for Media Request
+const WORK_TYPES_CONFIG = [
+  { key: 'tri_fold', label: 'แผ่นพับ 3 พับ', icon: '📄', hasCustomInput: false },
+  { key: 'website_aw', label: 'AW ขึ้นเว็บไซต์', icon: '🌐', hasCustomInput: false },
+  {
+    key: 'poster',
+    label: 'โปสเตอร์',
+    icon: '🖼️',
+    hasCustomInput: true,
+    placeholder: 'ระบุขนาด เช่น A3, A2, 60x90 ซม.…',
+    quickTags: ['A4', 'A3', 'A2', '60x90 ซม.'],
+  },
+  { key: 'staff_card', label: 'บัตรพนักงาน', icon: '🪪', hasCustomInput: false },
+  { key: 'announcement_board', label: 'ป้ายประกาศ', icon: '📌', hasCustomInput: false },
+  { key: 'sticker', label: 'สติ๊กเกอร์', icon: '🏷️', hasCustomInput: false },
+  { key: 'video_editing', label: 'ตัดต่อวิดีโอ', icon: '🎬', hasCustomInput: false },
+  { key: 'powerpoint', label: 'PowerPoint', icon: '📊', hasCustomInput: false },
+  {
+    key: 'other',
+    label: 'อื่น ๆ',
+    icon: '✨',
+    hasCustomInput: true,
+    placeholder: 'ระบุลักษณะงาน เช่น ไวนิล, Standee, Roll-up…',
+    quickTags: ['ไวนิล', 'Standee', 'Roll-up', 'ป้ายโฟมบอร์ด', 'ของที่ระลึก'],
+  },
+]
+
+// Predefined Channels with quick assist tags for Media Request
+const CHANNELS_CONFIG = [
+  { key: 'hospital_social', label: 'สื่อโซเชียลของรพ.', icon: '📱', hasCustomInput: false },
+  { key: 'facebook_page', label: 'Page Facebook', icon: '🌐', hasCustomInput: false },
+  {
+    key: 'indoor',
+    label: 'ในอาคารโรงพยาบาล',
+    icon: '🏥',
+    hasCustomInput: true,
+    placeholder: 'ระบุบริเวณ เช่น หน้าห้องตรวจ OPD, โถงประชาสัมพันธ์ชั้น 1…',
+    quickTags: ['หน้าห้องตรวจ OPD', 'โถงประชาสัมพันธ์ ชั้น 1', 'แผนกฉุกเฉิน (ER)', 'ตึกผู้ป่วยใน (IPD)'],
+  },
+  {
+    key: 'community',
+    label: 'ในชุมชน',
+    icon: '🏘️',
+    hasCustomInput: true,
+    placeholder: 'ระบุจุด/ชุมชน เช่น รพ.สต. ในเครือข่าย, ชุมชนเทศบาลเถิน…',
+    quickTags: ['รพ.สต. ในเครือข่าย', 'ชุมชนเทศบาลเถิน', 'ออกหน่วยบริการ'],
+  },
+  {
+    key: 'other',
+    label: 'อื่น ๆ',
+    icon: '📣',
+    hasCustomInput: true,
+    placeholder: 'ระบุช่องทางเผยแพร่เพิ่มเติม…',
+  },
+]
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes === 0) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function getFileIcon(fileName: string) {
+  const ext = fileName.split('.').pop()?.toLowerCase() || ''
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)) {
+    return <FileImage aria-hidden="true" className="w-4 h-4 text-emerald-600 shrink-0" />
+  }
+  if (['pdf', 'doc', 'docx'].includes(ext)) {
+    return <FileText aria-hidden="true" className="w-4 h-4 text-blue-600 shrink-0" />
+  }
+  if (['xls', 'xlsx', 'csv'].includes(ext)) {
+    return <FileSpreadsheet aria-hidden="true" className="w-4 h-4 text-teal-600 shrink-0" />
+  }
+  if (['zip', 'rar', '7z'].includes(ext)) {
+    return <FileArchive aria-hidden="true" className="w-4 h-4 text-amber-600 shrink-0" />
+  }
+  return <FileCheck aria-hidden="true" className="w-4 h-4 text-teal-600 shrink-0" />
+}
 import { resolveTaskPermissions } from '@/lib/taskPermissionResolver'
 
 interface TaskStep {
@@ -107,6 +194,7 @@ export default function TaskDetailClient({
 
   // Manager Edit Task Modal State
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState<boolean>(false)
+  const [isUploadingEditFiles, setIsUploadingEditFiles] = useState<boolean>(false)
   const [editTaskForm, setEditTaskForm] = useState({
     title: '',
     description: '',
@@ -114,6 +202,11 @@ export default function TaskDetailClient({
     costType: 'NO_COST',
     estimatedBudget: '',
     deliveryDate: '',
+    phone: '',
+    driveLink: '',
+    selectedWorkTypes: {} as Record<string, { selected: boolean; customDetail: string }>,
+    selectedChannels: {} as Record<string, { selected: boolean; customDetail: string }>,
+    attachments: [] as Array<{ fileName: string; filePath: string; fileType?: string; fileSize?: number }>,
     objectives: '',
     mediaDetails: '',
     itemCategory: 'EQUIPMENT',
@@ -126,6 +219,35 @@ export default function TaskDetailClient({
 
   const handleOpenEditModal = () => {
     const payload = task?.custom_payload || {}
+
+    // Parse work types into selection map
+    const wtMap: Record<string, { selected: boolean; customDetail: string }> = {}
+    WORK_TYPES_CONFIG.forEach(cfg => {
+      const found = (payload.workTypes || []).find((w: any) => w.key === cfg.key)
+      if (found) {
+        wtMap[cfg.key] = { selected: true, customDetail: found.customDetail || '' }
+      }
+    })
+    ;(payload.workTypes || []).forEach((w: any) => {
+      if (!wtMap[w.key]) {
+        wtMap[w.key] = { selected: true, customDetail: w.customDetail || '' }
+      }
+    })
+
+    // Parse channels into selection map
+    const chMap: Record<string, { selected: boolean; customDetail: string }> = {}
+    CHANNELS_CONFIG.forEach(cfg => {
+      const found = (payload.channels || []).find((c: any) => c.key === cfg.key)
+      if (found) {
+        chMap[cfg.key] = { selected: true, customDetail: found.customDetail || '' }
+      }
+    })
+    ;(payload.channels || []).forEach((c: any) => {
+      if (!chMap[c.key]) {
+        chMap[c.key] = { selected: true, customDetail: c.customDetail || '' }
+      }
+    })
+
     setEditTaskForm({
       title: task?.title || '',
       description: task?.description || '',
@@ -133,6 +255,11 @@ export default function TaskDetailClient({
       costType: payload.costType || 'NO_COST',
       estimatedBudget: payload.estimatedBudget ? String(payload.estimatedBudget) : '',
       deliveryDate: payload.deliveryDate || '',
+      phone: payload.phone || '',
+      driveLink: payload.driveLink || '',
+      selectedWorkTypes: wtMap,
+      selectedChannels: chMap,
+      attachments: Array.isArray(payload.attachments) ? [...payload.attachments] : [],
       objectives: payload.objectives || '',
       mediaDetails: payload.details || '',
       itemCategory: repairDetail?.item_category || 'EQUIPMENT',
@@ -145,16 +272,164 @@ export default function TaskDetailClient({
     setIsEditTaskModalOpen(true)
   }
 
+  const toggleEditWorkType = (key: string) => {
+    setEditTaskForm((prev) => {
+      const current = prev.selectedWorkTypes[key] || { selected: false, customDetail: '' }
+      return {
+        ...prev,
+        selectedWorkTypes: {
+          ...prev.selectedWorkTypes,
+          [key]: { ...current, selected: !current.selected },
+        },
+      }
+    })
+  }
+
+  const setEditWorkTypeDetail = (key: string, detail: string) => {
+    setEditTaskForm((prev) => {
+      const current = prev.selectedWorkTypes[key] || { selected: true, customDetail: '' }
+      return {
+        ...prev,
+        selectedWorkTypes: {
+          ...prev.selectedWorkTypes,
+          [key]: { ...current, customDetail: detail },
+        },
+      }
+    })
+  }
+
+  const toggleEditChannel = (key: string) => {
+    setEditTaskForm((prev) => {
+      const current = prev.selectedChannels[key] || { selected: false, customDetail: '' }
+      return {
+        ...prev,
+        selectedChannels: {
+          ...prev.selectedChannels,
+          [key]: { ...current, selected: !current.selected },
+        },
+      }
+    })
+  }
+
+  const setEditChannelDetail = (key: string, detail: string) => {
+    setEditTaskForm((prev) => {
+      const current = prev.selectedChannels[key] || { selected: true, customDetail: '' }
+      return {
+        ...prev,
+        selectedChannels: {
+          ...prev.selectedChannels,
+          [key]: { ...current, customDetail: detail },
+        },
+      }
+    })
+  }
+
+  const handleEditFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return
+    setIsUploadingEditFiles(true)
+    try {
+      const files = Array.from(e.target.files)
+      const newFiles: any[] = []
+      for (const file of files) {
+        if (file.size > 25 * 1024 * 1024) {
+          alert(`ไฟล์ "${file.name}" มีขนาดเกิน 25MB`)
+          continue
+        }
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('title', `media-edit-${task?.task_no || 'task'}`)
+        const res = await fetch('/api/member/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const result = await res.json()
+        if (res.ok && result.url) {
+          newFiles.push({
+            fileName: file.name,
+            filePath: result.url,
+            fileType: file.type,
+            fileSize: file.size,
+          })
+        }
+      }
+      setEditTaskForm(prev => ({
+        ...prev,
+        attachments: [...prev.attachments, ...newFiles]
+      }))
+    } catch (err) {
+      console.error('File upload error:', err)
+    } finally {
+      setIsUploadingEditFiles(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleRemoveEditAttachment = (index: number) => {
+    setEditTaskForm(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index)
+    }))
+  }
+
   const handleSaveTaskEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     setActionLoading(true)
     setError(null)
     setSuccessMsg(null)
+
     try {
+      const bodyPayload: any = {
+        title: editTaskForm.title,
+        urgency: editTaskForm.urgency,
+      }
+
+      if (task.task_type === 'MEDIA_REQUEST') {
+        const activeWorkTypes = Object.entries(editTaskForm.selectedWorkTypes)
+          .filter(([_, val]) => val.selected)
+          .map(([key, val]) => {
+            const cfg = WORK_TYPES_CONFIG.find((c) => c.key === key)
+            return {
+              key,
+              label: cfg?.label || key,
+              customDetail: val.customDetail?.trim() || null,
+            }
+          })
+
+        const activeChannels = Object.entries(editTaskForm.selectedChannels)
+          .filter(([_, val]) => val.selected)
+          .map(([key, val]) => {
+            const cfg = CHANNELS_CONFIG.find((c) => c.key === key)
+            return {
+              key,
+              label: cfg?.label || key,
+              customDetail: val.customDetail?.trim() || null,
+            }
+          })
+
+        bodyPayload.description = editTaskForm.description
+        bodyPayload.costType = editTaskForm.costType
+        bodyPayload.estimatedBudget = editTaskForm.costType === 'HAS_COST' ? Number(editTaskForm.estimatedBudget) || 0 : 0
+        bodyPayload.deliveryDate = editTaskForm.deliveryDate
+        bodyPayload.phone = editTaskForm.phone
+        bodyPayload.driveLink = editTaskForm.driveLink
+        bodyPayload.workTypes = activeWorkTypes
+        bodyPayload.channels = activeChannels
+        bodyPayload.attachments = editTaskForm.attachments
+      } else if (['IT_REPAIR', 'GENERAL_REPAIR', 'MEDICAL_REPAIR'].includes(task.task_type)) {
+        bodyPayload.itemCategory = editTaskForm.itemCategory
+        bodyPayload.equipmentNumber = editTaskForm.equipmentNumber
+        bodyPayload.equipmentName = editTaskForm.equipmentName
+        bodyPayload.nonEquipmentItem = editTaskForm.nonEquipmentItem
+        bodyPayload.locationFullName = editTaskForm.locationFullName
+        bodyPayload.symptomDetail = editTaskForm.symptomDetail
+      } else {
+        bodyPayload.description = editTaskForm.description
+      }
+
       const res = await fetch(`/api/member/inbox/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editTaskForm),
+        body: JSON.stringify(bodyPayload),
       })
       const data = await res.json()
       if (data.success) {
@@ -1861,8 +2136,8 @@ export default function TaskDetailClient({
       {/* ── Modal 4: Manager Edit Task Details Modal ── */}
       {isEditTaskModalOpen && (
         <div className="modalBackdrop" onClick={() => setIsEditTaskModalOpen(false)}>
-          <div className="modalContent" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+          <div className="modalContent" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '760px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 10 }}>
               <div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Edit3 size={18} className="text-teal-600" />
@@ -1915,96 +2190,361 @@ export default function TaskDetailClient({
 
               {/* Media Request Specific Fields */}
               {task.task_type === 'MEDIA_REQUEST' && (
-                <div style={{ backgroundColor: '#f0fdfa', border: '1px solid #ccfbf1', borderRadius: '0.65rem', padding: '1rem', marginBottom: '1rem' }}>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f766e', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Palette size={16} />
-                    <span>การตั้งค่าสื่อประชาสัมพันธ์</span>
-                  </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1rem' }}>
+                  {/* กำหนดการ & รูปแบบค่าใช้จ่าย */}
+                  <div style={{ backgroundColor: '#f0fdfa', border: '1px solid #ccfbf1', borderRadius: '0.65rem', padding: '1rem' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f766e', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Calendar size={16} />
+                      <span>กำหนดส่งมอบและรูปแบบค่าใช้จ่าย</span>
+                    </h4>
 
-                  {/* Cost Type Radio */}
-                  <div style={{ marginBottom: '0.85rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.35rem' }}>
-                      รูปแบบค่าใช้จ่าย / การพิจารณา
-                    </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', cursor: 'pointer', color: '#0f766e' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '0.85rem' }}>
+                      {/* Delivery Date */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
+                          ขอรับงานภายในวันที่ / กำหนดส่งมอบ
+                        </label>
                         <input
-                          type="radio"
-                          name="editCostType"
-                          value="NO_COST"
-                          checked={editTaskForm.costType === 'NO_COST'}
-                          onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'NO_COST', estimatedBudget: '' }))}
+                          type="date"
+                          value={editTaskForm.deliveryDate}
+                          onChange={(e) => setEditTaskForm(prev => ({ ...prev, deliveryDate: e.target.value }))}
+                          style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
                         />
-                        <span>🟢 <strong>ไม่มีค่าใช้จ่าย</strong></span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem', cursor: 'pointer', color: '#b91c1c' }}>
-                        <input
-                          type="radio"
-                          name="editCostType"
-                          value="HAS_COST"
-                          checked={editTaskForm.costType === 'HAS_COST'}
-                          onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'HAS_COST' }))}
-                        />
-                        <span>🔴 <strong>มีค่าใช้จ่าย</strong></span>
-                      </label>
+                      </div>
+
+                      {/* Cost Type Radio */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
+                          รูปแบบค่าใช้จ่าย
+                        </label>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', minHeight: '38px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer', color: '#0f766e' }}>
+                            <input
+                              type="radio"
+                              name="editCostType"
+                              value="NO_COST"
+                              checked={editTaskForm.costType === 'NO_COST'}
+                              onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'NO_COST', estimatedBudget: '' }))}
+                            />
+                            <span>🟢 ไม่มีค่าใช้จ่าย</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', cursor: 'pointer', color: '#b91c1c' }}>
+                            <input
+                              type="radio"
+                              name="editCostType"
+                              value="HAS_COST"
+                              checked={editTaskForm.costType === 'HAS_COST'}
+                              onChange={() => setEditTaskForm(prev => ({ ...prev, costType: 'HAS_COST' }))}
+                            />
+                            <span>🔴 มีค่าใช้จ่าย</span>
+                          </label>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Estimated Budget if HAS_COST */}
+                    {editTaskForm.costType === 'HAS_COST' && (
+                      <div style={{ borderTop: '1px dashed #99f6e4', paddingTop: '0.75rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
+                          ประมาณการงบประมาณ (บาท) <span style={{ color: '#dc2626' }}>*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="เช่น 2500"
+                          value={editTaskForm.estimatedBudget}
+                          onChange={(e) => setEditTaskForm(prev => ({ ...prev, estimatedBudget: e.target.value }))}
+                          style={{ width: '100%', maxWidth: '300px', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  {/* Estimated Budget if HAS_COST */}
-                  {editTaskForm.costType === 'HAS_COST' && (
-                    <div style={{ marginBottom: '0.85rem' }}>
-                      <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
-                        ประมาณการงบประมาณ (บาท)
+                  {/* ลักษณะงานที่ขอรับบริการ (Work Types) */}
+                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.65rem', padding: '1rem' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#334155', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Layers size={16} className="text-teal-600" />
+                      <span>ลักษณะงานที่ขอรับบริการ (เลือกลักษณะงานที่ต้องการ)</span>
+                    </h4>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                      {WORK_TYPES_CONFIG.map((cfg) => {
+                        const isSelected = !!editTaskForm.selectedWorkTypes[cfg.key]?.selected
+                        return (
+                          <div
+                            key={cfg.key}
+                            onClick={() => toggleEditWorkType(cfg.key)}
+                            style={{
+                              padding: '0.6rem 0.75rem',
+                              borderRadius: '0.5rem',
+                              border: isSelected ? '1.5px solid #0d9488' : '1px solid #cbd5e1',
+                              backgroundColor: isSelected ? '#f0fdfa' : '#ffffff',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.45rem',
+                              transition: 'all 0.15s ease',
+                              userSelect: 'none',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // Handled by div onClick
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: '1rem' }}>{cfg.icon}</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? '#0f766e' : '#334155' }}>
+                              {cfg.label}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Inputs for Work Types with custom details */}
+                    {WORK_TYPES_CONFIG.filter((cfg) => cfg.hasCustomInput && editTaskForm.selectedWorkTypes[cfg.key]?.selected).map((cfg) => (
+                      <div key={cfg.key} style={{ marginTop: '0.5rem', padding: '0.65rem', backgroundColor: '#ffffff', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#0f766e', marginBottom: '0.3rem' }}>
+                          รายละเอียด/ขนาดสำหรับ {cfg.label}:
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={cfg.placeholder}
+                          value={editTaskForm.selectedWorkTypes[cfg.key]?.customDetail || ''}
+                          onChange={(e) => setEditWorkTypeDetail(cfg.key, e.target.value)}
+                          style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: '0.35rem', border: '1px solid #cbd5e1', fontSize: '0.825rem', marginBottom: '0.4rem' }}
+                        />
+                        {cfg.quickTags && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                            {cfg.quickTags.map((tag) => (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => setEditWorkTypeDetail(cfg.key, tag)}
+                                style={{
+                                  padding: '0.2rem 0.5rem',
+                                  fontSize: '0.75rem',
+                                  backgroundColor: '#f1f5f9',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '0.3rem',
+                                  cursor: 'pointer',
+                                  color: '#475569',
+                                }}
+                              >
+                                + {tag}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ช่องทางเผยแพร่ (Channels) */}
+                  <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.65rem', padding: '1rem' }}>
+                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#334155', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Share2 size={16} className="text-teal-600" />
+                      <span>ช่องทางที่ต้องการเผยแพร่</span>
+                    </h4>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                      {CHANNELS_CONFIG.map((cfg) => {
+                        const isSelected = !!editTaskForm.selectedChannels[cfg.key]?.selected
+                        return (
+                          <div
+                            key={cfg.key}
+                            onClick={() => toggleEditChannel(cfg.key)}
+                            style={{
+                              padding: '0.6rem 0.75rem',
+                              borderRadius: '0.5rem',
+                              border: isSelected ? '1.5px solid #0d9488' : '1px solid #cbd5e1',
+                              backgroundColor: isSelected ? '#f0fdfa' : '#ffffff',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.45rem',
+                              transition: 'all 0.15s ease',
+                              userSelect: 'none',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // Handled by div onClick
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: '1rem' }}>{cfg.icon}</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? '#0f766e' : '#334155' }}>
+                              {cfg.label}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Inputs for Channels with custom details */}
+                    {CHANNELS_CONFIG.filter((cfg) => cfg.hasCustomInput && editTaskForm.selectedChannels[cfg.key]?.selected).map((cfg) => (
+                      <div key={cfg.key} style={{ marginTop: '0.5rem', padding: '0.65rem', backgroundColor: '#ffffff', borderRadius: '0.5rem', border: '1px dashed #cbd5e1' }}>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#0f766e', marginBottom: '0.3rem' }}>
+                          จุด/บริเวณ สำหรับ {cfg.label}:
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={cfg.placeholder}
+                          value={editTaskForm.selectedChannels[cfg.key]?.customDetail || ''}
+                          onChange={(e) => setEditChannelDetail(cfg.key, e.target.value)}
+                          style={{ width: '100%', padding: '0.45rem 0.65rem', borderRadius: '0.35rem', border: '1px solid #cbd5e1', fontSize: '0.825rem', marginBottom: '0.4rem' }}
+                        />
+                        {cfg.quickTags && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                            {cfg.quickTags.map((tag) => (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => setEditChannelDetail(cfg.key, tag)}
+                                style={{
+                                  padding: '0.2rem 0.5rem',
+                                  fontSize: '0.75rem',
+                                  backgroundColor: '#f1f5f9',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '0.3rem',
+                                  cursor: 'pointer',
+                                  color: '#475569',
+                                }}
+                              >
+                                + {tag}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* รายละเอียดเนื้อหาในสื่อ */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.35rem' }}>
+                      รายละเอียดและข้อความที่ต้องการให้ใส่ในสื่อ
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={editTaskForm.description}
+                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="ระบุข้อความ กำหนดการ หรือเนื้อหาที่ต้องการให้ออกแบบในสื่อ"
+                      style={{ width: '100%', padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', fontSize: '0.875rem' }}
+                    />
+                  </div>
+
+                  {/* เบอร์โทร & ลิงก์ Cloud */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                        เบอร์โทรติดต่อ
                       </label>
                       <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="เช่น 2500"
-                        value={editTaskForm.estimatedBudget}
-                        onChange={(e) => setEditTaskForm(prev => ({ ...prev, estimatedBudget: e.target.value }))}
-                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
+                        type="text"
+                        placeholder="เช่น 081-234-5678"
+                        value={editTaskForm.phone}
+                        onChange={(e) => setEditTaskForm(prev => ({ ...prev, phone: e.target.value }))}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
                       />
                     </div>
-                  )}
-
-                  {/* Delivery Date */}
-                  <div style={{ marginBottom: '0.85rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
-                      ขอรับงานภายในวันที่ / กำหนดส่งมอบ
-                    </label>
-                    <input
-                      type="date"
-                      value={editTaskForm.deliveryDate}
-                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, deliveryDate: e.target.value }))}
-                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
-                    />
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                        ลิงก์ Google Drive / Cloud
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://drive.google.com/..."
+                        value={editTaskForm.driveLink}
+                        onChange={(e) => setEditTaskForm(prev => ({ ...prev, driveLink: e.target.value }))}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+                      />
+                    </div>
                   </div>
 
-                  {/* Objectives */}
-                  <div style={{ marginBottom: '0.85rem' }}>
-                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
-                      วัตถุประสงค์
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={editTaskForm.objectives}
-                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, objectives: e.target.value }))}
-                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
-                    />
-                  </div>
+                  {/* รายการไฟล์แนบ (Attachments) */}
+                  <div style={{ backgroundColor: '#f0fdfa', border: '1px solid #ccfbf1', borderRadius: '0.65rem', padding: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f766e', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <FileCheck size={16} />
+                        ไฟล์แนบประกอบ ({editTaskForm.attachments.length} ไฟล์)
+                      </span>
+                      <label
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          backgroundColor: '#ffffff',
+                          color: '#0f766e',
+                          border: '1px solid #99f6e4',
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '0.4rem',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: isUploadingEditFiles ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {isUploadingEditFiles ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                        <span>{isUploadingEditFiles ? 'กำลังอัปโหลด...' : 'แนบไฟล์เพิ่ม'}</span>
+                        <input
+                          type="file"
+                          multiple
+                          onChange={handleEditFileUpload}
+                          disabled={isUploadingEditFiles}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
 
-                  {/* Media Details */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: '#134e4a', marginBottom: '0.25rem' }}>
-                      ข้อความ / รายละเอียดเนื้อหาสื่อ
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={editTaskForm.mediaDetails}
-                      onChange={(e) => setEditTaskForm(prev => ({ ...prev, mediaDetails: e.target.value }))}
-                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.4rem', border: '1px solid #99f6e4', fontSize: '0.85rem', backgroundColor: '#ffffff' }}
-                    />
+                    {editTaskForm.attachments.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        {editTaskForm.attachments.map((att, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              backgroundColor: '#ffffff',
+                              padding: '0.45rem 0.75rem',
+                              borderRadius: '0.4rem',
+                              border: '1px solid #ccfbf1',
+                              fontSize: '0.825rem',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {getFileIcon(att.fileName)}
+                              <a
+                                href={att.filePath}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#0f766e', textDecoration: 'none', fontWeight: 600 }}
+                              >
+                                {att.fileName}
+                              </a>
+                              {att.fileSize ? (
+                                <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>({formatFileSize(att.fileSize)})</span>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEditAttachment(idx)}
+                              style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '0.2rem' }}
+                              title="ลบไฟล์แนบนี้"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '0.75rem 0' }}>
+                        ไม่มีไฟล์แนบ (สามารถคลิกปุ่ม &quot;แนบไฟล์เพิ่ม&quot; ด้านบนเพื่อเพิ่มไฟล์ได้)
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

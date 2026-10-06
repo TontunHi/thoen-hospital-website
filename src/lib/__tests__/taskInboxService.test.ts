@@ -421,6 +421,85 @@ describe('taskInboxService', () => {
       expect(res.success).toBe(false)
       expect(res.statusCode).toBe(403)
     })
+
+    it('updates full media request details including workTypes, channels, phone, driveLink, and attachments', async () => {
+      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT * FROM inbox_tasks')) {
+          return Promise.resolve([
+            {
+              id: 'task-pr-4',
+              task_no: 'PR-2570-10-0004',
+              task_type: 'MEDIA_REQUEST',
+              title: 'ขอทำป้ายประชาสัมพันธ์เดิม',
+              description: 'รายละเอียดเดิม',
+              urgency: 'NORMAL',
+              requester_id: 10,
+              current_assignee: null,
+              current_role: 'นักประชาสัมพันธ์',
+              status: 'PENDING',
+              custom_payload: JSON.stringify({
+                costType: 'NO_COST',
+                phone: '0811111111',
+                workTypes: [{ key: 'poster', label: 'โปสเตอร์', customDetail: 'A4' }],
+                channels: [{ key: 'facebook_page', label: 'Page Facebook' }],
+                attachments: [{ fileName: 'old.pdf', filePath: '/uploads/old.pdf' }],
+              }),
+            },
+          ])
+        }
+        if (sql.includes('SELECT * FROM repair_details')) {
+          return Promise.resolve([])
+        }
+        if (sql.includes('SELECT * FROM inbox_task_steps')) {
+          return Promise.resolve([{ id: 's1', step_no: 1, status: 'PENDING' }])
+        }
+        return Promise.resolve({ affectedRows: 1 })
+      })
+
+      const adminPerformer = { id: 1, username: 'admin', role: 'admin' }
+
+      const newWorkTypes = [
+        { key: 'poster', label: 'โปสเตอร์', customDetail: 'A2' },
+        { key: 'website_aw', label: 'AW ขึ้นเว็บไซต์', customDetail: null },
+      ]
+      const newChannels = [
+        { key: 'indoor', label: 'ในอาคารโรงพยาบาล', customDetail: 'โถงชั้น 1' },
+      ]
+      const newAttachments = [
+        { fileName: 'new.png', filePath: '/uploads/new.png', fileType: 'image/png', fileSize: 1024 },
+      ]
+
+      const res = await updateTaskByManager(
+        {
+          taskId: 'task-pr-4',
+          performer: adminPerformer,
+          updates: {
+            title: 'ขอทำป้ายประชาสัมพันธ์และ AW เว็บไซต์',
+            description: 'รายละเอียดที่แก้ไขใหม่',
+            phone: '0899999999',
+            driveLink: 'https://drive.google.com/test-folder',
+            workTypes: newWorkTypes,
+            channels: newChannels,
+            attachments: newAttachments,
+          },
+        },
+        mockExecutor
+      )
+
+      expect(res.success).toBe(true)
+      expect(res.diff?.title).toEqual({ from: 'ขอทำป้ายประชาสัมพันธ์เดิม', to: 'ขอทำป้ายประชาสัมพันธ์และ AW เว็บไซต์' })
+      expect(res.diff?.description).toEqual({ from: 'รายละเอียดเดิม', to: 'รายละเอียดที่แก้ไขใหม่' })
+      expect(res.diff?.phone).toEqual({ from: '0811111111', to: '0899999999' })
+      expect(res.diff?.driveLink).toEqual({ from: undefined, to: 'https://drive.google.com/test-folder' })
+      expect(res.diff?.workTypes).toBeDefined()
+      expect(res.diff?.channels).toBeDefined()
+      expect(res.diff?.attachments).toBeDefined()
+
+      expect(mockExecutor).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE inbox_tasks SET'),
+        expect.arrayContaining(['ขอทำป้ายประชาสัมพันธ์และ AW เว็บไซต์', 'รายละเอียดที่แก้ไขใหม่'])
+      )
+    })
   })
 })
 

@@ -1064,6 +1064,11 @@ export interface UpdateTaskManagerPayload {
   estimatedBudget?: string | number
   deliveryDate?: string
   workTypesSummary?: string
+  workTypes?: Array<{ key: string; label: string; customDetail?: string | null }>
+  channels?: Array<{ key: string; label: string; customDetail?: string | null }>
+  phone?: string | null
+  driveLink?: string | null
+  attachments?: Array<{ fileName: string; filePath: string; fileType?: string | null; fileSize?: number | null }>
   mediaDetails?: string
   objectives?: string
   // For Repair:
@@ -1223,6 +1228,29 @@ export async function updateTaskByManager(
     if (updates.objectives !== undefined && updates.objectives !== (customPayload.objectives ?? '')) {
       diff.objectives = { from: customPayload.objectives, to: updates.objectives }
       customPayload.objectives = updates.objectives
+    }
+    if (updates.workTypes !== undefined) {
+      diff.workTypes = { from: customPayload.workTypes, to: updates.workTypes }
+      customPayload.workTypes = updates.workTypes
+      customPayload.workTypesSummary = updates.workTypes
+        .map((w: any) => (w.customDetail ? `${w.label} (${w.customDetail})` : w.label))
+        .join(', ')
+    }
+    if (updates.channels !== undefined) {
+      diff.channels = { from: customPayload.channels, to: updates.channels }
+      customPayload.channels = updates.channels
+    }
+    if (updates.phone !== undefined && (updates.phone || null) !== (customPayload.phone ?? null)) {
+      diff.phone = { from: customPayload.phone, to: updates.phone }
+      customPayload.phone = updates.phone ? updates.phone.trim() : null
+    }
+    if (updates.driveLink !== undefined && (updates.driveLink || null) !== (customPayload.driveLink ?? null)) {
+      diff.driveLink = { from: customPayload.driveLink, to: updates.driveLink }
+      customPayload.driveLink = updates.driveLink ? updates.driveLink.trim() : null
+    }
+    if (updates.attachments !== undefined) {
+      diff.attachments = { from: customPayload.attachments, to: updates.attachments }
+      customPayload.attachments = updates.attachments
     }
 
     updatedTaskFields.custom_payload = JSON.stringify(customPayload)
