@@ -831,7 +831,6 @@ export async function notifyMediaRequestStepApprovedOnTelegram(params: {
       `📋 <b>หัวข้อ :</b> <b>${escapeHtml(params.title)}</b>`,
       `👤 <b>ผู้ร้องขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`,
       `✍️ <b>ผู้อนุมัติ :</b> <b>${escapeHtml(params.approverName)}</b>${params.approverPosition ? ` (${escapeHtml(params.approverPosition)})` : ''}`,
-      `📍 <b>ขั้นตอนที่อนุมัติ :</b> ${escapeHtml(params.stepName)}`,
     ]
 
     if (!params.isFinalStep && params.nextStepName) {
