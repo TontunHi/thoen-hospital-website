@@ -471,6 +471,12 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
       return
     }
 
+    if (!phone.trim()) {
+      setErrorBanner('กรุณาระบุเบอร์โทรส่วนตัว / แผนก')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
     const payload = {
       title: title.trim(),
       urgency,
@@ -479,7 +485,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
       workTypes: activeWorkTypes,
       channels: activeChannels,
       description: description.trim(),
-      phone: phone.trim() || null,
+      phone: phone.trim(),
       attachments: uploadedFiles,
       driveLink: driveLink.trim() || null,
     }
@@ -530,6 +536,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
       valid: Object.values(selectedChannels).some((v) => v.selected),
     },
     { label: 'ระบุรายละเอียดงานครบถ้วน', valid: description.trim().length >= 5 },
+    { label: 'ระบุเบอร์โทรส่วนตัว / แผนก', valid: phone.trim().length >= 1 },
   ]
 
   const isFormValid = validationItems.every((item) => item.valid)
@@ -964,7 +971,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
               <div className="formGroup" style={{ marginTop: '0.85rem' }}>
                 <label htmlFor={phoneInputId} className="formLabel" style={{ fontSize: '0.8rem' }}>
                   <Phone aria-hidden="true" className="w-3.5 h-3.5 text-slate-500" />
-                  เบอร์โทรภายใน / แผนก
+                  เบอร์โทรส่วนตัว / แผนก <span className="requiredAsterisk" aria-hidden="true">*</span>
                 </label>
                 <input
                   id={phoneInputId}
@@ -972,6 +979,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
+                  required
                   className="formInput"
                   style={{ padding: '0.45rem 0.75rem', fontSize: '0.875rem' }}
                   placeholder="เช่น 102, 108 หรือ 08X-XXXXXXX"

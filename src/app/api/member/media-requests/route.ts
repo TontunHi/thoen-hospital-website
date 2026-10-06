@@ -36,7 +36,7 @@ const CreateMediaRequestSchema = z.object({
   workTypes: z.array(MediaRequestWorkTypeSchema).min(1, 'กรุณาเลือกลักษณะงานอย่างน้อย 1 รายการ'),
   channels: z.array(MediaRequestChannelSchema).min(1, 'กรุณาเลือกช่องทางเผยแพร่อย่างน้อย 1 รายการ'),
   description: z.string().min(5, 'กรุณาระบุรายละเอียดงานให้ชัดเจน'),
-  phone: z.string().optional().nullable(),
+  phone: z.string().min(1, 'กรุณาระบุเบอร์โทรส่วนตัว / แผนก'),
   attachments: z.array(MediaRequestAttachmentSchema).optional().default([]),
   driveLink: z.string().optional().nullable(),
 })
