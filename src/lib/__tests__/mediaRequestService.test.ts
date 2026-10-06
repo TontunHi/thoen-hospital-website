@@ -13,26 +13,31 @@ describe('MEDIA_REQUEST Workflow Configuration', () => {
     expect(config.name).toBe('งานขอสื่อประชาสัมพันธ์')
   })
 
-  it('generates 1 step when hasCost is false (NO_COST)', () => {
+  it('generates 2 steps when hasCost is false (NO_COST)', () => {
     const steps = getMediaRequestWorkflowSteps(false)
-    expect(steps).toHaveLength(1)
+    expect(steps).toHaveLength(2)
 
     expect(steps[0].stepNo).toBe(1)
-    expect(steps[0].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIGITAL_HEAD)
-    expect(steps[0].stepName).toContain('หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์')
+    expect(steps[0].assignedRole).toBe(MEDIA_REQUEST_ROLES.PR_OFFICER)
+    expect(steps[0].stepName).toContain('นักประชาสัมพันธ์')
+
+    expect(steps[1].stepNo).toBe(2)
+    expect(steps[1].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIGITAL_HEAD)
+    expect(steps[1].stepName).toContain('หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์')
   })
 
-  it('generates 4 steps including Hospital Director when hasCost is true (HAS_COST)', () => {
+  it('generates 5 steps including PR, Digital Head, Procurement and Hospital Director when hasCost is true (HAS_COST)', () => {
     const steps = getMediaRequestWorkflowSteps(true)
-    expect(steps).toHaveLength(4)
+    expect(steps).toHaveLength(5)
 
-    expect(steps[0].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIGITAL_HEAD)
-    expect(steps[1].assignedRole).toBe(MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER)
-    expect(steps[2].assignedRole).toBe(MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD)
+    expect(steps[0].assignedRole).toBe(MEDIA_REQUEST_ROLES.PR_OFFICER)
+    expect(steps[1].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIGITAL_HEAD)
+    expect(steps[2].assignedRole).toBe(MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER)
+    expect(steps[3].assignedRole).toBe(MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD)
 
-    expect(steps[3].stepNo).toBe(4)
-    expect(steps[3].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIRECTOR)
-    expect(steps[3].stepName).toContain('ผู้อำนวยการโรงพยาบาลเถิน')
+    expect(steps[4].stepNo).toBe(5)
+    expect(steps[4].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIRECTOR)
+    expect(steps[4].stepName).toContain('ผู้อำนวยการโรงพยาบาลเถิน')
   })
 
   it('generates unique cryptographic signature stamp hash for approver', async () => {

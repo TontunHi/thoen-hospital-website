@@ -161,7 +161,7 @@ export async function POST(request: Request) {
     const taskNo = await generateTaskNo('MEDIA_REQUEST')
 
     const firstStep = workflowSteps[0]
-    const initialRole = firstStep.assignedRole || 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์'
+    const initialRole = firstStep.assignedRole || 'นักประชาสัมพันธ์'
 
     const customPayload = {
       requestDate: new Date().toISOString(),

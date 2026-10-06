@@ -379,7 +379,7 @@ describe('taskInboxService', () => {
       expect(res.success).toBe(true)
       expect(res.diff?.costType).toEqual({ from: 'HAS_COST', to: 'NO_COST' })
       expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no IN (2, 3, 4)'),
+        expect.stringContaining('DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no IN (3, 4, 5)'),
         ['task-pr-2']
       )
     })

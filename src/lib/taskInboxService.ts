@@ -115,6 +115,13 @@ export const REGISTERED_TASK_TYPES: Record<string, TaskTypeDefinition> = {
     defaultSteps: [
       {
         stepNo: 1,
+        stepName: 'นักประชาสัมพันธ์ ตรวจสอบและดำเนินการ',
+        assigneeType: 'ROLE',
+        assignedRole: 'นักประชาสัมพันธ์',
+        canEditFields: ['comment'],
+      },
+      {
+        stepNo: 2,
         stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
         assigneeType: 'ROLE',
         assignedRole: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
@@ -125,6 +132,7 @@ export const REGISTERED_TASK_TYPES: Record<string, TaskTypeDefinition> = {
 }
 
 export const MEDIA_REQUEST_ROLES = {
+  PR_OFFICER: 'นักประชาสัมพันธ์',
   DIGITAL_HEAD: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
   PROCUREMENT_OFFICER: 'เจ้าหน้าที่พัสดุ',
   PROCUREMENT_HEAD: 'หัวหน้าเจ้าหน้าที่พัสดุ',
@@ -135,6 +143,13 @@ export function getMediaRequestWorkflowSteps(hasCost: boolean): WorkflowStepDefi
   const steps: WorkflowStepDefinition[] = [
     {
       stepNo: 1,
+      stepName: 'นักประชาสัมพันธ์ ตรวจสอบและดำเนินการ',
+      assigneeType: 'ROLE',
+      assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
+      canEditFields: ['comment'],
+    },
+    {
+      stepNo: 2,
       stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
       assigneeType: 'ROLE',
       assignedRole: MEDIA_REQUEST_ROLES.DIGITAL_HEAD,
@@ -145,21 +160,21 @@ export function getMediaRequestWorkflowSteps(hasCost: boolean): WorkflowStepDefi
   if (hasCost) {
     steps.push(
       {
-        stepNo: 2,
+        stepNo: 3,
         stepName: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง',
         assigneeType: 'ROLE',
         assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER,
         canEditFields: ['comment'],
       },
       {
-        stepNo: 3,
+        stepNo: 4,
         stepName: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ',
         assigneeType: 'ROLE',
         assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD,
         canEditFields: ['comment'],
       },
       {
-        stepNo: 4,
+        stepNo: 5,
         stepName: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ',
         assigneeType: 'ROLE',
         assignedRole: MEDIA_REQUEST_ROLES.DIRECTOR,
@@ -1178,12 +1193,12 @@ export async function updateTaskByManager(
         diff.costType = { from: oldCostType, to: updates.costType }
         customPayload.costType = updates.costType
 
-        // Steps 2, 3, 4 dynamic insertion / removal for Media Request
+        // Steps 3, 4, 5 dynamic insertion / removal for Media Request
         if (updates.costType === 'HAS_COST') {
           const stepsToAdd = [
-            { stepNo: 2, name: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง', role: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER },
-            { stepNo: 3, name: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ', role: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD },
-            { stepNo: 4, name: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ', role: MEDIA_REQUEST_ROLES.DIRECTOR },
+            { stepNo: 3, name: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง', role: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER },
+            { stepNo: 4, name: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ', role: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD },
+            { stepNo: 5, name: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ', role: MEDIA_REQUEST_ROLES.DIRECTOR },
           ]
           for (const s of stepsToAdd) {
             const stepRows = await executor(
@@ -1202,7 +1217,7 @@ export async function updateTaskByManager(
           }
         } else if (updates.costType === 'NO_COST') {
           await executor(
-            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no IN (2, 3, 4) AND status IN ('PENDING', 'WAITING')`,
+            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no IN (3, 4, 5) AND status IN ('PENDING', 'WAITING')`,
             [taskId]
           )
         }
