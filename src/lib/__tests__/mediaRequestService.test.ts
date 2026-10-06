@@ -51,4 +51,16 @@ describe('MEDIA_REQUEST Workflow Configuration', () => {
     expect(hash).toBeDefined()
     expect(hash.length).toBe(64)
   })
+
+  it('exports media request telegram notification functions', async () => {
+    const {
+      notifyMediaRequestCreatedRequesterOnTelegram,
+      notifyMediaRequestStepApprovedOnTelegram,
+      notifyMediaRequestRejectedOrSentBackOnTelegram,
+    } = await import('../taskInboxService')
+
+    expect(typeof notifyMediaRequestCreatedRequesterOnTelegram).toBe('function')
+    expect(typeof notifyMediaRequestStepApprovedOnTelegram).toBe('function')
+    expect(typeof notifyMediaRequestRejectedOrSentBackOnTelegram).toBe('function')
+  })
 })

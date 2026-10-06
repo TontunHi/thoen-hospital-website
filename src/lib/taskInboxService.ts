@@ -698,6 +698,269 @@ export async function notifyRepairCancelledOnTelegram(params: {
   }
 }
 
+/**
+ * Dispatch Telegram Confirmation Alert to Requester when a media request is created
+ */
+export async function notifyMediaRequestCreatedRequesterOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  title: string
+  requesterId?: number | null
+  urgency?: string | null
+  deliveryDate?: string | null
+  costType?: string | null
+  workTypesSummary?: string | null
+}) {
+  if (!params.requesterId) return
+
+  try {
+    const links = await queryMemberDb(
+      'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+      [params.requesterId]
+    )
+
+    if (!links || links.length === 0) return
+
+    const chatId = links[0].telegram_chat_id
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const urgencyLabel = formatUrgency(params.urgency, 'MEDIA_REQUEST')
+    const costLabel = params.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย (งบประมาณ)' : '🟢 ไม่มีค่าใช้จ่าย'
+
+    const lines: string[] = [
+      `🎨 <b>คุณได้ยื่นคำขอจัดทำสื่อประชาสัมพันธ์เรียบร้อยแล้ว</b>`,
+      `🏷️ <b>รหัสคำขอ :</b> <code>${params.taskNo}</code>`,
+      `⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}`,
+      `📋 <b>หัวข้อ :</b> <b>${escapeHtml(params.title)}</b>`,
+    ]
+    if (params.deliveryDate) {
+      lines.push(`📅 <b>วันที่ขอรับงาน :</b> ${escapeHtml(params.deliveryDate)}`)
+    }
+    lines.push(`💰 <b>งบประมาณ :</b> ${costLabel}`)
+    if (params.workTypesSummary) {
+      lines.push(`📐 <b>ลักษณะงาน :</b> ${escapeHtml(params.workTypesSummary)}`)
+    }
+    lines.push(`📍 <b>สถานะ :</b> ⏳ อยู่ระหว่างเสนอพิจารณา (ขั้นตอนที่ 1)`)
+    lines.push(`⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.`)
+
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ระบบได้ส่งข้อมูลเข้ากลุ่มงานประชาสัมพันธ์แล้ว และจะแจ้งเตือนความคืบหน้าให้ทราบเมื่อมีการอนุมัติ</i>`
+
+    await sendTelegramMessage(chatId, message, {
+      parseMode: 'HTML',
+      replyMarkup: {
+        inline_keyboard: [
+          [
+            {
+              text: '🔍 ติดตามสถานะคำขอสื่อ ↗',
+              url: taskLink,
+            },
+          ],
+        ],
+      },
+    })
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram media request creation confirmation to requester')
+  }
+}
+
+/**
+ * Dispatch Telegram Alert on Step Approval (Sends to Requester and Media PR Telegram Group)
+ */
+export async function notifyMediaRequestStepApprovedOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  title: string
+  requesterId?: number | null
+  requesterName: string
+  requesterDept?: string | null
+  approverName: string
+  approverPosition?: string | null
+  stepNo: number
+  stepName: string
+  isFinalStep: boolean
+  nextStepName?: string | null
+}) {
+  try {
+    const targetChatIds: string[] = []
+
+    // 1. Group Telegram Chat ID
+    const mediaGroupChatId = process.env.TELEGRAM_GROUP_MEDIA_REQUEST || process.env.TELEGRAM_GROUP_PR || '-5235759439'
+    if (mediaGroupChatId) {
+      targetChatIds.push(mediaGroupChatId)
+    }
+
+    // 2. Requester Private Chat ID
+    if (params.requesterId) {
+      const links = await queryMemberDb(
+        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+        [params.requesterId]
+      )
+      if (links && links.length > 0) {
+        const reqChatId = links[0].telegram_chat_id
+        if (!targetChatIds.includes(reqChatId)) {
+          targetChatIds.push(reqChatId)
+        }
+      }
+    }
+
+    if (targetChatIds.length === 0) return
+
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const header = params.isFinalStep
+      ? '🎉 <b>คำขอสื่อประชาสัมพันธ์ผ่านการอนุมัติสมบูรณ์แล้ว</b>'
+      : `✅ <b>อนุมัติคำขอสื่อประชาสัมพันธ์ (ขั้นตอนที่ ${params.stepNo})</b>`
+
+    const lines: string[] = [
+      header,
+      `🏷️ <b>เลขคำร้อง :</b> <code>${params.taskNo}</code>`,
+      `📋 <b>หัวข้อ :</b> <b>${escapeHtml(params.title)}</b>`,
+      `👤 <b>ผู้ร้องขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`,
+      `✍️ <b>ผู้อนุมัติ :</b> <b>${escapeHtml(params.approverName)}</b>${params.approverPosition ? ` (${escapeHtml(params.approverPosition)})` : ''}`,
+      `📍 <b>ขั้นตอนที่อนุมัติ :</b> ${escapeHtml(params.stepName)}`,
+    ]
+
+    if (!params.isFinalStep && params.nextStepName) {
+      lines.push(`⏭️ <b>ขั้นตอนถัดไป :</b> ${escapeHtml(params.nextStepName)}`)
+    }
+
+    lines.push(`⏰ <b>เวลาที่อนุมัติ :</b> ${thaiDate} น.`)
+
+    const footer = params.isFinalStep
+      ? '✨ <i>คำขอสื่อประชาสัมพันธ์ผ่านการอนุมัติครบถ้วนทุกขั้นตอนเรียบร้อยแล้ว</i>'
+      : '✨ <i>ส่งต่อเอกสารเข้าสู่ขั้นตอนถัดไปเรียบร้อยแล้ว</i>'
+
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n${footer}`
+
+    for (const chatId of targetChatIds) {
+      await sendTelegramMessage(chatId, message, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '📄 ดูเอกสารและสถานะคำขอ ↗',
+                url: taskLink,
+              },
+            ],
+          ],
+        },
+      }).catch((err) => logger.error({ error: err, chatId }, 'Failed sending media approval to chatId'))
+    }
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram media step approval notification')
+  }
+}
+
+/**
+ * Dispatch Telegram Alert on Reject / Send Back (Sends to Requester and Media PR Telegram Group)
+ */
+export async function notifyMediaRequestRejectedOrSentBackOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  title: string
+  action: 'REJECT' | 'SEND_BACK'
+  requesterId?: number | null
+  requesterName: string
+  requesterDept?: string | null
+  performerName: string
+  performerPosition?: string | null
+  stepName: string
+  reason?: string | null
+}) {
+  try {
+    const targetChatIds: string[] = []
+
+    // 1. Group Telegram Chat ID
+    const mediaGroupChatId = process.env.TELEGRAM_GROUP_MEDIA_REQUEST || process.env.TELEGRAM_GROUP_PR || '-5235759439'
+    if (mediaGroupChatId) {
+      targetChatIds.push(mediaGroupChatId)
+    }
+
+    // 2. Requester Private Chat ID
+    if (params.requesterId) {
+      const links = await queryMemberDb(
+        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+        [params.requesterId]
+      )
+      if (links && links.length > 0) {
+        const reqChatId = links[0].telegram_chat_id
+        if (!targetChatIds.includes(reqChatId)) {
+          targetChatIds.push(reqChatId)
+        }
+      }
+    }
+
+    if (targetChatIds.length === 0) return
+
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const isReject = params.action === 'REJECT'
+    const header = isReject
+      ? '❌ <b>คำขอสื่อประชาสัมพันธ์ถูกปฏิเสธ (ไม่อนุมัติ)</b>'
+      : '↩️ <b>คำขอสื่อประชาสัมพันธ์ถูกส่งกลับแก้ไข</b>'
+
+    const actorLabel = isReject ? '🚫 <b>ผู้ปฏิเสธ :</b>' : '↩️ <b>ผู้ส่งกลับ :</b>'
+    const reasonLabel = isReject ? '📝 <b>เหตุผลการปฏิเสธ :</b>' : '📝 <b>เหตุผลการส่งกลับ :</b>'
+
+    const lines: string[] = [
+      header,
+      `🏷️ <b>เลขคำร้อง :</b> <code>${params.taskNo}</code>`,
+      `📋 <b>หัวข้อ :</b> <b>${escapeHtml(params.title)}</b>`,
+      `👤 <b>ผู้ร้องขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`,
+      `${actorLabel} <b>${escapeHtml(params.performerName)}</b>${params.performerPosition ? ` (${escapeHtml(params.performerPosition)})` : ''}`,
+      `📍 <b>ขั้นตอน :</b> ${escapeHtml(params.stepName)}`,
+      `${reasonLabel}\n<i>${escapeHtml(params.reason || '-')}</i>`,
+      `⏰ <b>เวลาดำเนินการ :</b> ${thaiDate} น.`,
+    ]
+
+    const footer = isReject
+      ? '⚠️ <i>คำขอนี้ถูกยุติการดำเนินการ</i>'
+      : '✨ <i>กรุณากดปุ่มด้านล่างเพื่อตรวจสอบและแก้ไขข้อมูลคำขอ</i>'
+
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n${footer}`
+
+    for (const chatId of targetChatIds) {
+      await sendTelegramMessage(chatId, message, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '📋 ดูรายละเอียดคำขอ ↗',
+                url: taskLink,
+              },
+            ],
+          ],
+        },
+      }).catch((err) => logger.error({ error: err, chatId }, 'Failed sending media action to chatId'))
+    }
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram media action notification')
+  }
+}
+
 function escapeHtml(str: string): string {
   if (!str) return ''
   return str
@@ -1524,33 +1787,68 @@ export async function executeWorkflowAction(
         [nextAssignee, nextStep.id]
       )
 
-      if (nextAssignee) {
-        notifyAssigneeOnTelegram({
+      // Notify next step assignee or target role
+      notifyAssigneeOnTelegram({
+        taskId,
+        taskNo: task.task_no,
+        taskType: task.task_type,
+        title: task.title,
+        requesterName: task.requester_name,
+        requesterDept: task.requester_dept,
+        assigneeId: nextAssignee,
+        targetRole: nextStep.assigned_role,
+        stepName: nextStep.step_name,
+      }).catch(() => {})
+
+      // If Media Request, notify both requester and PR Telegram Group
+      if (task.task_type === 'MEDIA_REQUEST') {
+        notifyMediaRequestStepApprovedOnTelegram({
           taskId,
           taskNo: task.task_no,
-          taskType: task.task_type,
           title: task.title,
+          requesterId: task.requester_id,
           requesterName: task.requester_name,
           requesterDept: task.requester_dept,
-          assigneeId: nextAssignee,
-          stepName: nextStep.step_name,
-        }).catch(() => {})
+          approverName: actorName || actorUsername,
+          approverPosition: actorPosition,
+          stepNo: currentStep.step_no,
+          stepName: currentStep.step_name,
+          isFinalStep: false,
+          nextStepName: nextStep.step_name,
+        }).catch((e) => logger.error({ error: e }, 'Telegram media step approval notify error'))
       }
     } else {
       await executor(
         `UPDATE inbox_tasks SET status = 'APPROVED', current_assignee = NULL, \`current_role\` = NULL, updated_at = NOW() WHERE id = ?`,
         [taskId]
       )
-      notifyAssigneeOnTelegram({
-        taskId,
-        taskNo: task.task_no,
-        taskType: task.task_type,
-        title: `[อนุมัติแล้ว] ${task.title}`,
-        requesterName: task.requester_name,
-        requesterDept: task.requester_dept,
-        assigneeId: task.requester_id,
-        stepName: 'การอนุมัติเสร็จสิ้นสมบูรณ์',
-      }).catch(() => {})
+
+      if (task.task_type === 'MEDIA_REQUEST') {
+        notifyMediaRequestStepApprovedOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          title: task.title,
+          requesterId: task.requester_id,
+          requesterName: task.requester_name,
+          requesterDept: task.requester_dept,
+          approverName: actorName || actorUsername,
+          approverPosition: actorPosition,
+          stepNo: currentStep.step_no,
+          stepName: currentStep.step_name,
+          isFinalStep: true,
+        }).catch((e) => logger.error({ error: e }, 'Telegram media final approval notify error'))
+      } else {
+        notifyAssigneeOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          taskType: task.task_type,
+          title: `[อนุมัติแล้ว] ${task.title}`,
+          requesterName: task.requester_name,
+          requesterDept: task.requester_dept,
+          assigneeId: task.requester_id,
+          stepName: 'การอนุมัติเสร็จสิ้นสมบูรณ์',
+        }).catch(() => {})
+      }
     }
   } else if (action === 'REJECT') {
     await executor(
@@ -1563,16 +1861,33 @@ export async function executeWorkflowAction(
       `UPDATE inbox_tasks SET status = 'REJECTED', current_assignee = NULL, \`current_role\` = NULL, updated_at = NOW() WHERE id = ?`,
       [taskId]
     )
-    notifyAssigneeOnTelegram({
-      taskId,
-      taskNo: task.task_no,
-      taskType: task.task_type,
-      title: `[ไม่อนุมัติ] ${task.title}`,
-      requesterName: task.requester_name,
-      requesterDept: task.requester_dept,
-      assigneeId: task.requester_id,
-      stepName: `ถูกปฏิเสธในขั้นตอน: ${currentStep.step_name}`,
-    }).catch(() => {})
+
+    if (task.task_type === 'MEDIA_REQUEST') {
+      notifyMediaRequestRejectedOrSentBackOnTelegram({
+        taskId,
+        taskNo: task.task_no,
+        title: task.title,
+        action: 'REJECT',
+        requesterId: task.requester_id,
+        requesterName: task.requester_name,
+        requesterDept: task.requester_dept,
+        performerName: actorName || actorUsername,
+        performerPosition: actorPosition,
+        stepName: currentStep.step_name,
+        reason: comment || 'ไม่อนุมัติ',
+      }).catch((e) => logger.error({ error: e }, 'Telegram media reject notify error'))
+    } else {
+      notifyAssigneeOnTelegram({
+        taskId,
+        taskNo: task.task_no,
+        taskType: task.task_type,
+        title: `[ไม่อนุมัติ] ${task.title}`,
+        requesterName: task.requester_name,
+        requesterDept: task.requester_dept,
+        assigneeId: task.requester_id,
+        stepName: `ถูกปฏิเสธในขั้นตอน: ${currentStep.step_name}`,
+      }).catch(() => {})
+    }
   } else if (action === 'SEND_BACK') {
     await executor(
       `UPDATE inbox_task_steps 
@@ -1592,16 +1907,33 @@ export async function executeWorkflowAction(
         [taskId]
       )
     }
-    notifyAssigneeOnTelegram({
-      taskId,
-      taskNo: task.task_no,
-      taskType: task.task_type,
-      title: `[ส่งกลับแก้ไข] ${task.title}`,
-      requesterName: task.requester_name,
-      requesterDept: task.requester_dept,
-      assigneeId: task.requester_id,
-      stepName: `ส่งกลับแก้ไขโดย ${actorName || actorUsername} (เหตุผล: ${comment || '-'})`,
-    }).catch(() => {})
+
+    if (task.task_type === 'MEDIA_REQUEST') {
+      notifyMediaRequestRejectedOrSentBackOnTelegram({
+        taskId,
+        taskNo: task.task_no,
+        title: task.title,
+        action: 'SEND_BACK',
+        requesterId: task.requester_id,
+        requesterName: task.requester_name,
+        requesterDept: task.requester_dept,
+        performerName: actorName || actorUsername,
+        performerPosition: actorPosition,
+        stepName: currentStep.step_name,
+        reason: comment || 'ส่งกลับแก้ไข',
+      }).catch((e) => logger.error({ error: e }, 'Telegram media send-back notify error'))
+    } else {
+      notifyAssigneeOnTelegram({
+        taskId,
+        taskNo: task.task_no,
+        taskType: task.task_type,
+        title: `[ส่งกลับแก้ไข] ${task.title}`,
+        requesterName: task.requester_name,
+        requesterDept: task.requester_dept,
+        assigneeId: task.requester_id,
+        stepName: `ส่งกลับแก้ไขโดย ${actorName || actorUsername} (เหตุผล: ${comment || '-'})`,
+      }).catch(() => {})
+    }
   }
 
   const auditActionId = crypto.randomUUID()

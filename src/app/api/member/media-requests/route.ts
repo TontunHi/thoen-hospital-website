@@ -5,6 +5,7 @@ import {
   generateTaskNo,
   getMediaRequestWorkflowSteps,
   notifyAssigneeOnTelegram,
+  notifyMediaRequestCreatedRequesterOnTelegram,
 } from '@/lib/taskInboxService'
 import { z } from 'zod'
 import crypto from 'crypto'
@@ -262,6 +263,18 @@ export async function POST(request: Request) {
       costType: data.costType,
       workTypesSummary,
     }).catch((e) => console.error('Telegram dispatch error on media request:', e))
+
+    // 5. Send Telegram Confirmation Alert to Requester
+    notifyMediaRequestCreatedRequesterOnTelegram({
+      taskId,
+      taskNo,
+      title: data.title,
+      requesterId: currentMember.id,
+      urgency: data.urgency,
+      deliveryDate: data.deliveryDate,
+      costType: data.costType,
+      workTypesSummary,
+    }).catch((e) => console.error('Telegram requester confirmation error on media request:', e))
 
     return NextResponse.json({
       success: true,
