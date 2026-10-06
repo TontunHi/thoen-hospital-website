@@ -103,6 +103,9 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
   const { task, steps, repairDetail } = data
   const isRepair = Boolean(repairDetail)
   const isMediaRequest = task.task_type === 'MEDIA_REQUEST'
+  const mediaPrintSteps = isMediaRequest 
+    ? steps.filter((st: any) => st.assigned_role !== 'นักประชาสัมพันธ์' && !st.step_name.includes('นักประชาสัมพันธ์'))
+    : steps
 
   const getRepairTitleHeader = () => {
     if (task.task_type === 'IT_REPAIR') return 'ใบแจ้งซ่อมอุปกรณ์คอมพิวเตอร์'
@@ -402,9 +405,9 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
                 การพิจารณาและลายมือชื่ออิเล็กทรอนิกส์
               </h4>
 
-              {steps.length === 1 ? (
+              {mediaPrintSteps.length === 1 ? (
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.35rem' }}>
-                  {steps.map((st: any) => (
+                  {mediaPrintSteps.map((st: any) => (
                     <div
                       key={st.id}
                       style={{
@@ -456,11 +459,11 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
               ) : (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: steps.length === 4 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                  gridTemplateColumns: mediaPrintSteps.length === 4 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
                   gap: '1rem',
                   marginTop: '0.35rem'
                 }}>
-                  {steps.map((st: any) => (
+                  {mediaPrintSteps.map((st: any) => (
                     <div
                       key={st.id}
                       style={{
