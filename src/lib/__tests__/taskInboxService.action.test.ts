@@ -33,7 +33,7 @@ describe('executeWorkflowAction', () => {
     { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'PENDING', assigned_to_id: 3 }
   ]
 
-  const createExecutor = (mockTaskData = [mockTask], mockStepsData = mockSteps, additionalMocks: any = {}) => {
+  const createExecutor = (mockTaskData: any[] = [mockTask], mockStepsData: any[] = mockSteps, additionalMocks: any = {}) => {
     return vi.fn().mockImplementation(async (sql: string, params: any[]) => {
       if (sql.includes('SELECT * FROM inbox_tasks WHERE id = ?')) {
         return mockTaskData
