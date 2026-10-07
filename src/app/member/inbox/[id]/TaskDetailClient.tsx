@@ -39,7 +39,9 @@ import {
   FileSpreadsheet,
   FileArchive,
   Link as LinkIcon,
-  Loader2
+  Loader2,
+  PauseCircle,
+  PlayCircle
 } from 'lucide-react'
 
 // Predefined Work Types with quick assist tags for Media Request
@@ -191,6 +193,12 @@ export default function TaskDetailClient({
   const [isEditingPayload, setIsEditingPayload] = useState<boolean>(false)
   const [editNote, setEditNote] = useState<string>('')
   const [editBudget, setEditBudget] = useState<string>('')
+
+  // Hold Task Modal State
+  const [isHoldModalOpen, setIsHoldModalOpen] = useState<boolean>(false)
+  const [holdReason, setHoldReason] = useState<string>('รอการจัดสรรงบ')
+  const [holdCustomReason, setHoldCustomReason] = useState<string>('')
+  const [holdDetails, setHoldDetails] = useState<string>('')
 
   // Manager Edit Task Modal State
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState<boolean>(false)
@@ -536,6 +544,72 @@ export default function TaskDetailClient({
     }
   }
 
+  // ── Hold & Resume Action Handlers ──
+  const handleHoldTask = async () => {
+    setActionLoading(true)
+    setError(null)
+    setSuccessMsg(null)
+
+    const finalReason = holdReason === 'อื่นๆ' ? (holdCustomReason.trim() || 'อื่นๆ') : holdReason
+
+    try {
+      const res = await fetch(`/api/member/inbox/${taskId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'HOLD',
+          holdReason: finalReason,
+          holdDetails: holdDetails.trim() || undefined,
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || 'เกิดข้อผิดพลาดในการพักงาน')
+      }
+
+      setIsHoldModalOpen(false)
+      setHoldDetails('')
+      setHoldCustomReason('')
+      setSuccessMsg('บันทึกการพักงานเรียบร้อยแล้ว')
+      await loadData()
+    } catch (err: any) {
+      setError(err.message || 'เกิดข้อผิดพลาดในการพักงาน')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleResumeTask = async () => {
+    if (!confirm('ต้องการปลดสถานะพักงาน และกลับมาดำเนินการต่อใช่หรือไม่?')) return
+
+    setActionLoading(true)
+    setError(null)
+    setSuccessMsg(null)
+
+    try {
+      const res = await fetch(`/api/member/inbox/${taskId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'RESUME',
+        }),
+      })
+
+      const result = await res.json()
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || 'เกิดข้อผิดพลาดในการปลดพักงาน')
+      }
+
+      setSuccessMsg('ปลดพักงานและกลับมาดำเนินการต่อเรียบร้อยแล้ว')
+      await loadData()
+    } catch (err: any) {
+      setError(err.message || 'เกิดข้อผิดพลาดในการปลดพักงาน')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   // ── Repair Action Handlers ──
   const handleAcceptJob = async () => {
     setActionLoading(true)
@@ -838,6 +912,7 @@ export default function TaskDetailClient({
   const taskPermissions = resolveTaskPermissions(memberLike, task, { repairDetail, steps })
   const isMyTurn = taskPermissions.canApprove || (currentUser?.isCurrentAssignee && (task.status === 'PENDING' || task.status === 'IN_PROGRESS'))
   const canEdit = taskPermissions.canEdit
+  const currentStep = steps.find((s) => s.step_no === task?.current_step_no)
 
 
   return (
@@ -852,17 +927,20 @@ export default function TaskDetailClient({
               task.status === 'APPROVED' ? 'statusApproved' :
               task.status === 'REJECTED' ? 'statusRejected' :
               task.status === 'SENT_BACK' ? 'statusSentBack' : 
+              task.status === 'ON_HOLD' ? 'statusOnHold' :
               task.status === 'IN_PROGRESS' ? 'statusInProgress' : 'statusPending'
-            }`}>
+            }`} style={task.status === 'ON_HOLD' ? { backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' } : undefined}>
               {task.status === 'APPROVED' && <CheckCircle2 size={13} className="flex-shrink-0" />}
               {task.status === 'REJECTED' && <XCircle size={13} className="flex-shrink-0" />}
               {task.status === 'SENT_BACK' && <AlertCircle size={13} className="flex-shrink-0" />}
+              {task.status === 'ON_HOLD' && <PauseCircle size={13} className="flex-shrink-0" />}
               {task.status === 'IN_PROGRESS' && <Wrench size={13} className="flex-shrink-0" />}
               {task.status === 'PENDING' && <Clock size={13} className="flex-shrink-0" />}
               <span>
                 {task.status === 'APPROVED' ? 'อนุมัติเรียบร้อย' :
                  task.status === 'REJECTED' ? 'ไม่อนุมัติ' :
                  task.status === 'SENT_BACK' ? 'ส่งกลับแก้ไข' : 
+                 task.status === 'ON_HOLD' ? 'พักงานชั่วคราว' :
                  task.status === 'IN_PROGRESS' ? 'กำลังดำเนินการ' : 'รอดำเนินการ'}
               </span>
             </span>
@@ -920,6 +998,83 @@ export default function TaskDetailClient({
         <div style={{ backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '0.85rem 1.15rem', borderRadius: '0.75rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
           <CheckCircle2 size={18} className="flex-shrink-0" />
           <span>{successMsg}</span>
+        </div>
+      )}
+
+      {/* ── On Hold Notification Banner ── */}
+      {task.status === 'ON_HOLD' && (
+        <div style={{
+          backgroundColor: '#fffbeb',
+          border: '1px solid #fde68a',
+          borderRadius: '0.75rem',
+          padding: '1.25rem',
+          marginBottom: '1.25rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          boxShadow: '0 2px 6px rgba(217, 119, 6, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <div style={{
+              width: '2.5rem',
+              height: '2.5rem',
+              borderRadius: '0.5rem',
+              backgroundColor: '#fef3c7',
+              color: '#d97706',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <PauseCircle size={24} />
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 0.25rem 0', color: '#92400e', fontSize: '1rem', fontWeight: 700 }}>
+                งานนี้ถูกพักการดำเนินการชั่วคราว (On Hold)
+              </h4>
+              <div style={{ fontSize: '0.875rem', color: '#78350f', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <div>
+                  <strong>เหตุผล:</strong> {task.custom_payload?.holdInfo?.reason || 'รอการจัดสรรงบ'}
+                </div>
+                {task.custom_payload?.holdInfo?.details && (
+                  <div>
+                    <strong>รายละเอียด:</strong> {task.custom_payload.holdInfo.details}
+                  </div>
+                )}
+                <div style={{ fontSize: '0.8rem', color: '#b45309', marginTop: '0.15rem' }}>
+                  บันทึกโดย: {task.custom_payload?.holdInfo?.heldByName || '-'}
+                  {task.custom_payload?.holdInfo?.heldAt ? ` • เมื่อ ${formatThaiDate(task.custom_payload.holdInfo.heldAt)}` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {taskPermissions.canResume && (
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={handleResumeTask}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                backgroundColor: '#0d9488',
+                color: '#ffffff',
+                border: 'none',
+                padding: '0.65rem 1.25rem',
+                borderRadius: '0.5rem',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(13, 148, 136, 0.25)'
+              }}
+            >
+              <PlayCircle size={18} />
+              <span>ปลดพักงาน / ดำเนินการต่อ (Resume)</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -1651,7 +1806,7 @@ export default function TaskDetailClient({
                 />
               </div>
 
-              <div className="actionButtonRow">
+              <div className="actionButtonRow" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <button
                   type="button"
                   disabled={actionLoading}
@@ -1659,8 +1814,39 @@ export default function TaskDetailClient({
                   className="btnApprove"
                 >
                   <CheckCircle size={16} />
-                  <span>ลงนามอนุมัติ (Approve)</span>
+                  <span>
+                    {task.task_type === 'MEDIA_REQUEST' && (currentStep?.step_name?.includes('เสร็จสิ้น') || task.current_step_no === steps.length)
+                      ? 'เสร็จสิ้น / ส่งมอบงาน (Complete)'
+                      : task.task_type === 'MEDIA_REQUEST' && (currentStep?.step_name?.includes('ผลิตสื่อ') || currentStep?.step_name?.includes('สั่งพิมพ์'))
+                      ? 'บันทึกเริ่มผลิตสื่อ (In Progress)'
+                      : 'ลงนามอนุมัติ (Approve)'}
+                  </span>
                 </button>
+
+                {taskPermissions.canHold && (
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => setIsHoldModalOpen(true)}
+                    className="btnHoldJob"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      backgroundColor: '#fffbeb',
+                      color: '#b45309',
+                      border: '1px solid #fde68a',
+                      padding: '0.6rem 1rem',
+                      borderRadius: '0.5rem',
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <PauseCircle size={16} />
+                    <span>พักงาน (Hold)</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -2704,6 +2890,201 @@ export default function TaskDetailClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Hold Task Modal ── */}
+      {isHoldModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="hold-modal-title"
+          className="modalOverlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem',
+          }}
+        >
+          <div
+            className="modalCard"
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '1rem',
+              width: '100%',
+              maxWidth: '480px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '1.25rem 1.5rem',
+                backgroundColor: '#fffbeb',
+                borderBottom: '1px solid #fde68a',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <PauseCircle className="text-amber-600 w-5 h-5" />
+                <h3 id="hold-modal-title" style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#92400e' }}>
+                  พักการดำเนินงานชั่วคราว (Hold Task)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHoldModalOpen(false)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.25rem' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '0.5rem' }}>
+                  เลือกเหตุผลในการพักงาน <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {[
+                    'รอการจัดสรรงบ',
+                    'ต้องการหารือรายละเอียดเพิ่มเติม',
+                    'อื่นๆ',
+                  ].map((r) => (
+                    <label
+                      key={r}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.6rem 0.85rem',
+                        borderRadius: '0.5rem',
+                        border: holdReason === r ? '1.5px solid #d97706' : '1px solid #cbd5e1',
+                        backgroundColor: holdReason === r ? '#fffbeb' : '#ffffff',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        fontWeight: holdReason === r ? 600 : 400,
+                        color: holdReason === r ? '#92400e' : '#334155',
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="holdReasonRadio"
+                        value={r}
+                        checked={holdReason === r}
+                        onChange={() => setHoldReason(r)}
+                      />
+                      <span>{r}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {holdReason === 'อื่นๆ' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                    ระบุเหตุผลอื่นๆ <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="เช่น รอประสานงานร้านป้ายภายนอก, รอยืนยันไฟล์ต้นฉบับ..."
+                    value={holdCustomReason}
+                    onChange={(e) => setHoldCustomReason(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '0.5rem',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.875rem',
+                    }}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: '0.25rem' }}>
+                  รายละเอียด / หมายเหตุเพิ่มเติม (ระบุหรือไม่ก็ได้)
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="ระบุข้อความชี้แจงสำหรับผู้ยื่นคำขอ..."
+                  value={holdDetails}
+                  onChange={(e) => setHoldDetails(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.875rem',
+                    lineHeight: '1.5',
+                  }}
+                />
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: '#64748b', backgroundColor: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                💡 เมื่อบันทึกพักงาน ระบบจะเปลี่ยนสถานะเป็น <strong>พักงานชั่วคราว</strong> และส่งข้อความแจ้งเตือนพร้อมเหตุผลไปยังผู้ยื่นคำขอทาง Telegram ทันที
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '1rem 1.5rem',
+                backgroundColor: '#f8fafc',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+              }}
+            >
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setIsHoldModalOpen(false)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.5rem',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  color: '#475569',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading || (holdReason === 'อื่นๆ' && !holdCustomReason.trim())}
+                onClick={handleHoldTask}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  backgroundColor: '#d97706',
+                  color: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  boxShadow: '0 2px 4px rgba(217, 119, 6, 0.25)',
+                }}
+              >
+                {actionLoading ? <Clock size={16} className="animate-spin" /> : <PauseCircle size={16} />}
+                <span>ยืนยันพักงาน</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -46,6 +46,8 @@ export interface TaskPermissionsResult {
   canApprove: boolean
   canTakeJob: boolean
   canCancel: boolean
+  canHold: boolean
+  canResume: boolean
   isRequester: boolean
   isCurrentAssignee: boolean
   isTechnicianAssigned: boolean
@@ -71,6 +73,8 @@ export function resolveTaskPermissions(
       canApprove: false,
       canTakeJob: false,
       canCancel: false,
+      canHold: false,
+      canResume: false,
       isRequester: false,
       isCurrentAssignee: false,
       isTechnicianAssigned: false,
@@ -170,12 +174,22 @@ export function resolveTaskPermissions(
       isPrStaff ||
       isITStaff
     )) ||
-    (isRequester && ['PENDING', 'SENT_BACK', 'IN_PROGRESS'].includes(task.status)) ||
+    (isRequester && ['PENDING', 'SENT_BACK', 'IN_PROGRESS', 'ON_HOLD'].includes(task.status)) ||
     isCurrentAssignee
   )
 
   const canApprove = Boolean(
     isCurrentAssignee && (task.status === 'PENDING' || task.status === 'IN_PROGRESS')
+  )
+
+  const canHold = Boolean(
+    (task.status === 'PENDING' || task.status === 'IN_PROGRESS') &&
+    (isAdmin || isCurrentAssignee || (isMediaTask && isPrStaff) || hasPerm('manage_inbox'))
+  )
+
+  const canResume = Boolean(
+    task.status === 'ON_HOLD' &&
+    (isAdmin || isCurrentAssignee || (isMediaTask && isPrStaff) || hasPerm('manage_inbox'))
   )
 
   const canTakeJob = Boolean(
@@ -202,6 +216,8 @@ export function resolveTaskPermissions(
     canApprove,
     canTakeJob,
     canCancel,
+    canHold,
+    canResume,
     isRequester,
     isCurrentAssignee,
     isTechnicianAssigned,

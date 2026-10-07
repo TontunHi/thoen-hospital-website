@@ -261,7 +261,7 @@ describe('taskInboxService', () => {
   })
 
   describe('updateTaskByManager', () => {
-    it('updates media request costType to HAS_COST and dynamically adds Step 4', async () => {
+    it('updates media request costType to HAS_COST and dynamically adds steps', async () => {
       const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
         if (sql.includes('SELECT * FROM inbox_tasks')) {
           return Promise.resolve([
@@ -288,7 +288,7 @@ describe('taskInboxService', () => {
             { id: 's1', step_no: 1, status: 'PENDING' },
           ])
         }
-        if (sql.includes('SELECT id FROM inbox_task_steps WHERE task_id = ? AND step_no = ?')) {
+        if (sql.includes('FROM inbox_task_steps WHERE task_id = ? AND step_no = ?')) {
           return Promise.resolve([])
         }
         return Promise.resolve({ affectedRows: 1 })
@@ -325,7 +325,7 @@ describe('taskInboxService', () => {
       )
     })
 
-    it('removes Steps 2, 3, 4 when media request is changed back to NO_COST', async () => {
+    it('removes Steps when media request is changed back to NO_COST', async () => {
       const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
         if (sql.includes('SELECT * FROM inbox_tasks')) {
           return Promise.resolve([
@@ -353,7 +353,13 @@ describe('taskInboxService', () => {
             { id: 's2', step_no: 2, status: 'PENDING' },
             { id: 's3', step_no: 3, status: 'PENDING' },
             { id: 's4', step_no: 4, status: 'PENDING' },
+            { id: 's5', step_no: 5, status: 'PENDING' },
+            { id: 's6', step_no: 6, status: 'PENDING' },
+            { id: 's7', step_no: 7, status: 'PENDING' },
           ])
+        }
+        if (sql.includes('FROM inbox_task_steps WHERE task_id = ? AND step_no = ?')) {
+          return Promise.resolve([])
         }
         return Promise.resolve({ affectedRows: 1 })
       })
@@ -379,7 +385,7 @@ describe('taskInboxService', () => {
       expect(res.success).toBe(true)
       expect(res.diff?.costType).toEqual({ from: 'HAS_COST', to: 'NO_COST' })
       expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no IN (3, 4, 5)'),
+        expect.stringContaining("DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no > 4 AND status IN ('PENDING', 'WAITING')"),
         ['task-pr-2']
       )
     })

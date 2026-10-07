@@ -4,22 +4,26 @@ import { getMediaRequestWorkflowSteps } from '../taskInboxService'
 describe('Media Request Submission and Validation Logic', () => {
   it('correctly constructs workflow steps for NO_COST request', () => {
     const steps = getMediaRequestWorkflowSteps(false)
-    expect(steps.length).toBe(2)
+    expect(steps.length).toBe(4)
     expect(steps.map((s) => s.assignedRole)).toEqual([
       'นักประชาสัมพันธ์',
       'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
+      'นักประชาสัมพันธ์',
+      'นักประชาสัมพันธ์',
     ])
   })
 
   it('correctly constructs workflow steps for HAS_COST request including Director', () => {
     const steps = getMediaRequestWorkflowSteps(true)
-    expect(steps.length).toBe(5)
+    expect(steps.length).toBe(7)
     expect(steps.map((s) => s.assignedRole)).toEqual([
       'นักประชาสัมพันธ์',
       'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
       'เจ้าหน้าที่พัสดุ',
       'หัวหน้าเจ้าหน้าที่พัสดุ',
       'ผู้อำนวยการโรงพยาบาลเถิน',
+      'นักประชาสัมพันธ์',
+      'นักประชาสัมพันธ์',
     ])
   })
 

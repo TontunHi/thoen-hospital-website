@@ -1156,25 +1156,48 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
 
               {/* Workflow Steps Preview */}
               <div className="workflowPipelineBox">
-                <span className="workflowPipelineTitle">เส้นทางการอนุมัติ (Approval Chain):</span>
+                <span className="workflowPipelineTitle">เส้นทางการดำเนินงาน & สายอนุมัติ:</span>
                 <div className="workflowVerticalSteps">
                   <div className="workflowVerticalStep active">
                     <span className="stepNum">1</span>
-                    <span className="stepText">หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ ตรวจสอบและมอบหมายงาน</span>
+                    <span className="stepText">นักประชาสัมพันธ์ ตรวจสอบและรับเรื่อง</span>
                   </div>
-                  {costType === 'HAS_COST' && (
+                  <div className="workflowVerticalStep active">
+                    <span className="stepNum">2</span>
+                    <span className="stepText">หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ พิจารณาอนุมัติ</span>
+                  </div>
+                  {costType === 'HAS_COST' ? (
                     <>
                       <div className="workflowVerticalStep active">
-                        <span className="stepNum">2</span>
-                        <span className="stepText">เจ้าหน้าที่พัสดุ</span>
+                        <span className="stepNum">3</span>
+                        <span className="stepText">เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง</span>
                       </div>
                       <div className="workflowVerticalStep active">
-                        <span className="stepNum">3</span>
-                        <span className="stepText">หัวหน้าเจ้าหน้าที่พัสดุ</span>
+                        <span className="stepNum">4</span>
+                        <span className="stepText">หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ</span>
                       </div>
                       <div className="workflowVerticalStep active director">
+                        <span className="stepNum">5</span>
+                        <span className="stepText">ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ</span>
+                      </div>
+                      <div className="workflowVerticalStep active">
+                        <span className="stepNum">6</span>
+                        <span className="stepText">นักประชาสัมพันธ์ ดำเนินการสั่งพิมพ์/ผลิตสื่อ</span>
+                      </div>
+                      <div className="workflowVerticalStep active">
+                        <span className="stepNum">7</span>
+                        <span className="stepText">นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="workflowVerticalStep active">
+                        <span className="stepNum">3</span>
+                        <span className="stepText">นักประชาสัมพันธ์ ดำเนินการผลิตสื่อ</span>
+                      </div>
+                      <div className="workflowVerticalStep active">
                         <span className="stepNum">4</span>
-                        <span className="stepText">ผู้อำนวยการโรงพยาบาลเถิน</span>
+                        <span className="stepText">นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน</span>
                       </div>
                     </>
                   )}

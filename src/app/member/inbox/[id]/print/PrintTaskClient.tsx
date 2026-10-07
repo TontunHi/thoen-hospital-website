@@ -459,7 +459,8 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
               ) : (
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: mediaPrintSteps.length === 4 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                  gridTemplateColumns: mediaPrintSteps.length === 4 ? 'repeat(2, 1fr)' : mediaPrintSteps.length === 1 ? 'minmax(250px, 360px)' : 'repeat(3, 1fr)',
+                  justifyContent: 'center',
                   gap: '1rem',
                   marginTop: '0.35rem'
                 }}>

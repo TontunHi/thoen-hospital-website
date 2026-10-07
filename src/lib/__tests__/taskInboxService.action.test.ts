@@ -188,4 +188,64 @@ describe('executeWorkflowAction', () => {
       expect.arrayContaining([2, null, 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์', 'pr-1'])
     )
   })
+
+  it('should hold task with hold reason and details', async () => {
+    const executor = createExecutor()
+    const result = await executeWorkflowAction({
+      taskId: 't-1',
+      actorMemberId: 2,
+      actorUsername: 'user2',
+      actorName: 'User Two',
+      actorPosition: 'Manager',
+      actorRole: 'member',
+      action: 'HOLD',
+      holdReason: 'รอการจัดสรรงบ',
+      holdDetails: 'รองบประมาณปี 2570 ไตรมาส 1',
+    }, executor)
+
+    expect(result.success).toBe(true)
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_tasks SET status = 'ON_HOLD'"),
+      expect.arrayContaining([
+        expect.stringContaining('รอการจัดสรรงบ'),
+        't-1',
+      ])
+    )
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("'HOLD_TASK'"),
+      expect.arrayContaining(['t-1', 2, 'User Two'])
+    )
+  })
+
+  it('should resume held task back to pending', async () => {
+    const heldTask = {
+      ...mockTask,
+      status: 'ON_HOLD',
+      custom_payload: JSON.stringify({
+        holdReason: 'รอการจัดสรรงบ',
+        holdDetails: 'รองบประมาณปี 2570',
+      }),
+    }
+    const executor = createExecutor([heldTask])
+    const result = await executeWorkflowAction({
+      taskId: 't-1',
+      actorMemberId: 2,
+      actorUsername: 'user2',
+      actorName: 'User Two',
+      actorPosition: 'Manager',
+      actorRole: 'member',
+      action: 'RESUME',
+      comment: 'งบประมาณได้รับการอนุมัติแล้ว ดำเนินการต่อ',
+    }, executor)
+
+    expect(result.success).toBe(true)
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_tasks SET status = ?"),
+      expect.arrayContaining(['PENDING', 't-1'])
+    )
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("'RESUME_TASK'"),
+      expect.arrayContaining(['t-1', 2, 'User Two'])
+    )
+  })
 })

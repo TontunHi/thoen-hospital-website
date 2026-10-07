@@ -115,16 +115,30 @@ export const REGISTERED_TASK_TYPES: Record<string, TaskTypeDefinition> = {
     defaultSteps: [
       {
         stepNo: 1,
-        stepName: 'นักประชาสัมพันธ์ ตรวจสอบและดำเนินการ',
+        stepName: 'นักประชาสัมพันธ์ ตรวจสอบและรับเรื่อง',
         assigneeType: 'ROLE',
         assignedRole: 'นักประชาสัมพันธ์',
         canEditFields: ['comment'],
       },
       {
         stepNo: 2,
-        stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
+        stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ พิจารณาอนุมัติ',
         assigneeType: 'ROLE',
         assignedRole: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
+        canEditFields: ['comment'],
+      },
+      {
+        stepNo: 3,
+        stepName: 'นักประชาสัมพันธ์ ดำเนินการผลิตสื่อ',
+        assigneeType: 'ROLE',
+        assignedRole: 'นักประชาสัมพันธ์',
+        canEditFields: ['comment'],
+      },
+      {
+        stepNo: 4,
+        stepName: 'นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน',
+        assigneeType: 'ROLE',
+        assignedRole: 'นักประชาสัมพันธ์',
         canEditFields: ['comment'],
       },
     ],
@@ -139,51 +153,98 @@ export const MEDIA_REQUEST_ROLES = {
   DIRECTOR: 'ผู้อำนวยการโรงพยาบาลเถิน',
 } as const
 
+export const MEDIA_REQUEST_ROLE_CIDS: Record<string, string> = {
+  [MEDIA_REQUEST_ROLES.DIGITAL_HEAD]: '3510101262116',
+  [MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER]: '1529900015359',
+  [MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD]: '3521000525368',
+  [MEDIA_REQUEST_ROLES.DIRECTOR]: '3540300329784',
+}
+
 export function getMediaRequestWorkflowSteps(hasCost: boolean): WorkflowStepDefinition[] {
-  const steps: WorkflowStepDefinition[] = [
+  if (!hasCost) {
+    return [
+      {
+        stepNo: 1,
+        stepName: 'นักประชาสัมพันธ์ ตรวจสอบและรับเรื่อง',
+        assigneeType: 'ROLE',
+        assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
+        canEditFields: ['comment'],
+      },
+      {
+        stepNo: 2,
+        stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ พิจารณาอนุมัติ',
+        assigneeType: 'ROLE',
+        assignedRole: MEDIA_REQUEST_ROLES.DIGITAL_HEAD,
+        canEditFields: ['comment'],
+      },
+      {
+        stepNo: 3,
+        stepName: 'นักประชาสัมพันธ์ ดำเนินการผลิตสื่อ',
+        assigneeType: 'ROLE',
+        assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
+        canEditFields: ['comment'],
+      },
+      {
+        stepNo: 4,
+        stepName: 'นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน',
+        assigneeType: 'ROLE',
+        assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
+        canEditFields: ['comment'],
+      },
+    ]
+  }
+
+  return [
     {
       stepNo: 1,
-      stepName: 'นักประชาสัมพันธ์ ตรวจสอบและดำเนินการ',
+      stepName: 'นักประชาสัมพันธ์ ตรวจสอบและจัดทำแบบ',
       assigneeType: 'ROLE',
       assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
       canEditFields: ['comment'],
     },
     {
       stepNo: 2,
-      stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
+      stepName: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์ ตรวจสอบและเสนอเรื่อง',
       assigneeType: 'ROLE',
       assignedRole: MEDIA_REQUEST_ROLES.DIGITAL_HEAD,
       canEditFields: ['comment'],
     },
+    {
+      stepNo: 3,
+      stepName: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง',
+      assigneeType: 'ROLE',
+      assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER,
+      canEditFields: ['comment'],
+    },
+    {
+      stepNo: 4,
+      stepName: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ',
+      assigneeType: 'ROLE',
+      assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD,
+      canEditFields: ['comment'],
+    },
+    {
+      stepNo: 5,
+      stepName: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ',
+      assigneeType: 'ROLE',
+      assignedRole: MEDIA_REQUEST_ROLES.DIRECTOR,
+      canEditFields: ['comment'],
+    },
+    {
+      stepNo: 6,
+      stepName: 'นักประชาสัมพันธ์ ดำเนินการสั่งพิมพ์/ผลิตสื่อ',
+      assigneeType: 'ROLE',
+      assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
+      canEditFields: ['comment'],
+    },
+    {
+      stepNo: 7,
+      stepName: 'นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน',
+      assigneeType: 'ROLE',
+      assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
+      canEditFields: ['comment'],
+    },
   ]
-
-  if (hasCost) {
-    steps.push(
-      {
-        stepNo: 3,
-        stepName: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง',
-        assigneeType: 'ROLE',
-        assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER,
-        canEditFields: ['comment'],
-      },
-      {
-        stepNo: 4,
-        stepName: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ',
-        assigneeType: 'ROLE',
-        assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD,
-        canEditFields: ['comment'],
-      },
-      {
-        stepNo: 5,
-        stepName: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ',
-        assigneeType: 'ROLE',
-        assignedRole: MEDIA_REQUEST_ROLES.DIRECTOR,
-        canEditFields: ['comment'],
-      }
-    )
-  }
-
-  return steps
 }
 
 /**
@@ -262,9 +323,69 @@ export async function notifyAssigneeOnTelegram(params: {
         chatIds.push(groupChatId)
       }
     } else if (isMediaRequest) {
-      // Route directly to Media & PR Telegram Group
+      // 1. Direct Assignee if specified
+      if (params.assigneeId) {
+        const links = await queryMemberDb(
+          'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+          [params.assigneeId]
+        )
+        if (links && links.length > 0) {
+          chatIds.push(links[0].telegram_chat_id)
+        }
+      } else if (params.targetRole) {
+        // 2. Match role against designated Citizen ID
+        const targetCid = MEDIA_REQUEST_ROLE_CIDS[params.targetRole]
+        if (targetCid) {
+          const links = await queryMemberDb(
+            `SELECT l.telegram_chat_id 
+             FROM member_telegram_links l
+             JOIN members m ON l.member_id = m.id
+             WHERE m.username = ? LIMIT 1`,
+            [targetCid]
+          )
+          if (links && links.length > 0) {
+            chatIds.push(links[0].telegram_chat_id)
+          }
+        } else if (
+          params.targetRole === MEDIA_REQUEST_ROLES.PR_OFFICER ||
+          params.targetRole.includes('ประชาสัมพันธ์')
+        ) {
+          // 3. For PR Officer, notify all users with PR position who have linked Telegram
+          const links = await queryMemberDb(
+            `SELECT DISTINCT l.telegram_chat_id 
+             FROM member_telegram_links l
+             JOIN members m ON l.member_id = m.id
+             WHERE (m.position LIKE '%ประชาสัมพันธ์%' OR m.department LIKE '%ประชาสัมพันธ์%' OR m.role = 'pr')`
+          )
+          if (links && links.length > 0) {
+            for (const row of links) {
+              if (!chatIds.includes(row.telegram_chat_id)) {
+                chatIds.push(row.telegram_chat_id)
+              }
+            }
+          }
+        } else {
+          // Fallback to position/department matching
+          const links = await queryMemberDb(
+            `SELECT l.telegram_chat_id 
+             FROM member_telegram_links l
+             JOIN members m ON l.member_id = m.id
+             WHERE (m.position LIKE ? OR m.department LIKE ?)`,
+            [`%${params.targetRole}%`, `%${params.targetRole}%`]
+          )
+          if (links && links.length > 0) {
+            for (const row of links) {
+              if (!chatIds.includes(row.telegram_chat_id)) {
+                chatIds.push(row.telegram_chat_id)
+              }
+            }
+          }
+        }
+      }
+
+      // Route to Media & PR Telegram Group if configured
       const mediaGroupChatId = process.env.TELEGRAM_GROUP_MEDIA_REQUEST || process.env.TELEGRAM_GROUP_PR || '-5235759439'
-      if (mediaGroupChatId) {
+      if (mediaGroupChatId && !chatIds.includes(mediaGroupChatId)) {
         chatIds.push(mediaGroupChatId)
       }
     } else {
@@ -345,7 +466,6 @@ export async function notifyAssigneeOnTelegram(params: {
         lines.push(`📐 <b>ลักษณะงาน :</b> ${escapeHtml(params.workTypesSummary)}`)
       }
       lines.push(`👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`)
-      lines.push(`📍 <b>ขั้นตอนปัจจุบัน :</b> ${escapeHtml(params.stepName)}`)
       lines.push(`⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.`)
 
       message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>กรุณากดปุ่มด้านล่างเพื่อเปิดดูเอกสารและดำเนินการพิจารณาลงนาม</i>`
@@ -361,7 +481,6 @@ export async function notifyAssigneeOnTelegram(params: {
         lines.push(`📍 <b>สถานที่ :</b> ${escapeHtml(params.location)}`)
       }
       lines.push(`👤 <b>ผู้ยื่นคำขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`)
-      lines.push(`📍 <b>ขั้นตอน :</b> ${escapeHtml(params.stepName)}`)
       lines.push(`⏰ <b>เวลาส่งเรื่อง :</b> ${thaiDate} น.`)
 
       message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>กรุณากดปุ่มด้านล่างเพื่อเปิดดูรายละเอียดและดำเนินการ</i>`
@@ -960,6 +1079,131 @@ export async function notifyMediaRequestRejectedOrSentBackOnTelegram(params: {
   }
 }
 
+/**
+ * Dispatch Telegram Alert when a task is put on hold (Sends to Requester)
+ */
+export async function notifyTaskHoldOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  title: string
+  requesterId?: number | null
+  requesterName?: string | null
+  requesterDept?: string | null
+  heldByName: string
+  heldByPosition?: string | null
+  holdReason: string
+  holdDetails?: string | null
+  stepName?: string
+}) {
+  try {
+    const targetChatIds: (string | number)[] = []
+    if (params.requesterId) {
+      const links = await queryMemberDb(
+        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+        [params.requesterId]
+      )
+      if (links && links.length > 0) {
+        targetChatIds.push(links[0].telegram_chat_id)
+      }
+    }
+    if (targetChatIds.length === 0) return
+
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const lines: string[] = [
+      `⏸️ <b>งานถูกพักการดำเนินการชั่วคราว (On Hold)</b>`,
+      `🏷️ <b>รหัสคำขอ :</b> <code>${params.taskNo}</code>`,
+      `📋 <b>หัวข้อ :</b> <b>${escapeHtml(params.title)}</b>`,
+      `👤 <b>ผู้ดำเนินการพักงาน :</b> ${escapeHtml(params.heldByName)}${params.heldByPosition ? ` (${escapeHtml(params.heldByPosition)})` : ''}`,
+      `📌 <b>เหตุผลที่พักงาน :</b> <b>${escapeHtml(params.holdReason)}</b>`,
+    ]
+    if (params.holdDetails) {
+      lines.push(`📝 <b>รายละเอียดเพิ่มเติม :</b>\n<i>${escapeHtml(params.holdDetails)}</i>`)
+    }
+    lines.push(`⏰ <b>เวลาที่บันทึก :</b> ${thaiDate} น.`)
+
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>หากมีข้อสงสัยหรือต้องการให้ข้อมูลเพิ่มเติม สามารถตรวจสอบรายละเอียดได้ที่ลิงก์ด้านล่าง</i>`
+
+    for (const chatId of targetChatIds) {
+      await sendTelegramMessage(chatId, message, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          inline_keyboard: [[{ text: '📋 ดูรายละเอียดคำขอ ↗', url: taskLink }]],
+        },
+      }).catch((err) => logger.error({ error: err, chatId }, 'Failed sending task hold notification to chatId'))
+    }
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram task hold notification')
+  }
+}
+
+/**
+ * Dispatch Telegram Alert when a task is resumed from hold (Sends to Requester)
+ */
+export async function notifyTaskResumeOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  title: string
+  requesterId?: number | null
+  requesterName?: string | null
+  requesterDept?: string | null
+  resumedByName: string
+  resumedByPosition?: string | null
+  stepName?: string
+}) {
+  try {
+    const targetChatIds: (string | number)[] = []
+    if (params.requesterId) {
+      const links = await queryMemberDb(
+        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+        [params.requesterId]
+      )
+      if (links && links.length > 0) {
+        targetChatIds.push(links[0].telegram_chat_id)
+      }
+    }
+    if (targetChatIds.length === 0) return
+
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const lines: string[] = [
+      `▶️ <b>งานได้รับการปลดพักและกลับมาดำเนินการต่อ (Resumed)</b>`,
+      `🏷️ <b>รหัสคำขอ :</b> <code>${params.taskNo}</code>`,
+      `📋 <b>หัวข้อ :</b> <b>${escapeHtml(params.title)}</b>`,
+      `👤 <b>ผู้ดำเนินการ :</b> ${escapeHtml(params.resumedByName)}${params.resumedByPosition ? ` (${escapeHtml(params.resumedByPosition)})` : ''}`,
+    ]
+    if (params.stepName) {
+      lines.push(`📍 <b>ขั้นตอนปัจจุบัน :</b> ${escapeHtml(params.stepName)}`)
+    }
+    lines.push(`⏰ <b>เวลาที่ดำเนินการ :</b> ${thaiDate} น.`)
+
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>งานได้กลับเข้าสู่กระบวนการทำงานปกติเรียบร้อยแล้ว</i>`
+
+    for (const chatId of targetChatIds) {
+      await sendTelegramMessage(chatId, message, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          inline_keyboard: [[{ text: '📋 ดูรายละเอียดคำขอ ↗', url: taskLink }]],
+        },
+      }).catch((err) => logger.error({ error: err, chatId }, 'Failed sending task resume notification to chatId'))
+    }
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram task resume notification')
+  }
+}
+
 function escapeHtml(str: string): string {
   if (!str) return ''
   return str
@@ -1455,33 +1699,54 @@ export async function updateTaskByManager(
         diff.costType = { from: oldCostType, to: updates.costType }
         customPayload.costType = updates.costType
 
-        // Steps 3, 4, 5 dynamic insertion / removal for Media Request
         if (updates.costType === 'HAS_COST') {
-          const stepsToAdd = [
-            { stepNo: 3, name: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง', role: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER },
-            { stepNo: 4, name: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ', role: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD },
-            { stepNo: 5, name: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ', role: MEDIA_REQUEST_ROLES.DIRECTOR },
-          ]
-          for (const s of stepsToAdd) {
-            const stepRows = await executor(
-              'SELECT id FROM inbox_task_steps WHERE task_id = ? AND step_no = ? LIMIT 1',
-              [taskId, s.stepNo]
-            )
-            if (!stepRows || stepRows.length === 0) {
-              const stepId = crypto.randomUUID()
-              await executor(
-                `INSERT INTO inbox_task_steps 
-                 (id, task_id, step_no, step_name, assignee_type, assigned_role, status)
-                 VALUES (?, ?, ?, ?, 'ROLE', ?, 'WAITING')`,
-                [stepId, taskId, s.stepNo, s.name, s.role]
+          const targetSteps = getMediaRequestWorkflowSteps(true)
+          for (const s of targetSteps) {
+            if (s.stepNo > 2) {
+              const stepRows = await executor(
+                'SELECT id, status FROM inbox_task_steps WHERE task_id = ? AND step_no = ? LIMIT 1',
+                [taskId, s.stepNo]
               )
+              if (!Array.isArray(stepRows) || stepRows.length === 0) {
+                const stepId = crypto.randomUUID()
+                await executor(
+                  `INSERT INTO inbox_task_steps 
+                   (id, task_id, step_no, step_name, assignee_type, assigned_role, status)
+                   VALUES (?, ?, ?, ?, 'ROLE', ?, 'WAITING')`,
+                  [stepId, taskId, s.stepNo, s.stepName, s.assignedRole]
+                )
+              } else if (stepRows[0] && (stepRows[0].status === 'WAITING' || stepRows[0].status === 'PENDING')) {
+                await executor(
+                  `UPDATE inbox_task_steps 
+                   SET step_name = ?, assigned_role = ?
+                   WHERE id = ?`,
+                  [s.stepName, s.assignedRole, stepRows[0].id]
+                )
+              }
             }
           }
         } else if (updates.costType === 'NO_COST') {
+          const targetSteps = getMediaRequestWorkflowSteps(false)
           await executor(
-            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no IN (3, 4, 5) AND status IN ('PENDING', 'WAITING')`,
+            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no > 4 AND status IN ('PENDING', 'WAITING')`,
             [taskId]
           )
+          for (const s of targetSteps) {
+            if (s.stepNo > 2) {
+              const stepRows = await executor(
+                'SELECT id, status FROM inbox_task_steps WHERE task_id = ? AND step_no = ? LIMIT 1',
+                [taskId, s.stepNo]
+              )
+              if (Array.isArray(stepRows) && stepRows.length > 0 && stepRows[0] && (stepRows[0].status === 'WAITING' || stepRows[0].status === 'PENDING')) {
+                await executor(
+                  `UPDATE inbox_task_steps 
+                   SET step_name = ?, assigned_role = ?
+                   WHERE id = ?`,
+                  [s.stepName, s.assignedRole, stepRows[0].id]
+                )
+              }
+            }
+          }
         }
       }
     }
@@ -1664,11 +1929,13 @@ export interface WorkflowActionInput {
   actorName?: string | null
   actorPosition?: string | null
   actorRole?: string | null
-  action: 'APPROVE' | 'REJECT' | 'SEND_BACK'
+  action: 'APPROVE' | 'REJECT' | 'SEND_BACK' | 'HOLD' | 'RESUME'
   comment?: string
   signaturePath?: string | null
   nextAssigneeId?: number | null
   partialEdits?: any
+  holdReason?: string
+  holdDetails?: string
 }
 
 export interface WorkflowActionResult {
@@ -1682,7 +1949,7 @@ export async function executeWorkflowAction(
   input: WorkflowActionInput,
   executor: MemberDbExecutor = queryMemberDb
 ): Promise<WorkflowActionResult> {
-  const { taskId, action, actorMemberId, actorUsername, actorName, actorPosition, actorRole, signaturePath, comment, nextAssigneeId, partialEdits } = input
+  const { taskId, action, actorMemberId, actorUsername, actorName, actorPosition, actorRole, signaturePath, comment, nextAssigneeId, partialEdits, holdReason, holdDetails } = input
 
   // 1. Fetch Task
   const tasks = await executor('SELECT * FROM inbox_tasks WHERE id = ? LIMIT 1', [taskId])
@@ -1691,8 +1958,19 @@ export async function executeWorkflowAction(
   }
   const task = tasks[0]
 
-  if (task.status !== 'PENDING' && task.status !== 'IN_PROGRESS') {
-    throw new Error('งานนี้ไม่อยู่ในสถานะที่สามารถดำเนินการได้')
+  // Validate task status based on action
+  if (action === 'RESUME') {
+    if (task.status !== 'ON_HOLD') {
+      throw new Error('งานนี้ไม่อยู่ในสถานะพักงาน (ON_HOLD)')
+    }
+  } else if (action === 'HOLD') {
+    if (task.status !== 'PENDING' && task.status !== 'IN_PROGRESS') {
+      throw new Error('งานนี้ไม่อยู่ในสถานะที่สามารถพักงานได้')
+    }
+  } else {
+    if (task.status !== 'PENDING' && task.status !== 'IN_PROGRESS') {
+      throw new Error('งานนี้ไม่อยู่ในสถานะที่สามารถดำเนินการได้')
+    }
   }
 
   // 2. Fetch steps
@@ -1711,8 +1989,19 @@ export async function executeWorkflowAction(
     role: actorRole,
   }
   const perms = resolveTaskPermissions(memberObj, task, { steps })
-  if (!perms.canApprove && !perms.isAdmin && !perms.isCurrentAssignee) {
-    throw new Error('คุณไม่มีสิทธิ์ดำเนินการในขั้นตอนนี้')
+
+  if (action === 'HOLD') {
+    if (!perms.canHold && !perms.isAdmin && !perms.isCurrentAssignee) {
+      throw new Error('คุณไม่มีสิทธิ์พักงานนี้')
+    }
+  } else if (action === 'RESUME') {
+    if (!perms.canResume && !perms.isAdmin && !perms.isCurrentAssignee) {
+      throw new Error('คุณไม่มีสิทธิ์ปลดพักงานนี้')
+    }
+  } else {
+    if (!perms.canApprove && !perms.isAdmin && !perms.isCurrentAssignee) {
+      throw new Error('คุณไม่มีสิทธิ์ดำเนินการในขั้นตอนนี้')
+    }
   }
 
   // 4. Handle Partial Edits
@@ -1746,7 +2035,125 @@ export async function executeWorkflowAction(
   const nowStr = new Date().toISOString()
   
   // 5. Handle Actions
-  if (action === 'APPROVE') {
+  if (action === 'HOLD') {
+    let existingPayload: Record<string, any> = {}
+    try {
+      existingPayload = task.custom_payload ? JSON.parse(task.custom_payload) : {}
+    } catch {}
+
+    const selectedReason = holdReason || comment || 'รอการจัดสรรงบ'
+    const updatedPayload = {
+      ...existingPayload,
+      holdInfo: {
+        reason: selectedReason,
+        details: holdDetails?.trim() || null,
+        heldAt: nowStr,
+        heldById: actorMemberId,
+        heldByName: actorName || actorUsername,
+        heldByPosition: actorPosition || null,
+        previousStatus: task.status,
+      },
+    }
+
+    await executor(
+      `UPDATE inbox_tasks SET status = 'ON_HOLD', custom_payload = ?, updated_at = NOW() WHERE id = ?`,
+      [JSON.stringify(updatedPayload), taskId]
+    )
+
+    const auditHoldId = crypto.randomUUID()
+    await executor(
+      `INSERT INTO inbox_task_audit_logs 
+       (id, task_id, action, performed_by, performer_name, details)
+       VALUES (?, ?, 'HOLD_TASK', ?, ?, ?)`,
+      [
+        auditHoldId,
+        taskId,
+        actorMemberId,
+        actorName || actorUsername,
+        JSON.stringify({
+          reason: selectedReason,
+          details: holdDetails?.trim() || null,
+          stepNo: currentStep.step_no,
+          stepName: currentStep.step_name,
+        }),
+      ]
+    )
+
+    notifyTaskHoldOnTelegram({
+      taskId,
+      taskNo: task.task_no,
+      title: task.title,
+      requesterId: task.requester_id,
+      requesterName: task.requester_name,
+      heldByName: actorName || actorUsername,
+      heldByPosition: actorPosition || null,
+      holdReason: selectedReason,
+      holdDetails: holdDetails?.trim() || null,
+      stepName: currentStep.step_name,
+    }).catch((e) => logger.error({ error: e }, 'Telegram task hold notify error'))
+
+    const { logAudit } = await import('@/lib/audit')
+    await logAudit('UPDATE', 'inbox_tasks', `HOLD task ${taskId} (Reason: ${selectedReason})`, { username: actorUsername, email: '' })
+
+    return {
+      success: true,
+      message: 'พักงานเรียบร้อยแล้ว',
+    }
+  } else if (action === 'RESUME') {
+    let existingPayload: Record<string, any> = {}
+    try {
+      existingPayload = task.custom_payload ? JSON.parse(task.custom_payload) : {}
+    } catch {}
+
+    const previousStatus = existingPayload.holdInfo?.previousStatus || (task.current_step_no > 1 ? 'IN_PROGRESS' : 'PENDING')
+    const updatedPayload = {
+      ...existingPayload,
+      holdInfo: null,
+      lastResumedAt: nowStr,
+      lastResumedBy: actorName || actorUsername,
+    }
+
+    await executor(
+      `UPDATE inbox_tasks SET status = ?, custom_payload = ?, updated_at = NOW() WHERE id = ?`,
+      [previousStatus, JSON.stringify(updatedPayload), taskId]
+    )
+
+    const auditResumeId = crypto.randomUUID()
+    await executor(
+      `INSERT INTO inbox_task_audit_logs 
+       (id, task_id, action, performed_by, performer_name, details)
+       VALUES (?, ?, 'RESUME_TASK', ?, ?, ?)`,
+      [
+        auditResumeId,
+        taskId,
+        actorMemberId,
+        actorName || actorUsername,
+        JSON.stringify({
+          restoredStatus: previousStatus,
+          stepNo: currentStep.step_no,
+          stepName: currentStep.step_name,
+        }),
+      ]
+    )
+
+    notifyTaskResumeOnTelegram({
+      taskId,
+      taskNo: task.task_no,
+      title: task.title,
+      requesterId: task.requester_id,
+      resumedByName: actorName || actorUsername,
+      resumedByPosition: actorPosition || null,
+      stepName: currentStep.step_name,
+    }).catch((e) => logger.error({ error: e }, 'Telegram task resume notify error'))
+
+    const { logAudit } = await import('@/lib/audit')
+    await logAudit('UPDATE', 'inbox_tasks', `RESUME task ${taskId} (Step ${currentStep.step_no})`, { username: actorUsername, email: '' })
+
+    return {
+      success: true,
+      message: 'ปลดพักงานและกลับมาดำเนินการต่อเรียบร้อยแล้ว',
+    }
+  } else if (action === 'APPROVE') {
     let sigHash = null
     if (signaturePath) {
       sigHash = generateSignatureStampHash({

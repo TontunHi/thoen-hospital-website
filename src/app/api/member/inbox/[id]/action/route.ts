@@ -5,10 +5,12 @@ import { executeWorkflowAction } from '@/lib/taskInboxService'
 import { z } from 'zod'
 
 const actionSchema = z.object({
-  action: z.enum(['APPROVE', 'REJECT', 'SEND_BACK']),
+  action: z.enum(['APPROVE', 'REJECT', 'SEND_BACK', 'HOLD', 'RESUME']),
   comment: z.string().optional(),
   nextAssigneeId: z.number().nullable().optional(),
   partialEdits: z.any().optional(),
+  holdReason: z.string().optional(),
+  holdDetails: z.string().optional(),
 })
 
 export async function POST(
@@ -29,7 +31,7 @@ export async function POST(
       return NextResponse.json({ error: 'Action ไม่ถูกต้อง' }, { status: 400 })
     }
     
-    const { action, comment, nextAssigneeId, partialEdits } = parsed.data
+    const { action, comment, nextAssigneeId, partialEdits, holdReason, holdDetails } = parsed.data
 
     const members = await queryMemberDb(
       'SELECT id, username, name, department, position, role, signature_path FROM members WHERE username = ? LIMIT 1',
@@ -46,6 +48,8 @@ export async function POST(
       comment,
       nextAssigneeId: nextAssigneeId || null,
       partialEdits,
+      holdReason,
+      holdDetails,
       actorMemberId: currentMember.id,
       actorUsername: currentMember.username,
       actorName: currentMember.name,
