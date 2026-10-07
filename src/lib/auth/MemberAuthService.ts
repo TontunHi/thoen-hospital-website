@@ -255,8 +255,18 @@ export class MemberAuthService {
 
     const userInfo = await exchangeThaidAuthorizationCode(code, config)
     if (!userInfo || !userInfo.pid) {
+      try {
+        await logAudit(
+          'LOGIN',
+          'members',
+          'พยายามเข้าสู่ระบบด้วย ThaID แต่การแลกเปลี่ยน Token ล้มเหลว (DOPA Token Exchange Failed/Expired)',
+          { username: 'THAID_EXCHANGE_ERROR', email: '' }
+        )
+      } catch {}
       throw new Error('Failed to obtain citizen ID from ThaID')
     }
+
+    const fullName = [userInfo.title, userInfo.firstName, userInfo.lastName].filter(Boolean).join(' ') || 'ไม่ระบุชื่อ'
 
     const users = await this.queryExecutor(
       'SELECT id, username, email, role, name FROM members WHERE username = ? LIMIT 1',
@@ -264,10 +274,27 @@ export class MemberAuthService {
     )
 
     if (!users || users.length === 0) {
+      try {
+        await logAudit(
+          'LOGIN',
+          'members',
+          `เข้าสู่ระบบ ThaID สำเร็จแต่ไม่มีบัญชีในระบบ: ${fullName} (เลขบัตรประชาชน ${userInfo.pid}) พยายามเข้าสู่ระบบ แต่ไม่พบในฐานข้อมูลบุคลากร`,
+          { username: userInfo.pid, email: '' }
+        )
+      } catch {}
       throw new Error('ThaID citizen ID not registered in hospital members')
     }
 
     const user = users[0]
+
+    try {
+      await logAudit(
+        'LOGIN',
+        'members',
+        `เข้าสู่ระบบสำเร็จผ่าน ThaID: ${user.name || fullName} (เลขบัตรประชาชน ${user.username})`,
+        { username: user.username, email: user.email }
+      )
+    } catch {}
 
     return {
       username: user.username,
