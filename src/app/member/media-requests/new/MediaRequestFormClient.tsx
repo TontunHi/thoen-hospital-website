@@ -200,6 +200,14 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
   >([])
   const [isUploading, setIsUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+
+  // Quotation Files State
+  const [quotationFiles, setQuotationFiles] = useState<
+    { fileName: string; filePath: string; fileType?: string; fileSize?: number }[]
+  >([])
+  const [isUploadingQuotations, setIsUploadingQuotations] = useState(false)
+  const [isDraggingQuotations, setIsDraggingQuotations] = useState(false)
+
   const [errorBanner, setErrorBanner] = useState<string | null>(null)
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false)
   const [createdTaskInfo, setCreatedTaskInfo] = useState<{ taskId: string; taskNo: string } | null>(
@@ -226,6 +234,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
       description.trim() !== '' ||
       driveLink.trim() !== '' ||
       uploadedFiles.length > 0 ||
+      quotationFiles.length > 0 ||
       Object.values(selectedWorkTypes).some((v) => v.selected) ||
       Object.values(selectedChannels).some((v) => v.selected)
 
@@ -244,6 +253,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
     description,
     driveLink,
     uploadedFiles.length,
+    quotationFiles.length,
     selectedWorkTypes,
     selectedChannels,
     isSuccessModalOpen,
@@ -413,6 +423,84 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
+  // Process Quotation Files Upload
+  const processQuotationFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return
+
+    setIsUploadingQuotations(true)
+    setErrorBanner(null)
+
+    try {
+      const newFiles: { fileName: string; filePath: string; fileType?: string; fileSize?: number }[] = []
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`ไฟล์ใบเสนอราคา "${file.name}" มีขนาดเกิน 10MB`)
+        }
+
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('title', `media-quotation-${currentUser.username}`)
+
+        const res = await fetch('/api/member/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const result = await res.json()
+        if (!res.ok) {
+          throw new Error(result.error || `อัปโหลดใบเสนอราคา ${file.name} ไม่สำเร็จ`)
+        }
+
+        newFiles.push({
+          fileName: file.name,
+          filePath: result.url,
+          fileType: file.type,
+          fileSize: file.size,
+        })
+      }
+
+      setQuotationFiles((prev) => [...prev, ...newFiles])
+    } catch (err: any) {
+      setErrorBanner(err.message || 'เกิดข้อผิดพลาดในการอัปโหลดใบเสนอราคา')
+    } finally {
+      setIsUploadingQuotations(false)
+    }
+  }
+
+  const handleQuotationUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      processQuotationFiles(e.target.files)
+    }
+    e.target.value = ''
+  }
+
+  const handleQuotationDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!isDraggingQuotations) setIsDraggingQuotations(true)
+  }
+
+  const handleQuotationDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingQuotations(false)
+  }
+
+  const handleQuotationDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDraggingQuotations(false)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processQuotationFiles(e.dataTransfer.files)
+    }
+  }
+
+  const removeQuotationFile = (index: number) => {
+    setQuotationFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
   // Form Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -487,6 +575,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
       description: description.trim(),
       phone: phone.trim(),
       attachments: uploadedFiles,
+      quotations: costType === 'HAS_COST' ? quotationFiles : [],
       driveLink: driveLink.trim() || null,
     }
 
@@ -946,6 +1035,112 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                     onChange={(e) => setDriveLink(e.target.value)}
                   />
                 </div>
+
+                {/* Quotation Upload Section (Visible only when costType === 'HAS_COST') */}
+                {costType === 'HAS_COST' && (
+                  <div
+                    style={{
+                      marginTop: '0.85rem',
+                      paddingTop: '1rem',
+                      borderTop: '1.5px dashed #99f6e4',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      <label htmlFor="quotation-files" className="formLabel" style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f766e', margin: 0 }}>
+                        <FileSpreadsheet aria-hidden="true" className="w-4 h-4 text-emerald-600" />
+                        <span>เอกสารใบเสนอราคา (Quotation)</span>
+                        <span className="requiredAsterisk" aria-hidden="true">*</span>
+                      </label>
+                      <span style={{ fontSize: '0.75rem', color: '#0d9488', fontWeight: 600, backgroundColor: '#f0fdfa', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #ccfbf1' }}>
+                        สำหรับงานที่มีค่าใช้จ่าย (เสนอ ผอ.)
+                      </span>
+                    </div>
+
+                    {/* Quotation Dropzone */}
+                    <div
+                      className={`fileUploadZone ${isDraggingQuotations ? 'isDragging' : ''}`}
+                      onDragOver={handleQuotationDragOver}
+                      onDragLeave={handleQuotationDragLeave}
+                      onDrop={handleQuotationDrop}
+                      style={{
+                        backgroundColor: '#f0fdf4',
+                        borderColor: '#86efac',
+                        padding: '1.25rem 1rem',
+                      }}
+                    >
+                      <input
+                        type="file"
+                        id="quotation-files"
+                        name="quotationFiles"
+                        style={{ display: 'none' }}
+                        multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        onChange={handleQuotationUpload}
+                        disabled={isUploadingQuotations}
+                      />
+                      <label htmlFor="quotation-files" style={{ cursor: 'pointer', display: 'block' }}>
+                        {isUploadingQuotations ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                            <Loader2 aria-hidden="true" className="w-7 h-7 text-emerald-600 animate-spin mb-1.5" />
+                            <span className="fileUploadTitle" style={{ fontSize: '0.875rem', color: '#065f46' }}>กำลังอัปโหลดใบเสนอราคา…</span>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="fileUploadIcon" style={{ color: '#059669', width: '38px', height: '38px', marginBottom: '0.45rem', backgroundColor: '#ffffff' }}>
+                              <UploadCloud aria-hidden="true" className="w-5 h-5" />
+                            </div>
+                            <span className="fileUploadTitle" style={{ fontSize: '0.9rem', color: '#065f46' }}>
+                              {isDraggingQuotations ? 'วางไฟล์ใบเสนอราคาที่นี่' : 'คลิกเพื่อเลือกไฟล์ใบเสนอราคา หรือลากไฟล์มาวางที่นี่'}
+                            </span>
+                            <span className="fileUploadDesc" style={{ fontSize: '0.775rem', color: '#047857' }}>
+                              รองรับไฟล์ PDF หรือรูปภาพ (JPG, PNG, WebP) สูงสุด 10MB ต่อไฟล์ (สามารถเลือกได้หลายไฟล์)
+                            </span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+
+                    {/* Uploaded Quotation Files Chips */}
+                    {quotationFiles.length > 0 && (
+                      <div style={{ marginTop: '0.65rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#065f46', display: 'block', marginBottom: '0.35rem' }}>
+                          ใบเสนอราคาที่แนบแล้ว ({quotationFiles.length} ไฟล์):
+                        </span>
+                        <div className="uploadedFilesGrid">
+                          {quotationFiles.map((file, idx) => (
+                            <div key={idx} className="uploadedFileChip" style={{ borderColor: '#a7f3d0', backgroundColor: '#ffffff' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+                                {getFileIcon(file.fileName)}
+                                <a
+                                  href={file.filePath}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="uploadedFileName"
+                                  title={file.fileName}
+                                  style={{ color: '#047857', textDecoration: 'none' }}
+                                >
+                                  {file.fileName}
+                                </a>
+                                {file.fileSize && (
+                                  <span className="uploadedFileSize">({formatFileSize(file.fileSize)})</span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeQuotationFile(idx)}
+                                className="btnRemoveFile"
+                                aria-label={`ลบไฟล์ใบเสนอราคา ${file.fileName}`}
+                                title={`ลบไฟล์ใบเสนอราคา ${file.fileName}`}
+                              >
+                                <X aria-hidden="true" className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </section>
           </div>
@@ -1225,7 +1420,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
               <div className="sidebarActionButtons">
                 <button
                   type="submit"
-                  disabled={isPending || isUploading}
+                  disabled={isPending || isUploading || isUploadingQuotations}
                   className="btnSubmitPrimary"
                 >
                   {isPending ? (

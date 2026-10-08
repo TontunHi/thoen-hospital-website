@@ -506,6 +506,69 @@ describe('taskInboxService', () => {
         expect.arrayContaining(['ขอทำป้ายประชาสัมพันธ์และ AW เว็บไซต์', 'รายละเอียดที่แก้ไขใหม่'])
       )
     })
+
+    it('updates quotations array when manager edits media request', async () => {
+      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT * FROM inbox_tasks')) {
+          return Promise.resolve([
+            {
+              id: 'task-pr-5',
+              task_no: 'PR-2570-10-0005',
+              task_type: 'MEDIA_REQUEST',
+              title: 'ขอทำป้ายไวนิล',
+              description: 'รายละเอียดป้ายไวนิล',
+              urgency: 'URGENT',
+              requester_id: 10,
+              current_assignee: null,
+              current_role: 'นักประชาสัมพันธ์',
+              status: 'PENDING',
+              custom_payload: JSON.stringify({
+                costType: 'HAS_COST',
+                quotations: [{ fileName: 'quote_v1.pdf', filePath: '/uploads/quote_v1.pdf' }],
+              }),
+            },
+          ])
+        }
+        if (sql.includes('SELECT * FROM repair_details')) {
+          return Promise.resolve([])
+        }
+        if (sql.includes('SELECT * FROM inbox_task_steps')) {
+          return Promise.resolve([{ id: 's1', step_no: 1, status: 'PENDING' }])
+        }
+        return Promise.resolve({ affectedRows: 1 })
+      })
+
+      const prPerformer = {
+        id: 30,
+        username: 'pr_officer',
+        position: 'นักประชาสัมพันธ์',
+        role: 'member',
+      }
+
+      const updatedQuotations = [
+        { fileName: 'quote_v1.pdf', filePath: '/uploads/quote_v1.pdf' },
+        { fileName: 'quote_v2.pdf', filePath: '/uploads/quote_v2.pdf', fileType: 'application/pdf', fileSize: 2048 },
+      ]
+
+      const res = await updateTaskByManager(
+        {
+          taskId: 'task-pr-5',
+          performer: prPerformer,
+          updates: {
+            quotations: updatedQuotations,
+          },
+        },
+        mockExecutor
+      )
+
+      expect(res.success).toBe(true)
+      expect(res.diff?.quotations).toBeDefined()
+      expect(res.diff?.quotations.to).toEqual(updatedQuotations)
+      expect(mockExecutor).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE inbox_tasks SET'),
+        expect.any(Array)
+      )
+    })
   })
 })
 

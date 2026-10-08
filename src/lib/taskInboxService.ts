@@ -1592,6 +1592,7 @@ export interface UpdateTaskManagerPayload {
   phone?: string | null
   driveLink?: string | null
   attachments?: Array<{ fileName: string; filePath: string; fileType?: string | null; fileSize?: number | null }>
+  quotations?: Array<{ fileName: string; filePath: string; fileType?: string | null; fileSize?: number | null }>
   mediaDetails?: string
   objectives?: string
   // For Repair:
@@ -1795,6 +1796,10 @@ export async function updateTaskByManager(
     if (updates.attachments !== undefined) {
       diff.attachments = { from: customPayload.attachments, to: updates.attachments }
       customPayload.attachments = updates.attachments
+    }
+    if (updates.quotations !== undefined) {
+      diff.quotations = { from: customPayload.quotations, to: updates.quotations }
+      customPayload.quotations = updates.quotations
     }
 
     updatedTaskFields.custom_payload = JSON.stringify(customPayload)

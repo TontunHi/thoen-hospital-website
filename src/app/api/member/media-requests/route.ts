@@ -29,6 +29,13 @@ const MediaRequestAttachmentSchema = z.object({
   fileSize: z.number().optional().nullable(),
 })
 
+const MediaRequestQuotationSchema = z.object({
+  fileName: z.string(),
+  filePath: z.string(),
+  fileType: z.string().optional().nullable(),
+  fileSize: z.number().optional().nullable(),
+})
+
 const CreateMediaRequestSchema = z.object({
   title: z.string().min(2, 'กรุณาระบุเรื่อง / หัวข้องาน'),
   urgency: z.enum(['NORMAL', 'URGENT', 'VERY_URGENT']).default('NORMAL'),
@@ -39,6 +46,7 @@ const CreateMediaRequestSchema = z.object({
   description: z.string().min(5, 'กรุณาระบุรายละเอียดงานให้ชัดเจน'),
   phone: z.string().min(1, 'กรุณาระบุเบอร์โทรส่วนตัว / แผนก'),
   attachments: z.array(MediaRequestAttachmentSchema).optional().default([]),
+  quotations: z.array(MediaRequestQuotationSchema).optional().default([]),
   driveLink: z.string().optional().nullable(),
 })
 
@@ -172,6 +180,7 @@ export async function POST(request: Request) {
       channels: data.channels,
       phone: data.phone?.trim() || null,
       attachments: data.attachments || [],
+      quotations: data.quotations || [],
       driveLink: data.driveLink?.trim() || null,
       requesterInfo: {
         id: currentMember.id,

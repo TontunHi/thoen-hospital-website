@@ -203,6 +203,7 @@ export default function TaskDetailClient({
   // Manager Edit Task Modal State
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState<boolean>(false)
   const [isUploadingEditFiles, setIsUploadingEditFiles] = useState<boolean>(false)
+  const [isUploadingEditQuotations, setIsUploadingEditQuotations] = useState<boolean>(false)
   const [editTaskForm, setEditTaskForm] = useState({
     title: '',
     description: '',
@@ -215,6 +216,7 @@ export default function TaskDetailClient({
     selectedWorkTypes: {} as Record<string, { selected: boolean; customDetail: string }>,
     selectedChannels: {} as Record<string, { selected: boolean; customDetail: string }>,
     attachments: [] as Array<{ fileName: string; filePath: string; fileType?: string; fileSize?: number }>,
+    quotations: [] as Array<{ fileName: string; filePath: string; fileType?: string; fileSize?: number }>,
     objectives: '',
     mediaDetails: '',
     itemCategory: 'EQUIPMENT',
@@ -268,6 +270,7 @@ export default function TaskDetailClient({
       selectedWorkTypes: wtMap,
       selectedChannels: chMap,
       attachments: Array.isArray(payload.attachments) ? [...payload.attachments] : [],
+      quotations: Array.isArray(payload.quotations) ? [...payload.quotations] : [],
       objectives: payload.objectives || '',
       mediaDetails: payload.details || '',
       itemCategory: repairDetail?.item_category || 'EQUIPMENT',
@@ -379,6 +382,53 @@ export default function TaskDetailClient({
     }))
   }
 
+  const handleEditQuotationUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return
+    setIsUploadingEditQuotations(true)
+    try {
+      const files = Array.from(e.target.files)
+      const newFiles: any[] = []
+      for (const file of files) {
+        if (file.size > 10 * 1024 * 1024) {
+          alert(`ไฟล์ใบเสนอราคา "${file.name}" มีขนาดเกิน 10MB`)
+          continue
+        }
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('title', `media-quotation-edit-${task?.task_no || 'task'}`)
+        const res = await fetch('/api/member/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const result = await res.json()
+        if (res.ok && result.url) {
+          newFiles.push({
+            fileName: file.name,
+            filePath: result.url,
+            fileType: file.type,
+            fileSize: file.size,
+          })
+        }
+      }
+      setEditTaskForm(prev => ({
+        ...prev,
+        quotations: [...prev.quotations, ...newFiles]
+      }))
+    } catch (err) {
+      console.error('Quotation file upload error:', err)
+    } finally {
+      setIsUploadingEditQuotations(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleRemoveEditQuotation = (index: number) => {
+    setEditTaskForm(prev => ({
+      ...prev,
+      quotations: prev.quotations.filter((_, i) => i !== index)
+    }))
+  }
+
   const handleSaveTaskEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     setActionLoading(true)
@@ -423,6 +473,7 @@ export default function TaskDetailClient({
         bodyPayload.workTypes = activeWorkTypes
         bodyPayload.channels = activeChannels
         bodyPayload.attachments = editTaskForm.attachments
+        bodyPayload.quotations = editTaskForm.costType === 'HAS_COST' ? editTaskForm.quotations : []
       } else if (['IT_REPAIR', 'GENERAL_REPAIR', 'MEDICAL_REPAIR'].includes(task.task_type)) {
         bodyPayload.itemCategory = editTaskForm.itemCategory
         bodyPayload.equipmentNumber = editTaskForm.equipmentNumber
@@ -1319,6 +1370,55 @@ export default function TaskDetailClient({
                       </a>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Quotations Card (Shown if quotations present) */}
+              {task.custom_payload?.quotations && Array.isArray(task.custom_payload.quotations) && task.custom_payload.quotations.length > 0 && (
+                <div style={{ backgroundColor: '#f0fdf4', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #a7f3d0', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                    <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <FileSpreadsheet size={16} className="text-emerald-600" />
+                      เอกสารใบเสนอราคา (Quotation) ({task.custom_payload.quotations.length} ไฟล์)
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#047857', fontWeight: 600, backgroundColor: '#d1fae5', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
+                      งบประมาณ / จัดซื้อจัดจ้าง
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {task.custom_payload.quotations.map((q: any, idx: number) => (
+                      <a
+                        key={idx}
+                        href={q.filePath}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          padding: '0.45rem 0.85rem',
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #86efac',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.825rem',
+                          fontWeight: 600,
+                          color: '#065f46',
+                          textDecoration: 'none',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                        }}
+                      >
+                        {getFileIcon(q.fileName)}
+                        <span>{q.fileName}</span>
+                        {q.fileSize ? (
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: 400 }}>
+                            ({formatFileSize(q.fileSize)})
+                          </span>
+                        ) : null}
+                        <ExternalLink size={13} className="text-emerald-600" />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -2729,6 +2829,91 @@ export default function TaskDetailClient({
                     ) : (
                       <div style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '0.75rem 0' }}>
                         ไม่มีไฟล์แนบ (สามารถคลิกปุ่ม &quot;แนบไฟล์เพิ่ม&quot; ด้านบนเพื่อเพิ่มไฟล์ได้)
+                      </div>
+                    )}
+
+                    {/* Quotations Edit Section (Only when HAS_COST) */}
+                    {editTaskForm.costType === 'HAS_COST' && (
+                      <div style={{ marginTop: '0.85rem', paddingTop: '0.85rem', borderTop: '1px dashed #cbd5e1' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.825rem', fontWeight: 600, color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <FileSpreadsheet size={15} className="text-emerald-600" />
+                            <span>เอกสารใบเสนอราคา (Quotation) ({editTaskForm.quotations.length})</span>
+                          </span>
+                          <label
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              backgroundColor: '#ecfdf5',
+                              color: '#047857',
+                              border: '1px solid #a7f3d0',
+                              padding: '0.25rem 0.6rem',
+                              borderRadius: '0.4rem',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              cursor: isUploadingEditQuotations ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {isUploadingEditQuotations ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                            <span>{isUploadingEditQuotations ? 'กำลังอัปโหลด...' : 'เพิ่มใบเสนอราคา'}</span>
+                            <input
+                              type="file"
+                              multiple
+                              accept=".pdf,.jpg,.jpeg,.png,.webp"
+                              onChange={handleEditQuotationUpload}
+                              disabled={isUploadingEditQuotations}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                        </div>
+
+                        {editTaskForm.quotations.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            {editTaskForm.quotations.map((q, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  backgroundColor: '#ffffff',
+                                  padding: '0.45rem 0.75rem',
+                                  borderRadius: '0.4rem',
+                                  border: '1px solid #a7f3d0',
+                                  fontSize: '0.825rem',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {getFileIcon(q.fileName)}
+                                  <a
+                                    href={q.filePath}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: '#047857', textDecoration: 'none', fontWeight: 600 }}
+                                  >
+                                    {q.fileName}
+                                  </a>
+                                  {q.fileSize ? (
+                                    <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>({formatFileSize(q.fileSize)})</span>
+                                  ) : null}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveEditQuotation(idx)}
+                                  style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', padding: '0.2rem' }}
+                                  title="ลบไฟล์ใบเสนอราคานี้"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ color: '#64748b', fontSize: '0.8rem', textAlign: 'center', padding: '0.5rem 0', backgroundColor: '#f0fdf4', borderRadius: '0.4rem', border: '1px dashed #a7f3d0' }}>
+                            ยังไม่มีเอกสารใบเสนอราคา (คลิกปุ่ม &quot;เพิ่มใบเสนอราคา&quot; เพื่ออัปโหลดไฟล์ PDF หรือรูปภาพ)
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
