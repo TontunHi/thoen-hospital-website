@@ -54,3 +54,17 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
   2. `inbox_task_audit_logs`: Ticket state machines, HMAC-SHA256 signature stamps, manager field diffs.
 - **Auth & RBAC:** Enforce server-side session and role check on all protected pages & APIs.
 - **Date Display:** Thai Buddhist Calendar (พ.ศ.) for UI shown to staff/patients. Timezone `Asia/Bangkok`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on `TontunHi/thoen-hospital-website` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: the seven canonical triage roles, each label named after its role. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: the glossary is `CONTEXT.md` at the repo root, ADRs are in `docs/adr/`. See `docs/agents/domain.md`.
