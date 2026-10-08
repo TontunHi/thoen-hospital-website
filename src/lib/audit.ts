@@ -1,5 +1,4 @@
 import { headers } from 'next/headers'
-import { verifyMemberSession } from './memberAuth'
 import { queryMemberDb } from './memberDb'
 
 import { logger } from './logger'
@@ -26,6 +25,7 @@ export async function logAudit(
       email = sessionData.email
     } else {
       try {
+        const { verifyMemberSession } = await import('./memberAuth')
         const session = await verifyMemberSession()
         if (session) {
           username = session.username
