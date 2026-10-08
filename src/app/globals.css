@@ -10,6 +10,8 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
@@ -24,6 +26,9 @@ body {
   background-color: var(--bg-main);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  max-width: 100%;
+  width: 100%;
 }
 
 img,
@@ -251,6 +256,19 @@ p {
   max-width: var(--container-max);
   margin: 0 auto;
   padding: 0 var(--container-padding);
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --container-padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --container-padding: 0.875rem;
+  }
 }
 
 /* Sections */
