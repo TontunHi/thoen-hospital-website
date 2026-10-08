@@ -102,7 +102,6 @@ model Member {
   ita_blogs                ita_blogs[]
   member_telegram_links    member_telegram_links?
   telegram_link_challenges telegram_link_challenges[]
-  work_requests            work_requests[]
   hospital_assets          HospitalAsset[]
 
   @@map("members")
@@ -193,25 +192,6 @@ model telegram_link_challenges {
   @@index([member_id], map: "member_id")
 }
 
-model work_requests {
-  id             Int      @id @default(autoincrement())
-  request_no     String   @unique(map: "request_no") @db.VarChar(50)
-  title          String   @db.VarChar(255)
-  description    String   @db.Text
-  status         String   @default("pending") @db.VarChar(50)
-  created_by     Int
-  created_at     DateTime @default(now()) @db.Timestamp(0)
-  updated_at     DateTime @default(now()) @db.Timestamp(0)
-  assignees      String?  @db.Text
-  attachments    String?  @db.Text
-  status_history String?  @db.Text
-  progress_notes String?  @db.Text
-  completion     String?  @db.Text
-  review         String?  @db.Text
-  members        Member   @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "work_requests_ibfk_1")
-
-  @@index([created_by], map: "created_by")
-}
 
 model OutgoingDocument {
   id           Int      @id @default(autoincrement())
