@@ -17,7 +17,12 @@ func ok(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte(`{"status":"healthy"}`))
 }
 
+// Routing is tested over a real connection so HEAD behaves as it does in
+// production: net/http drops the body, a ResponseRecorder would not.
 func TestRouting(t *testing.T) {
+	srv := httptest.NewServer(newTestServer(ok))
+	defer srv.Close()
+
 	tests := []struct {
 		name, method, path string
 		wantStatus         int
@@ -30,12 +35,23 @@ func TestRouting(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			newTestServer(ok).ServeHTTP(w, httptest.NewRequest(tt.method, tt.path, nil))
-			if w.Code != tt.wantStatus {
-				t.Errorf("status = %d, want %d", w.Code, tt.wantStatus)
+			req, err := http.NewRequest(tt.method, srv.URL+tt.path, nil)
+			if err != nil {
+				t.Fatal(err)
 			}
-			if got := w.Body.String(); got != tt.wantBody {
+			resp, err := srv.Client().Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("status = %d, want %d", resp.StatusCode, tt.wantStatus)
+			}
+			if got := string(body); got != tt.wantBody {
 				t.Errorf("body = %q, want %q", got, tt.wantBody)
 			}
 		})

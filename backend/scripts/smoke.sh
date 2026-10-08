@@ -39,7 +39,7 @@ for s in b['services'].values():
 PY
 
 echo "3. the 61st call in a minute is rate limited"
-for _ in $(seq 1 58); do curl -s -o /dev/null "http://$addr/api/health"; done
+for _ in $(seq 1 57); do curl -s -o /dev/null "http://$addr/api/health"; done
 test "$(curl -s -o /dev/null -w '%{http_code}' "http://$addr/api/health")" = "503"
 test "$(curl -s -o /tmp/smoke.429 -w '%{http_code}' "http://$addr/api/health")" = "429"
 grep -q '"retryAfterSeconds"' /tmp/smoke.429

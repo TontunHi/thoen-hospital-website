@@ -72,7 +72,16 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test -race -count=1 ./...
+        run: |
+          set -o pipefail
+          go test -race -count=1 ./... 2>&1 | tee /tmp/go-test.log
+
+      - name: Annotate test failures
+        if: failure()
+        run: |
+          [ -f /tmp/go-test.log ] || exit 0
+          msg=$(grep -E -A6 -- '^\s*--- FAIL|^FAIL|^panic:|\.go:[0-9]+:' /tmp/go-test.log | head -60 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=Go test failures::$msg"
 
       - name: Build (linux and windows)
         run: |
