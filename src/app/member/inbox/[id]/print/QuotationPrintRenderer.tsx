@@ -27,9 +27,14 @@ function SingleQuotationPdf({ filePath, fileName }: { filePath: string; fileName
         setLoading(true)
         setError(null)
 
-        const pdfjsLib = await import('pdfjs-dist')
-        if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+        if (typeof window === 'undefined') return
+
+        // Dynamically import local browser PDF.js module at runtime (ignores Turbopack/Webpack bundler)
+        // @ts-expect-error dynamic browser runtime import of static asset
+        const pdfjsLib = await import(/* webpackIgnore: true */ '/vendor/pdfjs/pdf.min.mjs')
+        
+        if (pdfjsLib?.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs'
         }
 
         const loadingTask = pdfjsLib.getDocument(filePath)
@@ -40,7 +45,7 @@ function SingleQuotationPdf({ filePath, fileName }: { filePath: string; fileName
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
           if (isCancelled) return
           const page = await pdfDoc.getPage(pageNum)
-          // 2.0 scale gives high-res crisp rendering for A4 printing
+          // Scale 2.0 provides crisp 150-200 DPI rendering for A4 printing
           const viewport = page.getViewport({ scale: 2.0 })
 
           const canvas = document.createElement('canvas')
