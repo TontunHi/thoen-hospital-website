@@ -350,7 +350,7 @@ export async function notifyAssigneeOnTelegram(params: {
           params.targetRole === MEDIA_REQUEST_ROLES.PR_OFFICER ||
           params.targetRole.includes('ประชาสัมพันธ์')
         ) {
-          // 3. For PR Officer, notify all users with PR position who have linked Telegram
+          // 3. For PR Officer, notify all users with PR position who have linked Telegram, and PR group
           const links = await queryMemberDb(
             `SELECT DISTINCT l.telegram_chat_id 
              FROM member_telegram_links l
@@ -363,6 +363,10 @@ export async function notifyAssigneeOnTelegram(params: {
                 chatIds.push(row.telegram_chat_id)
               }
             }
+          }
+          const mediaGroupChatId = process.env.TELEGRAM_GROUP_MEDIA_REQUEST || process.env.TELEGRAM_GROUP_PR || '-5235759439'
+          if (mediaGroupChatId && !chatIds.includes(mediaGroupChatId)) {
+            chatIds.push(mediaGroupChatId)
           }
         } else {
           // Fallback to position/department matching
@@ -381,12 +385,6 @@ export async function notifyAssigneeOnTelegram(params: {
             }
           }
         }
-      }
-
-      // Route to Media & PR Telegram Group if configured
-      const mediaGroupChatId = process.env.TELEGRAM_GROUP_MEDIA_REQUEST || process.env.TELEGRAM_GROUP_PR || '-5235759439'
-      if (mediaGroupChatId && !chatIds.includes(mediaGroupChatId)) {
-        chatIds.push(mediaGroupChatId)
       }
     } else {
       if (params.assigneeId) {
@@ -450,9 +448,13 @@ export async function notifyAssigneeOnTelegram(params: {
 
       message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>ช่างในกลุ่มสามารถกดปุ่มด้านล่างเพื่อรับงานเข้าสู่ระบบได้ทันที</i>`
     } else if (isMediaRequest) {
+      const isPrRole = params.targetRole === MEDIA_REQUEST_ROLES.PR_OFFICER || params.targetRole?.includes('ประชาสัมพันธ์')
+      const header = isPrRole
+        ? '🎨 <b>มีงานจัดทำสื่อประชาสัมพันธ์</b>'
+        : '📋 <b>มีคำขอสื่อประชาสัมพันธ์รอคุณพิจารณา / ลงนาม</b>'
       const costLabel = params.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย (งบประมาณ)' : '🟢 ไม่มีค่าใช้จ่าย'
       const lines: string[] = [
-        `🎨 <b>คำขอจัดทำสื่อประชาสัมพันธ์ใหม่</b>`,
+        header,
         `🏷️ <b>รหัสคำขอ :</b> <code>${params.taskNo}</code>`,
         `⚡ <b>ความเร่งด่วน :</b> ${urgencyLabel}`,
         `📂 <b>หมวดหมู่งาน :</b> ${escapeHtml(typeLabel)}`,
@@ -2193,7 +2195,12 @@ export async function executeWorkflowAction(
         [nextAssignee, nextStep.id]
       )
 
-      // Notify next step assignee or target role
+      let stepForwardPayload: Record<string, any> = {}
+      try {
+        stepForwardPayload = task.custom_payload ? JSON.parse(task.custom_payload) : {}
+      } catch {}
+
+      // Notify next step assignee or target role (sends only to designated person's private Telegram)
       notifyAssigneeOnTelegram({
         taskId,
         taskNo: task.task_no,
@@ -2204,6 +2211,10 @@ export async function executeWorkflowAction(
         assigneeId: nextAssignee,
         targetRole: nextStep.assigned_role,
         stepName: nextStep.step_name,
+        urgency: task.urgency,
+        deliveryDate: stepForwardPayload.deliveryDate,
+        costType: stepForwardPayload.costType,
+        workTypesSummary: stepForwardPayload.workTypesSummary,
       }).catch(() => {})
 
       // If Media Request, notify both requester and PR Telegram Group
