@@ -63,3 +63,7 @@ next-env.d.ts
 /backups/
 *.sql
 *.sql.gz
+
+# go backend build output
+/backend/bin/
+/backend/*.exe

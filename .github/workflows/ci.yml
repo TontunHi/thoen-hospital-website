@@ -41,3 +41,41 @@ jobs:
           DATABASE_URL: 'mysql://fake:fake@localhost:3306/fake'
           MEMBER_SESSION_SECRET: 'test-secret-at-least-32-chars-long-for-ci-build'
           COOKIE_SECURE: 'false'
+
+  backend:
+    name: Go Backend (vet, test, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      # TEMPORARY bootstrap: resolve dependencies with checksum-database
+      # verification and print go.sum so it can be committed.
+      - name: Bootstrap go.sum
+        run: |
+          go mod tidy
+          echo "=====GOMOD-BEGIN====="; cat go.mod; echo "=====GOMOD-END====="
+          echo "=====GOSUM-BEGIN====="; cat go.sum; echo "=====GOSUM-END====="
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l .)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test -race -count=1 ./...
+
+      - name: Build (linux and windows)
+        run: |
+          go build ./...
+          GOOS=windows GOARCH=amd64 go build -o /tmp/thoen-backend.exe ./cmd/server
