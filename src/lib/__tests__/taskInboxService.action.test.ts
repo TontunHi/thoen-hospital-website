@@ -7,8 +7,12 @@ vi.mock('../audit', () => ({
   logAudit: vi.fn(),
 }))
 
+vi.mock('../memberDb', () => ({
+  queryMemberDb: vi.fn().mockResolvedValue([]),
+}))
+
 vi.mock('../telegramService', () => ({
-  sendTelegramMessage: vi.fn(),
+  sendTelegramMessage: vi.fn().mockResolvedValue(true),
 }))
 
 describe('executeWorkflowAction', () => {
@@ -187,6 +191,143 @@ describe('executeWorkflowAction', () => {
       expect.stringContaining('UPDATE inbox_tasks'),
       expect.arrayContaining([2, null, 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์', 'pr-1'])
     )
+  })
+
+  it('should not send duplicate Telegram broadcast when advancing MEDIA_REQUEST to a PR_OFFICER step', async () => {
+    const mediaTaskStep5 = {
+      id: 'pr-1',
+      task_no: 'PR-2570-10-0001',
+      task_type: 'MEDIA_REQUEST',
+      title: 'โลโก้กระทรวงสาธารณสุข',
+      requester_id: 10,
+      requester_name: 'นาย ธนยศ กันทะมา',
+      requester_dept: 'กลุ่มงานบริหารทั่วไป',
+      current_assignee: null,
+      current_role: 'ผู้อำนวยการโรงพยาบาลเถิน',
+      current_step_no: 5,
+      status: 'PENDING',
+    }
+    const mediaSteps = [
+      { id: 's-5', task_id: 'pr-1', step_no: 5, step_name: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ', status: 'PENDING', assigned_role: 'ผู้อำนวยการโรงพยาบาลเถิน' },
+      { id: 's-6', task_id: 'pr-1', step_no: 6, step_name: 'นักประชาสัมพันธ์ ดำเนินการสั่งพิมพ์/ผลิตสื่อ', status: 'WAITING', assigned_role: 'นักประชาสัมพันธ์' },
+    ]
+
+    const executor = createExecutor([mediaTaskStep5], mediaSteps, {
+      telegramLinks: [{ telegram_chat_id: '123456789' }],
+    })
+
+    const result = await executeWorkflowAction({
+      taskId: 'pr-1',
+      actorMemberId: 1,
+      actorUsername: 'director',
+      actorName: 'ผู้อำนวยการ',
+      actorPosition: 'ผู้อำนวยการโรงพยาบาลเถิน',
+      actorRole: 'member',
+      action: 'APPROVE',
+      comment: 'อนุมัติ',
+    }, executor)
+
+    expect(result.success).toBe(true)
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE inbox_tasks'),
+      expect.arrayContaining([6, null, 'นักประชาสัมพันธ์', 'pr-1'])
+    )
+
+    // Verify Telegram service calls: should ONLY contain step approval notification, NOT the duplicate "มีงานจัดทำสื่อประชาสัมพันธ์" new job notification
+    const telegramCalls = vi.mocked(telegramService.sendTelegramMessage).mock.calls
+    const newJobMessages = telegramCalls.filter(([_, msg]) => msg.includes('มีงานจัดทำสื่อประชาสัมพันธ์'))
+    expect(newJobMessages.length).toBe(0)
+  })
+
+  it('should not send duplicate Telegram broadcast when advancing MEDIA_REQUEST from Step 6 to Step 7', async () => {
+    const mediaTaskStep6 = {
+      id: 'pr-1',
+      task_no: 'PR-2570-10-0001',
+      task_type: 'MEDIA_REQUEST',
+      title: 'โลโก้กระทรวงสาธารณสุข',
+      requester_id: 10,
+      requester_name: 'นาย ธนยศ กันทะมา',
+      requester_dept: 'กลุ่มงานบริหารทั่วไป',
+      current_assignee: null,
+      current_role: 'นักประชาสัมพันธ์',
+      current_step_no: 6,
+      status: 'PENDING',
+    }
+    const mediaSteps = [
+      { id: 's-6', task_id: 'pr-1', step_no: 6, step_name: 'นักประชาสัมพันธ์ ดำเนินการสั่งพิมพ์/ผลิตสื่อ', status: 'PENDING', assigned_role: 'นักประชาสัมพันธ์' },
+      { id: 's-7', task_id: 'pr-1', step_no: 7, step_name: 'นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน', status: 'WAITING', assigned_role: 'นักประชาสัมพันธ์' },
+    ]
+
+    const executor = createExecutor([mediaTaskStep6], mediaSteps, {
+      telegramLinks: [{ telegram_chat_id: '123456789' }],
+    })
+
+    const result = await executeWorkflowAction({
+      taskId: 'pr-1',
+      actorMemberId: 5,
+      actorUsername: 'pr_staff',
+      actorName: 'พรพิมล มีศรี',
+      actorPosition: 'นักประชาสัมพันธ์',
+      actorRole: 'member',
+      action: 'APPROVE',
+      comment: 'สั่งพิมพ์เรียบร้อย',
+    }, executor)
+
+    expect(result.success).toBe(true)
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE inbox_tasks'),
+      expect.arrayContaining([7, null, 'นักประชาสัมพันธ์', 'pr-1'])
+    )
+
+    const telegramCalls = vi.mocked(telegramService.sendTelegramMessage).mock.calls
+    const newJobMessages = telegramCalls.filter(([_, msg]) => msg.includes('มีงานจัดทำสื่อประชาสัมพันธ์'))
+    expect(newJobMessages.length).toBe(0)
+  })
+
+  it('should notify final completion on last step of MEDIA_REQUEST without duplicate', async () => {
+    const mediaTaskStep7 = {
+      id: 'pr-1',
+      task_no: 'PR-2570-10-0001',
+      task_type: 'MEDIA_REQUEST',
+      title: 'โลโก้กระทรวงสาธารณสุข',
+      requester_id: 10,
+      requester_name: 'นาย ธนยศ กันทะมา',
+      requester_dept: 'กลุ่มงานบริหารทั่วไป',
+      current_assignee: null,
+      current_role: 'นักประชาสัมพันธ์',
+      current_step_no: 7,
+      status: 'PENDING',
+    }
+    const mediaSteps = [
+      { id: 's-7', task_id: 'pr-1', step_no: 7, step_name: 'นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน', status: 'PENDING', assigned_role: 'นักประชาสัมพันธ์' },
+    ]
+
+    const executor = createExecutor([mediaTaskStep7], mediaSteps, {
+      telegramLinks: [{ telegram_chat_id: '123456789' }],
+    })
+
+    const result = await executeWorkflowAction({
+      taskId: 'pr-1',
+      actorMemberId: 5,
+      actorUsername: 'pr_staff',
+      actorName: 'พรพิมล มีศรี',
+      actorPosition: 'นักประชาสัมพันธ์',
+      actorRole: 'member',
+      action: 'APPROVE',
+      comment: 'ส่งมอบงานเรียบร้อย',
+    }, executor)
+
+    expect(result.success).toBe(true)
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_tasks SET status = 'APPROVED'"),
+      expect.arrayContaining(['pr-1'])
+    )
+
+    const telegramCalls = vi.mocked(telegramService.sendTelegramMessage).mock.calls
+    const finalMessages = telegramCalls.filter(([_, msg]) => msg.includes('คำขอสื่อประชาสัมพันธ์ผ่านการอนุมัติสมบูรณ์แล้ว'))
+    expect(finalMessages.length).toBeGreaterThan(0)
+    const newJobMessages = telegramCalls.filter(([_, msg]) => msg.includes('มีงานจัดทำสื่อประชาสัมพันธ์'))
+    expect(newJobMessages.length).toBe(0)
   })
 
   it('should hold task with hold reason and details', async () => {

@@ -2205,23 +2205,6 @@ export async function executeWorkflowAction(
         stepForwardPayload = task.custom_payload ? JSON.parse(task.custom_payload) : {}
       } catch {}
 
-      // Notify next step assignee or target role (sends only to designated person's private Telegram)
-      notifyAssigneeOnTelegram({
-        taskId,
-        taskNo: task.task_no,
-        taskType: task.task_type,
-        title: task.title,
-        requesterName: task.requester_name,
-        requesterDept: task.requester_dept,
-        assigneeId: nextAssignee,
-        targetRole: nextStep.assigned_role,
-        stepName: nextStep.step_name,
-        urgency: task.urgency,
-        deliveryDate: stepForwardPayload.deliveryDate,
-        costType: stepForwardPayload.costType,
-        workTypesSummary: stepForwardPayload.workTypesSummary,
-      }).catch(() => {})
-
       // If Media Request, notify both requester and PR Telegram Group
       if (task.task_type === 'MEDIA_REQUEST') {
         notifyMediaRequestStepApprovedOnTelegram({
@@ -2238,6 +2221,50 @@ export async function executeWorkflowAction(
           isFinalStep: false,
           nextStepName: nextStep.step_name,
         }).catch((e) => logger.error({ error: e }, 'Telegram media step approval notify error'))
+
+        // For intermediate approvers with dedicated Citizen IDs (Digital Head, Procurement, Director),
+        // send private Telegram alert to their personal chat to review/sign.
+        // For PR Officer steps (e.g. Step 6/7 in cost workflow, or Step 3/4 in no-cost), the PR Telegram Group
+        // is ALREADY notified by notifyMediaRequestStepApprovedOnTelegram above, so avoid duplicate broadcast.
+        const isNextStepPrRole =
+          !nextStep.assigned_role ||
+          nextStep.assigned_role === MEDIA_REQUEST_ROLES.PR_OFFICER ||
+          nextStep.assigned_role.includes('ประชาสัมพันธ์')
+
+        if (!isNextStepPrRole) {
+          notifyAssigneeOnTelegram({
+            taskId,
+            taskNo: task.task_no,
+            taskType: task.task_type,
+            title: task.title,
+            requesterName: task.requester_name,
+            requesterDept: task.requester_dept,
+            assigneeId: nextAssignee,
+            targetRole: nextStep.assigned_role,
+            stepName: nextStep.step_name,
+            urgency: task.urgency,
+            deliveryDate: stepForwardPayload.deliveryDate,
+            costType: stepForwardPayload.costType,
+            workTypesSummary: stepForwardPayload.workTypesSummary,
+          }).catch(() => {})
+        }
+      } else {
+        // Non-media request workflow: Notify next step assignee or target role
+        notifyAssigneeOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          taskType: task.task_type,
+          title: task.title,
+          requesterName: task.requester_name,
+          requesterDept: task.requester_dept,
+          assigneeId: nextAssignee,
+          targetRole: nextStep.assigned_role,
+          stepName: nextStep.step_name,
+          urgency: task.urgency,
+          deliveryDate: stepForwardPayload.deliveryDate,
+          costType: stepForwardPayload.costType,
+          workTypesSummary: stepForwardPayload.workTypesSummary,
+        }).catch(() => {})
       }
     } else {
       await executor(
