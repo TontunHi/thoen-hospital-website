@@ -58,13 +58,12 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
-      # TEMPORARY bootstrap: resolve dependencies with checksum-database
-      # verification and print go.sum so it can be committed.
-      - name: Bootstrap go.sum
+      - name: Verify dependencies
         run: |
+          go mod download
+          go mod verify
           go mod tidy
-          echo "::notice title=GOMOD::$(base64 -w0 go.mod)"
-          echo "::notice title=GOSUM::$(base64 -w0 go.sum)"
+          git diff --exit-code -- go.mod go.sum
 
       - name: Check formatting
         run: test -z "$(gofmt -l .)"
@@ -79,3 +78,8 @@ jobs:
         run: |
           go build ./...
           GOOS=windows GOARCH=amd64 go build -o /tmp/thoen-backend.exe ./cmd/server
+
+      - name: Smoke test the binary
+        run: |
+          go build -o /tmp/thoen-backend ./cmd/server
+          ./scripts/smoke.sh /tmp/thoen-backend
