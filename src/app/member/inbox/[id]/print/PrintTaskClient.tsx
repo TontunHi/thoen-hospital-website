@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Printer, ArrowLeft, ShieldCheck, Clock } from 'lucide-react'
 import Link from 'next/link'
+import QuotationPrintRenderer from './QuotationPrintRenderer'
 
 export default function PrintTaskClient({ taskId }: { taskId: string }) {
   const [data, setData] = useState<any>(null)
@@ -78,13 +79,6 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
       .replace(/\s*ตรวจสอบและ/g, '')
       .replace(/\s*มอบหมายงาน/g, '')
       .trim()
-  }
-
-  const formatFileSize = (bytes?: number): string => {
-    if (!bytes || bytes === 0) return ''
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   if (loading) {
@@ -217,7 +211,8 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
             break-before: page !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            padding-top: 10mm !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
         }
 
@@ -538,75 +533,9 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
               )}
             </div>
 
-            {/* ── Quotation Document Page(s) Appended on Subsequent Pages ── */}
-            {task.custom_payload?.quotations && Array.isArray(task.custom_payload.quotations) && task.custom_payload.quotations.length > 0 && (
-              task.custom_payload.quotations.map((q: any, qIdx: number) => {
-                const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(q.fileName || q.filePath)
-                return (
-                  <div key={qIdx} className="quotation-print-page">
-                    {/* Quotation Header */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', borderBottom: '2px solid #0f172a', paddingBottom: '0.65rem', marginBottom: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                        <img
-                          src="/images/common/logo-website.webp"
-                          alt="ตราสัญลักษณ์โรงพยาบาลเถิน"
-                          style={{ width: '46px', height: '46px', objectFit: 'contain', flexShrink: 0 }}
-                        />
-                        <div>
-                          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
-                            โรงพยาบาลเถิน อำเภอเถิน จังหวัดลำปาง
-                          </h2>
-                          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0.15rem 0', color: '#0f766e' }}>
-                            เอกสารแนบ: ใบเสนอราคา (Quotation) {task.custom_payload.quotations.length > 1 ? `[แผ่นที่ ${qIdx + 1}/${task.custom_payload.quotations.length}]` : ''}
-                          </h3>
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#334155', lineHeight: '1.5' }}>
-                        <div>เลขที่คำขอ: <strong style={{ color: '#0f766e' }}>{task.task_no}</strong></div>
-                        <div>ชื่อไฟล์: <strong>{q.fileName}</strong></div>
-                      </div>
-                    </div>
-
-                    {/* Quotation Preview Content */}
-                    {isImage ? (
-                      <div style={{ textAlign: 'center', margin: '1rem auto' }}>
-                        <img
-                          src={q.filePath}
-                          alt={q.fileName}
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: '235mm',
-                            objectFit: 'contain',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '4px',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <div style={{ border: '2px solid #0d9488', borderRadius: '0.75rem', padding: '2.5rem 1.5rem', backgroundColor: '#f0fdf4', textAlign: 'center', margin: '2rem auto' }}>
-                        <div style={{ fontSize: '3.5rem', marginBottom: '0.75rem' }}>📄</div>
-                        <h4 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#065f46', margin: '0 0 0.5rem 0' }}>
-                          เอกสารแนบอิเล็กทรอนิกส์ (PDF Document)
-                        </h4>
-                        <p style={{ fontSize: '1rem', fontWeight: 600, color: '#1e293b', margin: '0 0 0.25rem 0' }}>
-                          {q.fileName}
-                        </p>
-                        {q.fileSize && (
-                          <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 1.25rem 0' }}>
-                            ขนาดไฟล์: {formatFileSize(q.fileSize)}
-                          </p>
-                        )}
-                        <div style={{ fontSize: '0.85rem', color: '#047857', backgroundColor: '#ffffff', border: '1px solid #a7f3d0', padding: '0.85rem 1.25rem', borderRadius: '0.5rem', display: 'inline-block', maxWidth: '520px', lineHeight: '1.6' }}>
-                          📎 เอกสารใบเสนอราคาไฟล์ PDF ถูกบันทึกแนบในระบบอิเล็กทรอนิกส์เรียบร้อยแล้ว<br />
-                          สามารถเปิดดูหรือดาวน์โหลดไฟล์ต้นฉบับได้จากลิงก์เอกสารในระบบสารสนเทศ
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })
+            {/* ── Quotation Document Page(s) Appended on Subsequent Pages (Exact Attachment) ── */}
+            {task.custom_payload?.quotations && (
+              <QuotationPrintRenderer quotations={task.custom_payload.quotations} />
             )}
           </div>
         ) : isRepair ? (
