@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import { 
   Plus, 
   Trash2, 
@@ -41,24 +40,33 @@ import {
   Layers,
   Sparkles,
   LayoutGrid,
-  ListFilter
+  ListFilter,
+  UserCog,
+  CheckSquare,
+  Square,
+  Lock,
+  BadgeCheck,
+  User
 } from 'lucide-react'
-import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 
 interface SettingsClientProps {
   initialSettings: Record<string, string>
 }
 
-interface PermissionMapping {
+export interface MemberItem {
   id: number
-  permission_key: string
-  position_name: string
+  username: string
+  name: string
+  department: string
+  position: string
+  role: string
+  permissions: string[]
 }
 
 type PermCategory = 'all' | 'repairs' | 'media' | 'facility' | 'finance' | 'governance'
 
-interface PermissionMetaItem {
+export interface PermissionMetaItem {
   key: string
   label: string
   shortLabel: string
@@ -69,9 +77,10 @@ interface PermissionMetaItem {
   color: string
   bg: string
   border: string
+  isApproveOnly?: boolean
 }
 
-const PERMISSIONS_METADATA: Record<string, PermissionMetaItem> = {
+export const PERMISSIONS_METADATA: Record<string, PermissionMetaItem> = {
   // Repairs & Workflow
   manage_inbox: {
     key: 'manage_inbox',
@@ -88,8 +97,8 @@ const PERMISSIONS_METADATA: Record<string, PermissionMetaItem> = {
   manage_repairs: {
     key: 'manage_repairs',
     label: 'ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (manage_repairs)',
-    shortLabel: 'ดูแลระบบงานซ่อมบำรุง',
-    desc: 'ทีมหัวหน้าช่างและผู้ดูแลระบบงานซ่อมบำรุง ตรวจสอบและมอบหมายงานซ่อมทั้งหมด',
+    shortLabel: 'ดูแลระบบแจ้งซ่อม (หัวหน้าช่าง)',
+    desc: 'ทีมหัวหน้าช่างและผู้ดูแลระบบงานซ่อมบำรุง ตรวจสอบ มอบหมาย และจัดการงานซ่อมทั้งหมด',
     category: 'repairs',
     categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
     icon: Wrench,
@@ -97,11 +106,48 @@ const PERMISSIONS_METADATA: Record<string, PermissionMetaItem> = {
     bg: '#eff6ff',
     border: '#bfdbfe'
   },
+  approve_repairs: {
+    key: 'approve_repairs',
+    label: 'อนุมัติ/ตรวจรับงานแจ้งซ่อมบำรุง (approve_repairs)',
+    shortLabel: 'อนุมัติ/ตรวจรับงานซ่อม (Approve-Only)',
+    desc: 'สิทธิ์สำหรับผู้บริหารหรือหัวหน้างานในการอนุมัติและตรวจรับงานซ่อม (ไม่มีสิทธิ์แก้ไขข้อมูลงาน)',
+    category: 'repairs',
+    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
+    icon: CheckCircle2,
+    color: '#e11d48',
+    bg: '#fff1f2',
+    border: '#fecdd3',
+    isApproveOnly: true
+  },
+  take_repairs_general: {
+    key: 'take_repairs_general',
+    label: 'รับงานซ่อมบำรุงทั่วไป/ช่างซ่อม (take_repairs_general)',
+    shortLabel: 'รับงานซ่อมบำรุงทั่วไป',
+    desc: 'ช่างซ่อมบำรุงทั่วไป สามารถกดรับงาน ดำเนินการซ่อม และบันทึกผลการซ่อมงานช่าง',
+    category: 'repairs',
+    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
+    icon: Wrench,
+    color: '#d97706',
+    bg: '#fffbeb',
+    border: '#fde68a'
+  },
+  take_repairs_medical: {
+    key: 'take_repairs_medical',
+    label: 'รับงานซ่อมเครื่องมือแพทย์ (take_repairs_medical)',
+    shortLabel: 'รับงานซ่อมเครื่องมือแพทย์',
+    desc: 'ช่างและผู้รับผิดชอบเครื่องมือแพทย์ สามารถกดรับงาน ดำเนินการซ่อม และบันทึกผลการซ่อม',
+    category: 'repairs',
+    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
+    icon: HeartPulse,
+    color: '#e11d48',
+    bg: '#fff1f2',
+    border: '#fecdd3'
+  },
   view_all_work: {
     key: 'view_all_work',
     label: 'ดูแลระบบ/ดูงานช่างทั้งหมด (view_all_work)',
-    shortLabel: 'ดูงานช่างทั้งหมด',
-    desc: 'สิทธิ์ดูและติดตามงานช่างทุกรายการในระบบ',
+    shortLabel: 'ดูงานช่างทั้งหมด (Read-only)',
+    desc: 'สิทธิ์ดูและติดตามงานช่างทุกประเภทในระบบแบบอ่านอย่างเดียว',
     category: 'repairs',
     categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
     icon: Wrench,
@@ -162,14 +208,39 @@ const PERMISSIONS_METADATA: Record<string, PermissionMetaItem> = {
   manage_media_requests: {
     key: 'manage_media_requests',
     label: 'ดูแลระบบขอสื่อประชาสัมพันธ์ (manage_media_requests)',
-    shortLabel: 'ดูแลระบบขอสื่อประชาสัมพันธ์',
-    desc: 'ทีมประชาสัมพันธ์หรือผู้รับผิดชอบงานสื่อ ดูแลคำขอผลิตสื่อ ตรวจสอบขั้นตอน และดูงานขอสื่อทั้งหมด',
+    shortLabel: 'ดูแลระบบขอสื่อ (หัวหน้างานสื่อ)',
+    desc: 'ทีมประชาสัมพันธ์หรือผู้รับผิดชอบงานสื่อ ดูแลคำขอผลิตสื่อ ตรวจสอบขั้นตอน และมอบหมายงาน',
     category: 'media',
     categoryLabel: 'งานสื่อ & ประชาสัมพันธ์',
     icon: Palette,
     color: '#0d9488',
     bg: '#f0fdfa',
     border: '#99f6e4'
+  },
+  approve_media: {
+    key: 'approve_media',
+    label: 'อนุมัติคำขอผลิตสื่อประชาสัมพันธ์ (approve_media)',
+    shortLabel: 'อนุมัติคำขอผลิตสื่อ (Approve-Only)',
+    desc: 'สิทธิ์สำหรับผู้บริหารหรือหัวหน้างานในการอนุมัติคำขอผลิตสื่อ (ไม่มีสิทธิ์แก้ไขคำขอ)',
+    category: 'media',
+    categoryLabel: 'งานสื่อ & ประชาสัมพันธ์',
+    icon: CheckCircle2,
+    color: '#e11d48',
+    bg: '#fff1f2',
+    border: '#fecdd3',
+    isApproveOnly: true
+  },
+  produce_media: {
+    key: 'produce_media',
+    label: 'รับผิดชอบผลิตสื่อ/กราฟิก/วิดีโอ (produce_media)',
+    shortLabel: 'รับผิดชอบผลิตสื่อ/กราฟิก',
+    desc: 'ทีมผลิตสื่อ สามารถกดรับงาน ออกแบบ ผลิตสื่อกราฟิก/วิดีโอ และส่งมอบงาน',
+    category: 'media',
+    categoryLabel: 'งานสื่อ & ประชาสัมพันธ์',
+    icon: Palette,
+    color: '#8b5cf6',
+    bg: '#f5f3ff',
+    border: '#ddd6fe'
   },
   view_media_requests: {
     key: 'view_media_requests',
@@ -299,14 +370,39 @@ const PERMISSIONS_METADATA: Record<string, PermissionMetaItem> = {
   }
 }
 
-const CATEGORY_TABS: { id: PermCategory; label: string; icon: any }[] = [
+export const CATEGORIES_CONFIG: { id: PermCategory; label: string; icon: any }[] = [
   { id: 'all', label: 'ทั้งหมด (All)', icon: Layers },
-  { id: 'repairs', label: 'งานซ่อมบำรุง & ช่าง', icon: Wrench },
+  { id: 'repairs', label: 'งานซ่อมบำรุง & กล่องงาน', icon: Wrench },
   { id: 'media', label: 'สื่อ & ประชาสัมพันธ์', icon: Palette },
   { id: 'facility', label: 'พัสดุ & สถานที่', icon: Package },
   { id: 'finance', label: 'การเงิน & บุคลากร', icon: Wallet },
   { id: 'governance', label: 'ธรรมาภิบาล & สารบรรณ', icon: BookOpen }
 ]
+
+const AVATAR_COLORS = [
+  { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' },
+  { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' },
+  { bg: '#f5f3ff', text: '#7c3aed', border: '#ddd6fe' },
+  { bg: '#fff1f2', text: '#e11d48', border: '#fecdd3' },
+  { bg: '#fffbeb', text: '#d97706', border: '#fde68a' },
+  { bg: '#f0fdfa', text: '#0d9488', border: '#99f6e4' },
+  { bg: '#f0f9ff', text: '#0284c7', border: '#bae6fd' },
+]
+
+function getAvatarColor(id: number) {
+  return AVATAR_COLORS[id % AVATAR_COLORS.length]
+}
+
+function maskIdentifier(val?: string | null): string {
+  if (!val) return ''
+  const clean = val.trim()
+  if (clean.length <= 4) return '****'
+  if (/^\d{13}$/.test(clean)) {
+    // Standard Thai CID format masking: show last 4 digits (e.g. x-xxxx-xxxx1-23-4)
+    return `x-xxxx-xxxx${clean[9]}-${clean.slice(10, 12)}-${clean[12]}`
+  }
+  return `x-xxxx-xxxxx-${clean.slice(-4)}`
+}
 
 export default function SettingsClient({ initialSettings }: SettingsClientProps) {
   // Feature Toggles state
@@ -343,26 +439,19 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
 
   // Navigation & View Mode
-  const [activeTab, setActiveTab] = useState<'features' | 'positions'>('features')
-  const [positionViewMode, setPositionViewMode] = useState<'byPermission' | 'byPosition'>('byPermission')
+  const [activeTab, setActiveTab] = useState<'features' | 'members'>('features')
   const [selectedCategory, setSelectedCategory] = useState<PermCategory>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [hasPermissionsOnly, setHasPermissionsOnly] = useState(false)
 
-  // Permissions Data
-  const [permissions, setPermissions] = useState<PermissionMapping[]>([])
-  const [availablePositions, setAvailablePositions] = useState<string[]>([])
-  const [loadingPerms, setLoadingPerms] = useState(false)
+  // Member Permissions Data
+  const [members, setMembers] = useState<MemberItem[]>([])
+  const [loadingMembers, setLoadingMembers] = useState(false)
 
-  // Add Permission Form State
-  const [newPosition, setNewPosition] = useState('')
-  const [newPermKey, setNewPermKey] = useState('manage_repairs')
-  const [customPosition, setCustomPosition] = useState('')
-  const [isCustomMode, setIsCustomMode] = useState(false)
-  const [isAddingPerm, setIsAddingPerm] = useState(false)
-
-  // Delete Target Dialog
-  const [deletePermTarget, setDeletePermTarget] = useState<{ permKey: string; positionName: string } | null>(null)
-  const [isDeletingPerm, setIsDeletingPerm] = useState(false)
+  // Modal State for Editing Member Permissions
+  const [editingMember, setEditingMember] = useState<MemberItem | null>(null)
+  const [selectedPerms, setSelectedPerms] = useState<string[]>([])
+  const [isSavingPerms, setIsSavingPerms] = useState(false)
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([])
@@ -376,29 +465,26 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
-  const fetchPermissions = async () => {
-    setLoadingPerms(true)
+  const fetchMembers = async () => {
+    setLoadingMembers(true)
     try {
-      const res = await fetch('/api/member/permissions')
+      const res = await fetch('/api/member/permissions/members')
       if (res.ok) {
         const data = await res.json()
-        if (data.success) {
-          setPermissions(data.mappings || [])
-          setAvailablePositions(data.availablePositions || [])
-          if (data.availablePositions?.length > 0 && !newPosition) {
-            setNewPosition(data.availablePositions[0])
-          }
+        if (data.success && data.data?.members) {
+          setMembers(data.data.members)
         }
       }
     } catch (error) {
-      console.error('Failed to fetch permissions:', error)
+      console.error('Failed to fetch members:', error)
+      addToast('ไม่สามารถโหลดข้อมูลบุคลากรได้', 'error')
     } finally {
-      setLoadingPerms(false)
+      setLoadingMembers(false)
     }
   }
 
   useEffect(() => {
-    fetchPermissions()
+    fetchMembers()
   }, [])
 
   const handleSaveSettings = async (e?: React.FormEvent) => {
@@ -439,122 +525,115 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     }
   }
 
-  const handleAddPermission = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const position = isCustomMode ? customPosition.trim() : newPosition
-    if (!position) {
-      addToast('กรุณาระบุหรือเลือกตำแหน่งงาน', 'error')
-      return
-    }
+  // Edit Permissions Modal Handlers
+  const handleOpenEditModal = (member: MemberItem) => {
+    setEditingMember(member)
+    setSelectedPerms([...(member.permissions || [])])
+  }
 
-    setIsAddingPerm(true)
+  const handleCloseEditModal = () => {
+    if (isSavingPerms) return
+    setEditingMember(null)
+    setSelectedPerms([])
+  }
+
+  const handleTogglePerm = (permKey: string) => {
+    setSelectedPerms((prev) => 
+      prev.includes(permKey) ? prev.filter((k) => k !== permKey) : [...prev, permKey]
+    )
+  }
+
+  const handleSelectCategoryAll = (category: PermCategory) => {
+    const categoryKeys = Object.keys(PERMISSIONS_METADATA).filter(
+      (k) => PERMISSIONS_METADATA[k].category === category
+    )
+    setSelectedPerms((prev) => Array.from(new Set([...prev, ...categoryKeys])))
+  }
+
+  const handleClearCategory = (category: PermCategory) => {
+    const categoryKeys = new Set(
+      Object.keys(PERMISSIONS_METADATA).filter(
+        (k) => PERMISSIONS_METADATA[k].category === category
+      )
+    )
+    setSelectedPerms((prev) => prev.filter((k) => !categoryKeys.has(k)))
+  }
+
+  const handleClearAll = () => {
+    setSelectedPerms([])
+  }
+
+  const handleSaveMemberPermissions = async () => {
+    if (!editingMember) return
+    setIsSavingPerms(true)
     try {
-      const res = await fetch('/api/member/permissions', {
+      const res = await fetch('/api/member/permissions/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          permission_key: newPermKey,
-          position_name: position
+          memberId: editingMember.id,
+          permissions: selectedPerms
         })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด')
-      
-      addToast(`มอบสิทธิ์ให้ตำแหน่ง "${position}" สำเร็จแล้ว`, 'success')
-      if (isCustomMode) setCustomPosition('')
-      fetchPermissions()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์')
+      }
+
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === editingMember.id ? { ...m, permissions: selectedPerms } : m
+        )
+      )
+      addToast(`บันทึกสิทธิ์ของ "${editingMember.name || editingMember.username}" เรียบร้อยแล้ว`, 'success')
+      handleCloseEditModal()
     } catch (err: any) {
-      addToast(err.message || 'เกิดข้อผิดพลาด', 'error')
+      addToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์', 'error')
     } finally {
-      setIsAddingPerm(false)
+      setIsSavingPerms(false)
     }
   }
 
-  const handleConfirmDeletePermission = async () => {
-    if (!deletePermTarget) return
-    const { permKey, positionName } = deletePermTarget
-    setIsDeletingPerm(true)
-
-    try {
-      const res = await fetch(`/api/member/permissions?permission_key=${encodeURIComponent(permKey)}&position_name=${encodeURIComponent(positionName)}`, {
-        method: 'DELETE'
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด')
-      addToast(`ลบสิทธิ์ของตำแหน่ง "${positionName}" เรียบร้อยแล้ว`, 'success')
-      fetchPermissions()
-    } catch (err: any) {
-      addToast(err.message || 'เกิดข้อผิดพลาด', 'error')
-    } finally {
-      setIsDeletingPerm(false)
-      setDeletePermTarget(null)
-    }
-  }
-
-  // Derived Data for Position-Centric Matrix View
-  const positionsMap = useMemo(() => {
-    const map = new Map<string, PermissionMapping[]>()
-    
-    // First include all available positions from DB
-    availablePositions.forEach((pos) => {
-      map.set(pos, [])
-    })
-
-    // Group mappings under positions
-    permissions.forEach((perm) => {
-      const existing = map.get(perm.position_name) || []
-      existing.push(perm)
-      map.set(perm.position_name, existing)
-    })
-
-    return map
-  }, [permissions, availablePositions])
-
-  // Filtered Permissions based on Search & Category
-  const filteredPermissionKeys = useMemo(() => {
+  // Filtered members calculation
+  const filteredMembers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
-    return Object.keys(PERMISSIONS_METADATA).filter((key) => {
-      const meta = PERMISSIONS_METADATA[key]
-      if (selectedCategory !== 'all' && meta.category !== selectedCategory) {
+    return members.filter((member) => {
+      // Check hasPermissionsOnly filter
+      if (hasPermissionsOnly && (!member.permissions || member.permissions.length === 0)) {
         return false
       }
-      if (!q) return true
 
-      const mappings = permissions.filter((p) => p.permission_key === key)
-      const matchesPositions = mappings.some((m) => m.position_name.toLowerCase().includes(q))
-      const matchesMeta =
-        meta.label.toLowerCase().includes(q) ||
-        meta.shortLabel.toLowerCase().includes(q) ||
-        meta.desc.toLowerCase().includes(q) ||
-        meta.key.toLowerCase().includes(q)
-
-      return matchesMeta || matchesPositions
-    })
-  }, [selectedCategory, searchQuery, permissions])
-
-  // Filtered Positions Map for By-Position View
-  const filteredPositionsList = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim()
-    const entries = Array.from(positionsMap.entries())
-    
-    return entries.filter(([posName, perms]) => {
+      // Check category filter
       if (selectedCategory !== 'all') {
-        const hasCategoryPerm = perms.some((p) => {
-          const meta = PERMISSIONS_METADATA[p.permission_key]
+        const hasCategoryPerm = (member.permissions || []).some((permKey) => {
+          const meta = PERMISSIONS_METADATA[permKey]
           return meta && meta.category === selectedCategory
         })
         if (!hasCategoryPerm) return false
       }
 
+      // Check search query
       if (!q) return true
-      const matchesPos = posName.toLowerCase().includes(q)
-      const matchesPerm = perms.some((p) => {
-        const meta = PERMISSIONS_METADATA[p.permission_key]
-        return meta && (meta.label.toLowerCase().includes(q) || meta.key.toLowerCase().includes(q))
+
+      const nameMatch = (member.name || '').toLowerCase().includes(q)
+      const usernameMatch = (member.username || '').toLowerCase().includes(q)
+      const deptMatch = (member.department || '').toLowerCase().includes(q)
+      const posMatch = (member.position || '').toLowerCase().includes(q)
+      const permMatch = (member.permissions || []).some((permKey) => {
+        const meta = PERMISSIONS_METADATA[permKey]
+        return (
+          permKey.toLowerCase().includes(q) ||
+          (meta && (
+            meta.label.toLowerCase().includes(q) ||
+            meta.shortLabel.toLowerCase().includes(q) ||
+            meta.desc.toLowerCase().includes(q)
+          ))
+        )
       })
-      return matchesPos || matchesPerm
+
+      return nameMatch || usernameMatch || deptMatch || posMatch || permMatch
     })
-  }, [positionsMap, selectedCategory, searchQuery])
+  }, [members, searchQuery, hasPermissionsOnly, selectedCategory])
 
   // Active module count
   const activeFeaturesCount = [
@@ -567,11 +646,15 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     featureRdu
   ].filter(Boolean).length
 
-  // Unique assigned positions count
-  const assignedPositionsCount = useMemo(() => {
-    const set = new Set(permissions.map((p) => p.position_name))
-    return set.size
-  }, [permissions])
+  // Members with special permissions count
+  const specialPermMembersCount = useMemo(() => {
+    return members.filter((m) => m.permissions && m.permissions.length > 0).length
+  }, [members])
+
+  // Total assigned permissions count
+  const totalAssignedPermissions = useMemo(() => {
+    return members.reduce((acc, m) => acc + (m.permissions ? m.permissions.length : 0), 0)
+  }, [members])
 
   return (
     <div className="settingsClientModern">
@@ -592,26 +675,26 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
 
         <div className="statCard">
           <div className="statIconCircle statIconBlue">
-            <Users size={20} />
+            <UserCheck size={20} />
           </div>
           <div className="statInfo">
-            <span className="statLabel">ตำแหน่งที่ได้รับสิทธิ์</span>
+            <span className="statLabel">บุคลากรที่ได้รับสิทธิ์พิเศษ</span>
             <div className="statValueRow">
-              <span className="statNumber">{assignedPositionsCount}</span>
-              <span className="statTotal">ตำแหน่งงาน</span>
+              <span className="statNumber">{specialPermMembersCount}</span>
+              <span className="statTotal">/ {members.length} คน</span>
             </div>
           </div>
         </div>
 
         <div className="statCard">
           <div className="statIconCircle statIconPurple">
-            <Layers size={20} />
+            <Shield size={20} />
           </div>
           <div className="statInfo">
-            <span className="statLabel">กฎสิทธิ์ในระบบ</span>
+            <span className="statLabel">กฎสิทธิ์ที่มอบหมาย</span>
             <div className="statValueRow">
-              <span className="statNumber">{permissions.length}</span>
-              <span className="statTotal">การจับคู่สิทธิ์</span>
+              <span className="statNumber">{totalAssignedPermissions}</span>
+              <span className="statTotal">รายการสิทธิ์</span>
             </div>
           </div>
         </div>
@@ -632,12 +715,12 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
 
           <button
             type="button"
-            className={`mainTabButton ${activeTab === 'positions' ? 'isActive' : ''}`}
-            onClick={() => setActiveTab('positions')}
+            className={`mainTabButton ${activeTab === 'members' ? 'isActive' : ''}`}
+            onClick={() => setActiveTab('members')}
           >
-            <UserCheck size={18} />
-            <span>จัดการสิทธิ์ตามตำแหน่งงาน</span>
-            <span className="tabCountBadge">{permissions.length}</span>
+            <UserCog size={18} />
+            <span>จัดการสิทธิ์รายบุคคล</span>
+            <span className="tabCountBadge">{specialPermMembersCount} คน</span>
           </button>
         </div>
       </nav>
@@ -928,397 +1011,424 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       )}
 
       {/* ======================================================== */}
-      {/* TAB 2: POSITION PERMISSIONS MANAGER                     */}
+      {/* TAB 2: MEMBER PERMISSIONS MANAGER                       */}
       {/* ======================================================== */}
-      {activeTab === 'positions' && (
+      {activeTab === 'members' && (
         <div className="tabContentSection animate-fadeIn">
-          {/* Fast Add Permission Box */}
-          <div className="smartAddPermCard">
-            <div className="addCardHeader">
-              <div className="addCardHeaderLeft">
-                <div className="addIconBadge">
-                  <Plus size={18} />
-                </div>
-                <div>
-                  <h3>เพิ่มสิทธิ์การใช้งานให้ตำแหน่งงาน (Grant Permission)</h3>
-                  <p>เลือกสิทธิ์และระบุตำแหน่งงานที่ต้องการมอบหมาย ระบบจะเชื่อมโยงสิทธิ์ให้อัตโนมัติ</p>
-                </div>
+          {/* Section Info Banner */}
+          <div className="sectionHeaderCard">
+            <div className="sectionHeaderTitleGroup">
+              <div className="sectionIconWrapper">
+                <UserCog size={20} />
+              </div>
+              <div>
+                <h2>กำหนดและจัดการสิทธิ์รายบุคคล (Individual Member Permissions)</h2>
+                <p>
+                  จัดการสิทธิ์การเข้าถึงและการปฏิบัติงานในระบบสำหรับบุคลากรแต่ละคนโดยตรง คลิก &quot;กำหนดสิทธิ์&quot; เพื่อเลือกสิทธิ์ที่ต้องการมอบหมาย
+                </p>
               </div>
             </div>
+          </div>
 
-            <form onSubmit={handleAddPermission} className="addPermFormGrid">
-              {/* Field 1: Permission Key */}
-              <div className="formFieldGroup">
-                <label htmlFor="permKeySelect">1. เลือกสิทธิ์การใช้งาน</label>
-                <select
-                  id="permKeySelect"
-                  value={newPermKey}
-                  onChange={(e) => setNewPermKey(e.target.value)}
-                  className="modernSelectInput"
-                >
-                  <optgroup label="🛠️ งานซ่อมบำรุง & กล่องงาน">
-                    <option value="manage_inbox">ดูแลระบบกล่องงานและสายการอนุมัติ (manage_inbox)</option>
-                    <option value="manage_repairs">ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (manage_repairs)</option>
-                    <option value="view_all_work">ดูแลระบบ/ดูงานช่างทั้งหมด (view_all_work)</option>
-                    <option value="view_it_repairs">ดูงานแจ้งซ่อมคอมพิวเตอร์และไอทีทั้งหมด (view_it_repairs)</option>
-                    <option value="view_general_repairs">ดูงานแจ้งซ่อมบำรุงทั่วไปทั้งหมด (view_general_repairs)</option>
-                    <option value="view_medical_repairs">ดูงานแจ้งซ่อมเครื่องมือแพทย์ทั้งหมด (view_medical_repairs)</option>
-                    <option value="view_department_tasks">ดูงานทั้งหมดในหน่วยงานของตนเอง (view_department_tasks)</option>
-                  </optgroup>
-                  <optgroup label="🎨 งานสื่อ & ประชาสัมพันธ์">
-                    <option value="manage_media_requests">ดูแลระบบขอสื่อประชาสัมพันธ์ (manage_media_requests)</option>
-                    <option value="view_media_requests">ดูงานขอสื่อประชาสัมพันธ์ทั้งหมด (view_media_requests)</option>
-                    <option value="manage_news">จัดการและลงข่าวประชาสัมพันธ์ (manage_news)</option>
-                  </optgroup>
-                  <optgroup label="📦 งานพัสดุ & สถานที่">
-                    <option value="manage_assets">จัดการข้อมูลครุภัณฑ์และพัสดุ (manage_assets)</option>
-                    <option value="manage_locations">จัดการข้อมูลสถานที่ ตึก-ชั้น-ห้อง (manage_locations)</option>
-                  </optgroup>
-                  <optgroup label="💰 งานการเงิน & บุคลากร">
-                    <option value="upload_salary">อัปโหลดเงินเดือน/ค่าตอบแทน (upload_salary)</option>
-                    <option value="view_all_salary">ดูสลิปเงินเดือนบุคลากรทุกคน (view_all_salary)</option>
-                  </optgroup>
-                  <optgroup label="📋 งานธรรมาภิบาล & สารบรรณ">
-                    <option value="manage_ita">จัดการข้อมูลและบทความ ITA (manage_ita)</option>
-                    <option value="manage_rdu">จัดการข้อมูลและเอกสาร RDU (manage_rdu)</option>
-                    <option value="manage_ethics">จัดการเอกสารชมรมจริยธรรม (manage_ethics)</option>
-                    <option value="manage_outgoing_doc">จัดการหนังสือส่งออก Online (manage_outgoing_doc)</option>
-                  </optgroup>
-                </select>
-              </div>
-
-              {/* Field 2: Target Position */}
-              <div className="formFieldGroup">
-                <div className="fieldLabelHeader">
-                  <label htmlFor="targetPosition">2. ตำแหน่งงานบุคลากร</label>
+          {/* Search, Filters & Controls Toolbar */}
+          <div className="memberPermissionsToolbar">
+            <div className="toolbarTopRow">
+              {/* Search Box */}
+              <div className="searchBoxWrapper">
+                <Search size={16} className="searchIcon" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อบุคลากร, เลขบัตร, กลุ่มงาน, ตำแหน่ง หรือชื่อสิทธิ์..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="searchInput"
+                />
+                {searchQuery && (
                   <button
                     type="button"
-                    onClick={() => setIsCustomMode(!isCustomMode)}
-                    className="btnToggleCustomPos"
+                    onClick={() => setSearchQuery('')}
+                    className="clearSearchBtn"
+                    aria-label="ล้างการค้นหา"
                   >
-                    {isCustomMode ? '← เลือกจากระบบ' : '✍️ พิมพ์ตำแหน่งเอง'}
+                    <X size={14} />
                   </button>
-                </div>
-
-                {isCustomMode ? (
-                  <input
-                    id="targetPosition"
-                    type="text"
-                    value={customPosition}
-                    onChange={(e) => setCustomPosition(e.target.value)}
-                    placeholder="เช่น นักวิชาการคอมพิวเตอร์, หัวหน้ากลุ่มงาน"
-                    className="modernTextInput"
-                    required
-                  />
-                ) : (
-                  <select
-                    id="targetPosition"
-                    value={newPosition}
-                    onChange={(e) => setNewPosition(e.target.value)}
-                    className="modernSelectInput"
-                  >
-                    {availablePositions.length === 0 ? (
-                      <option value="">-- ไม่พบตำแหน่งในฐานข้อมูล ให้กดพิมพ์เอง --</option>
-                    ) : (
-                      availablePositions.map((pos) => (
-                        <option key={pos} value={pos}>{pos}</option>
-                      ))
-                    )}
-                  </select>
                 )}
               </div>
 
-              {/* Submit Button */}
-              <div className="formSubmitGroup">
+              {/* Has Permissions Only Toggle */}
+              <label className={`hasPermFilterToggle ${hasPermissionsOnly ? 'filterActive' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={hasPermissionsOnly}
+                  onChange={(e) => setHasPermissionsOnly(e.target.checked)}
+                />
+                <Shield size={15} />
+                <span>เฉพาะผู้ที่มีสิทธิ์พิเศษ</span>
+                {specialPermMembersCount > 0 && (
+                  <span className="filterCountPill">{specialPermMembersCount}</span>
+                )}
+              </label>
+            </div>
+
+            {/* Category Filter Chips */}
+            <div className="categoryFilterRow">
+              <div className="categoryFilterChips">
+                {CATEGORIES_CONFIG.map((cat) => {
+                  const Icon = cat.icon
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      className={`categoryChip ${selectedCategory === cat.id ? 'chipActive' : ''}`}
+                      onClick={() => setSelectedCategory(cat.id)}
+                    >
+                      <Icon size={14} />
+                      <span>{cat.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="membersCountSummary">
+                <span>
+                  แสดง <strong>{filteredMembers.length}</strong> จาก <strong>{members.length}</strong> คน
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Members Cards List */}
+          <div className="membersListContainer">
+            {loadingMembers ? (
+              <div className="modernLoadingCard">
+                <RefreshCw size={28} className="spinAnimation text-teal-600" />
+                <p>กำลังโหลดรายชื่อบุคลากรและสิทธิ์การใช้งาน...</p>
+              </div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="modernEmptyStateCard">
+                <div className="emptyIconCircle">
+                  <Filter size={32} />
+                </div>
+                <h4>ไม่พบบุคลากรที่ตรงกับเงื่อนไขการค้นหา</h4>
+                <p>ลองปรับเปลี่ยนคำค้นหา หรือรีเซ็ตตัวกรองเพื่อแสดงบุคลากรทั้งหมด</p>
                 <button
-                  type="submit"
-                  className="btnSubmitPermission"
-                  disabled={isAddingPerm}
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setHasPermissionsOnly(false)
+                    setSelectedCategory('all')
+                  }}
+                  className="btnResetFilter"
                 >
-                  {isAddingPerm ? (
-                    <RefreshCw size={16} className="spinAnimation" />
-                  ) : (
-                    <Plus size={16} />
-                  )}
-                  <span>มอบสิทธิ์นี้</span>
+                  รีเซ็ตตัวกรองทั้งหมด
                 </button>
               </div>
-            </form>
-          </div>
-
-          {/* Filtering & View Switcher Bar */}
-          <div className="filterAndSearchToolbar">
-            {/* Search Input */}
-            <div className="searchBoxWrapper">
-              <Search size={16} className="searchIcon" />
-              <input
-                type="text"
-                placeholder="ค้นหาชื่อตำแหน่งงาน, รหัสสิทธิ์ หรือคำอธิบาย..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="searchInput"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="clearSearchBtn"
-                  aria-label="ล้างการค้นหา"
-                >
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            {/* View Mode Toggle */}
-            <div className="viewModeToggleGroup">
-              <button
-                type="button"
-                className={`viewModeBtn ${positionViewMode === 'byPermission' ? 'isActive' : ''}`}
-                onClick={() => setPositionViewMode('byPermission')}
-                title="แสดงผลตามกลุ่มสิทธิ์"
-              >
-                <LayoutGrid size={15} />
-                <span>ตามสิทธิ์ ({filteredPermissionKeys.length})</span>
-              </button>
-
-              <button
-                type="button"
-                className={`viewModeBtn ${positionViewMode === 'byPosition' ? 'isActive' : ''}`}
-                onClick={() => setPositionViewMode('byPosition')}
-                title="แสดงผลตามตำแหน่งงาน"
-              >
-                <ListFilter size={15} />
-                <span>ตามตำแหน่ง ({filteredPositionsList.length})</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Category Filter Chips */}
-          <div className="categoryFilterChips">
-            {CATEGORY_TABS.map((cat) => {
-              const Icon = cat.icon
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  className={`categoryChip ${selectedCategory === cat.id ? 'chipActive' : ''}`}
-                  onClick={() => setSelectedCategory(cat.id)}
-                >
-                  <Icon size={14} />
-                  <span>{cat.label}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* ======================================================== */}
-          {/* VIEW MODE 1: BY PERMISSION CARDS                         */}
-          {/* ======================================================== */}
-          {positionViewMode === 'byPermission' && (
-            <div className="permissionsGroupGrid">
-              {loadingPerms ? (
-                <div className="modernLoadingCard">
-                  <RefreshCw size={28} className="spinAnimation text-teal-600" />
-                  <p>กำลังโหลดรายการสิทธิ์ตามตำแหน่งงาน...</p>
-                </div>
-              ) : filteredPermissionKeys.length === 0 ? (
-                <div className="modernEmptyStateCard">
-                  <div className="emptyIconCircle">
-                    <Filter size={32} />
-                  </div>
-                  <h4>ไม่พบรายการสิทธิ์ที่ตรงกับเงื่อนไขการค้นหา</h4>
-                  <p>ลองปรับคำค้นหา หรือเลือกหมวดหมู่อื่นดูใหม่อีกครั้ง</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('')
-                      setSelectedCategory('all')
-                    }}
-                    className="btnResetFilter"
-                  >
-                    รีเซ็ตตัวกรองทั้งหมด
-                  </button>
-                </div>
-              ) : (
-                filteredPermissionKeys.map((key) => {
-                  const meta = PERMISSIONS_METADATA[key]
-                  if (!meta) return null
-                  const Icon = meta.icon
-                  const assignedMappings = permissions.filter((p) => p.permission_key === key)
+            ) : (
+              <div className="membersCardsGrid">
+                {filteredMembers.map((member) => {
+                  const avatarColor = getAvatarColor(member.id)
+                  const initials = member.name
+                    ? member.name.trim().charAt(0)
+                    : member.username.charAt(0).toUpperCase()
+                  const hasSpecialPerms = member.permissions && member.permissions.length > 0
 
                   return (
-                    <div key={key} className="permissionCardItem">
-                      <div className="cardHeaderRow">
-                        <div className="cardHeaderLeft">
+                    <div key={member.id} className="memberCardItem">
+                      {/* Card Header */}
+                      <div className="memberCardHeader">
+                        <div className="memberAvatarCol">
                           <div
-                            className="permBadgeIcon"
+                            className="memberAvatarCircle"
                             style={{
-                              color: meta.color,
-                              background: meta.bg,
-                              border: `1px solid ${meta.border}`
+                              backgroundColor: avatarColor.bg,
+                              color: avatarColor.text,
+                              borderColor: avatarColor.border
                             }}
                           >
-                            <Icon size={18} />
-                          </div>
-                          <div>
-                            <div className="permTitleRow">
-                              <h4 className="permTitle">{meta.shortLabel}</h4>
-                              <code className="permKeyCode">{meta.key}</code>
-                            </div>
-                            <p className="permDescription">{meta.desc}</p>
+                            <span>{initials}</span>
                           </div>
                         </div>
 
-                        <div className="cardHeaderRight">
-                          <span className={`assignedCountChip ${assignedMappings.length > 0 ? 'hasAssigned' : 'noAssigned'}`}>
-                            {assignedMappings.length} ตำแหน่ง
-                          </span>
+                        <div className="memberDetailsCol">
+                          <div className="memberNameRow">
+                            <h4 className="memberName">{member.name || member.username}</h4>
+                            {member.role === 'admin' ? (
+                              <span className="roleBadge adminRoleBadge">ผู้ดูแลระบบ (Admin)</span>
+                            ) : (
+                              <span className="roleBadge staffRoleBadge">บุคลากร</span>
+                            )}
+                          </div>
+
+                          <div className="memberMetaRow">
+                            <span className="metaDept" title="กลุ่มงาน">
+                              <Building2 size={13} />
+                              {member.department || 'ไม่ระบุกลุ่มงาน'}
+                            </span>
+                            {member.position && (
+                              <span className="metaPosition" title="ตำแหน่ง">
+                                • {member.position}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="memberIdRow">
+                            <span className="maskedIdText" title="เลขประจำตัวประชาชน (PDPA Masked)">
+                              เลขบัตร: {maskIdentifier(member.username)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="memberActionCol">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(member)}
+                            className={`btnEditMemberPerms ${hasSpecialPerms ? 'btnHasPerms' : 'btnNoPerms'}`}
+                            title={`กำหนดสิทธิ์การใช้งานให้ ${member.name || member.username}`}
+                          >
+                            <UserCog size={15} />
+                            <span>
+                              {hasSpecialPerms ? `แก้ไขสิทธิ์ (${member.permissions.length})` : 'กำหนดสิทธิ์'}
+                            </span>
+                          </button>
                         </div>
                       </div>
 
-                      <div className="cardBodyRow">
-                        {assignedMappings.length === 0 ? (
-                          <div className="unassignedAlert">
-                            <Info size={14} />
-                            <span>ยังไม่มีการมอบหมายตำแหน่งงานใดๆ ในสิทธิ์นี้</span>
+                      {/* Card Permissions Badges Area */}
+                      <div className="memberCardPermsBody">
+                        {!hasSpecialPerms ? (
+                          <div className="defaultPermsNote">
+                            <BadgeCheck size={14} />
+                            <span>สิทธิ์สมาชิกทั่วไป (ไม่มีสิทธิ์พิเศษเพิ่มเติม)</span>
                           </div>
                         ) : (
-                          <div className="tagsContainer">
-                            {assignedMappings.map((mapping) => (
-                              <div key={mapping.id} className="modernPositionTag">
-                                <span className="positionText">{mapping.position_name}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeletePermTarget({ permKey: mapping.permission_key, positionName: mapping.position_name })}
-                                  className="btnRemoveTag"
-                                  title={`ลบสิทธิ์ "${meta.shortLabel}" ออกจากตำแหน่ง "${mapping.position_name}"`}
-                                  aria-label={`ลบสิทธิ์ ${mapping.position_name}`}
+                          <div className="memberPermTagsContainer">
+                            {member.permissions.map((permKey) => {
+                              const meta = PERMISSIONS_METADATA[permKey]
+                              const Icon = meta?.icon || Shield
+                              return (
+                                <span
+                                  key={permKey}
+                                  className={`memberPermBadge ${meta?.isApproveOnly ? 'isApproveOnlyBadge' : ''}`}
+                                  style={{
+                                    backgroundColor: meta?.bg || '#f1f5f9',
+                                    color: meta?.color || '#334155',
+                                    borderColor: meta?.border || '#e2e8f0'
+                                  }}
+                                  title={meta?.desc || permKey}
                                 >
-                                  <X size={12} />
-                                </button>
-                              </div>
-                            ))}
+                                  <Icon size={13} />
+                                  <span>{meta?.shortLabel || permKey}</span>
+                                  {meta?.isApproveOnly && (
+                                    <span className="approveOnlyTag">Approve-Only</span>
+                                  )}
+                                </span>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
                     </div>
                   )
-                })
-              )}
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* VIEW MODE 2: BY POSITION PROFILE CARDS                   */}
-          {/* ======================================================== */}
-          {positionViewMode === 'byPosition' && (
-            <div className="positionsMatrixGrid">
-              {loadingPerms ? (
-                <div className="modernLoadingCard">
-                  <RefreshCw size={28} className="spinAnimation text-teal-600" />
-                  <p>กำลังโหลดข้อมูลตำแหน่งงาน...</p>
-                </div>
-              ) : filteredPositionsList.length === 0 ? (
-                <div className="modernEmptyStateCard">
-                  <div className="emptyIconCircle">
-                    <Users size={32} />
-                  </div>
-                  <h4>ไม่พบตำแหน่งงานที่ตรงกับเงื่อนไขการค้นหา</h4>
-                  <p>ลองปรับคำค้นหา หรือเลือกหมวดหมู่อื่นดูใหม่อีกครั้ง</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('')
-                      setSelectedCategory('all')
-                    }}
-                    className="btnResetFilter"
-                  >
-                    รีเซ็ตตัวกรองทั้งหมด
-                  </button>
-                </div>
-              ) : (
-                filteredPositionsList.map(([positionName, perms]) => (
-                  <div key={positionName} className="positionProfileCard">
-                    <div className="positionProfileHeader">
-                      <div className="profileHeaderLeft">
-                        <div className="profileIconCircle">
-                          <UserCheck size={18} />
-                        </div>
-                        <div>
-                          <h4 className="positionHeading">{positionName}</h4>
-                          <span className="positionSubtitle">
-                            ได้รับมอบหมาย {perms.length} สิทธิ์ในระบบ
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewPosition(positionName)
-                          setIsCustomMode(false)
-                          window.scrollTo({ top: 0, behavior: 'smooth' })
-                        }}
-                        className="btnQuickAddForPos"
-                        title="เพิ่มสิทธิ์ใหม่ให้ตำแหน่งนี้"
-                      >
-                        <Plus size={14} />
-                        <span>เพิ่มสิทธิ์</span>
-                      </button>
-                    </div>
-
-                    <div className="positionProfileBody">
-                      {perms.length === 0 ? (
-                        <div className="emptyPermsForPos">
-                          <span>ตำแหน่งนี้มีเฉพาะสิทธิ์สมาชิกทั่วไป (ไม่มีสิทธิ์พิเศษ)</span>
-                        </div>
-                      ) : (
-                        <div className="permsChipsList">
-                          {perms.map((p) => {
-                            const meta = PERMISSIONS_METADATA[p.permission_key]
-                            const Icon = meta?.icon || Shield
-                            return (
-                              <div key={p.id} className="permBadgeChip">
-                                <div className="permChipLeft">
-                                  <Icon size={14} style={{ color: meta?.color || '#0d9488' }} />
-                                  <span className="permChipName">{meta?.shortLabel || p.permission_key}</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeletePermTarget({ permKey: p.permission_key, positionName })}
-                                  className="btnDeletePermFromPos"
-                                  title={`ลบสิทธิ์ ${meta?.shortLabel || p.permission_key}`}
-                                  aria-label={`ลบสิทธิ์ ${meta?.shortLabel || p.permission_key}`}
-                                >
-                                  <X size={12} />
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Confirmation Dialog for Permission Removal */}
-      <ConfirmDialog
-        isOpen={deletePermTarget !== null}
-        title="ยืนยันการลบสิทธิ์การใช้งาน"
-        description={`คุณต้องการลบสิทธิ์ "${PERMISSIONS_METADATA[deletePermTarget?.permKey || '']?.shortLabel || deletePermTarget?.permKey}" ของตำแหน่ง "${deletePermTarget?.positionName}" ออกจากระบบหรือไม่?`}
-        confirmText="ลบสิทธิ์นี้"
-        cancelText="ยกเลิก"
-        type="danger"
-        loading={isDeletingPerm}
-        onConfirm={handleConfirmDeletePermission}
-        onCancel={() => setDeletePermTarget(null)}
-      />
+      {/* ======================================================== */}
+      {/* EDIT PERMISSIONS MODAL DIALOG                            */}
+      {/* ======================================================== */}
+      {editingMember && (
+        <div className="permModalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalMemberTitle">
+          <div className="permModalContainer">
+            {/* Modal Header */}
+            <div className="permModalHeader">
+              <div className="modalHeaderLeft">
+                <div
+                  className="modalAvatarCircle"
+                  style={{
+                    backgroundColor: getAvatarColor(editingMember.id).bg,
+                    color: getAvatarColor(editingMember.id).text,
+                    borderColor: getAvatarColor(editingMember.id).border
+                  }}
+                >
+                  <span>
+                    {editingMember.name
+                      ? editingMember.name.trim().charAt(0)
+                      : editingMember.username.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h3 id="modalMemberTitle" className="modalTitle">
+                    กำหนดสิทธิ์รายบุคคล: {editingMember.name || editingMember.username}
+                  </h3>
+                  <div className="modalMemberMeta">
+                    <span>กลุ่มงาน: {editingMember.department || 'ไม่ระบุกลุ่มงาน'}</span>
+                    {editingMember.position && <span>• ตำแหน่ง: {editingMember.position}</span>}
+                    <span>• เลขบัตร: {maskIdentifier(editingMember.username)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCloseEditModal}
+                className="btnModalClose"
+                aria-label="ปิดหน้าต่าง"
+                disabled={isSavingPerms}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body: Categorized Checkbox Sections */}
+            <div className="permModalBody">
+              <div className="modalInstructionBanner">
+                <Info size={16} />
+                <span>
+                  ทำเครื่องหมายในช่องสิทธิ์ที่ต้องการมอบหมายให้แก่บุคลากรท่านนี้ สิทธิ์ที่ถูกเลือกจะมีผลทันทีหลังจากกดบันทึก
+                </span>
+              </div>
+
+              {/* Categorized Permission Groups */}
+              {CATEGORIES_CONFIG.filter((c) => c.id !== 'all').map((category) => {
+                const CategoryIcon = category.icon
+                const permsInCategory = Object.keys(PERMISSIONS_METADATA)
+                  .filter((k) => PERMISSIONS_METADATA[k].category === category.id)
+                  .map((k) => PERMISSIONS_METADATA[k])
+                
+                const selectedCountInCategory = permsInCategory.filter((p) =>
+                  selectedPerms.includes(p.key)
+                ).length
+
+                return (
+                  <div key={category.id} className="modalCategoryGroup">
+                    <div className="categoryGroupHeader">
+                      <div className="categoryHeaderTitle">
+                        <div className="categoryIconWrap">
+                          <CategoryIcon size={16} />
+                        </div>
+                        <h4>{category.label}</h4>
+                        <span className={`categorySelectedCount ${selectedCountInCategory > 0 ? 'hasSelected' : ''}`}>
+                          เลือก {selectedCountInCategory} / {permsInCategory.length}
+                        </span>
+                      </div>
+
+                      <div className="categoryQuickActions">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectCategoryAll(category.id)}
+                          className="btnCategoryAction"
+                          title={`เลือกสิทธิ์ทั้งหมดใน${category.label}`}
+                        >
+                          <CheckSquare size={13} />
+                          <span>เลือกทั้งหมด</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleClearCategory(category.id)}
+                          className="btnCategoryAction btnCategoryClear"
+                          title={`ล้างสิทธิ์ใน${category.label}`}
+                        >
+                          <Square size={13} />
+                          <span>ล้างหมวดนี้</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="categoryCheckboxesGrid">
+                      {permsInCategory.map((perm) => {
+                        const isChecked = selectedPerms.includes(perm.key)
+                        const PermIcon = perm.icon
+
+                        return (
+                          <label
+                            key={perm.key}
+                            className={`permCheckboxCard ${isChecked ? 'permChecked' : ''} ${perm.isApproveOnly ? 'isApproveOnlyCard' : ''}`}
+                          >
+                            <div className="checkboxInputCol">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleTogglePerm(perm.key)}
+                                className="customCheckboxInput"
+                              />
+                            </div>
+
+                            <div className="permCardDetails">
+                              <div className="permCardTitleRow">
+                                <PermIcon size={16} style={{ color: perm.color }} className="permItemIcon" />
+                                <span className="permItemTitle">{perm.shortLabel}</span>
+                                <code className="permKeyBadge">{perm.key}</code>
+                              </div>
+
+                              <p className="permItemDesc">{perm.desc}</p>
+
+                              {perm.isApproveOnly && (
+                                <div className="approveOnlyWarningBanner">
+                                  <Lock size={12} />
+                                  <span>อนุมัติอย่างเดียว (Approve-Only) — ไม่สามารถแก้ไขข้อมูลงานได้</span>
+                                </div>
+                              )}
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="permModalFooter">
+              <div className="modalFooterLeft">
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="btnClearAllMemberPerms"
+                  disabled={isSavingPerms || selectedPerms.length === 0}
+                  title="ล้างสิทธิ์ทั้งหมดของสมาชิกท่านนี้"
+                >
+                  <Trash2 size={15} />
+                  <span>ล้างสิทธิ์ทั้งหมด ({selectedPerms.length})</span>
+                </button>
+              </div>
+
+              <div className="modalFooterRight">
+                <button
+                  type="button"
+                  onClick={handleCloseEditModal}
+                  className="btnModalCancel"
+                  disabled={isSavingPerms}
+                >
+                  ยกเลิก
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveMemberPermissions}
+                  className="btnModalSave"
+                  disabled={isSavingPerms}
+                >
+                  {isSavingPerms ? (
+                    <>
+                      <RefreshCw size={16} className="spinAnimation" />
+                      <span>กำลังบันทึกสิทธิ์...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>บันทึกการเปลี่ยนแปลง ({selectedPerms.length} สิทธิ์)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>

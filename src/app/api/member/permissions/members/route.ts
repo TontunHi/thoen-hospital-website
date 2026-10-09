@@ -53,14 +53,22 @@ export async function GET(request: Request) {
       ],
     })
 
-    const formattedMembers = members.map((m) => ({
+    const formattedMembers = members.map((m: {
+      id: number
+      username: string
+      name: string | null
+      department: string | null
+      position: string | null
+      role: string | null
+      member_permissions: Array<{ permissionKey: string }>
+    }) => ({
       id: m.id,
       username: m.username,
       name: m.name ?? '',
       department: m.department ?? '',
       position: m.position ?? '',
       role: m.role ?? 'member',
-      permissions: m.member_permissions.map((p) => p.permissionKey),
+      permissions: m.member_permissions.map((p: { permissionKey: string }) => p.permissionKey),
     }))
 
     return NextResponse.json({

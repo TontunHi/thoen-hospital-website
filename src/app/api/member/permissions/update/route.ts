@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/roles'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
 const updateSchema = z.object({
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     )
 
     // Execute atomic replacement in transaction
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Delete all existing permissions for this member
       await tx.memberPermission.deleteMany({
         where: { memberId },
