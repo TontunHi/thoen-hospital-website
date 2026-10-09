@@ -63,6 +63,18 @@ export default function RegistrationsAdminClient() {
   const [rejectReason, setRejectReason] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
+  useEffect(() => {
+    const isAnyModalOpen = isDetailOpen || isEditOpen || confirmRejectId !== null
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isDetailOpen, isEditOpen, confirmRejectId])
+
   const showToast = (type: 'success' | 'error' | 'info', message: string) => {
     setToasts((prev) => [...prev, { id: Date.now().toString(), type, message }])
   }
@@ -604,8 +616,15 @@ export default function RegistrationsAdminClient() {
           MODAL: Detail View
          ══════════════════════════════════════════════════════════════ */}
       {isDetailOpen && selectedItem && (
-        <div className="modalBackdrop" role="dialog" aria-modal="true">
-          <div className="modalCard modalWide">
+        <div
+          className="modalBackdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsDetailOpen(false)
+          }}
+        >
+          <div className="modalCard modalWide" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
               <div>
                 <h3 className="modalTitle">รายละเอียดคำขอลงทะเบียน #{selectedItem.id}</h3>
@@ -859,8 +878,15 @@ export default function RegistrationsAdminClient() {
           MODAL: Edit Registration Data
          ══════════════════════════════════════════════════════════════ */}
       {isEditOpen && selectedItem && (
-        <div className="modalBackdrop" role="dialog" aria-modal="true">
-          <div className="modalCard modalWide">
+        <div
+          className="modalBackdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsEditOpen(false)
+          }}
+        >
+          <div className="modalCard modalWide" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleSaveEdit}>
               <div className="modalHeader">
                 <div className="flex items-center gap-2">
@@ -1185,8 +1211,15 @@ export default function RegistrationsAdminClient() {
 
       {/* Reject Modal with Reason */}
       {confirmRejectId !== null && (
-        <div className="modalBackdrop" role="dialog" aria-modal="true">
-          <div className="modalCard max-w-md">
+        <div
+          className="modalBackdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setConfirmRejectId(null)
+          }}
+        >
+          <div className="modalCard max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
               <div className="flex items-center gap-2">
                 <AlertCircle size={20} className="text-rose-600" />

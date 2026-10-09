@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import Link from 'next/link'
 import {
   User,
@@ -140,6 +140,17 @@ export default function RegisterClientView() {
   const [submitError, setSubmitError] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
   const [showPolicyModal, setShowPolicyModal] = useState(false)
+
+  useEffect(() => {
+    if (showPolicyModal) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [showPolicyModal])
 
   const updateField = (field: keyof FormData, value: unknown) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -1338,13 +1349,15 @@ export default function RegisterClientView() {
                 <p className="consentText">
                   โรงพยาบาลเถินให้ความสำคัญกับความปลอดภัยของข้อมูลส่วนบุคคลของบุคลากร ข้อมูลทั้งหมดที่ท่านกรอกจะถูกนำไปใช้เพื่อวัตถุประสงค์ในการบริหารงานบุคคล การเปิดสิทธิ์ใช้งานระบบสารสนเทศของโรงพยาบาล และการรักษาความปลอดภัยในสถานที่เท่านั้น
                 </p>
-                <div className="flex items-center gap-2 mb-3">
+                <div className="policyActionRow mb-3">
                   <button
                     type="button"
-                    className="text-emerald-700 underline text-sm font-medium hover:text-emerald-800"
+                    className="btnViewPolicy"
                     onClick={() => setShowPolicyModal(true)}
                   >
-                    อ่านนโยบายคุ้มครองข้อมูลส่วนบุคคลฉบับเต็ม (/policy)
+                    <ShieldCheck size={16} className="text-emerald-600 flex-shrink-0" />
+                    <span>อ่านรายละเอียดประกาศและนโยบายคุ้มครองข้อมูลส่วนบุคคล</span>
+                    <ChevronRight size={15} className="text-emerald-600 flex-shrink-0 ml-auto" />
                   </button>
                 </div>
 
@@ -1430,8 +1443,15 @@ export default function RegisterClientView() {
 
         {/* Policy Modal */}
         {showPolicyModal && (
-          <div className="modalBackdrop" role="dialog" aria-modal="true">
-            <div className="modalCard">
+          <div
+            className="modalBackdrop"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowPolicyModal(false)
+            }}
+          >
+            <div className="modalCard" onClick={(e) => e.stopPropagation()}>
               <div className="modalHeader">
                 <div className="flex items-center gap-2">
                   <ShieldCheck size={22} className="text-emerald-700" />
