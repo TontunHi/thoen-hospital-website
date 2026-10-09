@@ -21,7 +21,8 @@ import {
   Palette,
   Sparkles,
   LayoutGrid,
-  Settings2
+  Settings2,
+  UserCheck
 } from 'lucide-react'
 import './page.css'
 
@@ -40,6 +41,19 @@ export default async function MemberDashboardPage() {
     pendingInboxCount = inboxRows[0]?.cnt || 0
   } catch (err) {
     console.error('Error fetching inbox count:', err)
+  }
+
+  // Query pending registrations count for admin
+  let pendingRegistrationsCount = 0
+  if (member.role === 'admin') {
+    try {
+      const regRows = await queryMemberDb(
+        `SELECT COUNT(*) as cnt FROM member_registrations WHERE status = 'pending'`
+      )
+      pendingRegistrationsCount = regRows[0]?.cnt || 0
+    } catch (err) {
+      console.error('Error fetching pending registrations count:', err)
+    }
   }
 
   const isFinance = member.can('upload_salary')
@@ -452,6 +466,31 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardFooter footerSky">
                   <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
+                  <ChevronRight size={16} className="chevronIcon" />
+                </div>
+              </Link>
+
+              {/* ตรวจสอบคำขอลงทะเบียนบุคลากร */}
+              <Link href="/member/registrations" className={`serviceCard ${pendingRegistrationsCount > 0 ? 'hasPendingTasks' : ''}`}>
+                <div className="serviceCardHeader">
+                  <div className="serviceIconWrapper" style={{ background: '#ecfdf5', color: '#047857' }}>
+                    <UserCheck size={24} />
+                  </div>
+                  {pendingRegistrationsCount > 0 ? (
+                    <span className="cardStatusBadge badgeAlert">
+                      <span className="badgePulseDot" />
+                      {pendingRegistrationsCount} คำขอรออนุมัติ
+                    </span>
+                  ) : (
+                    <span className="cardTagPill tagAdmin">คำขอใหม่</span>
+                  )}
+                </div>
+                <div className="serviceCardBody">
+                  <h4>ตรวจสอบคำขอลงทะเบียนบุคลากร</h4>
+                  <p>ตรวจสอบและพิจารณาอนุมัติคำขอเปิดบัญชีเข้าใช้งานระบบจากบุคลากรใหม่ พร้อมประวัติย้อนหลัง</p>
+                </div>
+                <div className="serviceCardFooter footerEmerald">
+                  <span className="actionText">จัดการคำขอลงทะเบียน</span>
                   <ChevronRight size={16} className="chevronIcon" />
                 </div>
               </Link>
