@@ -1,0 +1,72 @@
+.registerPage {
+  min-height: 70vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 16px;
+  background: var(--bg-subtle);
+}
+
+.registerCard {
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg-surface);
+  border: 1px solid var(--gray-200);
+  border-top: 4px solid var(--primary);
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: 0 10px 30px rgba(var(--primary-rgb), 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.registerTitle {
+  margin: 0;
+  color: var(--primary-dark);
+  font-size: 1.5rem;
+}
+
+.registerDesc {
+  margin: 0;
+  color: var(--gray-600);
+  font-size: var(--font-size-sm);
+}
+
+.registerField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--gray-700);
+}
+
+.registerField input {
+  font: inherit;
+  font-size: var(--font-size-base);
+  padding: 10px 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--gray-900);
+}
+
+.registerField input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+  border-color: var(--primary);
+}
+
+.registerError {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+  font-size: var(--font-size-sm);
+}
+
+.registerSubmit {
+  min-height: 44px;
+}
