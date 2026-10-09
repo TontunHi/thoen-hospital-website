@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { logAudit } from '@/lib/audit'
 import {
   TASK_DEFINITIONS,
@@ -222,7 +223,7 @@ export class TaskPermissionService {
 
     // Write audit log
     await logAudit(
-      'UPDATE_MEMBER_PERMISSIONS' as any,
+      'UPDATE_MEMBER_PERMISSIONS',
       'member_permissions',
       `Granted permission ${cleanKey} to member ${member.name || member.username} (ID: ${memberId})`,
       {
@@ -232,7 +233,7 @@ export class TaskPermissionService {
         admin: session.username,
         username: session.username,
         email: session.email,
-      } as any
+      }
     )
 
     return {
@@ -268,7 +269,7 @@ export class TaskPermissionService {
 
     // Write audit log
     await logAudit(
-      'UPDATE_MEMBER_PERMISSIONS' as any,
+      'UPDATE_MEMBER_PERMISSIONS',
       'member_permissions',
       `Revoked permission ${cleanKey} from member ${member?.name || member?.username || memberId}`,
       {
@@ -278,7 +279,7 @@ export class TaskPermissionService {
         admin: session.username,
         username: session.username,
         email: session.email,
-      } as any
+      }
     )
 
     return {
@@ -321,7 +322,7 @@ export class TaskPermissionService {
 
     // Write audit log
     await logAudit(
-      'UPDATE_MEMBER_PERMISSIONS' as any,
+      'UPDATE_MEMBER_PERMISSIONS',
       'position_permissions',
       `Granted permission ${cleanKey} to position "${cleanPos}"`,
       {
@@ -331,7 +332,7 @@ export class TaskPermissionService {
         admin: session.username,
         username: session.username,
         email: session.email,
-      } as any
+      }
     )
 
     return {
@@ -364,7 +365,7 @@ export class TaskPermissionService {
 
     // Write audit log
     await logAudit(
-      'UPDATE_MEMBER_PERMISSIONS' as any,
+      'UPDATE_MEMBER_PERMISSIONS',
       'position_permissions',
       `Revoked permission ${cleanKey} from position "${cleanPos}"`,
       {
@@ -374,12 +375,213 @@ export class TaskPermissionService {
         admin: session.username,
         username: session.username,
         email: session.email,
-      } as any
+      }
     )
 
     return {
       success: true,
       message: `ปลดสิทธิ์สำหรับตำแหน่ง "${cleanPos}" เรียบร้อยแล้ว`,
+    }
+  }
+
+  /**
+   * Atomically update permissions for a single member
+   */
+  static async updateMemberPermissions({
+    memberId,
+    permissions,
+    performedBy,
+    userAgent,
+    ipAddress,
+  }: {
+    memberId: number
+    permissions: string[]
+    performedBy: string
+    userAgent?: string
+    ipAddress?: string
+  }): Promise<{ success: boolean; message: string }> {
+    const uniquePermissions = Array.from(
+      new Set(permissions.map((p) => p.trim()).filter(Boolean))
+    )
+
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // 1. Delete all existing permissions for this member
+      await tx.memberPermission.deleteMany({
+        where: { memberId },
+      })
+
+      // 2. Insert new permissions if any
+      if (uniquePermissions.length > 0) {
+        await tx.memberPermission.createMany({
+          data: uniquePermissions.map((permissionKey) => ({
+            memberId,
+            permissionKey,
+            createdBy: performedBy,
+          })),
+        })
+      }
+    })
+
+    // Write audit log
+    await logAudit(
+      'UPDATE_MEMBER_PERMISSIONS',
+      'members',
+      `Updated permissions for member ${memberId}`,
+      {
+        memberId,
+        permissions: uniquePermissions,
+        admin: performedBy,
+        username: performedBy,
+        email: '',
+      }
+    )
+
+    return {
+      success: true,
+      message: 'บันทึกสิทธิ์เรียบร้อยแล้ว',
+    }
+  }
+
+  /**
+   * Atomically update permissions for multiple members in a single transaction
+   */
+  static async batchUpdateMemberPermissions({
+    updates,
+    performedBy,
+    userAgent,
+    ipAddress,
+  }: {
+    updates: Array<{ memberId: number; permissions: string[] }>
+    performedBy: string
+    userAgent?: string
+    ipAddress?: string
+  }): Promise<{ success: boolean; message: string; updatedCount: number }> {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      for (const item of updates) {
+        const cleanPerms = Array.from(
+          new Set(item.permissions.map((p) => p.trim()).filter(Boolean))
+        )
+
+        // 1. Delete all existing permissions for this member
+        await tx.memberPermission.deleteMany({
+          where: { memberId: item.memberId },
+        })
+
+        // 2. Insert new cleaned permissions if any
+        if (cleanPerms.length > 0) {
+          await tx.memberPermission.createMany({
+            data: cleanPerms.map((permissionKey) => ({
+              memberId: item.memberId,
+              permissionKey,
+              createdBy: performedBy,
+            })),
+          })
+        }
+      }
+    })
+
+    // Write audit log
+    await logAudit(
+      'BATCH_UPDATE_MEMBER_PERMISSIONS',
+      'members',
+      JSON.stringify({
+        updatedCount: updates.length,
+        memberIds: updates.map((u) => u.memberId),
+      }),
+      { username: performedBy, email: '' }
+    )
+
+    return {
+      success: true,
+      message: 'บันทึกสิทธิ์แบบกลุ่มเรียบร้อยแล้ว',
+      updatedCount: updates.length,
+    }
+  }
+
+  /**
+   * List members with their individual permissions and optional filters
+   */
+  static async listMembersWithPermissions({
+    query,
+    department,
+    hasPermissionsOnly,
+  }: {
+    query?: string
+    department?: string
+    hasPermissionsOnly?: boolean
+  } = {}): Promise<{
+    members: Array<{
+      id: number
+      username: string
+      name: string
+      department: string
+      position: string
+      role: string
+      permissions: string[]
+    }>
+  }> {
+    const where: Prisma.MemberWhereInput = {}
+
+    if (query && query.trim()) {
+      const q = query.trim()
+      where.OR = [
+        { name: { contains: q } },
+        { username: { contains: q } },
+        { department: { contains: q } },
+      ]
+    }
+
+    if (department && department.trim()) {
+      where.department = department.trim()
+    }
+
+    if (hasPermissionsOnly) {
+      where.member_permissions = {
+        some: {},
+      }
+    }
+
+    const members = await prisma.member.findMany({
+      where,
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        department: true,
+        position: true,
+        role: true,
+        member_permissions: {
+          select: {
+            permissionKey: true,
+          },
+        },
+      },
+      orderBy: [
+        { department: 'asc' },
+        { name: 'asc' },
+      ],
+    })
+
+    const formattedMembers = members.map((m: {
+      id: number
+      username: string
+      name: string | null
+      department: string | null
+      position: string | null
+      role: string | null
+      member_permissions: Array<{ permissionKey: string }>
+    }) => ({
+      id: m.id,
+      username: m.username,
+      name: m.name ?? '',
+      department: m.department ?? '',
+      position: m.position ?? '',
+      role: m.role ?? 'member',
+      permissions: m.member_permissions.map((p: { permissionKey: string }) => p.permissionKey),
+    }))
+
+    return {
+      members: formattedMembers,
     }
   }
 }

@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/roles'
-import { prisma } from '@/lib/prisma'
-import { logAudit } from '@/lib/audit'
+import { TaskPermissionService } from '@/lib/permissions/taskPermissionService'
 import { logger } from '@/lib/logger'
-import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
 const batchSchema = z.object({
@@ -22,9 +20,8 @@ export async function POST(request: Request) {
   try {
     const auth = await requireRole(['admin'])
     if (auth.error) return auth.error
-    const session = auth.session
 
-    let body: any
+    let body: unknown
     try {
       body = await request.json()
     } catch {
@@ -46,50 +43,13 @@ export async function POST(request: Request) {
       )
     }
 
-    const { updates } = parseResult.data
-
-    // Execute atomic batch replacement in a single database transaction
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      for (const item of updates) {
-        const cleanPerms = Array.from(
-          new Set(item.permissions.map((p) => p.trim()).filter(Boolean))
-        )
-
-        // 1. Delete all existing permissions for this member
-        await tx.memberPermission.deleteMany({
-          where: { memberId: item.memberId },
-        })
-
-        // 2. Insert new cleaned permissions if any
-        if (cleanPerms.length > 0) {
-          await tx.memberPermission.createMany({
-            data: cleanPerms.map((permissionKey) => ({
-              memberId: item.memberId,
-              permissionKey,
-              createdBy: session.username,
-            })),
-          })
-        }
-      }
+    const result = await TaskPermissionService.batchUpdateMemberPermissions({
+      updates: parseResult.data.updates,
+      performedBy: auth.session.username,
     })
 
-    // Call audit logging
-    await logAudit(
-      'BATCH_UPDATE_MEMBER_PERMISSIONS' as any,
-      'members',
-      JSON.stringify({
-        updatedCount: updates.length,
-        memberIds: updates.map((u) => u.memberId),
-      }),
-      session
-    )
-
-    return NextResponse.json({
-      success: true,
-      message: 'บันทึกสิทธิ์แบบกลุ่มเรียบร้อยแล้ว',
-      updatedCount: updates.length,
-    })
-  } catch (error: any) {
+    return NextResponse.json(result)
+  } catch (error: unknown) {
     logger.error({ error }, 'Batch update member permissions error')
     return NextResponse.json(
       { success: false, error: 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์' },

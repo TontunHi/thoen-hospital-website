@@ -3,13 +3,27 @@ import { queryMemberDb } from './memberDb'
 
 import { logger } from './logger'
 
-export type AuditActionType = 'LOGIN' | 'LOGOUT' | 'CREATE' | 'READ' | 'UPDATE' | 'DELETE' | 'REQUEST' | 'SYSTEM'
+export type AuditActionType =
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'CREATE'
+  | 'READ'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'REQUEST'
+  | 'SYSTEM'
+  | 'UPDATE_PERMISSIONS'
+  | 'UPDATE_SETTINGS'
+  | 'UPDATE_MEMBER_PERMISSIONS'
+  | 'BATCH_UPDATE_MEMBER_PERMISSIONS'
+
+export type AuditAction = AuditActionType
 
 export async function logAudit(
   actionType: AuditActionType,
   targetTable: string,
   actionDetails: string,
-  sessionData?: { username: string; email: string } | null
+  sessionData?: { username?: string | null; email?: string | null; [key: string]: any } | null
 ) {
   try {
     // Avoid recursion if logAudit itself queries audit_logs
