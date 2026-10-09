@@ -11,6 +11,12 @@ const registrationSchema = z.object(
   { error: 'ข้อมูลคำขอไม่ถูกต้อง' }
 )
 
+/**
+ * Audit actor for submissions from /register: the submitter is not logged in
+ * and the form email is unverified, so neither identifies who acted.
+ */
+export const PUBLIC_REGISTRATION_ACTOR = { username: 'public-registration', email: null }
+
 export type NewRegistration = z.infer<typeof registrationSchema>
 
 export type SubmitResult =
@@ -49,8 +55,7 @@ export function createRegistrationService(deps: RegistrationDeps) {
         'CREATE',
         'member_registrations',
         `ส่งคำขอสมัครสมาชิก #${id} (เลขบัตรประชาชน ${maskedCitizenId})`,
-        // The submitter is not logged in and the email is unverified, so it is not the actor.
-        { username: 'public-registration', email: null }
+        PUBLIC_REGISTRATION_ACTOR
       )
       return { ok: true, id }
     },
