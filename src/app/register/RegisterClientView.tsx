@@ -187,21 +187,19 @@ export default function RegisterClientView() {
     const errs: Record<string, string> = {}
 
     if (currentStep === 1) {
-      if (!form.citizenId.trim()) {
+      const rawCitizen = form.citizenId.trim()
+      if (!rawCitizen) {
         errs.citizenId = 'กรุณากรอกเลขบัตรประชาชน 13 หลัก'
-      } else if (!/^\d{13}$/.test(form.citizenId.trim())) {
-        errs.citizenId = 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก'
+      } else if (!/^\d{13}$/.test(rawCitizen)) {
+        errs.citizenId = `เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก (ปัจจุบันมี ${rawCitizen.length} หลัก)`
       }
 
       if (form.title === 'อื่นๆ' && !form.customTitle.trim()) {
-        errs.customTitle = 'กรุณาระบุคำนำหน้า'
+        errs.customTitle = 'กรุณาระบุคำนำหน้าชื่อ'
       }
 
       if (!form.firstNameTh.trim()) errs.firstNameTh = 'กรุณากรอกชื่อภาษาไทย'
       if (!form.lastNameTh.trim()) errs.lastNameTh = 'กรุณากรอกนามสกุลภาษาไทย'
-      if (!form.firstNameEn.trim()) errs.firstNameEn = 'กรุณากรอกชื่อภาษาอังกฤษ'
-      if (!form.lastNameEn.trim()) errs.lastNameEn = 'กรุณากรอกนามสกุลภาษาอังกฤษ'
-      if (!form.nickname.trim()) errs.nickname = 'กรุณากรอกชื่อเล่น'
       if (!form.birthDay || !form.birthMonth || !form.birthYear) {
         errs.birthDate = 'กรุณาระบุวันเดือนปีเกิดให้ครบถ้วน'
       }
@@ -256,13 +254,23 @@ export default function RegisterClientView() {
   }
 
   const handleNext = () => {
-    if (validateCurrentStep(step)) {
+    const isValid = validateCurrentStep(step)
+    if (isValid) {
       setStep((prev) => Math.min(prev + 1, 5))
       window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      setTimeout(() => {
+        const firstErrorField = document.querySelector('.inputError')
+        if (firstErrorField) {
+          firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          ;(firstErrorField as HTMLElement).focus()
+        }
+      }, 50)
     }
   }
 
   const handlePrev = () => {
+    setErrors({})
     setStep((prev) => Math.max(prev - 1, 1))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -292,9 +300,9 @@ export default function RegisterClientView() {
       title: effectiveTitle,
       firstNameTh: form.firstNameTh.trim(),
       lastNameTh: form.lastNameTh.trim(),
-      firstNameEn: form.firstNameEn.trim(),
-      lastNameEn: form.lastNameEn.trim(),
-      nickname: form.nickname.trim(),
+      firstNameEn: form.firstNameEn.trim() || null,
+      lastNameEn: form.lastNameEn.trim() || null,
+      nickname: form.nickname.trim() || null,
       licenseNo: form.licenseNo.trim() || null,
       birthDate: birthDateStr,
       startDate: startDateStr,
@@ -408,6 +416,8 @@ export default function RegisterClientView() {
     { num: 5, title: 'ตรวจทาน & ยินยอม', icon: FileCheck },
   ]
 
+  const errorList = Object.values(errors)
+
   return (
     <main className="registerPage">
       <div className="registerContainer">
@@ -435,7 +445,10 @@ export default function RegisterClientView() {
                 type="button"
                 className={`stepTabBtn ${isCurrent ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
                 onClick={() => {
-                  if (s.num < step) setStep(s.num)
+                  if (s.num < step) {
+                    setErrors({})
+                    setStep(s.num)
+                  }
                 }}
                 disabled={s.num > step}
               >
@@ -561,49 +574,46 @@ export default function RegisterClientView() {
               <div className="grid2Col">
                 <div className="fieldGroup">
                   <label className="inputLabel" htmlFor="firstNameEn">
-                    First Name (English) <span className="requiredStar">*</span>
+                    First Name (English) <span className="optionalTag">(ถ้ามี)</span>
                   </label>
                   <input
                     id="firstNameEn"
                     type="text"
-                    className={`textInput ${errors.firstNameEn ? 'inputError' : ''}`}
+                    className="textInput"
                     placeholder="Somchai"
                     value={form.firstNameEn}
                     onChange={(e) => updateField('firstNameEn', e.target.value)}
                   />
-                  {errors.firstNameEn && <p className="fieldError">{errors.firstNameEn}</p>}
                 </div>
 
                 <div className="fieldGroup">
                   <label className="inputLabel" htmlFor="lastNameEn">
-                    Last Name (English) <span className="requiredStar">*</span>
+                    Last Name (English) <span className="optionalTag">(ถ้ามี)</span>
                   </label>
                   <input
                     id="lastNameEn"
                     type="text"
-                    className={`textInput ${errors.lastNameEn ? 'inputError' : ''}`}
+                    className="textInput"
                     placeholder="Jaidee"
                     value={form.lastNameEn}
                     onChange={(e) => updateField('lastNameEn', e.target.value)}
                   />
-                  {errors.lastNameEn && <p className="fieldError">{errors.lastNameEn}</p>}
                 </div>
               </div>
 
               <div className="grid2Col">
                 <div className="fieldGroup">
                   <label className="inputLabel" htmlFor="nickname">
-                    ชื่อเล่น <span className="requiredStar">*</span>
+                    ชื่อเล่น <span className="optionalTag">(ถ้ามี)</span>
                   </label>
                   <input
                     id="nickname"
                     type="text"
-                    className={`textInput ${errors.nickname ? 'inputError' : ''}`}
+                    className="textInput"
                     placeholder="ชาย"
                     value={form.nickname}
                     onChange={(e) => updateField('nickname', e.target.value)}
                   />
-                  {errors.nickname && <p className="fieldError">{errors.nickname}</p>}
                 </div>
 
                 <div className="fieldGroup">
@@ -1190,12 +1200,12 @@ export default function RegisterClientView() {
                   <div>
                     <span className="reviewLabel">ชื่อ-นามสกุล (อังกฤษ):</span>
                     <span className="reviewValue">
-                      {form.firstNameEn} {form.lastNameEn}
+                      {form.firstNameEn || form.lastNameEn ? `${form.firstNameEn} ${form.lastNameEn}`.trim() : '-'}
                     </span>
                   </div>
                   <div>
                     <span className="reviewLabel">ชื่อเล่น:</span>
-                    <span className="reviewValue">{form.nickname}</span>
+                    <span className="reviewValue">{form.nickname || '-'}</span>
                   </div>
                   <div>
                     <span className="reviewLabel">วันเกิด (พ.ศ.):</span>
@@ -1344,11 +1354,26 @@ export default function RegisterClientView() {
               </div>
 
               {submitError && (
-                <div className="errorBanner">
+                <div className="errorBanner mt-4">
                   <AlertCircle size={20} className="text-rose-600 flex-shrink-0" />
                   <span>{submitError}</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Validation Alert Banner above Bottom Bar if there are errors */}
+          {errorList.length > 0 && (
+            <div className="errorBanner mb-4 animateFadeIn">
+              <AlertCircle size={20} className="text-rose-600 flex-shrink-0" />
+              <div className="text-xs sm:text-sm">
+                <p className="font-semibold text-rose-700">กรุณาตรวจสอบข้อมูลที่จำเป็น:</p>
+                <ul className="list-disc list-inside mt-1 text-rose-600">
+                  {errorList.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           )}
 
