@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { handleRegisterRequest, secondsUntil } from '../registerHttp'
+import { handleRegisterRequest } from '../registerHttp'
 
 describe('handleRegisterRequest', () => {
   it('answers 201 when the registration is saved', async () => {
@@ -40,12 +40,3 @@ describe('handleRegisterRequest', () => {
   })
 })
 
-describe('secondsUntil', () => {
-  it('rounds the remaining time up to whole seconds', () => {
-    expect(secondsUntil(10_500, 9_000)).toBe(2)
-  })
-
-  it('never returns a negative wait once the window has passed', () => {
-    expect(secondsUntil(5_000, 9_000)).toBe(0)
-  })
-})

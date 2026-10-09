@@ -35,8 +35,3 @@ export async function handleRegisterRequest(
     return { status: 500, body: { error: 'เกิดข้อผิดพลาดในการส่งคำขอ กรุณาลองใหม่' } }
   }
 }
-
-/** Whole seconds until `resetTime`, rounded up and never negative. */
-export function secondsUntil(resetTime: number, now: number): number {
-  return Math.max(0, Math.ceil((resetTime - now) / 1000))
-}

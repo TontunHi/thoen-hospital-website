@@ -1,9 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import { checkRateLimit } from '@/lib/rateLimit'
+import { checkRateLimit, secondsUntil } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
 import { logAudit } from '@/lib/audit'
 import { createRegistrationService } from './RegistrationService'
-import { secondsUntil } from './registerHttp'
 
 /** Production wiring for RegistrationService: Prisma, per-IP rate limit, Pino logger, audit trail. */
 export const registrationService = createRegistrationService({
@@ -17,5 +16,5 @@ export const registrationService = createRegistrationService({
     }
   },
   log: (message, context) => logger.info(context, message),
-  audit: (actionType, targetTable, details, actor) => logAudit(actionType, targetTable, details, actor),
+  audit: logAudit,
 })
