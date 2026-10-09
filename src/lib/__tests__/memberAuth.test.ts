@@ -146,7 +146,7 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
           profile_path: 'storage/nurse_som/profile.png',
         },
       ]) // members query
-      .mockResolvedValueOnce([{ permission_key: 'manage_ethics' }]) // position permissions
+      .mockResolvedValueOnce([{ permission_key: 'manage_ethics' }]) // member permissions
       .mockResolvedValueOnce([
         { config_key: 'feature_signature', config_value: '1' },
         { config_key: 'feature_salary', config_value: '0' },
@@ -155,6 +155,11 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
 
     const member = await fetchAuthenticatedMember('nurse_som', 'som@hospital.go.th')
     expect(member).not.toBeNull()
+    expect(querySpy).toHaveBeenNthCalledWith(
+      2,
+      'SELECT permission_key FROM member_permissions WHERE member_id = ?',
+      [101]
+    )
     expect(member?.username).toBe('nurse_som')
     expect(member?.name).toBe('สมศรี มีสุข')
     expect(member?.hasSignature).toBe(true)
@@ -197,6 +202,11 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
 
     const member = await fetchAuthenticatedMember('admin_it', 'admin@hospital.go.th')
     expect(member).not.toBeNull()
+    expect(querySpy).toHaveBeenNthCalledWith(
+      2,
+      'SELECT permission_key FROM member_permissions WHERE member_id = ?',
+      [1]
+    )
     expect(member?.isAdmin).toBe(true)
     expect(member?.can('manage_ethics')).toBe(true)
     expect(member?.can('manage_news')).toBe(true)
@@ -233,6 +243,11 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
 
     const member = await fetchAuthenticatedMember('doctor_a', 'doctor_a@thoen.go.th')
     expect(member).not.toBeNull()
+    expect(querySpy).toHaveBeenNthCalledWith(
+      2,
+      'SELECT permission_key FROM member_permissions WHERE member_id = ?',
+      [303]
+    )
 
     const dto = toClientMember(member!)
     expect(dto.id).toBe(303)

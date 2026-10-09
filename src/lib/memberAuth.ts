@@ -286,9 +286,7 @@ export async function fetchAuthenticatedMember(username: string, email: string):
 
     // 2. Fetch parallel context data: permissions, system settings, telegram linking
     const [permsRes, settingsRows, telegramRows] = await Promise.all([
-      userPosition
-        ? queryMemberDb('SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)', [userPosition])
-        : Promise.resolve([]),
+      queryMemberDb('SELECT permission_key FROM member_permissions WHERE member_id = ?', [user.id]),
       queryMemberDb('SELECT config_key, config_value FROM member_system_settings'),
       queryMemberDb('SELECT id FROM member_telegram_links WHERE member_id = ? LIMIT 1', [user.id])
     ])
