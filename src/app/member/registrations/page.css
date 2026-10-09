@@ -612,31 +612,81 @@
 }
 
 .modalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid #e2e8f0;
   background: #ffffff;
   flex-shrink: 0;
+  gap: 1rem;
+}
+
+.modalHeaderLeft {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.875rem !important;
+  flex: 1;
+  min-width: 0;
 }
 
 .modalHeaderIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 42px;
+  height: 42px;
   border-radius: 0.75rem;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
   flex-shrink: 0;
 }
 
+.modalHeaderIconReject {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 42px;
+  height: 42px;
+  border-radius: 0.75rem;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  flex-shrink: 0;
+}
+
+.modalHeaderTitleBox {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 0.25rem !important;
+  min-width: 0;
+}
+
+.modalHeaderTitleRow {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  flex-wrap: wrap !important;
+}
+
 .modalTitle {
   font-size: 1.125rem;
   font-weight: 700;
   color: #0f172a;
+  margin: 0;
+  line-height: 1.25;
+  display: inline-flex;
+  align-items: center;
+}
+
+.modalSubtitle {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .modalCloseBtn {
