@@ -95,33 +95,31 @@ export function resolveTaskPermissions(
     ? member.permissions
     : new Set(Array.isArray(member.permissions) ? member.permissions : [])
 
+  const isAdmin = userRole === 'admin' || Boolean(member.isAdmin)
+
   const hasPerm = (key: string): boolean => {
-    if (userRole === 'admin' || Boolean(member.isAdmin)) return true
+    if (isAdmin) return true
     return permSet.has(key)
   }
 
-  const isAdmin = userRole === 'admin' || Boolean(member.isAdmin) || hasPerm('view_all_work') || hasPerm('manage_inbox')
-
-  // Specialized position heuristics
-  const isITStaff = userPos.includes('คอมพิวเตอร์') || userPos.includes('ดิจิทัล')
-  const isTechStaff = userPos.includes('ช่าง')
-  const isPrStaff = userPos.includes('นักประชาสัมพันธ์') || userPos.includes('ประชาสัมพันธ์')
+  // Role heuristics derived strictly from permissions and admin status
+  const isITStaff = Boolean(hasPerm('take_repairs_it') || hasPerm('manage_repairs') || isAdmin)
+  const isTechStaff = Boolean(hasPerm('take_repairs_general') || hasPerm('take_repairs_medical') || hasPerm('manage_repairs') || isAdmin)
+  const isPrStaff = Boolean(hasPerm('produce_media') || hasPerm('manage_media_requests') || isAdmin)
 
   const isRequester = Boolean(userId && task.requester_id === userId)
   const isDirectAssignee = Boolean(userId && task.current_assignee === userId)
 
   const isRoleMatch = Boolean(
     task.current_role &&
-    (task.current_role === userPos ||
-     task.current_role === userRole ||
-     (task.current_role === 'ผู้อำนวยการโรงพยาบาลเถิน' && userPos.includes('ผู้อำนวยการ')) ||
-     (task.current_role === 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์' && (userPos.includes('ดิจิทัลทางการแพทย์') || userPos.includes('หัวหน้ากลุ่มงานดิจิทัล'))) ||
-     (task.current_role === 'หัวหน้าเจ้าหน้าที่พัสดุ' && (userPos.includes('หัวหน้าเจ้าหน้าที่พัสดุ') || userPos.includes('หัวหน้าพัสดุ'))) ||
-     (task.current_role === 'เจ้าหน้าที่พัสดุ' && userPos.includes('พัสดุ')) ||
-     (task.current_role === 'นักประชาสัมพันธ์' && (userPos.includes('ประชาสัมพันธ์') || userPos.includes('นักประชาสัมพันธ์'))))
+    (task.current_role === userPos || task.current_role === userRole)
   )
 
-  const isCurrentAssignee = isDirectAssignee || isRoleMatch || hasPerm('manage_inbox')
+  const isCurrentAssignee = Boolean(
+    isDirectAssignee ||
+    isRoleMatch ||
+    hasPerm('manage_inbox')
+  )
 
   // Repair relations
   const repairDetail = options?.repairDetail
@@ -136,12 +134,14 @@ export function resolveTaskPermissions(
   const isMediaTask = task.task_type === 'MEDIA_REQUEST'
 
   // Viewability rules
-  const canViewSpecificType =
-    (task.task_type === 'IT_REPAIR' && (hasPerm('view_it_repairs') || hasPerm('manage_repairs') || isITStaff)) ||
-    (task.task_type === 'GENERAL_REPAIR' && (hasPerm('view_general_repairs') || hasPerm('manage_repairs') || isTechStaff)) ||
-    (task.task_type === 'MEDICAL_REPAIR' && (hasPerm('view_medical_repairs') || hasPerm('manage_repairs') || isTechStaff)) ||
-    (task.task_type === 'MEDIA_REQUEST' && (hasPerm('view_media_requests') || hasPerm('manage_media_requests') || isPrStaff || isITStaff)) ||
-    (hasPerm('view_department_tasks') && Boolean(userDept && task.requester_dept === userDept))
+  const canViewSpecificType = Boolean(
+    (task.task_type === 'IT_REPAIR' && (hasPerm('view_it_repairs') || hasPerm('take_repairs_it') || hasPerm('manage_repairs'))) ||
+    (task.task_type === 'GENERAL_REPAIR' && (hasPerm('view_general_repairs') || hasPerm('take_repairs_general') || hasPerm('manage_repairs'))) ||
+    (task.task_type === 'MEDICAL_REPAIR' && (hasPerm('view_medical_repairs') || hasPerm('take_repairs_medical') || hasPerm('manage_repairs'))) ||
+    (task.task_type === 'MEDIA_REQUEST' && (hasPerm('view_media_requests') || hasPerm('produce_media') || hasPerm('manage_media_requests'))) ||
+    (hasPerm('view_department_tasks') && Boolean(userDept && task.requester_dept === userDept)) ||
+    hasPerm('view_all_work')
+  )
 
   const canView = Boolean(
     isAdmin ||
@@ -150,7 +150,9 @@ export function resolveTaskPermissions(
     isStepSigner ||
     isTechnicianAssigned ||
     isCoWorker ||
-    canViewSpecificType
+    canViewSpecificType ||
+    (isRepairTask && hasPerm('approve_repairs')) ||
+    (isMediaTask && hasPerm('approve_media'))
   )
 
   // Editability rules
@@ -160,48 +162,68 @@ export function resolveTaskPermissions(
     hasPerm('view_all_work') ||
     (isRepairTask && (
       hasPerm('manage_repairs') ||
-      (task.task_type === 'IT_REPAIR' && isITStaff) ||
-      (task.task_type === 'GENERAL_REPAIR' && isTechStaff) ||
-      hasPerm('view_it_repairs') ||
-      hasPerm('view_general_repairs') ||
-      hasPerm('view_medical_repairs') ||
+      (task.task_type === 'IT_REPAIR' && hasPerm('take_repairs_it')) ||
+      (task.task_type === 'GENERAL_REPAIR' && hasPerm('take_repairs_general')) ||
+      (task.task_type === 'MEDICAL_REPAIR' && hasPerm('take_repairs_medical')) ||
       isTechnicianAssigned ||
       isCoWorker
     )) ||
     (isMediaTask && (
       hasPerm('manage_media_requests') ||
-      hasPerm('view_media_requests') ||
-      isPrStaff ||
-      isITStaff
+      hasPerm('produce_media')
     )) ||
     (isRequester && ['PENDING', 'SENT_BACK', 'IN_PROGRESS', 'ON_HOLD'].includes(task.status)) ||
-    isCurrentAssignee
+    (isCurrentAssignee && !hasPerm('approve_repairs') && !hasPerm('approve_media'))
   )
 
+  // Approval rules
   const canApprove = Boolean(
-    isCurrentAssignee && (task.status === 'PENDING' || task.status === 'IN_PROGRESS')
+    (task.status === 'PENDING' || task.status === 'IN_PROGRESS') &&
+    (
+      isCurrentAssignee ||
+      (isRepairTask && hasPerm('approve_repairs')) ||
+      (isMediaTask && hasPerm('approve_media'))
+    )
   )
 
   const canHold = Boolean(
     (task.status === 'PENDING' || task.status === 'IN_PROGRESS') &&
-    (isAdmin || isCurrentAssignee || (isMediaTask && isPrStaff) || hasPerm('manage_inbox'))
+    (
+      isAdmin ||
+      isCurrentAssignee ||
+      hasPerm('manage_inbox') ||
+      (isRepairTask && hasPerm('manage_repairs')) ||
+      (isMediaTask && (hasPerm('manage_media_requests') || isPrStaff))
+    )
   )
 
   const canResume = Boolean(
     task.status === 'ON_HOLD' &&
-    (isAdmin || isCurrentAssignee || (isMediaTask && isPrStaff) || hasPerm('manage_inbox'))
+    (
+      isAdmin ||
+      isCurrentAssignee ||
+      hasPerm('manage_inbox') ||
+      (isRepairTask && hasPerm('manage_repairs')) ||
+      (isMediaTask && (hasPerm('manage_media_requests') || isPrStaff))
+    )
   )
 
+  // Job acceptance rules
   const canTakeJob = Boolean(
-    isRepairTask && (
+    (isRepairTask && (
       isAdmin ||
       hasPerm('manage_repairs') ||
-      (task.task_type === 'IT_REPAIR' && isITStaff) ||
-      (task.task_type === 'GENERAL_REPAIR' && isTechStaff) ||
-      (task.task_type === 'MEDICAL_REPAIR' && isTechStaff) ||
+      (task.task_type === 'IT_REPAIR' && hasPerm('take_repairs_it')) ||
+      (task.task_type === 'GENERAL_REPAIR' && hasPerm('take_repairs_general')) ||
+      (task.task_type === 'MEDICAL_REPAIR' && hasPerm('take_repairs_medical')) ||
       isTechnicianAssigned ||
       isCoWorker
-    )
+    )) ||
+    (isMediaTask && (
+      isAdmin ||
+      hasPerm('manage_media_requests') ||
+      hasPerm('produce_media')
+    ))
   )
 
   const canCancel = Boolean(

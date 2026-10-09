@@ -9,21 +9,36 @@ describe('resolveTaskPermissions Domain Module', () => {
     requester_id: 10,
     requester_dept: 'กลุ่มงานการพยาบาล',
     current_assignee: null,
-    current_role: 'นักวิชาการคอมพิวเตอร์',
+    current_role: null,
     status: 'PENDING',
   }
 
-  it('returns all false when member or task is null', () => {
+  const mediaTask: TaskLike = {
+    id: 'task-media-1',
+    task_no: 'PR-2570-10-0001',
+    task_type: 'MEDIA_REQUEST',
+    requester_id: 10,
+    requester_dept: 'กลุ่มงานการพยาบาล',
+    current_assignee: null,
+    current_role: null,
+    status: 'PENDING',
+  }
+
+  it('returns all false when member or task is null or undefined', () => {
     const res1 = resolveTaskPermissions(null, baseTask)
     expect(res1.canView).toBe(false)
     expect(res1.canEdit).toBe(false)
+    expect(res1.canApprove).toBe(false)
+    expect(res1.canTakeJob).toBe(false)
 
     const res2 = resolveTaskPermissions({ id: 1 }, null)
     expect(res2.canView).toBe(false)
     expect(res2.canEdit).toBe(false)
+    expect(res2.canApprove).toBe(false)
+    expect(res2.canTakeJob).toBe(false)
   })
 
-  it('grants full view and edit to admin role', () => {
+  it('grants full view, edit, approve, and takeJob to admin role', () => {
     const adminMember: MemberLike = {
       id: 1,
       username: 'admin',
@@ -33,11 +48,15 @@ describe('resolveTaskPermissions Domain Module', () => {
 
     const res = resolveTaskPermissions(adminMember, baseTask)
     expect(res.isAdmin).toBe(true)
+    expect(res.isITStaff).toBe(true)
+    expect(res.isTechStaff).toBe(true)
+    expect(res.isPrStaff).toBe(true)
     expect(res.canView).toBe(true)
     expect(res.canEdit).toBe(true)
     expect(res.canApprove).toBe(true)
     expect(res.canCancel).toBe(true)
     expect(res.canTakeJob).toBe(true)
+    expect(res.canHold).toBe(true)
   })
 
   it('grants view and edit to requester while task is pending', () => {
@@ -47,6 +66,7 @@ describe('resolveTaskPermissions Domain Module', () => {
       role: 'member',
       position: 'พยาบาลวิชาชีพชำนาญการ',
       department: 'กลุ่มงานการพยาบาล',
+      permissions: [],
     }
 
     const res = resolveTaskPermissions(requester, baseTask)
@@ -55,15 +75,84 @@ describe('resolveTaskPermissions Domain Module', () => {
     expect(res.canEdit).toBe(true)
     expect(res.canCancel).toBe(true)
     expect(res.canTakeJob).toBe(false)
+    expect(res.canApprove).toBe(false)
   })
 
-  it('grants IT staff access to IT repair tasks', () => {
+  it('disallows requester from editing or cancelling when task is COMPLETED', () => {
+    const requester: MemberLike = {
+      id: 10,
+      username: 'nurse_somying',
+      role: 'member',
+      permissions: [],
+    }
+    const completedTask: TaskLike = {
+      ...baseTask,
+      status: 'COMPLETED',
+    }
+
+    const res = resolveTaskPermissions(requester, completedTask)
+    expect(res.isRequester).toBe(true)
+    expect(res.canView).toBe(true)
+    expect(res.canEdit).toBe(false)
+    expect(res.canCancel).toBe(false)
+    expect(res.canApprove).toBe(false)
+  })
+
+  it('CRITICAL: grants canApprove: true and canEdit: false for approve_repairs permission', () => {
+    const approver: MemberLike = {
+      id: 25,
+      username: 'director_somchai',
+      role: 'member',
+      position: 'ผู้อำนวยการโรงพยาบาลเถิน',
+      permissions: ['approve_repairs'],
+    }
+
+    const res = resolveTaskPermissions(approver, baseTask)
+    expect(res.canApprove).toBe(true)
+    expect(res.canEdit).toBe(false)
+    expect(res.canView).toBe(true)
+    expect(res.canTakeJob).toBe(false)
+  })
+
+  it('CRITICAL: keeps canEdit: false even if approve_repairs user is current assignee on task', () => {
+    const approver: MemberLike = {
+      id: 25,
+      username: 'director_somchai',
+      role: 'member',
+      permissions: ['approve_repairs'],
+    }
+    const assignedTask: TaskLike = {
+      ...baseTask,
+      current_assignee: 25,
+    }
+
+    const res = resolveTaskPermissions(approver, assignedTask)
+    expect(res.isCurrentAssignee).toBe(true)
+    expect(res.canApprove).toBe(true)
+    expect(res.canEdit).toBe(false)
+  })
+
+  it('CRITICAL: grants canApprove: true and canEdit: false for approve_media on media requests', () => {
+    const mediaApprover: MemberLike = {
+      id: 26,
+      username: 'head_pr_approver',
+      role: 'member',
+      permissions: ['approve_media'],
+    }
+
+    const res = resolveTaskPermissions(mediaApprover, mediaTask)
+    expect(res.canApprove).toBe(true)
+    expect(res.canEdit).toBe(false)
+    expect(res.canView).toBe(true)
+    expect(res.canTakeJob).toBe(false)
+  })
+
+  it('grants take_repairs_it: canTakeJob: true, canEdit: true, isITStaff: true', () => {
     const itStaff: MemberLike = {
       id: 20,
       username: 'it_staff',
       role: 'member',
-      position: 'นักวิชาการคอมพิวเตอร์ปฏิบัติการ',
-      department: 'กลุ่มงานดิจิทัลทางการแพทย์',
+      permissions: ['take_repairs_it'],
     }
 
     const res = resolveTaskPermissions(itStaff, baseTask)
@@ -71,34 +160,64 @@ describe('resolveTaskPermissions Domain Module', () => {
     expect(res.canView).toBe(true)
     expect(res.canEdit).toBe(true)
     expect(res.canTakeJob).toBe(true)
+    expect(res.canApprove).toBe(false)
   })
 
-  it('grants PR staff access to media request tasks', () => {
-    const prTask: TaskLike = {
-      id: 'task-media-1',
-      task_no: 'PR-2570-10-0001',
-      task_type: 'MEDIA_REQUEST',
-      requester_id: 10,
-      requester_dept: 'กลุ่มงานการพยาบาล',
-      current_assignee: null,
-      current_role: 'นักประชาสัมพันธ์',
-      status: 'PENDING',
+  it('grants manage_repairs: canEdit: true, canTakeJob: true, canHold: true, isITStaff: true, isTechStaff: true', () => {
+    const manager: MemberLike = {
+      id: 22,
+      username: 'repair_manager',
+      role: 'member',
+      permissions: ['manage_repairs'],
     }
 
-    const prStaff: MemberLike = {
+    const res = resolveTaskPermissions(manager, baseTask)
+    expect(res.canEdit).toBe(true)
+    expect(res.canTakeJob).toBe(true)
+    expect(res.canHold).toBe(true)
+    expect(res.canView).toBe(true)
+    expect(res.isITStaff).toBe(true)
+    expect(res.isTechStaff).toBe(true)
+    expect(res.canApprove).toBe(false)
+
+    // Check ON_HOLD status for canResume
+    const holdTask: TaskLike = { ...baseTask, status: 'ON_HOLD' }
+    const resHold = resolveTaskPermissions(manager, holdTask)
+    expect(resHold.canHold).toBe(false)
+    expect(resHold.canResume).toBe(true)
+  })
+
+  it('grants produce_media: canTakeJob: true, canEdit: true, isPrStaff: true on media tasks', () => {
+    const prProducer: MemberLike = {
       id: 30,
       username: 'pr_officer',
       role: 'member',
-      position: 'นักประชาสัมพันธ์',
-      department: 'กลุ่มงานบริหารทั่วไป',
+      permissions: ['produce_media'],
     }
 
-    const res = resolveTaskPermissions(prStaff, prTask)
+    const res = resolveTaskPermissions(prProducer, mediaTask)
     expect(res.isPrStaff).toBe(true)
     expect(res.canView).toBe(true)
     expect(res.canEdit).toBe(true)
-    expect(res.isCurrentAssignee).toBe(true)
-    expect(res.canApprove).toBe(true)
+    expect(res.canTakeJob).toBe(true)
+    expect(res.canApprove).toBe(false)
+  })
+
+  it('grants manage_media_requests: canEdit: true, canTakeJob: true, canHold: true, isPrStaff: true', () => {
+    const prHead: MemberLike = {
+      id: 31,
+      username: 'pr_head',
+      role: 'member',
+      permissions: ['manage_media_requests'],
+    }
+
+    const res = resolveTaskPermissions(prHead, mediaTask)
+    expect(res.isPrStaff).toBe(true)
+    expect(res.canView).toBe(true)
+    expect(res.canEdit).toBe(true)
+    expect(res.canTakeJob).toBe(true)
+    expect(res.canHold).toBe(true)
+    expect(res.canApprove).toBe(false)
   })
 
   it('allows assigned technician or co-worker to edit and take job', () => {
@@ -106,14 +225,14 @@ describe('resolveTaskPermissions Domain Module', () => {
       id: 40,
       username: 'tech_somchai',
       role: 'member',
-      position: 'นายช่างเทคนิค',
+      permissions: [],
     }
 
     const coWorker: MemberLike = {
       id: 41,
       username: 'tech_assistant',
       role: 'member',
-      position: 'ผู้ช่วยช่าง',
+      permissions: [],
     }
 
     const repairDetail = {
@@ -155,7 +274,6 @@ describe('resolveTaskPermissions Domain Module', () => {
       id: 55,
       username: 'nurse_somsee',
       role: 'member',
-      position: 'พยาบาลวิชาชีพ',
       department: 'กลุ่มงานการพยาบาล',
       permissions: ['view_department_tasks'],
     }
@@ -163,5 +281,41 @@ describe('resolveTaskPermissions Domain Module', () => {
     const res = resolveTaskPermissions(deptMember, baseTask)
     expect(res.canView).toBe(true)
     expect(res.canEdit).toBe(false)
+  })
+
+  it('handles general and medical repair task types with specific permissions', () => {
+    const genTask: TaskLike = { ...baseTask, task_type: 'GENERAL_REPAIR' }
+    const medTask: TaskLike = { ...baseTask, task_type: 'MEDICAL_REPAIR' }
+
+    const genTech: MemberLike = {
+      id: 60,
+      username: 'gen_tech',
+      role: 'member',
+      permissions: ['take_repairs_general'],
+    }
+
+    const medTech: MemberLike = {
+      id: 61,
+      username: 'med_tech',
+      role: 'member',
+      permissions: ['take_repairs_medical'],
+    }
+
+    const resGen = resolveTaskPermissions(genTech, genTask)
+    expect(resGen.isTechStaff).toBe(true)
+    expect(resGen.canTakeJob).toBe(true)
+    expect(resGen.canEdit).toBe(true)
+    expect(resGen.canView).toBe(true)
+
+    const resMed = resolveTaskPermissions(medTech, medTask)
+    expect(resMed.isTechStaff).toBe(true)
+    expect(resMed.canTakeJob).toBe(true)
+    expect(resMed.canEdit).toBe(true)
+    expect(resMed.canView).toBe(true)
+
+    // Cross-type check: genTech cannot take medical repairs
+    const resGenOnMed = resolveTaskPermissions(genTech, medTask)
+    expect(resGenOnMed.canTakeJob).toBe(false)
+    expect(resGenOnMed.canEdit).toBe(false)
   })
 })
