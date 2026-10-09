@@ -54,3 +54,17 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
   2. `inbox_task_audit_logs`: Ticket state machines, HMAC-SHA256 signature stamps, manager field diffs.
 - **Auth & RBAC:** Enforce server-side session and role check on all protected pages & APIs.
 - **Date Display:** Thai Buddhist Calendar (พ.ศ.) for UI shown to staff/patients. Timezone `Asia/Bangkok`.
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown: issue และ spec เก็บเป็นไฟล์ใน `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+ใช้ label ทั้งเจ็ดตามค่าเริ่มต้น. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: glossary คือ `CONTEXT.md` ที่ราก และ ADR อยู่ใน `docs/adr/`. See `docs/agents/domain.md`.
