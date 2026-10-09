@@ -436,3 +436,20 @@ model HospitalAsset {
   @@map("hospital_assets")
 }
 
+
+/// คำขอสมัคร (Registration): ข้อมูลที่บุคลากรส่งผ่าน /register รอ admin อนุมัติ
+/// แยกจาก members เพราะ members คือบัญชีที่ล็อกอินได้แล้ว
+model MemberRegistration {
+  id          Int      @id @default(autoincrement())
+  citizenId   String   @map("citizen_id") @db.VarChar(13)
+  firstNameTh String   @map("first_name_th") @db.VarChar(100)
+  lastNameTh  String   @map("last_name_th") @db.VarChar(100)
+  email       String   @db.VarChar(100)
+  status      String   @default("pending") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([citizenId], map: "idx_registration_citizen")
+  @@index([status], map: "idx_registration_status")
+  @@map("member_registrations")
+}
