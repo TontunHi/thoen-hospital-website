@@ -82,4 +82,27 @@ describe('RegistrationService.submit', () => {
     expect(result).toMatchObject({ ok: false, reason: 'invalid' })
     expect(deps.createRegistration).not.toHaveBeenCalled()
   })
+
+  it('rejects an email longer than 100 characters without saving', async () => {
+    const deps = makeDeps()
+    const result = await createRegistrationService(deps).submit({ ...validInput, email: `${'a'.repeat(95)}@x.com` })
+
+    expect(result).toMatchObject({ ok: false, reason: 'invalid' })
+    expect(deps.createRegistration).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['citizenId', 'กรุณากรอกเลขบัตรประชาชน'],
+    ['firstNameTh', 'กรุณากรอกชื่อภาษาไทย'],
+    ['lastNameTh', 'กรุณากรอกนามสกุลภาษาไทย'],
+    ['email', 'กรุณากรอกอีเมล'],
+  ])('rejects a request missing %s with a Thai message naming it', async (field, message) => {
+    const deps = makeDeps()
+    const input: Record<string, string> = { ...validInput }
+    delete input[field]
+    const result = await createRegistrationService(deps).submit(input)
+
+    expect(result).toEqual({ ok: false, reason: 'invalid', message })
+    expect(deps.createRegistration).not.toHaveBeenCalled()
+  })
 })
