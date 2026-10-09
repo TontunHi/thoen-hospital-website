@@ -6,6 +6,7 @@ function makeDeps(overrides: Partial<RegistrationDeps> = {}) {
     createRegistration: vi.fn().mockResolvedValue({ id: 42 }),
     checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, retryAfterSeconds: 0 }),
     log: vi.fn(),
+    audit: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
   return deps
@@ -112,5 +113,17 @@ describe('RegistrationService.submit', () => {
     await createRegistrationService(deps).submit({ ...validInput, citizenId: '123' })
 
     expect(deps.checkRateLimit).not.toHaveBeenCalled()
+  })
+
+  it('records the submission in the audit trail with the citizen ID masked', async () => {
+    const deps = makeDeps()
+    await createRegistrationService(deps).submit(validInput)
+
+    expect(deps.audit).toHaveBeenCalledOnce()
+    const [actionType, targetTable, details] = vi.mocked(deps.audit).mock.calls[0]
+    expect(actionType).toBe('CREATE')
+    expect(targetTable).toBe('member_registrations')
+    expect(details).toContain('x-xxxx-xxxxx-01-23')
+    expect(JSON.stringify(vi.mocked(deps.audit).mock.calls)).not.toContain('1234567890123')
   })
 })

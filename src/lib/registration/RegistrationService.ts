@@ -24,6 +24,12 @@ export interface RegistrationDeps {
   createRegistration: (data: NewRegistration) => Promise<{ id: number }>
   checkRateLimit: () => Promise<{ allowed: boolean; retryAfterSeconds: number }>
   log: (message: string, context: Record<string, unknown>) => void
+  audit: (
+    actionType: 'CREATE',
+    targetTable: 'member_registrations',
+    details: string,
+    actor: { username: string; email: string }
+  ) => Promise<void>
 }
 
 export function createRegistrationService(deps: RegistrationDeps) {
@@ -39,10 +45,14 @@ export function createRegistrationService(deps: RegistrationDeps) {
       }
       const data: NewRegistration = parsed.data
       const { id } = await deps.createRegistration(data)
-      deps.log('Member registration submitted', {
-        registrationId: id,
-        citizenId: formatMaskedCitizenId(data.citizenId),
-      })
+      const maskedCitizenId = formatMaskedCitizenId(data.citizenId)
+      deps.log('Member registration submitted', { registrationId: id, citizenId: maskedCitizenId })
+      await deps.audit(
+        'CREATE',
+        'member_registrations',
+        `ส่งคำขอสมัครสมาชิก #${id} (เลขบัตรประชาชน ${maskedCitizenId})`,
+        { username: maskedCitizenId, email: data.email }
+      )
       return { ok: true, id }
     },
   }
