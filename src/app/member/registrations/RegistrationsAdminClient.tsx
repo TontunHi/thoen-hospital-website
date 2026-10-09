@@ -699,25 +699,30 @@ export default function RegistrationsAdminClient() {
         >
           <div className="modalCard modalWide" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="reqIdPill">คำขอ #{selectedItem.id}</span>
-                  {getStatusBadge(selectedItem.status)}
+              <div className="flex items-center gap-3">
+                <div className="modalHeaderIcon">
+                  <FileText size={20} className="text-emerald-700" />
                 </div>
-                <h3 className="modalTitle">
-                  {selectedItem.title}
-                  {selectedItem.firstNameTh} {selectedItem.lastNameTh}
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  ยื่นคำขอเมื่อ{' '}
-                  {new Date(selectedItem.createdAt).toLocaleDateString('th-TH', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="reqIdPill">#{selectedItem.id}</span>
+                    <h3 className="modalTitle">
+                      {selectedItem.title}{selectedItem.firstNameTh} {selectedItem.lastNameTh}
+                    </h3>
+                    {getStatusBadge(selectedItem.status)}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    ยื่นคำขอเมื่อ{' '}
+                    {new Date(selectedItem.createdAt).toLocaleDateString('th-TH', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}{' '}
+                    น. &bull; {selectedItem.department}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
@@ -1016,11 +1021,11 @@ export default function RegistrationsAdminClient() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="modalTitle">แก้ไขข้อมูลคำขอลงทะเบียน</h3>
                       <span className="reqIdPill">#{selectedItem.id}</span>
+                      <h3 className="modalTitle">แก้ไขข้อมูลคำขอลงทะเบียน</h3>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {selectedItem.title}{selectedItem.firstNameTh} {selectedItem.lastNameTh} ({selectedItem.department})
+                      {selectedItem.title}{selectedItem.firstNameTh} {selectedItem.lastNameTh} &bull; {selectedItem.department}
                     </p>
                   </div>
                 </div>
