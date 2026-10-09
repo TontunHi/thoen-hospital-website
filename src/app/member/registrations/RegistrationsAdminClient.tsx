@@ -939,10 +939,10 @@ export default function RegistrationsAdminClient() {
               </div>
             </div>
 
-            <div className="modalFooter flex justify-between items-center">
+            <div className="modalFooter flex flex-wrap justify-between items-center gap-3">
               <button
                 type="button"
-                className="btnSecondary"
+                className="btnModalEdit"
                 onClick={() => {
                   setIsDetailOpen(false)
                   openEditModal(selectedItem)
@@ -952,12 +952,21 @@ export default function RegistrationsAdminClient() {
                 <span>แก้ไขข้อมูล</span>
               </button>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  className="btnModalCancel"
+                  onClick={() => setIsDetailOpen(false)}
+                >
+                  <X size={15} />
+                  <span>ปิดหน้าต่าง</span>
+                </button>
+
                 {selectedItem.status === 'pending' && (
                   <>
                     <button
                       type="button"
-                      className="btnReject"
+                      className="btnModalReject"
                       onClick={() => {
                         setIsDetailOpen(false)
                         setConfirmRejectId(selectedItem.id)
@@ -969,7 +978,7 @@ export default function RegistrationsAdminClient() {
 
                     <button
                       type="button"
-                      className="btnPrimary"
+                      className="btnModalApprove"
                       onClick={() => {
                         setIsDetailOpen(false)
                         setConfirmApproveId(selectedItem.id)
@@ -1001,11 +1010,18 @@ export default function RegistrationsAdminClient() {
           <div className="modalCard modalWide" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleSaveEdit}>
               <div className="modalHeader">
-                <div className="flex items-center gap-2">
-                  <Edit3 size={20} className="text-emerald-700" />
+                <div className="flex items-center gap-3">
+                  <div className="modalHeaderIcon">
+                    <Edit3 size={20} className="text-emerald-700" />
+                  </div>
                   <div>
-                    <h3 className="modalTitle">แก้ไขข้อมูลคำขอ #{selectedItem.id}</h3>
-                    <p className="text-xs text-slate-500">ปรับปรุงข้อมูลบุคลากรและยานพาหนะ</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="modalTitle">แก้ไขข้อมูลคำขอลงทะเบียน</h3>
+                      <span className="reqIdPill">#{selectedItem.id}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {selectedItem.title}{selectedItem.firstNameTh} {selectedItem.lastNameTh} ({selectedItem.department})
+                    </p>
                   </div>
                 </div>
                 <button
@@ -1311,43 +1327,52 @@ export default function RegistrationsAdminClient() {
                   </div>
 
                   {/* HOSxP toggle */}
-                  <div className="subEditToggleBox">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 accent-emerald-600 rounded"
-                        checked={Boolean(editFormData.hasHosxp)}
-                        onChange={(e) =>
-                          setEditFormData((prev) => ({ ...prev, hasHosxp: e.target.checked }))
-                        }
-                      />
-                      <span className="text-sm font-semibold text-slate-800">ขอใช้งานระบบสารสนเทศ HOSxP</span>
-                    </label>
+                  <div className={`toggleSwitchCard ${editFormData.hasHosxp ? 'active' : ''}`}>
+                    <div className="toggleSwitchCardHeader">
+                      <div className="toggleSwitchCardInfo">
+                        <span className="toggleSwitchCardTitle">ขอใช้งานระบบสารสนเทศ HOSxP</span>
+                        <span className="toggleSwitchCardDesc">เปิดเพื่อกำหนดชื่อผู้ใช้และรหัสผ่านสำหรับเข้าใช้งานระบบสารสนเทศ</span>
+                      </div>
+                      <label className="toggleSwitch" aria-label="ขอใช้งาน HOSxP">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(editFormData.hasHosxp)}
+                          onChange={(e) =>
+                            setEditFormData((prev) => ({ ...prev, hasHosxp: e.target.checked }))
+                          }
+                        />
+                        <span className="slider" />
+                      </label>
+                    </div>
 
                     {editFormData.hasHosxp && (
-                      <div className="grid2Col mt-3 pt-3 border-t border-slate-200">
-                        <div className="fieldGroup">
-                          <label className="inputLabel">HOSxP Username</label>
-                          <input
-                            type="text"
-                            className="textInput"
-                            value={editFormData.hosxpUser || ''}
-                            onChange={(e) =>
-                              setEditFormData((prev) => ({ ...prev, hosxpUser: e.target.value }))
-                            }
-                          />
-                        </div>
+                      <div className="toggleSwitchCardContent animateFadeIn">
+                        <div className="grid2Col">
+                          <div className="fieldGroup mb-0">
+                            <label className="inputLabel">HOSxP Username</label>
+                            <input
+                              type="text"
+                              className="textInput"
+                              placeholder="ชื่อผู้ใช้งาน HOSxP"
+                              value={editFormData.hosxpUser || ''}
+                              onChange={(e) =>
+                                setEditFormData((prev) => ({ ...prev, hosxpUser: e.target.value }))
+                              }
+                            />
+                          </div>
 
-                        <div className="fieldGroup">
-                          <label className="inputLabel">HOSxP Password</label>
-                          <input
-                            type="text"
-                            className="textInput"
-                            value={editFormData.hosxpPass || ''}
-                            onChange={(e) =>
-                              setEditFormData((prev) => ({ ...prev, hosxpPass: e.target.value }))
-                            }
-                          />
+                          <div className="fieldGroup mb-0">
+                            <label className="inputLabel">HOSxP Password</label>
+                            <input
+                              type="text"
+                              className="textInput"
+                              placeholder="รหัสผ่านเข้า HOSxP"
+                              value={editFormData.hosxpPass || ''}
+                              onChange={(e) =>
+                                setEditFormData((prev) => ({ ...prev, hosxpPass: e.target.value }))
+                              }
+                            />
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1362,140 +1387,155 @@ export default function RegistrationsAdminClient() {
                   </h4>
 
                   {/* Housing */}
-                  <div className="subEditToggleBox mb-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4 accent-emerald-600 rounded"
-                        checked={Boolean(editFormData.inHospitalHousing)}
-                        onChange={(e) =>
-                          setEditFormData((prev) => ({ ...prev, inHospitalHousing: e.target.checked }))
-                        }
-                      />
-                      <span className="text-sm font-semibold text-slate-800">พักอาศัยอยู่ในโรงพยาบาล</span>
-                    </label>
+                  <div className={`toggleSwitchCard ${editFormData.inHospitalHousing ? 'active' : ''}`}>
+                    <div className="toggleSwitchCardHeader">
+                      <div className="toggleSwitchCardInfo">
+                        <span className="toggleSwitchCardTitle">พักอาศัยอยู่ในโรงพยาบาล</span>
+                        <span className="toggleSwitchCardDesc">เปิดหากพักอยู่ในโซนบ้านพักหรือแฟลตเจ้าหน้าที่ของโรงพยาบาล</span>
+                      </div>
+                      <label className="toggleSwitch" aria-label="พักอาศัยในโรงพยาบาล">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(editFormData.inHospitalHousing)}
+                          onChange={(e) =>
+                            setEditFormData((prev) => ({ ...prev, inHospitalHousing: e.target.checked }))
+                          }
+                        />
+                        <span className="slider" />
+                      </label>
+                    </div>
 
                     {editFormData.inHospitalHousing && (
-                      <div className="fieldGroup mt-3 pt-3 border-t border-slate-200">
-                        <label className="inputLabel">สถานที่พักอาศัย</label>
-                        <select
-                          className="selectInput"
-                          value={editFormData.housingLocation || HOUSING_LOCATIONS[0]}
-                          onChange={(e) =>
-                            setEditFormData((prev) => ({ ...prev, housingLocation: e.target.value }))
-                          }
-                        >
-                          {HOUSING_LOCATIONS.map((loc) => (
-                            <option key={loc} value={loc}>
-                              {loc}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="toggleSwitchCardContent animateFadeIn">
+                        <div className="fieldGroup mb-0">
+                          <label className="inputLabel">สถานที่พักอาศัย</label>
+                          <select
+                            className="selectInput"
+                            value={editFormData.housingLocation || HOUSING_LOCATIONS[0]}
+                            onChange={(e) =>
+                              setEditFormData((prev) => ({ ...prev, housingLocation: e.target.value }))
+                            }
+                          >
+                            {HOUSING_LOCATIONS.map((loc) => (
+                              <option key={loc} value={loc}>
+                                {loc}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     )}
                   </div>
 
                   {/* Vehicle Management */}
-                  <div className="subEditToggleBox">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 accent-emerald-600 rounded"
-                          checked={Boolean(editFormData.hasVehicle)}
-                          onChange={(e) => {
-                            const checked = e.target.checked
-                            setEditFormData((prev) => ({
-                              ...prev,
-                              hasVehicle: checked,
-                              vehicles: checked && (!prev.vehicles || prev.vehicles.length === 0)
-                                ? [{ platePrefix: '', plateNumber: '', province: 'ลำปาง' }]
-                                : prev.vehicles,
-                            }))
-                          }}
-                        />
-                        <span className="text-sm font-semibold text-slate-800">มีรถยนต์เข้าโซนบ้านพัก</span>
-                      </label>
+                  <div className={`toggleSwitchCard ${editFormData.hasVehicle ? 'active' : ''} mt-3`}>
+                    <div className="toggleSwitchCardHeader">
+                      <div className="toggleSwitchCardInfo">
+                        <span className="toggleSwitchCardTitle">มีรถยนต์เข้าโซนบ้านพัก</span>
+                        <span className="toggleSwitchCardDesc">ลงทะเบียนข้อมูลยานพาหนะเข้าออก (สูงสุด 2 คัน)</span>
+                      </div>
 
-                      {editFormData.hasVehicle && (!editFormData.vehicles || editFormData.vehicles.length < 2) && (
-                        <button
-                          type="button"
-                          className="btnAddVehicle"
-                          onClick={handleAddVehicle}
-                        >
-                          <Plus size={14} />
-                          <span>เพิ่มรถยนต์ ({editFormData.vehicles?.length || 0}/2)</span>
-                        </button>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {editFormData.hasVehicle && (!editFormData.vehicles || editFormData.vehicles.length < 2) && (
+                          <button
+                            type="button"
+                            className="btnAddVehicle"
+                            onClick={handleAddVehicle}
+                          >
+                            <Plus size={14} />
+                            <span>เพิ่มรถยนต์ ({editFormData.vehicles?.length || 0}/2)</span>
+                          </button>
+                        )}
+
+                        <label className="toggleSwitch" aria-label="มีรถยนต์เข้าโซนบ้านพัก">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(editFormData.hasVehicle)}
+                            onChange={(e) => {
+                              const checked = e.target.checked
+                              setEditFormData((prev) => ({
+                                ...prev,
+                                hasVehicle: checked,
+                                vehicles: checked && (!prev.vehicles || prev.vehicles.length === 0)
+                                  ? [{ platePrefix: '', plateNumber: '', province: 'ลำปาง' }]
+                                  : prev.vehicles,
+                              }))
+                            }}
+                          />
+                          <span className="slider" />
+                        </label>
+                      </div>
                     </div>
 
                     {editFormData.hasVehicle && (
-                      <div className="vehicleEditList mt-3 pt-3 border-t border-slate-200">
+                      <div className="toggleSwitchCardContent animateFadeIn">
                         {(!editFormData.vehicles || editFormData.vehicles.length === 0) ? (
-                          <div className="text-center py-3 text-sm text-slate-500">
-                            ยังไม่มีรายการรถยนต์ กด &quot;เพิ่มรถยนต์&quot; ด้านบนเพื่อเพิ่มข้อมูล
+                          <div className="text-center py-4 text-sm text-slate-500 bg-slate-50 rounded-lg border border-slate-200">
+                            ยังไม่มีรายการรถยนต์ กด &quot;เพิ่มรถยนต์&quot; ด้านบนเพื่อเพิ่มข้อมูล (สูงสุด 2 คัน)
                           </div>
                         ) : (
-                          editFormData.vehicles.map((v, vIdx) => (
-                            <div key={vIdx} className="vehicleEditCard">
-                              <div className="vehicleEditHeader">
-                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-                                  <Car size={14} className="text-emerald-700" />
-                                  <span>รถยนต์คันที่ {vIdx + 1}</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  className="btnRemoveVehicle"
-                                  onClick={() => handleRemoveVehicle(vIdx)}
-                                  title="ลบรถคันนี้"
-                                >
-                                  <Trash2 size={13} />
-                                  <span>ลบ</span>
-                                </button>
-                              </div>
-
-                              <div className="grid3Col">
-                                <div className="fieldGroup mb-0">
-                                  <label className="inputLabel text-xs">หมวดอักษร</label>
-                                  <input
-                                    type="text"
-                                    className="textInput text-xs h-9"
-                                    placeholder="เช่น กข"
-                                    maxLength={4}
-                                    value={v.platePrefix || ''}
-                                    onChange={(e) => handleUpdateVehicle(vIdx, 'platePrefix', e.target.value)}
-                                  />
-                                </div>
-
-                                <div className="fieldGroup mb-0">
-                                  <label className="inputLabel text-xs">เลขทะเบียน</label>
-                                  <input
-                                    type="text"
-                                    className="textInput text-xs h-9 tabularNums"
-                                    placeholder="เช่น 1234"
-                                    maxLength={6}
-                                    value={v.plateNumber || ''}
-                                    onChange={(e) => handleUpdateVehicle(vIdx, 'plateNumber', e.target.value)}
-                                  />
-                                </div>
-
-                                <div className="fieldGroup mb-0">
-                                  <label className="inputLabel text-xs">จังหวัด</label>
-                                  <select
-                                    className="selectInput text-xs h-9"
-                                    value={v.province || 'ลำปาง'}
-                                    onChange={(e) => handleUpdateVehicle(vIdx, 'province', e.target.value)}
+                          <div className="vehicleEditList">
+                            {editFormData.vehicles.map((v, vIdx) => (
+                              <div key={vIdx} className="vehicleEditCard">
+                                <div className="vehicleEditHeader">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                                    <Car size={14} className="text-emerald-700" />
+                                    <span>รถยนต์คันที่ {vIdx + 1}</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btnRemoveVehicle"
+                                    onClick={() => handleRemoveVehicle(vIdx)}
+                                    title="ลบรถคันนี้"
                                   >
-                                    {THAI_PROVINCES.map((p) => (
-                                      <option key={p} value={p}>
-                                        {p}
-                                      </option>
-                                    ))}
-                                  </select>
+                                    <Trash2 size={13} />
+                                    <span>ลบรถคันนี้</span>
+                                  </button>
+                                </div>
+
+                                <div className="grid3Col">
+                                  <div className="fieldGroup mb-0">
+                                    <label className="inputLabel text-xs">หมวดอักษร</label>
+                                    <input
+                                      type="text"
+                                      className="textInput text-xs h-9"
+                                      placeholder="เช่น กข"
+                                      maxLength={4}
+                                      value={v.platePrefix || ''}
+                                      onChange={(e) => handleUpdateVehicle(vIdx, 'platePrefix', e.target.value)}
+                                    />
+                                  </div>
+
+                                  <div className="fieldGroup mb-0">
+                                    <label className="inputLabel text-xs">เลขทะเบียน</label>
+                                    <input
+                                      type="text"
+                                      className="textInput text-xs h-9 tabularNums"
+                                      placeholder="เช่น 1234"
+                                      maxLength={6}
+                                      value={v.plateNumber || ''}
+                                      onChange={(e) => handleUpdateVehicle(vIdx, 'plateNumber', e.target.value)}
+                                    />
+                                  </div>
+
+                                  <div className="fieldGroup mb-0">
+                                    <label className="inputLabel text-xs">จังหวัด</label>
+                                    <select
+                                      className="selectInput text-xs h-9"
+                                      value={v.province || 'ลำปาง'}
+                                      onChange={(e) => handleUpdateVehicle(vIdx, 'province', e.target.value)}
+                                    >
+                                      {THAI_PROVINCES.map((p) => (
+                                        <option key={p} value={p}>
+                                          {p}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))
+                            ))}
+                          </div>
                         )}
                       </div>
                     )}
@@ -1503,22 +1543,35 @@ export default function RegistrationsAdminClient() {
                 </div>
               </div>
 
-              <div className="modalFooter flex justify-end gap-2">
-                <button
-                  type="button"
-                  className="btnSecondary"
-                  onClick={() => setIsEditOpen(false)}
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="btnPrimary"
-                  disabled={isPending}
-                >
-                  <Save size={16} />
-                  <span>{isPending ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}</span>
-                </button>
+              <div className="modalFooter">
+                <div className="modalFooterActions">
+                  <button
+                    type="button"
+                    className="btnModalCancel"
+                    onClick={() => setIsEditOpen(false)}
+                    disabled={isPending}
+                  >
+                    <X size={16} />
+                    <span>ยกเลิก</span>
+                  </button>
+                  <button
+                    type="submit"
+                    className="btnModalSave"
+                    disabled={isPending}
+                  >
+                    {isPending ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>กำลังบันทึกข้อมูล…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save size={16} />
+                        <span>บันทึกการแก้ไข</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1554,7 +1607,7 @@ export default function RegistrationsAdminClient() {
         >
           <div className="modalCard max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <AlertCircle size={20} className="text-rose-600" />
                 <h3 className="modalTitle">ปฏิเสธคำขอลงทะเบียน</h3>
               </div>
@@ -1577,23 +1630,27 @@ export default function RegistrationsAdminClient() {
                 onChange={(e) => setRejectReason(e.target.value)}
               />
             </div>
-            <div className="modalFooter flex justify-end gap-2">
-              <button
-                type="button"
-                className="btnSecondary"
-                onClick={() => setConfirmRejectId(null)}
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                className="btnReject"
-                onClick={() => {
-                  if (confirmRejectId) handleReject(confirmRejectId)
-                }}
-              >
-                ยืนยันการปฏิเสธ
-              </button>
+            <div className="modalFooter">
+              <div className="modalFooterActions">
+                <button
+                  type="button"
+                  className="btnModalCancel"
+                  onClick={() => setConfirmRejectId(null)}
+                >
+                  <X size={16} />
+                  <span>ยกเลิก</span>
+                </button>
+                <button
+                  type="button"
+                  className="btnModalReject"
+                  onClick={() => {
+                    if (confirmRejectId) handleReject(confirmRejectId)
+                  }}
+                >
+                  <UserX size={16} />
+                  <span>ยืนยันการปฏิเสธ</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
