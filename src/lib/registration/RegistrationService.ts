@@ -29,13 +29,13 @@ export interface RegistrationDeps {
 export function createRegistrationService(deps: RegistrationDeps) {
   return {
     async submit(input: unknown): Promise<SubmitResult> {
-      const rate = await deps.checkRateLimit()
-      if (!rate.allowed) {
-        return { ok: false, reason: 'rate_limited', retryAfterSeconds: rate.retryAfterSeconds }
-      }
       const parsed = registrationSchema.safeParse(input)
       if (!parsed.success) {
         return { ok: false, reason: 'invalid', message: parsed.error.issues[0].message }
+      }
+      const rate = await deps.checkRateLimit()
+      if (!rate.allowed) {
+        return { ok: false, reason: 'rate_limited', retryAfterSeconds: rate.retryAfterSeconds }
       }
       const data: NewRegistration = parsed.data
       const { id } = await deps.createRegistration(data)

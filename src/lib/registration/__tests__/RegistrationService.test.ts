@@ -24,6 +24,7 @@ describe('RegistrationService.submit', () => {
     const result = await createRegistrationService(deps).submit(validInput)
 
     expect(result).toEqual({ ok: true, id: 42 })
+    expect(deps.checkRateLimit).toHaveBeenCalledOnce()
     expect(deps.createRegistration).toHaveBeenCalledWith({
       citizenId: '1234567890123',
       firstNameTh: 'สมชาย',
@@ -104,5 +105,12 @@ describe('RegistrationService.submit', () => {
 
     expect(result).toEqual({ ok: false, reason: 'invalid', message })
     expect(deps.createRegistration).not.toHaveBeenCalled()
+  })
+
+  it('does not count an invalid submission against the rate limit', async () => {
+    const deps = makeDeps()
+    await createRegistrationService(deps).submit({ ...validInput, citizenId: '123' })
+
+    expect(deps.checkRateLimit).not.toHaveBeenCalled()
   })
 })
