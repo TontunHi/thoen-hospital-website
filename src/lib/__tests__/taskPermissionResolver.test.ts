@@ -318,4 +318,69 @@ describe('resolveTaskPermissions Domain Module', () => {
     expect(resGenOnMed.canTakeJob).toBe(false)
     expect(resGenOnMed.canEdit).toBe(false)
   })
+
+  it('CRITICAL: enforces read-only semantics for view_all_work across all task types', () => {
+    const observer: MemberLike = {
+      id: 70,
+      username: 'hospital_observer',
+      role: 'member',
+      position: 'นักวิชาการสาธารณสุข',
+      department: 'กลุ่มงานยุทธศาสตร์',
+      permissions: ['view_all_work'],
+    }
+
+    const itTask: TaskLike = { ...baseTask, task_type: 'IT_REPAIR' }
+    const genTask: TaskLike = { ...baseTask, task_type: 'GENERAL_REPAIR' }
+    const medTask: TaskLike = { ...baseTask, task_type: 'MEDICAL_REPAIR' }
+
+    for (const t of [itTask, genTask, medTask, mediaTask]) {
+      const res = resolveTaskPermissions(observer, t)
+      expect(res.canView).toBe(true)
+      expect(res.canEdit).toBe(false)
+      expect(res.canApprove).toBe(false)
+      expect(res.canTakeJob).toBe(false)
+      expect(res.canCancel).toBe(false)
+      expect(res.canHold).toBe(false)
+      expect(res.canResume).toBe(false)
+    }
+  })
+
+  it('CRITICAL: enforces read-only semantics for type-specific view permissions', () => {
+    const itViewer: MemberLike = { id: 80, role: 'member', permissions: ['view_it_repairs'] }
+    const genViewer: MemberLike = { id: 81, role: 'member', permissions: ['view_general_repairs'] }
+    const medViewer: MemberLike = { id: 82, role: 'member', permissions: ['view_medical_repairs'] }
+    const mediaViewer: MemberLike = { id: 83, role: 'member', permissions: ['view_media_requests'] }
+
+    const itTask: TaskLike = { ...baseTask, task_type: 'IT_REPAIR' }
+    const genTask: TaskLike = { ...baseTask, task_type: 'GENERAL_REPAIR' }
+    const medTask: TaskLike = { ...baseTask, task_type: 'MEDICAL_REPAIR' }
+
+    // IT viewer
+    const resIt = resolveTaskPermissions(itViewer, itTask)
+    expect(resIt.canView).toBe(true)
+    expect(resIt.canEdit).toBe(false)
+    expect(resIt.canApprove).toBe(false)
+    expect(resIt.canTakeJob).toBe(false)
+
+    // General viewer
+    const resGen = resolveTaskPermissions(genViewer, genTask)
+    expect(resGen.canView).toBe(true)
+    expect(resGen.canEdit).toBe(false)
+    expect(resGen.canApprove).toBe(false)
+    expect(resGen.canTakeJob).toBe(false)
+
+    // Medical viewer
+    const resMed = resolveTaskPermissions(medViewer, medTask)
+    expect(resMed.canView).toBe(true)
+    expect(resMed.canEdit).toBe(false)
+    expect(resMed.canApprove).toBe(false)
+    expect(resMed.canTakeJob).toBe(false)
+
+    // Media viewer
+    const resMedia = resolveTaskPermissions(mediaViewer, mediaTask)
+    expect(resMedia.canView).toBe(true)
+    expect(resMedia.canEdit).toBe(false)
+    expect(resMedia.canApprove).toBe(false)
+    expect(resMedia.canTakeJob).toBe(false)
+  })
 })

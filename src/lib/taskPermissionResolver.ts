@@ -159,7 +159,6 @@ export function resolveTaskPermissions(
   const canEdit = Boolean(
     isAdmin ||
     hasPerm('manage_inbox') ||
-    hasPerm('view_all_work') ||
     (isRepairTask && (
       hasPerm('manage_repairs') ||
       (task.task_type === 'IT_REPAIR' && hasPerm('take_repairs_it')) ||
