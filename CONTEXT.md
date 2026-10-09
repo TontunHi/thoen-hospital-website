@@ -18,19 +18,29 @@ This document serves as the canonical domain glossary and architectural context 
   - `isActive`: แฟล็กเปิด/ปิดการเผยแพร่
   - `createdBy`, `updatedBy`: ผู้บันทึก/แก้ไขข้อมูลล่าสุด
 
-### Position Permission (การกำหนดสิทธิ์ตามตำแหน่งงาน)
-- **Definition:** กลไกควบคุมการเข้าถึงตามบทบาทหน้าที่ (Role-Based Access Control - RBAC) ของโรงพยาบาลเถิน โดยผูกรหัสสิทธิ์ (`permission_key`) เข้ากับชื่อตำแหน่งงาน (`position_name`) ในฐานข้อมูล `position_permissions` ควบคุมผ่านหน้า `/member/settings`
-- **Permission Keys:**
-  - `manage_repairs`: สิทธิ์ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (ตรวจสอบ/มอบหมายงานซ่อมทั้งหมด)
-  - `manage_inbox`: สิทธิ์ดูแลระบบกล่องงานและสายการอนุมัติ (ตรวจสอบและติดตามขั้นตอนงานและสถานะเอกสารทั้งหมด)
-  - `upload_salary`: สิทธิ์อัปโหลดสลิปเงินเดือน
-  - `manage_ita`: สิทธิ์จัดการข้อมูล ITA
-  - `manage_news`: สิทธิ์จัดการข่าวสารและสไลด์
-  - `manage_rdu`: สิทธิ์จัดการเอกสารและโฟลเดอร์ RDU
-  - `view_all_salary`: สิทธิ์ดูสลิปเงินเดือนบุคลากรทั้งหมด
-  - `manage_outgoing_doc`: สิทธิ์จัดการทะเบียนหนังสือส่งออก (เพิ่ม/แก้ไข/ลบ/จัดลำดับลิงก์ Google Sheets ประจำปี)
-  - `manage_ethics`: สิทธิ์จัดการเอกสารชมรมจริยธรรม (เพิ่ม/แก้ไขปีงบประมาณ, เพิ่มหัวข้อเอกสาร, อัปโหลดไฟล์ PDF คำสั่ง/แผนงาน/รายงาน)
-  - `manage_locations`: สิทธิ์จัดการข้อมูลสถานที่ ตึก ชั้น และห้อง สำหรับระบบงานและระบบแจ้งซ่อม
+### Task-Centric Permission Management (ระบบกำหนดสิทธิ์แบบยึดตามภารกิจงาน)
+- **Definition:** สถาปัตยกรรมและส่วนประสานงานผู้ดูแลระบบ (`/member/settings`) สำหรับบริหารจัดการสิทธิ์การเข้าถึงและควบคุมภารกิจงาน (Workflow & System Modules) โดยจัดกลุ่มตาม "ภารกิจงาน" แทนการเลือกตามรายชื่อบุคคล
+- **Role Archetypes (4 บทบาทมาตรฐาน):**
+  - `View`: สิทธิ์ดูและติดตามงานในสายงานนั้น (Read-only)
+  - `Edit / Do`: สิทธิ์ปฏิบัติงาน (รับงาน, ดำเนินการผลิต/ซ่อม, บันทึกผล, แก้ไข)
+  - `Approve`: สิทธิ์ลงนามอนุมัติและตรวจรับงาน (Approve-only)
+  - `Manage`: สิทธิ์หัวหน้าสายงาน/ผู้ดูแลระบบ (มอบหมายงาน, จัดคิว, กำกับดูแล)
+- **Assignment Modes (การกำหนดผู้รับผิดชอบ):**
+  - `Member-based (รายบุคคล)`: มอบสิทธิ์เจาะจงให้แก่สมาชิกรายคน บันทึกลงตาราง `member_permissions`
+  - `Position-based (ตามตำแหน่ง)`: มอบสิทธิ์ให้แก่ทุกคนที่ครองตำแหน่งงานนั้นๆ บันทึกลงตาราง `position_permissions`
+- **Permission Keys Canonical Mapping:**
+  - **งานขอสื่อประชาสัมพันธ์ (`MEDIA_REQUEST`):** View (`view_media_requests`), Edit (`produce_media`), Approve (`approve_media`), Manage (`manage_media_requests`)
+  - **งานซ่อมคอมพิวเตอร์/ไอที (`IT_REPAIR`):** View (`view_it_repairs`), Edit (`take_repairs_it`), Approve (`approve_repairs`), Manage (`manage_repairs`)
+  - **งานซ่อมบำรุงทั่วไป (`GENERAL_REPAIR`):** View (`view_general_repairs`), Edit (`take_repairs_general`), Approve (`approve_repairs`), Manage (`manage_repairs`)
+  - **งานซ่อมเครื่องมือแพทย์ (`MEDICAL_REPAIR`):** View (`view_medical_repairs`), Edit (`take_repairs_medical`), Approve (`approve_repairs`), Manage (`manage_repairs`)
+  - **กล่องงานกลาง & ภาพรวม (`INBOX_CENTRAL`):** View (`view_all_work`, `view_department_tasks`), Manage (`manage_inbox`)
+  - **งานข่าวสารและสไลด์ (`NEWS`):** Manage/Edit (`manage_news`)
+  - **งานสลิปเงินเดือน (`SALARY`):** View (`view_all_salary`), Edit/Upload (`upload_salary`)
+  - **งานพัสดุและสถานที่ (`FACILITY_ASSET`):** Locations (`manage_locations`), Assets (`manage_assets`)
+  - **งานหนังสือส่งออก (`OUTGOING_DOC`):** Manage (`manage_outgoing_doc`)
+  - **งานชมรมจริยธรรม (`ETHICS`):** Manage (`manage_ethics`)
+  - **งานข้อมูล ITA (`ITA`):** Manage (`manage_ita`)
+  - **งานเอกสาร RDU (`RDU`):** Manage (`manage_rdu`)
 
 ### Ethics Document (เอกสารชมรมจริยธรรม)
 - **Definition:** ศูนย์รวมเอกสาร แผนปฏิบัติการส่งเสริมคุณธรรม คำสั่งคณะทำงาน และรายงานผลการดำเนินงานของชมรมจริยธรรมโรงพยาบาลเถิน จัดเก็บตามปีงบประมาณ และรองรับหัวข้อย่อย (เช่น รายงานรอบ 6 เดือน, รอบ 12 เดือน)

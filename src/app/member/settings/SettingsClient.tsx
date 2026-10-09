@@ -1,46 +1,39 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { 
-  Plus, 
-  Trash2, 
-  Shield, 
+import React, { useState, useEffect, useMemo } from 'react'
+import {
+  Plus,
+  Trash2,
+  Shield,
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
   X,
-  PenTool,
-  Wallet,
-  BookOpen,
-  Wrench,
-  FileUp,
   Coins,
   Newspaper,
   Save,
   RefreshCw,
-  UserCheck,
-  Sliders,
   Users,
   Pill,
   FileSpreadsheet,
   Scale,
-  MapPin,
   Inbox,
   Package,
   Palette,
   Monitor,
   HeartPulse,
+  Wrench,
   Building2,
   Search,
   Filter,
   Check,
-  SlidersHorizontal,
   ChevronRight,
   Info,
   Layers,
   Sparkles,
   LayoutGrid,
-  ListFilter,
+  UserCheck,
+  Sliders,
   UserCog,
   CheckSquare,
   Square,
@@ -48,9 +41,17 @@ import {
   BadgeCheck,
   User,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Briefcase,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
+import {
+  TASK_DEFINITIONS,
+  TaskDefinition,
+  TaskRoleConfig,
+  PermRoleType,
+} from '@/lib/permissions/taskDefinitions'
 
 interface SettingsClientProps {
   initialSettings: Record<string, string>
@@ -66,362 +67,60 @@ export interface MemberItem {
   permissions: string[]
 }
 
-export type PermCategory = 'all' | 'repairs' | 'media' | 'facility' | 'finance' | 'governance'
-export type PermRoleType = 'view' | 'edit' | 'approve' | 'manage'
-
-export interface PermissionMetaItem {
-  key: string
-  label: string
-  shortLabel: string
-  desc: string
-  category: 'repairs' | 'media' | 'facility' | 'finance' | 'governance'
-  categoryLabel: string
-  roleType: PermRoleType
-  icon: any
-  color: string
-  bg: string
-  border: string
-  isApproveOnly?: boolean
+export interface PositionMappingItem {
+  id: number
+  permissionKey: string
+  positionName: string
 }
 
-export const PERMISSIONS_METADATA: Record<string, PermissionMetaItem> = {
-  // Repairs & Workflow
-  view_all_work: {
-    key: 'view_all_work',
-    label: 'ดูแลระบบ/ดูงานช่างทั้งหมด (view_all_work)',
-    shortLabel: 'ดูงานทั้งหมด',
-    desc: 'สิทธิ์ดูและติดตามงานช่างทุกประเภทในระบบแบบอ่านอย่างเดียว',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'view',
-    icon: Wrench,
-    color: '#3b82f6',
-    bg: '#eff6ff',
-    border: '#bfdbfe'
-  },
-  view_it_repairs: {
-    key: 'view_it_repairs',
-    label: 'ดูงานแจ้งซ่อมคอมพิวเตอร์และไอทีทั้งหมด (view_it_repairs)',
-    shortLabel: 'ดูงานไอที',
-    desc: 'อนุญาตให้ดูและติดตามงานแจ้งซ่อมศูนย์คอมพิวเตอร์และสารสนเทศทั้งหมดในระบบ',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'view',
-    icon: Monitor,
+const ICON_MAP: Record<string, any> = {
+  Palette,
+  Monitor,
+  Wrench,
+  HeartPulse,
+  Inbox,
+  Coins,
+  Package,
+  FileSpreadsheet,
+  Scale,
+  BookOpen: Layers,
+  Pill,
+  Newspaper,
+}
+
+const ROLE_TYPE_CONFIG: Record<
+  PermRoleType,
+  { label: string; icon: any; color: string; bg: string; border: string }
+> = {
+  view: {
+    label: 'View (ดูข้อมูล)',
+    icon: Eye,
     color: '#0284c7',
     bg: '#f0f9ff',
-    border: '#bae6fd'
+    border: '#bae6fd',
   },
-  view_general_repairs: {
-    key: 'view_general_repairs',
-    label: 'ดูงานแจ้งซ่อมบำรุงทั่วไปทั้งหมด (view_general_repairs)',
-    shortLabel: 'ดูงานช่างทั่วไป',
-    desc: 'อนุญาตให้ดูและติดตามงานแจ้งซ่อมบำรุงทั่วไป/งานช่างทั้งหมดในระบบ',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'view',
+  edit: {
+    label: 'Edit / Do (ปฏิบัติงาน)',
     icon: Wrench,
     color: '#d97706',
     bg: '#fffbeb',
-    border: '#fde68a'
+    border: '#fde68a',
   },
-  view_medical_repairs: {
-    key: 'view_medical_repairs',
-    label: 'ดูงานแจ้งซ่อมเครื่องมือแพทย์ทั้งหมด (view_medical_repairs)',
-    shortLabel: 'ดูงานเครื่องมือแพทย์',
-    desc: 'อนุญาตให้ดูและติดตามงานแจ้งซ่อมเครื่องมือทางการแพทย์ทั้งหมดในระบบ',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'view',
-    icon: HeartPulse,
-    color: '#e11d48',
-    bg: '#fff1f2',
-    border: '#fecdd3'
-  },
-  view_department_tasks: {
-    key: 'view_department_tasks',
-    label: 'ดูงานทั้งหมดในหน่วยงานของตนเอง (view_department_tasks)',
-    shortLabel: 'ดูงานในหน่วยงาน',
-    desc: 'อนุญาตให้ดูงานทุกประเภทที่สร้างโดยสมาชิกในกลุ่มงานหรือหน่วยงานเดียวกัน',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'view',
-    icon: Building2,
-    color: '#059669',
-    bg: '#f0fdf4',
-    border: '#bbf7d0'
-  },
-  take_repairs_general: {
-    key: 'take_repairs_general',
-    label: 'รับงานซ่อมบำรุงทั่วไป/ช่างซ่อม (take_repairs_general)',
-    shortLabel: 'ช่างทั่วไป (รับงาน)',
-    desc: 'ช่างซ่อมบำรุงทั่วไป สามารถกดรับงาน ดำเนินการซ่อม และบันทึกผลการซ่อมงานช่าง',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'edit',
-    icon: Wrench,
-    color: '#d97706',
-    bg: '#fffbeb',
-    border: '#fde68a'
-  },
-  take_repairs_medical: {
-    key: 'take_repairs_medical',
-    label: 'รับงานซ่อมเครื่องมือแพทย์ (take_repairs_medical)',
-    shortLabel: 'ช่างแพทย์ (รับงาน)',
-    desc: 'ช่างและผู้รับผิดชอบเครื่องมือแพทย์ สามารถกดรับงาน ดำเนินการซ่อม และบันทึกผลการซ่อม',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'edit',
-    icon: HeartPulse,
-    color: '#e11d48',
-    bg: '#fff1f2',
-    border: '#fecdd3'
-  },
-  approve_repairs: {
-    key: 'approve_repairs',
-    label: 'อนุมัติ/ตรวจรับงานแจ้งซ่อมบำรุง (approve_repairs)',
-    shortLabel: 'อนุมัติงานซ่อม',
-    desc: 'สิทธิ์สำหรับผู้บริหารหรือหัวหน้างานในการอนุมัติและตรวจรับงานซ่อม (ไม่มีสิทธิ์แก้ไขข้อมูลงาน)',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'approve',
+  approve: {
+    label: 'Approve (อนุมัติ/ตรวจรับ)',
     icon: CheckCircle2,
     color: '#e11d48',
     bg: '#fff1f2',
     border: '#fecdd3',
-    isApproveOnly: true
   },
-  manage_repairs: {
-    key: 'manage_repairs',
-    label: 'ดูแลระบบแจ้งซ่อมและกล่องงานช่าง (manage_repairs)',
-    shortLabel: 'หัวหน้าช่าง/ดูแลซ่อม',
-    desc: 'ทีมหัวหน้าช่างและผู้ดูแลระบบงานซ่อมบำรุง ตรวจสอบ มอบหมาย และจัดการงานซ่อมทั้งหมด',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'manage',
-    icon: Wrench,
-    color: '#2563eb',
-    bg: '#eff6ff',
-    border: '#bfdbfe'
-  },
-  manage_inbox: {
-    key: 'manage_inbox',
-    label: 'ดูแลระบบกล่องงานและสายการอนุมัติ (manage_inbox)',
-    shortLabel: 'ดูแลกล่องงานกลาง',
-    desc: 'ผู้ดูแลระบบกล่องงานกลาง ตรวจสอบและติดตามขั้นตอนงานและสถานะเอกสารทั้งหมด',
-    category: 'repairs',
-    categoryLabel: 'งานซ่อมบำรุง & กล่องงาน',
-    roleType: 'manage',
-    icon: Inbox,
-    color: '#0284c7',
-    bg: '#f0f9ff',
-    border: '#bae6fd'
-  },
-
-  // Media & PR
-  view_media_requests: {
-    key: 'view_media_requests',
-    label: 'ดูงานขอสื่อประชาสัมพันธ์ทั้งหมด (view_media_requests)',
-    shortLabel: 'ดูคำขอสื่อทั้งหมด',
-    desc: 'อนุญาตให้ดูและติดตามงานขอผลิตสื่อประชาสัมพันธ์ทั้งหมดในระบบ',
-    category: 'media',
-    categoryLabel: 'งานสื่อ & ประชาสัมพันธ์',
-    roleType: 'view',
-    icon: Palette,
-    color: '#8b5cf6',
-    bg: '#f5f3ff',
-    border: '#ddd6fe'
-  },
-  produce_media: {
-    key: 'produce_media',
-    label: 'รับผิดชอบผลิตสื่อ/กราฟิก/วิดีโอ (produce_media)',
-    shortLabel: 'ผลิตสื่อ/กราฟิก (รับงาน)',
-    desc: 'ทีมผลิตสื่อ สามารถกดรับงาน ออกแบบ ผลิตสื่อกราฟิก/วิดีโอ และส่งมอบงาน',
-    category: 'media',
-    categoryLabel: 'งานสื่อ & ประชาสัมพันธ์',
-    roleType: 'edit',
-    icon: Palette,
-    color: '#8b5cf6',
-    bg: '#f5f3ff',
-    border: '#ddd6fe'
-  },
-  manage_news: {
-    key: 'manage_news',
-    label: 'จัดการและลงข่าวประชาสัมพันธ์ (manage_news)',
-    shortLabel: 'จัดการข่าวสารหน้าเว็บ',
-    desc: 'ทีมประชาสัมพันธ์สามารถเขียน แก้ไข และเผยแพร่ข่าวสารหน้าเว็บไซต์',
-    category: 'media',
-    categoryLabel: 'งานสื่อ & ประชาสัมพันธ์',
-    roleType: 'edit',
-    icon: Newspaper,
-    color: '#f43f5e',
-    bg: '#fff1f2',
-    border: '#fecdd3'
-  },
-  approve_media: {
-    key: 'approve_media',
-    label: 'อนุมัติคำขอผลิตสื่อประชาสัมพันธ์ (approve_media)',
-    shortLabel: 'อนุมัติคำขอสื่อ',
-    desc: 'สิทธิ์สำหรับผู้บริหารหรือหัวหน้างานในการอนุมัติคำขอผลิตสื่อ (ไม่มีสิทธิ์แก้ไขคำขอ)',
-    category: 'media',
-    categoryLabel: 'งานสื่อ & ประชาสัมพันธ์',
-    roleType: 'approve',
-    icon: CheckCircle2,
-    color: '#e11d48',
-    bg: '#fff1f2',
-    border: '#fecdd3',
-    isApproveOnly: true
-  },
-  manage_media_requests: {
-    key: 'manage_media_requests',
-    label: 'ดูแลระบบขอสื่อประชาสัมพันธ์ (manage_media_requests)',
-    shortLabel: 'หัวหน้างานสื่อ/ดูแลระบบ',
-    desc: 'ทีมประชาสัมพันธ์หรือผู้รับผิดชอบงานสื่อ ดูแลคำขอผลิตสื่อ ตรวจสอบขั้นตอน และมอบหมายงาน',
-    category: 'media',
-    categoryLabel: 'งานสื่อ & ประชาสัมพันธ์',
-    roleType: 'manage',
-    icon: Palette,
-    color: '#0d9488',
-    bg: '#f0fdfa',
-    border: '#99f6e4'
-  },
-
-  // Facility & Assets
-  manage_locations: {
-    key: 'manage_locations',
-    label: 'จัดการข้อมูลสถานที่ ตึก-ชั้น-ห้อง (manage_locations)',
-    shortLabel: 'จัดการสถานที่ ตึก-ชั้น',
-    desc: 'เจ้าหน้าที่ผู้ดูแลระบบสถานที่ ตึก ชั้น และห้อง สำหรับระบบงานและระบบแจ้งซ่อม',
-    category: 'facility',
-    categoryLabel: 'งานพัสดุ & สถานที่',
-    roleType: 'edit',
-    icon: MapPin,
-    color: '#059669',
-    bg: '#f0fdf4',
-    border: '#bbf7d0'
-  },
-  manage_assets: {
-    key: 'manage_assets',
-    label: 'จัดการข้อมูลครุภัณฑ์และพัสดุ (manage_assets)',
-    shortLabel: 'จัดการทะเบียนครุภัณฑ์',
-    desc: 'เจ้าหน้าที่พัสดุและผู้ดูแลระบบครุภัณฑ์ สำหรับจัดการข้อมูล ค้นหา และตรวจสอบสถานะประกัน',
-    category: 'facility',
-    categoryLabel: 'งานพัสดุ & สถานที่',
-    roleType: 'manage',
-    icon: Package,
-    color: '#0284c7',
-    bg: '#f0f9ff',
-    border: '#bae6fd'
-  },
-
-  // Finance & HR
-  view_all_salary: {
-    key: 'view_all_salary',
-    label: 'ดูสลิปเงินเดือนบุคลากรทุกคน (view_all_salary)',
-    shortLabel: 'ดูสลิปเงินเดือนทุกคน',
-    desc: 'เจ้าหน้าที่ฝ่ายบุคคลหรือผู้บริหารที่ได้รับอนุญาตตรวจสอบข้อมูลเงินเดือนรวม',
-    category: 'finance',
-    categoryLabel: 'งานการเงิน & บุคลากร',
-    roleType: 'view',
-    icon: Coins,
-    color: '#d97706',
-    bg: '#fffbeb',
-    border: '#fde68a'
-  },
-  upload_salary: {
-    key: 'upload_salary',
-    label: 'อัปโหลดเงินเดือน/ค่าตอบแทน (upload_salary)',
-    shortLabel: 'อัปโหลดสลิปเงินเดือน',
-    desc: 'ฝ่ายการเงินสามารถอัปโหลดไฟล์สลิปเงินเดือนและข้อมูลค่าตอบแทนเข้าระบบ',
-    category: 'finance',
-    categoryLabel: 'งานการเงิน & บุคลากร',
-    roleType: 'edit',
-    icon: FileUp,
-    color: '#059669',
-    bg: '#f0fdf4',
-    border: '#bbf7d0'
-  },
-
-  // Governance & Admin
-  manage_rdu: {
-    key: 'manage_rdu',
-    label: 'จัดการข้อมูลและเอกสาร RDU (manage_rdu)',
-    shortLabel: 'จัดการเอกสาร RDU',
-    desc: 'ผู้รับผิดชอบงานใช้ยาอย่างสมเหตุผล (RDU) จัดการโฟลเดอร์ปีและอัปโหลดไฟล์ PDF',
-    category: 'governance',
-    categoryLabel: 'งานธรรมาภิบาล & สารบรรณ',
-    roleType: 'edit',
-    icon: Pill,
-    color: '#0d9488',
-    bg: '#f0fdfa',
-    border: '#99f6e4'
-  },
-  manage_ethics: {
-    key: 'manage_ethics',
-    label: 'จัดการเอกสารชมรมจริยธรรม (manage_ethics)',
-    shortLabel: 'จัดการชมรมจริยธรรม',
-    desc: 'คณะทำงานขับเคลื่อนชมรมจริยธรรมในการเพิ่มปีงบประมาณและอัปโหลดเอกสาร PDF',
-    category: 'governance',
-    categoryLabel: 'งานธรรมาภิบาล & สารบรรณ',
-    roleType: 'edit',
-    icon: Scale,
-    color: '#4f46e5',
-    bg: '#eef2ff',
-    border: '#c7d2fe'
-  },
-  manage_outgoing_doc: {
-    key: 'manage_outgoing_doc',
-    label: 'จัดการหนังสือส่งออก Online (manage_outgoing_doc)',
-    shortLabel: 'จัดการหนังสือส่งออก',
-    desc: 'เจ้าหน้าที่งานสารบรรณ/ธุรการที่ได้รับมอบหมายให้จัดการลิงก์ Google Sheets หนังสือส่งออก',
-    category: 'governance',
-    categoryLabel: 'งานธรรมาภิบาล & สารบรรณ',
-    roleType: 'edit',
-    icon: FileSpreadsheet,
-    color: '#10b981',
-    bg: '#ecfdf5',
-    border: '#a7f3d0'
-  },
-  manage_ita: {
-    key: 'manage_ita',
-    label: 'จัดการบทความและข้อมูล ITA (manage_ita)',
-    shortLabel: 'จัดการบทความ & ITA',
-    desc: 'ผู้รับผิดชอบประเมินคุณธรรมและความโปร่งใส (ITA) ในการเขียนและเผยแพร่ข้อมูล',
-    category: 'governance',
-    categoryLabel: 'งานธรรมาภิบาล & สารบรรณ',
-    roleType: 'manage',
-    icon: BookOpen,
+  manage: {
+    label: 'Manage (ผู้ดูแลงาน)',
+    icon: Shield,
     color: '#7c3aed',
     bg: '#f5f3ff',
-    border: '#ddd6fe'
-  }
+    border: '#ddd6fe',
+  },
 }
-
-export const CATEGORIES_CONFIG: {
-  id: PermCategory
-  label: string
-  shortTitle: string
-  icon: any
-}[] = [
-  { id: 'repairs', label: 'งานแจ้งซ่อมบำรุง & กล่องงาน', shortTitle: 'งานซ่อมบำรุง', icon: Wrench },
-  { id: 'media', label: 'สื่อ & ประชาสัมพันธ์', shortTitle: 'สื่อ & ประชาสัมพันธ์', icon: Palette },
-  { id: 'facility', label: 'พัสดุ & สถานที่', shortTitle: 'พัสดุ & สถานที่', icon: Package },
-  { id: 'governance', label: 'ธรรมาภิบาล & สารบรรณ', shortTitle: 'ธรรมาภิบาล & สารบรรณ', icon: BookOpen },
-  { id: 'finance', label: 'การเงิน & บุคลากร', shortTitle: 'การเงิน & บุคลากร', icon: Wallet },
-  { id: 'all', label: 'ภาพรวมทุกสิทธิ์ (All)', shortTitle: 'ภาพรวมทั้งหมด', icon: LayoutGrid }
-]
-
-export const ROLE_ARCHETYPES: {
-  role: PermRoleType
-  label: string
-  icon: any
-  desc: string
-}[] = [
-  { role: 'view', label: '👁️ View (ดูข้อมูล)', icon: Eye, desc: 'สิทธิ์ดูและติดตามข้อมูลในระบบ (Read-only)' },
-  { role: 'edit', label: '🔧 Edit/Do (ปฏิบัติงาน)', icon: Wrench, desc: 'สิทธิ์รับงาน ดำเนินการ หรือบันทึกข้อมูล' },
-  { role: 'approve', label: '✍️ Approve (อนุมัติ)', icon: CheckCircle2, desc: 'สิทธิ์อนุมัติ/ตรวจรับงาน (Approve-Only)' },
-  { role: 'manage', label: '👑 Manage (ผู้ดูแล)', icon: Shield, desc: 'สิทธิ์ระดับผู้ดูแลระบบหรือหัวหน้างาน' }
-]
 
 const AVATAR_COLORS = [
   { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' },
@@ -430,7 +129,7 @@ const AVATAR_COLORS = [
   { bg: '#fff1f2', text: '#e11d48', border: '#fecdd3' },
   { bg: '#fffbeb', text: '#d97706', border: '#fde68a' },
   { bg: '#f0fdfa', text: '#0d9488', border: '#99f6e4' },
-  { bg: '#f0f9ff', text: '#0284c7', border: '#bae6fd' }
+  { bg: '#f0f9ff', text: '#0284c7', border: '#bae6fd' },
 ]
 
 function getAvatarColor(id: number) {
@@ -447,14 +146,10 @@ function maskIdentifier(val?: string | null): string {
   return `x-xxxx-xxxxx-${clean.slice(-4)}`
 }
 
-function arePermArraysEqual(a: string[] = [], b: string[] = []): boolean {
-  if (a.length !== b.length) return false
-  const sortedA = [...a].sort()
-  const sortedB = [...b].sort()
-  return sortedA.every((val, idx) => val === sortedB[idx])
-}
-
 export default function SettingsClient({ initialSettings }: SettingsClientProps) {
+  // Top Tabs State: 'tasks' | 'inspector' | 'features'
+  const [activeTab, setActiveTab] = useState<'tasks' | 'inspector' | 'features'>('tasks')
+
   // Feature Toggles state
   const [featureInbox, setFeatureInbox] = useState(initialSettings['feature_inbox'] !== '0')
   const [featureSignature, setFeatureSignature] = useState(initialSettings['feature_signature'] !== '0')
@@ -463,7 +158,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
   const [featureRdu, setFeatureRdu] = useState(initialSettings['feature_rdu'] !== '0')
   const [featureRepair, setFeatureRepair] = useState(initialSettings['feature_repair'] !== '0')
   const [featureMediaRequest, setFeatureMediaRequest] = useState(initialSettings['feature_media_request'] !== '0')
-  
+
   const [initialFeatureState, setInitialFeatureState] = useState({
     featureInbox: initialSettings['feature_inbox'] !== '0',
     featureSignature: initialSettings['feature_signature'] !== '0',
@@ -471,7 +166,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     featureIta: initialSettings['feature_ita'] !== '0',
     featureRdu: initialSettings['feature_rdu'] !== '0',
     featureRepair: initialSettings['feature_repair'] !== '0',
-    featureMediaRequest: initialSettings['feature_media_request'] !== '0'
+    featureMediaRequest: initialSettings['feature_media_request'] !== '0',
   })
 
   const isFeaturesDirty = useMemo(() => {
@@ -484,29 +179,49 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       featureRepair !== initialFeatureState.featureRepair ||
       featureMediaRequest !== initialFeatureState.featureMediaRequest
     )
-  }, [featureInbox, featureSignature, featureSalary, featureIta, featureRdu, featureRepair, featureMediaRequest, initialFeatureState])
+  }, [
+    featureInbox,
+    featureSignature,
+    featureSalary,
+    featureIta,
+    featureRdu,
+    featureRepair,
+    featureMediaRequest,
+    initialFeatureState,
+  ])
 
   const [isSavingSettings, setIsSavingSettings] = useState(false)
 
-  // Navigation & View Mode
-  const [activeTab, setActiveTab] = useState<'features' | 'members'>('members')
-  const [selectedCategory, setSelectedCategory] = useState<PermCategory>('repairs')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('all')
-  const [hasPermissionsOnly, setHasPermissionsOnly] = useState(false)
-
-  // Member Permissions Data
+  // Task-Centric Data & State
+  const [tasks, setTasks] = useState<TaskDefinition[]>(TASK_DEFINITIONS)
   const [members, setMembers] = useState<MemberItem[]>([])
-  const [loadingMembers, setLoadingMembers] = useState(false)
+  const [positionMappings, setPositionMappings] = useState<PositionMappingItem[]>([])
+  const [availablePositions, setAvailablePositions] = useState<string[]>([])
+  const [loadingData, setLoadingData] = useState(true)
 
-  // Staged Permissions Dirty State (memberId -> string[])
-  const [stagedPermissions, setStagedPermissions] = useState<Record<number, string[]>>({})
-  const [isSavingBatch, setIsSavingBatch] = useState(false)
+  // Selected Task in Left Sidebar
+  const [selectedTaskId, setSelectedTaskId] = useState<string>('MEDIA_REQUEST')
+  const [taskSearchQuery, setTaskSearchQuery] = useState('')
 
-  // Modal State for Editing Individual Member Permissions
+  // Add Assignee Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [targetTask, setTargetTask] = useState<TaskDefinition | null>(null)
+  const [targetRole, setTargetRole] = useState<TaskRoleConfig | null>(null)
+  const [addMode, setAddMode] = useState<'member' | 'position'>('member')
+  const [memberSearchQuery, setMemberSearchQuery] = useState('')
+  const [positionSearchQuery, setPositionSearchQuery] = useState('')
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('all')
+  const [isActionPending, setIsActionPending] = useState(false)
+
+  // Member Inspector State
+  const [inspectorSearch, setInspectorSearch] = useState('')
+  const [inspectorDeptFilter, setInspectorDeptFilter] = useState('all')
+  const [selectedInspectorMemberId, setSelectedInspectorMemberId] = useState<number | null>(null)
+
+  // Fine-grained Edit Member Modal
   const [editingMember, setEditingMember] = useState<MemberItem | null>(null)
-  const [selectedPerms, setSelectedPerms] = useState<string[]>([])
-  const [isSavingPerms, setIsSavingPerms] = useState(false)
+  const [editingMemberPerms, setEditingMemberPerms] = useState<string[]>([])
+  const [isSavingMemberPerms, setIsSavingMemberPerms] = useState(false)
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([])
@@ -520,193 +235,263 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
-  const fetchMembers = async () => {
-    setLoadingMembers(true)
+  // Load Task-Centric Data
+  const loadTaskData = async () => {
+    setLoadingData(true)
     try {
-      const res = await fetch('/api/member/permissions/members')
+      const res = await fetch('/api/member/permissions/tasks')
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.data?.members) {
-          setMembers(data.data.members)
+        if (data.success && data.data) {
+          if (data.data.tasks) setTasks(data.data.tasks)
+          if (data.data.members) setMembers(data.data.members)
+          if (data.data.availablePositions) setAvailablePositions(data.data.availablePositions)
+          if (data.data.positionMappings) setPositionMappings(data.data.positionMappings)
         }
+      } else {
+        addToast('ไม่สามารถโหลดข้อมูลสิทธิ์ตามงานได้', 'error')
       }
     } catch (error) {
-      console.error('Failed to fetch members:', error)
-      addToast('ไม่สามารถโหลดข้อมูลบุคลากรได้', 'error')
+      console.error('Failed to load task data:', error)
+      addToast('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error')
     } finally {
-      setLoadingMembers(false)
+      setLoadingData(false)
     }
   }
 
   useEffect(() => {
-    fetchMembers()
+    loadTaskData()
   }, [])
 
-  // Unique departments list for filter dropdown
+  // Unique departments
   const uniqueDepartments = useMemo(() => {
     const set = new Set<string>()
     members.forEach((m) => {
-      if (m.department && m.department.trim().length > 0) {
+      if (m.department && m.department.trim()) {
         set.add(m.department.trim())
       }
     })
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'th'))
   }, [members])
 
-  // Effective permissions helper (incorporates staged uncommitted changes)
-  const getEffectivePermissions = (member: MemberItem): string[] => {
-    if (stagedPermissions[member.id] !== undefined) {
-      return stagedPermissions[member.id]
-    }
-    return member.permissions || []
-  }
-
-  const isMemberDirty = (member: MemberItem): boolean => {
-    return stagedPermissions[member.id] !== undefined
-  }
-
-  // Fast inline checkbox toggle
-  const toggleMemberPermission = (member: MemberItem, permKey: string) => {
-    const currentPerms = getEffectivePermissions(member)
-    const nextPerms = currentPerms.includes(permKey)
-      ? currentPerms.filter((k) => k !== permKey)
-      : [...currentPerms, permKey]
-
-    const originalPerms = member.permissions || []
-    const isNowOriginal = arePermArraysEqual(originalPerms, nextPerms)
-
-    setStagedPermissions((prev) => {
-      const next = { ...prev }
-      if (isNowOriginal) {
-        delete next[member.id]
-      } else {
-        next[member.id] = nextPerms
+  // Count of staff per position
+  const positionMemberCounts = useMemo(() => {
+    const map: Record<string, number> = {}
+    members.forEach((m) => {
+      if (m.position && m.position.trim()) {
+        const pos = m.position.trim()
+        map[pos] = (map[pos] || 0) + 1
       }
-      return next
     })
+    return map
+  }, [members])
+
+  // Current selected task
+  const currentTask = useMemo(() => {
+    return tasks.find((t) => t.id === selectedTaskId) || tasks[0]
+  }, [tasks, selectedTaskId])
+
+  // Filtered tasks in left sidebar
+  const filteredTasks = useMemo(() => {
+    if (!taskSearchQuery.trim()) return tasks
+    const q = taskSearchQuery.trim().toLowerCase()
+    return tasks.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        t.shortName.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        t.roles.some((r) => r.label.toLowerCase().includes(q) || r.shortLabel.toLowerCase().includes(q))
+    )
+  }, [tasks, taskSearchQuery])
+
+  // Split tasks by category
+  const workflowTasks = useMemo(
+    () => filteredTasks.filter((t) => t.category === 'workflow'),
+    [filteredTasks]
+  )
+  const systemTasks = useMemo(
+    () => filteredTasks.filter((t) => t.category === 'system'),
+    [filteredTasks]
+  )
+
+  // Helper to get assigned members for a permission key
+  const getAssignedMembersForPerm = (permKey: string): MemberItem[] => {
+    return members.filter((m) => m.permissions.includes(permKey))
   }
 
-  // Reset a single member's staged changes
-  const resetMemberPermissions = (memberId: number) => {
-    setStagedPermissions((prev) => {
-      const next = { ...prev }
-      delete next[memberId]
-      return next
-    })
+  // Helper to get assigned positions for a permission key
+  const getAssignedPositionsForPerm = (permKey: string): string[] => {
+    return positionMappings
+      .filter((p) => p.permissionKey === permKey)
+      .map((p) => p.positionName)
   }
 
-  // Discard all staged changes
-  const handleDiscardAllStaged = () => {
-    setStagedPermissions({})
-    addToast('ยกเลิกการเปลี่ยนแปลงที่ยังไม่ได้บันทึกทั้งหมดแล้ว', 'info')
+  // Check if a member has a permission (either directly or via position or admin)
+  const hasMemberPermissionEffective = (
+    member: MemberItem,
+    permKey: string
+  ): { hasPerm: boolean; origin: 'member' | 'position' | 'admin' | null } => {
+    if (member.role === 'admin') return { hasPerm: true, origin: 'admin' }
+    if (member.permissions.includes(permKey)) return { hasPerm: true, origin: 'member' }
+    const pos = (member.position || '').trim()
+    if (pos && positionMappings.some((p) => p.permissionKey === permKey && p.positionName === pos)) {
+      return { hasPerm: true, origin: 'position' }
+    }
+    return { hasPerm: false, origin: null }
   }
 
-  // Batch Save all staged changes
-  const handleSaveBatchPermissions = async () => {
-    const dirtyIds = Object.keys(stagedPermissions)
-    if (dirtyIds.length === 0) return
+  // Open Add Assignee Modal for a specific Task and Role
+  const handleOpenAddModal = (task: TaskDefinition, role: TaskRoleConfig) => {
+    setTargetTask(task)
+    setTargetRole(role)
+    setMemberSearchQuery('')
+    setPositionSearchQuery('')
+    setSelectedDeptFilter('all')
+    setAddMode('member')
+    setIsAddModalOpen(true)
+  }
 
-    setIsSavingBatch(true)
+  // Grant permission to member (Instant Save)
+  const handleGrantMember = async (member: MemberItem, role: TaskRoleConfig) => {
+    if (isActionPending) return
+    setIsActionPending(true)
     try {
-      const updates = dirtyIds.map((idStr) => {
-        const mId = parseInt(idStr, 10)
-        return {
-          memberId: mId,
-          permissions: stagedPermissions[mId]
-        }
-      })
-
-      const res = await fetch('/api/member/permissions/batch-update', {
+      const res = await fetch('/api/member/permissions/grant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates })
+        body: JSON.stringify({
+          type: 'member',
+          memberId: member.id,
+          permissionKey: role.permissionKey,
+        }),
       })
-
       const data = await res.json()
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์แบบกลุ่ม')
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการมอบสิทธิ์')
       }
 
-      // Apply changes to local members state
+      // Update local state instantly
       setMembers((prev) =>
-        prev.map((m) => {
-          if (stagedPermissions[m.id] !== undefined) {
-            return { ...m, permissions: stagedPermissions[m.id] }
-          }
-          return m
-        })
+        prev.map((m) =>
+          m.id === member.id
+            ? { ...m, permissions: Array.from(new Set([...m.permissions, role.permissionKey])) }
+            : m
+        )
       )
-
-      const updatedCount = updates.length
-      setStagedPermissions({})
-      addToast(`บันทึกการปรับปรุงสิทธิ์บุคลากร ${updatedCount} คนเรียบร้อยแล้ว`, 'success')
+      addToast(data.message || `เพิ่มสิทธิ์ให้ ${member.name} สำเร็จ`, 'success')
     } catch (err: any) {
-      console.error('Batch save failed:', err)
-      addToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์แบบกลุ่ม', 'error')
+      console.error('Grant member error:', err)
+      addToast(err.message || 'เกิดข้อผิดพลาดในการมอบสิทธิ์', 'error')
     } finally {
-      setIsSavingBatch(false)
+      setIsActionPending(false)
     }
   }
 
-  // Bulk Actions on currently visible / filtered members
-  const handleBulkGrantRole = (role: PermRoleType) => {
-    if (selectedCategory === 'all') return
-    const targetPermKeys = Object.values(PERMISSIONS_METADATA)
-      .filter((p) => p.category === selectedCategory && p.roleType === role)
-      .map((p) => p.key)
-
-    if (targetPermKeys.length === 0) return
-
-    let stagedCount = 0
-    setStagedPermissions((prev) => {
-      const next = { ...prev }
-      filteredMembers.forEach((member) => {
-        const currentPerms = getEffectivePermissions(member)
-        const combined = Array.from(new Set([...currentPerms, ...targetPermKeys]))
-        const originalPerms = member.permissions || []
-        if (arePermArraysEqual(originalPerms, combined)) {
-          delete next[member.id]
-        } else {
-          next[member.id] = combined
-          stagedCount++
-        }
+  // Revoke permission from member (Instant Save)
+  const handleRevokeMember = async (member: MemberItem, role: TaskRoleConfig) => {
+    if (isActionPending) return
+    setIsActionPending(true)
+    try {
+      const res = await fetch('/api/member/permissions/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'member',
+          memberId: member.id,
+          permissionKey: role.permissionKey,
+        }),
       })
-      return next
-    })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการปลดสิทธิ์')
+      }
 
-    const roleName = ROLE_ARCHETYPES.find((r) => r.role === role)?.label || role
-    addToast(`เลือกสิทธิ์ ${roleName} ให้กับบุคลากร ${filteredMembers.length} คนที่แสดง (รอยืนยันบันทึก)`, 'info')
-  }
-
-  const handleBulkClearCurrentModule = () => {
-    const keysToRemove = selectedCategory === 'all'
-      ? new Set(Object.keys(PERMISSIONS_METADATA))
-      : new Set(
-          Object.values(PERMISSIONS_METADATA)
-            .filter((p) => p.category === selectedCategory)
-            .map((p) => p.key)
+      // Update local state instantly
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === member.id
+            ? { ...m, permissions: m.permissions.filter((k) => k !== role.permissionKey) }
+            : m
         )
-
-    setStagedPermissions((prev) => {
-      const next = { ...prev }
-      filteredMembers.forEach((member) => {
-        const currentPerms = getEffectivePermissions(member)
-        const filtered = currentPerms.filter((k) => !keysToRemove.has(k))
-        const originalPerms = member.permissions || []
-        if (arePermArraysEqual(originalPerms, filtered)) {
-          delete next[member.id]
-        } else {
-          next[member.id] = filtered
-        }
-      })
-      return next
-    })
-
-    const modName = CATEGORIES_CONFIG.find((c) => c.id === selectedCategory)?.shortTitle || 'โมดูลนี้'
-    addToast(`ล้างสิทธิ์ใน ${modName} ของบุคลากร ${filteredMembers.length} คนที่แสดง (รอยืนยันบันทึก)`, 'info')
+      )
+      addToast(data.message || `ปลดสิทธิ์ของ ${member.name} เรียบร้อยแล้ว`, 'info')
+    } catch (err: any) {
+      console.error('Revoke member error:', err)
+      addToast(err.message || 'เกิดข้อผิดพลาดในการปลดสิทธิ์', 'error')
+    } finally {
+      setIsActionPending(false)
+    }
   }
 
-  const handleSaveSettings = async (e?: React.FormEvent) => {
+  // Grant permission to position (Instant Save)
+  const handleGrantPosition = async (positionName: string, role: TaskRoleConfig) => {
+    if (isActionPending) return
+    setIsActionPending(true)
+    try {
+      const res = await fetch('/api/member/permissions/grant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'position',
+          positionName,
+          permissionKey: role.permissionKey,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการมอบสิทธิ์ตำแหน่ง')
+      }
+
+      // Update local state instantly
+      setPositionMappings((prev) => [
+        ...prev,
+        { id: Date.now(), permissionKey: role.permissionKey, positionName },
+      ])
+      addToast(data.message || `เพิ่มสิทธิ์สำหรับตำแหน่ง "${positionName}" สำเร็จ`, 'success')
+    } catch (err: any) {
+      console.error('Grant position error:', err)
+      addToast(err.message || 'เกิดข้อผิดพลาดในการมอบสิทธิ์ตำแหน่ง', 'error')
+    } finally {
+      setIsActionPending(false)
+    }
+  }
+
+  // Revoke permission from position (Instant Save)
+  const handleRevokePosition = async (positionName: string, role: TaskRoleConfig) => {
+    if (isActionPending) return
+    setIsActionPending(true)
+    try {
+      const res = await fetch('/api/member/permissions/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'position',
+          positionName,
+          permissionKey: role.permissionKey,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'เกิดข้อผิดพลาดในการปลดสิทธิ์ตำแหน่ง')
+      }
+
+      // Update local state instantly
+      setPositionMappings((prev) =>
+        prev.filter(
+          (p) => !(p.permissionKey === role.permissionKey && p.positionName === positionName)
+        )
+      )
+      addToast(data.message || `ปลดสิทธิ์สำหรับตำแหน่ง "${positionName}" เรียบร้อยแล้ว`, 'info')
+    } catch (err: any) {
+      console.error('Revoke position error:', err)
+      addToast(err.message || 'เกิดข้อผิดพลาดในการปลดสิทธิ์ตำแหน่ง', 'error')
+    } finally {
+      setIsActionPending(false)
+    }
+  }
+
+  // Feature Toggles Save
+  const handleSaveFeatures = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     setIsSavingSettings(true)
     try {
@@ -717,16 +502,16 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         feature_ita: featureIta ? '1' : '0',
         feature_rdu: featureRdu ? '1' : '0',
         feature_repair: featureRepair ? '1' : '0',
-        feature_media_request: featureMediaRequest ? '1' : '0'
+        feature_media_request: featureMediaRequest ? '1' : '0',
       }
       const res = await fetch('/api/member/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาดในการบันทึก')
-      
+
       setInitialFeatureState({
         featureInbox,
         featureSignature,
@@ -734,9 +519,9 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
         featureIta,
         featureRdu,
         featureRepair,
-        featureMediaRequest
+        featureMediaRequest,
       })
-      addToast('บันทึกการตั้งค่าสิทธิ์เข้าใช้งานระบบเรียบร้อยแล้ว', 'success')
+      addToast('บันทึกการตั้งค่าเปิด/ปิดโมดูลระบบเรียบร้อยแล้ว', 'success')
     } catch (err: any) {
       addToast(err.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error')
     } finally {
@@ -744,55 +529,69 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
     }
   }
 
-  // Edit Permissions Modal Handlers (Fine-grained single member editor)
-  const handleOpenEditModal = (member: MemberItem) => {
+  // Filtered members in Inspector
+  const filteredInspectorMembers = useMemo(() => {
+    return members.filter((m) => {
+      const matchesDept =
+        inspectorDeptFilter === 'all' || m.department?.trim() === inspectorDeptFilter
+      const q = inspectorSearch.trim().toLowerCase()
+      const matchesSearch =
+        !q ||
+        m.name.toLowerCase().includes(q) ||
+        m.username.toLowerCase().includes(q) ||
+        m.position.toLowerCase().includes(q) ||
+        m.department.toLowerCase().includes(q)
+      return matchesDept && matchesSearch
+    })
+  }, [members, inspectorSearch, inspectorDeptFilter])
+
+  // Selected Inspector Member Object
+  const selectedInspectorMember = useMemo(() => {
+    if (!selectedInspectorMemberId) return filteredInspectorMembers[0] || null
+    return members.find((m) => m.id === selectedInspectorMemberId) || null
+  }, [members, selectedInspectorMemberId, filteredInspectorMembers])
+
+  // Filtered members in Add Modal
+  const modalFilteredMembers = useMemo(() => {
+    if (!targetRole) return []
+    const permKey = targetRole.permissionKey
+    return members.filter((m) => {
+      const matchesDept =
+        selectedDeptFilter === 'all' || m.department?.trim() === selectedDeptFilter
+      const q = memberSearchQuery.trim().toLowerCase()
+      const matchesSearch =
+        !q ||
+        m.name.toLowerCase().includes(q) ||
+        m.username.toLowerCase().includes(q) ||
+        m.position.toLowerCase().includes(q) ||
+        m.department.toLowerCase().includes(q)
+      return matchesDept && matchesSearch
+    })
+  }, [members, memberSearchQuery, selectedDeptFilter, targetRole])
+
+  // Filtered positions in Add Modal
+  const modalFilteredPositions = useMemo(() => {
+    const q = positionSearchQuery.trim().toLowerCase()
+    return availablePositions.filter((pos) => !q || pos.toLowerCase().includes(q))
+  }, [availablePositions, positionSearchQuery])
+
+  // Handler for opening full member edit modal
+  const handleOpenEditMemberModal = (member: MemberItem) => {
     setEditingMember(member)
-    setSelectedPerms([...getEffectivePermissions(member)])
+    setEditingMemberPerms([...member.permissions])
   }
 
-  const handleCloseEditModal = () => {
-    if (isSavingPerms) return
-    setEditingMember(null)
-    setSelectedPerms([])
-  }
-
-  const handleTogglePerm = (permKey: string) => {
-    setSelectedPerms((prev) => 
-      prev.includes(permKey) ? prev.filter((k) => k !== permKey) : [...prev, permKey]
-    )
-  }
-
-  const handleSelectCategoryAll = (category: PermCategory) => {
-    const categoryKeys = Object.keys(PERMISSIONS_METADATA).filter(
-      (k) => PERMISSIONS_METADATA[k].category === category
-    )
-    setSelectedPerms((prev) => Array.from(new Set([...prev, ...categoryKeys])))
-  }
-
-  const handleClearCategory = (category: PermCategory) => {
-    const categoryKeys = new Set(
-      Object.keys(PERMISSIONS_METADATA).filter(
-        (k) => PERMISSIONS_METADATA[k].category === category
-      )
-    )
-    setSelectedPerms((prev) => prev.filter((k) => !categoryKeys.has(k)))
-  }
-
-  const handleClearAll = () => {
-    setSelectedPerms([])
-  }
-
-  const handleSaveMemberPermissions = async () => {
+  const handleSaveMemberAllPerms = async () => {
     if (!editingMember) return
-    setIsSavingPerms(true)
+    setIsSavingMemberPerms(true)
     try {
       const res = await fetch('/api/member/permissions/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           memberId: editingMember.id,
-          permissions: selectedPerms
-        })
+          permissions: editingMemberPerms,
+        }),
       })
       const data = await res.json()
       if (!res.ok || !data.success) {
@@ -801,1167 +600,1241 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
 
       setMembers((prev) =>
         prev.map((m) =>
-          m.id === editingMember.id ? { ...m, permissions: selectedPerms } : m
+          m.id === editingMember.id ? { ...m, permissions: editingMemberPerms } : m
         )
       )
-      // Clear staged state if any for this member
-      setStagedPermissions((prev) => {
-        const next = { ...prev }
-        delete next[editingMember.id]
-        return next
-      })
-
-      addToast(`บันทึกสิทธิ์ของ "${editingMember.name || editingMember.username}" เรียบร้อยแล้ว`, 'success')
-      handleCloseEditModal()
+      addToast(`บันทึกสิทธิ์ของคุณ ${editingMember.name} เรียบร้อยแล้ว`, 'success')
+      setEditingMember(null)
     } catch (err: any) {
-      addToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์', 'error')
+      console.error('Save member all perms failed:', err)
+      addToast(err.message || 'เกิดข้อผิดพลาดในการบันทึก', 'error')
     } finally {
-      setIsSavingPerms(false)
+      setIsSavingMemberPerms(false)
     }
   }
 
-  // Filtered members calculation
-  const filteredMembers = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim()
-    return members.filter((member) => {
-      const effectivePerms = getEffectivePermissions(member)
-
-      // 1. Department filter
-      if (selectedDepartment !== 'all') {
-        if ((member.department || '').trim() !== selectedDepartment) {
-          return false
-        }
-      }
-
-      // 2. Has permissions filter
-      if (hasPermissionsOnly) {
-        if (selectedCategory === 'all') {
-          if (effectivePerms.length === 0) return false
-        } else {
-          const hasModulePerm = effectivePerms.some((permKey) => {
-            const meta = PERMISSIONS_METADATA[permKey]
-            return meta && meta.category === selectedCategory
-          })
-          if (!hasModulePerm) return false
-        }
-      }
-
-      // 3. Search query
-      if (!q) return true
-
-      const nameMatch = (member.name || '').toLowerCase().includes(q)
-      const usernameMatch = (member.username || '').toLowerCase().includes(q)
-      const deptMatch = (member.department || '').toLowerCase().includes(q)
-      const posMatch = (member.position || '').toLowerCase().includes(q)
-      const permMatch = effectivePerms.some((permKey) => {
-        const meta = PERMISSIONS_METADATA[permKey]
-        return (
-          permKey.toLowerCase().includes(q) ||
-          (meta && (
-            meta.label.toLowerCase().includes(q) ||
-            meta.shortLabel.toLowerCase().includes(q) ||
-            meta.desc.toLowerCase().includes(q)
-          ))
-        )
-      })
-
-      return nameMatch || usernameMatch || deptMatch || posMatch || permMatch
-    })
-  }, [members, stagedPermissions, searchQuery, selectedDepartment, hasPermissionsOnly, selectedCategory])
-
-  // Count active modules in feature toggle tab
-  const activeFeaturesCount = [
-    featureInbox,
-    featureSignature,
-    featureSalary,
-    featureRepair,
-    featureMediaRequest,
-    featureIta,
-    featureRdu
-  ].filter(Boolean).length
-
-  // Staged dirty members count
-  const stagedDirtyCount = Object.keys(stagedPermissions).length
-
-  // Members with special permissions count (incorporating staged permissions)
-  const specialPermMembersCount = useMemo(() => {
-    return members.filter((m) => {
-      const perms = getEffectivePermissions(m)
-      return perms.length > 0
-    }).length
-  }, [members, stagedPermissions])
-
-  // Total assigned permissions count across all members
-  const totalAssignedPermissions = useMemo(() => {
-    return members.reduce((acc, m) => {
-      const perms = getEffectivePermissions(m)
-      return acc + perms.length
-    }, 0)
-  }, [members, stagedPermissions])
-
-  // Permissions in currently selected category grouped by role
-  const categoryPermsByRole = useMemo(() => {
-    if (selectedCategory === 'all') return {} as Record<PermRoleType, PermissionMetaItem[]>
-    const grouped: Record<PermRoleType, PermissionMetaItem[]> = {
-      view: [],
-      edit: [],
-      approve: [],
-      manage: []
-    }
-    Object.values(PERMISSIONS_METADATA).forEach((p) => {
-      if (p.category === selectedCategory) {
-        grouped[p.roleType].push(p)
-      }
-    })
-    return grouped
-  }, [selectedCategory])
-
   return (
     <div className="settingsClientModern">
-      {/* Overview Stat Cards */}
-      <section className="overviewStatsGrid" aria-label="สรุปภาพรวมการตั้งค่า">
-        <div className="statCard">
-          <div className="statIconCircle statIconTeal">
-            <SlidersHorizontal size={20} />
-          </div>
-          <div className="statInfo">
-            <span className="statLabel">โมดูลระบบบริการ</span>
-            <div className="statValueRow">
-              <span className="statNumber">{activeFeaturesCount}</span>
-              <span className="statTotal">/ 7 เปิดใช้งาน</span>
-            </div>
-          </div>
-        </div>
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
-        <div className="statCard">
-          <div className="statIconCircle statIconBlue">
-            <UserCheck size={20} />
+      {/* Main Top Navigation Tabs */}
+      <div className="settingsMainTabs">
+        <button
+          type="button"
+          onClick={() => setActiveTab('tasks')}
+          className={`settingsMainTabBtn ${activeTab === 'tasks' ? 'active' : ''}`}
+        >
+          <div className="tabIconBox">
+            <Sparkles size={18} />
           </div>
-          <div className="statInfo">
-            <span className="statLabel">บุคลากรที่ได้รับสิทธิ์พิเศษ</span>
-            <div className="statValueRow">
-              <span className="statNumber">{specialPermMembersCount}</span>
-              <span className="statTotal">/ {members.length} คน</span>
-            </div>
+          <div className="tabTextBox">
+            <span className="tabTitle">กำหนดสิทธิ์ตามภารกิจงาน</span>
+            <span className="tabSub">Task-Centric Permissions (แนะนำ)</span>
           </div>
-        </div>
+          <span className="tabBadge">{tasks.length} งาน</span>
+        </button>
 
-        <div className="statCard">
-          <div className="statIconCircle statIconPurple">
-            <Shield size={20} />
+        <button
+          type="button"
+          onClick={() => setActiveTab('inspector')}
+          className={`settingsMainTabBtn ${activeTab === 'inspector' ? 'active' : ''}`}
+        >
+          <div className="tabIconBox">
+            <UserCheck size={18} />
           </div>
-          <div className="statInfo">
-            <span className="statLabel">กฎสิทธิ์ที่มอบหมายทั้งหมด</span>
-            <div className="statValueRow">
-              <span className="statNumber">{totalAssignedPermissions}</span>
-              <span className="statTotal">รายการสิทธิ์</span>
-            </div>
+          <div className="tabTextBox">
+            <span className="tabTitle">ตรวจสอบสิทธิ์รายบุคคล</span>
+            <span className="tabSub">Member Permission Inspector</span>
           </div>
-        </div>
-      </section>
+          <span className="tabBadge secondary">{members.length} บุคลากร</span>
+        </button>
 
-      {/* Main Tab Navigation */}
-      <nav className="modernTabsContainer" aria-label="แถบเมนูการตั้งค่า">
-        <div className="tabPillsGroup">
-          <button
-            type="button"
-            className={`mainTabButton ${activeTab === 'members' ? 'isActive' : ''}`}
-            onClick={() => setActiveTab('members')}
-          >
-            <UserCog size={18} />
-            <span>กำหนดสิทธิ์บุคลากร (Permission Matrix)</span>
-            <span className="tabCountBadge">{specialPermMembersCount} คน</span>
-            {stagedDirtyCount > 0 && (
-              <span className="tabUnsavedDot" title={`มีการแก้ไข ${stagedDirtyCount} คนที่ยังไม่ได้บันทึก`} />
-            )}
-          </button>
-
-          <button
-            type="button"
-            className={`mainTabButton ${activeTab === 'features' ? 'isActive' : ''}`}
-            onClick={() => setActiveTab('features')}
-          >
+        <button
+          type="button"
+          onClick={() => setActiveTab('features')}
+          className={`settingsMainTabBtn ${activeTab === 'features' ? 'active' : ''}`}
+        >
+          <div className="tabIconBox">
             <Sliders size={18} />
-            <span>เปิด-ปิดระบบบริการทั่วไป</span>
-            {isFeaturesDirty && <span className="tabUnsavedDot" title="มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก" />}
-          </button>
-        </div>
-      </nav>
-
-      {/* ======================================================== */}
-      {/* TAB 1: MEMBER PERMISSIONS MATRIX (Primary View)         */}
-      {/* ======================================================== */}
-      {activeTab === 'members' && (
-        <div className="tabContentSection animate-fadeIn">
-          {/* Section Info Banner */}
-          <div className="sectionHeaderCard">
-            <div className="sectionHeaderTitleGroup">
-              <div className="sectionIconWrapper">
-                <UserCog size={20} />
-              </div>
-              <div>
-                <h2>ตารางกำหนดสิทธิ์รายโมดูล (Module-Centric Permission Matrix)</h2>
-                <p>
-                  เลือกโมดูลงานที่ต้องการจัดการ จากนั้นทำเครื่องหมายในช่องสิทธิ์ที่ต้องการมอบหมายให้แก่บุคลากร แล้วกดบันทึกการเปลี่ยนแปลงทั้งหมดพร้อมกัน
-                </p>
-              </div>
-            </div>
-
-            {stagedDirtyCount > 0 && (
-              <div className="unsavedAlertBanner">
-                <AlertCircle size={16} />
-                <span>มีการปรับสิทธิ์ {stagedDirtyCount} คน (ยังไม่ได้บันทึก)</span>
-              </div>
-            )}
           </div>
-
-          {/* Module Selector Tabs */}
-          <div className="moduleSelectorContainer" role="tablist" aria-label="เลือกโมดูลสิทธิ์">
-            <div className="moduleSelectorTabs">
-              {CATEGORIES_CONFIG.map((cat) => {
-                const Icon = cat.icon
-                const isSelected = selectedCategory === cat.id
-                
-                // Count how many members have permissions in this category
-                const membersWithCategoryPermCount = members.filter((m) => {
-                  const pList = getEffectivePermissions(m)
-                  if (cat.id === 'all') return pList.length > 0
-                  return pList.some((k) => PERMISSIONS_METADATA[k]?.category === cat.id)
-                }).length
-
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isSelected}
-                    className={`moduleTabPill ${isSelected ? 'moduleTabActive' : ''}`}
-                    onClick={() => setSelectedCategory(cat.id)}
-                  >
-                    <Icon size={16} className="moduleTabIcon" />
-                    <span className="moduleTabTitle">{cat.label}</span>
-                    <span className="moduleTabBadge">
-                      {membersWithCategoryPermCount} คน
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+          <div className="tabTextBox">
+            <span className="tabTitle">เปิด/ปิดโมดูลระบบบริการ</span>
+            <span className="tabSub">Feature Toggles & Modules</span>
           </div>
+          {isFeaturesDirty && <span className="tabBadge dirty">มีแก้ไข</span>}
+        </button>
+      </div>
 
-          {/* Search, Filters & Department Toolbar */}
-          <div className="memberPermissionsToolbar">
-            <div className="toolbarTopRow">
-              {/* Search Box */}
-              <div className="searchBoxWrapper">
+      {/* =========================================================================
+          TAB 1: TASK-CENTRIC PERMISSIONS (MAIN VIEW)
+          ========================================================================= */}
+      {activeTab === 'tasks' && (
+        <div className="taskCentricContainer">
+          {/* Left Column: Task Navigator */}
+          <aside className="taskSidebarPane">
+            <div className="taskSidebarHeader">
+              <div className="taskSidebarSearchWrapper">
                 <Search size={16} className="searchIcon" />
                 <input
                   type="text"
-                  placeholder="ค้นหาชื่อบุคลากร, เลขบัตรประชาชน, กลุ่มงาน, ตำแหน่ง หรือชื่อสิทธิ์..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="searchInput"
+                  placeholder="ค้นหาภารกิจงาน..."
+                  value={taskSearchQuery}
+                  onChange={(e) => setTaskSearchQuery(e.target.value)}
+                  className="taskSidebarSearchInput"
                 />
-                {searchQuery && (
+                {taskSearchQuery && (
                   <button
                     type="button"
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => setTaskSearchQuery('')}
                     className="clearSearchBtn"
-                    aria-label="ล้างการค้นหา"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="taskNavScrollable">
+              {/* Category 1: Workflow Tasks */}
+              {workflowTasks.length > 0 && (
+                <div className="taskNavGroup">
+                  <div className="taskNavGroupHeader">
+                    <Sparkles size={14} className="groupIcon groupIconWorkflow" />
+                    <span>งานบริการ & กล่องงาน (Workflow)</span>
+                    <span className="groupCount">{workflowTasks.length}</span>
+                  </div>
+                  <div className="taskNavList">
+                    {workflowTasks.map((task) => {
+                      const Icon = ICON_MAP[task.iconName] || Layers
+                      const isSelected = selectedTaskId === task.id
+                      const totalAssignedMembers = task.roles.reduce(
+                        (acc, r) => acc + getAssignedMembersForPerm(r.permissionKey).length,
+                        0
+                      )
+                      const totalAssignedPositions = task.roles.reduce(
+                        (acc, r) => acc + getAssignedPositionsForPerm(r.permissionKey).length,
+                        0
+                      )
+
+                      return (
+                        <button
+                          key={task.id}
+                          type="button"
+                          onClick={() => setSelectedTaskId(task.id)}
+                          className={`taskNavItem ${isSelected ? 'active' : ''}`}
+                        >
+                          <div
+                            className="taskNavIconBox"
+                            style={{
+                              backgroundColor: `${task.badgeColor}15`,
+                              color: task.badgeColor,
+                            }}
+                          >
+                            <Icon size={18} />
+                          </div>
+                          <div className="taskNavInfo">
+                            <span className="taskNavName">{task.name}</span>
+                            <span className="taskNavRolesCount">
+                              {task.roles.length} บทบาท ({totalAssignedMembers} คน
+                              {totalAssignedPositions > 0 ? `, ${totalAssignedPositions} ตำแหน่ง` : ''})
+                            </span>
+                          </div>
+                          <ChevronRight size={16} className="taskNavArrow" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Category 2: System & Governance Modules */}
+              {systemTasks.length > 0 && (
+                <div className="taskNavGroup">
+                  <div className="taskNavGroupHeader">
+                    <Building2 size={14} className="groupIcon groupIconSystem" />
+                    <span>ระบบบริหาร & กำกับดูแล (System)</span>
+                    <span className="groupCount">{systemTasks.length}</span>
+                  </div>
+                  <div className="taskNavList">
+                    {systemTasks.map((task) => {
+                      const Icon = ICON_MAP[task.iconName] || Layers
+                      const isSelected = selectedTaskId === task.id
+                      const totalAssignedMembers = task.roles.reduce(
+                        (acc, r) => acc + getAssignedMembersForPerm(r.permissionKey).length,
+                        0
+                      )
+                      const totalAssignedPositions = task.roles.reduce(
+                        (acc, r) => acc + getAssignedPositionsForPerm(r.permissionKey).length,
+                        0
+                      )
+
+                      return (
+                        <button
+                          key={task.id}
+                          type="button"
+                          onClick={() => setSelectedTaskId(task.id)}
+                          className={`taskNavItem ${isSelected ? 'active' : ''}`}
+                        >
+                          <div
+                            className="taskNavIconBox"
+                            style={{
+                              backgroundColor: `${task.badgeColor}15`,
+                              color: task.badgeColor,
+                            }}
+                          >
+                            <Icon size={18} />
+                          </div>
+                          <div className="taskNavInfo">
+                            <span className="taskNavName">{task.name}</span>
+                            <span className="taskNavRolesCount">
+                              {task.roles.length} บทบาท ({totalAssignedMembers} คน
+                              {totalAssignedPositions > 0 ? `, ${totalAssignedPositions} ตำแหน่ง` : ''})
+                            </span>
+                          </div>
+                          <ChevronRight size={16} className="taskNavArrow" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {filteredTasks.length === 0 && (
+                <div className="taskEmptySearch">
+                  <Search size={28} />
+                  <p>ไม่พบภารกิจงานที่ตรงกับการค้นหา</p>
+                </div>
+              )}
+            </div>
+          </aside>
+
+          {/* Right Column: Task Workspace & 4 Roles Board */}
+          <main className="taskWorkspacePane">
+            {currentTask && (
+              <>
+                {/* Task Header Banner */}
+                <div
+                  className="taskWorkspaceHeader"
+                  style={{ borderLeftColor: currentTask.badgeColor }}
+                >
+                  <div className="taskWorkspaceHeaderLeft">
+                    <div
+                      className="taskHeaderIconBox"
+                      style={{
+                        backgroundColor: `${currentTask.badgeColor}15`,
+                        color: currentTask.badgeColor,
+                      }}
+                    >
+                      {React.createElement(ICON_MAP[currentTask.iconName] || Layers, {
+                        size: 28,
+                      })}
+                    </div>
+                    <div className="taskHeaderMeta">
+                      <div className="taskHeaderCategoryBadge">
+                        <span>{currentTask.categoryLabel}</span>
+                        <span className="dotDivider">•</span>
+                        <span>รหัสงาน: {currentTask.id}</span>
+                      </div>
+                      <h2 className="taskHeaderTitle">{currentTask.name}</h2>
+                      <p className="taskHeaderDesc">{currentTask.description}</p>
+                    </div>
+                  </div>
+
+                  <div className="taskWorkspaceHeaderStats">
+                    <div className="taskStatBadge">
+                      <Users size={16} />
+                      <span>
+                        กำหนดแล้ว{' '}
+                        <strong>
+                          {currentTask.roles.reduce(
+                            (acc, r) => acc + getAssignedMembersForPerm(r.permissionKey).length,
+                            0
+                          )}
+                        </strong>{' '}
+                        คน
+                      </span>
+                    </div>
+                    <div className="taskStatBadge positionBadge">
+                      <Briefcase size={16} />
+                      <span>
+                        ผูกตำแหน่ง{' '}
+                        <strong>
+                          {currentTask.roles.reduce(
+                            (acc, r) => acc + getAssignedPositionsForPerm(r.permissionKey).length,
+                            0
+                          )}
+                        </strong>{' '}
+                        ตำแหน่ง
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Role Boards Grid */}
+                <div className="rolesGridContainer">
+                  {currentTask.roles.map((role) => {
+                    const roleCfg = ROLE_TYPE_CONFIG[role.roleType]
+                    const assignedMembers = getAssignedMembersForPerm(role.permissionKey)
+                    const assignedPositions = getAssignedPositionsForPerm(role.permissionKey)
+                    const RoleIcon = roleCfg.icon
+
+                    return (
+                      <div key={role.permissionKey} className="roleBoardCard">
+                        <div className="roleBoardHeader">
+                          <div className="roleBoardTitleRow">
+                            <div
+                              className="roleIconBox"
+                              style={{
+                                backgroundColor: roleCfg.bg,
+                                color: roleCfg.color,
+                                borderColor: roleCfg.border,
+                              }}
+                            >
+                              <RoleIcon size={16} />
+                            </div>
+                            <div className="roleTitleMeta">
+                              <h3 className="roleTitleText">{role.label}</h3>
+                              <span className="roleKeyBadge">{role.permissionKey}</span>
+                            </div>
+                          </div>
+
+                          <span
+                            className="roleTypeTag"
+                            style={{
+                              backgroundColor: roleCfg.bg,
+                              color: roleCfg.color,
+                              borderColor: roleCfg.border,
+                            }}
+                          >
+                            {roleCfg.label}
+                          </span>
+                        </div>
+
+                        <p className="roleDescriptionText">{role.description}</p>
+
+                        {/* Allowed Actions Pills */}
+                        {role.allowedActions && role.allowedActions.length > 0 && (
+                          <div className="roleActionsWrapper">
+                            <span className="roleActionsLabel">ขอบเขตอำนาจหน้าที่:</span>
+                            <div className="roleActionPills">
+                              {role.allowedActions.map((action, i) => (
+                                <span key={i} className="actionPill">
+                                  <Check size={11} />
+                                  {action}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Assigned Section */}
+                        <div className="roleAssignedSection">
+                          {/* 1. Assigned Positions */}
+                          {assignedPositions.length > 0 && (
+                            <div className="assignedGroup">
+                              <div className="assignedGroupTitle">
+                                <Briefcase size={13} />
+                                <span>ตามตำแหน่งงาน ({assignedPositions.length})</span>
+                              </div>
+                              <div className="assignedChipsList">
+                                {assignedPositions.map((pos) => (
+                                  <div key={pos} className="positionChip">
+                                    <span className="chipName">{pos}</span>
+                                    {positionMemberCounts[pos] && (
+                                      <span className="chipCount">
+                                        ({positionMemberCounts[pos]} คน)
+                                      </span>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRevokePosition(pos, role)}
+                                      className="chipRemoveBtn"
+                                      title={`ปลดสิทธิ์ของตำแหน่ง ${pos}`}
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2. Assigned Members (Individual) */}
+                          <div className="assignedGroup">
+                            <div className="assignedGroupTitle">
+                              <Users size={13} />
+                              <span>รายบุคคล ({assignedMembers.length})</span>
+                            </div>
+
+                            {assignedMembers.length > 0 ? (
+                              <div className="assignedChipsList">
+                                {assignedMembers.map((member) => {
+                                  const avColor = getAvatarColor(member.id)
+                                  return (
+                                    <div key={member.id} className="memberChip">
+                                      <div
+                                        className="memberAvatarMini"
+                                        style={{
+                                          backgroundColor: avColor.bg,
+                                          color: avColor.text,
+                                        }}
+                                      >
+                                        {member.name.charAt(0) || 'U'}
+                                      </div>
+                                      <div className="memberChipInfo">
+                                        <span className="memberName">{member.name}</span>
+                                        <span className="memberSub">
+                                          {member.position || member.department || 'เจ้าหน้าที่'}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRevokeMember(member, role)}
+                                        className="chipRemoveBtn"
+                                        title={`ปลดสิทธิ์ของคุณ ${member.name}`}
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            ) : assignedPositions.length === 0 ? (
+                              <div className="roleEmptyNotice">
+                                <Info size={14} />
+                                <span>ยังไม่มีการกำหนดผู้รับผิดชอบในบทบาทนี้</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* Card Footer: Quick Add Button */}
+                        <div className="roleBoardFooter">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAddModal(currentTask, role)}
+                            className="addAssigneeBtn"
+                          >
+                            <Plus size={15} />
+                            <span>เพิ่มผู้รับผิดชอบในบทบาทนี้</span>
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </main>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 2: MEMBER PERMISSION INSPECTOR
+          ========================================================================= */}
+      {activeTab === 'inspector' && (
+        <div className="inspectorContainer">
+          {/* Left Column: Member Search & List */}
+          <aside className="inspectorSidebar">
+            <div className="inspectorSearchBox">
+              <div className="searchInputWrapper">
+                <Search size={16} className="searchIcon" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อ, ตำแหน่ง, เลขบัตร..."
+                  value={inspectorSearch}
+                  onChange={(e) => setInspectorSearch(e.target.value)}
+                  className="inspectorInput"
+                />
+                {inspectorSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setInspectorSearch('')}
+                    className="clearSearchBtn"
                   >
                     <X size={14} />
                   </button>
                 )}
               </div>
 
-              {/* Department Dropdown Filter */}
-              <div className="departmentDropdownWrapper">
-                <Building2 size={16} className="deptDropdownIcon" />
-                <select
-                  value={selectedDepartment}
-                  onChange={(e) => setSelectedDepartment(e.target.value)}
-                  className="deptSelectInput"
-                  aria-label="กรองตามกลุ่มงาน"
-                >
-                  <option value="all">ทุกกลุ่มงาน/ฝ่าย (ทั้งหมด)</option>
-                  {uniqueDepartments.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Has Permissions Only Filter */}
-              <label className={`hasPermFilterToggle ${hasPermissionsOnly ? 'filterActive' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={hasPermissionsOnly}
-                  onChange={(e) => setHasPermissionsOnly(e.target.checked)}
-                />
-                <Shield size={15} />
-                <span>
-                  {selectedCategory === 'all' 
-                    ? 'เฉพาะผู้มีสิทธิ์พิเศษ' 
-                    : 'เฉพาะผู้มีสิทธิ์ในโมดูลนี้'}
-                </span>
-                {specialPermMembersCount > 0 && (
-                  <span className="filterCountPill">{specialPermMembersCount}</span>
-                )}
-              </label>
+              <select
+                value={inspectorDeptFilter}
+                onChange={(e) => setInspectorDeptFilter(e.target.value)}
+                className="inspectorDeptSelect"
+              >
+                <option value="all">ทุกกลุ่มงาน / ฝ่าย ({members.length})</option>
+                {uniqueDepartments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Bulk Department Tools Row */}
-            <div className="bulkActionsBar">
-              <div className="bulkActionsLeft">
-                <span className="bulkActionsLabel">
-                  <Sparkles size={14} />
-                  <span>จัดการแบบกลุ่ม ({filteredMembers.length} คนที่แสดง):</span>
-                </span>
+            <div className="inspectorMemberList">
+              {filteredInspectorMembers.map((m) => {
+                const isSelected = (selectedInspectorMember?.id || 0) === m.id
+                const avColor = getAvatarColor(m.id)
+                const totalPerms = m.permissions.length
+                const isAdmin = m.role === 'admin'
 
-                {selectedCategory !== 'all' && (
-                  <>
-                    {categoryPermsByRole.view && categoryPermsByRole.view.length > 0 && (
-                      <button
-                        type="button"
-                        className="btnBulkAction"
-                        onClick={() => handleBulkGrantRole('view')}
-                        title="มอบหมายสิทธิ์ View ทั้งหมดให้กับบุคลากรที่แสดง"
-                      >
-                        <CheckSquare size={13} />
-                        <span>เลือก View ทั้งหมด</span>
-                      </button>
-                    )}
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setSelectedInspectorMemberId(m.id)}
+                    className={`inspectorMemberItem ${isSelected ? 'active' : ''}`}
+                  >
+                    <div
+                      className="memberAvatar"
+                      style={{ backgroundColor: avColor.bg, color: avColor.text }}
+                    >
+                      {m.name.charAt(0) || 'U'}
+                    </div>
+                    <div className="memberDetails">
+                      <div className="memberNameRow">
+                        <span className="nameText">{m.name}</span>
+                        {isAdmin && <span className="adminTag">ADMIN</span>}
+                      </div>
+                      <span className="positionText">{m.position || 'ไม่ระบุตำแหน่ง'}</span>
+                      <span className="deptText">{m.department || 'ไม่ระบุฝ่าย'}</span>
+                    </div>
+                    <div className="permCountBadge">
+                      {isAdmin ? (
+                        <Shield size={14} className="shieldGold" />
+                      ) : (
+                        <span>{totalPerms} สิทธิ์</span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
 
-                    {categoryPermsByRole.edit && categoryPermsByRole.edit.length > 0 && (
-                      <button
-                        type="button"
-                        className="btnBulkAction"
-                        onClick={() => handleBulkGrantRole('edit')}
-                        title="มอบหมายสิทธิ์ Edit/Do ทั้งหมดให้กับบุคลากรที่แสดง"
-                      >
-                        <CheckSquare size={13} />
-                        <span>เลือก Edit ทั้งหมด</span>
-                      </button>
-                    )}
+              {filteredInspectorMembers.length === 0 && (
+                <div className="inspectorEmptySearch">
+                  <User size={32} />
+                  <p>ไม่พบบุคลากรที่ตรงกับเงื่อนไขการค้นหา</p>
+                </div>
+              )}
+            </div>
+          </aside>
 
+          {/* Right Column: Detailed Member Inspector Card */}
+          <main className="inspectorMainPane">
+            {selectedInspectorMember ? (
+              <div className="inspectorProfileCard">
+                {/* Profile Header */}
+                <div className="inspectorProfileHeader">
+                  <div className="profileLeft">
+                    <div
+                      className="profileAvatarLarge"
+                      style={{
+                        backgroundColor: getAvatarColor(selectedInspectorMember.id).bg,
+                        color: getAvatarColor(selectedInspectorMember.id).text,
+                      }}
+                    >
+                      {selectedInspectorMember.name.charAt(0) || 'U'}
+                    </div>
+                    <div className="profileMeta">
+                      <div className="profileTitleRow">
+                        <h2>{selectedInspectorMember.name}</h2>
+                        {selectedInspectorMember.role === 'admin' ? (
+                          <span className="roleBadgeAdmin">
+                            <Shield size={14} />
+                            ผู้ดูแลระบบสูงสุด (Super Admin)
+                          </span>
+                        ) : (
+                          <span className="roleBadgeMember">
+                            <UserCheck size={14} />
+                            บุคลากรโรงพยาบาล
+                          </span>
+                        )}
+                      </div>
+                      <div className="profileSubRow">
+                        <span>
+                          <strong>ตำแหน่ง:</strong> {selectedInspectorMember.position || '-'}
+                        </span>
+                        <span className="dotDivider">•</span>
+                        <span>
+                          <strong>กลุ่มงาน/ฝ่าย:</strong> {selectedInspectorMember.department || '-'}
+                        </span>
+                        <span className="dotDivider">•</span>
+                        <span>
+                          <strong>รหัสบัตร/ผู้ใช้:</strong>{' '}
+                          {maskIdentifier(selectedInspectorMember.username)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="profileRight">
                     <button
                       type="button"
-                      className="btnBulkAction btnBulkClear"
-                      onClick={handleBulkClearCurrentModule}
-                      title="ล้างสิทธิ์ในโมดูลนี้ของบุคลากรที่แสดง"
+                      onClick={() => handleOpenEditMemberModal(selectedInspectorMember)}
+                      className="editAllPermsBtn"
                     >
-                      <Square size={13} />
-                      <span>ล้างสิทธิ์ในโมดูลนี้</span>
+                      <UserCog size={16} />
+                      <span>ปรับสิทธิ์ละเอียด (รายคน)</span>
                     </button>
-                  </>
-                )}
-
-                {selectedCategory === 'all' && (
-                  <button
-                    type="button"
-                    className="btnBulkAction btnBulkClear"
-                    onClick={handleBulkClearCurrentModule}
-                    title="ล้างสิทธิ์ทั้งหมดของบุคลากรที่แสดง"
-                  >
-                    <Square size={13} />
-                    <span>ล้างสิทธิ์ทั้งหมดที่แสดง</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="membersCountSummary">
-                <span>
-                  แสดง <strong>{filteredMembers.length}</strong> จาก <strong>{members.length}</strong> คน
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Matrix Table View */}
-          <div className="matrixTableContainer">
-            {loadingMembers ? (
-              <div className="modernLoadingCard">
-                <RefreshCw size={28} className="spinAnimation text-teal-600" />
-                <p>กำลังโหลดรายชื่อบุคลากรและสิทธิ์การใช้งาน...</p>
-              </div>
-            ) : filteredMembers.length === 0 ? (
-              <div className="modernEmptyStateCard">
-                <div className="emptyIconCircle">
-                  <Filter size={32} />
-                </div>
-                <h4>ไม่พบบุคลากรที่ตรงกับเงื่อนไขการค้นหา</h4>
-                <p>ลองปรับเปลี่ยนคำค้นหา หรือรีเซ็ตตัวกรองเพื่อแสดงบุคลากรทั้งหมด</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery('')
-                    setSelectedDepartment('all')
-                    setHasPermissionsOnly(false)
-                  }}
-                  className="btnResetFilter"
-                >
-                  รีเซ็ตตัวกรองทั้งหมด
-                </button>
-              </div>
-            ) : (
-              <div className="matrixTableResponsiveWrapper">
-                <table className="matrixTable">
-                  <thead>
-                    <tr>
-                      <th className="matrixTh matrixHeaderStaffCol">
-                        <div className="thTitleWrap">
-                          <Users size={16} />
-                          <span>บุคลากร (Staff Member)</span>
-                        </div>
-                      </th>
-
-                      {selectedCategory !== 'all' ? (
-                        ROLE_ARCHETYPES.map((archetype) => (
-                          <th key={archetype.role} className="matrixTh matrixHeaderPermCol">
-                            <div className="thTitleWrap" title={archetype.desc}>
-                              <span>{archetype.label}</span>
-                            </div>
-                          </th>
-                        ))
-                      ) : (
-                        CATEGORIES_CONFIG.filter((c) => c.id !== 'all').map((cat) => {
-                          const CatIcon = cat.icon
-                          return (
-                            <th key={cat.id} className="matrixTh matrixHeaderPermCol">
-                              <div className="thTitleWrap">
-                                <CatIcon size={14} />
-                                <span>{cat.shortTitle}</span>
-                              </div>
-                            </th>
-                          )
-                        })
-                      )}
-
-                      <th className="matrixTh matrixHeaderActionsCol">
-                        <div className="thTitleWrap">
-                          <span>สิทธิ์รวม / การจัดการ</span>
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMembers.map((member) => {
-                      const avatarColor = getAvatarColor(member.id)
-                      const initials = member.name
-                        ? member.name.trim().charAt(0)
-                        : member.username.charAt(0).toUpperCase()
-                      
-                      const effectivePerms = getEffectivePermissions(member)
-                      const isDirty = isMemberDirty(member)
-
-                      return (
-                        <tr
-                          key={member.id}
-                          className={`matrixRow ${isDirty ? 'matrixRowDirty' : ''}`}
-                        >
-                          {/* Column 1: Staff Info */}
-                          <td className="matrixTd matrixStaffCell">
-                            <div className="staffAvatarCircle"
-                              style={{
-                                backgroundColor: avatarColor.bg,
-                                color: avatarColor.text,
-                                borderColor: avatarColor.border
-                              }}
-                            >
-                              <span>{initials}</span>
-                            </div>
-
-                            <div className="staffDetailsWrap">
-                              <div className="staffNameLine">
-                                <span className="staffName" title={member.name || member.username}>
-                                  {member.name || member.username}
-                                </span>
-                                {member.role === 'admin' ? (
-                                  <span className="roleBadge adminRoleBadge">Admin</span>
-                                ) : null}
-                                {isDirty && (
-                                  <span className="unsavedMemberBadge" title="มีการปรับเปลี่ยนสิทธิ์ที่ยังไม่ได้บันทึก">
-                                    แก้ไขแล้ว
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="staffDeptLine">
-                                <span className="staffDept" title="กลุ่มงาน">
-                                  <Building2 size={12} />
-                                  {member.department || 'ไม่ระบุกลุ่มงาน'}
-                                </span>
-                                {member.position && (
-                                  <span className="staffPosition" title="ตำแหน่ง">
-                                    • {member.position}
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="staffIdLine">
-                                <span className="staffMaskedId">
-                                  เลขบัตร: {maskIdentifier(member.username)}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Column Groups: Module Role Archetypes or All Modules */}
-                          {selectedCategory !== 'all' ? (
-                            ROLE_ARCHETYPES.map((archetype) => {
-                              const permsInCell = Object.values(PERMISSIONS_METADATA).filter(
-                                (p) => p.category === selectedCategory && p.roleType === archetype.role
-                              )
-
-                              if (permsInCell.length === 0) {
-                                return (
-                                  <td key={archetype.role} className="matrixTd matrixCenterCell">
-                                    <span className="matrixEmptyCell">—</span>
-                                  </td>
-                                )
-                              }
-
-                              return (
-                                <td key={archetype.role} className="matrixTd">
-                                  <div className="matrixPermPillsGroup">
-                                    {permsInCell.map((perm) => {
-                                      const isChecked = effectivePerms.includes(perm.key)
-                                      const isOriginal = (member.permissions || []).includes(perm.key)
-                                      const isStagedChange = isChecked !== isOriginal
-
-                                      return (
-                                        <label
-                                          key={perm.key}
-                                          className={`matrixPermPill ${isChecked ? 'pillChecked' : ''} ${perm.isApproveOnly ? 'pillApproveOnly' : ''} ${perm.roleType === 'manage' ? 'pillManage' : ''} ${isStagedChange ? 'pillStagedDirty' : ''}`}
-                                          title={`${perm.label}\n${perm.desc}`}
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={isChecked}
-                                            onChange={() => toggleMemberPermission(member, perm.key)}
-                                            className="matrixCheckboxInput"
-                                          />
-                                          <span className="pillLabel">{perm.shortLabel}</span>
-                                          {perm.isApproveOnly && (
-                                            <span className="pillMiniTag pillTagApprove">Approve</span>
-                                          )}
-                                          {perm.roleType === 'manage' && (
-                                            <span className="pillMiniTag pillTagManage">Manage</span>
-                                          )}
-                                          {isStagedChange && (
-                                            <span className="pillDirtyDot" title="ยังไม่ได้บันทึก" />
-                                          )}
-                                        </label>
-                                      )
-                                    })}
-                                  </div>
-                                </td>
-                              )
-                            })
-                          ) : (
-                            CATEGORIES_CONFIG.filter((c) => c.id !== 'all').map((cat) => {
-                              const activePermsInCat = effectivePerms
-                                .map((k) => PERMISSIONS_METADATA[k])
-                                .filter((p): p is PermissionMetaItem => Boolean(p && p.category === cat.id))
-
-                              if (activePermsInCat.length === 0) {
-                                return (
-                                  <td key={cat.id} className="matrixTd matrixCenterCell">
-                                    <span className="matrixEmptyCell">—</span>
-                                  </td>
-                                )
-                              }
-
-                              return (
-                                <td key={cat.id} className="matrixTd">
-                                  <div className="matrixSummaryTags">
-                                    {activePermsInCat.map((p) => (
-                                      <span
-                                        key={p.key}
-                                        className={`matrixSummaryTag ${p.isApproveOnly ? 'summaryApprove' : ''}`}
-                                        style={{
-                                          backgroundColor: p.bg,
-                                          color: p.color,
-                                          borderColor: p.border
-                                        }}
-                                        title={p.label}
-                                      >
-                                        {p.shortLabel}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </td>
-                              )
-                            })
-                          )}
-
-                          {/* Column: Actions & Details */}
-                          <td className="matrixTd matrixActionsCell">
-                            <div className="matrixActionGroup">
-                              <span className={`totalPermsBadge ${effectivePerms.length > 0 ? 'badgeHasPerms' : 'badgeZeroPerms'}`}>
-                                {effectivePerms.length} สิทธิ์
-                              </span>
-
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditModal(member)}
-                                className="btnRowModalEdit"
-                                title={`เปิดหน้าต่างแก้ไขสิทธิ์ของ ${member.name || member.username}`}
-                              >
-                                <UserCog size={13} />
-                                <span>แก้ไขละเอียด</span>
-                              </button>
-
-                              {isDirty && (
-                                <button
-                                  type="button"
-                                  onClick={() => resetMemberPermissions(member.id)}
-                                  className="btnRowResetDirty"
-                                  title="คืนค่าเดิมของบุคลากรท่านนี้"
-                                >
-                                  <RotateCcw size={13} />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Sticky Batch Save Bar (Floats when staged changes exist) */}
-          {stagedDirtyCount > 0 && (
-            <div className="stickyBatchActionBar animate-fadeIn" role="region" aria-label="แถบบันทึกการเปลี่ยนแปลงสิทธิ์">
-              <div className="batchBarContent">
-                <div className="batchBarLeft">
-                  <div className="batchIndicatorPulse"></div>
-                  <div className="batchBarText">
-                    <strong>มีการปรับปรุงสิทธิ์ {stagedDirtyCount} คน</strong>
-                    <span>ยังไม่ได้บันทึกลงฐานข้อมูล</span>
                   </div>
                 </div>
 
-                <div className="batchBarRight">
-                  <button
-                    type="button"
-                    className="btnBatchDiscard"
-                    onClick={handleDiscardAllStaged}
-                    disabled={isSavingBatch}
-                  >
-                    <RotateCcw size={15} />
-                    <span>ยกเลิกการเปลี่ยนแปลง</span>
-                  </button>
+                {/* Permissions Breakdown by Task */}
+                <div className="inspectorTasksSection">
+                  <div className="sectionHeading">
+                    <Sparkles size={18} />
+                    <h3>สรุปสิทธิ์การเข้าถึงและการปฏิบัติงานในแต่ละภารกิจ</h3>
+                  </div>
 
-                  <button
-                    type="button"
-                    className="btnBatchSave"
-                    onClick={handleSaveBatchPermissions}
-                    disabled={isSavingBatch}
-                  >
-                    {isSavingBatch ? (
-                      <>
-                        <RefreshCw size={16} className="spinAnimation" />
-                        <span>กำลังบันทึกข้อมูล ({stagedDirtyCount} คน)...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save size={16} />
-                        <span>บันทึกการเปลี่ยนแปลงทั้งหมด ({stagedDirtyCount} คน)</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="inspectorTasksGrid">
+                    {tasks.map((task) => {
+                      const Icon = ICON_MAP[task.iconName] || Layers
+                      const rolesSummary = task.roles.map((role) => {
+                        const effective = hasMemberPermissionEffective(
+                          selectedInspectorMember,
+                          role.permissionKey
+                        )
+                        return {
+                          role,
+                          hasPerm: effective.hasPerm,
+                          origin: effective.origin,
+                        }
+                      })
+
+                      const hasAnyPerm = rolesSummary.some((r) => r.hasPerm)
+
+                      return (
+                        <div
+                          key={task.id}
+                          className={`inspectorTaskCard ${hasAnyPerm ? 'hasAccess' : 'noAccess'}`}
+                        >
+                          <div className="inspectorTaskCardHeader">
+                            <div
+                              className="taskCardIcon"
+                              style={{
+                                backgroundColor: `${task.badgeColor}15`,
+                                color: task.badgeColor,
+                              }}
+                            >
+                              <Icon size={18} />
+                            </div>
+                            <div className="taskCardMeta">
+                              <h4>{task.name}</h4>
+                              <span className="taskCatLabel">{task.categoryLabel}</span>
+                            </div>
+                          </div>
+
+                          <div className="inspectorRolePillsList">
+                            {rolesSummary.map(({ role, hasPerm, origin }) => {
+                              const roleCfg = ROLE_TYPE_CONFIG[role.roleType]
+                              return (
+                                <div
+                                  key={role.permissionKey}
+                                  className={`inspectorRoleRow ${hasPerm ? 'granted' : 'denied'}`}
+                                >
+                                  <div className="roleRowLeft">
+                                    <span
+                                      className="roleTypeMiniDot"
+                                      style={{ backgroundColor: roleCfg.color }}
+                                    />
+                                    <span className="roleRowName">{role.shortLabel}</span>
+                                  </div>
+
+                                  <div className="roleRowRight">
+                                    {hasPerm ? (
+                                      <span
+                                        className={`originBadge origin-${origin || 'member'}`}
+                                        title={`ที่มา: ${
+                                          origin === 'admin'
+                                            ? 'สิทธิ์ Super Admin'
+                                            : origin === 'position'
+                                            ? `ผูกตามตำแหน่ง "${selectedInspectorMember.position}"`
+                                            : 'กำหนดเจาะจงรายบุคคล'
+                                        }`}
+                                      >
+                                        <Check size={11} />
+                                        {origin === 'admin'
+                                          ? 'Admin'
+                                          : origin === 'position'
+                                          ? 'ตามตำแหน่ง'
+                                          : 'รายบุคคล'}
+                                      </span>
+                                    ) : (
+                                      <span className="deniedBadge">ไม่มีสิทธิ์</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="inspectorEmptySelect">
+                <Users size={48} />
+                <h3>กรุณาเลือกบุคลากรจากรายการทางด้านซ้าย</h3>
+                <p>เพื่อตรวจสอบสรุปสิทธิ์การเข้าถึงและการปฏิบัติงานในทุกระบบของโรงพยาบาล</p>
+              </div>
+            )}
+          </main>
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* TAB 2: FEATURE TOGGLES                                  */}
-      {/* ======================================================== */}
+      {/* =========================================================================
+          TAB 3: FEATURE TOGGLES & SYSTEM MODULES
+          ========================================================================= */}
       {activeTab === 'features' && (
-        <div className="tabContentSection animate-fadeIn">
-          {/* Section Banner */}
-          <div className="sectionHeaderCard">
-            <div className="sectionHeaderTitleGroup">
-              <div className="sectionIconWrapper">
-                <Sliders size={20} />
+        <div className="featureTogglesContainer">
+          <div className="featureTogglesHeader">
+            <div className="headerLeft">
+              <h2>สวิตช์ควบคุมการเปิด/ปิดโมดูลระบบบริการ</h2>
+              <p>
+                เปิดหรือปิดการแสดงผลโมดูลบริการหลักสำหรับบุคลากรในพอร์ทัลสมาชิก
+                เมื่อปิดการใช้งาน เมนูดังกล่าวจะไม่แสดงบนหน้าแดชบอร์ด
+              </p>
+            </div>
+            <div className="headerRight">
+              <button
+                type="button"
+                onClick={handleSaveFeatures}
+                disabled={!isFeaturesDirty || isSavingSettings}
+                className={`saveFeaturesBtn ${isFeaturesDirty ? 'dirty' : ''}`}
+              >
+                {isSavingSettings ? (
+                  <RefreshCw size={16} className="spinIcon" />
+                ) : (
+                  <Save size={16} />
+                )}
+                <span>{isSavingSettings ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่าโมดูล'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="featureCardsGrid">
+            {/* Inbox */}
+            <div className={`featureCard ${featureInbox ? 'active' : ''}`}>
+              <div className="featureCardIconBox iconTeal">
+                <Inbox size={24} />
               </div>
-              <div>
-                <h2>สิทธิ์การเข้าใช้งานบริการของสมาชิกทั่วไป (Module Access Controls)</h2>
+              <div className="featureCardContent">
+                <div className="featureCardTitleRow">
+                  <h3>กล่องงานและระบบสายการอนุมัติ (Task Inbox)</h3>
+                  <label className="switchToggle">
+                    <input
+                      type="checkbox"
+                      checked={featureInbox}
+                      onChange={(e) => setFeatureInbox(e.target.checked)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
                 <p>
-                  เปิดหรือปิดการเข้าถึงฟังก์ชันต่างๆ บนเว็บไซต์สำหรับบุคลากรทั่วไป หากปิดการใช้งาน เมนูดังกล่าวจะถูกซ่อนและไม่อนุญาตให้เข้าถึง
+                  ระบบกล่องงานกลางสำหรับรับ-ส่ง ติดตามขั้นตอนการอนุมัติ
+                  และการมอบหมายงานอิเล็กทรอนิกส์
                 </p>
               </div>
             </div>
 
-            {isFeaturesDirty && (
-              <div className="unsavedAlertBanner">
-                <Info size={16} />
-                <span>มีการปรับเปลี่ยนสิทธิ์ที่ยังไม่ได้บันทึก</span>
+            {/* Signature */}
+            <div className={`featureCard ${featureSignature ? 'active' : ''}`}>
+              <div className="featureCardIconBox iconIndigo">
+                <CheckCircle2 size={24} />
               </div>
-            )}
+              <div className="featureCardContent">
+                <div className="featureCardTitleRow">
+                  <h3>ระบบลายเซ็นดิจิทัล (Digital Signature)</h3>
+                  <label className="switchToggle">
+                    <input
+                      type="checkbox"
+                      checked={featureSignature}
+                      onChange={(e) => setFeatureSignature(e.target.checked)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
+                <p>
+                  ระบบลงนามอิเล็กทรอนิกส์และวาดลายเซ็นดิจิทัล พร้อม HMAC-SHA256 Audit Verification
+                </p>
+              </div>
+            </div>
+
+            {/* Media Request */}
+            <div className={`featureCard ${featureMediaRequest ? 'active' : ''}`}>
+              <div className="featureCardIconBox iconPurple">
+                <Palette size={24} />
+              </div>
+              <div className="featureCardContent">
+                <div className="featureCardTitleRow">
+                  <h3>ระบบขอสื่อประชาสัมพันธ์ (Media Request)</h3>
+                  <label className="switchToggle">
+                    <input
+                      type="checkbox"
+                      checked={featureMediaRequest}
+                      onChange={(e) => setFeatureMediaRequest(e.target.checked)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
+                <p>
+                  ระบบขอผลิตสื่อกราฟิก ออกแบบ วิดีโอ ไวนิล และประชาสัมพันธ์สำหรับหน่วยงาน
+                </p>
+              </div>
+            </div>
+
+            {/* Repair */}
+            <div className={`featureCard ${featureRepair ? 'active' : ''}`}>
+              <div className="featureCardIconBox iconAmber">
+                <Wrench size={24} />
+              </div>
+              <div className="featureCardContent">
+                <div className="featureCardTitleRow">
+                  <h3>ระบบแจ้งซ่อมบำรุงและศูนย์ไอที (Repair Service)</h3>
+                  <label className="switchToggle">
+                    <input
+                      type="checkbox"
+                      checked={featureRepair}
+                      onChange={(e) => setFeatureRepair(e.target.checked)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
+                <p>
+                  ระบบแจ้งซ่อมคอมพิวเตอร์ งานช่างอาคารสถานที่ และงานเครื่องมือแพทย์
+                </p>
+              </div>
+            </div>
+
+            {/* Salary */}
+            <div className={`featureCard ${featureSalary ? 'active' : ''}`}>
+              <div className="featureCardIconBox iconEmerald">
+                <Coins size={24} />
+              </div>
+              <div className="featureCardContent">
+                <div className="featureCardTitleRow">
+                  <h3>ระบบสลิปเงินเดือนและค่าตอบแทน (Salary Portal)</h3>
+                  <label className="switchToggle">
+                    <input
+                      type="checkbox"
+                      checked={featureSalary}
+                      onChange={(e) => setFeatureSalary(e.target.checked)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
+                <p>ระบบค้นหา ตรวจสอบ และดาวน์โหลดสลิปเงินเดือนสำหรับเจ้าหน้าที่ รพ.เถิน</p>
+              </div>
+            </div>
+
+            {/* ITA */}
+            <div className={`featureCard ${featureIta ? 'active' : ''}`}>
+              <div className="featureCardIconBox iconViolet">
+                <Layers size={24} />
+              </div>
+              <div className="featureCardContent">
+                <div className="featureCardTitleRow">
+                  <h3>ระบบประเมินคุณธรรมและความโปร่งใส (ITA Articles)</h3>
+                  <label className="switchToggle">
+                    <input
+                      type="checkbox"
+                      checked={featureIta}
+                      onChange={(e) => setFeatureIta(e.target.checked)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
+                <p>ระบบเขียนและเผยแพร่บทความประเมินคุณธรรมและความโปร่งใส ITA</p>
+              </div>
+            </div>
+
+            {/* RDU */}
+            <div className={`featureCard ${featureRdu ? 'active' : ''}`}>
+              <div className="featureCardIconBox iconCyan">
+                <Pill size={24} />
+              </div>
+              <div className="featureCardContent">
+                <div className="featureCardTitleRow">
+                  <h3>ระบบการใช้ยาอย่างสมเหตุผล (RDU Hospital)</h3>
+                  <label className="switchToggle">
+                    <input
+                      type="checkbox"
+                      checked={featureRdu}
+                      onChange={(e) => setFeatureRdu(e.target.checked)}
+                    />
+                    <span className="slider round"></span>
+                  </label>
+                </div>
+                <p>ระบบจัดเก็บโฟลเดอร์และรายงานการใช้ยาอย่างสมเหตุผลของโรงพยาบาล</p>
+              </div>
+            </div>
           </div>
-
-          <form onSubmit={handleSaveSettings}>
-            {/* Group 1: Core Staff Services */}
-            <div className="featureGroupContainer">
-              <div className="groupTitleHeader">
-                <Sparkles size={16} className="groupIcon" />
-                <h3>บริการสำหรับบุคลากรภายในโรงพยาบาล (Staff Services)</h3>
-              </div>
-
-              <div className="featureCardsGrid">
-                {/* 1. Unified Task Inbox */}
-                <div className={`modernFeatureCard ${featureInbox ? 'featureActive' : 'featureInactive'}`}>
-                  <div className="featureHeaderRow">
-                    <div className="featureIcon" style={{ background: '#f0f9ff', color: '#0284c7' }}>
-                      <Inbox size={22} />
-                    </div>
-                    <label className="toggleSwitch">
-                      <input
-                        type="checkbox"
-                        checked={featureInbox}
-                        onChange={(e) => setFeatureInbox(e.target.checked)}
-                        aria-label="เปิดปิดระบบกล่องงานกลาง"
-                      />
-                      <span className="toggleSlider"></span>
-                    </label>
-                  </div>
-                  <div className="featureBody">
-                    <div className="featureTitleWrap">
-                      <h4>ระบบกล่องงานกลาง (Unified Inbox)</h4>
-                      <span className={`badgeStatus ${featureInbox ? 'badgeOn' : 'badgeOff'}`}>
-                        {featureInbox ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p>
-                      ศูนย์รวมการติดตามงาน เอกสารที่ต้องลงนาม งานซ่อมบำรุง และคำขอบริการทุกประเภทของโรงพยาบาล
-                    </p>
-                  </div>
-                </div>
-
-                {/* 2. Digital Signature */}
-                <div className={`modernFeatureCard ${featureSignature ? 'featureActive' : 'featureInactive'}`}>
-                  <div className="featureHeaderRow">
-                    <div className="featureIcon" style={{ background: '#f0fdf4', color: '#059669' }}>
-                      <PenTool size={22} />
-                    </div>
-                    <label className="toggleSwitch">
-                      <input
-                        type="checkbox"
-                        checked={featureSignature}
-                        onChange={(e) => setFeatureSignature(e.target.checked)}
-                        aria-label="เปิดปิดระบบจัดการลายเซ็นดิจิทัล"
-                      />
-                      <span className="toggleSlider"></span>
-                    </label>
-                  </div>
-                  <div className="featureBody">
-                    <div className="featureTitleWrap">
-                      <h4>จัดการลายเซ็นดิจิทัล (Digital Signature)</h4>
-                      <span className={`badgeStatus ${featureSignature ? 'badgeOn' : 'badgeOff'}`}>
-                        {featureSignature ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p>
-                      อนุญาตให้บุคลากรวาดหรืออัปโหลดลายเซ็นอิเล็กทรอนิกส์เพื่อใช้ในการลงนามเอกสารและตรวจรับงาน
-                    </p>
-                  </div>
-                </div>
-
-                {/* 3. Salary Pay Slips */}
-                <div className={`modernFeatureCard ${featureSalary ? 'featureActive' : 'featureInactive'}`}>
-                  <div className="featureHeaderRow">
-                    <div className="featureIcon" style={{ background: '#fffbeb', color: '#d97706' }}>
-                      <Wallet size={22} />
-                    </div>
-                    <label className="toggleSwitch">
-                      <input
-                        type="checkbox"
-                        checked={featureSalary}
-                        onChange={(e) => setFeatureSalary(e.target.checked)}
-                        aria-label="เปิดปิดระบบตรวจสอบสลิปเงินเดือน"
-                      />
-                      <span className="toggleSlider"></span>
-                    </label>
-                  </div>
-                  <div className="featureBody">
-                    <div className="featureTitleWrap">
-                      <h4>ตรวจสอบสลิปเงินเดือน & ค่าตอบแทน</h4>
-                      <span className={`badgeStatus ${featureSalary ? 'badgeOn' : 'badgeOff'}`}>
-                        {featureSalary ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p>
-                      อนุญาตให้บุคลากรยืนยันตัวตนด้วยเลขบัตรประชาชนเพื่อเปิดดูและพิมพ์ใบแจ้งยอดเงินเดือนรายเดือน
-                    </p>
-                  </div>
-                </div>
-
-                {/* 4. Hospital Repairs */}
-                <div className={`modernFeatureCard ${featureRepair ? 'featureActive' : 'featureInactive'}`}>
-                  <div className="featureHeaderRow">
-                    <div className="featureIcon" style={{ background: '#eff6ff', color: '#2563eb' }}>
-                      <Wrench size={22} />
-                    </div>
-                    <label className="toggleSwitch">
-                      <input
-                        type="checkbox"
-                        checked={featureRepair}
-                        onChange={(e) => setFeatureRepair(e.target.checked)}
-                        aria-label="เปิดปิดระบบแจ้งซ่อมบำรุง"
-                      />
-                      <span className="toggleSlider"></span>
-                    </label>
-                  </div>
-                  <div className="featureBody">
-                    <div className="featureTitleWrap">
-                      <h4>ระบบแจ้งซ่อมบำรุงโรงพยาบาล</h4>
-                      <span className={`badgeStatus ${featureRepair ? 'badgeOn' : 'badgeOff'}`}>
-                        {featureRepair ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p>
-                      อนุญาตให้บุคลากรยื่นคำขอแจ้งซ่อมงานช่าง งานคอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมเชื่อมต่อ Telegram
-                    </p>
-                  </div>
-                </div>
-
-                {/* 5. Media & PR Requests */}
-                <div className={`modernFeatureCard ${featureMediaRequest ? 'featureActive' : 'featureInactive'}`}>
-                  <div className="featureHeaderRow">
-                    <div className="featureIcon" style={{ background: '#f0fdfa', color: '#0d9488' }}>
-                      <Palette size={22} />
-                    </div>
-                    <label className="toggleSwitch">
-                      <input
-                        type="checkbox"
-                        checked={featureMediaRequest}
-                        onChange={(e) => setFeatureMediaRequest(e.target.checked)}
-                        aria-label="เปิดปิดระบบขอสื่อประชาสัมพันธ์"
-                      />
-                      <span className="toggleSlider"></span>
-                    </label>
-                  </div>
-                  <div className="featureBody">
-                    <div className="featureTitleWrap">
-                      <h4>ระบบขอสื่อและประชาสัมพันธ์</h4>
-                      <span className={`badgeStatus ${featureMediaRequest ? 'badgeOn' : 'badgeOff'}`}>
-                        {featureMediaRequest ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p>
-                      อนุญาตให้บุคลากรยื่นคำขอผลิตสื่อ โปสเตอร์ แผ่นพับ Artwork และวิดีโอประชาสัมพันธ์ของโรงพยาบาล
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Group 2: Public Info & Content Management */}
-            <div className="featureGroupContainer">
-              <div className="groupTitleHeader">
-                <BookOpen size={16} className="groupIcon" />
-                <h3>ข้อมูลสาธารณะและเอกสารองค์กร (Public Info & Governance)</h3>
-              </div>
-
-              <div className="featureCardsGrid">
-                {/* 6. ITA Management */}
-                <div className={`modernFeatureCard ${featureIta ? 'featureActive' : 'featureInactive'}`}>
-                  <div className="featureHeaderRow">
-                    <div className="featureIcon" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
-                      <BookOpen size={22} />
-                    </div>
-                    <label className="toggleSwitch">
-                      <input
-                        type="checkbox"
-                        checked={featureIta}
-                        onChange={(e) => setFeatureIta(e.target.checked)}
-                        aria-label="เปิดปิดระบบจัดการบทความ ITA"
-                      />
-                      <span className="toggleSlider"></span>
-                    </label>
-                  </div>
-                  <div className="featureBody">
-                    <div className="featureTitleWrap">
-                      <h4>ระบบจัดการบทความ & เอกสาร ITA</h4>
-                      <span className={`badgeStatus ${featureIta ? 'badgeOn' : 'badgeOff'}`}>
-                        {featureIta ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p>
-                      อนุญาตให้อ่านบทความและเปิดสิทธิ์ให้ผู้รับผิดชอบเข้าจัดการเอกสารประเมิน ITA
-                    </p>
-                  </div>
-                </div>
-
-                {/* 7. RDU Management */}
-                <div className={`modernFeatureCard ${featureRdu ? 'featureActive' : 'featureInactive'}`}>
-                  <div className="featureHeaderRow">
-                    <div className="featureIcon" style={{ background: '#f0fdfa', color: '#0d9488' }}>
-                      <Pill size={22} />
-                    </div>
-                    <label className="toggleSwitch">
-                      <input
-                        type="checkbox"
-                        checked={featureRdu}
-                        onChange={(e) => setFeatureRdu(e.target.checked)}
-                        aria-label="เปิดปิดระบบจัดการเอกสาร RDU"
-                      />
-                      <span className="toggleSlider"></span>
-                    </label>
-                  </div>
-                  <div className="featureBody">
-                    <div className="featureTitleWrap">
-                      <h4>ระบบจัดการเอกสาร RDU (การใช้ยาสมเหตุผล)</h4>
-                      <span className={`badgeStatus ${featureRdu ? 'badgeOn' : 'badgeOff'}`}>
-                        {featureRdu ? 'เปิดใช้งาน' : 'ปิดการใช้งาน'}
-                      </span>
-                    </div>
-                    <p>
-                      อนุญาตให้เข้าใช้งานระบบจัดทำโฟลเดอร์ปีงบประมาณและอัปโหลดเอกสารเผยแพร่ RDU
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sticky Save Bar */}
-            <div className={`stickySaveActionBar ${isFeaturesDirty ? 'isDirtyVisible' : ''}`}>
-              <div className="saveBarContent">
-                <div className="saveBarLeft">
-                  <div className="saveIndicatorDot"></div>
-                  <span>
-                    {isFeaturesDirty 
-                      ? 'มีการเปลี่ยนแปลงการตั้งค่าโมดูลที่ยังไม่ได้บันทึก' 
-                      : 'การตั้งค่าทั้งหมดเป็นปัจจุบันแล้ว'}
-                  </span>
-                </div>
-                <button
-                  type="submit"
-                  className="btnSaveSettings"
-                  disabled={isSavingSettings || !isFeaturesDirty}
-                >
-                  {isSavingSettings ? (
-                    <>
-                      <RefreshCw size={18} className="spinAnimation" />
-                      <span>กำลังบันทึกข้อมูล...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save size={18} />
-                      <span>บันทึกการตั้งค่าระบบ</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </form>
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* EDIT PERMISSIONS MODAL DIALOG                            */}
-      {/* ======================================================== */}
-      {editingMember && (
-        <div className="permModalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalMemberTitle">
-          <div className="permModalContainer">
-            {/* Modal Header */}
-            <div className="permModalHeader">
-              <div className="modalHeaderLeft">
+      {/* =========================================================================
+          MODAL: QUICK ADD ASSIGNEE (MEMBER OR POSITION)
+          ========================================================================= */}
+      {isAddModalOpen && targetTask && targetRole && (
+        <div className="modalOverlay" onClick={() => setIsAddModalOpen(false)}>
+          <div className="modalDialog modalLarge" onClick={(e) => e.stopPropagation()}>
+            <div className="modalHeader">
+              <div className="modalHeaderTitleRow">
                 <div
-                  className="modalAvatarCircle"
+                  className="modalIconBox"
                   style={{
-                    backgroundColor: getAvatarColor(editingMember.id).bg,
-                    color: getAvatarColor(editingMember.id).text,
-                    borderColor: getAvatarColor(editingMember.id).border
+                    backgroundColor: `${targetTask.badgeColor}15`,
+                    color: targetTask.badgeColor,
                   }}
                 >
-                  <span>
-                    {editingMember.name
-                      ? editingMember.name.trim().charAt(0)
-                      : editingMember.username.charAt(0).toUpperCase()}
-                  </span>
+                  <Plus size={20} />
                 </div>
-                <div>
-                  <h3 id="modalMemberTitle" className="modalTitle">
-                    กำหนดสิทธิ์รายบุคคล: {editingMember.name || editingMember.username}
-                  </h3>
-                  <div className="modalMemberMeta">
-                    <span>กลุ่มงาน: {editingMember.department || 'ไม่ระบุกลุ่มงาน'}</span>
-                    {editingMember.position && <span>• ตำแหน่ง: {editingMember.position}</span>}
-                    <span>• เลขบัตร: {maskIdentifier(editingMember.username)}</span>
-                  </div>
+                <div className="modalTitleMeta">
+                  <h3>เพิ่มผู้รับผิดชอบในบทบาท</h3>
+                  <p>
+                    {targetTask.name} ➔ <strong>{targetRole.label}</strong>
+                  </p>
                 </div>
               </div>
-
               <button
                 type="button"
-                onClick={handleCloseEditModal}
-                className="btnModalClose"
-                aria-label="ปิดหน้าต่าง"
-                disabled={isSavingPerms}
+                onClick={() => setIsAddModalOpen(false)}
+                className="modalCloseBtn"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Modal Body: Categorized Checkbox Sections */}
-            <div className="permModalBody">
-              <div className="modalInstructionBanner">
-                <Info size={16} />
-                <span>
-                  ทำเครื่องหมายในช่องสิทธิ์ที่ต้องการมอบหมายให้แก่บุคลากรท่านนี้ สิทธิ์ที่ถูกเลือกจะมีผลทันทีหลังจากกดบันทึก
-                </span>
-              </div>
-
-              {/* Categorized Permission Groups */}
-              {CATEGORIES_CONFIG.filter((c) => c.id !== 'all').map((category) => {
-                const CategoryIcon = category.icon
-                const permsInCategory = Object.keys(PERMISSIONS_METADATA)
-                  .filter((k) => PERMISSIONS_METADATA[k].category === category.id)
-                  .map((k) => PERMISSIONS_METADATA[k])
-                
-                const selectedCountInCategory = permsInCategory.filter((p) =>
-                  selectedPerms.includes(p.key)
-                ).length
-
-                return (
-                  <div key={category.id} className="modalCategoryGroup">
-                    <div className="categoryGroupHeader">
-                      <div className="categoryHeaderTitle">
-                        <div className="categoryIconWrap">
-                          <CategoryIcon size={16} />
-                        </div>
-                        <h4>{category.label}</h4>
-                        <span className={`categorySelectedCount ${selectedCountInCategory > 0 ? 'hasSelected' : ''}`}>
-                          เลือก {selectedCountInCategory} / {permsInCategory.length}
-                        </span>
-                      </div>
-
-                      <div className="categoryQuickActions">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectCategoryAll(category.id)}
-                          className="btnCategoryAction"
-                          title={`เลือกสิทธิ์ทั้งหมดใน${category.label}`}
-                        >
-                          <CheckSquare size={13} />
-                          <span>เลือกทั้งหมด</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleClearCategory(category.id)}
-                          className="btnCategoryAction btnCategoryClear"
-                          title={`ล้างสิทธิ์ใน${category.label}`}
-                        >
-                          <Square size={13} />
-                          <span>ล้างหมวดนี้</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="categoryCheckboxesGrid">
-                      {permsInCategory.map((perm) => {
-                        const isChecked = selectedPerms.includes(perm.key)
-                        const PermIcon = perm.icon
-
-                        return (
-                          <label
-                            key={perm.key}
-                            className={`permCheckboxCard ${isChecked ? 'permChecked' : ''} ${perm.isApproveOnly ? 'isApproveOnlyCard' : ''}`}
-                          >
-                            <div className="checkboxInputCol">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleTogglePerm(perm.key)}
-                                className="customCheckboxInput"
-                              />
-                            </div>
-
-                            <div className="permCardDetails">
-                              <div className="permCardTitleRow">
-                                <PermIcon size={16} style={{ color: perm.color }} className="permItemIcon" />
-                                <span className="permItemTitle">{perm.shortLabel}</span>
-                                <code className="permKeyBadge">{perm.key}</code>
-                              </div>
-
-                              <p className="permItemDesc">{perm.desc}</p>
-
-                              {perm.isApproveOnly && (
-                                <div className="approveOnlyWarningBanner">
-                                  <Lock size={12} />
-                                  <span>อนุมัติอย่างเดียว (Approve-Only) — ไม่สามารถแก้ไขข้อมูลงานได้</span>
-                                </div>
-                              )}
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
+            {/* Modal Add Mode Switch */}
+            <div className="modalTabSwitch">
+              <button
+                type="button"
+                onClick={() => setAddMode('member')}
+                className={`modalTabBtn ${addMode === 'member' ? 'active' : ''}`}
+              >
+                <User size={16} />
+                <span>เพิ่มรายบุคคล (Member-based)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddMode('position')}
+                className={`modalTabBtn ${addMode === 'position' ? 'active' : ''}`}
+              >
+                <Briefcase size={16} />
+                <span>เพิ่มตามตำแหน่งงาน (Position-based)</span>
+              </button>
             </div>
 
-            {/* Modal Footer */}
-            <div className="permModalFooter">
-              <div className="modalFooterLeft">
-                <button
-                  type="button"
-                  onClick={handleClearAll}
-                  className="btnClearAllMemberPerms"
-                  disabled={isSavingPerms || selectedPerms.length === 0}
-                  title="ล้างสิทธิ์ทั้งหมดของสมาชิกท่านนี้"
-                >
-                  <Trash2 size={15} />
-                  <span>ล้างสิทธิ์ทั้งหมด ({selectedPerms.length})</span>
-                </button>
-              </div>
+            {/* TAB: MEMBER-BASED */}
+            {addMode === 'member' && (
+              <div className="modalBodyContent">
+                <div className="modalFilterBar">
+                  <div className="modalSearchInputBox">
+                    <Search size={16} className="searchIcon" />
+                    <input
+                      type="text"
+                      placeholder="ค้นหาชื่อ-สกุล, ตำแหน่ง, ฝ่าย..."
+                      value={memberSearchQuery}
+                      onChange={(e) => setMemberSearchQuery(e.target.value)}
+                      className="modalSearchInput"
+                      autoFocus
+                    />
+                    {memberSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setMemberSearchQuery('')}
+                        className="clearSearchBtn"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
 
-              <div className="modalFooterRight">
-                <button
-                  type="button"
-                  onClick={handleCloseEditModal}
-                  className="btnModalCancel"
-                  disabled={isSavingPerms}
-                >
-                  ยกเลิก
-                </button>
+                  <select
+                    value={selectedDeptFilter}
+                    onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                    className="modalDeptSelect"
+                  >
+                    <option value="all">ทุกกลุ่มงาน/ฝ่าย ({members.length})</option>
+                    {uniqueDepartments.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={handleSaveMemberPermissions}
-                  className="btnModalSave"
-                  disabled={isSavingPerms}
-                >
-                  {isSavingPerms ? (
-                    <>
-                      <RefreshCw size={16} className="spinAnimation" />
-                      <span>กำลังบันทึกสิทธิ์...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} />
-                      <span>บันทึกการเปลี่ยนแปลง ({selectedPerms.length} สิทธิ์)</span>
-                    </>
+                <div className="modalMembersScrollable">
+                  {modalFilteredMembers.map((member) => {
+                    const isAssigned = member.permissions.includes(targetRole.permissionKey)
+                    const avColor = getAvatarColor(member.id)
+
+                    return (
+                      <div
+                        key={member.id}
+                        className={`modalMemberRow ${isAssigned ? 'assigned' : ''}`}
+                      >
+                        <div
+                          className="memberAvatarMini"
+                          style={{ backgroundColor: avColor.bg, color: avColor.text }}
+                        >
+                          {member.name.charAt(0) || 'U'}
+                        </div>
+                        <div className="modalMemberInfo">
+                          <span className="name">{member.name}</span>
+                          <span className="sub">
+                            {member.position || 'ไม่ระบุตำแหน่ง'} •{' '}
+                            {member.department || 'ไม่ระบุฝ่าย'}
+                          </span>
+                        </div>
+
+                        <div className="modalMemberAction">
+                          {isAssigned ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRevokeMember(member, targetRole)}
+                              disabled={isActionPending}
+                              className="btnRevokeAction"
+                            >
+                              <Check size={14} />
+                              <span>ได้รับสิทธิ์แล้ว (คลิกเพื่อปลด)</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleGrantMember(member, targetRole)}
+                              disabled={isActionPending}
+                              className="btnGrantAction"
+                            >
+                              <Plus size={14} />
+                              <span>มอบสิทธิ์นี้</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {modalFilteredMembers.length === 0 && (
+                    <div className="modalEmptyNotice">
+                      <User size={32} />
+                      <p>ไม่พบบุคลากรที่ตรงกับเงื่อนไขการค้นหา</p>
+                    </div>
                   )}
-                </button>
+                </div>
               </div>
+            )}
+
+            {/* TAB: POSITION-BASED */}
+            {addMode === 'position' && (
+              <div className="modalBodyContent">
+                <div className="modalFilterBar">
+                  <div className="modalSearchInputBox" style={{ width: '100%' }}>
+                    <Search size={16} className="searchIcon" />
+                    <input
+                      type="text"
+                      placeholder="พิมพ์ค้นหาชื่อตำแหน่งงานของโรงพยาบาล..."
+                      value={positionSearchQuery}
+                      onChange={(e) => setPositionSearchQuery(e.target.value)}
+                      className="modalSearchInput"
+                      autoFocus
+                    />
+                    {positionSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setPositionSearchQuery('')}
+                        className="clearSearchBtn"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="modalPositionsScrollable">
+                  {modalFilteredPositions.map((pos) => {
+                    const isAssigned = positionMappings.some(
+                      (p) =>
+                        p.permissionKey === targetRole.permissionKey && p.positionName === pos
+                    )
+                    const count = positionMemberCounts[pos] || 0
+
+                    return (
+                      <div
+                        key={pos}
+                        className={`modalPositionRow ${isAssigned ? 'assigned' : ''}`}
+                      >
+                        <div className="positionIconBox">
+                          <Briefcase size={18} />
+                        </div>
+                        <div className="modalPositionInfo">
+                          <span className="posName">{pos}</span>
+                          <span className="posSub">
+                            บุคลากรปัจจุบันในตำแหน่งนี้: <strong>{count} คน</strong>
+                          </span>
+                        </div>
+
+                        <div className="modalPositionAction">
+                          {isAssigned ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRevokePosition(pos, targetRole)}
+                              disabled={isActionPending}
+                              className="btnRevokeAction"
+                            >
+                              <Check size={14} />
+                              <span>ได้รับสิทธิ์แล้ว (คลิกเพื่อปลด)</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleGrantPosition(pos, targetRole)}
+                              disabled={isActionPending}
+                              className="btnGrantAction"
+                            >
+                              <Plus size={14} />
+                              <span>มอบสิทธิ์ทั้งตำแหน่ง</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {modalFilteredPositions.length === 0 && (
+                    <div className="modalEmptyNotice">
+                      <Briefcase size={32} />
+                      <p>ไม่พบตำแหน่งงานที่ตรงกับการค้นหา</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="modalFooter">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="modalCloseFooterBtn"
+              >
+                เสร็จสิ้น
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+      {/* =========================================================================
+          MODAL: FINE-GRAINED MEMBER PERMISSIONS EDITOR
+          ========================================================================= */}
+      {editingMember && (
+        <div className="modalOverlay" onClick={() => setEditingMember(null)}>
+          <div className="modalDialog modalLarge" onClick={(e) => e.stopPropagation()}>
+            <div className="modalHeader">
+              <div className="modalHeaderTitleRow">
+                <div
+                  className="modalIconBox"
+                  style={{
+                    backgroundColor: getAvatarColor(editingMember.id).bg,
+                    color: getAvatarColor(editingMember.id).text,
+                  }}
+                >
+                  <UserCog size={20} />
+                </div>
+                <div className="modalTitleMeta">
+                  <h3>ปรับปรุงสิทธิ์รายบุคคลโดยละเอียด</h3>
+                  <p>
+                    {editingMember.name} • {editingMember.position || 'เจ้าหน้าที่'} (
+                    {editingMember.department || 'รพ.เถิน'})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingMember(null)}
+                className="modalCloseBtn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modalBodyContent" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <div className="memberPermEditGrid">
+                {tasks.map((task) => {
+                  const Icon = ICON_MAP[task.iconName] || Layers
+                  return (
+                    <div key={task.id} className="memberEditTaskGroup">
+                      <div className="taskGroupHeader">
+                        <div
+                          className="groupIconBox"
+                          style={{
+                            backgroundColor: `${task.badgeColor}15`,
+                            color: task.badgeColor,
+                          }}
+                        >
+                          <Icon size={16} />
+                        </div>
+                        <span className="groupTitle">{task.name}</span>
+                      </div>
+
+                      <div className="groupPermCheckboxes">
+                        {task.roles.map((role) => {
+                          const isChecked = editingMemberPerms.includes(role.permissionKey)
+                          return (
+                            <label key={role.permissionKey} className="checkboxLabelItem">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setEditingMemberPerms((prev) =>
+                                    prev.includes(role.permissionKey)
+                                      ? prev.filter((k) => k !== role.permissionKey)
+                                      : [...prev, role.permissionKey]
+                                  )
+                                }}
+                              />
+                              <div className="checkboxText">
+                                <span className="title">{role.label}</span>
+                                <span className="desc">{role.description}</span>
+                              </div>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="modalFooter">
+              <button
+                type="button"
+                onClick={() => setEditingMember(null)}
+                disabled={isSavingMemberPerms}
+                className="modalCancelBtn"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveMemberAllPerms}
+                disabled={isSavingMemberPerms}
+                className="modalSaveBtn"
+              >
+                {isSavingMemberPerms ? (
+                  <RefreshCw size={15} className="spinIcon" />
+                ) : (
+                  <Save size={15} />
+                )}
+                <span>{isSavingMemberPerms ? 'กำลังบันทึก...' : 'บันทึกสิทธิ์บุคคลนี้'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
