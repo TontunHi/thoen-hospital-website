@@ -77,11 +77,14 @@ describe('RegistrationService.submit', () => {
     expect(deps.createRegistration).not.toHaveBeenCalled()
   })
 
-  it.each(['firstNameTh', 'lastNameTh'])('rejects a %s longer than 100 characters without saving', async (field) => {
+  it.each([
+    ['firstNameTh', 'ชื่อภาษาไทยยาวเกิน 100 ตัวอักษร'],
+    ['lastNameTh', 'นามสกุลภาษาไทยยาวเกิน 100 ตัวอักษร'],
+  ])('rejects a %s longer than 100 characters with a Thai message, without saving', async (field, message) => {
     const deps = makeDeps()
     const result = await createRegistrationService(deps).submit({ ...validInput, [field]: 'ก'.repeat(101) })
 
-    expect(result).toMatchObject({ ok: false, reason: 'invalid' })
+    expect(result).toEqual({ ok: false, reason: 'invalid', message })
     expect(deps.createRegistration).not.toHaveBeenCalled()
   })
 
@@ -125,5 +128,13 @@ describe('RegistrationService.submit', () => {
     expect(targetTable).toBe('member_registrations')
     expect(details).toContain('x-xxxx-xxxxx-01-23')
     expect(JSON.stringify(vi.mocked(deps.audit).mock.calls)).not.toContain('1234567890123')
+  })
+
+  it.each([[null], [[]], ['text']])('rejects a body that is not an object (%j) with a Thai message', async (body) => {
+    const deps = makeDeps()
+    const result = await createRegistrationService(deps).submit(body)
+
+    expect(result).toEqual({ ok: false, reason: 'invalid', message: 'ข้อมูลคำขอไม่ถูกต้อง' })
+    expect(deps.createRegistration).not.toHaveBeenCalled()
   })
 })

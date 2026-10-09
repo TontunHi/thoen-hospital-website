@@ -1,12 +1,15 @@
 import { z } from 'zod'
 import { formatMaskedCitizenId } from '@/lib/auth/otpEmailTemplate'
 
-const registrationSchema = z.object({
-  citizenId: z.string({ error: 'กรุณากรอกเลขบัตรประชาชน' }).trim().regex(/^\d{13}$/, 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก'),
-  firstNameTh: z.string({ error: 'กรุณากรอกชื่อภาษาไทย' }).trim().min(1, 'กรุณากรอกชื่อภาษาไทย').max(100),
-  lastNameTh: z.string({ error: 'กรุณากรอกนามสกุลภาษาไทย' }).trim().min(1, 'กรุณากรอกนามสกุลภาษาไทย').max(100),
-  email: z.string({ error: 'กรุณากรอกอีเมล' }).trim().max(100, 'อีเมลยาวเกิน 100 ตัวอักษร').email('รูปแบบอีเมลไม่ถูกต้อง'),
-})
+const registrationSchema = z.object(
+  {
+    citizenId: z.string({ error: 'กรุณากรอกเลขบัตรประชาชน' }).trim().regex(/^\d{13}$/, 'เลขบัตรประชาชนต้องเป็นตัวเลข 13 หลัก'),
+    firstNameTh: z.string({ error: 'กรุณากรอกชื่อภาษาไทย' }).trim().min(1, 'กรุณากรอกชื่อภาษาไทย').max(100, 'ชื่อภาษาไทยยาวเกิน 100 ตัวอักษร'),
+    lastNameTh: z.string({ error: 'กรุณากรอกนามสกุลภาษาไทย' }).trim().min(1, 'กรุณากรอกนามสกุลภาษาไทย').max(100, 'นามสกุลภาษาไทยยาวเกิน 100 ตัวอักษร'),
+    email: z.string({ error: 'กรุณากรอกอีเมล' }).trim().max(100, 'อีเมลยาวเกิน 100 ตัวอักษร').email('รูปแบบอีเมลไม่ถูกต้อง'),
+  },
+  { error: 'ข้อมูลคำขอไม่ถูกต้อง' }
+)
 
 export type NewRegistration = z.infer<typeof registrationSchema>
 
