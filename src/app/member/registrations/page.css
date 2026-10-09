@@ -767,3 +767,191 @@
   }
 }
 
+/* Enhanced Detail & Edit Modal UI */
+.reqIdPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  border: 1px solid #a7f3d0;
+}
+
+.hosxpCredentialBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.hosxpBadge {
+  font-weight: 700;
+  color: #047857;
+}
+
+.hosxpItem code {
+  background: #ffffff;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  border: 1px solid #cbd5e1;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Realistic Thai License Plate Badge */
+.licensePlateList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.thaiLicensePlate {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  min-width: 110px;
+}
+
+.plateMain {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.platePrefix {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+
+.plateNumber {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.plateProvince {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1;
+  margin-top: 0.15rem;
+}
+
+/* Edit Group Cards */
+.editGroupCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.editGroupTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #047857;
+  margin-bottom: 0.875rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.subEditToggleBox {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.625rem;
+  padding: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.btnAddVehicle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #047857;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btnAddVehicle:hover {
+  background: #d1fae5;
+}
+
+.vehicleEditList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.vehicleEditCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.vehicleEditHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.btnRemoveVehicle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: transparent;
+  border: none;
+  color: #e11d48;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  transition: all 0.15s ease;
+}
+
+.btnRemoveVehicle:hover {
+  background: #ffe4e6;
+}
+
+.grid3Col {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .grid3Col {
+    grid-template-columns: 1fr 1fr 1.25fr;
+    gap: 0.5rem;
+  }
+}
+
+
