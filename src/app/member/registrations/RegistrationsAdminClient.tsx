@@ -699,19 +699,19 @@ export default function RegistrationsAdminClient() {
         >
           <div className="modalCard modalWide" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
-              <div className="flex items-center gap-3">
+              <div className="modalHeaderLeft">
                 <div className="modalHeaderIcon">
                   <FileText size={20} className="text-emerald-700" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div className="modalHeaderTitleBox">
+                  <div className="modalHeaderTitleRow">
                     <span className="reqIdPill">#{selectedItem.id}</span>
                     <h3 className="modalTitle">
                       {selectedItem.title}{selectedItem.firstNameTh} {selectedItem.lastNameTh}
                     </h3>
                     {getStatusBadge(selectedItem.status)}
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="modalSubtitle">
                     ยื่นคำขอเมื่อ{' '}
                     {new Date(selectedItem.createdAt).toLocaleDateString('th-TH', {
                       day: 'numeric',
@@ -1015,16 +1015,16 @@ export default function RegistrationsAdminClient() {
           <div className="modalCard modalWide" onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleSaveEdit}>
               <div className="modalHeader">
-                <div className="flex items-center gap-3">
+                <div className="modalHeaderLeft">
                   <div className="modalHeaderIcon">
                     <Edit3 size={20} className="text-emerald-700" />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="modalHeaderTitleBox">
+                    <div className="modalHeaderTitleRow">
                       <span className="reqIdPill">#{selectedItem.id}</span>
                       <h3 className="modalTitle">แก้ไขข้อมูลคำขอลงทะเบียน</h3>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="modalSubtitle">
                       {selectedItem.title}{selectedItem.firstNameTh} {selectedItem.lastNameTh} &bull; {selectedItem.department}
                     </p>
                   </div>
@@ -1612,9 +1612,14 @@ export default function RegistrationsAdminClient() {
         >
           <div className="modalCard max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
-              <div className="flex items-center gap-2.5">
-                <AlertCircle size={20} className="text-rose-600" />
-                <h3 className="modalTitle">ปฏิเสธคำขอลงทะเบียน</h3>
+              <div className="modalHeaderLeft">
+                <div className="modalHeaderIconReject">
+                  <AlertCircle size={20} className="text-rose-600" />
+                </div>
+                <div className="modalHeaderTitleBox">
+                  <h3 className="modalTitle">ปฏิเสธคำขอลงทะเบียน</h3>
+                  <p className="modalSubtitle">คำขอ #{confirmRejectId}</p>
+                </div>
               </div>
               <button
                 type="button"
