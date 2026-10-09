@@ -1,5 +1,5 @@
 import { Metadata } from 'next'
-import { Eye } from 'lucide-react'
+import { Eye, Stethoscope, Cpu, Users, Smile, ShieldCheck } from 'lucide-react'
 import './page.css'
 
 export const metadata: Metadata = {
@@ -19,10 +19,41 @@ export default function VisionMissionPage() {
   ]
 
   const missions = [
-    { label: 'Service', desc: 'พัฒนาระบบบริการสุขภาพตอบสนองความต้องการ 4 มิติ', icon: '' },
-    { label: 'Quality', desc: 'พัฒนาคุณภาพการให้บริการทางคลินิก ลดแผนผังคลินิก และมาตรการที่เพิ่มขึ้น ด้านความปลอดภัยในโรงพยาบาล', icon: '' },
-    { label: 'Community', desc: 'ส่งเสริมระบบเครือข่ายชุมชนและประชาสังคม ให้มีส่วนร่วม ในสุขภาวะชุมชน', icon: '' },
-    { label: 'Governance', desc: 'บริหารงานคลินิก โดยบุคลากรมีความสุข', icon: '' },
+    {
+      num: 1,
+      label: 'Specialized Service',
+      desc: 'จัดบริการทางการแพทย์เฉพาะทาง (ผ่าตัด/ส่องกล้อง, มะเร็งนรีเวช, Trauma, ICU) ที่ได้มาตรฐานและเข้าถึงง่าย',
+      icon: Stethoscope,
+      color: '#059669',
+    },
+    {
+      num: 2,
+      label: 'Digital Transformation',
+      desc: 'พัฒนาระบบสารสนเทศและเทคโนโลยีสุขภาพ (Digital Health) เพื่อการเชื่อมโยงข้อมูลอย่างไร้รอยต่อ',
+      icon: Cpu,
+      color: '#0284c7',
+    },
+    {
+      num: 3,
+      label: 'Community & Network Empowerment',
+      desc: 'เสริมสร้างความเข้มแข็งของภาคีเครือข่ายและชุมชนในการดูแลผู้สูงอายุและโรคเรื้อรัง',
+      icon: Users,
+      color: '#d97706',
+    },
+    {
+      num: 4,
+      label: 'HR & Well-being',
+      desc: 'พัฒนาศักยภาพบุคลากรทุกระดับภายใต้การบริหารจัดการที่เน้นความสุขและจริยธรรม',
+      icon: Smile,
+      color: '#e11d48',
+    },
+    {
+      num: 5,
+      label: 'Governance',
+      desc: 'บริหารจัดการทรัพยากรด้วยธรรมาภิบาล พร้อมรับมือภัยพิบัติและอุบัติการณ์ฉุกเฉิน',
+      icon: ShieldCheck,
+      color: '#7c3aed',
+    },
   ]
 
   const excellentPillars = [
@@ -86,7 +117,7 @@ export default function VisionMissionPage() {
             <div className="visionContent">
               <h2>วิสัยทัศน์ (Vision)</h2>
               <p className="highlightText">
-                “เป็นโรงพยาบาลชุมชนเข้มแข็ง ที่มีคุณภาพมาตรฐาน ประชาชนไว้วางใจ บุคลากรมีความสุข ในปี 2571”
+                “เป็นโรงพยาบาลแม่ข่ายโซนใต้ ที่มีคุณภาพมาตรฐาน ประชาชนไว้วางใจ บุคลากรมีความสุข”
               </p>
             </div>
           </div>
@@ -94,18 +125,25 @@ export default function VisionMissionPage() {
           <div className="missionSection">
             <div className="sectionHeader">
               <h2>พันธกิจ (Mission)</h2>
-              <p>กรอบภารกิจมุ่งเน้นเพื่อยกระดับการจัดการและมาตรฐานสาธารณสุข</p>
+              <p>กรอบภารกิจและยุทธศาสตร์สำคัญเพื่อการยกระดับบริการสุขภาพและการพัฒนาอย่างยั่งยืน</p>
             </div>
             <div className="missionGrid">
-              {missions.map((m, idx) => (
-                <div key={idx} className="missionCard card">
-
-                  <div className="mContent">
-                    <h3>{m.label}</h3>
-                    <p>{m.desc}</p>
+              {missions.map((m) => {
+                const IconComponent = m.icon
+                return (
+                  <div key={m.num} className="missionCard card">
+                    <div className="missionIconBox" style={{ color: m.color, background: `${m.color}15` }}>
+                      <IconComponent size={24} />
+                    </div>
+                    <div className="mContent">
+                      <h3 className="missionNumBadge" style={{ color: m.color }}>
+                        {m.num}. {m.label}
+                      </h3>
+                      <p>{m.desc}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </section>
