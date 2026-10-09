@@ -51,6 +51,11 @@ async function getClientIp(): Promise<string> {
   return 'unknown'
 }
 
+/** Whole seconds until `resetTime`, rounded up and never negative. */
+export function secondsUntil(resetTime: number, now: number): number {
+  return Math.max(0, Math.ceil((resetTime - now) / 1000))
+}
+
 interface RateLimitOptions {
   /** Unique identifier prefix for this limiter (e.g., 'auth-login') */
   key: string
@@ -117,7 +122,7 @@ export async function checkRateLimit(options: RateLimitOptions): Promise<RateLim
   const remaining = Math.max(0, options.maxAttempts - entry.count)
 
   if (entry.count > options.maxAttempts) {
-    const retryAfterSeconds = Math.ceil((entry.resetTime - now) / 1000)
+    const retryAfterSeconds = secondsUntil(entry.resetTime, now)
 
     return {
       allowed: false,

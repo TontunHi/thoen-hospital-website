@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { secondsUntil } from '../rateLimit'
 
 vi.mock('next/headers', () => ({
   headers: vi.fn().mockResolvedValue(
@@ -53,5 +54,15 @@ describe('Rate Limiter', () => {
     const res = await checkRateLimit({ key, maxAttempts: 1, windowSeconds: 60 })
     expect(res.allowed).toBe(true)
     expect(res.remaining).toBe(1)
+  })
+})
+
+describe('secondsUntil', () => {
+  it('rounds the remaining time up to whole seconds', () => {
+    expect(secondsUntil(10_500, 9_000)).toBe(2)
+  })
+
+  it('never returns a negative wait once the window has passed', () => {
+    expect(secondsUntil(5_000, 9_000)).toBe(0)
   })
 })
