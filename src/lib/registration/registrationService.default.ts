@@ -3,6 +3,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
 import { logAudit } from '@/lib/audit'
 import { createRegistrationService } from './RegistrationService'
+import { secondsUntil } from './registerHttp'
 
 /** Production wiring for RegistrationService: Prisma, per-IP rate limit, Pino logger, audit trail. */
 export const registrationService = createRegistrationService({
@@ -12,7 +13,7 @@ export const registrationService = createRegistrationService({
     const result = await checkRateLimit({ key: 'member-register', maxAttempts: 5, windowSeconds: 900 })
     return {
       allowed: result.allowed,
-      retryAfterSeconds: Math.max(0, Math.ceil((result.resetTime - Date.now()) / 1000)),
+      retryAfterSeconds: secondsUntil(result.resetTime, Date.now()),
     }
   },
   log: (message, context) => logger.info(context, message),
