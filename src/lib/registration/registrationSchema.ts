@@ -61,7 +61,7 @@ export const registrationSchema = z
     inHospitalHousing: z.boolean().default(false),
     housingLocation: z.string().trim().optional().nullable(),
     hasVehicle: z.boolean().default(false),
-    vehicles: z.array(vehicleItemSchema).optional().nullable(),
+    vehicles: z.array(vehicleItemSchema).max(2, 'สามารถลงทะเบียนรถยนต์ได้สูงสุด 2 คัน').optional().nullable(),
 
     // Step 5: Consent
     consentPolicy: z.boolean().optional(),
