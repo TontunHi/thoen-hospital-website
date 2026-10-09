@@ -39,12 +39,16 @@ function sign(value: string): string {
 }
 
 export class MemberAuthService {
-  constructor(private queryExecutor: any = queryMemberDb) {}
+  constructor(private queryExecutor?: any) {}
+
+  private get db() {
+    return this.queryExecutor || queryMemberDb
+  }
 
   async requestOtp(citizenId: string, providedEmail?: string): Promise<OtpRequestResult> {
     const trimmedUsername = citizenId.trim()
     
-    const users = await this.queryExecutor(
+    const users = await this.db(
       'SELECT id, username, name, email FROM members WHERE username = ?',
       [trimmedUsername]
     )
@@ -63,7 +67,7 @@ export class MemberAuthService {
 
     const otp = crypto.randomInt(100000, 999999).toString()
 
-    await this.queryExecutor(
+    await this.db(
       'UPDATE members SET otp_code = ?, otp_expiry = DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id = ?',
       [otp, user.id]
     )
@@ -142,7 +146,7 @@ export class MemberAuthService {
       params.push(trimmedEmail)
     }
 
-    const users = await this.queryExecutor(queryStr, params)
+    const users = await this.db(queryStr, params)
 
     if (!users || users.length === 0) {
       try {
@@ -167,7 +171,7 @@ export class MemberAuthService {
       throw new Error('รหัส OTP หมดอายุการใช้งานแล้ว กรุณาขอรหัสใหม่')
     }
 
-    await this.queryExecutor(
+    await this.db(
       'UPDATE members SET otp_code = NULL, otp_expiry = NULL WHERE id = ?',
       [user.id]
     )
@@ -226,7 +230,7 @@ export class MemberAuthService {
     }
 
     // Check member still active
-    const users = await this.queryExecutor(
+    const users = await this.db(
       'SELECT role FROM members WHERE username = ? AND email = ? LIMIT 1',
       [payload.username, payload.email]
     )
@@ -268,7 +272,7 @@ export class MemberAuthService {
 
     const fullName = [userInfo.title, userInfo.firstName, userInfo.lastName].filter(Boolean).join(' ') || 'ไม่ระบุชื่อ'
 
-    const users = await this.queryExecutor(
+    const users = await this.db(
       'SELECT id, username, email, role, name FROM members WHERE username = ? LIMIT 1',
       [userInfo.pid]
     )

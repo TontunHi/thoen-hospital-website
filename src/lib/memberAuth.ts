@@ -323,9 +323,6 @@ export async function fetchAuthenticatedMember(username: string, email: string):
     const can = (perm: MemberPermission | MemberPermission[] | string | string[]): boolean => {
       if (isAdmin) return true
       const keys = Array.isArray(perm) ? perm : [perm]
-      if (keys.includes('upload_salary') && userPosition.includes('เจ้าพนักงานการเงินและบัญชี')) {
-        return true
-      }
       return keys.some(k => permissions.has(k))
     }
 
@@ -529,11 +526,7 @@ export async function checkPositionPermission(
     const userPosition = (user.position || '').trim()
     if (!userPosition) return false
 
-    // Built-in standard role/position rules
     const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey]
-    if (keys.includes('upload_salary') && userPosition.includes('เจ้าพนักงานการเงินและบัญชี')) {
-      return true
-    }
     const placeholders = keys.map(() => '?').join(', ')
 
     const result = await queryMemberDb(
@@ -564,6 +557,11 @@ export async function requireNewsPermission(): Promise<
   }
 
   if (session.role === 'admin') {
+    return { session }
+  }
+
+  const member = await fetchAuthenticatedMember(session.username, session.email)
+  if (member?.isAdmin || member?.permissions.has('manage_news')) {
     return { session }
   }
 
