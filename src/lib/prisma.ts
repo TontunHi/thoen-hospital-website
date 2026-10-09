@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { prismaWriteAuditEntry } from './prismaAudit'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: any
@@ -38,22 +39,12 @@ export const prisma = basePrisma.$extends({
         })
 
         try {
-          const writeOperations = ['create', 'createMany', 'update', 'updateMany', 'delete', 'deleteMany', 'upsert']
-          if (writeOperations.includes(operation)) {
-            let actionType = 'UPDATE'
-            if (operation.startsWith('create')) actionType = 'CREATE'
-            else if (operation.startsWith('delete')) actionType = 'DELETE'
-
+          const entry = prismaWriteAuditEntry(model, operation, args)
+          if (entry) {
             const { logAudit } = await import('./audit')
             const { logger } = await import('./logger')
-            const safeArgs = JSON.stringify(args, (_, value) =>
-              typeof value === 'bigint' ? value.toString() : value
-            )
-            logAudit(
-              actionType as any,
-              model || 'prisma',
-              `Operation: ${operation} | Args: ${safeArgs}`
-            ).catch(err => logger.error({ err }, 'Prisma audit log failed'))
+            logAudit(entry.actionType, entry.targetTable, entry.details)
+              .catch(err => logger.error({ err }, 'Prisma audit log failed'))
           }
         } catch (err) {
           const { logger } = await import('./logger')
