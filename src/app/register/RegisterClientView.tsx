@@ -445,12 +445,9 @@ export default function RegisterClientView() {
                 type="button"
                 className={`stepTabBtn ${isCurrent ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
                 onClick={() => {
-                  if (s.num < step) {
-                    setErrors({})
-                    setStep(s.num)
-                  }
+                  setErrors({})
+                  setStep(s.num)
                 }}
-                disabled={s.num > step}
               >
                 <div className="stepTabIcon">
                   {isCompleted ? <CheckCircle2 size={16} /> : <Icon size={16} />}
@@ -465,7 +462,18 @@ export default function RegisterClientView() {
         </nav>
 
         {/* Form Card */}
-        <section className="formCard">
+        <form
+          className="formCard"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (step < 5) {
+              handleNext()
+            } else {
+              handleFinalSubmit(e)
+            }
+          }}
+          noValidate
+        >
           <div className="stepBadgeRow">
             <span className="currentStepBadge">ขั้นตอนที่ {step} จาก 5</span>
             <span className="requiredLegend">
@@ -1418,7 +1426,7 @@ export default function RegisterClientView() {
               </button>
             )}
           </div>
-        </section>
+        </form>
 
         {/* Policy Modal */}
         {showPolicyModal && (
