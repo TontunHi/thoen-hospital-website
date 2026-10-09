@@ -8,12 +8,7 @@ const registrationSchema = z.object({
   email: z.string({ error: 'กรุณากรอกอีเมล' }).trim().max(100, 'อีเมลยาวเกิน 100 ตัวอักษร').email('รูปแบบอีเมลไม่ถูกต้อง'),
 })
 
-export interface NewRegistration {
-  citizenId: string
-  firstNameTh: string
-  lastNameTh: string
-  email: string
-}
+export type NewRegistration = z.infer<typeof registrationSchema>
 
 export type SubmitResult =
   | { ok: true; id: number }
