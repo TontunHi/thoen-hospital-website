@@ -1643,11 +1643,43 @@ input:checked + .slider:before {
   flex-shrink: 0;
 }
 
+.modalTitleMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.modalTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .modalTitleMeta h3 {
   font-size: 1.1rem;
   font-weight: 800;
   color: #0f172a;
   margin: 0;
+}
+
+.modalPermCountBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+  font-size: 0.74rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.modalPermCountBadge.empty {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
 }
 
 .modalTitleMeta p {
@@ -1874,8 +1906,67 @@ input:checked + .slider:before {
   border-top: 1px solid #f1f5f9;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
   background: #fafbfc;
+}
+
+.modalFooter.spaceBetween {
+  justify-content: space-between;
+}
+
+.modalFooterLeft {
+  display: flex;
+  align-items: center;
+}
+
+.modalFooterRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modalClearAllBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #e11d48;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modalClearAllBtn:hover:not(:disabled) {
+  background: #ffe4e6;
+  border-color: #fda4af;
+  color: #be123c;
+}
+
+.modalClearAllBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+.clearAllCountBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: #fecdd3;
+  color: #9f1239;
+  font-size: 0.7rem;
+  font-weight: 800;
 }
 
 .modalCloseFooterBtn {
@@ -1920,6 +2011,39 @@ input:checked + .slider:before {
 
 .modalSaveBtn:hover {
   background: #047857;
+}
+
+/* Dark mode theme refinements */
+@media (prefers-color-scheme: dark) {
+  .modalClearAllBtn {
+    background: rgba(225, 29, 72, 0.15);
+    border-color: rgba(244, 63, 94, 0.35);
+    color: #fb7185;
+  }
+  .modalClearAllBtn:hover:not(:disabled) {
+    background: rgba(225, 29, 72, 0.25);
+    border-color: rgba(244, 63, 94, 0.5);
+    color: #fda4af;
+  }
+  .modalClearAllBtn:disabled {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #64748b;
+  }
+  .clearAllCountBadge {
+    background: rgba(244, 63, 94, 0.3);
+    color: #fecdd3;
+  }
+  .modalPermCountBadge {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #34d399;
+  }
+  .modalPermCountBadge.empty {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+  }
 }
 
 .memberPermEditGrid {

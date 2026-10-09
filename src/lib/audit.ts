@@ -35,8 +35,8 @@ export async function logAudit(
     let email: string | null = null
 
     if (sessionData) {
-      username = sessionData.username
-      email = sessionData.email
+      username = sessionData.username ?? null
+      email = sessionData.email ?? null
     } else {
       try {
         const { verifyMemberSession } = await import('./memberAuth')

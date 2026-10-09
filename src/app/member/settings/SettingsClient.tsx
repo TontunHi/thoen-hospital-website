@@ -1744,7 +1744,18 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                   <UserCog size={20} />
                 </div>
                 <div className="modalTitleMeta">
-                  <h3>ปรับปรุงสิทธิ์รายบุคคลโดยละเอียด</h3>
+                  <div className="modalTitleRow">
+                    <h3>ปรับปรุงสิทธิ์รายบุคคลโดยละเอียด</h3>
+                    <span
+                      className={`modalPermCountBadge ${
+                        editingMemberPerms.length === 0 ? 'empty' : ''
+                      }`}
+                    >
+                      {editingMemberPerms.length === 0
+                        ? 'ไม่มีสิทธิ์ที่เลือก'
+                        : `เลือก ${editingMemberPerms.length} สิทธิ์`}
+                    </span>
+                  </div>
                   <p>
                     {editingMember.name} • {editingMember.position || 'เจ้าหน้าที่'} (
                     {editingMember.department || 'รพ.เถิน'})
@@ -1755,6 +1766,7 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
                 type="button"
                 onClick={() => setEditingMember(null)}
                 className="modalCloseBtn"
+                aria-label="ปิด"
               >
                 <X size={18} />
               </button>
@@ -1809,28 +1821,45 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
               </div>
             </div>
 
-            <div className="modalFooter">
-              <button
-                type="button"
-                onClick={() => setEditingMember(null)}
-                disabled={isSavingMemberPerms}
-                className="modalCancelBtn"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveMemberAllPerms}
-                disabled={isSavingMemberPerms}
-                className="modalSaveBtn"
-              >
-                {isSavingMemberPerms ? (
-                  <RefreshCw size={15} className="spinIcon" />
-                ) : (
-                  <Save size={15} />
-                )}
-                <span>{isSavingMemberPerms ? 'กำลังบันทึก...' : 'บันทึกสิทธิ์บุคคลนี้'}</span>
-              </button>
+            <div className="modalFooter spaceBetween">
+              <div className="modalFooterLeft">
+                <button
+                  type="button"
+                  onClick={() => setEditingMemberPerms([])}
+                  disabled={isSavingMemberPerms || editingMemberPerms.length === 0}
+                  className="modalClearAllBtn"
+                  title="ล้างสิทธิ์ที่เลือกทั้งหมดสำหรับบุคคลนี้"
+                >
+                  <Trash2 size={15} />
+                  <span>ล้างสิทธิ์ทั้งหมด</span>
+                  {editingMemberPerms.length > 0 && (
+                    <span className="clearAllCountBadge">{editingMemberPerms.length}</span>
+                  )}
+                </button>
+              </div>
+              <div className="modalFooterRight">
+                <button
+                  type="button"
+                  onClick={() => setEditingMember(null)}
+                  disabled={isSavingMemberPerms}
+                  className="modalCancelBtn"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveMemberAllPerms}
+                  disabled={isSavingMemberPerms}
+                  className="modalSaveBtn"
+                >
+                  {isSavingMemberPerms ? (
+                    <RefreshCw size={15} className="spinIcon" />
+                  ) : (
+                    <Save size={15} />
+                  )}
+                  <span>{isSavingMemberPerms ? 'กำลังบันทึก...' : 'บันทึกสิทธิ์บุคคลนี้'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
