@@ -25,6 +25,7 @@ import {
   AlertCircle,
   Save,
   X,
+  Plus,
 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
@@ -179,35 +180,82 @@ export default function RegistrationsAdminClient() {
   // Action: Open Edit Modal
   const openEditModal = (item: RegistrationRecord) => {
     setSelectedItem(item)
+    const initialVehicles =
+      item.hasVehicle && item.vehicles && Array.isArray(item.vehicles) && item.vehicles.length > 0
+        ? JSON.parse(JSON.stringify(item.vehicles))
+        : []
+
     setEditFormData({
       citizenId: item.citizenId,
       title: item.title,
       firstNameTh: item.firstNameTh,
       lastNameTh: item.lastNameTh,
-      firstNameEn: item.firstNameEn,
-      lastNameEn: item.lastNameEn,
-      nickname: item.nickname,
-      licenseNo: item.licenseNo,
-      birthDate: item.birthDate,
-      startDate: item.startDate,
-      containDate: item.containDate,
+      firstNameEn: item.firstNameEn || '',
+      lastNameEn: item.lastNameEn || '',
+      nickname: item.nickname || '',
+      licenseNo: item.licenseNo || '',
+      birthDate: item.birthDate || '',
+      startDate: item.startDate || '',
+      containDate: item.containDate || '',
       department: item.department,
       position: item.position,
       level: item.level,
       personnelGroup: item.personnelGroup,
-      personnelGroupOther: item.personnelGroupOther,
-      hasHosxp: item.hasHosxp,
-      hosxpUser: item.hosxpUser,
-      hosxpPass: item.hosxpPass,
+      personnelGroupOther: item.personnelGroupOther || '',
+      hasHosxp: Boolean(item.hasHosxp),
+      hosxpUser: item.hosxpUser || '',
+      hosxpPass: item.hosxpPass || '',
       email: item.email,
       phone: item.phone,
-      lineId: item.lineId,
-      inHospitalHousing: item.inHospitalHousing,
-      housingLocation: item.housingLocation,
-      hasVehicle: item.hasVehicle,
-      vehicles: item.vehicles,
+      lineId: item.lineId || '',
+      inHospitalHousing: Boolean(item.inHospitalHousing),
+      housingLocation: item.housingLocation || (HOUSING_LOCATIONS[0] as string),
+      hasVehicle: Boolean(item.hasVehicle && initialVehicles.length > 0),
+      vehicles: initialVehicles.length > 0 ? initialVehicles : [{ platePrefix: '', plateNumber: '', province: 'ลำปาง' }],
     })
     setIsEditOpen(true)
+  }
+
+  // Vehicle Management Handlers in Edit Modal
+  const handleAddVehicle = () => {
+    setEditFormData((prev) => {
+      const currentVehicles = Array.isArray(prev.vehicles) ? [...prev.vehicles] : []
+      if (currentVehicles.length >= 5) {
+        showToast('info', 'สามารถเพิ่มรถยนต์ได้สูงสุด 5 คัน')
+        return prev
+      }
+      return {
+        ...prev,
+        hasVehicle: true,
+        vehicles: [...currentVehicles, { platePrefix: '', plateNumber: '', province: 'ลำปาง' }],
+      }
+    })
+  }
+
+  const handleUpdateVehicle = (index: number, field: keyof VehicleItem, value: string) => {
+    setEditFormData((prev) => {
+      const currentVehicles = Array.isArray(prev.vehicles) ? [...prev.vehicles] : []
+      if (!currentVehicles[index]) {
+        currentVehicles[index] = { platePrefix: '', plateNumber: '', province: 'ลำปาง' }
+      }
+      currentVehicles[index] = { ...currentVehicles[index], [field]: value }
+      return {
+        ...prev,
+        vehicles: currentVehicles,
+      }
+    })
+  }
+
+  const handleRemoveVehicle = (index: number) => {
+    setEditFormData((prev) => {
+      const currentVehicles = Array.isArray(prev.vehicles) ? [...prev.vehicles] : []
+      const nextVehicles = currentVehicles.filter((_, i) => i !== index)
+      return {
+        ...prev,
+        hasVehicle: nextVehicles.length > 0,
+        vehicles: nextVehicles,
+      }
+    })
   }
 
   // Action: Save Edit
@@ -215,18 +263,43 @@ export default function RegistrationsAdminClient() {
     e.preventDefault()
     if (!selectedItem) return
 
+    const sanitizedVehicles =
+      editFormData.hasVehicle && Array.isArray(editFormData.vehicles)
+        ? editFormData.vehicles
+            .filter((v) => v.platePrefix?.trim() || v.plateNumber?.trim())
+            .map((v) => ({
+              platePrefix: v.platePrefix?.trim() || '',
+              plateNumber: v.plateNumber?.trim() || '',
+              province: v.province || 'ลำปาง',
+            }))
+        : null
+
+    const payload = {
+      ...editFormData,
+      hasVehicle: Boolean(sanitizedVehicles && sanitizedVehicles.length > 0),
+      vehicles: sanitizedVehicles,
+      inHospitalHousing: Boolean(editFormData.inHospitalHousing),
+      housingLocation: editFormData.inHospitalHousing ? editFormData.housingLocation : null,
+      hasHosxp: Boolean(editFormData.hasHosxp),
+      hosxpUser: editFormData.hasHosxp ? editFormData.hosxpUser?.trim() || null : null,
+      hosxpPass: editFormData.hasHosxp ? editFormData.hosxpPass?.trim() || null : null,
+    }
+
     startTransition(async () => {
       try {
         const res = await fetch(`/api/member/registrations/${selectedItem.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(editFormData),
+          body: JSON.stringify(payload),
         })
         const data = await res.json()
         if (res.ok && data.success) {
           showToast('success', 'บันทึกการแก้ไขข้อมูลเรียบร้อยแล้ว')
           setIsEditOpen(false)
           fetchRegistrations()
+          if (selectedItem) {
+            setSelectedItem((prev) => (prev ? ({ ...prev, ...payload } as unknown as RegistrationRecord) : null))
+          }
         } else {
           showToast('error', data.error || 'บันทึกข้อมูลไม่สำเร็จ')
         }
@@ -627,9 +700,16 @@ export default function RegistrationsAdminClient() {
           <div className="modalCard modalWide" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
               <div>
-                <h3 className="modalTitle">รายละเอียดคำขอลงทะเบียน #{selectedItem.id}</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="reqIdPill">คำขอ #{selectedItem.id}</span>
+                  {getStatusBadge(selectedItem.status)}
+                </div>
+                <h3 className="modalTitle">
+                  {selectedItem.title}
+                  {selectedItem.firstNameTh} {selectedItem.lastNameTh}
+                </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  ยื่นเมื่อ{' '}
+                  ยื่นคำขอเมื่อ{' '}
                   {new Date(selectedItem.createdAt).toLocaleDateString('th-TH', {
                     day: 'numeric',
                     month: 'long',
@@ -643,6 +723,7 @@ export default function RegistrationsAdminClient() {
                 type="button"
                 className="modalCloseBtn"
                 onClick={() => setIsDetailOpen(false)}
+                aria-label="ปิด"
               >
                 ✕
               </button>
@@ -653,16 +734,18 @@ export default function RegistrationsAdminClient() {
               <div className="detailSection">
                 <h4 className="detailSectionTitle">
                   <UserCheck size={16} className="text-emerald-700" />
-                  1. ข้อมูลส่วนบุคคล
+                  <span>1. ข้อมูลส่วนบุคคล</span>
                 </h4>
                 <div className="detailGrid">
                   <div className="detailItem">
                     <span className="detailLabel">เลขบัตรประชาชน:</span>
-                    <span className="detailVal tabularNums">{selectedItem.citizenId}</span>
+                    <span className="detailVal tabularNums font-mono font-semibold text-slate-800">
+                      {selectedItem.citizenId}
+                    </span>
                   </div>
                   <div className="detailItem">
                     <span className="detailLabel">ชื่อ-นามสกุล (ไทย):</span>
-                    <span className="detailVal font-semibold">
+                    <span className="detailVal font-semibold text-slate-900">
                       {selectedItem.title}
                       {selectedItem.firstNameTh} {selectedItem.lastNameTh}
                     </span>
@@ -670,12 +753,14 @@ export default function RegistrationsAdminClient() {
                   <div className="detailItem">
                     <span className="detailLabel">ชื่อ-นามสกุล (อังกฤษ):</span>
                     <span className="detailVal">
-                      {selectedItem.firstNameEn} {selectedItem.lastNameEn}
+                      {selectedItem.firstNameEn || selectedItem.lastNameEn
+                        ? `${selectedItem.firstNameEn || ''} ${selectedItem.lastNameEn || ''}`.trim()
+                        : '-'}
                     </span>
                   </div>
                   <div className="detailItem">
                     <span className="detailLabel">ชื่อเล่น:</span>
-                    <span className="detailVal">{selectedItem.nickname}</span>
+                    <span className="detailVal">{selectedItem.nickname || '-'}</span>
                   </div>
                   <div className="detailItem">
                     <span className="detailLabel">วันเกิด (พ.ศ.):</span>
@@ -692,16 +777,16 @@ export default function RegistrationsAdminClient() {
               <div className="detailSection">
                 <h4 className="detailSectionTitle">
                   <Building2 size={16} className="text-emerald-700" />
-                  2. ข้อมูลตำแหน่งและกลุ่มงาน
+                  <span>2. ข้อมูลตำแหน่งและกลุ่มงาน</span>
                 </h4>
                 <div className="detailGrid">
                   <div className="detailItem">
                     <span className="detailLabel">กลุ่มงาน / แผนก:</span>
-                    <span className="detailVal">{selectedItem.department}</span>
+                    <span className="detailVal font-medium text-emerald-800">{selectedItem.department}</span>
                   </div>
                   <div className="detailItem">
                     <span className="detailLabel">ตำแหน่ง:</span>
-                    <span className="detailVal">{selectedItem.position}</span>
+                    <span className="detailVal font-medium text-slate-800">{selectedItem.position}</span>
                   </div>
                   <div className="detailItem">
                     <span className="detailLabel">ระดับงาน:</span>
@@ -729,33 +814,38 @@ export default function RegistrationsAdminClient() {
               <div className="detailSection">
                 <h4 className="detailSectionTitle">
                   <KeyRound size={16} className="text-emerald-700" />
-                  3. ข้อมูลติดต่อ & HOSxP
+                  <span>3. ข้อมูลติดต่อ & บัญชีระบบ HOSxP</span>
                 </h4>
                 <div className="detailGrid">
                   <div className="detailItem">
                     <span className="detailLabel">อีเมล:</span>
-                    <span className="detailVal">{selectedItem.email}</span>
+                    <span className="detailVal font-medium text-slate-800">{selectedItem.email}</span>
                   </div>
                   <div className="detailItem">
                     <span className="detailLabel">เบอร์โทรศัพท์:</span>
-                    <span className="detailVal">{selectedItem.phone}</span>
+                    <span className="detailVal tabularNums font-medium text-slate-800">{selectedItem.phone}</span>
                   </div>
                   <div className="detailItem">
                     <span className="detailLabel">Line ID:</span>
                     <span className="detailVal">{selectedItem.lineId || '-'}</span>
                   </div>
-                  <div className="detailItem">
+                  <div className="detailItem fullWidth">
                     <span className="detailLabel">สิทธิ์ระบบ HOSxP:</span>
-                    <span className="detailVal">
+                    <div className="mt-1">
                       {selectedItem.hasHosxp ? (
-                        <span className="text-emerald-700 font-medium">
-                          ขอใช้งาน (User: <code>{selectedItem.hosxpUser}</code> / Pass:{' '}
-                          <code>{selectedItem.hosxpPass}</code>)
-                        </span>
+                        <div className="hosxpCredentialBox">
+                          <span className="hosxpBadge">ขอเปิดใช้งาน HOSxP</span>
+                          <span className="hosxpItem">
+                            Username: <code>{selectedItem.hosxpUser}</code>
+                          </span>
+                          <span className="hosxpItem">
+                            Password: <code>{selectedItem.hosxpPass}</code>
+                          </span>
+                        </div>
                       ) : (
-                        'ไม่ใช้งาน'
+                        <span className="text-slate-500 text-sm">ไม่ใช้งานระบบ HOSxP</span>
                       )}
-                    </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -764,26 +854,42 @@ export default function RegistrationsAdminClient() {
               <div className="detailSection">
                 <h4 className="detailSectionTitle">
                   <Home size={16} className="text-emerald-700" />
-                  4. ที่พักอาศัย & ยานพาหนะ
+                  <span>4. สวัสดิการที่พักอาศัย & ยานพาหนะ</span>
                 </h4>
                 <div className="detailGrid">
-                  <div className="detailItem">
-                    <span className="detailLabel">ที่พักในโรงพยาบาล:</span>
-                    <span className="detailVal">
-                      {selectedItem.inHospitalHousing
-                        ? selectedItem.housingLocation || 'พักในโรงพยาบาล'
-                        : 'พักภายนอกโรงพยาบาล'}
-                    </span>
+                  <div className="detailItem fullWidth">
+                    <span className="detailLabel">สถานที่พักอาศัย:</span>
+                    <div className="mt-0.5">
+                      {selectedItem.inHospitalHousing ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm font-medium">
+                          <Home size={14} />
+                          {selectedItem.housingLocation || 'พักในโรงพยาบาล'}
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 text-sm">พักอาศัยภายนอกโรงพยาบาล</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="detailItem">
-                    <span className="detailLabel">ข้อมูลยานพาหนะ:</span>
-                    <span className="detailVal">
-                      {selectedItem.hasVehicle && selectedItem.vehicles && Array.isArray(selectedItem.vehicles)
-                        ? selectedItem.vehicles
-                            .map((v: VehicleItem) => `${v.platePrefix} ${v.plateNumber} ${v.province}`)
-                            .join(', ')
-                        : 'ไม่มีรถยนต์'}
-                    </span>
+
+                  <div className="detailItem fullWidth">
+                    <span className="detailLabel">ข้อมูลรถยนต์เข้าโซนบ้านพัก:</span>
+                    <div className="mt-2">
+                      {selectedItem.hasVehicle && selectedItem.vehicles && Array.isArray(selectedItem.vehicles) && selectedItem.vehicles.length > 0 ? (
+                        <div className="licensePlateList">
+                          {selectedItem.vehicles.map((v: VehicleItem, idx: number) => (
+                            <div key={idx} className="thaiLicensePlate">
+                              <div className="plateMain">
+                                <span className="platePrefix">{v.platePrefix}</span>
+                                <span className="plateNumber">{v.plateNumber}</span>
+                              </div>
+                              <div className="plateProvince">{v.province}</div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-sm italic">ไม่มีรถยนต์ลงทะเบียน</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -792,24 +898,30 @@ export default function RegistrationsAdminClient() {
               <div className="detailSection">
                 <h4 className="detailSectionTitle">
                   <ShieldCheck size={16} className="text-emerald-700" />
-                  5. สถานะคำขอ
+                  <span>5. สถานะคำขอและประวัติ</span>
                 </h4>
                 <div className="detailGrid">
                   <div className="detailItem">
                     <span className="detailLabel">สถานะปัจจุบัน:</span>
-                    <div>{getStatusBadge(selectedItem.status)}</div>
+                    <div className="mt-1">{getStatusBadge(selectedItem.status)}</div>
                   </div>
                   {selectedItem.status === 'approved' && (
                     <>
                       <div className="detailItem">
                         <span className="detailLabel">ผู้อนุมัติ:</span>
-                        <span className="detailVal">{selectedItem.approvedBy || '-'}</span>
+                        <span className="detailVal font-medium">{selectedItem.approvedBy || '-'}</span>
                       </div>
                       <div className="detailItem">
                         <span className="detailLabel">วันที่อนุมัติ:</span>
                         <span className="detailVal">
                           {selectedItem.approvedAt
-                            ? new Date(selectedItem.approvedAt).toLocaleDateString('th-TH')
+                            ? new Date(selectedItem.approvedAt).toLocaleDateString('th-TH', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
                             : '-'}
                         </span>
                       </div>
@@ -818,27 +930,27 @@ export default function RegistrationsAdminClient() {
                   {selectedItem.status === 'rejected' && (
                     <div className="detailItem fullWidth">
                       <span className="detailLabel">เหตุผลที่ปฏิเสธ:</span>
-                      <span className="detailVal text-rose-600">{selectedItem.rejectReason || '-'}</span>
+                      <div className="mt-1 p-2.5 bg-rose-50 border border-rose-200 rounded-md text-rose-700 text-sm">
+                        {selectedItem.rejectReason || 'ไม่ระบุเหตุผล'}
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="modalFooter flex justify-between">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="btnSecondary"
-                  onClick={() => {
-                    setIsDetailOpen(false)
-                    openEditModal(selectedItem)
-                  }}
-                >
-                  <Edit3 size={15} />
-                  <span>แก้ไขข้อมูล</span>
-                </button>
-              </div>
+            <div className="modalFooter flex justify-between items-center">
+              <button
+                type="button"
+                className="btnSecondary"
+                onClick={() => {
+                  setIsDetailOpen(false)
+                  openEditModal(selectedItem)
+                }}
+              >
+                <Edit3 size={15} />
+                <span>แก้ไขข้อมูล</span>
+              </button>
 
               <div className="flex gap-2">
                 {selectedItem.status === 'pending' && (
@@ -891,227 +1003,301 @@ export default function RegistrationsAdminClient() {
               <div className="modalHeader">
                 <div className="flex items-center gap-2">
                   <Edit3 size={20} className="text-emerald-700" />
-                  <h3 className="modalTitle">แก้ไขข้อมูลคำขอ #{selectedItem.id}</h3>
+                  <div>
+                    <h3 className="modalTitle">แก้ไขข้อมูลคำขอ #{selectedItem.id}</h3>
+                    <p className="text-xs text-slate-500">ปรับปรุงข้อมูลบุคลากรและยานพาหนะ</p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   className="modalCloseBtn"
                   onClick={() => setIsEditOpen(false)}
+                  aria-label="ปิด"
                 >
                   ✕
                 </button>
               </div>
 
               <div className="modalBody">
-                <div className="grid2Col">
+                {/* 1. ข้อมูลส่วนบุคคล */}
+                <div className="editGroupCard">
+                  <h4 className="editGroupTitle">
+                    <UserCheck size={16} className="text-emerald-700" />
+                    <span>1. ข้อมูลส่วนบุคคล</span>
+                  </h4>
+
+                  <div className="grid2Col">
+                    <div className="fieldGroup">
+                      <label className="inputLabel">เลขบัตรประชาชน (13 หลัก) *</label>
+                      <input
+                        type="text"
+                        className="textInput font-mono"
+                        value={editFormData.citizenId || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, citizenId: e.target.value.replace(/\D/g, '') }))
+                        }
+                        maxLength={13}
+                        required
+                      />
+                    </div>
+
+                    <div className="fieldGroup">
+                      <label className="inputLabel">คำนำหน้า *</label>
+                      <select
+                        className="selectInput"
+                        value={editFormData.title || 'นาย'}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, title: e.target.value }))
+                        }
+                      >
+                        {TITLES.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid2Col">
+                    <div className="fieldGroup">
+                      <label className="inputLabel">ชื่อ (ภาษาไทย) *</label>
+                      <input
+                        type="text"
+                        className="textInput"
+                        value={editFormData.firstNameTh || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, firstNameTh: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="fieldGroup">
+                      <label className="inputLabel">นามสกุล (ภาษาไทย) *</label>
+                      <input
+                        type="text"
+                        className="textInput"
+                        value={editFormData.lastNameTh || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, lastNameTh: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid2Col">
+                    <div className="fieldGroup">
+                      <label className="inputLabel">First Name (English)</label>
+                      <input
+                        type="text"
+                        className="textInput"
+                        value={editFormData.firstNameEn || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, firstNameEn: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    <div className="fieldGroup">
+                      <label className="inputLabel">Last Name (English)</label>
+                      <input
+                        type="text"
+                        className="textInput"
+                        value={editFormData.lastNameEn || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, lastNameEn: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid2Col">
+                    <div className="fieldGroup">
+                      <label className="inputLabel">ชื่อเล่น</label>
+                      <input
+                        type="text"
+                        className="textInput"
+                        value={editFormData.nickname || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, nickname: e.target.value }))
+                        }
+                      />
+                    </div>
+
+                    <div className="fieldGroup">
+                      <label className="inputLabel">เลขที่ใบประกอบวิชาชีพ</label>
+                      <input
+                        type="text"
+                        className="textInput"
+                        value={editFormData.licenseNo || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, licenseNo: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+
                   <div className="fieldGroup">
-                    <label className="inputLabel">เลขบัตรประชาชน</label>
+                    <label className="inputLabel">วันเดือนปีเกิด (พ.ศ.) *</label>
                     <input
                       type="text"
                       className="textInput"
-                      value={editFormData.citizenId || ''}
+                      placeholder="เช่น 15/05/2538"
+                      value={editFormData.birthDate || ''}
                       onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, citizenId: e.target.value }))
+                        setEditFormData((prev) => ({ ...prev, birthDate: e.target.value }))
                       }
-                      maxLength={13}
-                    />
-                  </div>
-
-                  <div className="fieldGroup">
-                    <label className="inputLabel">คำนำหน้า</label>
-                    <select
-                      className="selectInput"
-                      value={editFormData.title || 'นาย'}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, title: e.target.value }))
-                      }
-                    >
-                      {TITLES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid2Col">
-                  <div className="fieldGroup">
-                    <label className="inputLabel">ชื่อ (ภาษาไทย)</label>
-                    <input
-                      type="text"
-                      className="textInput"
-                      value={editFormData.firstNameTh || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, firstNameTh: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div className="fieldGroup">
-                    <label className="inputLabel">นามสกุล (ภาษาไทย)</label>
-                    <input
-                      type="text"
-                      className="textInput"
-                      value={editFormData.lastNameTh || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, lastNameTh: e.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid2Col">
-                  <div className="fieldGroup">
-                    <label className="inputLabel">First Name (EN)</label>
-                    <input
-                      type="text"
-                      className="textInput"
-                      value={editFormData.firstNameEn || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, firstNameEn: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div className="fieldGroup">
-                    <label className="inputLabel">Last Name (EN)</label>
-                    <input
-                      type="text"
-                      className="textInput"
-                      value={editFormData.lastNameEn || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, lastNameEn: e.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid2Col">
-                  <div className="fieldGroup">
-                    <label className="inputLabel">ชื่อเล่น</label>
-                    <input
-                      type="text"
-                      className="textInput"
-                      value={editFormData.nickname || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, nickname: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div className="fieldGroup">
-                    <label className="inputLabel">เลขที่ใบประกอบ</label>
-                    <input
-                      type="text"
-                      className="textInput"
-                      value={editFormData.licenseNo || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, licenseNo: e.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid2Col">
-                  <div className="fieldGroup">
-                    <label className="inputLabel">กลุ่มงาน / แผนก</label>
-                    <select
-                      className="selectInput"
-                      value={editFormData.department || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, department: e.target.value }))
-                      }
-                    >
-                      {WORK_DEPARTMENTS.map((dept) => (
-                        <option key={dept} value={dept}>
-                          {dept}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="fieldGroup">
-                    <label className="inputLabel">ตำแหน่ง</label>
-                    <select
-                      className="selectInput"
-                      value={editFormData.position || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, position: e.target.value }))
-                      }
-                    >
-                      {POSITIONS.map((pos) => (
-                        <option key={pos} value={pos}>
-                          {pos}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid2Col">
-                  <div className="fieldGroup">
-                    <label className="inputLabel">ระดับงาน</label>
-                    <select
-                      className="selectInput"
-                      value={editFormData.level || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, level: e.target.value }))
-                      }
-                    >
-                      {JOB_LEVELS.map((lvl) => (
-                        <option key={lvl} value={lvl}>
-                          {lvl}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="fieldGroup">
-                    <label className="inputLabel">กลุ่มบุคคล</label>
-                    <select
-                      className="selectInput"
-                      value={editFormData.personnelGroup || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, personnelGroup: e.target.value }))
-                      }
-                    >
-                      {PERSONNEL_GROUPS.map((grp) => (
-                        <option key={grp} value={grp}>
-                          {grp}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid2Col">
-                  <div className="fieldGroup">
-                    <label className="inputLabel">อีเมล</label>
-                    <input
-                      type="email"
-                      className="textInput"
-                      value={editFormData.email || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, email: e.target.value }))
-                      }
-                    />
-                  </div>
-
-                  <div className="fieldGroup">
-                    <label className="inputLabel">เบอร์โทรศัพท์</label>
-                    <input
-                      type="tel"
-                      className="textInput"
-                      value={editFormData.phone || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, phone: e.target.value }))
-                      }
+                      required
                     />
                   </div>
                 </div>
 
-                <div className="grid2Col">
+                {/* 2. ตำแหน่งและกลุ่มงาน */}
+                <div className="editGroupCard">
+                  <h4 className="editGroupTitle">
+                    <Building2 size={16} className="text-emerald-700" />
+                    <span>2. ตำแหน่งและกลุ่มงาน</span>
+                  </h4>
+
+                  <div className="grid2Col">
+                    <div className="fieldGroup">
+                      <label className="inputLabel">กลุ่มงาน / แผนก *</label>
+                      <select
+                        className="selectInput"
+                        value={editFormData.department || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, department: e.target.value }))
+                        }
+                      >
+                        {WORK_DEPARTMENTS.map((dept) => (
+                          <option key={dept} value={dept}>
+                            {dept}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="fieldGroup">
+                      <label className="inputLabel">ตำแหน่ง *</label>
+                      <select
+                        className="selectInput"
+                        value={editFormData.position || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, position: e.target.value }))
+                        }
+                      >
+                        {POSITIONS.map((pos) => (
+                          <option key={pos} value={pos}>
+                            {pos}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid2Col">
+                    <div className="fieldGroup">
+                      <label className="inputLabel">ระดับงาน *</label>
+                      <select
+                        className="selectInput"
+                        value={editFormData.level || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, level: e.target.value }))
+                        }
+                      >
+                        {JOB_LEVELS.map((lvl) => (
+                          <option key={lvl} value={lvl}>
+                            {lvl}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="fieldGroup">
+                      <label className="inputLabel">กลุ่มบุคคล *</label>
+                      <select
+                        className="selectInput"
+                        value={editFormData.personnelGroup || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, personnelGroup: e.target.value }))
+                        }
+                      >
+                        {PERSONNEL_GROUPS.map((grp) => (
+                          <option key={grp} value={grp}>
+                            {grp}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid2Col">
+                    <div className="fieldGroup">
+                      <label className="inputLabel">วันที่เริ่มปฏิบัติงาน (พ.ศ.) *</label>
+                      <input
+                        type="text"
+                        className="textInput"
+                        placeholder="เช่น 01/10/2566"
+                        value={editFormData.startDate || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, startDate: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="fieldGroup">
+                      <label className="inputLabel">วันที่บรรจุ (พ.ศ.)</label>
+                      <input
+                        type="text"
+                        className="textInput"
+                        placeholder="เช่น 01/10/2567"
+                        value={editFormData.containDate || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, containDate: e.target.value }))
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. ข้อมูลติดต่อ & HOSxP */}
+                <div className="editGroupCard">
+                  <h4 className="editGroupTitle">
+                    <KeyRound size={16} className="text-emerald-700" />
+                    <span>3. ข้อมูลติดต่อ & HOSxP</span>
+                  </h4>
+
+                  <div className="grid2Col">
+                    <div className="fieldGroup">
+                      <label className="inputLabel">อีเมล *</label>
+                      <input
+                        type="email"
+                        className="textInput"
+                        value={editFormData.email || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, email: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="fieldGroup">
+                      <label className="inputLabel">เบอร์โทรศัพท์ *</label>
+                      <input
+                        type="tel"
+                        className="textInput"
+                        value={editFormData.phone || ''}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, phone: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div className="fieldGroup">
                     <label className="inputLabel">Line ID</label>
                     <input
@@ -1124,48 +1310,195 @@ export default function RegistrationsAdminClient() {
                     />
                   </div>
 
-                  <div className="fieldGroup">
-                    <label className="inputLabel">ที่พักในโรงพยาบาล</label>
-                    <select
-                      className="selectInput"
-                      value={editFormData.housingLocation || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, housingLocation: e.target.value }))
-                      }
-                    >
-                      <option value="">ไม่ได้พักในโรงพยาบาล</option>
-                      {HOUSING_LOCATIONS.map((loc) => (
-                        <option key={loc} value={loc}>
-                          {loc}
-                        </option>
-                      ))}
-                    </select>
+                  {/* HOSxP toggle */}
+                  <div className="subEditToggleBox">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-emerald-600 rounded"
+                        checked={Boolean(editFormData.hasHosxp)}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, hasHosxp: e.target.checked }))
+                        }
+                      />
+                      <span className="text-sm font-semibold text-slate-800">ขอใช้งานระบบสารสนเทศ HOSxP</span>
+                    </label>
+
+                    {editFormData.hasHosxp && (
+                      <div className="grid2Col mt-3 pt-3 border-t border-slate-200">
+                        <div className="fieldGroup">
+                          <label className="inputLabel">HOSxP Username</label>
+                          <input
+                            type="text"
+                            className="textInput"
+                            value={editFormData.hosxpUser || ''}
+                            onChange={(e) =>
+                              setEditFormData((prev) => ({ ...prev, hosxpUser: e.target.value }))
+                            }
+                          />
+                        </div>
+
+                        <div className="fieldGroup">
+                          <label className="inputLabel">HOSxP Password</label>
+                          <input
+                            type="text"
+                            className="textInput"
+                            value={editFormData.hosxpPass || ''}
+                            onChange={(e) =>
+                              setEditFormData((prev) => ({ ...prev, hosxpPass: e.target.value }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid2Col">
-                  <div className="fieldGroup">
-                    <label className="inputLabel">HOSxP Username</label>
-                    <input
-                      type="text"
-                      className="textInput"
-                      value={editFormData.hosxpUser || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, hosxpUser: e.target.value }))
-                      }
-                    />
+                {/* 4. สวัสดิการที่พัก & ยานพาหนะ */}
+                <div className="editGroupCard">
+                  <h4 className="editGroupTitle">
+                    <Home size={16} className="text-emerald-700" />
+                    <span>4. สวัสดิการที่พักอาศัย & ยานพาหนะ</span>
+                  </h4>
+
+                  {/* Housing */}
+                  <div className="subEditToggleBox mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 accent-emerald-600 rounded"
+                        checked={Boolean(editFormData.inHospitalHousing)}
+                        onChange={(e) =>
+                          setEditFormData((prev) => ({ ...prev, inHospitalHousing: e.target.checked }))
+                        }
+                      />
+                      <span className="text-sm font-semibold text-slate-800">พักอาศัยอยู่ในโรงพยาบาล</span>
+                    </label>
+
+                    {editFormData.inHospitalHousing && (
+                      <div className="fieldGroup mt-3 pt-3 border-t border-slate-200">
+                        <label className="inputLabel">สถานที่พักอาศัย</label>
+                        <select
+                          className="selectInput"
+                          value={editFormData.housingLocation || HOUSING_LOCATIONS[0]}
+                          onChange={(e) =>
+                            setEditFormData((prev) => ({ ...prev, housingLocation: e.target.value }))
+                          }
+                        >
+                          {HOUSING_LOCATIONS.map((loc) => (
+                            <option key={loc} value={loc}>
+                              {loc}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="fieldGroup">
-                    <label className="inputLabel">HOSxP Password</label>
-                    <input
-                      type="text"
-                      className="textInput"
-                      value={editFormData.hosxpPass || ''}
-                      onChange={(e) =>
-                        setEditFormData((prev) => ({ ...prev, hosxpPass: e.target.value }))
-                      }
-                    />
+                  {/* Vehicle Management */}
+                  <div className="subEditToggleBox">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-emerald-600 rounded"
+                          checked={Boolean(editFormData.hasVehicle)}
+                          onChange={(e) => {
+                            const checked = e.target.checked
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              hasVehicle: checked,
+                              vehicles: checked && (!prev.vehicles || prev.vehicles.length === 0)
+                                ? [{ platePrefix: '', plateNumber: '', province: 'ลำปาง' }]
+                                : prev.vehicles,
+                            }))
+                          }}
+                        />
+                        <span className="text-sm font-semibold text-slate-800">มีรถยนต์เข้าโซนบ้านพัก</span>
+                      </label>
+
+                      {editFormData.hasVehicle && (
+                        <button
+                          type="button"
+                          className="btnAddVehicle"
+                          onClick={handleAddVehicle}
+                        >
+                          <Plus size={14} />
+                          <span>เพิ่มรถยนต์</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {editFormData.hasVehicle && (
+                      <div className="vehicleEditList mt-3 pt-3 border-t border-slate-200">
+                        {(!editFormData.vehicles || editFormData.vehicles.length === 0) ? (
+                          <div className="text-center py-3 text-sm text-slate-500">
+                            ยังไม่มีรายการรถยนต์ กด &quot;เพิ่มรถยนต์&quot; ด้านบนเพื่อเพิ่มข้อมูล
+                          </div>
+                        ) : (
+                          editFormData.vehicles.map((v, vIdx) => (
+                            <div key={vIdx} className="vehicleEditCard">
+                              <div className="vehicleEditHeader">
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                                  <Car size={14} className="text-emerald-700" />
+                                  <span>รถยนต์คันที่ {vIdx + 1}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="btnRemoveVehicle"
+                                  onClick={() => handleRemoveVehicle(vIdx)}
+                                  title="ลบรถคันนี้"
+                                >
+                                  <Trash2 size={13} />
+                                  <span>ลบ</span>
+                                </button>
+                              </div>
+
+                              <div className="grid3Col">
+                                <div className="fieldGroup mb-0">
+                                  <label className="inputLabel text-xs">หมวดอักษร</label>
+                                  <input
+                                    type="text"
+                                    className="textInput text-xs h-9"
+                                    placeholder="เช่น กข"
+                                    maxLength={4}
+                                    value={v.platePrefix || ''}
+                                    onChange={(e) => handleUpdateVehicle(vIdx, 'platePrefix', e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="fieldGroup mb-0">
+                                  <label className="inputLabel text-xs">เลขทะเบียน</label>
+                                  <input
+                                    type="text"
+                                    className="textInput text-xs h-9 tabularNums"
+                                    placeholder="เช่น 1234"
+                                    maxLength={6}
+                                    value={v.plateNumber || ''}
+                                    onChange={(e) => handleUpdateVehicle(vIdx, 'plateNumber', e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="fieldGroup mb-0">
+                                  <label className="inputLabel text-xs">จังหวัด</label>
+                                  <select
+                                    className="selectInput text-xs h-9"
+                                    value={v.province || 'ลำปาง'}
+                                    onChange={(e) => handleUpdateVehicle(vIdx, 'province', e.target.value)}
+                                  >
+                                    {THAI_PROVINCES.map((p) => (
+                                      <option key={p} value={p}>
+                                        {p}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
