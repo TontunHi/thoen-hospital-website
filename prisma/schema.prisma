@@ -103,6 +103,7 @@ model Member {
   member_telegram_links    member_telegram_links?
   telegram_link_challenges telegram_link_challenges[]
   hospital_assets          HospitalAsset[]
+  member_permissions       MemberPermission[]
 
   @@map("members")
 }
@@ -122,6 +123,21 @@ model PositionPermission {
 
   @@unique([permissionKey, positionName], map: "uq_permission_position")
   @@map("position_permissions")
+}
+
+model MemberPermission {
+  id            Int      @id @default(autoincrement())
+  memberId      Int      @map("member_id")
+  permissionKey String   @map("permission_key") @db.VarChar(100)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  createdBy     String?  @map("created_by") @db.VarChar(100)
+
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, permissionKey], map: "uq_member_permission")
+  @@index([memberId], map: "idx_member_perm_id")
+  @@index([permissionKey], map: "idx_member_perm_key")
+  @@map("member_permissions")
 }
 
 model ita_blogs {
