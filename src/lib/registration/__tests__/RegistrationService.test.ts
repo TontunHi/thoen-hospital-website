@@ -137,4 +137,12 @@ describe('RegistrationService.submit', () => {
     expect(result).toEqual({ ok: false, reason: 'invalid', message: 'ข้อมูลคำขอไม่ถูกต้อง' })
     expect(deps.createRegistration).not.toHaveBeenCalled()
   })
+
+  it('does not attribute the audit row to the unverified email from the form', async () => {
+    const deps = makeDeps()
+    await createRegistrationService(deps).submit(validInput)
+
+    const actor = vi.mocked(deps.audit).mock.calls[0][3]
+    expect(actor).toEqual({ username: 'public-registration', email: null })
+  })
 })

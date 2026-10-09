@@ -26,7 +26,7 @@ export interface RegistrationDeps {
     actionType: 'CREATE',
     targetTable: 'member_registrations',
     details: string,
-    actor: { username: string; email: string }
+    actor: { username: string; email: string | null }
   ) => Promise<void>
 }
 
@@ -49,7 +49,8 @@ export function createRegistrationService(deps: RegistrationDeps) {
         'CREATE',
         'member_registrations',
         `ส่งคำขอสมัครสมาชิก #${id} (เลขบัตรประชาชน ${maskedCitizenId})`,
-        { username: maskedCitizenId, email: data.email }
+        // The submitter is not logged in and the email is unverified, so it is not the actor.
+        { username: 'public-registration', email: null }
       )
       return { ok: true, id }
     },
