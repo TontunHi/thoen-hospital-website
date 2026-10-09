@@ -220,8 +220,8 @@ export default function RegistrationsAdminClient() {
   const handleAddVehicle = () => {
     setEditFormData((prev) => {
       const currentVehicles = Array.isArray(prev.vehicles) ? [...prev.vehicles] : []
-      if (currentVehicles.length >= 5) {
-        showToast('info', 'สามารถเพิ่มรถยนต์ได้สูงสุด 5 คัน')
+      if (currentVehicles.length >= 2) {
+        showToast('info', 'สามารถลงทะเบียนรถยนต์ได้สูงสุด 2 คัน')
         return prev
       }
       return {
@@ -1417,14 +1417,14 @@ export default function RegistrationsAdminClient() {
                         <span className="text-sm font-semibold text-slate-800">มีรถยนต์เข้าโซนบ้านพัก</span>
                       </label>
 
-                      {editFormData.hasVehicle && (
+                      {editFormData.hasVehicle && (!editFormData.vehicles || editFormData.vehicles.length < 2) && (
                         <button
                           type="button"
                           className="btnAddVehicle"
                           onClick={handleAddVehicle}
                         >
                           <Plus size={14} />
-                          <span>เพิ่มรถยนต์</span>
+                          <span>เพิ่มรถยนต์ ({editFormData.vehicles?.length || 0}/2)</span>
                         </button>
                       )}
                     </div>
