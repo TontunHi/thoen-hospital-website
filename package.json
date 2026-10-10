@@ -20,6 +20,7 @@
     "go:dev": "cmd.exe /c \"cd backend-go && go run ./cmd/server\"",
     "go:build": "cmd.exe /c \"cd backend-go && go build -o thoen-backend.exe ./cmd/server\"",
     "go:test": "cmd.exe /c \"cd backend-go && go test -v ./...\"",
+    "go:start": "cmd.exe /c \"cd backend-go && thoen-backend.exe\"",
     "precommit": "lint-staged"
   },
   "dependencies": {
