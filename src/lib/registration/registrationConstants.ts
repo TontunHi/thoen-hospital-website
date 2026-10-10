@@ -115,6 +115,7 @@ export const HOUSING_LOCATIONS = [
   'แฟลตส้มเกลี้ยง',
   'แฟลตลีลาวดี',
   'แฟลตส้มโอ',
+  'แฟลตพวงชมพู',
 ] as const
 
 export const THAI_PROVINCES = [
