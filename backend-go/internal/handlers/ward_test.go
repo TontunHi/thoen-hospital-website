@@ -52,3 +52,24 @@ func TestRound2(t *testing.T) {
 		}
 	}
 }
+
+func TestMaskThaiPatientNameShort(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"", "-"},
+		{"   ", "-"},
+		{"สม", "สม***"},
+		{"สมชาย", "สมช***"},
+		{"นายสมชาย ใจดี", "นาย***"},
+	}
+
+	for _, tt := range tests {
+		got := maskThaiPatientNameShort(tt.input)
+		if got != tt.expected {
+			t.Errorf("maskThaiPatientNameShort(%q) = %q; want %q", tt.input, got, tt.expected)
+		}
+	}
+}
+

@@ -210,3 +210,39 @@ type AppointmentMismatchData struct {
 	Mismatches      []AppointmentMismatchRecord `json:"mismatches"`
 }
 
+// ── Systems OR and Ward Summary ──
+
+type WardSummarySection struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	ShortTitle  string `json:"shortTitle"`
+	Floor       string `json:"floor"`
+	BadgeColor  string `json:"badgeColor"`
+	AccentColor string `json:"accentColor"`
+	Count       int    `json:"count"`
+}
+
+type WardSummaryResult struct {
+	TotalPatients int                  `json:"totalPatients"`
+	UpdatedAt     string               `json:"updatedAt"`
+	Sections      []WardSummarySection `json:"sections"`
+}
+
+type OrPatientItem struct {
+	HN          string `json:"hn"`
+	PtName      string `json:"ptname"`
+	AgeText     any    `json:"age_text"`
+	RoomName    string `json:"room_name"`
+	RequestTime string `json:"request_time"`
+	StatusName  string `json:"status_name"`
+}
+
+type OrRoomStatusResult struct {
+	Waiting    []OrPatientItem `json:"waiting"`
+	InProgress []OrPatientItem `json:"inProgress"`
+	Recovery   []OrPatientItem `json:"recovery"`
+	Total      int             `json:"total"`
+	UpdatedAt  string          `json:"updatedAt"`
+}
+
+

@@ -116,6 +116,14 @@ const nextConfig: NextConfig = {
         {
           source: '/api/service/appointment-mismatch',
           destination: `${goBackendUrl}/api/service/appointment-mismatch`,
+        },
+        {
+          source: '/api/systems/ward-status',
+          destination: `${goBackendUrl}/api/systems/ward-status`,
+        },
+        {
+          source: '/api/systems/status-or',
+          destination: `${goBackendUrl}/api/systems/status-or`,
         }
       );
     }

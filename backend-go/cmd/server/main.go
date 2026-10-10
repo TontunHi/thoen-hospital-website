@@ -101,6 +101,10 @@ func main() {
 		// Drug Dispensing Queue & Appointment Mismatch (Member authenticated)
 		api.GET("/service/status-drug", middleware.RequireMemberSession(cfg), drugStatusHandler.GetDrugStatus)
 		api.GET("/service/appointment-mismatch", middleware.RequireMemberSession(cfg), middleware.ForbidRole("subdistrict"), drugStatusHandler.GetAppointmentMismatch)
+
+		// Systems Public Summary & Operating Room Status (Cached)
+		api.GET("/systems/ward-status", wardHandler.GetWardSummary)
+		api.GET("/systems/status-or", wardHandler.GetOrRoomStatus)
 	}
 
 	// 6. Graceful Server Startup & Shutdown

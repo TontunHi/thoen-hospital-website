@@ -680,3 +680,166 @@ func (h *WardHandler) GetBedOccupancy(c *gin.Context) {
 		"data":    data,
 	})
 }
+
+// GetWardSummary handles GET /api/systems/ward-status (Public aggregate summary, no PHI)
+func (h *WardHandler) GetWardSummary(c *gin.Context) {
+	cacheKey := "systems-ipd-ward-summary"
+	if cached, ok := h.cache.Get(cacheKey); ok {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    cached,
+		})
+		return
+	}
+
+	sql := `
+		SELECT 
+			COALESCE(an.ward, '') AS ward,
+			COALESCE(p.bedno, '') AS bedno
+		FROM an_stat an
+		LEFT OUTER JOIN iptadm p ON an.an = p.an
+		WHERE an.dchdate IS NULL
+			AND an.ward IN ('02', '04', '05', '06', '09')
+	`
+
+	var rows []struct {
+		Ward  string `db:"ward"`
+		BedNo string `db:"bedno"`
+	}
+	if err := h.db.Select(&rows, sql); err != nil {
+		log.Printf("[ERROR] Ward summary query failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "เกิดข้อผิดพลาดในการดึงข้อมูลสรุปสถานะผู้ป่วยนอนรักษาพยาบาล",
+		})
+		return
+	}
+
+	counts := make(map[string]int)
+	for _, sec := range WardSectionsConfig {
+		counts[sec.ID] = 0
+	}
+
+	for _, r := range rows {
+		groupId := resolveWardGroupId(r.Ward, r.BedNo)
+		if _, ok := counts[groupId]; ok {
+			counts[groupId]++
+		}
+	}
+
+	sections := make([]models.WardSummarySection, len(WardSectionsConfig))
+	for i, sec := range WardSectionsConfig {
+		sections[i] = models.WardSummarySection{
+			ID:          sec.ID,
+			Title:       sec.Title,
+			ShortTitle:  sec.ShortTitle,
+			Floor:       sec.Floor,
+			BadgeColor:  sec.BadgeColor,
+			AccentColor: sec.AccentColor,
+			Count:       counts[sec.ID],
+		}
+	}
+
+	res := models.WardSummaryResult{
+		TotalPatients: len(rows),
+		UpdatedAt:     time.Now().UTC().Format(time.RFC3339Nano),
+		Sections:      sections,
+	}
+
+	h.cache.Set(cacheKey, res, 10*time.Second)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    res,
+	})
+}
+
+func maskThaiPatientNameShort(name string) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return "-"
+	}
+	runes := []rune(trimmed)
+	if len(runes) <= 3 {
+		return string(runes) + "***"
+	}
+	return string(runes[:3]) + "***"
+}
+
+// GetOrRoomStatus handles GET /api/systems/status-or (Operating Room Status)
+func (h *WardHandler) GetOrRoomStatus(c *gin.Context) {
+	cacheKey := "or-room-status-data"
+	if cached, ok := h.cache.Get(cacheKey); ok {
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    cached,
+		})
+		return
+	}
+
+	queryOr := func(statusID, defaultStatus string) []models.OrPatientItem {
+		sql := `
+			SELECT DISTINCT
+				op.hn,
+				TRIM(CONCAT(COALESCE(pt.pname, ''), COALESCE(pt.fname, ''))) AS ptname,
+				TIMESTAMPDIFF(YEAR, pt.birthday, CURRENT_DATE()) AS age_text,
+				COALESCE(opr.room_name, '-') AS room_name,
+				COALESCE(TIME_FORMAT(op.request_time, '%H:%i'), '-') AS request_time,
+				COALESCE(ops.status_name, ?) AS status_name
+			FROM operation_list op
+			LEFT OUTER JOIN patient pt ON op.hn = pt.hn
+			LEFT OUTER JOIN operation_room opr ON op.room_id = opr.room_id
+			LEFT OUTER JOIN operation_status ops ON op.status_id = ops.status_id
+			WHERE op.operation_date = CURRENT_DATE()
+				AND op.status_id = ?
+			ORDER BY op.request_time ASC
+		`
+
+		var raw []struct {
+			HN          string  `db:"hn"`
+			PtName      string  `db:"ptname"`
+			AgeText     *int    `db:"age_text"`
+			RoomName    string  `db:"room_name"`
+			RequestTime string  `db:"request_time"`
+			StatusName  string  `db:"status_name"`
+		}
+		_ = h.db.Select(&raw, sql, defaultStatus, statusID)
+
+		result := make([]models.OrPatientItem, len(raw))
+		for i, r := range raw {
+			var ageVal any = "-"
+			if r.AgeText != nil {
+				ageVal = *r.AgeText
+			}
+			result[i] = models.OrPatientItem{
+				HN:          r.HN,
+				PtName:      maskThaiPatientNameShort(r.PtName),
+				AgeText:     ageVal,
+				RoomName:    r.RoomName,
+				RequestTime: r.RequestTime,
+				StatusName:  r.StatusName,
+			}
+		}
+		return result
+	}
+
+	waiting := queryOr("1", "รอผ่าตัด")
+	inProgress := queryOr("2", "กำลังผ่าตัด")
+	recovery := queryOr("3", "ผ่าตัดเสร็จ/พักฟื้น")
+
+	res := models.OrRoomStatusResult{
+		Waiting:    waiting,
+		InProgress: inProgress,
+		Recovery:   recovery,
+		Total:      len(waiting) + len(inProgress) + len(recovery),
+		UpdatedAt:  time.Now().UTC().Format(time.RFC3339Nano),
+	}
+
+	h.cache.Set(cacheKey, res, 10*time.Second)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    res,
+	})
+}
+
