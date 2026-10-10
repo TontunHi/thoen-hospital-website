@@ -17,9 +17,12 @@
    - แคชผลลัพธ์ ER Live Status อายุ 8 วินาที (Thread-safe `sync.RWMutex`) ช่วยลดภาระ HOSxP ได้กว่า 90%
 4. **Shared Member Session Authentication:**
    - ตรวจสอบคุกกี้ `member_session` ด้วยระบบ HMAC-SHA256 แบบ Timing-safe ร่วมกับ Next.js ได้โดยตรง
-5. **Endpoints ในระยะที่ 1 (Phase 1 Pilot):**
+5. **Endpoints ที่พร้อมใช้งาน (Phase 1 & Phase 2):**
    - `GET /health` — Health check
-   - `GET /api/er/status` — สถานะห้องฉุกเฉินเรียลไทม์ (รองรับโหมด TV: `?mode=tv`)
+   - `GET /api/appointment` — ค้นหาวันนัดหมายแพทย์สำหรับประชาชน (In-Memory IP Rate Limiting 30 req/15min + PDPA Thai Name Masking)
+   - `GET /api/stream` — สตรีมมิ่งวิดีโอ Hero Slides และไฟล์มีเดีย (HTTP 206 Partial Content / Range Requests Zero-copy)
+   - `GET /api/er/status` — สถานะห้องฉุกเฉินเรียลไทม์ (รองรับโหมด TV: `?mode=tv` และ In-Memory Cache 8 วินาที)
+   - `GET /api/service/loratadine-dispense` — มอนิเตอร์การสั่งจ่ายยาลอราทาดีน (กรองอายุ `?age=adult` และสรุปสถิติ)
    - `GET /api/service/lab-tracker/report` — รายงานความคืบหน้าการส่งตรวจ LAB (รองรับกรองแพทย์: `?id=...`)
    - `GET /api/service/lab-tracker/doctors` — รายชื่อแพทย์และเจ้าหน้าที่ผู้สั่งตรวจประจำวัน
    - `GET /api/service/lab-tracker/detail` — รายละเอียดผลตรวจและรายการค้างตรวจรายบุคคล (`?hn=...`)

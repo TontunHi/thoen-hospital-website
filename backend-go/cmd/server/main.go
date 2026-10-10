@@ -42,6 +42,12 @@ func main() {
 	// 4. Initialize Handlers
 	erHandler := handlers.NewERHandler(hosxpDB, memCache)
 	labTrackerHandler := handlers.NewLabTrackerHandler(hosxpDB)
+	appointHandler := handlers.NewAppointmentHandler(hosxpDB)
+	loratadineHandler := handlers.NewLoratadineHandler(hosxpDB)
+	streamHandler := handlers.NewStreamHandler()
+
+	// Rate limiter for appointment checks: max 30 attempts per 15 minutes per IP
+	appointLimiter := middleware.NewIPRateLimiter(30, 15*time.Minute)
 
 	// 5. Setup Gin Router
 	r := gin.New()
@@ -60,8 +66,17 @@ func main() {
 	// API Routes (Identical paths to Next.js for seamless Strangler Fig proxying)
 	api := r.Group("/api")
 	{
+		// Public: Doctor Appointment Search (with IP rate limiting & PDPA masking)
+		api.GET("/appointment", appointLimiter.Middleware(), appointHandler.Search)
+
+		// Public/Zero-copy: Video and media streaming with HTTP 206 Partial Content
+		api.GET("/stream", streamHandler.ServeStream)
+
 		// ER Status API (Optional auth, public for TV mode)
 		api.GET("/er/status", middleware.OptionalAuth(cfg), erHandler.GetStatus)
+
+		// Loratadine Dispensing Monitor (Staff authenticated)
+		api.GET("/service/loratadine-dispense", middleware.RequireAuth(cfg), loratadineHandler.GetDispenseSummary)
 
 		// Lab Tracker APIs (Staff authenticated)
 		labTracker := api.Group("/service/lab-tracker")

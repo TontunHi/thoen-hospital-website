@@ -78,8 +78,20 @@ const nextConfig: NextConfig = {
     if (goBackendUrl) {
       rules.push(
         {
+          source: '/api/appointment',
+          destination: `${goBackendUrl}/api/appointment`,
+        },
+        {
+          source: '/api/stream',
+          destination: `${goBackendUrl}/api/stream`,
+        },
+        {
           source: '/api/er/status',
           destination: `${goBackendUrl}/api/er/status`,
+        },
+        {
+          source: '/api/service/loratadine-dispense',
+          destination: `${goBackendUrl}/api/service/loratadine-dispense`,
         },
         {
           source: '/api/service/lab-tracker/:path*',
