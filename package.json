@@ -17,6 +17,9 @@
     "db:safe-push": "tsx scripts/safeDbPush.ts",
     "bot:appointment": "tsx scripts/appointmentMismatchBot.ts",
     "bot:repair": "tsx scripts/telegramRepairPollingBot.ts",
+    "go:dev": "cmd.exe /c \"cd backend-go && go run ./cmd/server\"",
+    "go:build": "cmd.exe /c \"cd backend-go && go build -o thoen-backend.exe ./cmd/server\"",
+    "go:test": "cmd.exe /c \"cd backend-go && go test -v ./...\"",
     "precommit": "lint-staged"
   },
   "dependencies": {

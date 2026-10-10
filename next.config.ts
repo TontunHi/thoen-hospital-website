@@ -63,7 +63,8 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    return [
+    const goBackendUrl = process.env.GO_BACKEND_URL;
+    const rules = [
       {
         source: '/member/users',
         destination: '/member/member',
@@ -73,6 +74,21 @@ const nextConfig: NextConfig = {
         destination: '/member/news/news',
       },
     ];
+
+    if (goBackendUrl) {
+      rules.push(
+        {
+          source: '/api/er/status',
+          destination: `${goBackendUrl}/api/er/status`,
+        },
+        {
+          source: '/api/service/lab-tracker/:path*',
+          destination: `${goBackendUrl}/api/service/lab-tracker/:path*`,
+        }
+      );
+    }
+
+    return rules;
   },
 };
 
