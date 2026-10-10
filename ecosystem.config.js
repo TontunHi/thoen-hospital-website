@@ -1,15 +1,28 @@
-
 module.exports = {
   apps: [
+    // 1. Go High-Performance Microservice (Port 8080)
+    {
+      name: 'thoen-go-backend',
+      script: './thoen-backend.exe',
+      cwd: './backend-go',
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      max_memory_restart: '150M',
+      env: {
+        PORT: 8080,
+        GIN_MODE: 'release'
+      }
+    },
+    // 2. Next.js Web Application (Port 6060)
     {
       name: 'thoen-hospital-website',
-      // Runs the Next.js production server binary directly
       script: './node_modules/next/dist/bin/next',
-      args: 'start --hostname 127.0.0.1 --port 6060',
-      instances: '1',       // Run in cluster mode to utilize all CPU cores
-      exec_mode: 'cluster',    // Enables load balancing across instances
-      watch: false,            // Do not watch files in production
-      max_memory_restart: '1G', // Restart if memory usage exceeds 1GB
+      args: 'start --hostname 0.0.0.0 --port 6060',
+      instances: 1,
+      exec_mode: 'cluster',
+      watch: false,
+      max_memory_restart: '600M',
       env: {
         NODE_ENV: 'production'
       }
