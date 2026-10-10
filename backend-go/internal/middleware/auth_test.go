@@ -6,8 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func createTestToken(payload MemberSession, secret string) string {
@@ -118,3 +122,34 @@ func TestVerifyMemberToken(t *testing.T) {
 		}
 	})
 }
+
+func TestForbidRole(t *testing.T) {
+	forbidSubdistrict := ForbidRole("subdistrict")
+
+	t.Run("subdistrict role blocked", func(t *testing.T) {
+		session := &MemberSession{Username: "sub1", Role: "subdistrict"}
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Set("memberSession", session)
+
+		forbidSubdistrict(c)
+
+		if w.Code != http.StatusForbidden {
+			t.Errorf("expected 403 Forbidden, got %d", w.Code)
+		}
+	})
+
+	t.Run("doctor role allowed", func(t *testing.T) {
+		session := &MemberSession{Username: "doc1", Role: "doctor"}
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Set("memberSession", session)
+
+		forbidSubdistrict(c)
+
+		if w.Code == http.StatusForbidden {
+			t.Errorf("expected doctor role to pass, but got 403")
+		}
+	})
+}
+

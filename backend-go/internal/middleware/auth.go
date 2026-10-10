@@ -122,3 +122,64 @@ func RequireAuth(cfg *config.Config) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// RequireMemberSession ensures the member is authenticated with standard { success: false, error: ... } shape
+func RequireMemberSession(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cookie, err := c.Cookie(CookieName)
+		if err != nil || cookie == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"error":   "Unauthorized: กรุณาเข้าสู่ระบบสมาชิก",
+			})
+			return
+		}
+
+		session := VerifyMemberToken(cookie, cfg.MemberSessionSecret)
+		if session == nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"error":   "Unauthorized: กรุณาเข้าสู่ระบบสมาชิก",
+			})
+			return
+		}
+
+		c.Set("memberSession", session)
+		c.Next()
+	}
+}
+
+// ForbidRole blocks users with any of the specified roles with 403 Forbidden
+func ForbidRole(roles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		val, exists := c.Get("memberSession")
+		if !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"error":   "Unauthorized: กรุณาเข้าสู่ระบบสมาชิก",
+			})
+			return
+		}
+		session, ok := val.(*MemberSession)
+		if !ok || session == nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"error":   "Unauthorized: กรุณาเข้าสู่ระบบสมาชิก",
+			})
+			return
+		}
+
+		for _, r := range roles {
+			if session.Role == r {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+					"success": false,
+					"error":   "Forbidden: ไม่มีสิทธิ์เข้าถึงข้อมูลนี้",
+				})
+				return
+			}
+		}
+
+		c.Next()
+	}
+}
+

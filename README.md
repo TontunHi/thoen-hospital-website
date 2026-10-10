@@ -43,6 +43,7 @@
 ## 🛠️ สถาปัตยกรรมและเทคโนโลยีหลัก (Tech Stack & Architecture)
 
 * **Framework:** [Next.js (App Router)](https://nextjs.org/) + TypeScript (Next.js 16+ พร้อม React 19 และ Turbopack)
+* **High-Performance Go Backend Service:** [Go / Gin](https://gin-gonic.com/) ทำหน้าที่เป็น Strangler Fig Service รองรับงานที่มี Concurrency สูง (ER Live Status, Lab Tracker, Clinical Visit History, IPD Ward Status, Bed Occupancy, Drug Queue, Appointment Search & Zero-copy HTTP 206 Media Streaming) ช่วยลด RAM (~25 MB) และลดภาระ Event Loop ของ Node.js
 * **Database ORM:** [Prisma Client](https://www.prisma.io/) (Prisma 6)
 * **Database Architecture (Multi-Database):**
   * **Primary DB (MySQL/MariaDB):** เก็บข้อมูลโครงสร้างระบบ CMS, ข่าวสาร, สมาชิก, งานซ่อม, ลายมือชื่อดิจิทัล, และบันทึก Audit Logs โดยมีการกำหนด **Composite Indexes** เช่น `members(department, role)` และ `audit_logs(actionType, timestamp)` เพื่อคงประสิทธิภาพระดับ $O(\log N)$ เมื่อข้อมูลขยายตัว
@@ -59,7 +60,7 @@
   * `TaskInboxService` & `TaskPermissionResolver`: ควบคุมการเปลี่ยนสถานะ Workflow งานซ่อมและสิทธิ์การอนุมัติ
 * **Messaging & Alerts:** Telegram Bot API (`@/lib/telegramService.ts`)
 * **Validation & Security:** Zod schemas, HMAC-SHA256 Token Signatures, Rate Limiting, RBAC & Defensive Server-side Guards
-* **Testing:** [Vitest](https://vitest.dev/) สำหรับการทดสอบ Unit และ Integration Tests แบบ Dependency Injection ครอบคลุมกว่า 300 tests
+* **Testing:** [Vitest](https://vitest.dev/) สำหรับการทดสอบ Unit และ Integration Tests แบบ Dependency Injection ครอบคลุมกว่า 300 tests พร้อม Go Unit Tests สำหรับไมโครเซอร์วิส
 
 ---
 
@@ -78,6 +79,16 @@
 ## 📂 โครงสร้างโฟลเดอร์โครงการ (Directory Structure)
 
 ```text
+├── backend-go/                # Go High-Performance Microservice (Strangler Fig Pattern)
+│   ├── cmd/server/            # Entrypoint (HTTP Server, Router & Graceful Shutdown)
+│   ├── internal/
+│   │   ├── cache/             # Thread-safe In-Memory Cache (TTL)
+│   │   ├── config/            # Environment Configuration
+│   │   ├── database/          # sqlx Connection Pool to HOSxP
+│   │   ├── handlers/          # Clinical, ER, Lab, Ward, Drug & Stream Handlers
+│   │   ├── middleware/        # HMAC-SHA256 Auth & IP Rate Limiting
+│   │   └── models/            # Domain Structs & DTOs
+│   └── README.md              # คู่มือการใช้งานและเอกสารสถาปัตยกรรม Go
 ├── prisma/                    # สคีมาและฐานข้อมูลหลัก (Prisma Database Schema & Migrations)
 ├── public/                    # ไฟล์ Static ทั่วไป (โลโก้ ภาพพื้นหลัง เอกสารสาธารณะ)
 ├── storage/                   # พื้นที่จัดเก็บไฟล์ส่วนบุคคลและเอกสารแนบ (แยกโฟลเดอร์รายบุคคล)

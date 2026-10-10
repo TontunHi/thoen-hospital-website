@@ -94,8 +94,28 @@ const nextConfig: NextConfig = {
           destination: `${goBackendUrl}/api/service/loratadine-dispense`,
         },
         {
+          source: '/api/service/lab/:path*',
+          destination: `${goBackendUrl}/api/service/lab/:path*`,
+        },
+        {
           source: '/api/service/lab-tracker/:path*',
           destination: `${goBackendUrl}/api/service/lab-tracker/:path*`,
+        },
+        {
+          source: '/api/service/ward-status',
+          destination: `${goBackendUrl}/api/service/ward-status`,
+        },
+        {
+          source: '/api/service/bed-occupancy',
+          destination: `${goBackendUrl}/api/service/bed-occupancy`,
+        },
+        {
+          source: '/api/service/status-drug',
+          destination: `${goBackendUrl}/api/service/status-drug`,
+        },
+        {
+          source: '/api/service/appointment-mismatch',
+          destination: `${goBackendUrl}/api/service/appointment-mismatch`,
         }
       );
     }

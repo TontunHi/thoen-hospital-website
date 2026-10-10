@@ -111,5 +111,6 @@ Don't run the full checklist on every diff; scale it to what the change touches.
 - **Staff Registration & Workspace Approvals:** 5-step registration wizard (`/register`) with interactive PDPA consent modal, Gotowin department/grouping binding, and administrative review workspace (`/member/registrations`).
 - **Rational Drug Use (RDU) Knowledge Hub:** Accredited hospital drug use knowledge folders, document management, and public library (`/rdu`, `/member/rdu`).
 - **Telegram Real-time Notifications:** Real-time push alerts for hospital repair tickets, task approvals, and supervisor notifications route through `@/lib/telegramService.ts` (`sendTelegramNotification`).
+- **High-Performance Go Backend (Strangler Fig Gateway):** Standalone Go microservice located in `backend-go/` offloading heavy/polling read traffic (ER status, Lab Tracker, Clinical Visit/Lab History, IPD Ward Roster, Bed Occupancy, Drug Dispense Queue, Appointment Mismatch, and zero-copy HTTP 206 video streaming). Managed via `next.config.ts` proxy rewrite with fallback to Next.js routes when `GO_BACKEND_URL` is omitted.
 - **Audit Logging:** Any access to PHI or sensitive employee records must call `logAudit()`. Workflow transitions must write to `inbox_task_audit_logs`. See `.agents/skills/audit-logging/SKILL.md`.
 <!-- END:hospital-project-context -->

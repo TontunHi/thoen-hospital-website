@@ -17,7 +17,7 @@
    - แคชผลลัพธ์ ER Live Status อายุ 8 วินาที (Thread-safe `sync.RWMutex`) ช่วยลดภาระ HOSxP ได้กว่า 90%
 4. **Shared Member Session Authentication:**
    - ตรวจสอบคุกกี้ `member_session` ด้วยระบบ HMAC-SHA256 แบบ Timing-safe ร่วมกับ Next.js ได้โดยตรง
-5. **Endpoints ที่พร้อมใช้งาน (Phase 1 & Phase 2):**
+5. **Endpoints ที่พร้อมใช้งาน (Complete Clinical HOSxP Suite):**
    - `GET /health` — Health check
    - `GET /api/appointment` — ค้นหาวันนัดหมายแพทย์สำหรับประชาชน (In-Memory IP Rate Limiting 30 req/15min + PDPA Thai Name Masking)
    - `GET /api/stream` — สตรีมมิ่งวิดีโอ Hero Slides และไฟล์มีเดีย (HTTP 206 Partial Content / Range Requests Zero-copy)
@@ -26,6 +26,12 @@
    - `GET /api/service/lab-tracker/report` — รายงานความคืบหน้าการส่งตรวจ LAB (รองรับกรองแพทย์: `?id=...`)
    - `GET /api/service/lab-tracker/doctors` — รายชื่อแพทย์และเจ้าหน้าที่ผู้สั่งตรวจประจำวัน
    - `GET /api/service/lab-tracker/detail` — รายละเอียดผลตรวจและรายการค้างตรวจรายบุคคล (`?hn=...`)
+   - `POST /api/service/lab/search` — ค้นหาประวัติการตรวจรักษาและผลแลปย้อนหลังด้วย CID หรือ HN
+   - `GET /api/service/lab/detail` — รายละเอียดประวัติเวชระเบียน OPD (`?vn=...`) หรือ IPD (`?an=...`)
+   - `GET /api/service/ward-status` — สถานะผู้ป่วยในหอผู้ป่วยสามัญ/ICU/พิเศษ/ห้องคลอด/ศัลยกรรม (แคช 10 วินาที)
+   - `GET /api/service/bed-occupancy` — อัตราการครองเตียงและสถิติเตียงโรงพยาบาลรายหอผู้ป่วย (แคช 10 วินาที, RBAC กรองสิทธิ์)
+   - `GET /api/service/status-drug` — คิวการจ่ายยาผู้ป่วยนอก ห้องการเงิน และพิมพ์ใบสั่งยา (แคช 10 วินาที)
+   - `GET /api/service/appointment-mismatch` — รายการนัดหมายแพทย์ผิดห้องตรวจ (แคช 10 วินาที, RBAC กรองสิทธิ์)
 
 ---
 

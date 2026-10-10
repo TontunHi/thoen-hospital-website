@@ -45,6 +45,9 @@ func main() {
 	appointHandler := handlers.NewAppointmentHandler(hosxpDB)
 	loratadineHandler := handlers.NewLoratadineHandler(hosxpDB)
 	streamHandler := handlers.NewStreamHandler()
+	clinicalLabHandler := handlers.NewClinicalLabHandler(hosxpDB)
+	wardHandler := handlers.NewWardHandler(hosxpDB, memCache)
+	drugStatusHandler := handlers.NewDrugStatusHandler(hosxpDB, memCache)
 
 	// Rate limiter for appointment checks: max 30 attempts per 15 minutes per IP
 	appointLimiter := middleware.NewIPRateLimiter(30, 15*time.Minute)
@@ -78,6 +81,10 @@ func main() {
 		// Loratadine Dispensing Monitor (Staff authenticated)
 		api.GET("/service/loratadine-dispense", middleware.RequireAuth(cfg), loratadineHandler.GetDispenseSummary)
 
+		// Clinical Lab Search & Visit Details (Staff authenticated)
+		api.POST("/service/lab/search", middleware.RequireAuth(cfg), clinicalLabHandler.Search)
+		api.GET("/service/lab/detail", middleware.RequireAuth(cfg), clinicalLabHandler.GetDetail)
+
 		// Lab Tracker APIs (Staff authenticated)
 		labTracker := api.Group("/service/lab-tracker")
 		labTracker.Use(middleware.RequireAuth(cfg))
@@ -86,6 +93,14 @@ func main() {
 			labTracker.GET("/doctors", labTrackerHandler.GetDoctors)
 			labTracker.GET("/detail", labTrackerHandler.GetDetail)
 		}
+
+		// IPD Ward Status & Bed Occupancy (Member authenticated)
+		api.GET("/service/ward-status", middleware.RequireMemberSession(cfg), wardHandler.GetWardStatus)
+		api.GET("/service/bed-occupancy", middleware.RequireMemberSession(cfg), middleware.ForbidRole("subdistrict"), wardHandler.GetBedOccupancy)
+
+		// Drug Dispensing Queue & Appointment Mismatch (Member authenticated)
+		api.GET("/service/status-drug", middleware.RequireMemberSession(cfg), drugStatusHandler.GetDrugStatus)
+		api.GET("/service/appointment-mismatch", middleware.RequireMemberSession(cfg), middleware.ForbidRole("subdistrict"), drugStatusHandler.GetAppointmentMismatch)
 	}
 
 	// 6. Graceful Server Startup & Shutdown
