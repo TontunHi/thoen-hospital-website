@@ -18,6 +18,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
+      folders: result,
       data: result,
     })
   } catch (error: any) {

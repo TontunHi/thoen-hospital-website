@@ -48,13 +48,14 @@ export default function RduPublicClient() {
         const res = await fetch('/api/rdu')
         if (res.ok) {
           const data = await res.json()
-          if (data.success && data.folders.length > 0) {
-            setFolders(data.folders)
+          const folderList = (Array.isArray(data.folders) ? data.folders : (Array.isArray(data.data) ? data.data : [])) as RduFolder[]
+          if (data.success && folderList.length > 0) {
+            setFolders(folderList)
 
             // Select folder from URL or default to first folder
-            let defaultFolder = data.folders[0]
+            let defaultFolder = folderList[0]
             if (initialFolderParam) {
-              const matched = data.folders.find((f: RduFolder) => f.folder_name === initialFolderParam)
+              const matched = folderList.find((f: RduFolder) => f.folder_name === initialFolderParam)
               if (matched) defaultFolder = matched
             }
             setActiveFolderId(defaultFolder.id)
