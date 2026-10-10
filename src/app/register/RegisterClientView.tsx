@@ -31,6 +31,7 @@ import {
   THAI_MONTHS,
 } from '@/lib/registration/registrationConstants'
 import './page.css'
+import { PdpaPolicyModal } from './components/PdpaPolicyModal'
 
 interface VehicleItem {
   platePrefix: string
@@ -1442,59 +1443,14 @@ export default function RegisterClientView() {
         </form>
 
         {/* Policy Modal */}
-        {showPolicyModal && (
-          <div
-            className="modalBackdrop"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowPolicyModal(false)
-            }}
-          >
-            <div className="modalCard" onClick={(e) => e.stopPropagation()}>
-              <div className="modalHeader">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck size={22} className="text-emerald-700" />
-                  <h3 className="modalTitle">นโยบายคุ้มครองข้อมูลส่วนบุคคล (PDPA)</h3>
-                </div>
-                <button
-                  type="button"
-                  className="modalCloseBtn"
-                  onClick={() => setShowPolicyModal(false)}
-                  aria-label="ปิด"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="modalBody">
-                <p>
-                  <strong>โรงพยาบาลเถิน</strong> ตระหนักถึงความสำคัญของการคุ้มครองข้อมูลส่วนบุคคลของบุคลากรตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)
-                </p>
-                <h4 className="font-semibold text-slate-800 mt-3">1. วัตถุประสงค์ในการเก็บรวบรวม</h4>
-                <p>
-                  เพื่อการบริหารงานบุคคล การเปิดสิทธิ์การใช้งานระบบสารสนเทศ (HOSxP, Member Portal, ระบบเงินเดือน), การจัดการสวัสดิการบ้านพัก และการรักษาความปลอดภัยในเขตพื้นที่โรงพยาบาล
-                </p>
-                <h4 className="font-semibold text-slate-800 mt-3">2. การรักษาความปลอดภัย</h4>
-                <p>
-                  โรงพยาบาลมีมาตรการรักษาความปลอดภัยทางเทคนิคและการบริหารจัดการที่เข้มงวด ข้อมูลจะถูกจัดเก็บในฐานข้อมูลที่ปลอดภัยและเข้าถึงได้เฉพาะผู้มีอำนาจหน้าที่เท่านั้น
-                </p>
-                <h4 className="font-semibold text-slate-800 mt-3">3. สิทธิของเจ้าของข้อมูล</h4>
-                <p>
-                  ท่านมีสิทธิ์ในการขอเข้าถึง ขอรับสำเนา ขอแก้ไข หรือขอลบข้อมูลส่วนบุคคลของท่านตามที่กฎหมายกำหนด
-                </p>
-              </div>
-              <div className="modalFooter">
-                <button
-                  type="button"
-                  className="btnPrimary w-full"
-                  onClick={() => setShowPolicyModal(false)}
-                >
-                  รับทราบและปิดหน้าต่าง
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <PdpaPolicyModal
+          isOpen={showPolicyModal}
+          onClose={() => setShowPolicyModal(false)}
+          onAccept={() => {
+            updateField('consentPolicy', true)
+            setShowPolicyModal(false)
+          }}
+        />
       </div>
     </main>
   )
