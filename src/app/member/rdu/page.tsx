@@ -1,6 +1,6 @@
 import { getAuthenticatedMember } from '@/lib/memberAuth'
-import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
+import { RduService } from '@/lib/rdu/rduService'
 import RduManagerClient from './RduManagerClient'
 import './rdu-manager.css'
 
@@ -16,37 +16,8 @@ export default async function RduManagerPage() {
     redirect('/member')
   }
 
-  // Fetch initial folders and files (latest to oldest)
-  const folders = (await queryMemberDb(
-    'SELECT id, folder_name, display_order, is_active FROM rdu_folders ORDER BY id DESC'
-  )) as any[]
-
-  let initialFolders: any[] = []
-
-  if (folders && folders.length > 0) {
-    const folderIds = folders.map((f) => f.id)
-    const placeholders = folderIds.map(() => '?').join(',')
-    const files = (await queryMemberDb(
-      `SELECT id, folder_id, display_name, file_name, file_path, file_size, display_order, created_at 
-       FROM rdu_files 
-       WHERE folder_id IN (${placeholders}) 
-       ORDER BY display_order ASC, id ASC`,
-      folderIds
-    )) as any[]
-
-    const filesByFolder: Record<number, any[]> = {}
-    files.forEach((file) => {
-      if (!filesByFolder[file.folder_id]) {
-        filesByFolder[file.folder_id] = []
-      }
-      filesByFolder[file.folder_id].push(file)
-    })
-
-    initialFolders = folders.map((f) => ({
-      ...f,
-      files: filesByFolder[f.id] || []
-    }))
-  }
+  // Fetch initial folders and files via RduService
+  const initialFolders = await RduService.getFolderTree({ isActiveOnly: false })
 
   return (
     <div className="rduManagerContainer">

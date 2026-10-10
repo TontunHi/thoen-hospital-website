@@ -67,6 +67,7 @@ model AuditLog {
   @@index([username], map: "idx_username")
   @@index([actionType], map: "idx_action_type")
   @@index([timestamp], map: "idx_timestamp")
+  @@index([actionType, timestamp], map: "idx_action_timestamp")
   @@map("audit_logs")
 }
 
@@ -105,6 +106,7 @@ model Member {
   hospital_assets          HospitalAsset[]
   member_permissions       MemberPermission[]
 
+  @@index([department, role], map: "idx_member_dept_role")
   @@map("members")
 }
 

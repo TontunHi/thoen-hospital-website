@@ -1,6 +1,7 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import { redirect } from 'next/navigation'
+import { ItaBlogService } from '@/lib/cms/ItaBlogService'
 import ItaManagementClient from './ItaManagementClient'
 import './page.css'
 
@@ -32,18 +33,13 @@ export default async function MemberItaPage() {
   const isAdmin = member.role === 'admin'
 
   // Fetch blogs: admin can view/manage all blogs, normal members view/manage only their own
-  let blogs = []
+  let blogs: any[] = []
   try {
-    if (isAdmin) {
-      blogs = await queryMemberDb(
-        'SELECT id, title, author_name, author_position, created_at, updated_at FROM ita_blogs ORDER BY created_at DESC'
-      )
-    } else {
-      blogs = await queryMemberDb(
-        'SELECT id, title, author_name, author_position, created_at, updated_at FROM ita_blogs WHERE author_id = ? ORDER BY created_at DESC',
-        [member.id]
-      )
-    }
+    const res = await ItaBlogService.listBlogs({
+      authorId: isAdmin ? undefined : member.id,
+      limit: 100,
+    })
+    blogs = res.data
   } catch (error) {
     console.error('Failed to query blogs:', error)
   }

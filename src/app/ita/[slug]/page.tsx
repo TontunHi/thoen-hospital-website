@@ -1,7 +1,7 @@
 import { Calendar, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { queryMemberDb } from '@/lib/memberDb'
+import { ItaBlogService } from '@/lib/cms/ItaBlogService'
 import '../page.css'
 
 export const dynamic = 'force-dynamic'
@@ -13,20 +13,12 @@ interface Props {
 export async function generateMetadata(props: Props) {
   const params = await props.params
   const slugOrId = decodeURIComponent(params.slug)
-  
-  try {
-    let blogs = []
-    const isId = /^\d+$/.test(slugOrId)
-    
-    if (isId) {
-      blogs = await queryMemberDb('SELECT title FROM ita_blogs WHERE id = ? LIMIT 1', [parseInt(slugOrId)])
-    } else {
-      blogs = await queryMemberDb('SELECT title FROM ita_blogs WHERE slug = ? LIMIT 1', [slugOrId])
-    }
 
-    if (blogs && blogs.length > 0) {
+  try {
+    const blog = await ItaBlogService.getBlogByIdOrSlug(slugOrId)
+    if (blog) {
       return {
-        title: `${blogs[0].title} | โรงพยาบาลเถิน`,
+        title: `${blog.title} | โรงพยาบาลเถิน`,
       }
     }
   } catch (e) {}
@@ -40,57 +32,54 @@ export default async function ItaBlogDetailPage(props: Props) {
 
   let blog = null
   try {
-    let blogs = []
-    const isId = /^\d+$/.test(slugOrId)
-
-    if (isId) {
-      blogs = await queryMemberDb(
-        'SELECT id, title, content, created_at, updated_at FROM ita_blogs WHERE id = ? LIMIT 1',
-        [parseInt(slugOrId)]
-      )
-    } else {
-      blogs = await queryMemberDb(
-        'SELECT id, title, content, created_at, updated_at FROM ita_blogs WHERE slug = ? LIMIT 1',
-        [slugOrId]
-      )
-    }
-
-    if (blogs && blogs.length > 0) {
-      blog = blogs[0]
-    }
+    blog = await ItaBlogService.getBlogByIdOrSlug(slugOrId)
   } catch (error) {
-    console.error('Failed to load ITA blog detail:', error)
+    console.error('Failed to load ITA blog post detail:', error)
   }
 
   if (!blog) {
     notFound()
   }
 
-  return (
-    <div className="ita-page">
-      <div className="container">
-        
-        {/* Back Button */}
-        <div className="back-nav-wrapper">
-          <Link href="/ita" className="back-to-list-btn">
-            <ArrowLeft size={16} />
-            <span>กลับไปหน้าบทความทั้งหมด</span>
-          </Link>
-        </div>
+  // Format Thai Buddhist Date
+  const dateObj = new Date(blog.created_at)
+  const thaiMonths = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+  ]
+  const formattedDate = !isNaN(dateObj.getTime())
+    ? `${dateObj.getDate()} ${thaiMonths[dateObj.getMonth()]} ${dateObj.getFullYear() + 543}`
+    : ''
 
-        {/* Post Container */}
-        <article className="ita-post-container">
-          <header className="ita-post-header" style={{ marginBottom: '2rem' }}>
-            <h1 className="ita-post-title" style={{ marginBottom: 0 }}>{blog.title}</h1>
+  return (
+    <div className="ita-detail-page">
+      <div className="container">
+        {/* Back Link */}
+        <Link href="/ita" className="back-link">
+          <ArrowLeft size={18} />
+          กลับไปหน้ารวมบทความ ITA
+        </Link>
+
+        <article className="ita-article">
+          <header className="article-header">
+            <h1 className="article-title">{blog.title}</h1>
+            <div className="article-meta">
+              <span className="meta-item">
+                <Calendar size={16} />
+                {formattedDate}
+              </span>
+              <span className="meta-author">
+                โดย: <strong>{blog.author_name}</strong>
+                {blog.author_position && <span className="author-pos"> ({blog.author_position})</span>}
+              </span>
+            </div>
           </header>
 
-          {/* Safe Render HTML Content */}
-          <div 
-            className="blog-content font-sarabun"
+          <div
+            className="article-content"
             dangerouslySetInnerHTML={{ __html: blog.content }}
           />
         </article>
-
       </div>
     </div>
   )

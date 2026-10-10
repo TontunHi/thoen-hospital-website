@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { ItaBlogService } from '@/lib/cms/ItaBlogService'
 import { z } from 'zod'
 
 const CreateBlogSchema = z.object({
@@ -8,25 +9,15 @@ const CreateBlogSchema = z.object({
   content: z.string().min(1, 'กรุณากรอกเนื้อหาบทความ'),
 })
 
-function generateSlug(title: string): string {
-  const yearMatch = title.match(/\b(25\d{2})\b/)
-  if (yearMatch) {
-    return `ita-${yearMatch[1]}`
-  }
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-// Public GET: Fetch all blog posts
-export async function GET() {
+// Public GET: Fetch paginated blog posts
+export async function GET(request: Request) {
   try {
-    const blogs = await queryMemberDb(
-      'SELECT id, title, slug, content, author_name, author_position, created_at, updated_at FROM ita_blogs ORDER BY created_at DESC'
-    )
-    return NextResponse.json({ success: true, data: blogs })
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+
+    const result = await ItaBlogService.listBlogs({ page, limit })
+    return NextResponse.json({ success: true, data: result.data, pagination: result.pagination })
   } catch (error: any) {
     console.error('Failed to fetch ITA blogs:', error)
     return NextResponse.json(
@@ -47,7 +38,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // Fetch author details
     const users = await queryMemberDb(
       'SELECT id, name, position FROM members WHERE username = ? AND email = ? LIMIT 1',
       [session.username, session.email]
@@ -60,10 +50,8 @@ export async function POST(request: Request) {
       )
     }
 
-    const author = users[0]
     const body = await request.json()
     const parsed = CreateBlogSchema.safeParse(body)
-    
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0].message } },
@@ -71,17 +59,18 @@ export async function POST(request: Request) {
       )
     }
 
-    const { title, content } = parsed.data
-    const authorName = author.name || session.username
-    const authorPosition = author.position ? author.position.trim() : 'เจ้าพนักงานเครื่องคอมพิวเตอร์'
-    const slug = generateSlug(title)
+    const author = users[0]
+    const created = await ItaBlogService.createBlog({
+      title: parsed.data.title,
+      content: parsed.data.content,
+      author: {
+        id: author.id,
+        name: author.name || session.username,
+        position: author.position,
+      },
+    })
 
-    const result = await queryMemberDb(
-      'INSERT INTO ita_blogs (title, slug, content, author_id, author_name, author_position) VALUES (?, ?, ?, ?, ?, ?)',
-      [title, slug, content, author.id, authorName, authorPosition]
-    )
-
-    return NextResponse.json({ success: true, data: { id: (result as any).insertId } })
+    return NextResponse.json({ success: true, data: { id: created.id } })
   } catch (error: any) {
     console.error('Failed to create ITA blog:', error)
     return NextResponse.json(
