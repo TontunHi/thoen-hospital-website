@@ -1,4 +1,4 @@
-/* IPD Page CSS (Hospital Theme) */
+/* IPD Page CSS (Hospital Theme - High Contrast) */
 
 .rcm-ipd-container {
   display: flex;
@@ -11,8 +11,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 0.25rem;
+  border-bottom: 2px solid #cbd5e1;
+  padding-bottom: 0;
   margin-bottom: 0.5rem;
   overflow-x: auto;
 }
@@ -21,12 +21,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  border: none;
-  background: none;
-  color: #64748b;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: 1px solid #cbd5e1;
+  border-bottom: none;
+  background-color: #ffffff;
+  color: #334155;
   cursor: pointer;
   border-radius: 8px 8px 0 0;
   position: relative;
@@ -35,34 +36,35 @@
 }
 
 .rcm-subtab-btn:hover {
-  color: #065f46;
+  color: #064e3b;
   background-color: #f1f5f9;
 }
 
 .rcm-subtab-btn.active {
-  color: #065f46;
-  font-weight: 700;
+  color: #064e3b;
+  font-weight: 800;
   background-color: #ecfdf5;
+  border-color: #a7f3d0;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .rcm-subtab-btn.active::after {
   content: '';
   position: absolute;
-  bottom: -0.35rem;
+  bottom: -2px;
   left: 0;
   right: 0;
   height: 3px;
   background-color: #059669;
-  border-radius: 3px 3px 0 0;
 }
 
 /* Chart Container */
 .rcm-chart-card {
-  background-color: var(--bg-card, #ffffff);
-  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: var(--radius-lg, 12px);
   padding: 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .rcm-chart-header {
@@ -74,7 +76,7 @@
 
 .rcm-chart-title {
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 800;
   color: #0f172a;
   margin: 0;
 }
@@ -89,33 +91,35 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
+  padding: 0.2rem 0.55rem;
   border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .rcm-status-done {
   background-color: #dcfce7;
-  color: #166534;
+  color: #14532d;
+  border: 1px solid #86efac;
 }
 
 .rcm-status-pending {
   background-color: #fee2e2;
   color: #991b1b;
+  border: 1px solid #fca5a5;
 }
 
 .rcm-filter-badge {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.2rem 0.55rem;
+  padding: 0.25rem 0.6rem;
   background-color: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  color: #064e3b;
+  border: 1px solid #6ee7b7;
   border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .rcm-filter-badge-btn {
@@ -126,7 +130,7 @@
   display: flex;
   align-items: center;
   padding: 0;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -142,9 +146,9 @@
 }
 
 .rcm-delay-card {
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   border-radius: var(--radius-md, 8px);
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -156,12 +160,12 @@
 
 .rcm-delay-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
 }
 
 .rcm-delay-card-red {
   background-color: #fef2f2;
-  border-color: #fecaca;
+  border-color: #fca5a5;
 }
 .rcm-delay-card-red:hover {
   background-color: #fee2e2;
@@ -173,31 +177,31 @@
 
 .rcm-delay-card-orange {
   background-color: #fff7ed;
-  border-color: #fed7aa;
+  border-color: #fdba74;
 }
 .rcm-delay-card-orange:hover {
   background-color: #ffedd5;
 }
 .rcm-delay-card-orange.active {
-  box-shadow: 0 0 0 2px #f97316;
+  box-shadow: 0 0 0 2px #ea580c;
   background-color: #ffedd5;
 }
 
 .rcm-delay-card-amber {
   background-color: #fffbeb;
-  border-color: #fde68a;
+  border-color: #fcd34d;
 }
 .rcm-delay-card-amber:hover {
   background-color: #fef3c7;
 }
 .rcm-delay-card-amber.active {
-  box-shadow: 0 0 0 2px #f59e0b;
+  box-shadow: 0 0 0 2px #d97706;
   background-color: #fef3c7;
 }
 
 .rcm-delay-card-emerald {
   background-color: #ecfdf5;
-  border-color: #a7f3d0;
+  border-color: #86efac;
 }
 .rcm-delay-card-emerald:hover {
   background-color: #d1fae5;
@@ -208,11 +212,12 @@
 }
 
 .rcm-delay-pill {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.9);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Charts Grid for 3 charts */
@@ -228,5 +233,3 @@
     grid-template-columns: 1fr;
   }
 }
-
-

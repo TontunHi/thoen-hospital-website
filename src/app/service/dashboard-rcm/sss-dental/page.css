@@ -1,4 +1,4 @@
-/* SSS Dental Page CSS (Hospital Theme) */
+/* SSS Dental Page CSS (Hospital Theme - High Contrast) */
 
 .rcm-content-container {
   display: flex;
@@ -6,10 +6,10 @@
   gap: 1.25rem;
 }
 
-/* Page Header */
+/* Page Header Card */
 .rcm-page-header {
-  background-color: var(--bg-card, #ffffff);
-  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: var(--radius-lg, 12px);
   padding: 1.25rem;
   display: flex;
@@ -17,7 +17,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .rcm-page-header-title {
@@ -27,11 +27,12 @@
 }
 
 .rcm-icon-badge {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   border-radius: var(--radius-md, 10px);
   background-color: #ecfdf5;
   color: #059669;
+  border: 1px solid #a7f3d0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -39,25 +40,26 @@
 }
 
 .rcm-header-h2 {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 800;
   color: #064e3b;
   margin: 0;
 }
 
 .rcm-header-desc {
-  font-size: 0.8rem;
-  color: #64748b;
-  margin: 0.2rem 0 0 0;
+  font-size: 0.85rem;
+  color: #334155;
+  font-weight: 500;
+  margin: 0.25rem 0 0 0;
 }
 
 /* Controls & Filter Bar */
 .rcm-controls-card {
-  background-color: var(--bg-card, #ffffff);
-  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: var(--radius-lg, 12px);
   padding: 1rem 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -74,53 +76,82 @@
 .rcm-button-group {
   display: inline-flex;
   padding: 0.25rem;
-  background-color: #f1f5f9;
+  background-color: #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: var(--radius-md, 8px);
   gap: 0.25rem;
 }
 
 .rcm-mode-btn {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.8rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
   border: none;
   background-color: transparent;
-  color: #475569;
+  color: #1e293b;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
+.rcm-mode-btn:hover {
+  background-color: rgba(255, 255, 255, 0.6);
+  color: #0f172a;
+}
+
 .rcm-mode-btn.active {
   background-color: #ffffff;
-  color: #065f46;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  color: #064e3b;
+  font-weight: 800;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 .rcm-date-inputs {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
+}
+
+.rcm-date-inputs span {
+  color: #1e293b;
+  font-weight: 600;
 }
 
 .rcm-input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #94a3b8;
   border-radius: 6px;
-  padding: 0.4rem 0.65rem;
+  padding: 0.45rem 0.75rem;
   font-size: 0.85rem;
+  font-weight: 600;
   background-color: #ffffff;
-  color: var(--gray-900, #0f172a);
+  color: #0f172a;
+}
+
+.rcm-input:focus {
+  border-color: #059669;
+  outline: 2px solid rgba(5, 150, 105, 0.2);
 }
 
 .rcm-select {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #94a3b8;
   border-radius: 6px;
-  padding: 0.4rem 1.8rem 0.4rem 0.65rem;
+  padding: 0.45rem 1.8rem 0.45rem 0.75rem;
   font-size: 0.85rem;
+  font-weight: 600;
   background-color: #ffffff;
-  color: var(--gray-900, #0f172a);
+  color: #0f172a;
   cursor: pointer;
+}
+
+.rcm-select option {
+  color: #0f172a;
+  background-color: #ffffff;
+}
+
+.rcm-select:focus {
+  border-color: #059669;
+  outline: 2px solid rgba(5, 150, 105, 0.2);
 }
 
 .rcm-actions-row {
@@ -134,9 +165,9 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.9rem;
+  padding: 0.5rem 0.95rem;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   border-radius: var(--radius-md, 8px);
   border: none;
   cursor: pointer;
@@ -146,6 +177,7 @@
 .rcm-btn-primary {
   background-color: #059669;
   color: #ffffff;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.3);
 }
 
 .rcm-btn-primary:hover {
@@ -153,13 +185,14 @@
 }
 
 .rcm-btn-secondary {
-  background-color: #f1f5f9;
-  color: #334155;
-  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #1e293b;
+  border: 1px solid #94a3b8;
 }
 
 .rcm-btn-secondary:hover {
-  background-color: #e2e8f0;
+  background-color: #f1f5f9;
+  border-color: #64748b;
 }
 
 /* KPI Cards Grid */
@@ -170,11 +203,11 @@
 }
 
 .rcm-kpi-card {
-  background-color: var(--bg-card, #ffffff);
-  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: var(--radius-lg, 12px);
   padding: 1.15rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -191,15 +224,16 @@
 }
 
 .rcm-kpi-title {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #64748b;
+  color: #334155;
   margin: 0;
+  letter-spacing: 0.01em;
 }
 
 .rcm-kpi-val {
-  font-size: 1.4rem;
+  font-size: 1.45rem;
   font-weight: 800;
   color: #0f172a;
   margin: 0.2rem 0 0 0;
@@ -207,18 +241,18 @@
 }
 
 .rcm-kpi-unit {
-  font-size: 0.8rem;
-  font-weight: normal;
-  color: #64748b;
-  margin-left: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  margin-left: 0.3rem;
 }
 
 /* Data Table Card */
 .rcm-table-card {
-  background-color: var(--bg-card, #ffffff);
-  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: var(--radius-lg, 12px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
@@ -227,9 +261,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f8fafc;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.rcm-table-header h3 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
 }
 
 .rcm-table-responsive {
@@ -242,27 +284,28 @@
   border-collapse: separate;
   border-spacing: 0;
   text-align: left;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
 }
 
 .rcm-table th {
-  background-color: #f1f5f9;
-  color: #334155;
-  font-weight: 700;
-  padding: 0.65rem 0.5rem;
-  border-bottom: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-weight: 800;
+  padding: 0.75rem 0.6rem;
+  border-bottom: 2px solid #cbd5e1;
   white-space: nowrap;
 }
 
 .rcm-table td {
-  padding: 0.55rem 0.5rem;
-  border-bottom: 1px solid #f1f5f9;
-  color: #1e293b;
+  padding: 0.65rem 0.6rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .rcm-table tr:hover td {
-  background-color: #f8fafc;
+  background-color: #f0fdf4;
 }
 
 /* Sticky Column Widths & Left Offsets */
@@ -333,34 +376,43 @@
 .rcm-table thead th.rcm-sticky-col {
   z-index: 30;
   background-color: #f1f5f9;
+  color: #0f172a;
+  font-weight: 800;
 }
 
 .rcm-table thead th.rcm-sticky-col-4 {
   background-color: #d1fae5;
   color: #064e3b;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .rcm-table thead th.rcm-sticky-col-5 {
-  color: #065f46;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  font-weight: 900;
 }
 
 .rcm-table thead th.rcm-sticky-col-6 {
+  background-color: #fef3c7;
   color: #92400e;
+  font-weight: 900;
 }
 
 .rcm-table thead th.rcm-sticky-col-7 {
+  background-color: #ffe4e6;
   color: #9f1239;
+  font-weight: 900;
 }
 
 /* Body Sticky Z-Index & Backgrounds */
 .rcm-table tbody td.rcm-sticky-col {
   z-index: 20;
   background-color: #ffffff;
+  color: #0f172a;
 }
 
 .rcm-table tbody tr:hover td.rcm-sticky-col {
-  background-color: #f8fafc;
+  background-color: #f0fdf4;
 }
 
 .rcm-table tbody td.rcm-sticky-col-4 {
@@ -375,30 +427,34 @@
 
 .rcm-table tbody td.rcm-sticky-col-5 {
   color: #047857;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .rcm-table tbody td.rcm-sticky-col-6 {
   color: #b45309;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .rcm-table tbody td.rcm-sticky-col-7 {
   color: #be123c;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* Total Row Sticky Z-Index & Styling */
 .rcm-table tr.total-row td {
-  padding: 0.7rem 0.5rem;
+  padding: 0.75rem 0.6rem;
   font-weight: 800;
   border-top: 2px solid #059669;
-  border-bottom: 1px solid #cbd5e1;
+  border-bottom: 2px solid #94a3b8;
+  background-color: #f8fafc;
+  color: #0f172a;
 }
 
 .rcm-table tr.total-row td.rcm-sticky-col {
   z-index: 25;
   background-color: #f1f5f9;
+  color: #0f172a;
+  font-weight: 900;
 }
 
 .rcm-table tr.total-row td.rcm-sticky-col-4 {
@@ -408,15 +464,21 @@
 }
 
 .rcm-table tr.total-row td.rcm-sticky-col-5 {
-  color: #065f46;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  font-weight: 900;
 }
 
 .rcm-table tr.total-row td.rcm-sticky-col-6 {
+  background-color: #fef3c7;
   color: #92400e;
+  font-weight: 900;
 }
 
 .rcm-table tr.total-row td.rcm-sticky-col-7 {
+  background-color: #ffe4e6;
   color: #9f1239;
+  font-weight: 900;
 }
 
 /* Month Columns (Scrollable Horizontally) */
@@ -424,15 +486,18 @@
   width: 95px;
   min-width: 95px;
   text-align: center;
-  border-left: 1px solid #f1f5f9;
+  border-left: 1px solid #e2e8f0;
+  color: #0f172a;
+  font-weight: 600;
 }
 
 .rcm-table thead th.rcm-month-col {
-  border-left: 1px solid #e2e8f0;
+  border-left: 1px solid #cbd5e1;
+  color: #0f172a;
 }
 
 .rcm-table tr.total-row td.rcm-month-col {
-  border-left: 1px solid #e2e8f0;
+  border-left: 1px solid #cbd5e1;
 }
 
 .rcm-text-right {
@@ -446,17 +511,19 @@
 .rcm-badge-debit {
   background-color: #fee2e2;
   color: #991b1b;
-  padding: 0.2rem 0.5rem;
+  border: 1px solid #fca5a5;
+  padding: 0.2rem 0.55rem;
   border-radius: 6px;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
 }
 
 .rcm-badge-uc {
   background-color: #e0f2fe;
   color: #0369a1;
-  padding: 0.2rem 0.5rem;
+  border: 1px solid #bae6fd;
+  padding: 0.2rem 0.55rem;
   border-radius: 6px;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
 }

@@ -1,9 +1,9 @@
-/* Dashboard-RCM Layout CSS (Hospital Design Tokens) */
+/* Dashboard-RCM Layout CSS (Hospital Design Tokens - High Contrast Theme) */
 
 .rcm-page-container {
   min-height: calc(100vh - 70px);
-  background-color: var(--bg-main, #f8fafc);
-  color: var(--gray-900, #0f172a);
+  background-color: #f1f5f9;
+  color: #0f172a;
   display: flex;
   flex-direction: column;
 }
@@ -12,8 +12,8 @@
   background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
   color: #ffffff;
   padding: 1.25rem 1.5rem 0 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 12px rgba(6, 78, 59, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(6, 78, 59, 0.2);
   position: sticky;
   top: 0;
   z-index: 40;
@@ -39,33 +39,37 @@
   align-items: center;
   gap: 0.35rem;
   padding: 0.45rem 0.85rem;
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-md, 8px);
   text-decoration: none;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   transition: all 0.2s ease;
   backdrop-filter: blur(4px);
 }
 
 .rcm-back-btn:hover {
-  background-color: rgba(255, 255, 255, 0.25);
+  background-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
   transform: translateX(-2px);
 }
 
 .rcm-main-title {
-  font-size: 1.4rem;
+  font-size: 1.45rem;
   font-weight: 800;
+  color: #ffffff;
   letter-spacing: -0.02em;
   margin: 0;
   line-height: 1.2;
 }
 
 .rcm-subtitle {
-  font-size: 0.8rem;
-  color: #a7f3d0;
-  margin: 0.15rem 0 0 0;
+  font-size: 0.85rem;
+  color: #d1fae5;
+  font-weight: 500;
+  margin: 0.2rem 0 0 0;
 }
 
 /* Tabs Navigation */
@@ -96,24 +100,27 @@
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #d1fae5;
-  background-color: transparent;
+  color: #e6fffa;
+  background-color: rgba(0, 0, 0, 0.12);
   transition: all 0.2s ease;
   white-space: nowrap;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-bottom: none;
 }
 
 .rcm-tab-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
 
 .rcm-tab-item.active {
-  background-color: var(--bg-main, #f8fafc);
-  color: #065f46;
-  font-weight: 700;
-  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.05);
+  background-color: #f1f5f9;
+  color: #064e3b;
+  font-weight: 800;
+  border: 1px solid #cbd5e1;
+  border-top: 3px solid #10b981;
+  border-bottom: none;
+  box-shadow: 0 -3px 8px rgba(0, 0, 0, 0.1);
 }
 
 .rcm-tab-icon {
@@ -128,14 +135,15 @@
   font-size: 0.68rem;
   padding: 0.15rem 0.45rem;
   border-radius: 9999px;
-  background-color: rgba(255, 255, 255, 0.2);
-  color: inherit;
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
   font-weight: 700;
 }
 
 .rcm-tab-item.active .rcm-tab-badge {
   background-color: #d1fae5;
-  color: #065f46;
+  color: #064e3b;
+  border: 1px solid #a7f3d0;
 }
 
 .rcm-main-content {

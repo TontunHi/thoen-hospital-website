@@ -469,15 +469,15 @@ export default function OpdDoctorClient() {
             </div>
           </div>
 
-          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            พบข้อมูลแพทย์: <b>{filteredDoctors.length}</b> ท่าน
+          <div style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>
+            พบข้อมูลแพทย์: <b style={{ color: '#0f172a' }}>{filteredDoctors.length}</b> ท่าน
           </div>
         </div>
 
         {/* Selected Badges */}
         {selectedPttypes.length > 0 && (
           <div className="rcm-badge-list">
-            <span style={{ fontSize: '0.75rem', color: '#64748b', alignSelf: 'center' }}>สิทธิที่เลือก:</span>
+            <span style={{ fontSize: '0.78rem', color: '#1e293b', fontWeight: 700, alignSelf: 'center' }}>สิทธิที่เลือก:</span>
             {selectedPttypes.map((code) => {
               const opt = allPttypes.find((p) => p.code === code)
               return (
@@ -584,7 +584,7 @@ export default function OpdDoctorClient() {
               ตารางสรุปค่าบริการผู้ป่วยนอก จำแนกรายแพทย์
             </h3>
           </div>
-          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+          <span style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 600 }}>
             ช่วงเวลา: {ds1} ถึง {ds2}
           </span>
         </div>
@@ -616,14 +616,14 @@ export default function OpdDoctorClient() {
                     style={{ textAlign: 'center', padding: '3rem' }}
                   >
                     <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#0d9488' }} />
-                    <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>กำลังดึงข้อมูลรายงานผู้ป่วยนอก...</p>
+                    <p style={{ color: '#334155', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>กำลังดึงข้อมูลรายงานผู้ป่วยนอก...</p>
                   </td>
                 </tr>
               ) : filteredDoctors.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7 + (dateMode === 'year' ? fiscalMonthColumns.length : 0)}
-                    style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}
+                    style={{ textAlign: 'center', padding: '3rem', color: '#475569', fontWeight: 600 }}
                   >
                     ไม่พบข้อมูลการตรวจรักษาตามเงื่อนไขที่เลือก
                   </td>
@@ -632,7 +632,7 @@ export default function OpdDoctorClient() {
                 <>
                   {filteredDoctors.map((doc, idx) => (
                     <tr key={doc.doctor_code}>
-                      <td className="rcm-sticky-col rcm-sticky-col-1 font-mono" style={{ color: '#94a3b8' }}>
+                      <td className="rcm-sticky-col rcm-sticky-col-1 font-mono" style={{ color: '#475569', fontWeight: 600 }}>
                         {idx + 1}
                       </td>
                       <td className="rcm-sticky-col rcm-sticky-col-2">
@@ -651,17 +651,17 @@ export default function OpdDoctorClient() {
                       <td className="rcm-text-center font-mono" style={{ fontWeight: 500 }}>
                         {formatNumber(doc.total_visits)}
                       </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#047857', fontWeight: 500 }}>
+                      <td className="rcm-text-right font-mono" style={{ color: '#047857', fontWeight: 600 }}>
                         {formatCurrency(doc.total_uc_money)}
                       </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#b45309', fontWeight: 500 }}>
+                      <td className="rcm-text-right font-mono" style={{ color: '#b45309', fontWeight: 600 }}>
                         {formatCurrency(doc.total_rcpt_money)}
                       </td>
                       <td className="rcm-text-right font-mono">
                         {doc.total_debit > 0 ? (
                           <span className="rcm-badge-debit">{formatCurrency(doc.total_debit)}</span>
                         ) : (
-                          <span style={{ color: '#94a3b8' }}>฿0</span>
+                          <span style={{ color: '#64748b', fontWeight: 500 }}>฿0</span>
                         )}
                       </td>
                       <td
@@ -682,8 +682,8 @@ export default function OpdDoctorClient() {
                               key={m.key}
                               className="rcm-month-col font-mono"
                               style={{
-                                color: val > 0 ? '#1e293b' : '#cbd5e1',
-                                fontWeight: val > 0 ? 500 : 400,
+                                color: val > 0 ? '#0f172a' : '#64748b',
+                                fontWeight: val > 0 ? 600 : 400,
                               }}
                             >
                               {val > 0 ? formatCurrency(val) : '-'}
@@ -740,7 +740,7 @@ export default function OpdDoctorClient() {
                             className="rcm-month-col font-mono"
                             style={{
                               fontWeight: 700,
-                              color: totalVal > 0 ? '#0f172a' : '#94a3b8',
+                              color: totalVal > 0 ? '#064e3b' : '#64748b',
                             }}
                           >
                             {totalVal > 0 ? formatCurrency(totalVal) : '-'}

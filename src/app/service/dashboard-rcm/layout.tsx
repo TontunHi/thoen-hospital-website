@@ -39,9 +39,9 @@ export default async function DashboardRcmLayout({
         </div>
         <DashboardRcmNavTabs />
       </header>
-      <main className="rcm-main-content">
+      <div className="rcm-main-content">
         {children}
-      </main>
+      </div>
     </div>
   )
 }

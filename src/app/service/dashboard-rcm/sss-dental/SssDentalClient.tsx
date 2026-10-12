@@ -337,8 +337,8 @@ export default function SssDentalClient() {
               />
             </div>
           </div>
-          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            พบข้อมูลทันตแพทย์: <b>{filteredDoctors.length}</b> ท่าน
+          <div style={{ fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>
+            พบข้อมูลทันตแพทย์: <b style={{ color: '#0f172a' }}>{filteredDoctors.length}</b> ท่าน
           </div>
         </div>
       </div>
@@ -423,7 +423,7 @@ export default function SssDentalClient() {
               ตารางสรุปรายได้ทันตกรรมประกันสังคม จำแนกตามทันตแพทย์
             </h3>
           </div>
-          <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+          <span style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 600 }}>
             ช่วงเวลา: {ds1} ถึง {ds2}
           </span>
         </div>
@@ -460,14 +460,14 @@ export default function SssDentalClient() {
                     style={{ textAlign: 'center', padding: '3rem' }}
                   >
                     <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#059669' }} />
-                    <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>กำลังดึงข้อมูลรายงานทันตกรรม...</p>
+                    <p style={{ color: '#334155', fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>กำลังดึงข้อมูลรายงานทันตกรรม...</p>
                   </td>
                 </tr>
               ) : filteredDoctors.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7 + (dateMode === 'year' ? fiscalMonthColumns.length : months.length)}
-                    style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}
+                    style={{ textAlign: 'center', padding: '3rem', color: '#475569', fontWeight: 600 }}
                   >
                     ไม่พบข้อมูลการให้บริการทันตกรรมประกันสังคมในช่วงเวลานี้
                   </td>
@@ -476,7 +476,7 @@ export default function SssDentalClient() {
                 <>
                   {filteredDoctors.map((doc, idx) => (
                     <tr key={doc.doctor_code}>
-                      <td className="rcm-sticky-col rcm-sticky-col-1 font-mono" style={{ color: '#94a3b8' }}>
+                      <td className="rcm-sticky-col rcm-sticky-col-1 font-mono" style={{ color: '#475569', fontWeight: 600 }}>
                         {idx + 1}
                       </td>
                       <td className="rcm-sticky-col rcm-sticky-col-2">
@@ -492,20 +492,24 @@ export default function SssDentalClient() {
                           {doc.doctor_name}
                         </div>
                       </td>
-                      <td className="rcm-sticky-col rcm-sticky-col-3 font-mono" style={{ fontWeight: 500 }}>
+                      <td className="rcm-sticky-col rcm-sticky-col-3 font-mono" style={{ fontWeight: 600 }}>
                         {formatNumber(doc.total_visits)}
                       </td>
-                      <td className="rcm-sticky-col rcm-sticky-col-4 font-mono">
+                      <td className="rcm-sticky-col rcm-sticky-col-4 font-mono" style={{ fontWeight: 700 }}>
                         {formatCurrency(doc.total_income)}
                       </td>
-                      <td className="rcm-sticky-col rcm-sticky-col-5 font-mono">
+                      <td className="rcm-sticky-col rcm-sticky-col-5 font-mono" style={{ fontWeight: 600 }}>
                         {formatCurrency(doc.total_uc_money)}
                       </td>
-                      <td className="rcm-sticky-col rcm-sticky-col-6 font-mono">
+                      <td className="rcm-sticky-col rcm-sticky-col-6 font-mono" style={{ fontWeight: 600 }}>
                         {formatCurrency(doc.total_rcpt_money)}
                       </td>
-                      <td className="rcm-sticky-col rcm-sticky-col-7 font-mono">
-                        {formatCurrency(doc.total_debit)}
+                      <td className="rcm-sticky-col rcm-sticky-col-7 font-mono" style={{ fontWeight: 600 }}>
+                        {doc.total_debit > 0 ? (
+                          <span className="rcm-badge-debit">{formatCurrency(doc.total_debit)}</span>
+                        ) : (
+                          <span style={{ color: '#64748b', fontWeight: 500 }}>฿0</span>
+                        )}
                       </td>
                       {dateMode === 'year'
                         ? fiscalMonthColumns.map((m) => {
@@ -515,8 +519,8 @@ export default function SssDentalClient() {
                                 key={m.key}
                                 className="rcm-month-col font-mono"
                                 style={{
-                                  color: val > 0 ? '#1e293b' : '#cbd5e1',
-                                  fontWeight: val > 0 ? 500 : 400,
+                                  color: val > 0 ? '#0f172a' : '#64748b',
+                                  fontWeight: val > 0 ? 600 : 400,
                                 }}
                               >
                                 {val > 0 ? formatCurrency(val) : '-'}
@@ -530,8 +534,8 @@ export default function SssDentalClient() {
                                 key={m}
                                 className="rcm-month-col font-mono"
                                 style={{
-                                  color: val > 0 ? '#1e293b' : '#cbd5e1',
-                                  fontWeight: val > 0 ? 500 : 400,
+                                  color: val > 0 ? '#0f172a' : '#64748b',
+                                  fontWeight: val > 0 ? 600 : 400,
                                 }}
                               >
                                 {val > 0 ? formatCurrency(val) : '-'}
@@ -560,16 +564,16 @@ export default function SssDentalClient() {
                     <td className="rcm-sticky-col rcm-sticky-col-3 font-mono" style={{ fontWeight: 700 }}>
                       {formatNumber(grandTotal.visits)}
                     </td>
-                    <td className="rcm-sticky-col rcm-sticky-col-4 font-mono">
+                    <td className="rcm-sticky-col rcm-sticky-col-4 font-mono" style={{ fontWeight: 900 }}>
                       {formatCurrency(grandTotal.income)}
                     </td>
-                    <td className="rcm-sticky-col rcm-sticky-col-5 font-mono">
+                    <td className="rcm-sticky-col rcm-sticky-col-5 font-mono" style={{ fontWeight: 700 }}>
                       {formatCurrency(grandTotal.uc_money)}
                     </td>
-                    <td className="rcm-sticky-col rcm-sticky-col-6 font-mono">
+                    <td className="rcm-sticky-col rcm-sticky-col-6 font-mono" style={{ fontWeight: 700 }}>
                       {formatCurrency(grandTotal.rcpt_money)}
                     </td>
-                    <td className="rcm-sticky-col rcm-sticky-col-7 font-mono">
+                    <td className="rcm-sticky-col rcm-sticky-col-7 font-mono" style={{ fontWeight: 700 }}>
                       {formatCurrency(grandTotal.debit)}
                     </td>
                     {dateMode === 'year'
@@ -581,7 +585,7 @@ export default function SssDentalClient() {
                               className="rcm-month-col font-mono"
                               style={{
                                 fontWeight: 700,
-                                color: totalVal > 0 ? '#0f172a' : '#94a3b8',
+                                color: totalVal > 0 ? '#064e3b' : '#64748b',
                               }}
                             >
                               {totalVal > 0 ? formatCurrency(totalVal) : '-'}
@@ -596,7 +600,7 @@ export default function SssDentalClient() {
                               className="rcm-month-col font-mono"
                               style={{
                                 fontWeight: 700,
-                                color: totalVal > 0 ? '#0f172a' : '#94a3b8',
+                                color: totalVal > 0 ? '#064e3b' : '#64748b',
                               }}
                             >
                               {totalVal > 0 ? formatCurrency(totalVal) : '-'}

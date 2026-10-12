@@ -480,7 +480,7 @@ export default function IpdClient() {
         {/* Filters Row */}
         <div className="rcm-controls-row">
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <Filter size={14} style={{ color: '#059669' }} /> ตัวกรอง:
             </span>
 
@@ -576,15 +576,15 @@ export default function IpdClient() {
             )}
           </div>
 
-          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+          <div style={{ fontSize: '0.85rem', color: '#1e293b', fontWeight: 600 }}>
             แสดงผล: <b style={{ color: '#047857' }}>{filteredData.length.toLocaleString()}</b> / {data.length.toLocaleString()} ราย
           </div>
         </div>
 
         {/* Active Filter Pills Bar */}
         {hasActiveFilters && (
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', paddingTop: '0.25rem', borderTop: '1px solid #f1f5f9' }}>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ตัวกรองที่ใช้งานอยู่:</span>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', paddingTop: '0.25rem', borderTop: '1px solid #e2e8f0' }}>
+            <span style={{ fontSize: '0.78rem', color: '#1e293b', fontWeight: 700 }}>ตัวกรองที่ใช้งานอยู่:</span>
             {wardFilter !== 'all' && (
               <span className="rcm-filter-badge">
                 🏥 หอผู้ป่วย: {wardOptions.find((w) => w.code === wardFilter)?.name || wardFilter}
@@ -845,14 +845,14 @@ export default function IpdClient() {
         <div className="rcm-table-card">
           <div className="rcm-table-header">
             <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
                 📋 ตารางรายชื่อผู้ป่วยใน (IPD Grid)
               </h3>
-              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+              <p style={{ fontSize: '0.85rem', color: '#334155', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
                 แสดงข้อมูลผู้ป่วยในจำหน่าย 14 คอลัมน์ตามต้นฉบับ • แสดงเลขประจำตัวประชาชน 13 หลักสำหรับการตรวจสอบ
               </p>
             </div>
-            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+            <span style={{ fontSize: '0.85rem', color: '#1e293b', fontWeight: 600 }}>
               พบข้อมูล: <b style={{ color: '#047857' }}>{filteredData.length.toLocaleString()}</b> รายการ
             </span>
           </div>
@@ -882,45 +882,45 @@ export default function IpdClient() {
                   <tr>
                     <td colSpan={14} style={{ textAlign: 'center', padding: '3rem' }}>
                       <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#059669' }} />
-                      <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>กำลังโหลดข้อมูล IPD จากฐานข้อมูล HOSxP...</p>
+                      <p style={{ color: '#334155', fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>กำลังโหลดข้อมูล IPD จากฐานข้อมูล HOSxP...</p>
                     </td>
                   </tr>
                 ) : filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={14} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                    <td colSpan={14} style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: 600 }}>
                       ไม่พบข้อมูลผู้ป่วยในตามเงื่อนไขที่เลือก
                     </td>
                   </tr>
                 ) : (
                   filteredData.map((row, idx) => (
                     <tr key={row.an}>
-                      <td className="rcm-text-center font-mono" style={{ color: '#94a3b8' }}>{idx + 1}</td>
-                      <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#047857' }}>{row.an}</td>
-                      <td className="rcm-text-center font-mono" style={{ color: '#475569' }}>{row.hn}</td>
+                      <td className="rcm-text-center font-mono" style={{ color: '#475569', fontWeight: 600 }}>{idx + 1}</td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#047857' }}>{row.an}</td>
+                      <td className="rcm-text-center font-mono" style={{ color: '#0f172a', fontWeight: 600 }}>{row.hn}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{row.ptname}</div>
+                        <div style={{ fontWeight: 700, color: '#0f172a' }}>{row.ptname}</div>
                         {row.cid && (
-                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>
+                          <div style={{ fontSize: '0.75rem', color: '#334155', fontFamily: 'monospace', fontWeight: 600 }}>
                             CID: {row.cid}
                           </div>
                         )}
                       </td>
-                      <td className="rcm-text-center" style={{ color: '#475569', whiteSpace: 'nowrap' }}>{row.ward_name || row.ward}</td>
-                      <td className="rcm-text-center" style={{ color: '#334155', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.admdoctor || '-'}</td>
-                      <td className="rcm-text-center" style={{ color: '#334155', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.dchdoctor || '-'}</td>
-                      <td className="rcm-text-center" style={{ color: '#475569', whiteSpace: 'nowrap' }}>{row.pttypename || row.pttype}</td>
-                      <td className="rcm-text-center" style={{ color: '#334155', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.los} วัน</td>
+                      <td className="rcm-text-center" style={{ color: '#0f172a', whiteSpace: 'nowrap', fontWeight: 500 }}>{row.ward_name || row.ward}</td>
+                      <td className="rcm-text-center" style={{ color: '#0f172a', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.admdoctor || '-'}</td>
+                      <td className="rcm-text-center" style={{ color: '#0f172a', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.dchdoctor || '-'}</td>
+                      <td className="rcm-text-center" style={{ color: '#1e293b', whiteSpace: 'nowrap', fontWeight: 500 }}>{row.pttypename || row.pttype}</td>
+                      <td className="rcm-text-center" style={{ color: '#0f172a', fontWeight: 600, whiteSpace: 'nowrap' }}>{row.los} วัน</td>
                       <td className="rcm-text-center">
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#334155', display: 'block' }}>{row.pdx}</span>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#0f172a', display: 'block' }}>{row.pdx}</span>
                         {row.pdxname && (
-                          <span style={{ fontSize: '0.7rem', color: '#64748b', maxWidth: '140px', display: 'block', margin: '0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.pdxname}>
+                          <span style={{ fontSize: '0.75rem', color: '#334155', fontWeight: 500, maxWidth: '140px', display: 'block', margin: '0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.pdxname}>
                             {row.pdxname}
                           </span>
                         )}
                       </td>
-                      <td className="rcm-text-center font-mono" style={{ fontWeight: 500, color: '#be185d' }}>{Number(row.adjrw || 0).toFixed(4)}</td>
-                      <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#0f172a' }}>{Number(row.income || 0).toLocaleString()}</td>
-                      <td className="rcm-text-center font-mono" style={{ fontWeight: 500, color: row.debit > 0 ? '#b91c1c' : '#94a3b8' }}>{Number(row.debit || 0).toLocaleString()}</td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#be185d' }}>{Number(row.adjrw || 0).toFixed(4)}</td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#0f172a' }}>{Number(row.income || 0).toLocaleString()}</td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: row.debit > 0 ? '#b91c1c' : '#475569' }}>{Number(row.debit || 0).toLocaleString()}</td>
                       <td className="rcm-text-center">
                         <span className={`rcm-status-pill ${
                           row.summary_days === null 
@@ -938,9 +938,9 @@ export default function IpdClient() {
               </tbody>
             </table>
           </div>
-          <div style={{ padding: '0.75rem 1.25rem', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', fontSize: '0.8rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '0.75rem 1.25rem', backgroundColor: '#f8fafc', borderTop: '1px solid #e2e8f0', fontSize: '0.85rem', color: '#1e293b', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>แสดงข้อมูล IPD ทั้งหมด {filteredData.length.toLocaleString()} รายการ</span>
-            <span>รวมค่ารักษา: <b>{formatCurrency(metrics.totalIncome)}</b> • รวมลูกหนี้: <b style={{ color: '#be123c' }}>{formatCurrency(metrics.totalDebit)}</b></span>
+            <span>รวมค่ารักษา: <b style={{ color: '#064e3b' }}>{formatCurrency(metrics.totalIncome)}</b> • รวมลูกหนี้: <b style={{ color: '#be123c' }}>{formatCurrency(metrics.totalDebit)}</b></span>
           </div>
         </div>
       )}
@@ -953,14 +953,14 @@ export default function IpdClient() {
         <div className="rcm-table-card">
           <div className="rcm-table-header">
             <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
                 👨‍⚕️ รายงานสรุป IPD ตามรายชื่อแพทย์ Admit
               </h3>
-              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+              <p style={{ fontSize: '0.85rem', color: '#334155', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
                 แสดงข้อมูลตามสเปก VFP: <b>แพทย์ Admit</b>, <b>จำนวนผู้ป่วย (Cases)</b>, <b>SumAdjRW</b>, <b>CMI เฉลี่ย</b>, และ <b>ค่ารักษาพยาบาลรวม</b>
               </p>
             </div>
-            <span style={{ fontSize: '0.8rem', color: '#065f46', backgroundColor: '#ecfdf5', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+            <span style={{ fontSize: '0.82rem', color: '#064e3b', backgroundColor: '#ecfdf5', padding: '0.35rem 0.7rem', borderRadius: '6px', border: '1px solid #a7f3d0', fontWeight: 700 }}>
               คลิกปุ่ม &quot;ดูรายชื่อ&quot; เพื่อกรองรายชื่อในตารางคนไข้ทันที
             </span>
           </div>
@@ -981,7 +981,7 @@ export default function IpdClient() {
               <tbody>
                 {doctorAdmitSummaryData.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: 600 }}>
                       ไม่พบข้อมูลแพทย์ Admit
                     </td>
                   </tr>
@@ -990,23 +990,23 @@ export default function IpdClient() {
                     const avgCmi = d.cases > 0 ? (d.sumAdjrw / d.cases) : 0
                     return (
                       <tr key={d.doctor}>
-                        <td className="rcm-text-center font-mono" style={{ color: '#94a3b8' }}>{idx + 1}</td>
-                        <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                        <td className="rcm-text-center font-mono" style={{ color: '#475569', fontWeight: 600 }}>{idx + 1}</td>
+                        <td style={{ textAlign: 'left', fontWeight: 700, color: '#0f172a' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#059669', flexShrink: 0 }} />
                             <span>{d.doctor}</span>
                           </div>
                         </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#047857' }}>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 800, color: '#047857' }}>
                           {d.cases.toLocaleString()}
                         </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#0f766e', backgroundColor: '#f0fdfa' }}>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 800, color: '#0f766e', backgroundColor: '#f0fdfa' }}>
                           {d.sumAdjrw.toFixed(4)}
                         </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#065f46' }}>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#065f46' }}>
                           {avgCmi.toFixed(4)}
                         </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#0f172a' }}>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 800, color: '#0f172a' }}>
                           ฿{d.totalIncome.toLocaleString()}
                         </td>
                         <td className="rcm-text-center">
@@ -1017,7 +1017,7 @@ export default function IpdClient() {
                               setSubTab('list')
                             }}
                             className="rcm-btn rcm-btn-secondary"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', gap: '0.2rem' }}
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem', gap: '0.2rem', fontWeight: 700 }}
                             title={`กรองรายชื่อผู้ป่วยที่แพทย์ Admit คือ ${d.doctor}`}
                           >
                             <span>ดูรายชื่อ</span>
@@ -1032,18 +1032,18 @@ export default function IpdClient() {
               <tfoot>
                 <tr className="total-row">
                   <td className="rcm-text-center" colSpan={2}>รวมทั้งหมด ({doctorAdmitSummaryData.length} ท่าน)</td>
-                  <td className="rcm-text-center font-mono" style={{ color: '#047857' }}>
+                  <td className="rcm-text-center font-mono" style={{ color: '#047857', fontWeight: 900 }}>
                     {doctorAdmitSummaryData.reduce((acc, c) => acc + c.cases, 0).toLocaleString()}
                   </td>
-                  <td className="rcm-text-center font-mono" style={{ color: '#0f766e' }}>
+                  <td className="rcm-text-center font-mono" style={{ color: '#0f766e', fontWeight: 900 }}>
                     {doctorAdmitSummaryData.reduce((acc, c) => acc + c.sumAdjrw, 0).toFixed(4)}
                   </td>
-                  <td className="rcm-text-center font-mono" style={{ color: '#065f46' }}>
+                  <td className="rcm-text-center font-mono" style={{ color: '#065f46', fontWeight: 800 }}>
                     {(doctorAdmitSummaryData.reduce((acc, c) => acc + c.cases, 0) > 0 
                       ? (doctorAdmitSummaryData.reduce((acc, c) => acc + c.sumAdjrw, 0) / doctorAdmitSummaryData.reduce((acc, c) => acc + c.cases, 0)) 
                       : 0).toFixed(4)}
                   </td>
-                  <td className="rcm-text-center font-mono" style={{ color: '#0f172a' }}>
+                  <td className="rcm-text-center font-mono" style={{ color: '#0f172a', fontWeight: 900 }}>
                     ฿{doctorAdmitSummaryData.reduce((acc, c) => acc + c.totalIncome, 0).toLocaleString()}
                   </td>
                   <td className="rcm-text-center">-</td>
@@ -1062,14 +1062,14 @@ export default function IpdClient() {
         <div className="rcm-table-card">
           <div className="rcm-table-header">
             <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
                 👨‍⚕️ รายงานสรุป IPD ตามรายชื่อแพทย์ จำหน่าย (D/C Doctor)
               </h3>
-              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+              <p style={{ fontSize: '0.85rem', color: '#334155', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
                 แสดงข้อมูลตามแพทย์ผู้จำหน่าย: <b>แพทย์ D/C</b>, <b>จำนวนผู้ป่วย (Cases)</b>, <b>SumAdjRW</b>, <b>CMI เฉลี่ย</b>, และ <b>ค่ารักษาพยาบาลรวม</b>
               </p>
             </div>
-            <span style={{ fontSize: '0.8rem', color: '#0f766e', backgroundColor: '#f0fdfa', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #99f6e4' }}>
+            <span style={{ fontSize: '0.82rem', color: '#0f766e', backgroundColor: '#f0fdfa', padding: '0.35rem 0.7rem', borderRadius: '6px', border: '1px solid #99f6e4', fontWeight: 700 }}>
               คลิกปุ่ม &quot;ดูรายชื่อ&quot; เพื่อกรองรายชื่อในตารางคนไข้ทันที
             </span>
           </div>
@@ -1090,7 +1090,7 @@ export default function IpdClient() {
               <tbody>
                 {doctorDcSummaryData.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: 600 }}>
                       ไม่พบข้อมูลแพทย์ จำหน่าย
                     </td>
                   </tr>
@@ -1099,23 +1099,23 @@ export default function IpdClient() {
                     const avgCmi = d.cases > 0 ? (d.sumAdjrw / d.cases) : 0
                     return (
                       <tr key={d.doctor}>
-                        <td className="rcm-text-center font-mono" style={{ color: '#94a3b8' }}>{idx + 1}</td>
-                        <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                        <td className="rcm-text-center font-mono" style={{ color: '#475569', fontWeight: 600 }}>{idx + 1}</td>
+                        <td style={{ textAlign: 'left', fontWeight: 700, color: '#0f172a' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0d9488', flexShrink: 0 }} />
                             <span>{d.doctor}</span>
                           </div>
                         </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#0d9488' }}>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 800, color: '#0d9488' }}>
                           {d.cases.toLocaleString()}
                         </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#047857', backgroundColor: '#ecfdf5' }}>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 800, color: '#047857', backgroundColor: '#ecfdf5' }}>
                           {d.sumAdjrw.toFixed(4)}
                         </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#065f46' }}>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#065f46' }}>
                           {avgCmi.toFixed(4)}
                         </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#0f172a' }}>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 800, color: '#0f172a' }}>
                           ฿{d.totalIncome.toLocaleString()}
                         </td>
                         <td className="rcm-text-center">
@@ -1126,7 +1126,7 @@ export default function IpdClient() {
                               setSubTab('list')
                             }}
                             className="rcm-btn rcm-btn-secondary"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', gap: '0.2rem' }}
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem', gap: '0.2rem', fontWeight: 700 }}
                             title={`กรองรายชื่อผู้ป่วยที่แพทย์ D/C คือ ${d.doctor}`}
                           >
                             <span>ดูรายชื่อ</span>
@@ -1141,18 +1141,18 @@ export default function IpdClient() {
               <tfoot>
                 <tr className="total-row">
                   <td className="rcm-text-center" colSpan={2}>รวมทั้งหมด ({doctorDcSummaryData.length} ท่าน)</td>
-                  <td className="rcm-text-center font-mono" style={{ color: '#0d9488' }}>
+                  <td className="rcm-text-center font-mono" style={{ color: '#0d9488', fontWeight: 900 }}>
                     {doctorDcSummaryData.reduce((acc, c) => acc + c.cases, 0).toLocaleString()}
                   </td>
-                  <td className="rcm-text-center font-mono" style={{ color: '#047857' }}>
+                  <td className="rcm-text-center font-mono" style={{ color: '#047857', fontWeight: 900 }}>
                     {doctorDcSummaryData.reduce((acc, c) => acc + c.sumAdjrw, 0).toFixed(4)}
                   </td>
-                  <td className="rcm-text-center font-mono" style={{ color: '#065f46' }}>
+                  <td className="rcm-text-center font-mono" style={{ color: '#065f46', fontWeight: 800 }}>
                     {(doctorDcSummaryData.reduce((acc, c) => acc + c.cases, 0) > 0 
                       ? (doctorDcSummaryData.reduce((acc, c) => acc + c.sumAdjrw, 0) / doctorDcSummaryData.reduce((acc, c) => acc + c.cases, 0)) 
                       : 0).toFixed(4)}
                   </td>
-                  <td className="rcm-text-center font-mono" style={{ color: '#0f172a' }}>
+                  <td className="rcm-text-center font-mono" style={{ color: '#0f172a', fontWeight: 900 }}>
                     ฿{doctorDcSummaryData.reduce((acc, c) => acc + c.totalIncome, 0).toLocaleString()}
                   </td>
                   <td className="rcm-text-center">-</td>
@@ -1176,7 +1176,7 @@ export default function IpdClient() {
                 <h4 className="rcm-chart-title">
                   จำนวนผู้ป่วยแยกตามแพทย์ Admit
                 </h4>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
                   เรียงตามจำนวนผู้ป่วยที่รับไว้รักษา (ราย)
                 </p>
               </div>
@@ -1204,7 +1204,7 @@ export default function IpdClient() {
                 <h4 className="rcm-chart-title">
                   ผลรวมค่าความยากโรค SumAdjRW แยกตามแพทย์ Admit
                 </h4>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
                   ผลรวมค่าน้ำหนักสัมพัทธ์ (SumAdjRW)
                 </p>
               </div>
@@ -1232,7 +1232,7 @@ export default function IpdClient() {
                 <h4 className="rcm-chart-title">
                   ผลรวมค่าความยากโรค Cmi แยกตามแพทย์ D/C
                 </h4>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
                   ค่าเฉลี่ยความซับซ้อนโรค (CMI = SumAdjRW / Cases)
                 </p>
               </div>
