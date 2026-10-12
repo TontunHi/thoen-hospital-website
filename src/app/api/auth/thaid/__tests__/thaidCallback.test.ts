@@ -177,7 +177,11 @@ describe('ThaID Callback Route Handler', () => {
       expect(res.status).toBe(307)
       expect(res.headers.get('location')).toBe('https://thlp.moph.go.th/member')
     } finally {
-      process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl
+      if (originalSiteUrl === undefined) {
+        delete process.env.NEXT_PUBLIC_SITE_URL
+      } else {
+        process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl
+      }
     }
   })
 

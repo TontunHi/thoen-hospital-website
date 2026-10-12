@@ -27,7 +27,11 @@ function cleanExpiredCompletedExchanges() {
 
 function getBaseUrl(request: Request): string {
   // 1. Explicitly configured public domain (e.g. https://thlp.moph.go.th)
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
+  if (
+    process.env.NEXT_PUBLIC_SITE_URL &&
+    process.env.NEXT_PUBLIC_SITE_URL !== 'undefined' &&
+    process.env.NEXT_PUBLIC_SITE_URL.trim() !== ''
+  ) {
     return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '')
   }
 
@@ -40,10 +44,15 @@ function getBaseUrl(request: Request): string {
 
   // 3. Request URL origin fallback (dev / test environments)
   try {
-    return new URL(request.url).origin
+    const origin = new URL(request.url).origin
+    if (origin && origin !== 'null') {
+      return origin
+    }
   } catch {
-    return 'http://localhost:3000'
+    // fallback below
   }
+
+  return 'http://localhost:3000'
 }
 
 export async function GET(request: Request) {
