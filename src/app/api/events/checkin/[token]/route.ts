@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getThaidConfig, generateEventOAuthState, buildThaidAuthorizeUrl } from '@/lib/thaidAuth'
+import { validateCheckinWindow, toBangkokIsoString } from '@/lib/events/eventTimeUtils'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,21 +33,22 @@ export async function GET(
   const now = new Date()
 
   // 1. Validate Time-gated window
-  if (now < event.checkinOpenTime) {
+  const windowCheck = validateCheckinWindow(event.checkinOpenTime, event.checkinCloseTime, now)
+  if (windowCheck.isEarly) {
     const errUrl = new URL('/member/events/checkin-status', baseUrl)
     errUrl.searchParams.set('status', 'time_error')
     errUrl.searchParams.set('type', 'early')
     errUrl.searchParams.set('event', event.title)
-    errUrl.searchParams.set('openTime', event.checkinOpenTime.toISOString())
+    errUrl.searchParams.set('openTime', toBangkokIsoString(event.checkinOpenTime) || event.checkinOpenTime.toISOString())
     return NextResponse.redirect(errUrl)
   }
 
-  if (now > event.checkinCloseTime) {
+  if (windowCheck.isLate) {
     const errUrl = new URL('/member/events/checkin-status', baseUrl)
     errUrl.searchParams.set('status', 'time_error')
     errUrl.searchParams.set('type', 'late')
     errUrl.searchParams.set('event', event.title)
-    errUrl.searchParams.set('closeTime', event.checkinCloseTime.toISOString())
+    errUrl.searchParams.set('closeTime', toBangkokIsoString(event.checkinCloseTime) || event.checkinCloseTime.toISOString())
     return NextResponse.redirect(errUrl)
   }
 

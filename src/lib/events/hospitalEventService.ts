@@ -60,6 +60,11 @@ export interface GetEventsOptions {
 }
 
 import { calculateThaiFiscalYear } from './eventUtils'
+import {
+  toDbThaiDateTime,
+  toBangkokIsoString,
+  validateCheckinWindow,
+} from './eventTimeUtils'
 export { calculateThaiFiscalYear }
 
 /**
@@ -79,18 +84,18 @@ export class HospitalEventService {
       throw new Error('กรุณาระบุชื่อกิจกรรม')
     }
 
-    const startDate = new Date(input.eventStartDate)
-    const endDate = new Date(input.eventEndDate)
+    const startDate = toDbThaiDateTime(input.eventStartDate)
+    const endDate = toDbThaiDateTime(input.eventEndDate)
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    if (!startDate || !endDate || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       throw new Error('วันเวลาจัดกิจกรรมไม่ถูกต้อง')
     }
     if (startDate > endDate) {
       throw new Error('วันเริ่มต้นกิจกรรมต้องมาก่อนวันสิ้นสุด')
     }
 
-    const checkinOpen = input.checkinOpenTime ? new Date(input.checkinOpenTime) : startDate
-    const checkinClose = input.checkinCloseTime ? new Date(input.checkinCloseTime) : endDate
+    const checkinOpen = input.checkinOpenTime ? toDbThaiDateTime(input.checkinOpenTime)! : startDate
+    const checkinClose = input.checkinCloseTime ? toDbThaiDateTime(input.checkinCloseTime)! : endDate
 
     if (checkinOpen > checkinClose) {
       throw new Error('เวลาเปิดรับเช็คอินต้องมาก่อนเวลาปิดรับเช็คอิน')
@@ -260,6 +265,10 @@ export class HospitalEventService {
 
       return {
         ...ev,
+        eventStartDate: toBangkokIsoString(ev.eventStartDate) || ev.eventStartDate,
+        eventEndDate: toBangkokIsoString(ev.eventEndDate) || ev.eventEndDate,
+        checkinOpenTime: toBangkokIsoString(ev.checkinOpenTime) || ev.checkinOpenTime,
+        checkinCloseTime: toBangkokIsoString(ev.checkinCloseTime) || ev.checkinCloseTime,
         registrationCount: ev._count?.registrations || 0,
         attendanceCount: ev._count?.attendances || 0,
         isOrganizer: isHeadOrganizer || isCoOrganizer,
@@ -328,6 +337,18 @@ export class HospitalEventService {
 
     return {
       ...event,
+      eventStartDate: toBangkokIsoString(event.eventStartDate) || event.eventStartDate,
+      eventEndDate: toBangkokIsoString(event.eventEndDate) || event.eventEndDate,
+      checkinOpenTime: toBangkokIsoString(event.checkinOpenTime) || event.checkinOpenTime,
+      checkinCloseTime: toBangkokIsoString(event.checkinCloseTime) || event.checkinCloseTime,
+      attendances: (event.attendances || []).map((att: any) => ({
+        ...att,
+        checkedInAt: toBangkokIsoString(att.checkedInAt) || att.checkedInAt,
+      })),
+      registrations: (event.registrations || []).map((reg: any) => ({
+        ...reg,
+        registeredAt: toBangkokIsoString(reg.registeredAt) || reg.registeredAt,
+      })),
       registrationCount: event.registrations?.length || 0,
       attendanceCount: event.attendances?.length || 0,
       canManage: isHeadOrganizer || isCoOrganizer,
@@ -363,10 +384,10 @@ export class HospitalEventService {
     if (input.status !== undefined) data.status = input.status
     if (input.fiscalYear !== undefined) data.fiscalYear = input.fiscalYear
 
-    if (input.eventStartDate !== undefined) data.eventStartDate = new Date(input.eventStartDate)
-    if (input.eventEndDate !== undefined) data.eventEndDate = new Date(input.eventEndDate)
-    if (input.checkinOpenTime) data.checkinOpenTime = new Date(input.checkinOpenTime)
-    if (input.checkinCloseTime) data.checkinCloseTime = new Date(input.checkinCloseTime)
+    if (input.eventStartDate !== undefined) data.eventStartDate = toDbThaiDateTime(input.eventStartDate)
+    if (input.eventEndDate !== undefined) data.eventEndDate = toDbThaiDateTime(input.eventEndDate)
+    if (input.checkinOpenTime) data.checkinOpenTime = toDbThaiDateTime(input.checkinOpenTime)
+    if (input.checkinCloseTime) data.checkinCloseTime = toDbThaiDateTime(input.checkinCloseTime)
 
     return await this.db.$transaction(async (tx: any) => {
       const updated = await tx.hospitalEvent.update({
@@ -449,14 +470,12 @@ export class HospitalEventService {
     }
 
     // 1. Validate Time-gated window
-    if (now < event.checkinOpenTime) {
-      const openStr = event.checkinOpenTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-      throw new Error(`ยังไม่ถึงเวลาเปิดรับสแกนเช็คอิน (เปิดรับสแกนเวลา ${openStr} น.)`)
+    const windowCheck = validateCheckinWindow(event.checkinOpenTime, event.checkinCloseTime, now)
+    if (windowCheck.isEarly) {
+      throw new Error(`ยังไม่ถึงเวลาเปิดรับสแกนเช็คอิน (เปิดรับสแกนเวลา ${windowCheck.openTimeStr})`)
     }
-
-    if (now > event.checkinCloseTime) {
-      const closeStr = event.checkinCloseTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-      throw new Error(`หมดเวลาเช็คอินสำหรับกิจกรรมนี้แล้ว (ปิดรับสแกนเมื่อเวลา ${closeStr} น.)`)
+    if (windowCheck.isLate) {
+      throw new Error(`หมดเวลาเช็คอินสำหรับกิจกรรมนี้แล้ว (ปิดรับสแกนเมื่อเวลา ${windowCheck.closeTimeStr})`)
     }
 
     // 2. Lookup registered Member by Citizen ID (username)
@@ -489,7 +508,7 @@ export class HospitalEventService {
         memberId: member.id,
         citizenId: sanitizedPid,
         pointsAwarded: 1,
-        checkedInAt: now,
+        checkedInAt: toDbThaiDateTime(now) || now,
       },
     })
 
@@ -574,7 +593,7 @@ export class HospitalEventService {
         memberId: member.id,
         citizenId: member.username,
         pointsAwarded: data.pointsAwarded !== undefined ? data.pointsAwarded : 1,
-        checkedInAt: data.checkedInAt ? new Date(data.checkedInAt) : new Date(),
+        checkedInAt: data.checkedInAt ? toDbThaiDateTime(data.checkedInAt)! : (toDbThaiDateTime(new Date()) || new Date()),
       },
       include: {
         member: {
@@ -643,7 +662,7 @@ export class HospitalEventService {
       where: { id: attendanceId },
       data: {
         ...(data.pointsAwarded !== undefined && { pointsAwarded: data.pointsAwarded }),
-        ...(data.checkedInAt && { checkedInAt: new Date(data.checkedInAt) }),
+        ...(data.checkedInAt && { checkedInAt: toDbThaiDateTime(data.checkedInAt)! }),
       },
       include: {
         member: {

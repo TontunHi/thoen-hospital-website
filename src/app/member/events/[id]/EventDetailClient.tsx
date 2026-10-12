@@ -212,7 +212,7 @@ export default function EventDetailClient({
         body: JSON.stringify({
           memberId: selectedMember.id,
           pointsAwarded: addPoints,
-          checkedInAt: addTime ? new Date(addTime).toISOString() : undefined,
+          checkedInAt: addTime || undefined,
           note: addNote || undefined,
         }),
       })
@@ -284,7 +284,7 @@ export default function EventDetailClient({
         body: JSON.stringify({
           attendanceId: editingAttendance.id,
           pointsAwarded: editPoints,
-          checkedInAt: editTime ? new Date(editTime).toISOString() : undefined,
+          checkedInAt: editTime || undefined,
         }),
       })
       const json = await res.json()

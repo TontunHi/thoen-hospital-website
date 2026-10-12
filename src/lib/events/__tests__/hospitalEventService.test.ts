@@ -154,12 +154,13 @@ describe('HospitalEventService', () => {
 
   describe('checkinViaThaid', () => {
     it('successfully checks in member and awards 1 point during valid checkin window', async () => {
-      const now = new Date('2026-10-20T06:30:00Z')
+      // 06:30 Bangkok time = 23:30 UTC of previous day
+      const now = new Date('2026-10-19T23:30:00Z')
       const mockEvent = {
         id: 1,
         title: 'กิจกรรมวิ่งเพื่อสุขภาพ',
-        checkinOpenTime: new Date('2026-10-20T06:00:00Z'),
-        checkinCloseTime: new Date('2026-10-20T08:00:00Z'),
+        checkinOpenTime: new Date(Date.UTC(2026, 9, 20, 6, 0, 0)),
+        checkinCloseTime: new Date(Date.UTC(2026, 9, 20, 8, 0, 0)),
         status: 'UPCOMING',
       }
       const mockMember = {
@@ -200,12 +201,13 @@ describe('HospitalEventService', () => {
     })
 
     it('rejects check-in before checkinOpenTime', async () => {
-      const now = new Date('2026-10-20T05:45:00Z')
+      // 05:45 Bangkok time = 22:45 UTC of previous day
+      const now = new Date('2026-10-19T22:45:00Z')
       const mockEvent = {
         id: 1,
         title: 'กิจกรรมวิ่ง',
-        checkinOpenTime: new Date('2026-10-20T06:00:00Z'),
-        checkinCloseTime: new Date('2026-10-20T08:00:00Z'),
+        checkinOpenTime: new Date(Date.UTC(2026, 9, 20, 6, 0, 0)),
+        checkinCloseTime: new Date(Date.UTC(2026, 9, 20, 8, 0, 0)),
       }
 
       mockDb.hospitalEvent.findUnique.mockResolvedValue(mockEvent)
@@ -216,12 +218,13 @@ describe('HospitalEventService', () => {
     })
 
     it('rejects check-in after checkinCloseTime', async () => {
-      const now = new Date('2026-10-20T08:30:00Z')
+      // 08:30 Bangkok time = 01:30 UTC
+      const now = new Date('2026-10-20T01:30:00Z')
       const mockEvent = {
         id: 1,
         title: 'กิจกรรมวิ่ง',
-        checkinOpenTime: new Date('2026-10-20T06:00:00Z'),
-        checkinCloseTime: new Date('2026-10-20T08:00:00Z'),
+        checkinOpenTime: new Date(Date.UTC(2026, 9, 20, 6, 0, 0)),
+        checkinCloseTime: new Date(Date.UTC(2026, 9, 20, 8, 0, 0)),
       }
 
       mockDb.hospitalEvent.findUnique.mockResolvedValue(mockEvent)
@@ -232,11 +235,11 @@ describe('HospitalEventService', () => {
     })
 
     it('rejects check-in if citizenId is not a registered member', async () => {
-      const now = new Date('2026-10-20T06:30:00Z')
+      const now = new Date('2026-10-19T23:30:00Z')
       const mockEvent = {
         id: 1,
-        checkinOpenTime: new Date('2026-10-20T06:00:00Z'),
-        checkinCloseTime: new Date('2026-10-20T08:00:00Z'),
+        checkinOpenTime: new Date(Date.UTC(2026, 9, 20, 6, 0, 0)),
+        checkinCloseTime: new Date(Date.UTC(2026, 9, 20, 8, 0, 0)),
       }
 
       mockDb.hospitalEvent.findUnique.mockResolvedValue(mockEvent)
@@ -248,11 +251,11 @@ describe('HospitalEventService', () => {
     })
 
     it('rejects duplicate check-in by the same person', async () => {
-      const now = new Date('2026-10-20T06:30:00Z')
+      const now = new Date('2026-10-19T23:30:00Z')
       const mockEvent = {
         id: 1,
-        checkinOpenTime: new Date('2026-10-20T06:00:00Z'),
-        checkinCloseTime: new Date('2026-10-20T08:00:00Z'),
+        checkinOpenTime: new Date(Date.UTC(2026, 9, 20, 6, 0, 0)),
+        checkinCloseTime: new Date(Date.UTC(2026, 9, 20, 8, 0, 0)),
       }
       const mockMember = { id: 5, username: '1234567890123' }
 
@@ -260,7 +263,7 @@ describe('HospitalEventService', () => {
       mockDb.member.findUnique.mockResolvedValue(mockMember)
       mockDb.eventAttendance.findUnique.mockResolvedValue({
         id: 99,
-        checkedInAt: new Date('2026-10-20T06:15:00Z'),
+        checkedInAt: new Date(Date.UTC(2026, 9, 20, 6, 15, 0)),
       })
 
       await expect(
