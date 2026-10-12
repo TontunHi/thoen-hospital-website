@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Calendar,
-  Clock,
   MapPin,
   Users,
   Package,
@@ -17,6 +16,7 @@ import {
   AlertCircle,
   Sparkles,
 } from 'lucide-react'
+import '../events.css'
 
 interface CurrentUser {
   id: number
@@ -223,395 +223,382 @@ export default function CreateEventClient({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Back button */}
-        <div className="mb-6">
-          <Link
-            href="/member/events"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            <span>กลับหน้ารายการกิจกรรม</span>
-          </Link>
+    <div className="eventsPageContainer">
+      {/* Back button */}
+      <div className="backNavRow">
+        <Link href="/member/events" className="btnBack">
+          <ArrowLeft size={16} />
+          <span>กลับหน้ารายการกิจกรรม</span>
+        </Link>
+      </div>
+
+      {/* Form Container */}
+      <div className="createEventCard">
+        {/* Header */}
+        <div className="createEventHeader">
+          <div className="eventsPillTag">
+            <Sparkles size={12} />
+            <span>สร้างกิจกรรมและเช็คอิน</span>
+          </div>
+          <h1>สร้างกิจกรรมใหม่ (Hospital Event)</h1>
+          <p>
+            กรอกข้อมูลกิจกรรม กำหนดผู้รับผิดชอบ และเลือกยืมอุปกรณ์หรือวัสดุสนับสนุนงาน
+          </p>
         </div>
 
-        {/* Form Container */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-6 sm:p-8">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
-                <Sparkles size={12} />
-                สร้างกิจกรรมและเช็คอิน
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white">
-              สร้างกิจกรรมใหม่ (Hospital Event)
-            </h1>
-            <p className="text-xs sm:text-sm text-emerald-100 mt-1">
-              กรอกข้อมูลกิจกรรม กำหนดผู้รับผิดชอบ และเลือกยืมอุปกรณ์หรือวัสดุสนับสนุนงาน
-            </p>
-          </div>
-
-          {errorMsg && (
-            <div className="mx-6 mt-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
-              <AlertCircle size={18} className="shrink-0 text-rose-600 mt-0.5" />
+        {errorMsg && (
+          <div style={{ padding: '1.25rem 2rem 0' }}>
+            <div className="formErrorBanner">
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
               <span>{errorMsg}</span>
             </div>
-          )}
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
-            {/* Section 1: Basic Event Information */}
-            <div>
-              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
-                <Calendar size={18} className="text-emerald-600" />
-                <span>ข้อมูลพื้นฐานของกิจกรรม</span>
-              </h2>
+        <form onSubmit={handleSubmit} className="createEventForm">
+          {/* Section 1: Basic Event Information */}
+          <div>
+            <h2 className="formSectionTitle">
+              <Calendar size={18} />
+              <span>ข้อมูลพื้นฐานของกิจกรรม</span>
+            </h2>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    ชื่อกิจกรรม <span className="text-rose-500">*</span>
-                  </label>
+            <div className="formRow">
+              <label className="formLabel">
+                ชื่อกิจกรรม <span className="formRequired">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="เช่น โครงการอบรมช่วยฟื้นคืนชีพขั้นพื้นฐาน (CPR) ประจำปี 2569"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="formInput"
+              />
+            </div>
+
+            <div className="formRow">
+              <label className="formLabel">
+                รายละเอียด / วัตถุประสงค์
+              </label>
+              <textarea
+                rows={3}
+                placeholder="ระบุรายละเอียดกิจกรรม หัวข้อ หรือสิ่งที่ผู้เข้าร่วมต้องเตรียม..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="formTextarea"
+              />
+            </div>
+
+            <div className="formRowTwoCol">
+              <div>
+                <label className="formLabel">
+                  สถานที่จัดกิจกรรม
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <MapPin
+                    size={16}
+                    style={{
+                      position: 'absolute',
+                      left: '0.75rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#94a3b8',
+                    }}
+                  />
                   <input
                     type="text"
-                    required
-                    placeholder="เช่น โครงการอบรมช่วยฟื้นคืนชีพขั้นพื้นฐาน (CPR) ประจำปี 2569"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    placeholder="เช่น ห้องประชุม 1 ชั้น 3 อาคารผู้ป่วยนอก"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="formInput"
+                    style={{ paddingLeft: '2.25rem' }}
                   />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    รายละเอียด / วัตถุประสงค์
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="ระบุรายละเอียดกิจกรรม หัวข้อ หรือสิ่งที่ผู้เข้าร่วมต้องเตรียม..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  />
-                </div>
+              <div>
+                <label className="formLabel">
+                  ปีงบประมาณ พ.ศ.
+                </label>
+                <input
+                  type="text"
+                  placeholder="เช่น 2569"
+                  value={fiscalYear}
+                  onChange={(e) => setFiscalYear(e.target.value)}
+                  className="formInput"
+                />
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      สถานที่จัดกิจกรรม
-                    </label>
-                    <div className="relative">
-                      <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            {/* Event Schedule (Start & End) */}
+            <div className="formRowTwoCol">
+              <div>
+                <label className="formLabel">
+                  วันและเวลาเริ่มกิจกรรม <span className="formRequired">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={eventStartDate}
+                  onChange={(e) => setEventStartDate(e.target.value)}
+                  className="formInput"
+                />
+              </div>
+
+              <div>
+                <label className="formLabel">
+                  วันและเวลาสิ้นสุดกิจกรรม <span className="formRequired">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={eventEndDate}
+                  onChange={(e) => setEventEndDate(e.target.value)}
+                  className="formInput"
+                />
+              </div>
+            </div>
+
+            {/* Custom Check-in Time Toggle */}
+            <div className="formCheckboxGroup">
+              <label className="formCheckboxLabel">
+                <input
+                  type="checkbox"
+                  id="customCheckin"
+                  checked={hasCustomCheckinTime}
+                  onChange={(e) => setHasCustomCheckinTime(e.target.checked)}
+                  style={{ width: '1rem', height: '1rem', accentColor: '#059669', cursor: 'pointer' }}
+                />
+                <span>กำหนดช่วงเวลาเปิด-ปิดสแกน QR Code เช็คอินแยกต่างหาก (หากไม่ติ๊ก จะเปิดให้สแกนตามเวลาจัดงาน)</span>
+              </label>
+
+              {hasCustomCheckinTime && (
+                <div className="formCustomTimeBox">
+                  <div className="formRowTwoCol" style={{ marginBottom: '0.5rem' }}>
+                    <div>
+                      <label className="formLabel" style={{ color: '#92400e' }}>
+                        เวลาเปิดรับสแกนเช็คอิน
+                      </label>
                       <input
-                        type="text"
-                        placeholder="เช่น ห้องประชุม 1 ชั้น 3 อาคารผู้ป่วยนอก"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        className="w-full pl-9 pr-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        type="datetime-local"
+                        value={checkinOpenTime}
+                        onChange={(e) => setCheckinOpenTime(e.target.value)}
+                        className="formInput"
+                      />
+                    </div>
+                    <div>
+                      <label className="formLabel" style={{ color: '#92400e' }}>
+                        เวลาปิดรับสแกนเช็คอิน
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={checkinCloseTime}
+                        onChange={(e) => setCheckinCloseTime(e.target.value)}
+                        className="formInput"
                       />
                     </div>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      ปีงบประมาณ พ.ศ.
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="เช่น 2569"
-                      value={fiscalYear}
-                      onChange={(e) => setFiscalYear(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
+                  <div className="formCustomTimeTip">
+                    💡 ข้อแนะนำ: สามารถเปิดรับสแกนล่วงหน้า 30 นาทีก่อนเริ่มงาน เพื่อให้เจ้าหน้าที่ทยอยเช็คอินหน้างานได้ทัน
                   </div>
-                </div>
-
-                {/* Event Schedule (Start & End) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      วันและเวลาเริ่มกิจกรรม <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={eventStartDate}
-                      onChange={(e) => setEventStartDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      วันและเวลาสิ้นสุดกิจกรรม <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={eventEndDate}
-                      onChange={(e) => setEventEndDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Custom Check-in Time Toggle */}
-                <div className="pt-2">
-                  <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="checkbox"
-                      id="customCheckin"
-                      checked={hasCustomCheckinTime}
-                      onChange={(e) => setHasCustomCheckinTime(e.target.checked)}
-                      className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4"
-                    />
-                    <label htmlFor="customCheckin" className="text-xs font-medium text-slate-700 cursor-pointer">
-                      กำหนดช่วงเวลาเปิด-ปิดสแกน QR Code เช็คอินแยกต่างหาก (หากไม่ติ๊ก จะเปิดให้สแกนตามเวลาจัดงาน)
-                    </label>
-                  </div>
-
-                  {hasCustomCheckinTime && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-amber-50/50 border border-amber-200/60 mt-2">
-                      <div>
-                        <label className="block text-xs font-semibold text-amber-900 mb-1">
-                          เวลาเปิดรับสแกนเช็คอิน
-                        </label>
-                        <input
-                          type="datetime-local"
-                          value={checkinOpenTime}
-                          onChange={(e) => setCheckinOpenTime(e.target.value)}
-                          className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-amber-900 mb-1">
-                          เวลาปิดรับสแกนเช็คอิน
-                        </label>
-                        <input
-                          type="datetime-local"
-                          value={checkinCloseTime}
-                          onChange={(e) => setCheckinCloseTime(e.target.value)}
-                          className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                        />
-                      </div>
-                      <p className="text-[11px] text-amber-800 col-span-full">
-                        💡 ข้อแนะนำ: สามารถเปิดรับสแกนล่วงหน้า 30 นาทีก่อนเริ่มงาน เพื่อให้เจ้าหน้าที่ทยอยเช็คอินหน้างานได้ทัน
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Section 2: Organizers (Head + Co-organizers) */}
-            <div className="pt-4">
-              <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
-                <Users size={18} className="text-emerald-600" />
-                <span>ผู้รับผิดชอบกิจกรรม</span>
-              </h2>
-
-              <div className="space-y-4">
-                {/* Head Organizer (Auto-assigned to current user) */}
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider block">
-                      หัวหน้ารับผิดชอบ (ผู้สร้าง)
-                    </span>
-                    <span className="text-sm font-bold text-slate-800">{currentUser.name}</span>
-                    <span className="text-xs text-slate-500 block">
-                      {currentUser.department || 'ไม่ระบุกลุ่มงาน'} • {currentUser.position || 'เจ้าหน้าที่'}
-                    </span>
-                  </div>
-                  <CheckCircle2 size={18} className="text-emerald-600" />
-                </div>
-
-                {/* Co-organizers Selection */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    ผู้รับผิดชอบร่วม (Co-organizers) สามารถเลือกเพิ่มได้เลย
-                  </label>
-                  <p className="text-[11px] text-slate-500 mb-2">
-                    ผู้รับผิดชอบร่วมจะมีสิทธิ์เปิดดู QR Code หน้างาน และแก้ไขข้อมูลกิจกรรมนี้ได้
-                  </p>
-
-                  <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-1 bg-slate-50/50">
-                    {availableMembers.length === 0 ? (
-                      <p className="text-xs text-slate-400 p-2 text-center">ไม่พบบุคลากรอื่นในระบบ</p>
-                    ) : (
-                      availableMembers.map((m) => {
-                        const isSelected = selectedCoOrganizers.includes(m.id)
-                        return (
-                          <div
-                            key={m.id}
-                            onClick={() => handleToggleCoOrganizer(m.id)}
-                            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition-colors ${
-                              isSelected
-                                ? 'bg-emerald-100/70 text-emerald-900 font-semibold'
-                                : 'hover:bg-slate-100 text-slate-700'
-                            }`}
-                          >
-                            <div>
-                              <span>{m.name}</span>
-                              <span className="text-[10px] text-slate-500 ml-2">
-                                ({m.department || 'ไม่ระบุแผนก'})
-                              </span>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {}}
-                              className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
-                            />
-                          </div>
-                        )
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 3: Material & Equipment Borrowing */}
-            <div className="pt-4">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-                <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <Package size={18} className="text-emerald-600" />
-                  <span>ยืมวัสดุและอุปกรณ์สำหรับกิจกรรม</span>
-                </h2>
-                <button
-                  type="button"
-                  onClick={handleAddBorrowRow}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
-                >
-                  <Plus size={14} />
-                  <span>+ ยืมอุปกรณ์/วัสดุ</span>
-                </button>
-              </div>
-
-              <p className="text-[11px] text-slate-500 mb-3">
-                หากกิจกรรมนี้ต้องใช้อุปกรณ์หรือวัสดุ (เช่น สายไฟ, ไมโครโฟน, ปลั๊กพ่วง, โปรเจคเตอร์) สามารถกดเลือกได้ทันที ระบบจะออกใบขอยืมเข้าสู่งานพัสดุให้อัตโนมัติ
-              </p>
-
-              {borrowRows.length === 0 ? (
-                <div className="p-6 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                  <Package size={28} className="mx-auto text-slate-300 mb-1" />
-                  <p className="text-xs text-slate-500">ยังไม่มีรายการขอยืมอุปกรณ์</p>
-                  <button
-                    type="button"
-                    onClick={handleAddBorrowRow}
-                    className="mt-2 text-xs font-medium text-emerald-600 hover:text-emerald-700"
-                  >
-                    + คลิกเพื่อเลือกรายการยืม
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {borrowRows.map((row, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
-                    >
-                      {/* Type Selector (Material vs Asset) */}
-                      <div className="w-full sm:w-32">
-                        <label className="text-[10px] text-slate-500 block mb-0.5">ประเภท</label>
-                        <select
-                          value={row.type}
-                          onChange={(e) =>
-                            handleUpdateBorrowRow(idx, 'type', e.target.value as any)
-                          }
-                          className="w-full py-1.5 px-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        >
-                          <option value="MATERIAL">วัสดุ/พัสดุ</option>
-                          <option value="ASSET">ครุภัณฑ์</option>
-                        </select>
-                      </div>
-
-                      {/* Item Dropdown */}
-                      <div className="flex-1">
-                        <label className="text-[10px] text-slate-500 block mb-0.5">เลือกรายการ</label>
-                        <select
-                          value={row.selectedId}
-                          onChange={(e) =>
-                            handleUpdateBorrowRow(
-                              idx,
-                              'selectedId',
-                              e.target.value ? Number(e.target.value) : ''
-                            )
-                          }
-                          required
-                          className="w-full py-1.5 px-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        >
-                          <option value="">-- เลือกรายการ --</option>
-                          {row.type === 'MATERIAL'
-                            ? loanableMaterials.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                  {m.name} (คงเหลือ: {m.availableQty} {m.unit})
-                                </option>
-                              ))
-                            : loanableAssets.map((a) => (
-                                <option key={a.id} value={a.id}>
-                                  {a.name} [{a.articleNum}]
-                                </option>
-                              ))}
-                        </select>
-                      </div>
-
-                      {/* Quantity Input */}
-                      <div className="w-full sm:w-24">
-                        <label className="text-[10px] text-slate-500 block mb-0.5">จำนวน</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={row.quantity}
-                          onChange={(e) =>
-                            handleUpdateBorrowRow(
-                              idx,
-                              'quantity',
-                              Math.max(1, parseInt(e.target.value, 10) || 1)
-                            )
-                          }
-                          className="w-full py-1.5 px-2 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                        />
-                      </div>
-
-                      {/* Delete button */}
-                      <div className="sm:pt-3 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveBorrowRow(idx)}
-                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="ลบรายการนี้"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Submit & Cancel Buttons */}
-            <div className="pt-6 border-t border-slate-200 flex items-center justify-end gap-3">
-              <Link
-                href="/member/events"
-                className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                ยกเลิก
-              </Link>
+          {/* Section 2: Organizers (Head + Co-organizers) */}
+          <div>
+            <h2 className="formSectionTitle">
+              <Users size={18} />
+              <span>ผู้รับผิดชอบกิจกรรม</span>
+            </h2>
+
+            {/* Head Organizer (Auto-assigned to current user) */}
+            <div className="headOrganizerBox">
+              <div>
+                <span className="headOrgRoleTag">หัวหน้ารับผิดชอบ (ผู้สร้าง)</span>
+                <div className="headOrgName">{currentUser.name}</div>
+                <div className="headOrgMeta">
+                  {currentUser.department || 'ไม่ระบุกลุ่มงาน'} • {currentUser.position || 'เจ้าหน้าที่'}
+                </div>
+              </div>
+              <CheckCircle2 size={20} color="#059669" />
+            </div>
+
+            {/* Co-organizers Selection */}
+            <div style={{ marginTop: '1rem' }}>
+              <label className="formLabel">
+                ผู้รับผิดชอบร่วม (Co-organizers) สามารถเลือกเพิ่มได้เลย
+              </label>
+              <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>
+                ผู้รับผิดชอบร่วมจะมีสิทธิ์เปิดดู QR Code หน้างาน และแก้ไขข้อมูลกิจกรรมนี้ได้
+              </p>
+
+              <div className="coOrganizersBox">
+                {availableMembers.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', padding: '1rem' }}>
+                    ไม่พบบุคลากรอื่นในระบบ
+                  </p>
+                ) : (
+                  availableMembers.map((m) => {
+                    const isSelected = selectedCoOrganizers.includes(m.id)
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => handleToggleCoOrganizer(m.id)}
+                        className={`coOrganizerItem ${isSelected ? 'selected' : ''}`}
+                      >
+                        <div>
+                          <span>{m.name}</span>
+                          <span style={{ fontSize: '0.75rem', color: isSelected ? '#047857' : '#64748b', marginLeft: '0.5rem' }}>
+                            ({m.department || 'ไม่ระบุแผนก'})
+                          </span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          readOnly
+                          style={{ accentColor: '#059669', cursor: 'pointer' }}
+                        />
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Material & Equipment Borrowing */}
+          <div>
+            <div className="borrowSectionHeader">
+              <h2 className="formSectionTitle" style={{ margin: 0, border: 'none', padding: 0 }}>
+                <Package size={18} />
+                <span>ยืมวัสดุและอุปกรณ์สำหรับกิจกรรม</span>
+              </h2>
               <button
-                type="submit"
-                disabled={submitting}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all disabled:opacity-60"
+                type="button"
+                onClick={handleAddBorrowRow}
+                className="btnAddBorrow"
               >
-                <Save size={16} />
-                <span>{submitting ? 'กำลังบันทึก...' : 'บันทึกและสร้างกิจกรรม'}</span>
+                <Plus size={14} />
+                <span>+ ยืมอุปกรณ์/วัสดุ</span>
               </button>
             </div>
-          </form>
-        </div>
+
+            <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 0.75rem 0' }}>
+              หากกิจกรรมนี้ต้องใช้อุปกรณ์หรือวัสดุ (เช่น สายไฟ, ไมโครโฟน, ปลั๊กพ่วง, โปรเจคเตอร์) สามารถกดเลือกได้ทันที ระบบจะออกใบขอยืมเข้าสู่งานพัสดุให้อัตโนมัติ
+            </p>
+
+            {borrowRows.length === 0 ? (
+              <div className="borrowEmptyState">
+                <Package size={30} style={{ color: '#cbd5e1', margin: '0 auto 0.5rem' }} />
+                <div style={{ fontSize: '0.825rem', color: '#64748b' }}>ยังไม่มีรายการขอยืมอุปกรณ์</div>
+                <button
+                  type="button"
+                  onClick={handleAddBorrowRow}
+                  style={{
+                    marginTop: '0.5rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: '#059669',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + คลิกเพื่อเลือกรายการยืม
+                </button>
+              </div>
+            ) : (
+              <div>
+                {borrowRows.map((row, idx) => (
+                  <div key={idx} className="borrowRow">
+                    {/* Type Selector */}
+                    <select
+                      value={row.type}
+                      onChange={(e) =>
+                        handleUpdateBorrowRow(idx, 'type', e.target.value as any)
+                      }
+                      className="borrowTypeSelect"
+                    >
+                      <option value="MATERIAL">วัสดุ/พัสดุ</option>
+                      <option value="ASSET">ครุภัณฑ์</option>
+                    </select>
+
+                    {/* Item Dropdown */}
+                    <select
+                      value={row.selectedId}
+                      onChange={(e) =>
+                        handleUpdateBorrowRow(
+                          idx,
+                          'selectedId',
+                          e.target.value ? Number(e.target.value) : ''
+                        )
+                      }
+                      required
+                      className="borrowItemSelect"
+                    >
+                      <option value="">-- เลือกรายการ --</option>
+                      {row.type === 'MATERIAL'
+                        ? loanableMaterials.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name} (คงเหลือ: {m.availableQty} {m.unit})
+                            </option>
+                          ))
+                        : loanableAssets.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name} [{a.articleNum}]
+                            </option>
+                          ))}
+                    </select>
+
+                    {/* Quantity Input */}
+                    <input
+                      type="number"
+                      min={1}
+                      value={row.quantity}
+                      onChange={(e) =>
+                        handleUpdateBorrowRow(
+                          idx,
+                          'quantity',
+                          Math.max(1, parseInt(e.target.value, 10) || 1)
+                        )
+                      }
+                      className="borrowQtyInput"
+                      placeholder="จำนวน"
+                    />
+
+                    {/* Delete button */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBorrowRow(idx)}
+                      className="btnRemoveBorrow"
+                      title="ลบรายการนี้"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Submit & Cancel Buttons */}
+          <div className="formActionsRow">
+            <Link href="/member/events" className="btnCancel">
+              ยกเลิก
+            </Link>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btnSubmit"
+            >
+              <Save size={16} />
+              <span>{submitting ? 'กำลังบันทึก...' : 'บันทึกและสร้างกิจกรรม'}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

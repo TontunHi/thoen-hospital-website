@@ -4,16 +4,12 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import {
   Trophy,
-  Medal,
   Users,
   Building2,
-  Calendar,
   Search,
   ArrowLeft,
-  Sparkles,
-  Award,
-  TrendingUp,
 } from 'lucide-react'
+import '../events.css'
 
 interface IndividualRankItem {
   rank: number
@@ -96,74 +92,68 @@ export default function LeaderboardClient({
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) {
-      return (
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-amber-950 font-bold text-xs shadow-xs">
-          🥇 1
-        </span>
-      )
+      return <span className="rankBadge rankBadgeGold">🥇 1</span>
     }
     if (rank === 2) {
-      return (
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-slate-900 font-bold text-xs shadow-xs">
-          🥈 2
-        </span>
-      )
+      return <span className="rankBadge rankBadgeSilver">🥈 2</span>
     }
     if (rank === 3) {
-      return (
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-700 text-amber-50 font-bold text-xs shadow-xs">
-          🥉 3
-        </span>
-      )
+      return <span className="rankBadge rankBadgeBronze">🥉 3</span>
     }
-    return (
-      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-600 font-bold text-xs">
-        #{rank}
-      </span>
-    )
+    return <span className="rankBadge rankBadgeDefault">#{rank}</span>
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto space-y-6">
-        {/* Navigation */}
-        <div className="flex items-center justify-between">
-          <Link
-            href="/member/events"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 transition-colors"
-          >
-            <ArrowLeft size={16} />
-            <span>กลับหน้ารายการกิจกรรม</span>
-          </Link>
-        </div>
+    <div className="eventsPageContainer">
+      {/* Navigation */}
+      <div className="backNavRow">
+        <Link href="/member/events" className="btnBack">
+          <ArrowLeft size={16} />
+          <span>กลับหน้ารายการกิจกรรม</span>
+        </Link>
+      </div>
 
-        {/* Hero Header */}
-        <div className="bg-gradient-to-r from-amber-600 via-amber-700 to-emerald-900 text-white rounded-2xl shadow-sm p-6 sm:p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      {/* Hero Header & Podium */}
+      <div className="leaderboardHero">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/20 text-white border border-white/20">
-                  <Trophy size={13} className="text-amber-300" />
-                  กระดานเกียรติยศการมีส่วนร่วม
-                </span>
+              <div
+                className="eventsPillTag"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                }}
+              >
+                <Trophy size={13} style={{ color: '#fde68a' }} />
+                <span>กระดานเกียรติยศการมีส่วนร่วม</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+              <h1 className="eventsHeaderTitle" style={{ margin: '0.25rem 0' }}>
                 กระดานอันดับคะแนน (Leaderboard)
               </h1>
-              <p className="text-xs sm:text-sm text-amber-100 mt-1 max-w-xl">
+              <p className="eventsHeaderSubtitle" style={{ color: '#fef3c7' }}>
                 คะแนนสะสมจากการเข้าร่วมกิจกรรมโรงพยาบาลเถินผ่าน ThaID (คะแนนเท่ากันครองอันดับร่วมกัน)
               </p>
             </div>
 
             {/* Fiscal Year Selector */}
-            <div className="bg-white/10 backdrop-blur-sm p-3 rounded-xl border border-white/20">
-              <label className="text-[10px] text-amber-200 block mb-1 font-medium">
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                padding: '0.75rem 1rem',
+                borderRadius: '0.75rem',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <label style={{ fontSize: '0.7rem', color: '#fef3c7', display: 'block', marginBottom: '0.25rem', fontWeight: 600 }}>
                 เลือกปีงบประมาณ พ.ศ.
               </label>
               <select
                 value={selectedFiscalYear}
                 onChange={(e) => handleYearChange(e.target.value)}
-                className="bg-white text-slate-800 text-xs sm:text-sm font-semibold py-1.5 px-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                className="eventsYearSelect"
+                style={{ background: '#ffffff', fontWeight: 700 }}
               >
                 {fiscalYears.map((yr) => (
                   <option key={yr} value={yr}>
@@ -177,219 +167,199 @@ export default function LeaderboardClient({
 
           {/* Podium Top 3 (Individual) */}
           {activeTab === 'individual' && top1 && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/20">
+            <div className="leaderboardPodium">
               {/* Rank 2 */}
-              <div className="order-2 sm:order-1 bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center flex flex-col justify-between">
+              <div className="podiumCard" style={{ order: 2 }}>
                 <div>
-                  <span className="text-2xl mb-1 block">🥈</span>
-                  <span className="text-xs text-amber-200 block">อันดับ 2</span>
-                  <span className="font-bold text-white text-sm block truncate mt-1">
-                    {top2 ? top2.name : '-'}
-                  </span>
-                  <span className="text-[11px] text-amber-100 block truncate">
-                    {top2?.department || ''}
-                  </span>
+                  <div className="podiumMedalIcon">🥈</div>
+                  <div className="podiumRankLabel">อันดับ 2</div>
+                  <div className="podiumName">{top2 ? top2.name : '-'}</div>
+                  <div className="podiumDept">{top2?.department || ''}</div>
                 </div>
-                <div className="mt-3 font-extrabold text-white text-lg">
+                <div className="podiumScore">
                   {top2 ? `${top2.totalPoints} คะแนน` : '-'}
                 </div>
               </div>
 
-              {/* Rank 1 (Gold / Middle elevated) */}
-              <div className="order-1 sm:order-2 bg-gradient-to-b from-amber-400/30 to-amber-500/20 backdrop-blur-sm rounded-xl p-4 border-2 border-amber-300/60 text-center flex flex-col justify-between transform sm:-translate-y-2 shadow-lg">
+              {/* Rank 1 (Gold / Elevated) */}
+              <div className="podiumCard podiumGold" style={{ order: 1 }}>
                 <div>
-                  <span className="text-3xl mb-1 block">🥇</span>
-                  <span className="text-xs font-bold text-amber-200 uppercase tracking-wider block">
+                  <div className="podiumMedalIcon">🥇</div>
+                  <div className="podiumRankLabel" style={{ color: '#fef08a' }}>
                     อันดับ 1 (ยอดเยี่ยม)
-                  </span>
-                  <span className="font-extrabold text-white text-base block truncate mt-1">
+                  </div>
+                  <div className="podiumName" style={{ fontSize: '1.15rem' }}>
                     {top1.name}
-                  </span>
-                  <span className="text-xs text-amber-100 block truncate">
-                    {top1.department || ''}
-                  </span>
+                  </div>
+                  <div className="podiumDept">{top1.department || ''}</div>
                 </div>
-                <div className="mt-3 font-black text-amber-200 text-2xl">
-                  {top1.totalPoints} <span className="text-xs font-normal text-white">คะแนน</span>
+                <div className="podiumScore podiumScoreGold">
+                  {top1.totalPoints}{' '}
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#ffffff' }}>
+                    คะแนน
+                  </span>
                 </div>
               </div>
 
               {/* Rank 3 */}
-              <div className="order-3 bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 text-center flex flex-col justify-between">
+              <div className="podiumCard" style={{ order: 3 }}>
                 <div>
-                  <span className="text-2xl mb-1 block">🥉</span>
-                  <span className="text-xs text-amber-200 block">อันดับ 3</span>
-                  <span className="font-bold text-white text-sm block truncate mt-1">
-                    {top3 ? top3.name : '-'}
-                  </span>
-                  <span className="text-[11px] text-amber-100 block truncate">
-                    {top3?.department || ''}
-                  </span>
+                  <div className="podiumMedalIcon">🥉</div>
+                  <div className="podiumRankLabel">อันดับ 3</div>
+                  <div className="podiumName">{top3 ? top3.name : '-'}</div>
+                  <div className="podiumDept">{top3?.department || ''}</div>
                 </div>
-                <div className="mt-3 font-extrabold text-white text-lg">
+                <div className="podiumScore">
                   {top3 ? `${top3.totalPoints} คะแนน` : '-'}
                 </div>
               </div>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Tab Selector & Search Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl">
-              <button
-                onClick={() => setActiveTab('individual')}
-                className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  activeTab === 'individual'
-                    ? 'bg-white text-emerald-800 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Users size={15} className="inline mr-1.5" />
-                อันดับรายบุคคล ({individualList.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('department')}
-                className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-                  activeTab === 'department'
-                    ? 'bg-white text-emerald-800 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Building2 size={15} className="inline mr-1.5" />
-                อันดับระดับแผนก ({departmentList.length})
-              </button>
-            </div>
-
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="ค้นหาชื่อ หรือแผนก..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              />
-            </div>
-          </div>
+      {/* Tab Selector & Search Header */}
+      <div className="eventsFilterBar">
+        <div className="eventsTabsGroup">
+          <button
+            onClick={() => setActiveTab('individual')}
+            className={`eventsTabButton ${activeTab === 'individual' ? 'active' : ''}`}
+          >
+            <Users size={15} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: '-2px' }} />
+            อันดับรายบุคคล ({individualList.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('department')}
+            className={`eventsTabButton ${activeTab === 'department' ? 'active' : ''}`}
+          >
+            <Building2 size={15} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: '-2px' }} />
+            อันดับระดับแผนก ({departmentList.length})
+          </button>
         </div>
 
-        {/* Table Content */}
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600" />
-          </div>
-        ) : activeTab === 'individual' ? (
-          /* Individual Leaderboard Table */
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-            {filteredIndividual.length === 0 ? (
-              <div className="p-12 text-center text-xs text-slate-400">
-                ยังไม่มีข้อมูลการเข้าร่วมกิจกรรมในปีงบประมาณนี้
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="p-3.5 w-16 text-center">อันดับ</th>
-                      <th className="p-3.5">ชื่อ-สกุล</th>
-                      <th className="p-3.5">แผนก/กลุ่มงาน</th>
-                      <th className="p-3.5">ตำแหน่ง</th>
-                      <th className="p-3.5 text-center">จำนวนกิจกรรม</th>
-                      <th className="p-3.5 text-right font-bold">คะแนนสะสม</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredIndividual.map((item) => {
-                      const isMe = item.memberId === currentMemberId
-                      return (
-                        <tr
-                          key={item.memberId}
-                          className={`hover:bg-slate-50/80 transition-colors ${
-                            isMe ? 'bg-emerald-50/60 font-semibold' : ''
-                          }`}
-                        >
-                          <td className="p-3.5 text-center">
-                            {getRankBadge(item.rank)}
-                          </td>
-                          <td className="p-3.5">
-                            <span className="font-semibold text-slate-900 block">
-                              {item.name} {isMe && <span className="text-[10px] text-emerald-700 ml-1">(คุณ)</span>}
+        <div className="eventsSearchWrap" style={{ maxWidth: 280 }}>
+          <Search className="eventsSearchIcon" size={16} />
+          <input
+            type="text"
+            placeholder="ค้นหาชื่อ หรือแผนก..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="eventsSearchInput"
+          />
+        </div>
+      </div>
+
+      {/* Table Content */}
+      {loading ? (
+        <div className="eventsLoadingSpinner">
+          <div className="spinnerCircle" />
+        </div>
+      ) : activeTab === 'individual' ? (
+        /* Individual Leaderboard Table */
+        <div className="tableCard">
+          {filteredIndividual.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+              ยังไม่มีข้อมูลการเข้าร่วมกิจกรรมในปีงบประมาณนี้
+            </div>
+          ) : (
+            <div className="tableResponsiveWrap">
+              <table className="styledTable">
+                <thead>
+                  <tr>
+                    <th style={{ width: 65, textAlign: 'center' }}>อันดับ</th>
+                    <th>ชื่อ-สกุล</th>
+                    <th>แผนก/กลุ่มงาน</th>
+                    <th>ตำแหน่ง</th>
+                    <th style={{ textAlign: 'center' }}>จำนวนกิจกรรม</th>
+                    <th style={{ textAlign: 'right' }}>คะแนนสะสม</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredIndividual.map((item) => {
+                    const isMe = item.memberId === currentMemberId
+                    return (
+                      <tr
+                        key={item.memberId}
+                        className={isMe ? 'highlightMe' : ''}
+                      >
+                        <td style={{ textAlign: 'center' }}>
+                          {getRankBadge(item.rank)}
+                        </td>
+                        <td>
+                          <strong>{item.name}</strong>
+                          {isMe && (
+                            <span style={{ fontSize: '0.7rem', color: '#047857', marginLeft: '0.35rem' }}>
+                              (คุณ)
                             </span>
-                          </td>
-                          <td className="p-3.5 text-slate-600">
-                            {item.department || 'ไม่ระบุแผนก'}
-                          </td>
-                          <td className="p-3.5 text-slate-500">
-                            {item.position || '-'}
-                          </td>
-                          <td className="p-3.5 text-center text-slate-600 font-mono">
-                            {item.eventCount} งาน
-                          </td>
-                          <td className="p-3.5 text-right">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-900">
-                              {item.totalPoints} คะแนน
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Department Leaderboard Table */
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-            {filteredDepartment.length === 0 ? (
-              <div className="p-12 text-center text-xs text-slate-400">
-                ยังไม่มีข้อมูลคะแนนของแผนกในปีงบประมาณนี้
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="p-3.5 w-16 text-center">อันดับ</th>
-                      <th className="p-3.5">กลุ่มงาน / แผนก</th>
-                      <th className="p-3.5 text-center">บุคลากรในแผนก</th>
-                      <th className="p-3.5 text-center">คะแนนรวมทั้งหมด</th>
-                      <th className="p-3.5 text-right font-bold">คะแนนเฉลี่ยต่อคน</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredDepartment.map((dept) => (
-                      <tr key={dept.department} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="p-3.5 text-center">
-                          {getRankBadge(dept.rank)}
+                          )}
                         </td>
-                        <td className="p-3.5 font-bold text-slate-900">
-                          {dept.department}
+                        <td>{item.department || 'ไม่ระบุแผนก'}</td>
+                        <td>{item.position || '-'}</td>
+                        <td style={{ textAlign: 'center', color: '#475569' }}>
+                          {item.eventCount} งาน
                         </td>
-                        <td className="p-3.5 text-center text-slate-600 font-mono">
-                          {dept.memberCount} คน
-                        </td>
-                        <td className="p-3.5 text-center">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">
-                            {dept.totalPoints} แต้ม
-                          </span>
-                        </td>
-                        <td className="p-3.5 text-right">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-900">
-                            {dept.avgPointsPerMember} แต้ม/คน
+                        <td style={{ textAlign: 'right' }}>
+                          <span className="pointsPill">
+                            {item.totalPoints} คะแนน
                           </span>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Department Leaderboard Table */
+        <div className="tableCard">
+          {filteredDepartment.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
+              ยังไม่มีข้อมูลคะแนนของแผนกในปีงบประมาณนี้
+            </div>
+          ) : (
+            <div className="tableResponsiveWrap">
+              <table className="styledTable">
+                <thead>
+                  <tr>
+                    <th style={{ width: 65, textAlign: 'center' }}>อันดับ</th>
+                    <th>กลุ่มงาน / แผนก</th>
+                    <th style={{ textAlign: 'center' }}>บุคลากรในแผนก</th>
+                    <th style={{ textAlign: 'center' }}>คะแนนรวมทั้งหมด</th>
+                    <th style={{ textAlign: 'right' }}>คะแนนเฉลี่ยต่อคน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDepartment.map((dept) => (
+                    <tr key={dept.department}>
+                      <td style={{ textAlign: 'center' }}>
+                        {getRankBadge(dept.rank)}
+                      </td>
+                      <td>
+                        <strong>{dept.department}</strong>
+                      </td>
+                      <td style={{ textAlign: 'center', color: '#475569' }}>
+                        {dept.memberCount} คน
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className="eventStatusBadge">
+                          {dept.totalPoints} แต้ม
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <span className="pointsPill">
+                          {dept.avgPointsPerMember} แต้ม/คน
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
