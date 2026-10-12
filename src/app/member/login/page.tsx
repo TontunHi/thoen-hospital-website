@@ -57,13 +57,26 @@ function MemberLoginForm() {
     }
   }, [countdown])
 
-  const handleThaidLogin = () => {
+  const handleThaidLogin = async () => {
     if (thaidLoading || loading) return
     setError('')
     setSuccess('')
     setThaidLoading(true)
-    // Direct top-level navigation ensures native HTTP 302 redirect and synchronous Set-Cookie handling
-    window.location.href = '/api/auth/thaid/authorize'
+
+    try {
+      const res = await fetch('/api/auth/thaid/authorize?format=json')
+      const data = await res.json()
+
+      if (data.success && data.redirectUrl) {
+        window.location.href = data.redirectUrl
+      } else {
+        setError(data.error || 'ไม่สามารถเชื่อมต่อกับระบบ ThaID ได้ กรุณาลองใหม่อีกครั้ง')
+        setThaidLoading(false)
+      }
+    } catch {
+      // Fallback to top-level navigation if fetch fails
+      window.location.href = '/api/auth/thaid/authorize'
+    }
   }
 
   const handleRequestOtp = async (e: React.FormEvent) => {
