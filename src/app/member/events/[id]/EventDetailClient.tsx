@@ -278,7 +278,7 @@ export default function EventDetailClient({
                 </div>
               )}
               <span className="qrSubtext">
-                สแกนเช็คอินด้วยแอป ThaID
+                ใช้กล้องมือถือหรือ LINE สแกน (ยืนยันผ่าน ThaID)
               </span>
 
               {/* QR Action Buttons */}
@@ -306,6 +306,9 @@ export default function EventDetailClient({
                 <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>
                   ผู้จัดงานสามารถนำ QR Code นี้ฉายขึ้นจอโปรเจกเตอร์ หรือพิมพ์เป็นป้ายตั้งไว้ ณ จุดลงทะเบียนหน้างานได้ทันที
                 </p>
+                <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '0.5rem', padding: '0.5rem 0.75rem', marginTop: '0.5rem', fontSize: '0.8rem', color: '#065f46' }}>
+                  📸 <strong>วิธีสแกน:</strong> ใช้ <strong>กล้องมือถือทั่วไป (iPhone / Android)</strong> หรือ <strong>แอป LINE</strong> สแกน QR Code นี้ ระบบจะเปิดแอป ThaID เพื่อยืนยันตัวตนให้อัตโนมัติ (ไม่เปิดกล้องจากในแอป ThaID มาสแกนโดยตรง)
+                </div>
               </div>
 
               {/* Time Window Notice */}
@@ -524,13 +527,13 @@ export default function EventDetailClient({
 
           <div className="printInstructions">
             <p className="printInstructionTitle">
-              สแกนเช็คอินเข้าร่วมกิจกรรมด้วยแอป ThaID
+              สแกนเช็คอินเข้าร่วมกิจกรรม (ยืนยันตัวตนผ่านแอป ThaID)
             </p>
             <p className="printInstructionTimes">
               ช่วงเวลาเปิดรับสแกน: {formatThaiDateTime(event.checkinOpenTime)} ถึง {formatThaiDateTime(event.checkinCloseTime)}
             </p>
             <p className="printInstructionNote">
-              ผู้เข้าร่วมงานจะได้รับ 1 คะแนนสะสมสำหรับการมีส่วนร่วม
+              📱 ใช้กล้องมือถือทั่วไปหรือแอป LINE สแกนป้ายนี้ • ได้รับ 1 คะแนนสะสม
             </p>
           </div>
         </div>
