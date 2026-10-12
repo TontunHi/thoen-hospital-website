@@ -68,6 +68,7 @@ export default function OpdDoctorClient() {
     discount: 0,
     debit: 0,
   })
+  const [monthlyTotals, setMonthlyTotals] = useState<Record<string, { income: number; visits: number }>>({})
 
   // 12 Fiscal Month columns
   const fiscalMonthColumns = useMemo(() => {
@@ -126,6 +127,7 @@ export default function OpdDoctorClient() {
         if (json.success) {
           setDoctors(json.doctors || [])
           setMonths(json.months || [])
+          setMonthlyTotals(json.monthlyTotals || {})
           setGrandTotal(
             json.grandTotal || {
               visits: 0,
@@ -189,34 +191,36 @@ export default function OpdDoctorClient() {
   const exportCSV = () => {
     const isYearMode = dateMode === 'year'
     const headers = [
+      'ลำดับ',
       'รหัสแพทย์',
-      'ชื่อแพทย์',
-      'จำนวนครั้งตรวจ',
-      ...(isYearMode
-        ? fiscalMonthColumns.map((m) => `ยอด ${m.label}`)
-        : months.map((m) => `ยอด ${m}`)),
-      'ค่ารักษาพยาบาลรวม (บาท)',
-      'สิทธิเบิกชดเชย UC (บาท)',
-      'ชำระเอง/ใบเสร็จ (บาท)',
+      'ชื่อ-สกุล แพทย์',
+      'ตรวจ (ครั้ง)',
+      'สิทธิเบิก (บาท)',
+      'ชำระเอง (บาท)',
       'ส่วนลด (บาท)',
       'ลูกหนี้คงค้าง (บาท)',
+      'ค่ารักษาทั้งหมด (บาท)',
+      ...(isYearMode
+        ? fiscalMonthColumns.map((m) => `ยอด ${m.label}`)
+        : []),
     ]
 
-    const rows = filteredDoctors.map((doc) => {
+    const rows = filteredDoctors.map((doc, idx) => {
       const monthValues = isYearMode
         ? fiscalMonthColumns.map((m) => doc.monthly_income[m.key] || 0)
-        : months.map((m) => doc.monthly_income[m] || 0)
+        : []
 
       return [
+        idx + 1,
         `"${doc.doctor_code}"`,
         `"${doc.doctor_name}"`,
         doc.total_visits,
-        ...monthValues,
-        doc.total_income,
         doc.total_uc_money,
         doc.total_rcpt_money,
         doc.total_discount,
         doc.total_debit,
+        doc.total_income,
+        ...monthValues,
       ]
     })
 
@@ -589,31 +593,26 @@ export default function OpdDoctorClient() {
           <table className="rcm-table">
             <thead>
               <tr>
-                <th style={{ width: '40px' }} className="rcm-text-center">#</th>
-                <th>ชื่อแพทย์ผู้ตรวจรักษา</th>
-                <th className="rcm-text-right">ครั้งตรวจ</th>
-                {dateMode === 'year'
-                  ? fiscalMonthColumns.map((m) => (
-                      <th key={m.key} className="rcm-text-right">
-                        {m.label}
-                      </th>
-                    ))
-                  : months.map((m) => (
-                      <th key={m} className="rcm-text-right">
-                        {m}
-                      </th>
-                    ))}
-                <th className="rcm-text-right">ค่ารักษารวม</th>
-                <th className="rcm-text-right">เบิกจ่าย (UC)</th>
-                <th className="rcm-text-right">ชำระเอง</th>
-                <th className="rcm-text-right">ลูกหนี้</th>
+                <th className="rcm-sticky-col rcm-sticky-col-1">ลำดับ</th>
+                <th className="rcm-sticky-col rcm-sticky-col-2" style={{ textAlign: 'center' }}>ชื่อ-สกุล แพทย์</th>
+                <th className="rcm-text-center" style={{ minWidth: '95px' }}>ตรวจ (ครั้ง)</th>
+                <th className="rcm-text-right" style={{ minWidth: '110px' }}>สิทธิเบิก</th>
+                <th className="rcm-text-right" style={{ minWidth: '100px' }}>ชำระเอง</th>
+                <th className="rcm-text-right" style={{ minWidth: '110px' }}>ลูกหนี้คงค้าง</th>
+                <th className="rcm-text-right" style={{ minWidth: '130px', backgroundColor: '#d1fae5', color: '#064e3b', fontWeight: 800 }}>ค่ารักษาทั้งหมด (บาท)</th>
+                {dateMode === 'year' &&
+                  fiscalMonthColumns.map((m) => (
+                    <th key={m.key} className="rcm-month-col">
+                      {m.label}
+                    </th>
+                  ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td
-                    colSpan={8 + (dateMode === 'year' ? fiscalMonthColumns.length : months.length)}
+                    colSpan={7 + (dateMode === 'year' ? fiscalMonthColumns.length : 0)}
                     style={{ textAlign: 'center', padding: '3rem' }}
                   >
                     <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#0d9488' }} />
@@ -623,7 +622,7 @@ export default function OpdDoctorClient() {
               ) : filteredDoctors.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8 + (dateMode === 'year' ? fiscalMonthColumns.length : months.length)}
+                    colSpan={7 + (dateMode === 'year' ? fiscalMonthColumns.length : 0)}
                     style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}
                   >
                     ไม่พบข้อมูลการตรวจรักษาตามเงื่อนไขที่เลือก
@@ -633,86 +632,121 @@ export default function OpdDoctorClient() {
                 <>
                   {filteredDoctors.map((doc, idx) => (
                     <tr key={doc.doctor_code}>
-                      <td className="rcm-text-center" style={{ color: '#94a3b8' }}>
+                      <td className="rcm-sticky-col rcm-sticky-col-1 font-mono" style={{ color: '#94a3b8' }}>
                         {idx + 1}
                       </td>
-                      <td style={{ fontWeight: 600 }}>{doc.doctor_name}</td>
-                      <td className="rcm-text-right font-mono">
+                      <td className="rcm-sticky-col rcm-sticky-col-2">
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={doc.doctor_name}
+                        >
+                          {doc.doctor_name}
+                        </div>
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 500 }}>
                         {formatNumber(doc.total_visits)}
                       </td>
-                      {dateMode === 'year'
-                        ? fiscalMonthColumns.map((m) => (
-                            <td key={m.key} className="rcm-text-right font-mono" style={{ color: '#475569' }}>
-                              {doc.monthly_income[m.key] ? formatNumber(doc.monthly_income[m.key]) : '-'}
-                            </td>
-                          ))
-                        : months.map((m) => (
-                            <td key={m} className="rcm-text-right font-mono" style={{ color: '#475569' }}>
-                              {doc.monthly_income[m] ? formatNumber(doc.monthly_income[m]) : '-'}
-                            </td>
-                          ))}
-                      <td className="rcm-text-right font-mono" style={{ fontWeight: 700, color: '#0f172a' }}>
-                        {formatCurrency(doc.total_income)}
-                      </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#0369a1' }}>
+                      <td className="rcm-text-right font-mono" style={{ color: '#047857', fontWeight: 500 }}>
                         {formatCurrency(doc.total_uc_money)}
                       </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#475569' }}>
+                      <td className="rcm-text-right font-mono" style={{ color: '#b45309', fontWeight: 500 }}>
                         {formatCurrency(doc.total_rcpt_money)}
                       </td>
-                      <td className="rcm-text-right">
+                      <td className="rcm-text-right font-mono">
                         {doc.total_debit > 0 ? (
                           <span className="rcm-badge-debit">{formatCurrency(doc.total_debit)}</span>
                         ) : (
                           <span style={{ color: '#94a3b8' }}>฿0</span>
                         )}
                       </td>
+                      <td
+                        className="rcm-text-right font-mono"
+                        style={{
+                          backgroundColor: '#ecfdf5',
+                          color: '#064e3b',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {formatCurrency(doc.total_income)}
+                      </td>
+                      {dateMode === 'year' &&
+                        fiscalMonthColumns.map((m) => {
+                          const val = doc.monthly_income[m.key] || 0
+                          return (
+                            <td
+                              key={m.key}
+                              className="rcm-month-col font-mono"
+                              style={{
+                                color: val > 0 ? '#1e293b' : '#cbd5e1',
+                                fontWeight: val > 0 ? 500 : 400,
+                              }}
+                            >
+                              {val > 0 ? formatCurrency(val) : '-'}
+                            </td>
+                          )
+                        })}
                     </tr>
                   ))}
 
                   {/* Total Row */}
                   <tr className="total-row">
-                    <td colSpan={2} style={{ textAlign: 'center' }}>
-                      รวมทั้งสิ้น ({filteredDoctors.length} ท่าน)
+                    <td className="rcm-sticky-col rcm-sticky-col-1 font-bold">
+                      รวม
                     </td>
-                    <td className="rcm-text-right font-mono">
+                    <td className="rcm-sticky-col rcm-sticky-col-2" style={{ fontWeight: 700 }}>
+                      <div
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        ทั้งหมด ({filteredDoctors.length} ท่าน)
+                      </div>
+                    </td>
+                    <td className="rcm-text-center font-mono" style={{ fontWeight: 700 }}>
                       {formatNumber(grandTotal.visits)}
                     </td>
-                    {dateMode === 'year'
-                      ? fiscalMonthColumns.map((m) => {
-                          const mTotal = filteredDoctors.reduce(
-                            (sum, d) => sum + (d.monthly_income[m.key] || 0),
-                            0
-                          )
-                          return (
-                            <td key={m.key} className="rcm-text-right font-mono">
-                              {mTotal ? formatNumber(mTotal) : '-'}
-                            </td>
-                          )
-                        })
-                      : months.map((m) => {
-                          const mTotal = filteredDoctors.reduce(
-                            (sum, d) => sum + (d.monthly_income[m] || 0),
-                            0
-                          )
-                          return (
-                            <td key={m} className="rcm-text-right font-mono">
-                              {mTotal ? formatNumber(mTotal) : '-'}
-                            </td>
-                          )
-                        })}
-                    <td className="rcm-text-right font-mono" style={{ color: '#064e3b' }}>
-                      {formatCurrency(grandTotal.income)}
-                    </td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#0369a1' }}>
+                    <td className="rcm-text-right font-mono" style={{ color: '#064e3b', fontWeight: 700 }}>
                       {formatCurrency(grandTotal.uc_money)}
                     </td>
-                    <td className="rcm-text-right font-mono">
+                    <td className="rcm-text-right font-mono" style={{ color: '#92400e', fontWeight: 700 }}>
                       {formatCurrency(grandTotal.rcpt_money)}
                     </td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#991b1b' }}>
+                    <td className="rcm-text-right font-mono" style={{ color: '#991b1b', fontWeight: 700 }}>
                       {formatCurrency(grandTotal.debit)}
                     </td>
+                    <td
+                      className="rcm-text-right font-mono"
+                      style={{
+                        backgroundColor: '#d1fae5',
+                        color: '#064e3b',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {formatCurrency(grandTotal.income)}
+                    </td>
+                    {dateMode === 'year' &&
+                      fiscalMonthColumns.map((m) => {
+                        const totalVal = monthlyTotals[m.key]?.income || 0
+                        return (
+                          <td
+                            key={m.key}
+                            className="rcm-month-col font-mono"
+                            style={{
+                              fontWeight: 700,
+                              color: totalVal > 0 ? '#0f172a' : '#94a3b8',
+                            }}
+                          >
+                            {totalVal > 0 ? formatCurrency(totalVal) : '-'}
+                          </td>
+                        )
+                      })}
                   </tr>
                 </>
               )}
