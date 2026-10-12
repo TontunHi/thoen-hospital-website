@@ -520,6 +520,10 @@ export default function SalaryDashboardPage() {
                         <strong>{otData.c18 || '0.00'}</strong>
                       </li>
                       <li>
+                        <span>ค่าทำความสะอาด</span>
+                        <strong>{otData.c21 || '0.00'}</strong>
+                      </li>
+                      <li>
                         <span>ค่าสวัสดิการ / อื่นๆ</span>
                         <strong>{otData.c19 || '0.00'}</strong>
                       </li>
@@ -724,6 +728,7 @@ export default function SalaryDashboardPage() {
                       {otData.c16 && <tr><td>ภาษีหัก ณ ที่จ่าย 5%</td><td className="numCol">{otData.c16}</td></tr>}
                       {otData.c17 && <tr><td>ค่าบำรุงหอพัก / ค่าไฟฟ้า</td><td className="numCol">{otData.c17}</td></tr>}
                       {otData.c18 && <tr><td>ค่าน้ำประปา</td><td className="numCol">{otData.c18}</td></tr>}
+                      {otData.c21 && <tr><td>ค่าทำความสะอาด</td><td className="numCol">{otData.c21}</td></tr>}
                       {otData.c19 && <tr><td>ค่าสวัสดิการ / อื่นๆ</td><td className="numCol">{otData.c19}</td></tr>}
                     </tbody>
                     <tfoot>

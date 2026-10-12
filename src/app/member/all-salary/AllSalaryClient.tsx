@@ -373,6 +373,7 @@ export default function AllSalaryClient() {
                       <li><span>ภาษีหัก ณ ที่จ่าย 5%</span><strong>{otData.c16 || '0.00'}</strong></li>
                       <li><span>ค่าบำรุงหอพัก / ค่าไฟฟ้า</span><strong>{otData.c17 || '0.00'}</strong></li>
                       <li><span>ค่าน้ำประปา</span><strong>{otData.c18 || '0.00'}</strong></li>
+                      <li><span>ค่าทำความสะอาด</span><strong>{otData.c21 || '0.00'}</strong></li>
                       <li><span>ค่าสวัสดิการ / อื่นๆ</span><strong>{otData.c19 || '0.00'}</strong></li>
                     </ul>
                   </div>
