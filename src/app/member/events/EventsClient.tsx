@@ -112,6 +112,18 @@ export default function EventsClient({
     }
   }
 
+  const formatThaiTimeRange = (startStr: string, endStr: string) => {
+    try {
+      const s = new Date(startStr)
+      const e = new Date(endStr)
+      const sTime = s.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      const eTime = e.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      return `${sTime} - ${eTime} น.`
+    } catch {
+      return ''
+    }
+  }
+
   // Filter events based on tab, search, and fiscal year
   const filteredEvents = events.filter((ev) => {
     if (activeTab === 'my_events') {
@@ -287,98 +299,97 @@ export default function EventsClient({
           </Link>
         </div>
       ) : (
-        <div className="eventsGrid">
+        <div className="eventStripList">
           {filteredEvents.map((event) => {
-            const isPast = new Date(event.eventEndDate) < new Date()
+            const now = new Date()
+            const startDate = new Date(event.eventStartDate)
+            const endDate = new Date(event.eventEndDate)
+            const isPast = endDate < now
+            const isOngoing = now >= startDate && now <= endDate
             const isOrganizer =
               event.headOrganizerId === currentUser.id ||
               event.coOrganizers?.some((c) => c.member?.id === currentUser.id) ||
               currentUser.isAdmin
 
             return (
-              <div key={event.id} className="eventCard">
-                {/* Card Header */}
-                <div className="eventCardBanner">
-                  <div className="eventCardBadgesRow">
-                    <span className="eventDateBadge">
-                      <Calendar size={12} />
+              <div key={event.id} className="eventStripRow">
+                {/* 1. วันเวลางาน */}
+                <div className="eventStripDateCol">
+                  <div className="eventStripDateMain">
+                    <Calendar size={15} className="eventStripDateIcon" />
+                    <span className="eventStripDateText">
                       {formatThaiDateOnly(event.eventStartDate)}
                     </span>
-                    <span
-                      className={`eventStatusBadge ${
-                        event.status === 'COMPLETED' || isPast ? '' : 'active'
-                      }`}
-                    >
-                      {event.status === 'COMPLETED' || isPast ? 'เสร็จสิ้น' : 'เร็วๆ นี้'}
+                  </div>
+                  <div className="eventStripTimeSub">
+                    <Clock size={12} />
+                    <span>
+                      {formatThaiTimeRange(event.eventStartDate, event.eventEndDate)}
                     </span>
                   </div>
+                  <span
+                    className={`eventStripStatusTag ${
+                      isOngoing ? 'ongoing' : isPast ? 'completed' : 'upcoming'
+                    }`}
+                  >
+                    {isOngoing ? 'กำลังจัดงาน' : isPast ? 'เสร็จสิ้น' : 'เร็วๆ นี้'}
+                  </span>
+                </div>
 
-                  <Link href={`/member/events/${event.id}`} style={{ textDecoration: 'none' }}>
-                    <h3 className="eventCardTitle">{event.title}</h3>
+                {/* 2. ชื่อกิจกรรม */}
+                <div className="eventStripTitleCol">
+                  <Link href={`/member/events/${event.id}`} className="eventStripTitleLink">
+                    {event.title}
                   </Link>
-
-                  {event.description && (
-                    <p className="eventCardDesc">{event.description}</p>
-                  )}
-                </div>
-
-                {/* Card Meta Body */}
-                <div className="eventCardBody">
-                  <div className="eventMetaItem">
-                    <Clock size={14} />
-                    <span>{formatThaiDate(event.eventStartDate)}</span>
-                  </div>
-
-                  {event.location && (
-                    <div className="eventMetaItem">
-                      <MapPin size={14} />
-                      <span>{event.location}</span>
-                    </div>
-                  )}
-
-                  <div className="eventMetaItem">
-                    <Users size={14} />
-                    <span>ผู้รับผิดชอบ: {event.headOrganizer?.name || 'บุคลากรโรงพยาบาล'}</span>
-                  </div>
-
-                  {/* Quick Attendance Stats */}
-                  <div className="eventCardStatGrid">
-                    <div className="eventStatBox">
-                      <span className="eventStatBoxLabel">ลงทะเบียน</span>
-                      <span className="eventStatBoxVal">
-                        {event.registrationCount}{' '}
-                        <span style={{ fontSize: '0.675rem', fontWeight: 'normal', color: '#64748b' }}>คน</span>
+                  <div className="eventStripMetaRow">
+                    {event.location && (
+                      <span className="eventStripMetaItem">
+                        <MapPin size={12} />
+                        <span>{event.location}</span>
                       </span>
-                    </div>
-                    <div className="eventStatBoxHighlight">
-                      <span className="eventStatBoxLabel" style={{ color: '#047857', fontWeight: 600 }}>
-                        เข้างานแล้ว
-                      </span>
-                      <span className="eventStatBoxValHighlight">
-                        {event.attendanceCount}{' '}
-                        <span style={{ fontSize: '0.675rem', fontWeight: 'normal', color: '#059669' }}>คน</span>
-                      </span>
-                    </div>
+                    )}
+                    <span className="eventStripMetaItem">
+                      <Users size={12} />
+                      <span>{event.headOrganizer?.name || 'บุคลากรโรงพยาบาล'}</span>
+                    </span>
+                    <span className="eventStripFiscalBadge">
+                      ปีงบ {event.fiscalYear}
+                    </span>
                   </div>
                 </div>
 
-                {/* Card Footer Actions */}
-                <div className="eventCardFooter">
-                  {isOrganizer ? (
-                    <Link href={`/member/events/${event.id}`} className="btnOpenQr">
+                {/* 3. จำนวนลงทะเบียน / จำนวนเข้าร่วมงาน */}
+                <div className="eventStripStatsCol">
+                  <div className="eventStripStatBox">
+                    <span className="eventStripStatLabel">ลงทะเบียน</span>
+                    <span className="eventStripStatValue reg">
+                      {event.registrationCount} <small>คน</small>
+                    </span>
+                  </div>
+                  <div className="eventStripStatDivider">/</div>
+                  <div className="eventStripStatBox">
+                    <span className="eventStripStatLabel">เข้าร่วมงาน</span>
+                    <span className="eventStripStatValue att">
+                      {event.attendanceCount} <small>คน</small>
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4. ปุ่มดูรายละเอียด */}
+                <div className="eventStripActionCol">
+                  {isOrganizer && (
+                    <Link
+                      href={`/member/events/${event.id}`}
+                      className="btnStripQr"
+                      title="เปิด QR Code หน้างาน"
+                    >
                       <QrCode size={14} />
-                      <span>เปิด QR Code หน้างาน</span>
-                    </Link>
-                  ) : (
-                    <Link href={`/member/events/${event.id}`} className="btnEventDetail">
-                      <span>รายละเอียด</span>
-                      <ChevronRight size={14} />
+                      <span>QR Code</span>
                     </Link>
                   )}
-
-                  <Link href={`/member/events/${event.id}`} className="btnEventDetail">
-                    <span>ดูเพิ่มเติม</span>
-                    <ArrowRight size={12} />
+                  <Link href={`/member/events/${event.id}`} className="btnStripDetail">
+                    <span>ดูรายละเอียด</span>
+                    <ChevronRight size={14} />
                   </Link>
                 </div>
               </div>

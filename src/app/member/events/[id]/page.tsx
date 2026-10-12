@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
+import { prisma } from '@/lib/prisma'
 import EventDetailClient from './EventDetailClient'
 
 export const metadata = {
@@ -31,6 +32,21 @@ export default async function EventDetailPage({
     notFound()
   }
 
+  const canManage = Boolean(event.canManage || member.isAdmin)
+
+  // Preload hospital staff for manual check-in if user is organizer or admin
+  let availableMembers: any[] = []
+  if (canManage) {
+    try {
+      availableMembers = await prisma.member.findMany({
+        select: { id: true, name: true, department: true, position: true },
+        orderBy: { name: 'asc' },
+      })
+    } catch (err) {
+      console.error('Error fetching members for attendee picker:', err)
+    }
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const checkinUrl = `${baseUrl.replace(/\/+$/, '')}/api/events/checkin/${event.qrToken}`
 
@@ -47,6 +63,7 @@ export default async function EventDetailPage({
         role: member.role,
         isAdmin: member.isAdmin,
       }}
+      availableMembers={availableMembers}
     />
   )
 }

@@ -526,4 +526,202 @@ export class HospitalEventService {
       pointsAwarded: 1,
     }
   }
+
+  /**
+   * Add attendee manually by event organizers or admin
+   */
+  async addManualAttendance(
+    eventId: number,
+    data: { memberId: number; pointsAwarded?: number; checkedInAt?: Date | string; note?: string },
+    actor: Actor
+  ) {
+    const event = await this.db.hospitalEvent.findUnique({
+      where: { id: eventId },
+      include: { coOrganizers: true },
+    })
+
+    if (!event) throw new Error('ไม่พบข้อมูลกิจกรรม')
+
+    const isAuthorized =
+      actor.role === 'admin' ||
+      event.headOrganizerId === actor.id ||
+      event.coOrganizers?.some((c: any) => c.memberId === actor.id)
+
+    if (!isAuthorized) {
+      throw new Error('คุณไม่มีสิทธิ์จัดการรายชื่อผู้เข้าร่วมกิจกรรมนี้')
+    }
+
+    const member = await this.db.member.findUnique({
+      where: { id: data.memberId },
+      select: { id: true, name: true, department: true, position: true, username: true },
+    })
+
+    if (!member) {
+      throw new Error('ไม่พบข้อมูลบุคลากรที่ระบุ')
+    }
+
+    const existing = await this.db.eventAttendance.findUnique({
+      where: { eventId_memberId: { eventId, memberId: member.id } },
+    })
+
+    if (existing) {
+      throw new Error(`${member.name || 'บุคลากรท่านนี้'} มีรายชื่อเข้าร่วมกิจกรรมนี้แล้ว`)
+    }
+
+    const attendance = await this.db.eventAttendance.create({
+      data: {
+        eventId,
+        memberId: member.id,
+        citizenId: member.username,
+        pointsAwarded: data.pointsAwarded !== undefined ? data.pointsAwarded : 1,
+        checkedInAt: data.checkedInAt ? new Date(data.checkedInAt) : new Date(),
+      },
+      include: {
+        member: {
+          select: { id: true, name: true, department: true, position: true, profilePath: true },
+        },
+      },
+    })
+
+    try {
+      await logAudit(
+        'CREATE',
+        'event_attendances',
+        `ผู้ดูแลเพิ่มผู้เข้าร่วมงาน: ${member.name} ในกิจกรรม "${event.title}" (+${attendance.pointsAwarded} คะแนน) โดย ${actor.name || actor.username}`,
+        {
+          eventId,
+          memberId: member.id,
+          attendanceId: attendance.id,
+          addedBy: actor.id,
+          note: data.note,
+        }
+      )
+    } catch (err) {
+      logger.error({ err }, 'Failed to log manual attendance audit')
+    }
+
+    return attendance
+  }
+
+  /**
+   * Update existing attendance record by event organizers or admin
+   */
+  async updateAttendance(
+    eventId: number,
+    attendanceId: number,
+    data: { pointsAwarded?: number; checkedInAt?: Date | string },
+    actor: Actor
+  ) {
+    const event = await this.db.hospitalEvent.findUnique({
+      where: { id: eventId },
+      include: { coOrganizers: true },
+    })
+
+    if (!event) throw new Error('ไม่พบข้อมูลกิจกรรม')
+
+    const isAuthorized =
+      actor.role === 'admin' ||
+      event.headOrganizerId === actor.id ||
+      event.coOrganizers?.some((c: any) => c.memberId === actor.id)
+
+    if (!isAuthorized) {
+      throw new Error('คุณไม่มีสิทธิ์จัดการรายชื่อผู้เข้าร่วมกิจกรรมนี้')
+    }
+
+    const existing = await this.db.eventAttendance.findUnique({
+      where: { id: attendanceId },
+      include: {
+        member: { select: { id: true, name: true } },
+      },
+    })
+
+    if (!existing || existing.eventId !== eventId) {
+      throw new Error('ไม่พบข้อมูลการเข้าร่วมกิจกรรมที่ต้องการแก้ไข')
+    }
+
+    const updated = await this.db.eventAttendance.update({
+      where: { id: attendanceId },
+      data: {
+        ...(data.pointsAwarded !== undefined && { pointsAwarded: data.pointsAwarded }),
+        ...(data.checkedInAt && { checkedInAt: new Date(data.checkedInAt) }),
+      },
+      include: {
+        member: {
+          select: { id: true, name: true, department: true, position: true, profilePath: true },
+        },
+      },
+    })
+
+    try {
+      await logAudit(
+        'UPDATE',
+        'event_attendances',
+        `ผู้ดูแลแก้ไขข้อมูลการเข้าร่วม: ${existing.member?.name} ในกิจกรรม "${event.title}" (คะแนน: ${updated.pointsAwarded}) โดย ${actor.name || actor.username}`,
+        {
+          eventId,
+          attendanceId,
+          changes: data,
+          updatedBy: actor.id,
+        }
+      )
+    } catch (err) {
+      logger.error({ err }, 'Failed to log attendance update audit')
+    }
+
+    return updated
+  }
+
+  /**
+   * Delete attendance record by event organizers or admin
+   */
+  async deleteAttendance(eventId: number, attendanceId: number, actor: Actor) {
+    const event = await this.db.hospitalEvent.findUnique({
+      where: { id: eventId },
+      include: { coOrganizers: true },
+    })
+
+    if (!event) throw new Error('ไม่พบข้อมูลกิจกรรม')
+
+    const isAuthorized =
+      actor.role === 'admin' ||
+      event.headOrganizerId === actor.id ||
+      event.coOrganizers?.some((c: any) => c.memberId === actor.id)
+
+    if (!isAuthorized) {
+      throw new Error('คุณไม่มีสิทธิ์จัดการรายชื่อผู้เข้าร่วมกิจกรรมนี้')
+    }
+
+    const existing = await this.db.eventAttendance.findUnique({
+      where: { id: attendanceId },
+      include: {
+        member: { select: { id: true, name: true } },
+      },
+    })
+
+    if (!existing || existing.eventId !== eventId) {
+      throw new Error('ไม่พบข้อมูลการเข้าร่วมกิจกรรมที่ต้องการลบ')
+    }
+
+    await this.db.eventAttendance.delete({
+      where: { id: attendanceId },
+    })
+
+    try {
+      await logAudit(
+        'DELETE',
+        'event_attendances',
+        `ผู้ดูแลลบรายชื่อผู้เข้าร่วม: ${existing.member?.name} ออกจากกิจกรรม "${event.title}" โดย ${actor.name || actor.username}`,
+        {
+          eventId,
+          attendanceId,
+          memberId: existing.memberId,
+          deletedBy: actor.id,
+        }
+      )
+    } catch (err) {
+      logger.error({ err }, 'Failed to log attendance delete audit')
+    }
+
+    return { success: true, message: 'ลบรายชื่อผู้เข้าร่วมเรียบร้อยแล้ว' }
+  }
 }

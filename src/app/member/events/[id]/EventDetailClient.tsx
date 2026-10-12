@@ -17,6 +17,13 @@ import {
   Package,
   ShieldCheck,
   Trophy,
+  Pencil,
+  Trash2,
+  Plus,
+  Search,
+  UserPlus,
+  X,
+  AlertTriangle,
 } from 'lucide-react'
 import '../events.css'
 
@@ -30,21 +37,55 @@ interface CurrentUser {
   isAdmin: boolean
 }
 
+interface MemberOption {
+  id: number
+  name: string | null
+  department: string | null
+  position: string | null
+}
+
 interface EventDetailClientProps {
   event: any
   checkinUrl: string
   currentUser: CurrentUser
+  availableMembers?: MemberOption[]
 }
 
 export default function EventDetailClient({
   event: initialEvent,
   checkinUrl,
+  currentUser,
+  availableMembers = [],
 }: EventDetailClientProps) {
   const [event, setEvent] = useState(initialEvent)
+  const [attendances, setAttendances] = useState<any[]>(initialEvent.attendances || [])
+  const [registrations, setRegistrations] = useState<any[]>(initialEvent.registrations || [])
   const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const [copied, setCopied] = useState(false)
   const [registering, setRegistering] = useState(false)
   const [activeTab, setActiveTab] = useState<'attendances' | 'registrations'>('attendances')
+
+  const canManage = Boolean(event.canManage || currentUser.isAdmin)
+
+  // Manual Add Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [memberSearchText, setMemberSearchText] = useState('')
+  const [selectedMember, setSelectedMember] = useState<MemberOption | null>(null)
+  const [addPoints, setAddPoints] = useState(1)
+  const [addTime, setAddTime] = useState('')
+  const [addNote, setAddNote] = useState('')
+
+  // Edit Modal State
+  const [editingAttendance, setEditingAttendance] = useState<any | null>(null)
+  const [editPoints, setEditPoints] = useState(1)
+  const [editTime, setEditTime] = useState('')
+
+  // Delete Modal State
+  const [deletingAttendance, setDeletingAttendance] = useState<any | null>(null)
+
+  // Action status
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   // Generate QR code data URL on mount
   useEffect(() => {
@@ -127,6 +168,165 @@ export default function EventDetailClient({
     a.href = qrDataUrl
     a.download = `QRCode-Event-${event.id}.png`
     a.click()
+  }
+
+  // Filter available members that haven't attended yet
+  const attendedMemberIds = new Set(attendances.map((a) => a.memberId))
+  const eligibleMembers = availableMembers.filter((m) => !attendedMemberIds.has(m.id))
+
+  const searchFilteredMembers = eligibleMembers.filter((m) => {
+    if (!memberSearchText.trim()) return false
+    const q = memberSearchText.toLowerCase().trim()
+    const nameMatch = m.name?.toLowerCase().includes(q) || false
+    const deptMatch = m.department?.toLowerCase().includes(q) || false
+    const posMatch = m.position?.toLowerCase().includes(q) || false
+    return nameMatch || deptMatch || posMatch
+  })
+
+  // Open manual add modal
+  const handleOpenAddModal = () => {
+    setIsAddModalOpen(true)
+    setSelectedMember(null)
+    setMemberSearchText('')
+    setAddPoints(1)
+    setAddNote('')
+    setActionError(null)
+    const localNow = new Date()
+    localNow.setMinutes(localNow.getMinutes() - localNow.getTimezoneOffset())
+    setAddTime(localNow.toISOString().slice(0, 16))
+  }
+
+  // Submit manual add
+  const handleAddAttendanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedMember) {
+      setActionError('กรุณาเลือกบุคลากรที่ต้องการเพิ่ม')
+      return
+    }
+    setActionLoading(true)
+    setActionError(null)
+    try {
+      const res = await fetch(`/api/member/events/${event.id}/attendances`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberId: selectedMember.id,
+          pointsAwarded: addPoints,
+          checkedInAt: addTime ? new Date(addTime).toISOString() : undefined,
+          note: addNote || undefined,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || 'ไม่สามารถเพิ่มผู้เข้าร่วมได้')
+
+      setAttendances((prev) => [json.data, ...prev])
+      setEvent((prev: any) => ({
+        ...prev,
+        attendanceCount: (prev.attendanceCount || 0) + 1,
+      }))
+      setIsAddModalOpen(false)
+      setSelectedMember(null)
+      setMemberSearchText('')
+    } catch (err: any) {
+      setActionError(err.message || 'เกิดข้อผิดพลาดในการเพิ่มผู้เข้าร่วม')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Quick check-in from pre-registered list
+  const handleQuickCheckinRegistration = async (regMember: any) => {
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/member/events/${event.id}/attendances`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          memberId: regMember.id,
+          pointsAwarded: 1,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || 'ไม่สามารถเช็คชื่อได้')
+
+      setAttendances((prev) => [json.data, ...prev])
+      setEvent((prev: any) => ({
+        ...prev,
+        attendanceCount: (prev.attendanceCount || 0) + 1,
+      }))
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการเช็คชื่อ')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Open edit modal
+  const handleOpenEditModal = (att: any) => {
+    setEditingAttendance(att)
+    setEditPoints(att.pointsAwarded ?? 1)
+    const d = new Date(att.checkedInAt)
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    setEditTime(d.toISOString().slice(0, 16))
+    setActionError(null)
+  }
+
+  // Save edit
+  const handleSaveEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingAttendance) return
+    setActionLoading(true)
+    setActionError(null)
+    try {
+      const res = await fetch(`/api/member/events/${event.id}/attendances`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attendanceId: editingAttendance.id,
+          pointsAwarded: editPoints,
+          checkedInAt: editTime ? new Date(editTime).toISOString() : undefined,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || 'ไม่สามารถแก้ไขได้')
+
+      setAttendances((prev) =>
+        prev.map((a) => (a.id === editingAttendance.id ? json.data : a))
+      )
+      setEditingAttendance(null)
+    } catch (err: any) {
+      setActionError(err.message || 'เกิดข้อผิดพลาดในการแก้ไข')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Confirm delete
+  const handleConfirmDelete = async () => {
+    if (!deletingAttendance) return
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/member/events/${event.id}/attendances`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attendanceId: deletingAttendance.id,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || 'ไม่สามารถลบได้')
+
+      setAttendances((prev) => prev.filter((a) => a.id !== deletingAttendance.id))
+      setEvent((prev: any) => ({
+        ...prev,
+        attendanceCount: Math.max(0, (prev.attendanceCount || 0) - 1),
+      }))
+      setDeletingAttendance(null)
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการลบ')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   return (
@@ -415,20 +615,38 @@ export default function EventDetailClient({
             onClick={() => setActiveTab('attendances')}
             className={`eventsTabButton ${activeTab === 'attendances' ? 'active' : ''}`}
           >
-            ผู้เข้าร่วมงานจริง (เช็คอินผ่าน ThaID) ({event.attendances?.length || 0})
+            ผู้เข้าร่วมงานจริง (เช็คอิน) ({attendances.length})
           </button>
           <button
             onClick={() => setActiveTab('registrations')}
             className={`eventsTabButton ${activeTab === 'registrations' ? 'active' : ''}`}
           >
-            ผู้ลงทะเบียนล่วงหน้า ({event.registrations?.length || 0})
+            ผู้ลงทะเบียนล่วงหน้า ({registrations.length})
           </button>
         </div>
 
-        <div className="tableResponsiveWrap">
-          {activeTab === 'attendances' ? (
-            <div>
-              {!event.attendances || event.attendances.length === 0 ? (
+        {activeTab === 'attendances' ? (
+          <div>
+            {/* Attendee Action Header */}
+            <div className="attendeeSectionHeader">
+              <div className="attendeeCountTitle">
+                <CheckCircle2 size={16} color="#059669" />
+                <span>รายชื่อผู้เข้าร่วมงานทั้งหมด ({attendances.length} ท่าน)</span>
+              </div>
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={handleOpenAddModal}
+                  className="btnManualAdd"
+                >
+                  <UserPlus size={14} />
+                  <span>+ เพิ่มผู้เข้าร่วมงาน (Manual)</span>
+                </button>
+              )}
+            </div>
+
+            <div className="tableResponsiveWrap">
+              {attendances.length === 0 ? (
                 <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                   ยังไม่มีผู้สแกนเช็คอินเข้าร่วมกิจกรรมในขณะนี้
                 </div>
@@ -436,15 +654,16 @@ export default function EventDetailClient({
                 <table className="styledTable">
                   <thead>
                     <tr>
-                      <th style={{ width: 60, textAlign: 'center' }}>ลำดับ</th>
+                      <th style={{ width: 50, textAlign: 'center' }}>ลำดับ</th>
                       <th>ชื่อ-สกุล</th>
                       <th>แผนก/กลุ่มงาน</th>
                       <th>เวลาที่เช็คอิน</th>
                       <th style={{ textAlign: 'center' }}>คะแนน</th>
+                      {canManage && <th style={{ textAlign: 'center', width: 110 }}>จัดการ</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {event.attendances.map((att: any, idx: number) => (
+                    {attendances.map((att: any, idx: number) => (
                       <tr key={att.id}>
                         <td style={{ textAlign: 'center', color: '#94a3b8' }}>{idx + 1}</td>
                         <td>
@@ -457,15 +676,39 @@ export default function EventDetailClient({
                             +{att.pointsAwarded} คะแนน
                           </span>
                         </td>
+                        {canManage && (
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(att)}
+                                className="btnTableAction edit"
+                                title="แก้ไขคะแนน/เวลา"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeletingAttendance(att)}
+                                className="btnTableAction delete"
+                                title="ลบรายชื่อ"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
             </div>
-          ) : (
-            <div>
-              {!event.registrations || event.registrations.length === 0 ? (
+          </div>
+        ) : (
+          <div>
+            <div className="tableResponsiveWrap">
+              {registrations.length === 0 ? (
                 <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
                   ยังไม่มีผู้ลงทะเบียนล่วงหน้า
                 </div>
@@ -473,30 +716,367 @@ export default function EventDetailClient({
                 <table className="styledTable">
                   <thead>
                     <tr>
-                      <th style={{ width: 60, textAlign: 'center' }}>ลำดับ</th>
+                      <th style={{ width: 50, textAlign: 'center' }}>ลำดับ</th>
                       <th>ชื่อ-สกุล</th>
                       <th>แผนก/กลุ่มงาน</th>
                       <th>วันที่ลงทะเบียน</th>
+                      {canManage && <th style={{ textAlign: 'center', width: 140 }}>เช็คชื่อเข้างาน</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {event.registrations.map((reg: any, idx: number) => (
-                      <tr key={reg.id}>
-                        <td style={{ textAlign: 'center', color: '#94a3b8' }}>{idx + 1}</td>
-                        <td>
-                          <strong>{reg.member?.name || 'บุคลากร'}</strong>
-                        </td>
-                        <td>{reg.member?.department || 'ไม่ระบุแผนก'}</td>
-                        <td>{formatThaiDateTime(reg.registeredAt)}</td>
-                      </tr>
-                    ))}
+                    {registrations.map((reg: any, idx: number) => {
+                      const hasAttended = attendances.some((a) => a.memberId === reg.memberId)
+                      return (
+                        <tr key={reg.id}>
+                          <td style={{ textAlign: 'center', color: '#94a3b8' }}>{idx + 1}</td>
+                          <td>
+                            <strong>{reg.member?.name || 'บุคลากร'}</strong>
+                          </td>
+                          <td>{reg.member?.department || 'ไม่ระบุแผนก'}</td>
+                          <td>{formatThaiDateTime(reg.registeredAt)}</td>
+                          {canManage && (
+                            <td style={{ textAlign: 'center' }}>
+                              {hasAttended ? (
+                                <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  <CheckCircle2 size={13} />
+                                  เข้างานแล้ว
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={actionLoading}
+                                  onClick={() => handleQuickCheckinRegistration(reg.member)}
+                                  className="btnTableAction quickCheckin"
+                                >
+                                  <CheckCircle2 size={13} />
+                                  <span>เช็คชื่อเข้างาน</span>
+                                </button>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          Modal 1: เพิ่มผู้เข้าร่วมงาน (Manual Add Attendance)
+          ───────────────────────────────────────────────────────────── */}
+      {isAddModalOpen && (
+        <div className="attendeeModalOverlay">
+          <div className="attendeeModalCard">
+            <div className="attendeeModalHeader">
+              <h3>เพิ่มผู้เข้าร่วมงาน (เช็คชื่อด้วยตนเอง)</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="attendeeModalCloseBtn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddAttendanceSubmit}>
+              <div className="attendeeModalBody">
+                {actionError && (
+                  <div style={{ padding: '0.65rem 0.85rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', color: '#b91c1c', fontSize: '0.825rem' }}>
+                    {actionError}
+                  </div>
+                )}
+
+                {/* Member Search & Selection */}
+                <div>
+                  <label className="formLabel">
+                    เลือกบุคลากรที่ต้องการเช็คชื่อ <span className="formRequired">*</span>
+                  </label>
+                  {!selectedMember ? (
+                    <div>
+                      <div style={{ position: 'relative' }}>
+                        <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                        <input
+                          type="text"
+                          placeholder="พิมพ์ชื่อ, สกุล, หรือแผนกเพื่อค้นหา..."
+                          value={memberSearchText}
+                          onChange={(e) => setMemberSearchText(e.target.value)}
+                          className="memberPickerSearchInput"
+                          autoFocus
+                        />
+                      </div>
+
+                      {memberSearchText.trim() && (
+                        <div className="memberPickerResultsList">
+                          {searchFilteredMembers.length === 0 ? (
+                            <div style={{ padding: '0.75rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
+                              ไม่พบบุคลากรที่ตรงกัน หรือได้เข้าร่วมกิจกรรมไปแล้ว
+                            </div>
+                          ) : (
+                            searchFilteredMembers.map((m) => (
+                              <div
+                                key={m.id}
+                                onClick={() => {
+                                  setSelectedMember(m)
+                                  setMemberSearchText('')
+                                }}
+                                className="memberPickerItem"
+                              >
+                                <div>
+                                  <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>{m.name}</strong>
+                                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                    {m.department || 'ไม่ระบุแผนก'} • {m.position || 'เจ้าหน้าที่'}
+                                  </div>
+                                </div>
+                                <Plus size={14} color="#059669" />
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="selectedMemberChip">
+                      <div>
+                        <strong style={{ fontSize: '0.9rem', color: '#065f46' }}>{selectedMember.name}</strong>
+                        <div style={{ fontSize: '0.75rem', color: '#047857' }}>
+                          {selectedMember.department || 'ไม่ระบุแผนก'} • {selectedMember.position || 'เจ้าหน้าที่'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMember(null)}
+                        style={{ background: 'none', border: 'none', color: '#059669', cursor: 'pointer', padding: '0.25rem' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Points Awarded */}
+                <div>
+                  <label className="formLabel">
+                    คะแนนที่ได้รับ (Points) <span className="formRequired">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    required
+                    value={addPoints}
+                    onChange={(e) => setAddPoints(parseInt(e.target.value, 10) || 0)}
+                    className="formInput"
+                  />
+                  <small style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                    มาตรฐานทั่วไปสำหรับกิจกรรมคือ 1 คะแนน (สามารถกำหนด 0 - 10)
+                  </small>
+                </div>
+
+                {/* Check-in Time */}
+                <div>
+                  <label className="formLabel">
+                    เวลาที่เช็คอิน
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={addTime}
+                    onChange={(e) => setAddTime(e.target.value)}
+                    className="formInput"
+                  />
+                </div>
+
+                {/* Note */}
+                <div>
+                  <label className="formLabel">
+                    เหตุผล / บันทึกเพิ่มเติม
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="เช่น เช็คชื่อจากเอกสารลงทะเบียนหน้างาน, แบตหมด"
+                    value={addNote}
+                    onChange={(e) => setAddNote(e.target.value)}
+                    className="formInput"
+                  />
+                </div>
+              </div>
+
+              <div className="attendeeModalFooter">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  disabled={actionLoading}
+                  className="btnSecondary"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading || !selectedMember}
+                  className="btnPrimary"
+                  style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+                >
+                  {actionLoading ? 'กำลังบันทึก...' : 'บันทึกการเข้าร่วม'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          Modal 2: แก้ไขข้อมูลผู้เข้าร่วมงาน (Edit Attendance)
+          ───────────────────────────────────────────────────────────── */}
+      {editingAttendance && (
+        <div className="attendeeModalOverlay">
+          <div className="attendeeModalCard">
+            <div className="attendeeModalHeader">
+              <h3>แก้ไขข้อมูลผู้เข้าร่วมงาน</h3>
+              <button
+                type="button"
+                onClick={() => setEditingAttendance(null)}
+                className="attendeeModalCloseBtn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditSubmit}>
+              <div className="attendeeModalBody">
+                {actionError && (
+                  <div style={{ padding: '0.65rem 0.85rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', color: '#b91c1c', fontSize: '0.825rem' }}>
+                    {actionError}
+                  </div>
+                )}
+
+                <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.65rem', border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>บุคลากร</div>
+                  <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>
+                    {editingAttendance.member?.name || 'บุคลากร'}
+                  </strong>
+                  <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+                    {editingAttendance.member?.department || 'ไม่ระบุแผนก'}
+                  </div>
+                </div>
+
+                {/* Points Awarded */}
+                <div>
+                  <label className="formLabel">
+                    คะแนนที่ได้รับ (Points) <span className="formRequired">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    required
+                    value={editPoints}
+                    onChange={(e) => setEditPoints(parseInt(e.target.value, 10) || 0)}
+                    className="formInput"
+                  />
+                </div>
+
+                {/* Check-in Time */}
+                <div>
+                  <label className="formLabel">
+                    เวลาที่เช็คอิน
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editTime}
+                    onChange={(e) => setEditTime(e.target.value)}
+                    className="formInput"
+                  />
+                </div>
+              </div>
+
+              <div className="attendeeModalFooter">
+                <button
+                  type="button"
+                  onClick={() => setEditingAttendance(null)}
+                  disabled={actionLoading}
+                  className="btnSecondary"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={actionLoading}
+                  className="btnPrimary"
+                  style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+                >
+                  {actionLoading ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          Modal 3: ยืนยันการลบรายชื่อผู้เข้าร่วม (Confirm Delete)
+          ───────────────────────────────────────────────────────────── */}
+      {deletingAttendance && (
+        <div className="attendeeModalOverlay">
+          <div className="attendeeModalCard" style={{ maxWidth: 440 }}>
+            <div className="attendeeModalHeader" style={{ borderBottomColor: '#fecaca', background: '#fef2f2' }}>
+              <h3 style={{ color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertTriangle size={18} />
+                <span>ยืนยันการลบรายชื่อ</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setDeletingAttendance(null)}
+                className="attendeeModalCloseBtn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="attendeeModalBody">
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#334155', lineHeight: 1.6 }}>
+                คุณต้องการลบรายชื่อ <strong>{deletingAttendance.member?.name}</strong> ออกจากการเข้าร่วมกิจกรรมนี้ใช่หรือไม่?
+              </p>
+              <div style={{ padding: '0.65rem 0.85rem', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '0.5rem', fontSize: '0.8rem', color: '#92400e' }}>
+                ⚠️ คะแนนสะสม ({deletingAttendance.pointsAwarded} คะแนน) จะถูกนำออกจากคะแนนรวมของบุคลากรท่านนี้ทันที
+              </div>
+            </div>
+
+            <div className="attendeeModalFooter">
+              <button
+                type="button"
+                onClick={() => setDeletingAttendance(null)}
+                disabled={actionLoading}
+                className="btnSecondary"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={actionLoading}
+                style={{
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '0.5rem',
+                  padding: '0.5rem 1.25rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {actionLoading ? 'กำลังลบ...' : 'ยืนยันลบรายชื่อ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Printable Standee Sheet (Hidden on screen, perfectly centered on A4 print) */}
       <div className="printStandee">

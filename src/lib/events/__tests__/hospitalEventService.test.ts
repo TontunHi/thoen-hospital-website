@@ -35,6 +35,8 @@ describe('HospitalEventService', () => {
         findUnique: vi.fn(),
         findMany: vi.fn(),
         count: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
       },
       equipmentBorrowRequest: {
         create: vi.fn(),
@@ -282,6 +284,105 @@ describe('HospitalEventService', () => {
       mockDb.eventRegistration.delete.mockResolvedValue({ id: 1 })
       const result = await service.cancelRegistration(1, 7)
       expect(result.success).toBe(true)
+    })
+  })
+
+  describe('Manual Attendance Management', () => {
+    const actorOrganizer = { id: 10, name: 'ผู้จัดงาน', username: '1100200300401', role: 'member' }
+    const actorAdmin = { id: 99, name: 'แอดมิน', username: 'admin01', role: 'admin' }
+    const actorStranger = { id: 50, name: 'บุคคลอื่น', username: 'stranger', role: 'member' }
+
+    const mockEvent = {
+      id: 1,
+      title: 'กิจกรรมสุขภาพ',
+      headOrganizerId: 10,
+      coOrganizers: [{ memberId: 12 }],
+    }
+
+    const mockMember = {
+      id: 25,
+      name: 'สมศรี มีสุข',
+      username: '1234567890123',
+      department: 'กลุ่มงานการพยาบาล',
+    }
+
+    it('organizer can manually add attendee', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue(mockEvent)
+      mockDb.member.findUnique.mockResolvedValue(mockMember)
+      mockDb.eventAttendance.findUnique.mockResolvedValue(null)
+      mockDb.eventAttendance.create.mockResolvedValue({
+        id: 101,
+        eventId: 1,
+        memberId: 25,
+        pointsAwarded: 1,
+        member: mockMember,
+      })
+
+      const result = await service.addManualAttendance(1, { memberId: 25 }, actorOrganizer)
+      expect(result.id).toBe(101)
+      expect(mockDb.eventAttendance.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            eventId: 1,
+            memberId: 25,
+            pointsAwarded: 1,
+          }),
+        })
+      )
+    })
+
+    it('rejects manual add if unauthorized user attempts', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue(mockEvent)
+
+      await expect(
+        service.addManualAttendance(1, { memberId: 25 }, actorStranger)
+      ).rejects.toThrow('คุณไม่มีสิทธิ์จัดการรายชื่อผู้เข้าร่วมกิจกรรมนี้')
+    })
+
+    it('rejects duplicate manual add if already attended', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue(mockEvent)
+      mockDb.member.findUnique.mockResolvedValue(mockMember)
+      mockDb.eventAttendance.findUnique.mockResolvedValue({ id: 55 })
+
+      await expect(
+        service.addManualAttendance(1, { memberId: 25 }, actorOrganizer)
+      ).rejects.toThrow('มีรายชื่อเข้าร่วมกิจกรรมนี้แล้ว')
+    })
+
+    it('admin or organizer can update attendance points and time', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue(mockEvent)
+      mockDb.eventAttendance.findUnique.mockResolvedValue({
+        id: 101,
+        eventId: 1,
+        memberId: 25,
+        member: { id: 25, name: 'สมศรี มีสุข' },
+      })
+      mockDb.eventAttendance.update.mockResolvedValue({
+        id: 101,
+        pointsAwarded: 2,
+        member: mockMember,
+      })
+
+      const result = await service.updateAttendance(1, 101, { pointsAwarded: 2 }, actorAdmin)
+      expect(result.pointsAwarded).toBe(2)
+      expect(mockDb.eventAttendance.update).toHaveBeenCalled()
+    })
+
+    it('organizer can delete attendance record', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue(mockEvent)
+      mockDb.eventAttendance.findUnique.mockResolvedValue({
+        id: 101,
+        eventId: 1,
+        memberId: 25,
+        member: { id: 25, name: 'สมศรี มีสุข' },
+      })
+      mockDb.eventAttendance.delete.mockResolvedValue({ id: 101 })
+
+      const result = await service.deleteAttendance(1, 101, actorOrganizer)
+      expect(result.success).toBe(true)
+      expect(mockDb.eventAttendance.delete).toHaveBeenCalledWith({
+        where: { id: 101 },
+      })
     })
   })
 })
