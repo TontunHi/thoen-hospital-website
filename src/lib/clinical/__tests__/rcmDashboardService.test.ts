@@ -197,7 +197,48 @@ describe('RcmDashboardService', () => {
       expect(msg).toContain('นพ. วรพจน์ มิตรภาพ')
       expect(msg).toContain('https://thoenhospital.go.th/service/dashboard-rcm/ipd')
     })
+
+    it('queries and aggregates incomplete charts by doctor correctly', async () => {
+      const mockDocRows = [
+        {
+          doctor_code: 'DOC_1',
+          doctor_name: 'พญ. วรินทร ถาคร',
+          total_charts: 42,
+          completed_charts: 27,
+          uncompleted_charts: 15,
+        },
+      ]
+      const mockGrandRows = [
+        {
+          total_charts: 261,
+          completed_charts: 195,
+          uncompleted_charts: 66,
+        },
+      ]
+
+      const mockExecutor: QueryExecutor = vi
+        .fn()
+        .mockImplementation(async (sql: string) => {
+          if (sql.includes('HAVING uncompleted_charts > 0')) {
+            return mockDocRows
+          }
+          return mockGrandRows
+        })
+
+      const targetDate = new Date(2026, 9, 12) // Oct 12, 2026 -> FY 2570
+      const result = await RcmDashboardService.getIpdDoctorChartSummary(targetDate, mockExecutor)
+
+      expect(result.fiscalYear).toBe(2570)
+      expect(result.grandTotal.total_charts).toBe(261)
+      expect(result.grandTotal.completed_charts).toBe(195)
+      expect(result.grandTotal.uncompleted_charts).toBe(66)
+      expect(result.grandTotal.completed_percentage).toBeCloseTo(74.71, 1)
+      expect(result.doctors).toHaveLength(1)
+      expect(result.doctors[0].doctor_name).toBe('พญ. วรินทร ถาคร')
+      expect(result.doctors[0].uncompleted_charts).toBe(15)
+    })
   })
 })
+
 
 

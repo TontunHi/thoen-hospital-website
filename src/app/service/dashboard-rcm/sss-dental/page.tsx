@@ -13,7 +13,7 @@ export default async function SssDentalPage() {
     redirect('/member/login')
   }
 
-  if (session.role === 'subdistrict') {
+  if (session.role !== 'admin' && session.role !== 'staff') {
     redirect('/service')
   }
 

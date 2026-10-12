@@ -747,12 +747,12 @@ export class RcmDashboardService {
    * แปลงข้อมูลชาร์ตค้างเป็นข้อความ HTML สำหรับส่ง Telegram
    */
   static formatTelegramChartSummary(data: IPDChartReportData, portalUrl = ''): string {
-    const timeStr = '08:30 น.'
+    const now = new Date()
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} น.`
     const thaiMonthsShort = [
       'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
       'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
     ]
-    const now = new Date()
     const shortDateStr = `${now.getDate()} ${thaiMonthsShort[now.getMonth()]} ${String(now.getFullYear() + 543).slice(-2)}`
     const shortFyStr = `ปีงบ ${String(data.fiscalYear).slice(-2)}`
 

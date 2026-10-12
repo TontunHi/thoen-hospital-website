@@ -19,7 +19,7 @@ export default async function DashboardRcmLayout({
     redirect('/member/login')
   }
 
-  if (session.role === 'subdistrict') {
+  if (session.role !== 'admin' && session.role !== 'staff') {
     redirect('/service')
   }
 

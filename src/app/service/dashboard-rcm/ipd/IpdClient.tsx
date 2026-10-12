@@ -586,6 +586,19 @@ export default function IpdClient() {
             </p>
           </div>
         </div>
+
+        <div className="rcm-kpi-card">
+          <div className="rcm-kpi-icon" style={{ backgroundColor: '#fef3c7', color: '#d97706' }}>
+            <Clock size={24} />
+          </div>
+          <div>
+            <p className="rcm-kpi-title">ชาร์ตยังไม่สรุป</p>
+            <p className="rcm-kpi-val" style={{ color: '#b45309' }}>
+              {formatNumber(metrics.notFinal)}
+              <span className="rcm-kpi-unit">ชาร์ต</span>
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Subtab Selector */}

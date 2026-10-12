@@ -15,7 +15,7 @@ export async function POST() {
       )
     }
 
-    if (session.role === 'subdistrict') {
+    if (session.role !== 'admin' && session.role !== 'staff') {
       return NextResponse.json(
         { success: false, error: 'Forbidden: ไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้' },
         { status: 403 }
