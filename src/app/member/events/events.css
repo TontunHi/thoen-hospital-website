@@ -1767,37 +1767,168 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Print Standee Styles
+   Print Standee Styles (A4 Page Centered, Clean without browser header/footer)
    ────────────────────────────────────────────────────────────────────────── */
 .printStandee {
   display: none;
 }
 
+@page {
+  size: A4 portrait;
+  margin: 0mm;
+}
+
 @media print {
-  body * {
-    visibility: hidden;
+  @page {
+    size: A4 portrait;
+    margin: 0mm;
   }
+
+  /* Reset body and page */
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color: #1e293b !important;
+  }
+
+  /* Hide everything on the webpage except .printStandee */
+  body * {
+    visibility: hidden !important;
+  }
+
   .printStandee,
   .printStandee * {
-    visibility: visible;
+    visibility: visible !important;
   }
+
   .printStandee {
-    display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 2rem;
-    box-sizing: border-box;
-    text-align: center;
-    background: #ffffff;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 12mm !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
+    background: #ffffff !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
+
   .printStandeeBorder {
-    border: 4px solid #064e3b;
-    border-radius: 1.5rem;
-    padding: 2.5rem;
-    max-width: 600px;
-    margin: 0 auto;
+    border: 3.5px solid #064e3b !important;
+    border-radius: 20px !important;
+    padding: 14mm 12mm !important;
+    max-width: 170mm !important;
+    width: 100% !important;
+    margin: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .printHospitalName {
+    font-size: 24pt !important;
+    font-weight: 800 !important;
+    color: #064e3b !important;
+    margin: 0 0 6px 0 !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.5px !important;
+  }
+
+  .printDivider {
+    height: 3px !important;
+    background: #064e3b !important;
+    width: 70px !important;
+    margin: 0 auto 14px auto !important;
+    border-radius: 2px !important;
+  }
+
+  .printEventTitle {
+    font-size: 17pt !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    margin: 0 0 8px 0 !important;
+    line-height: 1.35 !important;
+    max-width: 145mm !important;
+  }
+
+  .printEventMeta {
+    font-size: 11pt !important;
+    color: #475569 !important;
+    margin: 0 0 16px 0 !important;
+    line-height: 1.5 !important;
+  }
+
+  .printEventMeta p {
+    margin: 3px 0 !important;
+  }
+
+  /* QR Code Hero Center */
+  .printQrContainer {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 12px auto 16px auto !important;
+    padding: 10px !important;
+    background: #ffffff !important;
+  }
+
+  .printQrImage {
+    width: 270px !important;
+    height: 270px !important;
+    max-width: 70mm !important;
+    max-height: 70mm !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: 0 auto !important;
+  }
+
+  .printInstructions {
+    margin-top: 8px !important;
+    line-height: 1.5 !important;
+  }
+
+  .printInstructionTitle {
+    font-size: 14pt !important;
+    font-weight: 800 !important;
+    color: #064e3b !important;
+    margin: 0 0 6px 0 !important;
+  }
+
+  .printInstructionTimes {
+    font-size: 10.5pt !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    margin: 0 0 4px 0 !important;
+  }
+
+  .printInstructionNote {
+    font-size: 9.5pt !important;
+    color: #64748b !important;
+    margin: 0 !important;
   }
 }
+

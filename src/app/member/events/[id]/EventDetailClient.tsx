@@ -495,39 +495,43 @@ export default function EventDetailClient({
         </div>
       </div>
 
-      {/* Printable Standee Sheet (Hidden until print) */}
+      {/* Printable Standee Sheet (Hidden on screen, perfectly centered on A4 print) */}
       <div className="printStandee">
         <div className="printStandeeBorder">
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#064e3b', margin: '0 0 0.5rem 0' }}>
+          <h1 className="printHospitalName">
             โรงพยาบาลเถิน
           </h1>
-          <div style={{ height: 2, background: '#064e3b', width: 90, margin: '0 auto 1.5rem' }} />
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 0.5rem 0' }}>{event.title}</h2>
-          <p style={{ margin: '0.25rem 0', color: '#475569' }}>
-            วันและเวลา: {formatThaiDateTime(event.eventStartDate)}
-          </p>
-          {event.location && (
-            <p style={{ margin: '0.25rem 0', color: '#475569' }}>สถานที่: {event.location}</p>
-          )}
+          <div className="printDivider" />
+          
+          <h2 className="printEventTitle">{event.title}</h2>
+          
+          <div className="printEventMeta">
+            <p><strong>วันและเวลา:</strong> {formatThaiDateTime(event.eventStartDate)}</p>
+            {event.location && (
+              <p><strong>สถานที่:</strong> {event.location}</p>
+            )}
+          </div>
 
-          <div style={{ margin: '2rem 0' }}>
+          <div className="printQrContainer">
             {qrDataUrl && (
               <img
                 src={qrDataUrl}
-                alt="QR Code"
-                style={{ width: 280, height: 280, objectFit: 'contain' }}
+                alt="QR Code สำหรับเช็คอิน"
+                className="printQrImage"
               />
             )}
           </div>
 
-          <div style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.6 }}>
-            <p style={{ fontWeight: 800, color: '#064e3b', fontSize: '1.1rem' }}>
+          <div className="printInstructions">
+            <p className="printInstructionTitle">
               สแกนเช็คอินเข้าร่วมกิจกรรมด้วยแอป ThaID
             </p>
-            <p>
-              เปิดรับสแกน: {formatThaiDateTime(event.checkinOpenTime)} ถึง {formatThaiDateTime(event.checkinCloseTime)}
+            <p className="printInstructionTimes">
+              ช่วงเวลาเปิดรับสแกน: {formatThaiDateTime(event.checkinOpenTime)} ถึง {formatThaiDateTime(event.checkinCloseTime)}
             </p>
-            <p>ผู้เข้าร่วมงานจะได้รับ 1 คะแนนสะสมสำหรับการมีส่วนร่วม</p>
+            <p className="printInstructionNote">
+              ผู้เข้าร่วมงานจะได้รับ 1 คะแนนสะสมสำหรับการมีส่วนร่วม
+            </p>
           </div>
         </div>
       </div>
