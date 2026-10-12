@@ -4,10 +4,24 @@ import { createMemberSession } from '@/lib/memberAuth'
 import { MemberAuthService } from '@/lib/auth/MemberAuthService'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
+import { getThaidConfig, verifyOAuthState } from '@/lib/thaidAuth'
 
 export const dynamic = 'force-dynamic'
 
 const authService = new MemberAuthService()
+
+// Deduplication cache for concurrent / duplicate callbacks (e.g. Safari top-level + ThaID app return)
+const inFlightExchanges = new Map<string, Promise<{ username: string; email: string; role: string }>>()
+const completedExchanges = new Map<string, { payload: { username: string; email: string; role: string }; timestamp: number }>()
+
+function cleanExpiredCompletedExchanges() {
+  const now = Date.now()
+  for (const [codeKey, record] of completedExchanges.entries()) {
+    if (now - record.timestamp > 60_000) {
+      completedExchanges.delete(codeKey)
+    }
+  }
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -43,13 +57,20 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/member/login?error=thaid_invalid_request', baseUrl))
   }
 
-  // 1. Verify CSRF state token
+  // 1. Dual-check verification for CSRF state token:
+  // First check cookie, fallback to HMAC cryptographic signature check if cookie was dropped (e.g. by Safari ITP or cross-site redirect)
   const cookieStore = await cookies()
   const savedState = cookieStore.get('thaid_oauth_state')?.value
-  cookieStore.delete('thaid_oauth_state')
+  const isCookieMatch = Boolean(savedState && savedState === state)
 
-  if (!savedState || savedState !== state) {
-    logger.warn({ savedStatePresent: Boolean(savedState) }, 'ThaID OAuth state mismatch or expired')
+  const config = getThaidConfig()
+  const isHmacValid = verifyOAuthState(state, config?.clientSecret)
+
+  if (!isCookieMatch && !isHmacValid) {
+    logger.warn(
+      { savedStatePresent: Boolean(savedState), isHmacValid },
+      'ThaID OAuth state mismatch or expired (both cookie and HMAC check failed)'
+    )
     try {
       await logAudit(
         'LOGIN',
@@ -61,10 +82,33 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/member/login?error=thaid_invalid_state', baseUrl))
   }
 
-  // 3. Exchange code for user identity (PID) and get session payload
+  // State verified! Clear state cookie if it was present
+  if (savedState) {
+    cookieStore.delete('thaid_oauth_state')
+  }
+
+  // 2. Exchange code for user identity (PID) and get session payload,
+  // with in-flight deduplication to prevent double-scan / concurrent request race condition
+  cleanExpiredCompletedExchanges()
+
   let sessionPayload
   try {
-    sessionPayload = await authService.exchangeThaidCode(code, state)
+    const cached = completedExchanges.get(code)
+    if (cached && Date.now() - cached.timestamp < 60_000) {
+      sessionPayload = cached.payload
+    } else if (inFlightExchanges.has(code)) {
+      sessionPayload = await inFlightExchanges.get(code)!
+    } else {
+      const exchangePromise = authService.exchangeThaidCode(code, state)
+      inFlightExchanges.set(code, exchangePromise)
+
+      try {
+        sessionPayload = await exchangePromise
+        completedExchanges.set(code, { payload: sessionPayload, timestamp: Date.now() })
+      } finally {
+        inFlightExchanges.delete(code)
+      }
+    }
   } catch (error: any) {
     logger.error({ error }, 'ThaID exchange failed')
     if (error.message === 'ThaID citizen ID not registered in hospital members') {
@@ -73,7 +117,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/member/login?error=thaid_exchange_failed', baseUrl))
   }
 
-  // 4. Create secure session cookie (bypassing OTP)
+  // 3. Create secure session cookie (bypassing OTP)
   await createMemberSession(sessionPayload.username, sessionPayload.email, sessionPayload.role)
 
   return NextResponse.redirect(new URL('/member', baseUrl))

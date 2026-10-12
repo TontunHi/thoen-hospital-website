@@ -39,11 +39,60 @@ export function getThaidConfig(): ThaidConfig | null {
   }
 }
 
+function getSecretForState(customSecret?: string): string {
+  return (
+    customSecret ||
+    process.env.THAID_CLIENT_SECRET ||
+    process.env.JWT_SECRET ||
+    'thoen-thaid-oauth-state-secret-fallback'
+  )
+}
+
 /**
- * Generates a secure, cryptographically random state token to prevent CSRF attacks.
+ * Generates an HMAC-signed state token containing timestamp, random nonce, and signature.
+ * Allows stateless verification even if cross-site redirects drop cookies or multi-tabs overwrite them.
  */
-export function generateOAuthState(): string {
-  return crypto.randomBytes(32).toString('hex')
+export function generateOAuthState(customSecret?: string): string {
+  const secret = getSecretForState(customSecret)
+  const timestamp = Date.now()
+  const nonce = crypto.randomBytes(16).toString('hex')
+  const payload = `${timestamp}.${nonce}`
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${hmac}`
+}
+
+/**
+ * Verifies that the OAuth state parameter is authentic, has not been tampered with,
+ * and is within its validity period (default 10 minutes).
+ */
+export function verifyOAuthState(
+  state: string,
+  customSecret?: string,
+  maxAgeMs = 10 * 60 * 1000 // 10 minutes
+): boolean {
+  if (!state || typeof state !== 'string') return false
+  const parts = state.split('.')
+  if (parts.length !== 3) return false
+  const [timestampStr, nonce, hmac] = parts
+  const timestamp = parseInt(timestampStr, 10)
+  if (isNaN(timestamp) || !nonce || !hmac) return false
+
+  const now = Date.now()
+  // Check validity window with 60-second forward clock drift allowance
+  if (now - timestamp > maxAgeMs || timestamp > now + 60 * 1000) {
+    return false
+  }
+
+  const secret = getSecretForState(customSecret)
+  const payload = `${timestampStr}.${nonce}`
+  const expectedHmac = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+
+  if (expectedHmac.length !== hmac.length) return false
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(hmac))
+  } catch {
+    return false
+  }
 }
 
 /**

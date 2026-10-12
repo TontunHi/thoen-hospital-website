@@ -20,16 +20,23 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/member/login?error=thaid_not_configured', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'))
   }
 
-  const state = generateOAuthState()
+  const state = generateOAuthState(config.clientSecret)
   const authUrl = buildThaidAuthorizeUrl(state, config)
+
+  const proto = request.headers.get('x-forwarded-proto')
+  const isHttps =
+    proto === 'https' ||
+    request.url.startsWith('https://') ||
+    process.env.COOKIE_SECURE === 'true' ||
+    Boolean(process.env.NEXT_PUBLIC_SITE_URL?.startsWith('https://'))
 
   const cookieStore = await cookies()
   cookieStore.set('thaid_oauth_state', state, {
     httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true',
+    secure: isHttps,
     sameSite: 'lax',
     path: '/',
-    maxAge: 300, // 5 minutes
+    maxAge: 600, // 10 minutes
   })
 
   if (acceptsJson) {

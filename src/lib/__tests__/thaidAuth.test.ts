@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   getThaidConfig,
   generateOAuthState,
+  verifyOAuthState,
   buildThaidAuthorizeUrl,
   exchangeThaidAuthorizationCode,
 } from '../thaidAuth'
@@ -37,12 +38,33 @@ describe('ThaID Auth Utility', () => {
     expect(config?.redirectUri).toBe('https://thoenhospital.moph.go.th/api/auth/thaid/callback')
   })
 
-  it('generates a random hex state of at least 32 characters', () => {
-    const state1 = generateOAuthState()
-    const state2 = generateOAuthState()
+  it('generates a random hex state of at least 32 characters and verifies HMAC signature', () => {
+    const secret = 'my-super-secret-key'
+    const state1 = generateOAuthState(secret)
+    const state2 = generateOAuthState(secret)
     expect(typeof state1).toBe('string')
     expect(state1.length).toBeGreaterThanOrEqual(32)
     expect(state1).not.toBe(state2)
+
+    // Valid state verifies successfully
+    expect(verifyOAuthState(state1, secret)).toBe(true)
+    expect(verifyOAuthState(state2, secret)).toBe(true)
+
+    // Tampered state fails verification
+    const tampered = state1.slice(0, -4) + 'abcd'
+    expect(verifyOAuthState(tampered, secret)).toBe(false)
+
+    // Wrong secret fails verification
+    expect(verifyOAuthState(state1, 'wrong-secret')).toBe(false)
+
+    // Malformed state fails verification
+    expect(verifyOAuthState('invalid-state', secret)).toBe(false)
+    expect(verifyOAuthState('', secret)).toBe(false)
+
+    // Expired state fails verification
+    const expiredTimestamp = Date.now() - 15 * 60 * 1000 // 15 mins ago
+    const expiredState = `${expiredTimestamp}.randomnonce.signature`
+    expect(verifyOAuthState(expiredState, secret, 10 * 60 * 1000)).toBe(false)
   })
 
   it('builds a proper ThaID authorization URL with query params', () => {
