@@ -87,7 +87,7 @@ This document serves as the canonical domain glossary and architectural context 
 ## 2. Access Rules & Bounded Contexts
 
 ### การเข้าถึงหน้าบริการ Dashboard-RCM (`/service/dashboard-rcm`):
-- บุคลากรโรงพยาบาลทุกคนที่ผ่านการล็อกอินเข้าสู่ระบบ (`verifyMemberSession()`) ในบทบาท `staff` หรือ `admin` สามารถเข้าถึงได้ (จำกัดสิทธิ์ไม่ให้ผู้ใช้กลุ่ม `subdistrict` รพ.สต. เข้าถึง)
+- บุคลากรโรงพยาบาลทุกคนที่ผ่านการล็อกอินเข้าสู่ระบบ (`verifyMemberSession()`) ในบทบาท `member`, `staff` หรือ `admin` สามารถเข้าถึงได้ (จำกัดสิทธิ์ไม่ให้ผู้ใช้กลุ่ม `subdistrict` รพ.สต. เข้าถึง)
 - แสดงข้อมูลเลขบัตรประชาชน (CID) เต็ม 13 หลักสำหรับการใช้งานภายใน Intranet ของบุคลากรทางการแพทย์และการเงิน
 - มีระบบ Audit Log (`logThrottledAudit()`) บันทึกการเข้าอ่านข้อมูลผู้ป่วยและสถิติการเงินเพื่อความมั่นคงปลอดภัยตามมาตรฐานโรงพยาบาล
 

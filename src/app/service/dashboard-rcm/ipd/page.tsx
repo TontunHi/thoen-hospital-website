@@ -13,7 +13,7 @@ export default async function IpdPage() {
     redirect('/member/login')
   }
 
-  if (session.role !== 'admin' && session.role !== 'staff') {
+  if (session.role !== 'admin' && session.role !== 'staff' && session.role !== 'member') {
     redirect('/service')
   }
 

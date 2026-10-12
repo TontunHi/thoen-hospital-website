@@ -15,7 +15,7 @@ export async function POST() {
       )
     }
 
-    if (session.role !== 'admin' && session.role !== 'staff') {
+    if (session.role !== 'admin' && session.role !== 'staff' && session.role !== 'member') {
       return NextResponse.json(
         { success: false, error: 'Forbidden: ไม่มีสิทธิ์เข้าถึงฟังก์ชันนี้' },
         { status: 403 }

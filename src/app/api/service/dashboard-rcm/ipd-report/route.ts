@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       )
     }
 
-    if (session.role !== 'admin' && session.role !== 'staff') {
+    if (session.role !== 'admin' && session.role !== 'staff' && session.role !== 'member') {
       return NextResponse.json(
         { success: false, error: 'Forbidden: ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
         { status: 403 }
