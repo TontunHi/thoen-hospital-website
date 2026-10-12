@@ -141,7 +141,7 @@ export async function DELETE(
     }
 
     const result = await eventService.deleteAttendance(eventId, parsed.data.attendanceId, actor)
-    return NextResponse.json({ success: true, ...result })
+    return NextResponse.json(result)
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบผู้เข้าร่วม' },
