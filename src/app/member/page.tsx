@@ -22,7 +22,9 @@ import {
   Sparkles,
   LayoutGrid,
   Settings2,
-  UserCheck
+  UserCheck,
+  Calendar,
+  Trophy
 } from 'lucide-react'
 import './page.css'
 
@@ -252,6 +254,24 @@ export default async function MemberDashboardPage() {
                   </div>
                   <div className="serviceCardFooter" style={{ color: '#059669' }}>
                     <span className="actionText">เข้าสู่ระบบยืม-คืนอุปกรณ์</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
+
+                {/* 7. ระบบกิจกรรมและคะแนนการมีส่วนร่วม (Hospital Events & Points) */}
+                <Link href="/member/events" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper" style={{ background: '#fef3c7', color: '#b45309' }}>
+                      <Calendar size={24} />
+                    </div>
+                    <span className="cardTagPill" style={{ background: '#fef9c3', color: '#854d0e' }}>ThaID Check-in</span>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>ระบบกิจกรรมและสะสมคะแนน</h4>
+                    <p>ติดตามกิจกรรมเร็วๆ นี้ ลงทะเบียนล่วงหน้า สแกน QR Code ผ่าน ThaID และดูกระดานคะแนน (Leaderboard)</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#d97706' }}>
+                    <span className="actionText">ดูกิจกรรมและกระดานคะแนน</span>
                     <ChevronRight size={16} className="chevronIcon" />
                   </div>
                 </Link>

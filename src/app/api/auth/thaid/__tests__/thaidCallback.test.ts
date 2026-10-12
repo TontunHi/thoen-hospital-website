@@ -145,4 +145,15 @@ describe('ThaID Callback Route Handler', () => {
     // Crucial check: Exchange is called only ONCE for both requests!
     expect(mockExchangeThaidCode).toHaveBeenCalledTimes(1)
   })
+
+  describe('Event Check-in via ThaID branch', () => {
+    it('redirects to checkin-status with error when thaid returns an error for event', async () => {
+      const state = `evt_token123.123456.abc`
+      const req = new Request(`http://localhost:3000/api/auth/thaid/callback?error=access_denied&state=${state}`)
+      const res = await thaidCallbackHandler(req)
+
+      expect(res.status).toBe(307)
+      expect(res.headers.get('location')).toContain('/member/events/checkin-status?status=error&message=thaid_denied')
+    })
+  })
 })

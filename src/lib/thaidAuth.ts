@@ -96,6 +96,53 @@ export function verifyOAuthState(
 }
 
 /**
+ * Generates an HMAC-signed state token embedding the event QR token.
+ */
+export function generateEventOAuthState(qrToken: string, customSecret?: string): string {
+  const secret = getSecretForState(customSecret)
+  const timestamp = Date.now()
+  const nonce = crypto.randomBytes(16).toString('hex')
+  const payload = `evt_${qrToken}.${timestamp}.${nonce}`
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${hmac}`
+}
+
+/**
+ * Verifies that the OAuth state parameter for an event check-in is authentic and returns the qrToken.
+ */
+export function verifyEventOAuthState(
+  state: string,
+  customSecret?: string,
+  maxAgeMs = 15 * 60 * 1000
+): { isValid: boolean; qrToken?: string } {
+  if (!state || typeof state !== 'string') return { isValid: false }
+  const parts = state.split('.')
+  if (parts.length !== 4) return { isValid: false }
+  const [prefixToken, timestampStr, nonce, hmac] = parts
+  if (!prefixToken.startsWith('evt_')) return { isValid: false }
+  const qrToken = prefixToken.slice(4)
+  const timestamp = parseInt(timestampStr, 10)
+  if (isNaN(timestamp) || !nonce || !hmac || !qrToken) return { isValid: false }
+
+  const now = Date.now()
+  if (now - timestamp > maxAgeMs || timestamp > now + 60 * 1000) {
+    return { isValid: false }
+  }
+
+  const secret = getSecretForState(customSecret)
+  const payload = `${prefixToken}.${timestampStr}.${nonce}`
+  const expectedHmac = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+
+  if (expectedHmac.length !== hmac.length) return { isValid: false }
+  try {
+    const match = crypto.timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(hmac))
+    return { isValid: match, qrToken: match ? qrToken : undefined }
+  } catch {
+    return { isValid: false }
+  }
+}
+
+/**
  * Builds the ThaID authorization redirect URL.
  */
 export function buildThaidAuthorizeUrl(state: string, config: ThaidConfig): string {

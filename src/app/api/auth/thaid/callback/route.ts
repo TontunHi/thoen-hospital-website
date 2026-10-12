@@ -4,11 +4,13 @@ import { createMemberSession } from '@/lib/memberAuth'
 import { MemberAuthService } from '@/lib/auth/MemberAuthService'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
-import { getThaidConfig, verifyOAuthState } from '@/lib/thaidAuth'
+import { getThaidConfig, verifyOAuthState, verifyEventOAuthState, exchangeThaidAuthorizationCode } from '@/lib/thaidAuth'
+import { HospitalEventService } from '@/lib/events/hospitalEventService'
 
 export const dynamic = 'force-dynamic'
 
 const authService = new MemberAuthService()
+const eventService = new HospitalEventService()
 
 // Deduplication cache for concurrent / duplicate callbacks (e.g. Safari top-level + ThaID app return)
 const inFlightExchanges = new Map<string, Promise<{ username: string; email: string; role: string }>>()
@@ -30,7 +32,58 @@ export async function GET(request: Request) {
   const thaidError = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const baseUrl = new URL(request.url).origin
+
+  // Special branch: Event QR Check-in via ThaID
+  if (state && state.startsWith('evt_')) {
+    if (thaidError) {
+      return NextResponse.redirect(new URL('/member/events/checkin-status?status=error&message=thaid_denied', baseUrl))
+    }
+    if (!code) {
+      return NextResponse.redirect(new URL('/member/events/checkin-status?status=error&message=missing_code', baseUrl))
+    }
+
+    const config = getThaidConfig()
+    const { isValid, qrToken } = verifyEventOAuthState(state, config?.clientSecret)
+
+    if (!isValid || !qrToken) {
+      return NextResponse.redirect(new URL('/member/events/checkin-status?status=error&message=invalid_or_expired_state', baseUrl))
+    }
+
+    if (!config) {
+      return NextResponse.redirect(new URL('/member/events/checkin-status?status=error&message=thaid_not_configured', baseUrl))
+    }
+
+    try {
+      const userInfo = await exchangeThaidAuthorizationCode(code, config)
+      if (!userInfo || !userInfo.pid) {
+        return NextResponse.redirect(new URL('/member/events/checkin-status?status=error&message=exchange_failed', baseUrl))
+      }
+
+      const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+      const userAgent = request.headers.get('user-agent') || 'unknown'
+
+      const result = await eventService.checkinViaThaid(qrToken, userInfo.pid, {
+        ipAddress: clientIp,
+        userAgent,
+      })
+
+      const target = new URL('/member/events/checkin-status', baseUrl)
+      target.searchParams.set('status', 'success')
+      target.searchParams.set('name', result.member.name || '')
+      target.searchParams.set('dept', result.member.department || 'ไม่ระบุแผนก')
+      target.searchParams.set('event', result.event.title || '')
+      target.searchParams.set('points', String(result.pointsAwarded))
+      target.searchParams.set('time', new Date(result.checkedInAt).toISOString())
+
+      return NextResponse.redirect(target)
+    } catch (err: any) {
+      const target = new URL('/member/events/checkin-status', baseUrl)
+      target.searchParams.set('status', 'error')
+      target.searchParams.set('message', err.message || 'เช็คอินไม่สำเร็จ')
+      return NextResponse.redirect(target)
+    }
+  }
 
   if (thaidError) {
     logger.warn({ thaidError, errorDescription }, 'ThaID authorization was denied or failed on provider side')

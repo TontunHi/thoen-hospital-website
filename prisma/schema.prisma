@@ -104,6 +104,10 @@ model Member {
   telegram_link_challenges telegram_link_challenges[]
   hospital_assets          HospitalAsset[]
   member_permissions       MemberPermission[]
+  eventsHeadOrganized      HospitalEvent[]            @relation("EventHeadOrganizer")
+  eventOrganizers          EventOrganizer[]
+  eventRegistrations       EventRegistration[]
+  eventAttendances         EventAttendance[]
 
   @@map("members")
 }
@@ -528,6 +532,7 @@ model EquipmentBorrowRequest {
   updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
 
   items              EquipmentBorrowItem[]
+  events             HospitalEvent[]
 
   @@index([requesterId], map: "idx_borrow_requester")
   @@index([status], map: "idx_borrow_status")
@@ -565,3 +570,83 @@ model EquipmentBorrowItem {
   @@index([status], map: "idx_item_status")
   @@map("equipment_borrow_items")
 }
+
+model HospitalEvent {
+  id               Int                   @id @default(autoincrement())
+  title            String                @db.VarChar(500)
+  description      String?               @db.Text
+  location         String?               @db.VarChar(255)
+  bannerUrl        String?               @map("banner_url") @db.VarChar(500)
+  
+  eventStartDate   DateTime              @map("event_start_date") @db.DateTime(0)
+  eventEndDate     DateTime              @map("event_end_date") @db.DateTime(0)
+  checkinOpenTime  DateTime              @map("checkin_open_time") @db.DateTime(0)
+  checkinCloseTime DateTime              @map("checkin_close_time") @db.DateTime(0)
+  
+  headOrganizerId  Int                   @map("head_organizer_id")
+  borrowRequestId  Int?                  @map("borrow_request_id")
+  qrToken          String                @unique(map: "uq_event_qr_token") @map("qr_token") @db.VarChar(64)
+  fiscalYear       String                @default("2569") @map("fiscal_year") @db.VarChar(10)
+  status           String                @default("UPCOMING") @db.VarChar(30)
+  
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  headOrganizer    Member                @relation("EventHeadOrganizer", fields: [headOrganizerId], references: [id])
+  borrowRequest    EquipmentBorrowRequest? @relation(fields: [borrowRequestId], references: [id], onDelete: SetNull)
+  coOrganizers     EventOrganizer[]
+  registrations    EventRegistration[]
+  attendances      EventAttendance[]
+
+  @@index([fiscalYear, status], map: "idx_event_year_status")
+  @@index([eventStartDate], map: "idx_event_start_date")
+  @@index([headOrganizerId], map: "idx_event_head_organizer")
+  @@map("hospital_events")
+}
+
+model EventOrganizer {
+  id        Int           @id @default(autoincrement())
+  eventId   Int           @map("event_id")
+  memberId  Int           @map("member_id")
+  roleTitle String?       @default("ผู้รับผิดชอบร่วม") @map("role_title") @db.VarChar(100)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamp(0)
+
+  event     HospitalEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member    Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, memberId], map: "uq_event_organizer")
+  @@index([memberId], map: "idx_event_org_member")
+  @@map("event_organizers")
+}
+
+model EventRegistration {
+  id           Int           @id @default(autoincrement())
+  eventId      Int           @map("event_id")
+  memberId     Int           @map("member_id")
+  registeredAt DateTime      @default(now()) @map("registered_at") @db.Timestamp(0)
+
+  event        HospitalEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member       Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, memberId], map: "uq_event_registration")
+  @@index([memberId], map: "idx_event_reg_member")
+  @@map("event_registrations")
+}
+
+model EventAttendance {
+  id            Int           @id @default(autoincrement())
+  eventId       Int           @map("event_id")
+  memberId      Int           @map("member_id")
+  citizenId     String        @map("citizen_id") @db.VarChar(13)
+  checkedInAt   DateTime      @default(now()) @map("checked_in_at") @db.Timestamp(0)
+  pointsAwarded Int           @default(1) @map("points_awarded")
+
+  event         HospitalEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member        Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, memberId], map: "uq_event_attendance")
+  @@index([checkedInAt], map: "idx_attendance_time")
+  @@index([memberId], map: "idx_attendance_member")
+  @@map("event_attendances")
+}
+
