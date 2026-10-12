@@ -38,6 +38,7 @@ This document serves as the canonical domain glossary and architectural context 
   - **งานสลิปเงินเดือน (`SALARY`):** View (`view_all_salary`), Edit/Upload (`upload_salary`)
   - **งานพัสดุและสถานที่ (`FACILITY_ASSET`):** Locations (`manage_locations`), Assets (`manage_assets`)
   - **งานหนังสือส่งออก (`OUTGOING_DOC`):** Manage (`manage_outgoing_doc`)
+  - **งานยืม-คืนอุปกรณ์และพัสดุ (`EQUIPMENT_BORROW`):** View (`view_borrow_requests`), Manage/Approve/Return (`manage_borrow`)
   - **งานชมรมจริยธรรม (`ETHICS`):** Manage (`manage_ethics`)
   - **งานข้อมูล ITA (`ITA`):** Manage (`manage_ita`)
   - **งานเอกสาร RDU (`RDU`):** Manage (`manage_rdu`)
@@ -71,6 +72,16 @@ This document serves as the canonical domain glossary and architectural context 
   - **2.1.1.2 สรุปค่าบริการผู้ป่วยนอก (`opd-doctor`):** รายงานค่ารักษาพยาบาลผู้ป่วยนอกจำแนกรายแพทย์ พร้อมการกระจายยอดรายเดือนตลอดปีงบประมาณ และระบบกรองกลุ่มสิทธิ e-Claim มาตรฐาน 37 สิทธิ
   - **2.1.2.1 รายงานสรุปการให้บริการผู้ป่วยใน (`ipd`):** รายงานสรุปการให้บริการผู้ป่วยใน จำแนกข้อมูลผู้ป่วยที่จำหน่ายออกจากโรงพยาบาล วันนอน (LOS), ค่ารักษาพยาบาล, ค่าน้ำหนักสัมพัทธ์ (AdjRW), และดัชนีความซับซ้อนของโรค (CMI) พร้อมระบบแจ้งเตือนชาร์ตค้างสรุปรายแพทย์เข้า Telegram โรงพยาบาล
 
+### Equipment Borrowing System (ระบบยืม-คืนอุปกรณ์และเบิกจ่ายวัสดุ)
+- **Definition:** ระบบบริหารจัดการยืม-คืนอุปกรณ์และเบิกใช้วัสดุของโรงพยาบาลเถิน สำหรับสนับสนุนงานกิจกรรม ประชุม อบรม หรือภารกิจชั่วคราวของหน่วยงานภายใน
+- **Key Domain Terms:**
+  - `Loanable Asset (ครุภัณฑ์พร้อมให้ยืม)`: ครุภัณฑ์จากฐานข้อมูล `hospital_assets` ที่เจ้าหน้าที่/Admin กำหนดให้สามารถยืมได้ ติดตามเป็นรายชิ้นด้วยเลขครุภัณฑ์ (Article Number)
+  - `Supply / Material (วัสดุคลัง)`: วัสดุที่มีการจัดการจำนวนคงเหลือ (Stock Quantity) แยกเป็น 2 ประเภท:
+    - *Reusable (ยืม-คืน)*: วัสดุใช้งานหมุนเวียนที่ต้องนำกลับมาส่งคืน เช่น สายต่อพ่วง, ปลั๊กไฟ, ตัวแปลงสัญญาณ
+    - *Consumable (วัสดุสิ้นเปลือง)*: วัสดุเบิกใช้แล้วตัดสต็อกทันที ไม่ต้องส่งคืน เช่น เทปกาว, ถ่านไฟฉาย, กระดาษ
+  - `Borrow Request (คำขอยืม)`: ใบขอยืมที่รองรับการเลือกรายการหลายชนิดพร้อมกันใน 1 คำขอ (Multi-item Basket) พร้อมระบุวัตถุประสงค์, สถานที่ใช้งาน, และวันที่กำหนดส่งคืน
+  - `Return Inspection (การตรวจรับคืนและประเมินสภาพ)`: ขั้นตอนการตรวจสอบสภาพเมื่อผู้ยืมนำของมาส่งคืน (ปกติ, ชำรุด, สูญหาย) พร้อมบันทึกหมายเหตุ และปรับยอดสต็อกคืนคลัง
+
 ---
 
 ## 2. Access Rules & Bounded Contexts
@@ -79,6 +90,16 @@ This document serves as the canonical domain glossary and architectural context 
 - บุคลากรโรงพยาบาลทุกคนที่ผ่านการล็อกอินเข้าสู่ระบบ (`verifyMemberSession()`) ในบทบาท `staff` หรือ `admin` สามารถเข้าถึงได้ (จำกัดสิทธิ์ไม่ให้ผู้ใช้กลุ่ม `subdistrict` รพ.สต. เข้าถึง)
 - แสดงข้อมูลเลขบัตรประชาชน (CID) เต็ม 13 หลักสำหรับการใช้งานภายใน Intranet ของบุคลากรทางการแพทย์และการเงิน
 - มีระบบ Audit Log (`logThrottledAudit()`) บันทึกการเข้าอ่านข้อมูลผู้ป่วยและสถิติการเงินเพื่อความมั่นคงปลอดภัยตามมาตรฐานโรงพยาบาล
+
+### การเข้าถึงหน้าระบบยืม-คืนอุปกรณ์ (`/member/equipment-borrow`):
+- บุคลากรทุกคนที่ผ่านการล็อกอิน (`verifyMemberSession()`):
+  - สามารถเข้าดู Dashboard ภาพรวมอุปกรณ์พร้อมยืม/กำลังถูกยืม
+  - สามารถกดปุ่ม `+ ขอยืมอุปกรณ์` ยื่นใบขอยืมอุปกรณ์และวัสดุ
+  - สามารถดูประวัติและติดตามสถานะคำขอของตนเองในแท็บ "คำขอของฉัน"
+- ผู้ดูแลระบบ (Admin) หรือบุคลากรที่มีสิทธิ์ `manage_borrow`:
+  - สามารถกดอนุมัติคำขอ จ่ายของ และบันทึกตรวจรับคืนในระบบ
+  - สามารถเข้าแท็บ "จัดการคลังอุปกรณ์/วัสดุ" เพื่อเพิ่ม ลบ แก้ไข รายการและจำนวนสต็อก
+  - บันทึก `logAudit()` ทุกการอนุมัติ จ่ายของ ตรวจรับคืน และแก้ไขสต็อก
 
 ### การเข้าถึงหน้าบริการ (`/service/outgoing-document`):
 - บุคลากรทุกคนที่ผ่านการล็อกอินเข้าสู่ระบบ (`verifyMemberSession()`) สามารถเปิดดูและคลิกลิงก์ Google Sheets ได้ทั้งหมด
@@ -100,14 +121,17 @@ This document serves as the canonical domain glossary and architectural context 
 │                                                                        │
 │  [ บุคลากรโรงพยาบาลทุกคนที่ Login ]                                   │
 │        │                                                               │
-│        ▼                                                               │
-│  /service/outgoing-document (ดูและเปิดลิงก์ Google Sheets)             │
+│        ├─► /member/equipment-borrow (Dashboard, ขอยืม, ติดตามของฉัน)   │
+│        │        │                                                      │
+│        │        └─► (เฉพาะสิทธิ์ 'manage_borrow' หรือ Admin)             │
+│        │             - อนุมัติ/จ่ายของ, ตรวจรับคืน, บริหารคลังวัสดุ    │
 │        │                                                               │
-│        │ (เฉพาะตำแหน่งที่ได้สิทธิ์ 'manage_outgoing_doc' หรือ Admin)    │
-│        ▼                                                               │
-│  /member/outgoing-document (CMS จัดการลิงก์ Google Sheets แต่ละปี)     │
+│        ├─► /service/outgoing-document (ดูและเปิดลิงก์ Google Sheets)   │
+│        │        │ (เฉพาะตำแหน่งที่ได้สิทธิ์ 'manage_outgoing_doc' หรือ Admin)
+│        │        ▼                                                      │
+│        │    /member/outgoing-document (CMS จัดการลิงก์ Google Sheets)  │
 │        ▲                                                               │
 │        │                                                               │
-│  /member/settings (Admin กำหนดตำแหน่งที่ได้รับสิทธิ์ 'manage_outgoing_doc')│
+│  /member/settings (Admin กำหนดตำแหน่งและสิทธิ์การใช้งาน)               │
 └────────────────────────────────────────────────────────────────────────┘
 ```

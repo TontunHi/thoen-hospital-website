@@ -237,6 +237,34 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
       },
     ],
   },
+  {
+    id: 'EQUIPMENT_BORROW',
+    name: 'งานยืม-คืนอุปกรณ์และพัสดุ',
+    shortName: 'ยืม-คืนอุปกรณ์',
+    category: 'workflow',
+    categoryLabel: 'งานบริการ & กล่องงาน',
+    description: 'ระบบยืม-คืนอุปกรณ์ ครุภัณฑ์ และเบิกจ่ายวัสดุสำหรับกิจกรรมและการปฏิบัติงาน',
+    iconName: 'ClipboardList',
+    badgeColor: '#059669',
+    roles: [
+      {
+        roleType: 'view',
+        label: 'ผู้ดูคำขอยืมอุปกรณ์ทั้งหมด (View All Borrows)',
+        shortLabel: 'ดูรายการยืมทั้งหมด',
+        description: 'สามารถเปิดดูและติดตามรายการขอยืมอุปกรณ์และประวัติทั้งหมดในโรงพยาบาล',
+        permissionKey: 'view_borrow_requests',
+        allowedActions: ['เปิดดูรายการขอยืมทั้งหมด', 'ตรวจสอบประวัติการยืม-คืน'],
+      },
+      {
+        roleType: 'manage',
+        label: 'ผู้ดูแลและอนุมัติการยืม-คืนอุปกรณ์ (Manage & Approve)',
+        shortLabel: 'อนุมัติ/รับคืน/จัดการคลัง',
+        description: 'เจ้าหน้าที่พัสดุ/ผู้ดูแลอุปกรณ์ ในการอนุมัติ จ่ายของ ตรวจรับคืน และจัดการคลังวัสดุ',
+        permissionKey: 'manage_borrow',
+        allowedActions: ['อนุมัติและจ่ายของ', 'ตรวจรับคืนและประเมินสภาพ', 'เพิ่ม/แก้ไข/ลบ ข้อมูลวัสดุ', 'ตั้งค่าครุภัณฑ์พร้อมให้ยืม'],
+      },
+    ],
+  },
 
   // ==========================================
   // 2. System & Governance Modules (ระบบบริหาร & กำกับดูแล)

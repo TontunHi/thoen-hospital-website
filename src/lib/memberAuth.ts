@@ -40,6 +40,8 @@ export type MemberPermission =
   | 'manage_inbox'
   | 'manage_media_requests'
   | 'manage_assets'
+  | 'manage_borrow'
+  | 'view_borrow_requests'
   | 'view_it_repairs'
   | 'view_general_repairs'
   | 'view_medical_repairs'

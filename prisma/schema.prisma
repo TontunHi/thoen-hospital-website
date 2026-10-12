@@ -417,6 +417,7 @@ model HospitalAsset {
   contractNo        String?           @map("contract_no") @db.VarChar(100)
   
   status            String            @default("ACTIVE") @map("status") @db.VarChar(30)
+  isLoanable        Boolean           @default(false) @map("is_loanable")
   imageUrl          String?           @map("image_url") @db.VarChar(500)
   notes             String?           @map("notes") @db.Text
   
@@ -427,9 +428,11 @@ model HospitalAsset {
 
   custodian         Member?           @relation(fields: [custodianId], references: [id], onDelete: SetNull)
   location          HospitalLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  borrowItems       EquipmentBorrowItem[]
 
   @@index([category], map: "idx_asset_category")
   @@index([status], map: "idx_asset_status")
+  @@index([isLoanable], map: "idx_asset_is_loanable")
   @@index([department], map: "idx_asset_department")
   @@index([locationId], map: "idx_asset_location")
   @@index([warrantyEndDate], map: "idx_asset_warranty")
@@ -478,4 +481,87 @@ model MemberRegistration {
   @@index([status], map: "idx_registration_status")
   @@index([email], map: "idx_registration_email")
   @@map("member_registrations")
+}
+
+model HospitalMaterial {
+  id           Int                   @id @default(autoincrement())
+  name         String                @db.VarChar(255)
+  category     String                @default("GENERAL") @db.VarChar(50)
+  materialType String                @default("REUSABLE") @map("material_type") @db.VarChar(30)
+  totalQty     Int                   @default(0) @map("total_qty")
+  availableQty Int                   @default(0) @map("available_qty")
+  unit         String                @default("ชิ้น") @db.VarChar(50)
+  location     String?               @db.VarChar(255)
+  imageUrl     String?               @map("image_url") @db.VarChar(500)
+  notes        String?               @db.Text
+  isActive     Boolean               @default(true) @map("is_active")
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt    DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  borrowItems  EquipmentBorrowItem[]
+
+  @@index([category], map: "idx_material_category")
+  @@index([materialType], map: "idx_material_type")
+  @@index([isActive], map: "idx_material_is_active")
+  @@map("hospital_materials")
+}
+
+model EquipmentBorrowRequest {
+  id                 Int                   @id @default(autoincrement())
+  requestNo          String                @unique(map: "uq_borrow_request_no") @map("request_no") @db.VarChar(50)
+  requesterId        Int                   @map("requester_id")
+  requesterName      String                @map("requester_name") @db.VarChar(255)
+  requesterDept      String?               @map("requester_dept") @db.VarChar(150)
+  purpose            String                @db.Text
+  location           String?               @db.VarChar(255)
+  borrowDate         DateTime              @map("borrow_date") @db.Date
+  expectedReturnDate DateTime?             @map("expected_return_date") @db.Date
+  actualReturnDate   DateTime?             @map("actual_return_date") @db.DateTime(0)
+  phone              String?               @db.VarChar(50)
+  notes              String?               @db.Text
+  status             String                @default("PENDING") @db.VarChar(30)
+  approvedById       Int?                  @map("approved_by_id")
+  approvedByName     String?               @map("approved_by_name") @db.VarChar(255)
+  approvedAt         DateTime?             @map("approved_at") @db.DateTime(0)
+  rejectReason       String?               @map("reject_reason") @db.Text
+  createdAt          DateTime              @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  items              EquipmentBorrowItem[]
+
+  @@index([requesterId], map: "idx_borrow_requester")
+  @@index([status], map: "idx_borrow_status")
+  @@index([borrowDate], map: "idx_borrow_date")
+  @@index([expectedReturnDate], map: "idx_borrow_expected_return")
+  @@map("equipment_borrow_requests")
+}
+
+model EquipmentBorrowItem {
+  id              Int                    @id @default(autoincrement())
+  requestId       Int                    @map("request_id")
+  itemType        String                 @map("item_type") @db.VarChar(20)
+  assetId         Int?                   @map("asset_id")
+  materialId      Int?                   @map("material_id")
+  itemName        String                 @map("item_name") @db.VarChar(255)
+  itemCode        String?                @map("item_code") @db.VarChar(100)
+  quantity        Int                    @default(1)
+  returnedQty     Int                    @default(0) @map("returned_qty")
+  status          String                 @default("BORROWED") @db.VarChar(30)
+  returnCondition String?                @map("return_condition") @db.VarChar(30)
+  returnNotes     String?                @map("return_notes") @db.Text
+  returnedAt      DateTime?              @map("returned_at") @db.DateTime(0)
+  inspectedById   Int?                   @map("inspected_by_id")
+  inspectedByName String?                @map("inspected_by_name") @db.VarChar(255)
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt       DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  request         EquipmentBorrowRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  asset           HospitalAsset?         @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  material        HospitalMaterial?      @relation(fields: [materialId], references: [id], onDelete: SetNull)
+
+  @@index([requestId], map: "idx_item_request_id")
+  @@index([assetId], map: "idx_item_asset_id")
+  @@index([materialId], map: "idx_item_material_id")
+  @@index([status], map: "idx_item_status")
+  @@map("equipment_borrow_items")
 }

@@ -237,6 +237,24 @@ export default async function MemberDashboardPage() {
                     </div>
                   </Link>
                 )}
+
+                {/* 6. ระบบยืม-คืนอุปกรณ์และพัสดุ (Equipment Borrowing) */}
+                <Link href="/member/equipment-borrow" className="serviceCard">
+                  <div className="serviceCardHeader">
+                    <div className="serviceIconWrapper" style={{ background: '#dcfce7', color: '#15803d' }}>
+                      <Package size={24} />
+                    </div>
+                    <span className="cardTagPill" style={{ background: '#d1fae5', color: '#065f46' }}>บริการยืม-คืน</span>
+                  </div>
+                  <div className="serviceCardBody">
+                    <h4>ระบบยืม-คืนอุปกรณ์และพัสดุ</h4>
+                    <p>ยืม-คืนอุปกรณ์ ครุภัณฑ์ เบิกจ่ายวัสดุสำหรับกิจกรรมและการปฏิบัติงาน พร้อมติดตามสถานะแบบเรียลไทม์</p>
+                  </div>
+                  <div className="serviceCardFooter" style={{ color: '#059669' }}>
+                    <span className="actionText">เข้าสู่ระบบยืม-คืนอุปกรณ์</span>
+                    <ChevronRight size={16} className="chevronIcon" />
+                  </div>
+                </Link>
               </div>
             </section>
 
