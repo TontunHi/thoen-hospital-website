@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET as getCatalog } from '../catalog/route'
 import { GET as getStats } from '../stats/route'
 import { GET as getMaterials, POST as createMaterial } from '../materials/route'
-import { POST as createRequest } from '../requests/route'
+import { GET as getRequests, POST as createRequest } from '../requests/route'
 import { equipmentBorrowService } from '@/lib/equipment/equipmentBorrowService'
 import * as memberAuth from '@/lib/memberAuth'
 
@@ -13,6 +13,7 @@ vi.mock('@/lib/equipment/equipmentBorrowService', () => ({
     getMaterials: vi.fn(),
     createMaterial: vi.fn(),
     createBorrowRequest: vi.fn(),
+    getAllBorrowRequests: vi.fn(),
   },
 }))
 
@@ -126,4 +127,57 @@ describe('Equipment Borrow API Routes', () => {
     expect(body.success).toBe(true)
     expect(body.data).toEqual(mockCreated)
   })
+
+  it('GET requests with mode=all returns 403 when user does not have permission', async () => {
+    vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+      member: {
+        id: 10,
+        username: 'user1',
+        isAdmin: false,
+        can: () => false,
+      } as any,
+    })
+
+    const req = new Request('http://localhost/api/member/equipment-borrow/requests?mode=all')
+    const res = await getRequests(req)
+    const body = await res.json()
+
+    expect(res.status).toBe(403)
+    expect(body.success).toBe(false)
+  })
+
+  it('GET requests with mode=all returns all requests for admin', async () => {
+    vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+      member: {
+        id: 1,
+        username: 'admin',
+        isAdmin: true,
+        can: () => true,
+      } as any,
+    })
+
+    const mockResult = {
+      items: [{ id: 1, requestNo: 'BR-001', status: 'RETURNED' }],
+      total: 1,
+      page: 1,
+      limit: 20,
+      totalPages: 1,
+    }
+    vi.mocked(equipmentBorrowService.getAllBorrowRequests).mockResolvedValue(mockResult as any)
+
+    const req = new Request('http://localhost/api/member/equipment-borrow/requests?mode=all&status=RETURNED&search=BR')
+    const res = await getRequests(req)
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body.success).toBe(true)
+    expect(body.items).toEqual(mockResult.items)
+    expect(equipmentBorrowService.getAllBorrowRequests).toHaveBeenCalledWith({
+      status: 'RETURNED',
+      search: 'BR',
+      page: 1,
+      limit: 20,
+    })
+  })
 })
+

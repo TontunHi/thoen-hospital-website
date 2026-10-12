@@ -27,7 +27,8 @@ import {
   ShieldCheck,
   ChevronRight,
   SlidersHorizontal,
-  FolderOpen
+  FolderOpen,
+  Eye,
 } from 'lucide-react'
 import './equipment-borrow.css'
 
@@ -141,7 +142,7 @@ export default function EquipmentBorrowClient({
 }: EquipmentBorrowClientProps) {
   // State: Tab & Stats
   const [activeTab, setActiveTab] = useState<'catalog' | 'my-requests' | 'approvals' | 'inventory'>('catalog')
-  const [approvalsSubTab, setApprovalsSubTab] = useState<'pending' | 'active'>('pending')
+  const [approvalsSubTab, setApprovalsSubTab] = useState<'pending' | 'active' | 'all'>('pending')
   const [stats, setStats] = useState<BorrowDashboardStats>(initialStats)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -169,10 +170,13 @@ export default function EquipmentBorrowClient({
   // State: My Requests
   const [myRequests, setMyRequests] = useState<BorrowRequestRecord[]>([])
 
-  // State: Admin Approvals & Active Loans
+  // State: Admin Approvals, Active Loans, and All Requests History
   const [pendingRequests, setPendingRequests] = useState<BorrowRequestRecord[]>([])
   const [activeLoans, setActiveLoans] = useState<BorrowRequestRecord[]>([])
+  const [allRequests, setAllRequests] = useState<BorrowRequestRecord[]>([])
+  const [allRequestsStatusFilter, setAllRequestsStatusFilter] = useState('ALL')
   const [approvalSearch, setApprovalSearch] = useState('')
+  const [viewDetailModalData, setViewDetailModalData] = useState<BorrowRequestRecord | null>(null)
 
   // State: Reject Modal
   const [rejectModalData, setRejectModalData] = useState<{ id: number; requestNo: string } | null>(null)
@@ -300,6 +304,26 @@ export default function EquipmentBorrowClient({
     }
   }, [currentUser.canManageBorrow, approvalSearch])
 
+  // Fetch All Requests History (Admin)
+  const fetchAllRequests = useCallback(async () => {
+    if (!currentUser.canManageBorrow) return
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ mode: 'all' })
+      if (approvalSearch.trim()) params.append('search', approvalSearch.trim())
+      if (allRequestsStatusFilter !== 'ALL') params.append('status', allRequestsStatusFilter)
+      const res = await fetch(`/api/member/equipment-borrow/requests?${params.toString()}`)
+      const json = await res.json()
+      if (json.success) {
+        setAllRequests(json.items || [])
+      }
+    } catch {
+      // quiet
+    } finally {
+      setLoading(false)
+    }
+  }, [currentUser.canManageBorrow, approvalSearch, allRequestsStatusFilter])
+
   // Fetch Materials & Assets for Inventory (Admin)
   const fetchInventory = useCallback(async () => {
     if (!currentUser.canManageBorrow) return
@@ -337,11 +361,12 @@ export default function EquipmentBorrowClient({
       fetchMyRequests()
     } else if (activeTab === 'approvals') {
       if (approvalsSubTab === 'pending') fetchPendingRequests()
-      else fetchActiveLoans()
+      else if (approvalsSubTab === 'active') fetchActiveLoans()
+      else fetchAllRequests()
     } else if (activeTab === 'inventory') {
       fetchInventory()
     }
-  }, [activeTab, approvalsSubTab, fetchCatalog, fetchMyRequests, fetchPendingRequests, fetchActiveLoans, fetchInventory])
+  }, [activeTab, approvalsSubTab, fetchCatalog, fetchMyRequests, fetchPendingRequests, fetchActiveLoans, fetchAllRequests, fetchInventory])
 
   // Basket Handlers
   const handleAddToBasket = (item: CatalogItem) => {
@@ -1017,7 +1042,7 @@ export default function EquipmentBorrowClient({
       {activeTab === 'approvals' && currentUser.canManageBorrow && (
         <section>
           {/* Subtabs Bar */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
             <button
               onClick={() => setApprovalsSubTab('pending')}
               className={approvalsSubTab === 'pending' ? 'primaryButton' : 'secondaryButton'}
@@ -1029,6 +1054,12 @@ export default function EquipmentBorrowClient({
               className={approvalsSubTab === 'active' ? 'primaryButton' : 'secondaryButton'}
             >
               📦 รายการกำลังยืม & ตรวจรับคืน ({activeLoans.length})
+            </button>
+            <button
+              onClick={() => setApprovalsSubTab('all')}
+              className={approvalsSubTab === 'all' ? 'primaryButton' : 'secondaryButton'}
+            >
+              📋 ประวัติทุกคำขอ ({allRequests.length})
             </button>
           </div>
 
@@ -1042,8 +1073,23 @@ export default function EquipmentBorrowClient({
                 onChange={(e) => setApprovalSearch(e.target.value)}
               />
             </div>
+            {approvalsSubTab === 'all' && (
+              <select
+                value={allRequestsStatusFilter}
+                onChange={(e) => setAllRequestsStatusFilter(e.target.value)}
+                className="selectInput"
+                style={{ width: 'auto', minWidth: 160 }}
+              >
+                <option value="ALL">ทุกสถานะ</option>
+                <option value="PENDING">⏳ รออนุมัติ</option>
+                <option value="APPROVED">📦 กำลังยืม</option>
+                <option value="PARTIAL_RETURNED">🔄 คืนบางส่วน</option>
+                <option value="RETURNED">✅ ส่งคืนครบแล้ว</option>
+                <option value="REJECTED">❌ ไม่อนุมัติ</option>
+              </select>
+            )}
             <button
-              onClick={approvalsSubTab === 'pending' ? fetchPendingRequests : fetchActiveLoans}
+              onClick={approvalsSubTab === 'pending' ? fetchPendingRequests : approvalsSubTab === 'active' ? fetchActiveLoans : fetchAllRequests}
               className="secondaryButton"
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> รีเฟรช
@@ -1122,7 +1168,7 @@ export default function EquipmentBorrowClient({
                   </tbody>
                 </table>
               )
-            ) : (
+            ) : approvalsSubTab === 'active' ? (
               activeLoans.length === 0 ? (
                 <div className="emptyState">
                   <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
@@ -1182,6 +1228,83 @@ export default function EquipmentBorrowClient({
                         </tr>
                       )
                     })}
+                  </tbody>
+                </table>
+              )
+            ) : (
+              allRequests.length === 0 ? (
+                <div className="emptyState">
+                  <FileText size={48} style={{ margin: '0 auto 1rem', color: '#94a3b8', opacity: 0.6 }} />
+                  <p>ไม่พบประวัติคำขอยืมตามเงื่อนไขที่เลือก</p>
+                </div>
+              ) : (
+                <table className="styledTable">
+                  <thead>
+                    <tr>
+                      <th>เลขที่คำขอ</th>
+                      <th>ผู้ขอยืม / แผนก</th>
+                      <th>รายการอุปกรณ์</th>
+                      <th>วัตถุประสงค์ & สถานที่</th>
+                      <th>วันที่ยืม - กำหนดคืน</th>
+                      <th>วันที่คืนจริง</th>
+                      <th>สถานะ</th>
+                      <th style={{ textAlign: 'right' }}>ดำเนินการ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allRequests.map((req) => (
+                      <tr key={req.id}>
+                        <td style={{ fontWeight: 600, color: '#065f46' }}>{req.requestNo}</td>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{req.requesterName}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{req.requesterDept || '-'}</div>
+                          {req.phone && (
+                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                              <Phone size={12} style={{ display: 'inline', marginRight: '0.2rem' }} />
+                              {req.phone}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}>
+                            {req.items.map((it) => (
+                              <li key={it.id}>
+                                {it.itemName} : ยืม {it.quantity} (คืนแล้ว {it.returnedQty})
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{req.purpose}</div>
+                          {req.location && <div style={{ fontSize: '0.8rem', color: '#64748b' }}>📍 {req.location}</div>}
+                        </td>
+                        <td>
+                          <div>เริ่ม: {new Date(req.borrowDate).toLocaleDateString('th-TH')}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                            คืน: {req.expectedReturnDate ? new Date(req.expectedReturnDate).toLocaleDateString('th-TH') : '-'}
+                          </div>
+                        </td>
+                        <td>
+                          {req.actualReturnDate ? (
+                            <span style={{ color: '#059669', fontSize: '0.875rem' }}>
+                              ✅ {new Date(req.actualReturnDate).toLocaleDateString('th-TH')}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>-</span>
+                          )}
+                        </td>
+                        <td>{renderStatusBadge(req.status)}</td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => setViewDetailModalData(req)}
+                            className="secondaryButton"
+                            style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                          >
+                            <Eye size={14} /> ดูรายละเอียด
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               )
@@ -1785,6 +1908,136 @@ export default function EquipmentBorrowClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 5: View Request Details ── */}
+      {viewDetailModalData && (
+        <div className="modalBackdrop" onClick={() => setViewDetailModalData(null)}>
+          <div className="modalCard" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modalHeader">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>
+                  รายละเอียดคำขอยืม: {viewDetailModalData.requestNo}
+                </h3>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                  ยื่นคำขอเมื่อ {new Date(viewDetailModalData.createdAt).toLocaleString('th-TH')}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewDetailModalData(null)}
+                className="iconButton"
+                aria-label="ปิด"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modalBody">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '1.05rem', color: '#1e293b' }}>
+                    {viewDetailModalData.requesterName}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                    {viewDetailModalData.requesterDept || 'ไม่ระบุแผนก'}
+                    {viewDetailModalData.phone && ` • โทร. ${viewDetailModalData.phone}`}
+                  </div>
+                </div>
+                <div>{renderStatusBadge(viewDetailModalData.status)}</div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem', background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: 8 }}>
+                <div>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>วัตถุประสงค์:</span>
+                  <div style={{ fontWeight: 500 }}>{viewDetailModalData.purpose}</div>
+                </div>
+                {viewDetailModalData.location && (
+                  <div>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>สถานที่ใช้งาน:</span>
+                    <div style={{ fontWeight: 500 }}>📍 {viewDetailModalData.location}</div>
+                  </div>
+                )}
+                <div>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>วันที่ยืม:</span>
+                  <div style={{ fontWeight: 500 }}>{new Date(viewDetailModalData.borrowDate).toLocaleDateString('th-TH')}</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>กำหนดส่งคืน:</span>
+                  <div style={{ fontWeight: 500 }}>{viewDetailModalData.expectedReturnDate ? new Date(viewDetailModalData.expectedReturnDate).toLocaleDateString('th-TH') : '-'}</div>
+                </div>
+                {viewDetailModalData.actualReturnDate && (
+                  <div>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>วันที่ส่งคืนจริง:</span>
+                    <div style={{ fontWeight: 500, color: '#059669' }}>✅ {new Date(viewDetailModalData.actualReturnDate).toLocaleDateString('th-TH')}</div>
+                  </div>
+                )}
+                {viewDetailModalData.approvedByName && (
+                  <div>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>ผู้อนุมัติ:</span>
+                    <div style={{ fontWeight: 500 }}>{viewDetailModalData.approvedByName}</div>
+                  </div>
+                )}
+                {viewDetailModalData.rejectReason && (
+                  <div style={{ gridColumn: '1 / -1', color: '#dc2626' }}>
+                    <span style={{ fontSize: '0.8rem' }}>เหตุผลที่ไม่อนุมัติ:</span>
+                    <div style={{ fontWeight: 500 }}>{viewDetailModalData.rejectReason}</div>
+                  </div>
+                )}
+              </div>
+
+              <h4 style={{ margin: '1rem 0 0.5rem', fontSize: '0.95rem', color: '#334155' }}>
+                รายการอุปกรณ์ที่ยืม ({viewDetailModalData.items.length} รายการ)
+              </h4>
+              <table className="styledTable" style={{ fontSize: '0.875rem' }}>
+                <thead>
+                  <tr>
+                    <th>รายการ</th>
+                    <th style={{ textAlign: 'center' }}>ขอยืม</th>
+                    <th style={{ textAlign: 'center' }}>คืนแล้ว</th>
+                    <th>สถานะของ</th>
+                    <th>สภาพตอนส่งคืน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewDetailModalData.items.map((it) => (
+                    <tr key={it.id}>
+                      <td>
+                        <div style={{ fontWeight: 500 }}>{it.itemName}</div>
+                        {it.itemCode && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>รหัส: {it.itemCode}</div>}
+                      </td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{it.quantity}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600, color: it.returnedQty >= it.quantity ? '#059669' : '#d97706' }}>
+                        {it.returnedQty}
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem' }}>
+                          {it.status === 'RETURNED' ? '✅ คืนแล้ว' : it.status === 'CONSUMED' ? '📦 เบิกจ่ายแล้ว' : '⏳ กำลังยืม'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem' }}>
+                          {it.returnCondition === 'NORMAL' ? 'ปกติ' : it.returnCondition === 'DAMAGED' ? '⚠️ ชำรุด' : it.returnCondition === 'LOST' ? '❌ สูญหาย' : '-'}
+                        </span>
+                        {it.returnNotes && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>หมายเหตุ: {it.returnNotes}</div>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="modalFooter">
+              <button
+                type="button"
+                onClick={() => setViewDetailModalData(null)}
+                className="secondaryButton"
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
           </div>
         </div>
       )}

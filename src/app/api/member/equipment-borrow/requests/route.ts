@@ -53,6 +53,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, ...result })
     }
 
+    if (mode === 'all') {
+      if (!canManage) {
+        return NextResponse.json({ success: false, error: 'คุณไม่มีสิทธิ์เข้าถึงประวัติคำขอทั้งหมด' }, { status: 403 })
+      }
+      const result = await equipmentBorrowService.getAllBorrowRequests({ status, search, page, limit })
+      return NextResponse.json({ success: true, ...result })
+    }
+
     // Default: My requests
     const result = await equipmentBorrowService.getMyBorrowRequests(auth.member.id, {
       status,

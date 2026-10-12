@@ -262,5 +262,60 @@ describe('EquipmentBorrowService', () => {
       expect(stats.borrowedItems).toBe(10)
       expect(stats.overdueRequests).toBe(2)
     })
+
+    it('calculates exact piece quantities from borrowed items and overdue requests', async () => {
+      mockDb.hospitalAsset.count.mockResolvedValueOnce(2) // 2 loanable assets
+      mockDb.hospitalMaterial.aggregate
+        .mockResolvedValueOnce({ _sum: { totalQty: 10 } }) // 10 material pieces
+        .mockResolvedValueOnce({ _sum: { availableQty: 8 } }) // 8 available pieces
+
+      // 1 borrowed asset item, 1 borrowed material item with qty 3 (returned 1 -> remaining 2)
+      mockDb.equipmentBorrowItem.findMany.mockResolvedValueOnce([
+        { itemType: 'ASSET', quantity: 1, returnedQty: 0 },
+        { itemType: 'MATERIAL', quantity: 3, returnedQty: 1 },
+      ])
+
+      // 1 overdue request with 2 items
+      mockDb.equipmentBorrowRequest.findMany.mockResolvedValueOnce([
+        {
+          items: [
+            { quantity: 2, returnedQty: 0 },
+          ],
+        },
+      ])
+
+      const stats = await service.getBorrowDashboardStats()
+
+      expect(stats.totalItems).toBe(12) // 2 assets + 10 materials
+      expect(stats.availableItems).toBe(9) // (2 - 1 asset) + 8 available materials = 9
+      expect(stats.borrowedItems).toBe(3) // 1 asset + (3 - 1 = 2) materials = 3
+      expect(stats.overdueRequests).toBe(2) // 2 overdue pieces
+    })
+  })
+
+  describe('Admin View All Requests', () => {
+    it('retrieves all borrow requests with status filter and search query', async () => {
+      const mockItems = [
+        { id: 1, requestNo: 'BR-001', requesterName: 'สมศรี', status: 'RETURNED', items: [] },
+      ]
+      mockDb.equipmentBorrowRequest.findMany.mockResolvedValue(mockItems)
+      mockDb.equipmentBorrowRequest.count.mockResolvedValue(1)
+
+      const result = await service.getAllBorrowRequests({ status: 'RETURNED', search: 'สมศรี', page: 1, limit: 10 })
+
+      expect(mockDb.equipmentBorrowRequest.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: 'RETURNED',
+            OR: expect.any(Array),
+          }),
+          skip: 0,
+          take: 10,
+        })
+      )
+      expect(result.items).toEqual(mockItems)
+      expect(result.total).toBe(1)
+      expect(result.totalPages).toBe(1)
+    })
   })
 })
