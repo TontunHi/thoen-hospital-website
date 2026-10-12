@@ -6,19 +6,20 @@ import {
   Users,
   Activity,
   DollarSign,
-  Receipt,
   Download,
   RefreshCw,
   Search,
-  Calendar,
   AlertCircle,
-  FileSpreadsheet,
+  AlertTriangle,
+  CheckCircle,
   Send,
   BarChart3,
-  Building,
   Stethoscope,
   Clock,
   RotateCcw,
+  ChevronRight,
+  X,
+  Filter,
 } from 'lucide-react'
 import {
   BarChart,
@@ -27,7 +28,6 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from 'recharts'
 import { IPDRecord } from '@/lib/clinical/rcmDashboardService'
 import '../sss-dental/page.css'
@@ -36,10 +36,6 @@ import './page.css'
 const THAI_MONTH_NAMES = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-]
-
-const CHART_COLORS = [
-  '#059669', '#10b981', '#14b8a6', '#0d9488', '#34d399', '#2dd4bf', '#047857'
 ]
 
 export default function IpdClient() {
@@ -60,14 +56,15 @@ export default function IpdClient() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })
 
-  // Subtab within IPD
-  const [subTab, setSubTab] = useState<'overview' | 'list' | 'ward' | 'doctor'>('overview')
+  // Subtab within IPD: 4 tabs per original spec
+  const [subTab, setSubTab] = useState<'list' | 'doctor' | 'doctor_dc' | 'overview'>('list')
 
   // Filters
   const [search, setSearch] = useState<string>('')
   const [wardFilter, setWardFilter] = useState<string>('all')
   const [pttypeFilter, setPttypeFilter] = useState<string>('all')
-  const [doctorFilter, setDoctorFilter] = useState<string>('all')
+  const [doctorAdmitFilter, setDoctorAdmitFilter] = useState<string>('all')
+  const [doctorDcFilter, setDoctorDcFilter] = useState<string>('all')
   const [delayGroupFilter, setDelayGroupFilter] = useState<string>('all')
 
   // Data States
@@ -161,16 +158,21 @@ export default function IpdClient() {
     return Array.from(map.entries()).map(([code, name]) => ({ code, name }))
   }, [data])
 
-  const doctorOptions = useMemo(() => {
+  const doctorAdmitOptions = useMemo(() => {
+    return Array.from(new Set(data.map((d) => d.admdoctor).filter(Boolean))).sort()
+  }, [data])
+
+  const doctorDcOptions = useMemo(() => {
     return Array.from(new Set(data.map((d) => d.dchdoctor).filter(Boolean))).sort()
   }, [data])
 
   // Filtered dataset
   const filteredData = useMemo(() => {
     return data.filter((d) => {
-      if (wardFilter !== 'all' && d.ward !== wardFilter) return false
+      if (wardFilter !== 'all' && d.ward !== wardFilter && d.ward_name !== wardFilter) return false
       if (pttypeFilter !== 'all' && d.pttype !== pttypeFilter) return false
-      if (doctorFilter !== 'all' && d.dchdoctor !== doctorFilter) return false
+      if (doctorAdmitFilter !== 'all' && d.admdoctor !== doctorAdmitFilter) return false
+      if (doctorDcFilter !== 'all' && d.dchdoctor !== doctorDcFilter) return false
 
       if (delayGroupFilter !== 'all') {
         if (delayGroupFilter === 'gt15' && (d.summary_days === null || d.summary_days <= 15)) return false
@@ -182,20 +184,22 @@ export default function IpdClient() {
       if (search.trim()) {
         const q = search.toLowerCase()
         const match =
-          d.an.toLowerCase().includes(q) ||
-          d.hn.toLowerCase().includes(q) ||
-          d.cid.toLowerCase().includes(q) ||
-          d.ptname.toLowerCase().includes(q) ||
-          d.pdx.toLowerCase().includes(q) ||
-          d.pdxname.toLowerCase().includes(q)
+          (d.an || '').toLowerCase().includes(q) ||
+          (d.hn || '').toLowerCase().includes(q) ||
+          (d.cid || '').toLowerCase().includes(q) ||
+          (d.ptname || '').toLowerCase().includes(q) ||
+          (d.pdx || '').toLowerCase().includes(q) ||
+          (d.pdxname || '').toLowerCase().includes(q) ||
+          (d.admdoctor || '').toLowerCase().includes(q) ||
+          (d.dchdoctor || '').toLowerCase().includes(q)
         if (!match) return false
       }
 
       return true
     })
-  }, [data, wardFilter, pttypeFilter, doctorFilter, delayGroupFilter, search])
+  }, [data, wardFilter, pttypeFilter, doctorAdmitFilter, doctorDcFilter, delayGroupFilter, search])
 
-  // Metrics
+  // Summary Metrics
   const metrics = useMemo(() => {
     const totalCases = filteredData.length
     const totalIncome = filteredData.reduce((acc, curr) => acc + (Number(curr.income) || 0), 0)
@@ -213,78 +217,80 @@ export default function IpdClient() {
     return { totalCases, totalIncome, totalDebit, totalAdjrw, avgCmi, totalLos, avgLos, gt15, b8to15, lt8, notFinal }
   }, [filteredData])
 
-  // Breakdown by Ward
-  const wardBreakdown = useMemo(() => {
-    const map: Record<string, { ward_name: string; cases: number; los: number; income: number; debit: number; adjrw: number }> = {}
+  // Doctor Admit Breakdown (แพทย์ admit, จำนวน, SumAdjRW, CMI, Income)
+  const doctorAdmitSummaryData = useMemo(() => {
+    const map: Record<string, { doctor: string; cases: number; sumAdjrw: number; totalIncome: number }> = {}
     filteredData.forEach((d) => {
-      const w = d.ward_name || d.ward || 'ไม่ระบุ'
-      if (!map[w]) {
-        map[w] = { ward_name: w, cases: 0, los: 0, income: 0, debit: 0, adjrw: 0 }
-      }
-      map[w].cases += 1
-      map[w].los += Number(d.los) || 0
-      map[w].income += Number(d.income) || 0
-      map[w].debit += Number(d.debit) || 0
-      map[w].adjrw += Number(d.adjrw) || 0
-    })
-    return Object.values(map).sort((a, b) => b.cases - a.cases)
-  }, [filteredData])
-
-  // Breakdown by Doctor
-  const doctorBreakdown = useMemo(() => {
-    const map: Record<string, { doctor: string; cases: number; los: number; income: number; debit: number; adjrw: number }> = {}
-    filteredData.forEach((d) => {
-      const doc = d.dchdoctor || 'ไม่ระบุแพทย์'
+      const doc = d.admdoctor || 'ไม่ระบุแพทย์ Admit'
       if (!map[doc]) {
-        map[doc] = { doctor: doc, cases: 0, los: 0, income: 0, debit: 0, adjrw: 0 }
+        map[doc] = { doctor: doc, cases: 0, sumAdjrw: 0, totalIncome: 0 }
       }
       map[doc].cases += 1
-      map[doc].los += Number(d.los) || 0
-      map[doc].income += Number(d.income) || 0
-      map[doc].debit += Number(d.debit) || 0
-      map[doc].adjrw += Number(d.adjrw) || 0
+      map[doc].sumAdjrw += Number(d.adjrw || 0)
+      map[doc].totalIncome += Number(d.income || 0)
     })
     return Object.values(map).sort((a, b) => b.cases - a.cases)
   }, [filteredData])
 
-  // Chart data
-  const chartDelayData = useMemo(() => {
-    return [
-      { name: '< 8 วัน', cases: metrics.lt8, color: '#10b981' },
-      { name: '8 - 15 วัน', cases: metrics.b8to15, color: '#f59e0b' },
-      { name: '> 15 วัน (ล่าช้า)', cases: metrics.gt15, color: '#ef4444' },
-      { name: 'ยังไม่สรุปชาร์ต', cases: metrics.notFinal, color: '#64748b' },
-    ]
-  }, [metrics])
+  // Doctor D/C Breakdown (แพทย์จำหน่าย, จำนวน, SumAdjRW, CMI, Income)
+  const doctorDcSummaryData = useMemo(() => {
+    const map: Record<string, { doctor: string; cases: number; sumAdjrw: number; totalIncome: number }> = {}
+    filteredData.forEach((d) => {
+      const doc = d.dchdoctor || 'ไม่ระบุแพทย์ D/C'
+      if (!map[doc]) {
+        map[doc] = { doctor: doc, cases: 0, sumAdjrw: 0, totalIncome: 0 }
+      }
+      map[doc].cases += 1
+      map[doc].sumAdjrw += Number(d.adjrw || 0)
+      map[doc].totalIncome += Number(d.income || 0)
+    })
+    return Object.values(map).sort((a, b) => b.cases - a.cases)
+  }, [filteredData])
+
+  // Filter check
+  const hasActiveFilters =
+    wardFilter !== 'all' ||
+    pttypeFilter !== 'all' ||
+    doctorAdmitFilter !== 'all' ||
+    doctorDcFilter !== 'all' ||
+    delayGroupFilter !== 'all' ||
+    search.trim() !== ''
+
+  const handleClearFilters = () => {
+    setWardFilter('all')
+    setPttypeFilter('all')
+    setDoctorAdmitFilter('all')
+    setDoctorDcFilter('all')
+    setDelayGroupFilter('all')
+    setSearch('')
+  }
 
   const exportCSV = () => {
     const headers = [
-      'AN', 'HN', 'เลขประจำตัวประชาชน (CID)', 'ชื่อผู้ป่วย', 'เพศ', 'อายุ',
-      'วันรับไว้ (Admit)', 'วันจำหน่าย (Discharge)', 'วันนอน (LOS)',
-      'หอผู้ป่วย', 'แพทย์ผู้สั่งจำหน่าย', 'สิทธิการรักษา',
-      'รหัสโรคหลัก (PDX)', 'ชื่อโรคหลัก', 'AdjRW',
-      'ค่ารักษาพยาบาล (บาท)', 'ลูกหนี้ค้างชำระ (บาท)', 'สถานะสรุปชาร์ต', 'สรุปชาร์ตหลังจำหน่าย (วัน)'
+      'ลำดับ', 'AN', 'HN', 'เลขประจำตัวประชาชน (CID)', 'ชื่อ-สกุลผู้ป่วย', 'เพศ', 'อายุ',
+      'หอผู้ป่วย', 'แพทย์ Admit', 'แพทย์ D/C', 'สิทธิการรักษา',
+      'วันนอน (LOS)', 'รหัสโรคหลัก (PDX)', 'ชื่อโรคหลัก', 'AdjRW',
+      'ค่ารักษา (บาท)', 'ลูกหนี้ค้าง', 'สถานะสรุปชาร์ต (วัน)'
     ]
 
-    const rows = filteredData.map((d) => [
+    const rows = filteredData.map((d, idx) => [
+      idx + 1,
       `"${d.an}"`,
       `"${d.hn}"`,
       `"${d.cid}"`,
       `"${d.ptname}"`,
       d.sex,
       d.age,
-      d.admdate,
-      d.dchdate,
+      `"${d.ward_name || d.ward}"`,
+      `"${d.admdoctor || ''}"`,
+      `"${d.dchdoctor || ''}"`,
+      `"${d.pttypename || d.pttype}"`,
       d.los,
-      `"${d.ward_name}"`,
-      `"${d.dchdoctor}"`,
-      `"${d.pttypename}"`,
-      d.pdx,
-      `"${d.pdxname}"`,
+      `"${d.pdx}"`,
+      `"${d.pdxname || ''}"`,
       d.adjrw,
       d.income,
       d.debit,
-      d.status,
       d.summary_days !== null ? d.summary_days : 'ยังไม่สรุป',
     ])
 
@@ -313,10 +319,10 @@ export default function IpdClient() {
           </div>
           <div>
             <h2 className="rcm-header-h2">
-              2.1.2.1 รายงานสรุปการให้บริการผู้ป่วยในโรงพยาบาลเถิน (IPD)
+              รายงานสรุปการให้บริการผู้ป่วยในโรงพยาบาลเถิน (IPD)
             </h2>
             <p className="rcm-header-desc">
-              สรุปข้อมูลผู้ป่วยใน จำแนกตามหอผู้ป่วยและแพทย์ผู้สั่งจำหน่าย • ตรวจสอบวันนอน, ค่า CMI, และสถานะการสรุปชาร์ต
+              สรุปข้อมูลผู้ป่วยใน (IPD) จำแนกตามหอผู้ป่วยและแพทย์ผู้สั่งจำหน่าย • ตรวจสอบสถานะการสรุปชาร์ต วันนอน ค่ารักษาพยาบาล และ CMI
             </p>
           </div>
         </div>
@@ -347,7 +353,7 @@ export default function IpdClient() {
             className="rcm-btn rcm-btn-primary"
           >
             <Download size={14} />
-            <span>ส่งออก CSV (Excel)</span>
+            <span>ส่งออก Excel (CSV)</span>
           </button>
         </div>
       </div>
@@ -362,7 +368,7 @@ export default function IpdClient() {
               onClick={() => setDateMode('custom')}
               className={`rcm-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
             >
-              กำหนดเอง (วันถึงวัน)
+              📅 กำหนดเอง (วันถึงวัน)
             </button>
             <button
               type="button"
@@ -372,7 +378,7 @@ export default function IpdClient() {
               }}
               className={`rcm-mode-btn ${dateMode === 'month' ? 'active' : ''}`}
             >
-              รายเดือน
+              🗓️ รายเดือน ({currentCalYear + 543})
             </button>
             <button
               type="button"
@@ -382,7 +388,7 @@ export default function IpdClient() {
               }}
               className={`rcm-mode-btn ${dateMode === 'year' ? 'active' : ''}`}
             >
-              รายปีงบประมาณ
+              📆 รายปีงบประมาณ (1 ต.ค. - 30 ก.ย.)
             </button>
           </div>
 
@@ -403,6 +409,16 @@ export default function IpdClient() {
                 onChange={(e) => setDs2(e.target.value)}
                 className="rcm-input"
               />
+              <button
+                type="button"
+                onClick={() => fetchData(ds1, ds2)}
+                disabled={loading}
+                className="rcm-btn rcm-btn-primary"
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              >
+                <Filter size={13} />
+                <span>ดึงข้อมูล</span>
+              </button>
             </div>
           )}
 
@@ -416,16 +432,26 @@ export default function IpdClient() {
               >
                 {THAI_MONTH_NAMES.map((name, idx) => (
                   <option key={idx + 1} value={idx + 1}>
-                    {name} {currentCalYear + 543}
+                    {name} ({currentCalYear + 543})
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => fetchData(ds1, ds2)}
+                disabled={loading}
+                className="rcm-btn rcm-btn-primary"
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              >
+                <Filter size={13} />
+                <span>ดึงข้อมูล</span>
+              </button>
             </div>
           )}
 
           {dateMode === 'year' && (
             <div className="rcm-date-inputs">
-              <span>เลือกปีงบประมาณ:</span>
+              <span>ปีงบประมาณ:</span>
               <select
                 value={selectedYear}
                 onChange={(e) => handleSelectFiscalYear(Number(e.target.value))}
@@ -437,6 +463,16 @@ export default function IpdClient() {
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => fetchData(ds1, ds2)}
+                disabled={loading}
+                className="rcm-btn rcm-btn-primary"
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              >
+                <Filter size={13} />
+                <span>ดึงข้อมูล</span>
+              </button>
             </div>
           )}
         </div>
@@ -444,13 +480,17 @@ export default function IpdClient() {
         {/* Filters Row */}
         <div className="rcm-controls-row">
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <Filter size={14} style={{ color: '#059669' }} /> ตัวกรอง:
+            </span>
+
             {/* Ward Filter */}
             <select
               value={wardFilter}
               onChange={(e) => setWardFilter(e.target.value)}
               className="rcm-select"
             >
-              <option value="all">🏥 หอผู้ป่วยทั้งหมด</option>
+              <option value="all">🏥 ทุกหอผู้ป่วย</option>
               {wardOptions.map((w) => (
                 <option key={w.code} value={w.code}>{w.name}</option>
               ))}
@@ -462,20 +502,32 @@ export default function IpdClient() {
               onChange={(e) => setPttypeFilter(e.target.value)}
               className="rcm-select"
             >
-              <option value="all">💳 สิทธิการรักษาทั้งหมด</option>
+              <option value="all">💳 ทุกสิทธิการรักษา</option>
               {pttypeOptions.map((p) => (
                 <option key={p.code} value={p.code}>{p.code}: {p.name}</option>
               ))}
             </select>
 
-            {/* Doctor Filter */}
+            {/* Doctor Admit Filter */}
             <select
-              value={doctorFilter}
-              onChange={(e) => setDoctorFilter(e.target.value)}
+              value={doctorAdmitFilter}
+              onChange={(e) => setDoctorAdmitFilter(e.target.value)}
+              className="rcm-select"
+            >
+              <option value="all">👨‍⚕️ แพทย์ Admit ทั้งหมด</option>
+              {doctorAdmitOptions.map((doc) => (
+                <option key={doc} value={doc}>{doc}</option>
+              ))}
+            </select>
+
+            {/* Doctor D/C Filter */}
+            <select
+              value={doctorDcFilter}
+              onChange={(e) => setDoctorDcFilter(e.target.value)}
               className="rcm-select"
             >
               <option value="all">👨‍⚕️ แพทย์ D/C ทั้งหมด</option>
-              {doctorOptions.map((doc) => (
+              {doctorDcOptions.map((doc) => (
                 <option key={doc} value={doc}>{doc}</option>
               ))}
             </select>
@@ -487,10 +539,10 @@ export default function IpdClient() {
               className="rcm-select"
             >
               <option value="all">⏱️ ทุกสถานะสรุปชาร์ต</option>
-              <option value="lt8">สรุปเร็ว (&lt; 8 วัน)</option>
-              <option value="b8to15">สรุปปานกลาง (8 - 15 วัน)</option>
-              <option value="gt15">สรุปล่าช้า (&gt; 15 วัน)</option>
-              <option value="notFinal">ยังไม่สรุปชาร์ต</option>
+              <option value="lt8">ปกติ (น้อยกว่า 8 วัน)</option>
+              <option value="b8to15">เตือน (นานเกิน 8 - 15 วัน)</option>
+              <option value="gt15">วิกฤต (นานเกิน 15 วัน)</option>
+              <option value="notFinal">ร้ายแรง (ยังไม่สรุป)</option>
             </select>
 
             {/* Search Box */}
@@ -508,12 +560,73 @@ export default function IpdClient() {
                 style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
               />
             </div>
+
+            {/* Clear All Filters Button */}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="rcm-btn rcm-btn-secondary"
+                style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem', color: '#b91c1c', borderColor: '#fecaca', backgroundColor: '#fef2f2' }}
+                title="ล้างค่าตัวกรองทั้งหมด"
+              >
+                <RotateCcw size={12} />
+                <span>ล้างตัวกรอง</span>
+              </button>
+            )}
           </div>
 
           <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-            แสดงผล: <b>{filteredData.length.toLocaleString()}</b> / {data.length.toLocaleString()} ราย
+            แสดงผล: <b style={{ color: '#047857' }}>{filteredData.length.toLocaleString()}</b> / {data.length.toLocaleString()} ราย
           </div>
         </div>
+
+        {/* Active Filter Pills Bar */}
+        {hasActiveFilters && (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', paddingTop: '0.25rem', borderTop: '1px solid #f1f5f9' }}>
+            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ตัวกรองที่ใช้งานอยู่:</span>
+            {wardFilter !== 'all' && (
+              <span className="rcm-filter-badge">
+                🏥 หอผู้ป่วย: {wardOptions.find((w) => w.code === wardFilter)?.name || wardFilter}
+                <button type="button" onClick={() => setWardFilter('all')} className="rcm-filter-badge-btn"><X size={12} /></button>
+              </span>
+            )}
+            {pttypeFilter !== 'all' && (
+              <span className="rcm-filter-badge">
+                💳 สิทธิ: {pttypeFilter}
+                <button type="button" onClick={() => setPttypeFilter('all')} className="rcm-filter-badge-btn"><X size={12} /></button>
+              </span>
+            )}
+            {doctorAdmitFilter !== 'all' && (
+              <span className="rcm-filter-badge">
+                👨‍⚕️ Admit: {doctorAdmitFilter}
+                <button type="button" onClick={() => setDoctorAdmitFilter('all')} className="rcm-filter-badge-btn"><X size={12} /></button>
+              </span>
+            )}
+            {doctorDcFilter !== 'all' && (
+              <span className="rcm-filter-badge">
+                👨‍⚕️ D/C: {doctorDcFilter}
+                <button type="button" onClick={() => setDoctorDcFilter('all')} className="rcm-filter-badge-btn"><X size={12} /></button>
+              </span>
+            )}
+            {delayGroupFilter !== 'all' && (
+              <span className="rcm-filter-badge">
+                ⏱️ สถานะชาร์ต: {
+                  delayGroupFilter === 'lt8' ? '< 8 วัน' :
+                  delayGroupFilter === 'b8to15' ? '8 - 15 วัน' :
+                  delayGroupFilter === 'gt15' ? '> 15 วัน' : 'ยังไม่สรุป'
+                }
+                <button type="button" onClick={() => setDelayGroupFilter('all')} className="rcm-filter-badge-btn"><X size={12} /></button>
+              </span>
+            )}
+            {search && (
+              <span className="rcm-filter-badge">
+                🔍 ค้นหา: &quot;{search}&quot;
+                <button type="button" onClick={() => setSearch('')} className="rcm-filter-badge-btn"><X size={12} /></button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -601,171 +714,223 @@ export default function IpdClient() {
         </div>
       </div>
 
-      {/* Subtab Selector */}
+      {/* Chart Audit Status Cards (Click to filter) */}
+      <div className="rcm-controls-card" style={{ padding: '1rem 1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h3 style={{ fontSize: '0.88rem', fontWeight: 700, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Clock size={16} style={{ color: '#059669' }} />
+            <span>รายงานสถานะระยะเวลาสรุปชาร์ต IPD (คลิกเพื่อกรองรายชื่อ)</span>
+          </h3>
+          {delayGroupFilter !== 'all' && (
+            <button
+              type="button"
+              onClick={() => setDelayGroupFilter('all')}
+              className="rcm-filter-badge-btn"
+              style={{ color: '#b91c1c', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              <RotateCcw size={12} />
+              <span>ล้างตัวกรองสถานะ</span>
+            </button>
+          )}
+        </div>
+
+        <div className="rcm-delay-cards-grid">
+          <button
+            type="button"
+            onClick={() => setDelayGroupFilter(prev => prev === 'notFinal' ? 'all' : 'notFinal')}
+            className={`rcm-delay-card rcm-delay-card-red ${delayGroupFilter === 'notFinal' ? 'active' : ''}`}
+          >
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <AlertCircle size={14} style={{ color: '#dc2626' }} />
+                <span>1. ยังไม่สรุป</span>
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#7f1d1d', marginTop: '0.2rem', fontFamily: 'monospace' }}>
+                {metrics.notFinal.toLocaleString()}
+              </div>
+            </div>
+            <span className="rcm-delay-pill" style={{ color: '#991b1b' }}>ร้ายแรง</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDelayGroupFilter(prev => prev === 'gt15' ? 'all' : 'gt15')}
+            className={`rcm-delay-card rcm-delay-card-orange ${delayGroupFilter === 'gt15' ? 'active' : ''}`}
+          >
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#c2410c', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <AlertCircle size={14} style={{ color: '#ea580c' }} />
+                <span>2. นานเกิน 15 วัน</span>
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#9a3412', marginTop: '0.2rem', fontFamily: 'monospace' }}>
+                {metrics.gt15.toLocaleString()}
+              </div>
+            </div>
+            <span className="rcm-delay-pill" style={{ color: '#c2410c' }}>วิกฤต</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDelayGroupFilter(prev => prev === 'b8to15' ? 'all' : 'b8to15')}
+            className={`rcm-delay-card rcm-delay-card-amber ${delayGroupFilter === 'b8to15' ? 'active' : ''}`}
+          >
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#b45309', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <AlertTriangle size={14} style={{ color: '#d97706' }} />
+                <span>3. นานเกิน 8 - 15 วัน</span>
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#78350f', marginTop: '0.2rem', fontFamily: 'monospace' }}>
+                {metrics.b8to15.toLocaleString()}
+              </div>
+            </div>
+            <span className="rcm-delay-pill" style={{ color: '#b45309' }}>เตือน</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDelayGroupFilter(prev => prev === 'lt8' ? 'all' : 'lt8')}
+            className={`rcm-delay-card rcm-delay-card-emerald ${delayGroupFilter === 'lt8' ? 'active' : ''}`}
+          >
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#047857', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <CheckCircle size={14} style={{ color: '#059669' }} />
+                <span>4. น้อยกว่า 8 วัน</span>
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#064e3b', marginTop: '0.2rem', fontFamily: 'monospace' }}>
+                {metrics.lt8.toLocaleString()}
+              </div>
+            </div>
+            <span className="rcm-delay-pill" style={{ color: '#047857' }}>ปกติ</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Subtab Selector: 4 Tabs Per User Specification */}
       <div className="rcm-subtab-bar">
-        <button
-          type="button"
-          onClick={() => setSubTab('overview')}
-          className={`rcm-subtab-btn ${subTab === 'overview' ? 'active' : ''}`}
-        >
-          <BarChart3 size={16} />
-          <span>ภาพรวมสถิติและกราฟ (Overview)</span>
-        </button>
         <button
           type="button"
           onClick={() => setSubTab('list')}
           className={`rcm-subtab-btn ${subTab === 'list' ? 'active' : ''}`}
         >
-          <Users size={16} />
-          <span>รายชื่อผู้ป่วยใน ({filteredData.length})</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setSubTab('ward')}
-          className={`rcm-subtab-btn ${subTab === 'ward' ? 'active' : ''}`}
-        >
-          <Building size={16} />
-          <span>แยกตามหอผู้ป่วย ({wardBreakdown.length})</span>
+          <span>📋 ตารางรายชื่อผู้ป่วยใน (IPD Grid)</span>
         </button>
         <button
           type="button"
           onClick={() => setSubTab('doctor')}
           className={`rcm-subtab-btn ${subTab === 'doctor' ? 'active' : ''}`}
         >
-          <Stethoscope size={16} />
-          <span>แยกตามแพทย์ D/C ({doctorBreakdown.length})</span>
+          <span>👨‍⚕️ แพทย์ Admit (จำนวน & SumAdjRW)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab('doctor_dc')}
+          className={`rcm-subtab-btn ${subTab === 'doctor_dc' ? 'active' : ''}`}
+        >
+          <span>👨‍⚕️ แพทย์ D/C (จำนวน & SumAdjRW)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab('overview')}
+          className={`rcm-subtab-btn ${subTab === 'overview' ? 'active' : ''}`}
+        >
+          <span>📊 กราฟสรุป (Charts)</span>
         </button>
       </div>
 
-      {/* SUBTAB 1: Overview with Recharts */}
-      {subTab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="rcm-chart-grid">
-            {/* Chart 1: Cases by Ward */}
-            <div className="rcm-chart-card">
-              <div className="rcm-chart-header">
-                <h4 className="rcm-chart-title">จำนวนผู้ป่วยจำหน่ายแยกตามหอผู้ป่วย</h4>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>เคส (ราย)</span>
-              </div>
-              <div style={{ height: '280px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={wardBreakdown}>
-                    <XAxis dataKey="ward_name" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={50} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(val: any) => [`${val} ราย`, 'ผู้ป่วยจำหน่าย']} />
-                    <Bar dataKey="cases" radius={[6, 6, 0, 0]}>
-                      {wardBreakdown.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Chart 2: Summary Delay Distribution */}
-            <div className="rcm-chart-card">
-              <div className="rcm-chart-header">
-                <h4 className="rcm-chart-title">การกระจายระยะเวลาสรุปชาร์ตหลังจำหน่าย</h4>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>จำนวนชาร์ต (ใบ)</span>
-              </div>
-              <div style={{ height: '280px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartDelayData}>
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(val: any) => [`${val} ชาร์ต`, 'จำนวน']} />
-                    <Bar dataKey="cases" radius={[6, 6, 0, 0]}>
-                      {chartDelayData.map((entry, index) => (
-                        <Cell key={`delay-cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SUBTAB 2: Patient List (Full 13 CID per user instruction) */}
+      {/* ========================================================================= */}
+      {/* SUBTAB 1: 📋 ตารางรายชื่อผู้ป่วยใน (IPD Grid)                               */}
+      {/* 14 คอลัมน์ เรียงตามต้นฉบับ + แสดงเลขบัตรประชาชน 13 หลักใต้ชื่อคนไข้              */}
+      {/* ========================================================================= */}
       {subTab === 'list' && (
         <div className="rcm-table-card">
           <div className="rcm-table-header">
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-              รายชื่อผู้ป่วยในจำหน่าย (Intranet ตรวจสอบข้อมูล)
-            </h3>
-            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-              แสดงเลขบัตรประชาชน 13 หลักเต็มสำหรับการปฏิบัติงาน
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                📋 ตารางรายชื่อผู้ป่วยใน (IPD Grid)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                แสดงข้อมูลผู้ป่วยในจำหน่าย 14 คอลัมน์ตามต้นฉบับ • แสดงเลขประจำตัวประชาชน 13 หลักสำหรับการตรวจสอบ
+              </p>
+            </div>
+            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+              พบข้อมูล: <b style={{ color: '#047857' }}>{filteredData.length.toLocaleString()}</b> รายการ
             </span>
           </div>
 
-          <div className="rcm-table-responsive">
+          <div className="rcm-table-responsive" style={{ maxHeight: '600px' }}>
             <table className="rcm-table">
               <thead>
                 <tr>
-                  <th>AN</th>
-                  <th>HN</th>
-                  <th>เลขบัตรประชาชน (CID)</th>
-                  <th>ชื่อ-สกุลผู้ป่วย</th>
-                  <th className="rcm-text-center">เพศ</th>
-                  <th className="rcm-text-right">อายุ</th>
-                  <th>วันจำหน่าย</th>
-                  <th className="rcm-text-right">วันนอน</th>
-                  <th>โรคหลัก (PDX)</th>
-                  <th className="rcm-text-right">AdjRW</th>
-                  <th className="rcm-text-right">ค่ารักษา</th>
-                  <th className="rcm-text-right">ลูกหนี้</th>
-                  <th className="rcm-text-center">สถานะชาร์ต</th>
+                  <th className="rcm-text-center" style={{ width: '48px' }}>ลำดับ</th>
+                  <th className="rcm-text-center">AN</th>
+                  <th className="rcm-text-center">HN</th>
+                  <th style={{ textAlign: 'left' }}>ชื่อ-สกุลผู้ป่วย</th>
+                  <th className="rcm-text-center">หอผู้ป่วย</th>
+                  <th className="rcm-text-center">แพทย์ Admit</th>
+                  <th className="rcm-text-center">แพทย์ D/C</th>
+                  <th className="rcm-text-center">สิทธิการรักษา</th>
+                  <th className="rcm-text-center">วันนอน (LOS)</th>
+                  <th className="rcm-text-center">PDX (โรคหลัก)</th>
+                  <th className="rcm-text-center">AdjRW</th>
+                  <th className="rcm-text-center">ค่ารักษา (บาท)</th>
+                  <th className="rcm-text-center">ลูกหนี้ค้าง</th>
+                  <th className="rcm-text-center">สรุปชาร์ต</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={13} style={{ textAlign: 'center', padding: '3rem' }}>
+                    <td colSpan={14} style={{ textAlign: 'center', padding: '3rem' }}>
                       <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#059669' }} />
-                      <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>กำลังดึงข้อมูลรายชื่อผู้ป่วยใน...</p>
+                      <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>กำลังโหลดข้อมูล IPD จากฐานข้อมูล HOSxP...</p>
                     </td>
                   </tr>
                 ) : filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={13} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                    <td colSpan={14} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                       ไม่พบข้อมูลผู้ป่วยในตามเงื่อนไขที่เลือก
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((pt) => (
-                    <tr key={pt.an}>
-                      <td className="font-mono" style={{ fontWeight: 600 }}>{pt.an}</td>
-                      <td className="font-mono">{pt.hn}</td>
-                      <td className="font-mono">{pt.cid || '-'}</td>
-                      <td><b>{pt.ptname}</b></td>
-                      <td className="rcm-text-center">{pt.sex}</td>
-                      <td className="rcm-text-right">{pt.age}</td>
-                      <td>{pt.dchdate}</td>
-                      <td className="rcm-text-right font-mono">{pt.los}</td>
-                      <td>
-                        <span title={pt.pdxname}><b>{pt.pdx}</b> {pt.pdxname ? `(${pt.pdxname})` : ''}</span>
+                  filteredData.map((row, idx) => (
+                    <tr key={row.an}>
+                      <td className="rcm-text-center font-mono" style={{ color: '#94a3b8' }}>{idx + 1}</td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#047857' }}>{row.an}</td>
+                      <td className="rcm-text-center font-mono" style={{ color: '#475569' }}>{row.hn}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{row.ptname}</div>
+                        {row.cid && (
+                          <div style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>
+                            CID: {row.cid}
+                          </div>
+                        )}
                       </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#be185d' }}>
-                        {Number(pt.adjrw || 0).toFixed(4)}
-                      </td>
-                      <td className="rcm-text-right font-mono" style={{ fontWeight: 600 }}>
-                        {formatCurrency(pt.income)}
-                      </td>
-                      <td className="rcm-text-right font-mono" style={{ color: pt.debit > 0 ? '#b91c1c' : '#94a3b8' }}>
-                        {formatCurrency(pt.debit)}
-                      </td>
+                      <td className="rcm-text-center" style={{ color: '#475569', whiteSpace: 'nowrap' }}>{row.ward_name || row.ward}</td>
+                      <td className="rcm-text-center" style={{ color: '#334155', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.admdoctor || '-'}</td>
+                      <td className="rcm-text-center" style={{ color: '#334155', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.dchdoctor || '-'}</td>
+                      <td className="rcm-text-center" style={{ color: '#475569', whiteSpace: 'nowrap' }}>{row.pttypename || row.pttype}</td>
+                      <td className="rcm-text-center" style={{ color: '#334155', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.los} วัน</td>
                       <td className="rcm-text-center">
-                        {pt.summary_days !== null ? (
-                          <span className="rcm-status-pill rcm-status-done">
-                            สรุปแล้ว ({pt.summary_days} วัน)
-                          </span>
-                        ) : (
-                          <span className="rcm-status-pill rcm-status-pending">
-                            ยังไม่สรุป
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#334155', display: 'block' }}>{row.pdx}</span>
+                        {row.pdxname && (
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', maxWidth: '140px', display: 'block', margin: '0 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.pdxname}>
+                            {row.pdxname}
                           </span>
                         )}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 500, color: '#be185d' }}>{Number(row.adjrw || 0).toFixed(4)}</td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#0f172a' }}>{Number(row.income || 0).toLocaleString()}</td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 500, color: row.debit > 0 ? '#b91c1c' : '#94a3b8' }}>{Number(row.debit || 0).toLocaleString()}</td>
+                      <td className="rcm-text-center">
+                        <span className={`rcm-status-pill ${
+                          row.summary_days === null 
+                            ? 'rcm-status-pending' 
+                            : row.summary_days > 15 
+                            ? 'rcm-status-pending' 
+                            : 'rcm-status-done'
+                        }`}>
+                          {row.summary_days !== null ? `${row.summary_days} วัน` : 'ยังไม่สรุป'}
+                        </span>
                       </td>
                     </tr>
                   ))
@@ -773,87 +938,325 @@ export default function IpdClient() {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {/* SUBTAB 3: Ward Breakdown */}
-      {subTab === 'ward' && (
-        <div className="rcm-table-card">
-          <div className="rcm-table-header">
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-              สรุปข้อมูลผู้ป่วยในแยกตามหอผู้ป่วย (Ward)
-            </h3>
-          </div>
-          <div className="rcm-table-responsive">
-            <table className="rcm-table">
-              <thead>
-                <tr>
-                  <th>หอผู้ป่วย (Ward)</th>
-                  <th className="rcm-text-right">จำนวนเคส (ราย)</th>
-                  <th className="rcm-text-right">วันนอนรวม (วัน)</th>
-                  <th className="rcm-text-right">LOS เฉลี่ย</th>
-                  <th className="rcm-text-right">AdjRW รวม</th>
-                  <th className="rcm-text-right">CMI เฉลี่ย</th>
-                  <th className="rcm-text-right">ค่ารักษาพยาบาล</th>
-                  <th className="rcm-text-right">ลูกหนี้คงค้าง</th>
-                </tr>
-              </thead>
-              <tbody>
-                {wardBreakdown.map((w) => (
-                  <tr key={w.ward_name}>
-                    <td style={{ fontWeight: 700 }}>{w.ward_name}</td>
-                    <td className="rcm-text-right font-mono">{formatNumber(w.cases)}</td>
-                    <td className="rcm-text-right font-mono">{formatNumber(w.los)}</td>
-                    <td className="rcm-text-right font-mono">{(w.cases > 0 ? w.los / w.cases : 0).toFixed(1)}</td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#be185d' }}>{w.adjrw.toFixed(2)}</td>
-                    <td className="rcm-text-right font-mono">{(w.cases > 0 ? w.adjrw / w.cases : 0).toFixed(4)}</td>
-                    <td className="rcm-text-right font-mono" style={{ fontWeight: 700 }}>{formatCurrency(w.income)}</td>
-                    <td className="rcm-text-right font-mono" style={{ color: w.debit > 0 ? '#b91c1c' : '#94a3b8' }}>{formatCurrency(w.debit)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ padding: '0.75rem 1.25rem', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', fontSize: '0.8rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>แสดงข้อมูล IPD ทั้งหมด {filteredData.length.toLocaleString()} รายการ</span>
+            <span>รวมค่ารักษา: <b>{formatCurrency(metrics.totalIncome)}</b> • รวมลูกหนี้: <b style={{ color: '#be123c' }}>{formatCurrency(metrics.totalDebit)}</b></span>
           </div>
         </div>
       )}
 
-      {/* SUBTAB 4: Doctor Breakdown */}
+      {/* ========================================================================= */}
+      {/* SUBTAB 2: 👨‍⚕️ แพทย์ Admit (จำนวน & SumAdjRW)                                */}
+      {/* 7 คอลัมน์ เรียงตามต้นฉบับ + สรุปรวมท้ายตาราง + ปุ่ม "ดูรายชื่อ"                 */}
+      {/* ========================================================================= */}
       {subTab === 'doctor' && (
         <div className="rcm-table-card">
           <div className="rcm-table-header">
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
-              สรุปข้อมูลผู้ป่วยในแยกตามแพทย์ผู้สั่งจำหน่าย (D/C Doctor)
-            </h3>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                👨‍⚕️ รายงานสรุป IPD ตามรายชื่อแพทย์ Admit
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                แสดงข้อมูลตามสเปก VFP: <b>แพทย์ Admit</b>, <b>จำนวนผู้ป่วย (Cases)</b>, <b>SumAdjRW</b>, <b>CMI เฉลี่ย</b>, และ <b>ค่ารักษาพยาบาลรวม</b>
+              </p>
+            </div>
+            <span style={{ fontSize: '0.8rem', color: '#065f46', backgroundColor: '#ecfdf5', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+              คลิกปุ่ม &quot;ดูรายชื่อ&quot; เพื่อกรองรายชื่อในตารางคนไข้ทันที
+            </span>
           </div>
+
           <div className="rcm-table-responsive">
             <table className="rcm-table">
               <thead>
                 <tr>
-                  <th>ชื่อแพทย์ผู้สั่งจำหน่าย</th>
-                  <th className="rcm-text-right">จำนวนเคส (ราย)</th>
-                  <th className="rcm-text-right">วันนอนรวม (วัน)</th>
-                  <th className="rcm-text-right">LOS เฉลี่ย</th>
-                  <th className="rcm-text-right">AdjRW รวม</th>
-                  <th className="rcm-text-right">CMI เฉลี่ย</th>
-                  <th className="rcm-text-right">ค่ารักษาพยาบาล</th>
-                  <th className="rcm-text-right">ลูกหนี้คงค้าง</th>
+                  <th className="rcm-text-center" style={{ width: '60px' }}>ลำดับ</th>
+                  <th style={{ textAlign: 'left' }}>รายชื่อแพทย์ Admit (ADMDOCTOR)</th>
+                  <th className="rcm-text-center">จำนวนผู้ป่วย (ราย)</th>
+                  <th className="rcm-text-center">ผลรวมน้ำหนักสัมพัทธ์ (SumAdjRW)</th>
+                  <th className="rcm-text-center">CMI เฉลี่ย</th>
+                  <th className="rcm-text-center">ค่ารักษาพยาบาลรวม (บาท)</th>
+                  <th className="rcm-text-center" style={{ width: '110px' }}>การกระทำ</th>
                 </tr>
               </thead>
               <tbody>
-                {doctorBreakdown.map((doc) => (
-                  <tr key={doc.doctor}>
-                    <td style={{ fontWeight: 700 }}>{doc.doctor}</td>
-                    <td className="rcm-text-right font-mono">{formatNumber(doc.cases)}</td>
-                    <td className="rcm-text-right font-mono">{formatNumber(doc.los)}</td>
-                    <td className="rcm-text-right font-mono">{(doc.cases > 0 ? doc.los / doc.cases : 0).toFixed(1)}</td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#be185d' }}>{doc.adjrw.toFixed(2)}</td>
-                    <td className="rcm-text-right font-mono">{(doc.cases > 0 ? doc.adjrw / doc.cases : 0).toFixed(4)}</td>
-                    <td className="rcm-text-right font-mono" style={{ fontWeight: 700 }}>{formatCurrency(doc.income)}</td>
-                    <td className="rcm-text-right font-mono" style={{ color: doc.debit > 0 ? '#b91c1c' : '#94a3b8' }}>{formatCurrency(doc.debit)}</td>
+                {doctorAdmitSummaryData.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                      ไม่พบข้อมูลแพทย์ Admit
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  doctorAdmitSummaryData.map((d, idx) => {
+                    const avgCmi = d.cases > 0 ? (d.sumAdjrw / d.cases) : 0
+                    return (
+                      <tr key={d.doctor}>
+                        <td className="rcm-text-center font-mono" style={{ color: '#94a3b8' }}>{idx + 1}</td>
+                        <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#059669', flexShrink: 0 }} />
+                            <span>{d.doctor}</span>
+                          </div>
+                        </td>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#047857' }}>
+                          {d.cases.toLocaleString()}
+                        </td>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#0f766e', backgroundColor: '#f0fdfa' }}>
+                          {d.sumAdjrw.toFixed(4)}
+                        </td>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#065f46' }}>
+                          {avgCmi.toFixed(4)}
+                        </td>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#0f172a' }}>
+                          ฿{d.totalIncome.toLocaleString()}
+                        </td>
+                        <td className="rcm-text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDoctorAdmitFilter(d.doctor)
+                              setSubTab('list')
+                            }}
+                            className="rcm-btn rcm-btn-secondary"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', gap: '0.2rem' }}
+                            title={`กรองรายชื่อผู้ป่วยที่แพทย์ Admit คือ ${d.doctor}`}
+                          >
+                            <span>ดูรายชื่อ</span>
+                            <ChevronRight size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
               </tbody>
+              <tfoot>
+                <tr className="total-row">
+                  <td className="rcm-text-center" colSpan={2}>รวมทั้งหมด ({doctorAdmitSummaryData.length} ท่าน)</td>
+                  <td className="rcm-text-center font-mono" style={{ color: '#047857' }}>
+                    {doctorAdmitSummaryData.reduce((acc, c) => acc + c.cases, 0).toLocaleString()}
+                  </td>
+                  <td className="rcm-text-center font-mono" style={{ color: '#0f766e' }}>
+                    {doctorAdmitSummaryData.reduce((acc, c) => acc + c.sumAdjrw, 0).toFixed(4)}
+                  </td>
+                  <td className="rcm-text-center font-mono" style={{ color: '#065f46' }}>
+                    {(doctorAdmitSummaryData.reduce((acc, c) => acc + c.cases, 0) > 0 
+                      ? (doctorAdmitSummaryData.reduce((acc, c) => acc + c.sumAdjrw, 0) / doctorAdmitSummaryData.reduce((acc, c) => acc + c.cases, 0)) 
+                      : 0).toFixed(4)}
+                  </td>
+                  <td className="rcm-text-center font-mono" style={{ color: '#0f172a' }}>
+                    ฿{doctorAdmitSummaryData.reduce((acc, c) => acc + c.totalIncome, 0).toLocaleString()}
+                  </td>
+                  <td className="rcm-text-center">-</td>
+                </tr>
+              </tfoot>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUBTAB 3: 👨‍⚕️ แพทย์ D/C (จำนวน & SumAdjRW)                                  */}
+      {/* 7 คอลัมน์ เรียงตามต้นฉบับ + สรุปรวมท้ายตาราง + ปุ่ม "ดูรายชื่อ"                 */}
+      {/* ========================================================================= */}
+      {subTab === 'doctor_dc' && (
+        <div className="rcm-table-card">
+          <div className="rcm-table-header">
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                👨‍⚕️ รายงานสรุป IPD ตามรายชื่อแพทย์ จำหน่าย (D/C Doctor)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                แสดงข้อมูลตามแพทย์ผู้จำหน่าย: <b>แพทย์ D/C</b>, <b>จำนวนผู้ป่วย (Cases)</b>, <b>SumAdjRW</b>, <b>CMI เฉลี่ย</b>, และ <b>ค่ารักษาพยาบาลรวม</b>
+              </p>
+            </div>
+            <span style={{ fontSize: '0.8rem', color: '#0f766e', backgroundColor: '#f0fdfa', padding: '0.3rem 0.6rem', borderRadius: '6px', border: '1px solid #99f6e4' }}>
+              คลิกปุ่ม &quot;ดูรายชื่อ&quot; เพื่อกรองรายชื่อในตารางคนไข้ทันที
+            </span>
+          </div>
+
+          <div className="rcm-table-responsive">
+            <table className="rcm-table">
+              <thead>
+                <tr>
+                  <th className="rcm-text-center" style={{ width: '60px' }}>ลำดับ</th>
+                  <th style={{ textAlign: 'left' }}>รายชื่อแพทย์ จำหน่าย (DCH_DOCTOR)</th>
+                  <th className="rcm-text-center">จำนวนผู้ป่วย (ราย)</th>
+                  <th className="rcm-text-center">ผลรวมน้ำหนักสัมพัทธ์ (SumAdjRW)</th>
+                  <th className="rcm-text-center">CMI เฉลี่ย</th>
+                  <th className="rcm-text-center">ค่ารักษาพยาบาลรวม (บาท)</th>
+                  <th className="rcm-text-center" style={{ width: '110px' }}>การกระทำ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {doctorDcSummaryData.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                      ไม่พบข้อมูลแพทย์ จำหน่าย
+                    </td>
+                  </tr>
+                ) : (
+                  doctorDcSummaryData.map((d, idx) => {
+                    const avgCmi = d.cases > 0 ? (d.sumAdjrw / d.cases) : 0
+                    return (
+                      <tr key={d.doctor}>
+                        <td className="rcm-text-center font-mono" style={{ color: '#94a3b8' }}>{idx + 1}</td>
+                        <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0d9488', flexShrink: 0 }} />
+                            <span>{d.doctor}</span>
+                          </div>
+                        </td>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#0d9488' }}>
+                          {d.cases.toLocaleString()}
+                        </td>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: '#047857', backgroundColor: '#ecfdf5' }}>
+                          {d.sumAdjrw.toFixed(4)}
+                        </td>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#065f46' }}>
+                          {avgCmi.toFixed(4)}
+                        </td>
+                        <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: '#0f172a' }}>
+                          ฿{d.totalIncome.toLocaleString()}
+                        </td>
+                        <td className="rcm-text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDoctorDcFilter(d.doctor)
+                              setSubTab('list')
+                            }}
+                            className="rcm-btn rcm-btn-secondary"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', gap: '0.2rem' }}
+                            title={`กรองรายชื่อผู้ป่วยที่แพทย์ D/C คือ ${d.doctor}`}
+                          >
+                            <span>ดูรายชื่อ</span>
+                            <ChevronRight size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="total-row">
+                  <td className="rcm-text-center" colSpan={2}>รวมทั้งหมด ({doctorDcSummaryData.length} ท่าน)</td>
+                  <td className="rcm-text-center font-mono" style={{ color: '#0d9488' }}>
+                    {doctorDcSummaryData.reduce((acc, c) => acc + c.cases, 0).toLocaleString()}
+                  </td>
+                  <td className="rcm-text-center font-mono" style={{ color: '#047857' }}>
+                    {doctorDcSummaryData.reduce((acc, c) => acc + c.sumAdjrw, 0).toFixed(4)}
+                  </td>
+                  <td className="rcm-text-center font-mono" style={{ color: '#065f46' }}>
+                    {(doctorDcSummaryData.reduce((acc, c) => acc + c.cases, 0) > 0 
+                      ? (doctorDcSummaryData.reduce((acc, c) => acc + c.sumAdjrw, 0) / doctorDcSummaryData.reduce((acc, c) => acc + c.cases, 0)) 
+                      : 0).toFixed(4)}
+                  </td>
+                  <td className="rcm-text-center font-mono" style={{ color: '#0f172a' }}>
+                    ฿{doctorDcSummaryData.reduce((acc, c) => acc + c.totalIncome, 0).toLocaleString()}
+                  </td>
+                  <td className="rcm-text-center">-</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUBTAB 4: 📊 กราฟสรุป (Charts)                                            */}
+      {/* 3 กราฟแท่งแนวตั้ง (Horizontal BarCharts) ตามต้นฉบับ                          */}
+      {/* ========================================================================= */}
+      {subTab === 'overview' && (
+        <div className="rcm-chart-grid-3">
+          {/* Chart 1: Cases by Admit Doctor */}
+          <div className="rcm-chart-card">
+            <div className="rcm-chart-header">
+              <div>
+                <h4 className="rcm-chart-title">
+                  จำนวนผู้ป่วยแยกตามแพทย์ Admit
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                  เรียงตามจำนวนผู้ป่วยที่รับไว้รักษา (ราย)
+                </p>
+              </div>
+            </div>
+            <div style={{ height: '320px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={doctorAdmitSummaryData.slice(0, 10).map((d) => ({ name: d.doctor, cases: d.cases }))}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(val: any) => [`${val} ราย`, 'ผู้ป่วย Admit']} />
+                  <Bar dataKey="cases" fill="#059669" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Chart 2: SumAdjRW by Admit Doctor */}
+          <div className="rcm-chart-card">
+            <div className="rcm-chart-header">
+              <div>
+                <h4 className="rcm-chart-title">
+                  ผลรวมค่าความยากโรค SumAdjRW แยกตามแพทย์ Admit
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                  ผลรวมค่าน้ำหนักสัมพัทธ์ (SumAdjRW)
+                </p>
+              </div>
+            </div>
+            <div style={{ height: '320px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={doctorAdmitSummaryData.slice(0, 10).map((d) => ({ name: d.doctor, sumAdjrw: Number(d.sumAdjrw.toFixed(4)) }))}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(val: any) => [`${val}`, 'SumAdjRW']} />
+                  <Bar dataKey="sumAdjrw" fill="#0d9488" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Chart 3: CMI by D/C Doctor */}
+          <div className="rcm-chart-card">
+            <div className="rcm-chart-header">
+              <div>
+                <h4 className="rcm-chart-title">
+                  ผลรวมค่าความยากโรค Cmi แยกตามแพทย์ D/C
+                </h4>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0.2rem 0 0 0' }}>
+                  ค่าเฉลี่ยความซับซ้อนโรค (CMI = SumAdjRW / Cases)
+                </p>
+              </div>
+            </div>
+            <div style={{ height: '320px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={doctorDcSummaryData
+                    .filter((d) => d.cases > 0)
+                    .slice(0, 10)
+                    .map((d) => ({
+                      name: d.doctor,
+                      cmi: Number((d.sumAdjrw / d.cases).toFixed(4)),
+                    }))}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                >
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(val: any) => [`${val}`, 'CMI (แพทย์ D/C)']} />
+                  <Bar dataKey="cmi" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}
