@@ -1,0 +1,163 @@
+/* Dashboard-RCM Layout CSS (Hospital Design Tokens) */
+
+.rcm-page-container {
+  min-height: calc(100vh - 70px);
+  background-color: var(--bg-main, #f8fafc);
+  color: var(--gray-900, #0f172a);
+  display: flex;
+  flex-direction: column;
+}
+
+.rcm-header {
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+  color: #ffffff;
+  padding: 1.25rem 1.5rem 0 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(6, 78, 59, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.rcm-header-top {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.rcm-title-area {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.rcm-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-radius: var(--radius-md, 8px);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.rcm-back-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+  transform: translateX(-2px);
+}
+
+.rcm-main-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.rcm-subtitle {
+  font-size: 0.8rem;
+  color: #a7f3d0;
+  margin: 0.15rem 0 0 0;
+}
+
+/* Tabs Navigation */
+.rcm-tab-nav {
+  max-width: 1400px;
+  margin: 0 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rcm-tab-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.rcm-tab-list {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-end;
+}
+
+.rcm-tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.15rem;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #d1fae5;
+  background-color: transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-bottom: none;
+}
+
+.rcm-tab-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.rcm-tab-item.active {
+  background-color: var(--bg-main, #f8fafc);
+  color: #065f46;
+  font-weight: 700;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.rcm-tab-icon {
+  flex-shrink: 0;
+}
+
+.rcm-tab-item.active .rcm-tab-icon {
+  color: #059669;
+}
+
+.rcm-tab-badge {
+  font-size: 0.68rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: inherit;
+  font-weight: 700;
+}
+
+.rcm-tab-item.active .rcm-tab-badge {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.rcm-main-content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+@media (max-width: 640px) {
+  .rcm-header {
+    padding: 1rem 1rem 0 1rem;
+  }
+  .rcm-main-title {
+    font-size: 1.15rem;
+  }
+  .rcm-tab-item {
+    padding: 0.55rem 0.85rem;
+    font-size: 0.8rem;
+  }
+  .rcm-main-content {
+    padding: 1rem 0.75rem;
+  }
+}

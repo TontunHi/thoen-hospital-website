@@ -73,6 +73,12 @@ export default async function ServicePage() {
       btnText: 'ดูอัตราครองเตียง',
     },
     {
+      title: 'Dashboard-RCM',
+      desc: 'ระบบนำเสนอและกำกับติดตามรายได้โรงพยาบาล สิทธิเบิกชดเชย e-Claim และลูกหนี้คงค้าง (ทันตกรรม ปกส., OPD รายแพทย์, IPD สรุปชาร์ต)',
+      link: '/service/dashboard-rcm',
+      btnText: 'เข้าสู่ Dashboard-RCM',
+    },
+    {
       title: 'โปรแกรม COC Lampang',
       desc: 'เชื่อมต่อระบบ COC โรงพยาบาลลำปาง สำหรับจัดการข้อมูลและการติดตามดูแลผู้ป่วยต่อเนื่อง',
       link: 'http://coc.lph.go.th/',
