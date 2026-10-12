@@ -188,14 +188,14 @@ describe('RcmDashboardService', () => {
 
       const msg = RcmDashboardService.formatTelegramChartSummary(
         mockReportData,
-        'https://thoenhospital.go.th/service/dashboard-rcm/ipd'
+        'https://thlp.moph.go.th/service/dashboard-rcm/ipd'
       )
 
       expect(msg).toContain('สรุปชาร์ต IPD ค้างสรุป')
       expect(msg).toContain('รวม <b>100</b> ชาร์ต')
       expect(msg).toContain('ค้าง <b>15</b> ชาร์ต')
       expect(msg).toContain('นพ. วรพจน์ มิตรภาพ')
-      expect(msg).toContain('https://thoenhospital.go.th/service/dashboard-rcm/ipd')
+      expect(msg).toContain('https://thlp.moph.go.th/service/dashboard-rcm/ipd')
     })
 
     it('queries and aggregates incomplete charts by doctor correctly', async () => {

@@ -35,7 +35,8 @@ export async function POST() {
     }
 
     const reportData = await RcmDashboardService.getIpdDoctorChartSummary()
-    const appUrl = process.env.NEXTAUTH_URL || 'https://thoenhospital.go.th/service/dashboard-rcm/ipd'
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'https://thlp.moph.go.th'
+    const appUrl = `${baseUrl.replace(/\/+$/, '')}/service/dashboard-rcm/ipd`
     const message = RcmDashboardService.formatTelegramChartSummary(reportData, appUrl)
 
     const result = await sendTelegramMessage(chatId, message, 'HTML')
