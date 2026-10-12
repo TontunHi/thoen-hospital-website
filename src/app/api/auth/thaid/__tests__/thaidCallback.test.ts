@@ -90,8 +90,12 @@ describe('ThaID Callback Route Handler', () => {
     const req = new Request(`http://localhost:3000/api/auth/thaid/callback?code=valid_code_1&state=${state}`)
     const res = await thaidCallbackHandler(req)
 
+    const expectedUrl = process.env.NEXT_PUBLIC_SITE_URL
+      ? `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '')}/member`
+      : 'http://localhost:3000/member'
+
     expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toBe('http://localhost:3000/member')
+    expect(res.headers.get('location')).toBe(expectedUrl)
     expect(mockCookieStore.delete).toHaveBeenCalledWith('thaid_oauth_state')
     expect(mockExchangeThaidCode).toHaveBeenCalledWith('valid_code_1', state)
   })
@@ -110,8 +114,12 @@ describe('ThaID Callback Route Handler', () => {
     const req = new Request(`http://localhost:3000/api/auth/thaid/callback?code=safari_code_2&state=${state}`)
     const res = await thaidCallbackHandler(req)
 
+    const expectedUrl = process.env.NEXT_PUBLIC_SITE_URL
+      ? `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '')}/member`
+      : 'http://localhost:3000/member'
+
     expect(res.status).toBe(307)
-    expect(res.headers.get('location')).toBe('http://localhost:3000/member')
+    expect(res.headers.get('location')).toBe(expectedUrl)
     expect(mockExchangeThaidCode).toHaveBeenCalledWith('safari_code_2', state)
   })
 
@@ -138,12 +146,39 @@ describe('ThaID Callback Route Handler', () => {
       thaidCallbackHandler(req2),
     ])
 
+    const expectedUrl = process.env.NEXT_PUBLIC_SITE_URL
+      ? `${process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '')}/member`
+      : 'http://localhost:3000/member'
+
     expect(res1.status).toBe(307)
     expect(res2.status).toBe(307)
-    expect(res1.headers.get('location')).toBe('http://localhost:3000/member')
-    expect(res2.headers.get('location')).toBe('http://localhost:3000/member')
+    expect(res1.headers.get('location')).toBe(expectedUrl)
+    expect(res2.headers.get('location')).toBe(expectedUrl)
     // Crucial check: Exchange is called only ONCE for both requests!
     expect(mockExchangeThaidCode).toHaveBeenCalledTimes(1)
+  })
+
+  it('redirects to NEXT_PUBLIC_SITE_URL in production environment instead of internal localhost:3000', async () => {
+    const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://thlp.moph.go.th'
+
+    try {
+      const state = generateOAuthState(secret)
+      mockCookieStore.get.mockReturnValue({ value: state })
+      mockExchangeThaidCode.mockResolvedValue({
+        username: '1234567890123',
+        email: 'prod@example.com',
+        role: 'member',
+      })
+
+      const req = new Request(`http://127.0.0.1:3000/api/auth/thaid/callback?code=prod_code&state=${state}`)
+      const res = await thaidCallbackHandler(req)
+
+      expect(res.status).toBe(307)
+      expect(res.headers.get('location')).toBe('https://thlp.moph.go.th/member')
+    } finally {
+      process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl
+    }
   })
 
   describe('Event Check-in via ThaID branch', () => {

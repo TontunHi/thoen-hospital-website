@@ -68,7 +68,7 @@ export function generateOAuthState(customSecret?: string): string {
 export function verifyOAuthState(
   state: string,
   customSecret?: string,
-  maxAgeMs = 10 * 60 * 1000 // 10 minutes
+  maxAgeMs = 15 * 60 * 1000 // 15 minutes
 ): boolean {
   if (!state || typeof state !== 'string') return false
   const parts = state.split('.')
@@ -191,6 +191,19 @@ function decodeJwtPayload(jwtToken: string): Record<string, any> | null {
   }
 }
 
+// Deduplication cache for authorization code exchange (prevents mobile Safari / duplicate-tab double redemption)
+const inFlightCodeExchanges = new Map<string, Promise<ThaidUserInfo | null>>()
+const completedCodeExchanges = new Map<string, { info: ThaidUserInfo; timestamp: number }>()
+
+function cleanExpiredCodeExchanges() {
+  const now = Date.now()
+  for (const [codeKey, record] of completedCodeExchanges.entries()) {
+    if (now - record.timestamp > 60_000) {
+      completedCodeExchanges.delete(codeKey)
+    }
+  }
+}
+
 /**
  * Exchanges the authorization code received from ThaID for user credentials and extracts the citizen ID (pid).
  */
@@ -198,78 +211,99 @@ export async function exchangeThaidAuthorizationCode(
   code: string,
   config: ThaidConfig
 ): Promise<ThaidUserInfo | null> {
-  try {
-    const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')
+  cleanExpiredCodeExchanges()
 
-    const bodyParams = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: config.redirectUri,
-    })
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Basic ${basicAuth}`,
-      Accept: 'application/json',
-    }
-
-    if (config.apiKey) {
-      headers['x-api-key'] = config.apiKey
-      headers['api-key'] = config.apiKey
-    }
-
-    const response = await fetch(config.tokenUrl, {
-      method: 'POST',
-      headers,
-      body: bodyParams.toString(),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      logger.error({ status: response.status, errorText }, 'ThaID token exchange returned error status')
-      return null
-    }
-
-    const data: ThaidTokenResponse = await response.json()
-
-    // 1. Check if PID is directly in the JSON response
-    let pid = data.pid || (data as any).PID || (data as any).citizen_id || (data as any).sub
-
-    // 2. If not found, inspect id_token JWT
-    let payload: Record<string, any> | null = null
-    if (data.id_token) {
-      payload = decodeJwtPayload(data.id_token)
-      if (payload && !pid) {
-        pid = payload.pid || payload.PID || payload.citizen_id || payload.sub
-      }
-    }
-
-    // 3. Fallback check on access_token if it's a JWT
-    if (!pid && data.access_token && data.access_token.includes('.')) {
-      const accessPayload = decodeJwtPayload(data.access_token)
-      if (accessPayload) {
-        pid = accessPayload.pid || accessPayload.PID || accessPayload.citizen_id || accessPayload.sub
-        payload = payload || accessPayload
-      }
-    }
-
-    if (!pid || typeof pid !== 'string') {
-      logger.error({ dataKeys: Object.keys(data) }, 'ThaID token response did not contain a valid PID')
-      return null
-    }
-
-    // Sanitize PID (keep only numeric 13 digits)
-    const sanitizedPid = pid.replace(/\D/g, '')
-
-    return {
-      pid: sanitizedPid,
-      title: payload?.title || (data as any).title,
-      firstName: payload?.given_name || (data as any).given_name || payload?.first_name,
-      lastName: payload?.family_name || (data as any).family_name || payload?.last_name,
-      rawPayload: payload || data,
-    }
-  } catch (error) {
-    logger.error({ error }, 'Exception during ThaID authorization code exchange')
-    return null
+  const cached = completedCodeExchanges.get(code)
+  if (cached && Date.now() - cached.timestamp < 60_000) {
+    return cached.info
   }
+
+  if (inFlightCodeExchanges.has(code)) {
+    return inFlightCodeExchanges.get(code)!
+  }
+
+  const exchangePromise = (async (): Promise<ThaidUserInfo | null> => {
+    try {
+      const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64')
+
+      const bodyParams = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: config.redirectUri,
+      })
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Basic ${basicAuth}`,
+        Accept: 'application/json',
+      }
+
+      if (config.apiKey) {
+        headers['x-api-key'] = config.apiKey
+        headers['api-key'] = config.apiKey
+      }
+
+      const response = await fetch(config.tokenUrl, {
+        method: 'POST',
+        headers,
+        body: bodyParams.toString(),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        logger.error({ status: response.status, errorText }, 'ThaID token exchange returned error status')
+        return null
+      }
+
+      const data: ThaidTokenResponse = await response.json()
+
+      // 1. Check if PID is directly in the JSON response
+      let pid = data.pid || (data as any).PID || (data as any).citizen_id || (data as any).sub
+
+      // 2. If not found, inspect id_token JWT
+      let payload: Record<string, any> | null = null
+      if (data.id_token) {
+        payload = decodeJwtPayload(data.id_token)
+        if (payload && !pid) {
+          pid = payload.pid || payload.PID || payload.citizen_id || payload.sub
+        }
+      }
+
+      // 3. Fallback check on access_token if it's a JWT
+      if (!pid && data.access_token && data.access_token.includes('.')) {
+        const accessPayload = decodeJwtPayload(data.access_token)
+        if (accessPayload) {
+          pid = accessPayload.pid || accessPayload.PID || accessPayload.citizen_id || accessPayload.sub
+          payload = payload || accessPayload
+        }
+      }
+
+      if (!pid || typeof pid !== 'string') {
+        logger.error({ dataKeys: Object.keys(data) }, 'ThaID token response did not contain a valid PID')
+        return null
+      }
+
+      // Sanitize PID (keep only numeric 13 digits)
+      const sanitizedPid = pid.replace(/\D/g, '')
+
+      const userInfo: ThaidUserInfo = {
+        pid: sanitizedPid,
+        title: payload?.title || (data as any).title,
+        firstName: payload?.given_name || (data as any).given_name || payload?.first_name,
+        lastName: payload?.family_name || (data as any).family_name || payload?.last_name,
+        rawPayload: payload || data,
+      }
+
+      completedCodeExchanges.set(code, { info: userInfo, timestamp: Date.now() })
+      return userInfo
+    } catch (error) {
+      logger.error({ error }, 'Exception during ThaID authorization code exchange')
+      return null
+    } finally {
+      inFlightCodeExchanges.delete(code)
+    }
+  })()
+
+  inFlightCodeExchanges.set(code, exchangePromise)
+  return exchangePromise
 }

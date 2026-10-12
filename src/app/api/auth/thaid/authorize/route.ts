@@ -27,8 +27,7 @@ export async function GET(request: Request) {
   const isHttps =
     proto === 'https' ||
     request.url.startsWith('https://') ||
-    process.env.COOKIE_SECURE === 'true' ||
-    Boolean(process.env.NEXT_PUBLIC_SITE_URL?.startsWith('https://'))
+    process.env.COOKIE_SECURE === 'true'
 
   const cookieStore = await cookies()
   cookieStore.set('thaid_oauth_state', state, {
@@ -36,7 +35,7 @@ export async function GET(request: Request) {
     secure: isHttps,
     sameSite: 'lax',
     path: '/',
-    maxAge: 600, // 10 minutes
+    maxAge: 900, // 15 minutes
   })
 
   if (acceptsJson) {
