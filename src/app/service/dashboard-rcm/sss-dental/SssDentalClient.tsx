@@ -50,6 +50,7 @@ export default function SssDentalClient() {
     discount: 0,
     debit: 0,
   })
+  const [monthlyTotals, setMonthlyTotals] = useState<Record<string, { income: number; visits: number }>>({})
 
   // 12 Fiscal Month columns
   const fiscalMonthColumns = useMemo(() => {
@@ -107,6 +108,7 @@ export default function SssDentalClient() {
       if (json.success) {
         setDoctors(json.doctors || [])
         setMonths(json.months || [])
+        setMonthlyTotals(json.monthlyTotals || {})
         setGrandTotal(json.grandTotal || {
           visits: 0,
           income: 0,
@@ -145,14 +147,14 @@ export default function SssDentalClient() {
       'รหัสแพทย์',
       'ชื่อทันตแพทย์',
       'จำนวนครั้งตรวจ',
-      ...(isYearMode
-        ? fiscalMonthColumns.map((m) => `ยอด ${m.label}`)
-        : months.map((m) => `ยอด ${m}`)),
       'ค่ารักษาพยาบาลรวม (บาท)',
       'สิทธิเบิกชดเชย UC (บาท)',
       'ชำระเอง/ใบเสร็จ (บาท)',
       'ส่วนลด (บาท)',
       'ลูกหนี้คงค้าง (บาท)',
+      ...(isYearMode
+        ? fiscalMonthColumns.map((m) => `ยอด ${m.label}`)
+        : months.map((m) => `ยอด ${m}`)),
     ]
 
     const rows = filteredDoctors.map((doc) => {
@@ -164,12 +166,12 @@ export default function SssDentalClient() {
         `"${doc.doctor_code}"`,
         `"${doc.doctor_name}"`,
         doc.total_visits,
-        ...monthValues,
         doc.total_income,
         doc.total_uc_money,
         doc.total_rcpt_money,
         doc.total_discount,
         doc.total_debit,
+        ...monthValues,
       ]
     })
 
@@ -430,31 +432,31 @@ export default function SssDentalClient() {
           <table className="rcm-table">
             <thead>
               <tr>
-                <th style={{ width: '40px' }} className="rcm-text-center">#</th>
-                <th>ชื่อทันตแพทย์</th>
-                <th className="rcm-text-right">ครั้งตรวจ</th>
+                <th className="rcm-sticky-col rcm-sticky-col-1">#</th>
+                <th className="rcm-sticky-col rcm-sticky-col-2" style={{ textAlign: 'center' }}>ชื่อแพทย์</th>
+                <th className="rcm-sticky-col rcm-sticky-col-3">ครั้งตรวจ</th>
+                <th className="rcm-sticky-col rcm-sticky-col-4">ค่ารักษารวม</th>
+                <th className="rcm-sticky-col rcm-sticky-col-5">สิทธิเบิก</th>
+                <th className="rcm-sticky-col rcm-sticky-col-6">ชำระเอง</th>
+                <th className="rcm-sticky-col rcm-sticky-col-7">ลูกหนี้ค้าง</th>
                 {dateMode === 'year'
                   ? fiscalMonthColumns.map((m) => (
-                      <th key={m.key} className="rcm-text-right">
+                      <th key={m.key} className="rcm-month-col">
                         {m.label}
                       </th>
                     ))
                   : months.map((m) => (
-                      <th key={m} className="rcm-text-right">
+                      <th key={m} className="rcm-month-col">
                         {m}
                       </th>
                     ))}
-                <th className="rcm-text-right">ค่ารักษารวม</th>
-                <th className="rcm-text-right">เบิกจ่าย (UC)</th>
-                <th className="rcm-text-right">ชำระเอง</th>
-                <th className="rcm-text-right">ลูกหนี้</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td
-                    colSpan={8 + (dateMode === 'year' ? fiscalMonthColumns.length : months.length)}
+                    colSpan={7 + (dateMode === 'year' ? fiscalMonthColumns.length : months.length)}
                     style={{ textAlign: 'center', padding: '3rem' }}
                   >
                     <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#059669' }} />
@@ -464,7 +466,7 @@ export default function SssDentalClient() {
               ) : filteredDoctors.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8 + (dateMode === 'year' ? fiscalMonthColumns.length : months.length)}
+                    colSpan={7 + (dateMode === 'year' ? fiscalMonthColumns.length : months.length)}
                     style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}
                   >
                     ไม่พบข้อมูลการให้บริการทันตกรรมประกันสังคมในช่วงเวลานี้
@@ -474,86 +476,133 @@ export default function SssDentalClient() {
                 <>
                   {filteredDoctors.map((doc, idx) => (
                     <tr key={doc.doctor_code}>
-                      <td className="rcm-text-center" style={{ color: '#94a3b8' }}>
+                      <td className="rcm-sticky-col rcm-sticky-col-1 font-mono" style={{ color: '#94a3b8' }}>
                         {idx + 1}
                       </td>
-                      <td style={{ fontWeight: 600 }}>{doc.doctor_name}</td>
-                      <td className="rcm-text-right font-mono">
+                      <td className="rcm-sticky-col rcm-sticky-col-2">
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={doc.doctor_name}
+                        >
+                          {doc.doctor_name}
+                        </div>
+                      </td>
+                      <td className="rcm-sticky-col rcm-sticky-col-3 font-mono" style={{ fontWeight: 500 }}>
                         {formatNumber(doc.total_visits)}
                       </td>
-                      {dateMode === 'year'
-                        ? fiscalMonthColumns.map((m) => (
-                            <td key={m.key} className="rcm-text-right font-mono" style={{ color: '#475569' }}>
-                              {doc.monthly_income[m.key] ? formatNumber(doc.monthly_income[m.key]) : '-'}
-                            </td>
-                          ))
-                        : months.map((m) => (
-                            <td key={m} className="rcm-text-right font-mono" style={{ color: '#475569' }}>
-                              {doc.monthly_income[m] ? formatNumber(doc.monthly_income[m]) : '-'}
-                            </td>
-                          ))}
-                      <td className="rcm-text-right font-mono" style={{ fontWeight: 700, color: '#0f172a' }}>
+                      <td className="rcm-sticky-col rcm-sticky-col-4 font-mono">
                         {formatCurrency(doc.total_income)}
                       </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#0369a1' }}>
+                      <td className="rcm-sticky-col rcm-sticky-col-5 font-mono">
                         {formatCurrency(doc.total_uc_money)}
                       </td>
-                      <td className="rcm-text-right font-mono" style={{ color: '#475569' }}>
+                      <td className="rcm-sticky-col rcm-sticky-col-6 font-mono">
                         {formatCurrency(doc.total_rcpt_money)}
                       </td>
-                      <td className="rcm-text-right">
-                        {doc.total_debit > 0 ? (
-                          <span className="rcm-badge-debit">{formatCurrency(doc.total_debit)}</span>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>฿0</span>
-                        )}
+                      <td className="rcm-sticky-col rcm-sticky-col-7 font-mono">
+                        {formatCurrency(doc.total_debit)}
                       </td>
+                      {dateMode === 'year'
+                        ? fiscalMonthColumns.map((m) => {
+                            const val = doc.monthly_income[m.key] || 0
+                            return (
+                              <td
+                                key={m.key}
+                                className="rcm-month-col font-mono"
+                                style={{
+                                  color: val > 0 ? '#1e293b' : '#cbd5e1',
+                                  fontWeight: val > 0 ? 500 : 400,
+                                }}
+                              >
+                                {val > 0 ? formatCurrency(val) : '-'}
+                              </td>
+                            )
+                          })
+                        : months.map((m) => {
+                            const val = doc.monthly_income[m] || 0
+                            return (
+                              <td
+                                key={m}
+                                className="rcm-month-col font-mono"
+                                style={{
+                                  color: val > 0 ? '#1e293b' : '#cbd5e1',
+                                  fontWeight: val > 0 ? 500 : 400,
+                                }}
+                              >
+                                {val > 0 ? formatCurrency(val) : '-'}
+                              </td>
+                            )
+                          })}
                     </tr>
                   ))}
 
-                  {/* Total Row */}
+                  {/* Grand Total Row */}
                   <tr className="total-row">
-                    <td colSpan={2} style={{ textAlign: 'center' }}>
-                      รวมทั้งสิ้น ({filteredDoctors.length} ท่าน)
+                    <td className="rcm-sticky-col rcm-sticky-col-1">
+                      รวม
                     </td>
-                    <td className="rcm-text-right font-mono">
+                    <td className="rcm-sticky-col rcm-sticky-col-2" style={{ fontWeight: 700 }}>
+                      <div
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        ทั้งหมด ({filteredDoctors.length} ท่าน)
+                      </div>
+                    </td>
+                    <td className="rcm-sticky-col rcm-sticky-col-3 font-mono" style={{ fontWeight: 700 }}>
                       {formatNumber(grandTotal.visits)}
+                    </td>
+                    <td className="rcm-sticky-col rcm-sticky-col-4 font-mono">
+                      {formatCurrency(grandTotal.income)}
+                    </td>
+                    <td className="rcm-sticky-col rcm-sticky-col-5 font-mono">
+                      {formatCurrency(grandTotal.uc_money)}
+                    </td>
+                    <td className="rcm-sticky-col rcm-sticky-col-6 font-mono">
+                      {formatCurrency(grandTotal.rcpt_money)}
+                    </td>
+                    <td className="rcm-sticky-col rcm-sticky-col-7 font-mono">
+                      {formatCurrency(grandTotal.debit)}
                     </td>
                     {dateMode === 'year'
                       ? fiscalMonthColumns.map((m) => {
-                          const mTotal = filteredDoctors.reduce(
-                            (sum, d) => sum + (d.monthly_income[m.key] || 0),
-                            0
-                          )
+                          const totalVal = monthlyTotals[m.key]?.income || 0
                           return (
-                            <td key={m.key} className="rcm-text-right font-mono">
-                              {mTotal ? formatNumber(mTotal) : '-'}
+                            <td
+                              key={m.key}
+                              className="rcm-month-col font-mono"
+                              style={{
+                                fontWeight: 700,
+                                color: totalVal > 0 ? '#0f172a' : '#94a3b8',
+                              }}
+                            >
+                              {totalVal > 0 ? formatCurrency(totalVal) : '-'}
                             </td>
                           )
                         })
                       : months.map((m) => {
-                          const mTotal = filteredDoctors.reduce(
-                            (sum, d) => sum + (d.monthly_income[m] || 0),
-                            0
-                          )
+                          const totalVal = monthlyTotals[m]?.income || 0
                           return (
-                            <td key={m} className="rcm-text-right font-mono">
-                              {mTotal ? formatNumber(mTotal) : '-'}
+                            <td
+                              key={m}
+                              className="rcm-month-col font-mono"
+                              style={{
+                                fontWeight: 700,
+                                color: totalVal > 0 ? '#0f172a' : '#94a3b8',
+                              }}
+                            >
+                              {totalVal > 0 ? formatCurrency(totalVal) : '-'}
                             </td>
                           )
                         })}
-                    <td className="rcm-text-right font-mono" style={{ color: '#064e3b' }}>
-                      {formatCurrency(grandTotal.income)}
-                    </td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#0369a1' }}>
-                      {formatCurrency(grandTotal.uc_money)}
-                    </td>
-                    <td className="rcm-text-right font-mono">
-                      {formatCurrency(grandTotal.rcpt_money)}
-                    </td>
-                    <td className="rcm-text-right font-mono" style={{ color: '#991b1b' }}>
-                      {formatCurrency(grandTotal.debit)}
-                    </td>
                   </tr>
                 </>
               )}
