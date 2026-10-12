@@ -15,6 +15,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
+  Search,
+  X,
+  UserCheck,
 } from 'lucide-react'
 import '../events.css'
 
@@ -79,8 +82,9 @@ export default function CreateEventClient({
   const [checkinCloseTime, setCheckinCloseTime] = useState('')
   const [fiscalYear, setFiscalYear] = useState('2569')
 
-  // Co-organizers (Multi-select)
+  // Co-organizers (Multi-select via Search)
   const [selectedCoOrganizers, setSelectedCoOrganizers] = useState<number[]>([])
+  const [coOrgSearch, setCoOrgSearch] = useState('')
 
   // Material & Asset Borrowing items
   const [borrowRows, setBorrowRows] = useState<BorrowItemRow[]>([])
@@ -89,12 +93,30 @@ export default function CreateEventClient({
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  // Toggle co-organizer
-  const handleToggleCoOrganizer = (memberId: number) => {
-    setSelectedCoOrganizers((prev) =>
-      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
-    )
+  // Add co-organizer
+  const handleAddCoOrganizer = (memberId: number) => {
+    if (!selectedCoOrganizers.includes(memberId)) {
+      setSelectedCoOrganizers((prev) => [...prev, memberId])
+    }
+    setCoOrgSearch('')
   }
+
+  // Remove co-organizer
+  const handleRemoveCoOrganizer = (memberId: number) => {
+    setSelectedCoOrganizers((prev) => prev.filter((id) => id !== memberId))
+  }
+
+  // Filter available members based on search query (excluding already selected)
+  const searchFilteredMembers = availableMembers.filter((m) => {
+    if (selectedCoOrganizers.includes(m.id)) return false
+    if (!coOrgSearch.trim()) return false
+
+    const q = coOrgSearch.toLowerCase().trim()
+    const nameMatch = m.name?.toLowerCase().includes(q) || false
+    const deptMatch = m.department?.toLowerCase().includes(q) || false
+    const posMatch = m.position?.toLowerCase().includes(q) || false
+    return nameMatch || deptMatch || posMatch
+  })
 
   // Add new borrow item row
   const handleAddBorrowRow = () => {
@@ -407,7 +429,7 @@ export default function CreateEventClient({
             </div>
           </div>
 
-          {/* Section 2: Organizers (Head + Co-organizers) */}
+          {/* Section 2: Organizers (Head + Co-organizers Search & Add) */}
           <div>
             <h2 className="formSectionTitle">
               <Users size={18} />
@@ -426,44 +448,106 @@ export default function CreateEventClient({
               <CheckCircle2 size={20} color="#059669" />
             </div>
 
-            {/* Co-organizers Selection */}
-            <div style={{ marginTop: '1rem' }}>
+            {/* Co-organizers Search & Add */}
+            <div style={{ marginTop: '1.25rem' }}>
               <label className="formLabel">
-                ผู้รับผิดชอบร่วม (Co-organizers) สามารถเลือกเพิ่มได้เลย
+                ผู้รับผิดชอบร่วม (Co-organizers)
               </label>
               <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 0.5rem 0' }}>
-                ผู้รับผิดชอบร่วมจะมีสิทธิ์เปิดดู QR Code หน้างาน และแก้ไขข้อมูลกิจกรรมนี้ได้
+                ผู้รับผิดชอบร่วมจะมีสิทธิ์เปิดดู QR Code หน้างาน และจัดการกิจกรรมนี้ร่วมกัน
               </p>
 
-              <div className="coOrganizersBox">
-                {availableMembers.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', padding: '1rem' }}>
-                    ไม่พบบุคลากรอื่นในระบบ
-                  </p>
-                ) : (
-                  availableMembers.map((m) => {
-                    const isSelected = selectedCoOrganizers.includes(m.id)
+              {/* Selected Co-Organizers Chips */}
+              {selectedCoOrganizers.length > 0 ? (
+                <div className="selectedCoOrganizersList">
+                  {selectedCoOrganizers.map((id) => {
+                    const member = availableMembers.find((m) => m.id === id)
+                    if (!member) return null
                     return (
-                      <div
-                        key={m.id}
-                        onClick={() => handleToggleCoOrganizer(m.id)}
-                        className={`coOrganizerItem ${isSelected ? 'selected' : ''}`}
-                      >
-                        <div>
-                          <span>{m.name}</span>
-                          <span style={{ fontSize: '0.75rem', color: isSelected ? '#047857' : '#64748b', marginLeft: '0.5rem' }}>
-                            ({m.department || 'ไม่ระบุแผนก'})
+                      <div key={id} className="selectedCoOrgChip">
+                        <div className="selectedCoOrgInfo">
+                          <UserCheck size={14} style={{ color: '#059669' }} />
+                          <span className="selectedCoOrgName">{member.name}</span>
+                          <span className="selectedCoOrgDept">
+                            ({member.department || 'ไม่ระบุแผนก'})
                           </span>
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          readOnly
-                          style={{ accentColor: '#059669', cursor: 'pointer' }}
-                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCoOrganizer(id)}
+                          className="btnRemoveCoOrg"
+                          title="ลบออก"
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
                     )
-                  })
+                  })}
+                </div>
+              ) : (
+                <div className="noCoOrgPrompt">
+                  ยังไม่มีผู้รับผิดชอบร่วมที่เลือก (พิมพ์ค้นหาชื่อด้านล่างเพื่อเพิ่ม)
+                </div>
+              )}
+
+              {/* Search Box */}
+              <div className="coOrgSearchContainer">
+                <div className="coOrgSearchInputWrap">
+                  <Search size={16} className="coOrgSearchIcon" />
+                  <input
+                    type="text"
+                    placeholder="พิมพ์ชื่อ-สกุล หรือชื่อแผนก เพื่อค้นหาและเพิ่มผู้รับผิดชอบร่วม..."
+                    value={coOrgSearch}
+                    onChange={(e) => setCoOrgSearch(e.target.value)}
+                    className="coOrgSearchInput"
+                  />
+                  {coOrgSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setCoOrgSearch('')}
+                      className="btnClearSearch"
+                      title="ล้างข้อความ"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown / Search Results Box */}
+                {coOrgSearch.trim().length > 0 && (
+                  <div className="coOrgSearchResultsBox">
+                    {searchFilteredMembers.length === 0 ? (
+                      <div className="coOrgSearchEmpty">
+                        ไม่พบบุคลากรที่ตรงกับ &ldquo;{coOrgSearch}&rdquo;
+                      </div>
+                    ) : (
+                      searchFilteredMembers.slice(0, 10).map((m) => (
+                        <div
+                          key={m.id}
+                          className="coOrgSearchResultItem"
+                          onClick={() => handleAddCoOrganizer(m.id)}
+                        >
+                          <div className="coOrgResultText">
+                            <div className="coOrgResultName">{m.name}</div>
+                            <div className="coOrgResultMeta">
+                              {m.department || 'ไม่ระบุกลุ่มงาน'} • {m.position || 'เจ้าหน้าที่'}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btnAddCoOrgBtn"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleAddCoOrganizer(m.id)
+                            }}
+                          >
+                            <Plus size={14} />
+                            <span>เพิ่ม</span>
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 )}
               </div>
             </div>

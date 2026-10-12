@@ -591,7 +591,7 @@
   border-radius: 1.25rem;
   border: 1px solid #e2e8f0;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
-  overflow: hidden;
+  overflow: visible;
   max-width: 900px;
   margin: 0 auto;
 }
@@ -600,6 +600,7 @@
   background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
   color: #ffffff;
   padding: 1.75rem 2rem;
+  border-radius: 1.25rem 1.25rem 0 0;
 }
 
 .createEventHeader h1 {
@@ -752,38 +753,214 @@
   color: #64748b;
 }
 
-/* Co-Organizers Box */
-.coOrganizersBox {
-  max-height: 220px;
-  overflow-y: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
-  padding: 0.5rem;
-  background: #f8fafc;
+/* ──────────────────────────────────────────────────────────────────────────
+   Co-Organizers Search & Select Components
+   ────────────────────────────────────────────────────────────────────────── */
+.selectedCoOrganizersList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
-.coOrganizerItem {
+.selectedCoOrgChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  color: #065f46;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
+}
+
+.selectedCoOrgChip:hover {
+  border-color: #6ee7b7;
+  background: #d1fae5;
+}
+
+.selectedCoOrgInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.selectedCoOrgName {
+  font-weight: 700;
+  color: #065f46;
+}
+
+.selectedCoOrgDept {
+  font-size: 0.725rem;
+  color: #047857;
+  font-weight: 400;
+}
+
+.btnRemoveCoOrg {
+  background: none;
+  border: none;
+  color: #059669;
+  cursor: pointer;
+  padding: 0.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.btnRemoveCoOrg:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.noCoOrgPrompt {
+  font-size: 0.775rem;
+  color: #94a3b8;
+  padding: 0.5rem 0.25rem;
+  margin-bottom: 0.5rem;
+  font-style: italic;
+}
+
+.coOrgSearchContainer {
+  position: relative;
+  width: 100%;
+}
+
+.coOrgSearchInputWrap {
+  position: relative;
+  width: 100%;
+}
+
+.coOrgSearchIcon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.coOrgSearchInput {
+  width: 100%;
+  padding: 0.65rem 2.25rem 0.65rem 2.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 0.85rem;
+  color: #1e293b;
+  outline: none;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.coOrgSearchInput:focus {
+  border-color: #10b981;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.btnClearSearch {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0.2rem;
+  border-radius: 50%;
+}
+
+.btnClearSearch:hover {
+  color: #475569;
+}
+
+.coOrgSearchResultsBox {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  z-index: 50;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.coOrgSearchResultItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.55rem 0.75rem;
-  border-radius: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
   cursor: pointer;
-  font-size: 0.825rem;
   transition: background 0.15s;
 }
 
-.coOrganizerItem:hover {
-  background: #e2e8f0;
+.coOrgSearchResultItem:last-child {
+  border-bottom: none;
 }
 
-.coOrganizerItem.selected {
-  background: #d1fae5;
-  color: #065f46;
+.coOrgSearchResultItem:hover {
+  background: #f0fdf4;
+}
+
+.coOrgResultText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.coOrgResultName {
+  font-size: 0.85rem;
   font-weight: 700;
+  color: #0f172a;
 }
 
-/* Borrowing Section */
+.coOrgResultMeta {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.btnAddCoOrgBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.75rem;
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnAddCoOrgBtn:hover {
+  background: #059669;
+}
+
+.coOrgSearchEmpty {
+  padding: 1.25rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Borrowing Section
+   ────────────────────────────────────────────────────────────────────────── */
 .borrowSectionHeader {
   display: flex;
   align-items: center;
