@@ -34,6 +34,8 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
 5. **Member Auth Seam:** `@/lib/auth/MemberAuthService` — All OTP, JWT build/verify, and ThaID OAuth flows. Route handlers: read cookie/body → call service → set cookie. Never create or verify JWTs inside a route handler.
 6. **Ethics CMS Seam:** `@/lib/cms/EthicsDocumentService` — Tree building, year aggregation, cascading file+record delete. Ethics route handlers are thin adapters only.
 7. **Hospital Asset Seam:** `@/lib/assets/assetService` (`HospitalAssetService`) — Auto-categorization (IT/Medical/General), FSN mapping, Gotowin integration. Route handlers: `@/app/api/assets/**`.
+8. **Hospital Events Seam:** `@/lib/events/hospitalEventService` (`HospitalEventService`) & `@/lib/events/eventTimeUtils` — Event creation, ThaID QR check-in window validation (`validateCheckinWindow`), attendee management, leaderboard, Thai fiscal year (1 Oct - 30 Sep). MySQL `DATETIME` stores literal Thai Local Time (`Asia/Bangkok` UTC+7).
+9. **Equipment Borrowing Seam:** `@/lib/equipment/equipmentBorrowService` (`EquipmentBorrowService`) — Centralized equipment & consumable borrowing workflows (`equipment_borrow_requests`, `equipment_borrow_items`).
 
 ## Architectural & Coding Standards
 - **Thin Route Adapters:** API routes (`src/app/api/**`) must be thin (~20–40 lines) delegating to deep domain modules in `@/lib/`.
@@ -41,10 +43,14 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
 - **Task Workflow Actions:** All APPROVE/REJECT/SEND_BACK transitions go through `@/lib/taskInboxService` (`executeWorkflowAction`) — handles permission check, HMAC verify, step advance, audit log, and Telegram notify. Manager field edits use `updateTaskByManager`.
 - **Test Seams:** Domain services accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb` for 100% Vitest unit testability.
 - **File Uploads:** Use `DocumentStorage.save()`, `saveBatch()`, or `formatDateDirectory()`.
+- **No Duplicate Keys in Responses:** Never write `{ success: true, ...result }` if `result` already contains `success: boolean` (fails strict `npx tsc --noEmit` with TS2783).
 
 ## Testing Gotchas
 - **Mock `logAudit` in service unit tests:** Services that call `logAudit()` internally (e.g. `MemberAuthService.buildSession`, `EthicsDocumentService.deleteDocument`) need: `vi.mock('../audit', () => ({ logAudit: vi.fn().mockResolvedValue(undefined) }))`
 - **`buildSession` is async:** `MemberAuthService.buildSession()` returns `Promise<string>` — always `await` it. The old `createToken` was sync and is now deprecated (throws).
+- **MariaDB tis620 Charset:** The hospital's MariaDB server defaults `init_connect='SET NAMES tis620'`. Always use `@/lib/prisma` (which pins `SET NAMES utf8mb4`) rather than raw `new PrismaClient()` in scripts to prevent UTF-8 conversion errors.
+- **Event Timezone in DB:** `hospital_events` DATETIME columns store literal Thai local time (UTC parts match Bangkok time). API responses serialize them via `toBangkokIsoString` (`+07:00`) so clients don't double-shift.
+- **Event QR Scanning:** QR codes point to `/api/events/checkin/[token]` which redirects to ThaID OAuth. Must be scanned with a standard mobile camera/LINE scanner to launch the browser (ThaID app internal scanner does not handle web URLs).
 
 
 ## Critical Hospital Rules (Zero Exception)
