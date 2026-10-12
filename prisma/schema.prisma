@@ -586,7 +586,7 @@ model HospitalEvent {
   headOrganizerId  Int                   @map("head_organizer_id")
   borrowRequestId  Int?                  @map("borrow_request_id")
   qrToken          String                @unique(map: "uq_event_qr_token") @map("qr_token") @db.VarChar(64)
-  fiscalYear       String                @default("2569") @map("fiscal_year") @db.VarChar(10)
+  fiscalYear       String                @default("2570") @map("fiscal_year") @db.VarChar(10)
   status           String                @default("UPCOMING") @db.VarChar(30)
   
   createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamp(0)

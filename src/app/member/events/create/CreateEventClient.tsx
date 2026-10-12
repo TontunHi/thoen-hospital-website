@@ -19,6 +19,7 @@ import {
   X,
   UserCheck,
 } from 'lucide-react'
+import { calculateThaiFiscalYear } from '@/lib/events/eventUtils'
 import '../events.css'
 
 interface CurrentUser {
@@ -80,7 +81,28 @@ export default function CreateEventClient({
   const [hasCustomCheckinTime, setHasCustomCheckinTime] = useState(false)
   const [checkinOpenTime, setCheckinOpenTime] = useState('')
   const [checkinCloseTime, setCheckinCloseTime] = useState('')
-  const [fiscalYear, setFiscalYear] = useState('2569')
+  const [fiscalYear, setFiscalYear] = useState(() => calculateThaiFiscalYear())
+  const [isManualFiscalYear, setIsManualFiscalYear] = useState(false)
+
+  // Auto-sync fiscal year with event start date unless manually customized
+  const handleStartDateChange = (val: string) => {
+    setEventStartDate(val)
+    if (!isManualFiscalYear) {
+      setFiscalYear(calculateThaiFiscalYear(val || undefined))
+    }
+  }
+
+  // Handle manual fiscal year change
+  const handleFiscalYearChange = (val: string) => {
+    setFiscalYear(val)
+    setIsManualFiscalYear(true)
+  }
+
+  // Reset to auto-calculated fiscal year
+  const handleResetFiscalYear = () => {
+    setIsManualFiscalYear(false)
+    setFiscalYear(calculateThaiFiscalYear(eventStartDate || undefined))
+  }
 
   // Co-organizers (Multi-select via Search)
   const [selectedCoOrganizers, setSelectedCoOrganizers] = useState<number[]>([])
@@ -292,7 +314,7 @@ export default function CreateEventClient({
               <input
                 type="text"
                 required
-                placeholder="เช่น โครงการอบรมช่วยฟื้นคืนชีพขั้นพื้นฐาน (CPR) ประจำปี 2569"
+                placeholder={`เช่น โครงการอบรมช่วยฟื้นคืนชีพขั้นพื้นฐาน (CPR) ประจำปี ${calculateThaiFiscalYear()}`}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="formInput"
@@ -340,16 +362,41 @@ export default function CreateEventClient({
               </div>
 
               <div>
-                <label className="formLabel">
-                  ปีงบประมาณ พ.ศ.
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <label className="formLabel" style={{ marginBottom: 0 }}>
+                    ปีงบประมาณ พ.ศ.
+                  </label>
+                  <span style={{ fontSize: '0.75rem', color: '#047857', fontWeight: 600, background: '#ecfdf5', padding: '0.125rem 0.5rem', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>
+                    ปีงบปัจจุบัน {calculateThaiFiscalYear()}
+                  </span>
+                </div>
                 <input
                   type="text"
-                  placeholder="เช่น 2569"
+                  placeholder={`เช่น ${calculateThaiFiscalYear()}`}
                   value={fiscalYear}
-                  onChange={(e) => setFiscalYear(e.target.value)}
+                  onChange={(e) => handleFiscalYearChange(e.target.value)}
                   className="formInput"
                 />
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem' }}>
+                  <span>รอบปีงบประมาณ 1 ต.ค. - 30 ก.ย.</span>
+                  {isManualFiscalYear && (
+                    <button
+                      type="button"
+                      onClick={handleResetFiscalYear}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563eb',
+                        cursor: 'pointer',
+                        padding: 0,
+                        textDecoration: 'underline',
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      คำนวณตามวันจัดงาน ({calculateThaiFiscalYear(eventStartDate || undefined)})
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -363,7 +410,7 @@ export default function CreateEventClient({
                   type="datetime-local"
                   required
                   value={eventStartDate}
-                  onChange={(e) => setEventStartDate(e.target.value)}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
                   className="formInput"
                 />
               </div>

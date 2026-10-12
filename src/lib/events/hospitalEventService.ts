@@ -59,16 +59,14 @@ export interface GetEventsOptions {
   limit?: number
 }
 
+import { calculateThaiFiscalYear } from './eventUtils'
+export { calculateThaiFiscalYear }
+
 /**
  * Calculates Thai Fiscal Year (ปีงบประมาณ พ.ศ.)
  * Begins October 1st of previous year.
  */
-export function calculateCurrentFiscalYear(date: Date = new Date()): string {
-  const year = date.getFullYear()
-  const month = date.getMonth() // 0-indexed (9 = October)
-  const beYear = year + 543
-  return String(month >= 9 ? beYear + 1 : beYear)
-}
+export const calculateCurrentFiscalYear = calculateThaiFiscalYear
 
 export class HospitalEventService {
   constructor(private db: any = prisma) {}

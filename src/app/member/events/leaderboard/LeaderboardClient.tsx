@@ -9,6 +9,7 @@ import {
   Search,
   ArrowLeft,
 } from 'lucide-react'
+import { calculateThaiFiscalYear } from '@/lib/events/eventUtils'
 import '../events.css'
 
 interface IndividualRankItem {
@@ -45,7 +46,7 @@ export default function LeaderboardClient({
 }: LeaderboardClientProps) {
   const [activeTab, setActiveTab] = useState<'individual' | 'department'>('individual')
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(
-    fiscalYears[0] || '2569'
+    fiscalYears[0] || calculateThaiFiscalYear()
   )
   const [individualList, setIndividualList] = useState<IndividualRankItem[]>(initialIndividual)
   const [departmentList, setDepartmentList] = useState<DepartmentRankItem[]>(initialDepartment)
