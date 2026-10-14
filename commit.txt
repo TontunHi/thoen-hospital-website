@@ -1,1 +1,1 @@
-fix(bridge): harden socket error handling and auto-exit on console close
+style(screening): enhance header titles with golden contrast and display CID without dash separators
