@@ -85,9 +85,9 @@ describe('Member Events API Routes', () => {
     )
   })
 
-  it('POST /api/member/events validates request and creates event', async () => {
+  it('POST /api/member/events validates request and creates event for admin', async () => {
     vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
-      member: { id: 5, name: 'Somchai', username: 'user1', role: 'member', department: 'IT' } as any,
+      member: { id: 5, name: 'Somchai', username: 'user1', role: 'admin', isAdmin: true, department: 'IT' } as any,
     })
 
     mockEventServiceInstance.createEvent.mockResolvedValue({
@@ -112,6 +112,30 @@ describe('Member Events API Routes', () => {
     expect(json.success).toBe(true)
     expect(json.data.id).toBe(99)
     expect(mockEventServiceInstance.createEvent).toHaveBeenCalled()
+  })
+
+  it('POST /api/member/events returns 403 when non-admin attempts to create event', async () => {
+    vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+      member: { id: 5, name: 'Somchai', username: 'user1', role: 'member', isAdmin: false, department: 'IT' } as any,
+    })
+
+    const body = {
+      title: 'อบรมพัฒนา AI',
+      eventStartDate: '2026-10-25T09:00:00Z',
+      eventEndDate: '2026-10-25T12:00:00Z',
+    }
+
+    const req = new Request('http://localhost/api/member/events', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+
+    const res = await createEvent(req)
+    const json = await res.json()
+
+    expect(res.status).toBe(403)
+    expect(json.success).toBe(false)
+    expect(json.error).toContain('เฉพาะผู้ดูแลระบบ')
   })
 
   it('POST /api/member/events/[id]/register registers member', async () => {

@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Camera, Briefcase, Building2, Loader2, Send, User, CheckCircle2 } from 'lucide-react'
 import MemberLogoutButton from './LogoutButton'
 import TelegramLinkModal from './TelegramLinkModal'
 import TelegramPromptModal from './TelegramPromptModal'
@@ -120,9 +119,21 @@ export default function ProfileBanner({
             )}
             <div className="pb-avatarOverlay">
               {uploading ? (
-                <Loader2 className="animate-spin" size={22} />
+                <span 
+                  className="material-symbols-outlined animate-spin" 
+                  style={{ fontSize: '22px' }}
+                  aria-hidden="true"
+                >
+                  progress_activity
+                </span>
               ) : (
-                <Camera size={22} />
+                <span 
+                  className="material-symbols-outlined" 
+                  style={{ fontSize: '22px' }}
+                  aria-hidden="true"
+                >
+                  photo_camera
+                </span>
               )}
             </div>
           </div>
@@ -141,7 +152,13 @@ export default function ProfileBanner({
           <h2 className="pb-fullName">{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
           <div className="pb-tagsRow">
             <span className="pb-tag pb-tagId">
-              <User size={12} />
+              <span 
+                className="material-symbols-outlined" 
+                style={{ fontSize: '13px' }}
+                aria-hidden="true"
+              >
+                person
+              </span>
               @{member.username}
             </span>
             <span className={`pb-tag pb-tagRole ${member.role === 'subdistrict' ? 'pb-tagRoleSub' : ''}`}>
@@ -160,12 +177,24 @@ export default function ProfileBanner({
       {/* ── Section 3: Quick-Info Chips ── */}
       <div className="pb-infoBar">
         <div className="pb-chip">
-          <Briefcase size={15} className="pb-chipIcon" />
+          <span 
+            className="material-symbols-outlined pb-chipIcon" 
+            style={{ fontSize: '16px' }}
+            aria-hidden="true"
+          >
+            work
+          </span>
           <span className="pb-chipLabel">ตำแหน่ง</span>
           <span className="pb-chipValue">{member.position || 'ไม่ได้ระบุ'}</span>
         </div>
         <div className="pb-chip">
-          <Building2 size={15} className="pb-chipIcon" />
+          <span 
+            className="material-symbols-outlined pb-chipIcon" 
+            style={{ fontSize: '16px' }}
+            aria-hidden="true"
+          >
+            domain
+          </span>
           <span className="pb-chipLabel">แผนก</span>
           <span className="pb-chipValue">{member.department || 'ไม่ได้ระบุ'}</span>
         </div>
@@ -176,10 +205,22 @@ export default function ProfileBanner({
             onClick={() => setIsTelegramModalOpen(true)}
             title="คลิกเพื่อดูข้อมูลการเชื่อมต่อ Telegram"
           >
-            <Send size={15} className="pb-chipIcon pb-chipIconTg" />
+            <span 
+              className="material-symbols-outlined pb-chipIcon pb-chipIconTg" 
+              style={{ fontSize: '16px' }}
+              aria-hidden="true"
+            >
+              send
+            </span>
             <span className="pb-chipLabel">การแจ้งเตือน</span>
             <span className="pb-chipValue" style={{ color: '#0088cc', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CheckCircle2 size={14} />
+              <span 
+                className="material-symbols-outlined" 
+                style={{ fontSize: '15px', color: '#0088cc' }}
+                aria-hidden="true"
+              >
+                check_circle
+              </span>
               เชื่อมต่อแล้ว
             </span>
           </button>
@@ -189,7 +230,13 @@ export default function ProfileBanner({
             className="pb-chip pb-chipAction" 
             onClick={() => setIsTelegramModalOpen(true)}
           >
-            <Send size={15} className="pb-chipIcon pb-chipIconTg" />
+            <span 
+              className="material-symbols-outlined pb-chipIcon pb-chipIconTg" 
+              style={{ fontSize: '16px' }}
+              aria-hidden="true"
+            >
+              send
+            </span>
             <span className="pb-chipLabel">การแจ้งเตือน</span>
             <span className="pb-chipValue">เชื่อมระบบ Telegram</span>
           </button>

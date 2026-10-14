@@ -190,12 +190,14 @@ export default function EventsClient({
           <div className="eventsHeaderActions">
             <Link href="/member/events/leaderboard" className="btnTrophy">
               <Trophy size={18} />
-              <span>กระดานคะแนน (Leaderboard)</span>
+              <span>กระดานคะแนน</span>
             </Link>
-            <Link href="/member/events/create" className="btnCreateEvent">
-              <PlusCircle size={18} />
-              <span>+ สร้างกิจกรรมใหม่</span>
-            </Link>
+            {currentUser.isAdmin && (
+              <Link href="/member/events/create" className="btnCreateEvent">
+                <PlusCircle size={18} />
+                <span>+ สร้างกิจกรรมใหม่</span>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -291,12 +293,16 @@ export default function EventsClient({
           <Calendar size={48} className="eventsEmptyIcon" />
           <h3 className="eventsEmptyTitle">ไม่พบกิจกรรมที่ค้นหา</h3>
           <p className="eventsEmptyDesc">
-            ยังไม่มีกิจกรรมที่ตรงกับเงื่อนไขในขณะนี้ คุณสามารถเริ่มต้นสร้างกิจกรรมใหม่ได้ทันที
+            {currentUser.isAdmin
+              ? 'ยังไม่มีกิจกรรมที่ตรงกับเงื่อนไขในขณะนี้ คุณสามารถเริ่มต้นสร้างกิจกรรมใหม่ได้ทันที'
+              : 'ยังไม่มีกิจกรรมที่ตรงกับเงื่อนไขในขณะนี้'}
           </p>
-          <Link href="/member/events/create" className="btnCreateEvent">
-            <PlusCircle size={15} />
-            <span>+ สร้างกิจกรรมใหม่</span>
-          </Link>
+          {currentUser.isAdmin && (
+            <Link href="/member/events/create" className="btnCreateEvent">
+              <PlusCircle size={15} />
+              <span>+ สร้างกิจกรรมใหม่</span>
+            </Link>
+          )}
         </div>
       ) : (
         <div className="eventStripList">

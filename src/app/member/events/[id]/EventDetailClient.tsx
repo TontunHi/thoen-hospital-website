@@ -24,6 +24,7 @@ import {
   UserPlus,
   X,
   AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 import '../events.css'
 
@@ -86,6 +87,120 @@ export default function EventDetailClient({
   // Action status
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // Edit Event Modal State
+  const [isEditEventModalOpen, setIsEditEventModalOpen] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editLocation, setEditLocation] = useState('')
+  const [editStatus, setEditStatus] = useState('UPCOMING')
+  const [editFiscalYear, setEditFiscalYear] = useState('')
+  const [editStartDate, setEditStartDate] = useState('')
+  const [editEndDate, setEditEndDate] = useState('')
+  const [editHasCustomCheckin, setEditHasCustomCheckin] = useState(false)
+  const [editCheckinOpen, setEditCheckinOpen] = useState('')
+  const [editCheckinClose, setEditCheckinClose] = useState('')
+  const [editEventLoading, setEditEventLoading] = useState(false)
+  const [editEventError, setEditEventError] = useState<string | null>(null)
+
+  function toDatetimeLocal(isoStr: string | null | undefined): string {
+    if (!isoStr) return ''
+    const match = String(isoStr).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/)
+    if (match) {
+      return `${match[1]}T${match[2]}`
+    }
+    try {
+      const d = new Date(isoStr)
+      if (isNaN(d.getTime())) return ''
+      const pad = (n: number) => String(n).padStart(2, '0')
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+    } catch {
+      return ''
+    }
+  }
+
+  const handleOpenEditEvent = () => {
+    setEditTitle(event.title || '')
+    setEditDescription(event.description || '')
+    setEditLocation(event.location || '')
+    setEditStatus(event.status || 'UPCOMING')
+    setEditFiscalYear(event.fiscalYear || '')
+    const sDate = toDatetimeLocal(event.eventStartDate)
+    const eDate = toDatetimeLocal(event.eventEndDate)
+    setEditStartDate(sDate)
+    setEditEndDate(eDate)
+    const cOpen = toDatetimeLocal(event.checkinOpenTime)
+    const cClose = toDatetimeLocal(event.checkinCloseTime)
+    const hasCustom = Boolean(cOpen && cClose && (cOpen !== sDate || cClose !== eDate))
+    setEditHasCustomCheckin(hasCustom)
+    setEditCheckinOpen(cOpen || sDate)
+    setEditCheckinClose(cClose || eDate)
+    setEditEventError(null)
+    setIsEditEventModalOpen(true)
+  }
+
+  const handleSaveEventSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setEditEventError(null)
+
+    if (!editTitle.trim()) {
+      setEditEventError('กรุณาระบุชื่อกิจกรรม')
+      return
+    }
+    if (!editStartDate || !editEndDate) {
+      setEditEventError('กรุณาระบุวันเวลาเริ่มต้นและสิ้นสุดกิจกรรม')
+      return
+    }
+    if (new Date(editStartDate) > new Date(editEndDate)) {
+      setEditEventError('วันเวลาเริ่มต้นต้องมาก่อนวันเวลาสิ้นสุด')
+      return
+    }
+    if (editHasCustomCheckin) {
+      if (!editCheckinOpen || !editCheckinClose) {
+        setEditEventError('กรุณาระบุช่วงเวลาเปิด-ปิดสแกนเช็คอินให้ครบถ้วน')
+        return
+      }
+      if (new Date(editCheckinOpen) > new Date(editCheckinClose)) {
+        setEditEventError('เวลาเปิดรับเช็คอินต้องมาก่อนเวลาปิดรับเช็คอิน')
+        return
+      }
+    }
+
+    setEditEventLoading(true)
+    try {
+      const payload = {
+        title: editTitle.trim(),
+        description: editDescription.trim() || null,
+        location: editLocation.trim() || null,
+        status: editStatus,
+        fiscalYear: editFiscalYear.trim() || undefined,
+        eventStartDate: editStartDate,
+        eventEndDate: editEndDate,
+        checkinOpenTime: editHasCustomCheckin && editCheckinOpen ? editCheckinOpen : editStartDate,
+        checkinCloseTime: editHasCustomCheckin && editCheckinClose ? editCheckinClose : editEndDate,
+      }
+
+      const res = await fetch(`/api/member/events/${event.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'ไม่สามารถแก้ไขข้อมูลกิจกรรมได้')
+      }
+
+      setEvent((prev: any) => ({
+        ...prev,
+        ...json.data,
+      }))
+      setIsEditEventModalOpen(false)
+    } catch (err: any) {
+      setEditEventError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลกิจกรรม')
+    } finally {
+      setEditEventLoading(false)
+    }
+  }
 
   // Generate QR code data URL on mount
   useEffect(() => {
@@ -211,7 +326,7 @@ export default function EventDetailClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           memberId: selectedMember.id,
-          pointsAwarded: addPoints,
+          pointsAwarded: 1,
           checkedInAt: addTime || undefined,
           note: addNote || undefined,
         }),
@@ -283,7 +398,7 @@ export default function EventDetailClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           attendanceId: editingAttendance.id,
-          pointsAwarded: editPoints,
+          pointsAwarded: editingAttendance.pointsAwarded ?? 1,
           checkedInAt: editTime || undefined,
         }),
       })
@@ -338,50 +453,78 @@ export default function EventDetailClient({
           <span>กลับหน้ารายการกิจกรรม</span>
         </Link>
 
-        <Link
-          href="/member/events/leaderboard"
-          className="btnTrophy"
-          style={{ padding: '0.45rem 0.95rem', fontSize: '0.8rem' }}
-        >
-          <Trophy size={15} />
-          <span>ดูกระดานคะแนน</span>
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {canManage && (
+            <button
+              type="button"
+              onClick={handleOpenEditEvent}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.45rem 0.95rem',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                color: '#065f46',
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Pencil size={14} />
+              <span>แก้ไขรายละเอียดกิจกรรม</span>
+            </button>
+          )}
+
+          <Link
+            href="/member/events/leaderboard"
+            className="btnTrophy"
+            style={{ padding: '0.45rem 0.95rem', fontSize: '0.8rem' }}
+          >
+            <Trophy size={15} />
+            <span>ดูกระดานคะแนน</span>
+          </Link>
+        </div>
       </div>
 
       {/* Event Main Banner Card */}
       <div className="detailMainCard">
         <div className="detailHeaderBanner">
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <span className="eventsPillTag" style={{ margin: 0 }}>
-              <Calendar size={12} />
-              ปีงบประมาณ {event.fiscalYear}
-            </span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+              <span className="eventsPillTag" style={{ margin: 0 }}>
+                <Calendar size={12} />
+                ปีงบประมาณ {event.fiscalYear}
+              </span>
 
-            {isOpen && (
-              <span
-                className="eventStatusBadge active"
-                style={{ background: '#34d399', color: '#064e3b', fontWeight: 700 }}
-              >
-                ● เปิดรับสแกนเช็คอินอยู่ขณะนี้
-              </span>
-            )}
-            {isEarly && (
-              <span
-                className="eventStatusBadge"
-                style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fef3c7' }}
-              >
-                <Clock size={12} style={{ display: 'inline', marginRight: '0.25rem' }} />
-                ยังไม่ถึงเวลาเปิดสแกน
-              </span>
-            )}
-            {isLate && (
-              <span
-                className="eventStatusBadge"
-                style={{ background: 'rgba(100, 116, 139, 0.3)', color: '#e2e8f0' }}
-              >
-                ปิดรับสแกนแล้ว
-              </span>
-            )}
+              {isOpen && (
+                <span
+                  className="eventStatusBadge active"
+                  style={{ background: '#34d399', color: '#064e3b', fontWeight: 700 }}
+                >
+                  ● เปิดรับสแกนเช็คอินอยู่ขณะนี้
+                </span>
+              )}
+              {isEarly && (
+                <span
+                  className="eventStatusBadge"
+                  style={{ background: 'rgba(245, 158, 11, 0.25)', color: '#fef3c7' }}
+                >
+                  <Clock size={12} style={{ display: 'inline', marginRight: '0.25rem' }} />
+                  ยังไม่ถึงเวลาเปิดสแกน
+                </span>
+              )}
+              {isLate && (
+                <span
+                  className="eventStatusBadge"
+                  style={{ background: 'rgba(100, 116, 139, 0.3)', color: '#e2e8f0' }}
+                >
+                  ปิดรับสแกนแล้ว
+                </span>
+              )}
+            </div>
           </div>
 
           <h1>{event.title}</h1>
@@ -461,7 +604,7 @@ export default function EventDetailClient({
       </div>
 
       {/* QR Code Section (For Organizers and Display) */}
-      {event.canManage && (
+      {canManage && (
         <div className="qrCodeSectionCard">
           <div className="qrCodeRow">
             {/* QR Image Frame */}
@@ -846,34 +989,20 @@ export default function EventDetailClient({
                           {selectedMember.department || 'ไม่ระบุแผนก'} • {selectedMember.position || 'เจ้าหน้าที่'}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedMember(null)}
-                        style={{ background: 'none', border: 'none', color: '#059669', cursor: 'pointer', padding: '0.25rem' }}
-                      >
-                        <X size={16} />
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#065f46', background: '#d1fae5', padding: '0.2rem 0.5rem', borderRadius: '0.375rem' }}>
+                          +1 คะแนน
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMember(null)}
+                          style={{ background: 'none', border: 'none', color: '#059669', cursor: 'pointer', padding: '0.25rem' }}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
                     </div>
                   )}
-                </div>
-
-                {/* Points Awarded */}
-                <div>
-                  <label className="formLabel">
-                    คะแนนที่ได้รับ (Points) <span className="formRequired">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    required
-                    value={addPoints}
-                    onChange={(e) => setAddPoints(parseInt(e.target.value, 10) || 0)}
-                    className="formInput"
-                  />
-                  <small style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                    มาตรฐานทั่วไปสำหรับกิจกรรมคือ 1 คะแนน (สามารถกำหนด 0 - 10)
-                  </small>
                 </div>
 
                 {/* Check-in Time */}
@@ -909,18 +1038,27 @@ export default function EventDetailClient({
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
                   disabled={actionLoading}
-                  className="btnSecondary"
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                  className="modalBtnCancel"
                 >
-                  ยกเลิก
+                  <X size={15} />
+                  <span>ยกเลิก</span>
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading || !selectedMember}
-                  className="btnPrimary"
-                  style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+                  className="modalBtnSubmit"
                 >
-                  {actionLoading ? 'กำลังบันทึก...' : 'บันทึกการเข้าร่วม'}
+                  {actionLoading ? (
+                    <>
+                      <Loader2 size={16} className="modalBtnSpinner" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>บันทึกการเข้าร่วม</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -953,30 +1091,22 @@ export default function EventDetailClient({
                   </div>
                 )}
 
-                <div style={{ padding: '0.75rem', background: '#f8fafc', borderRadius: '0.65rem', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b' }}>บุคลากร</div>
-                  <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>
-                    {editingAttendance.member?.name || 'บุคลากร'}
-                  </strong>
-                  <div style={{ fontSize: '0.8rem', color: '#475569' }}>
-                    {editingAttendance.member?.department || 'ไม่ระบุแผนก'}
+                <div style={{ padding: '0.75rem 0.95rem', background: '#f8fafc', borderRadius: '0.65rem', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>บุคลากร</div>
+                    <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>
+                      {editingAttendance.member?.name || 'บุคลากร'}
+                    </strong>
+                    <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+                      {editingAttendance.member?.department || 'ไม่ระบุแผนก'}
+                    </div>
                   </div>
-                </div>
-
-                {/* Points Awarded */}
-                <div>
-                  <label className="formLabel">
-                    คะแนนที่ได้รับ (Points) <span className="formRequired">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    required
-                    value={editPoints}
-                    onChange={(e) => setEditPoints(parseInt(e.target.value, 10) || 0)}
-                    className="formInput"
-                  />
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.2rem' }}>คะแนนสะสม</div>
+                    <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#065f46', background: '#ecfdf5', padding: '0.2rem 0.55rem', borderRadius: '0.4rem', border: '1px solid #a7f3d0' }}>
+                      {editingAttendance.pointsAwarded ?? 1} คะแนน
+                    </span>
+                  </div>
                 </div>
 
                 {/* Check-in Time */}
@@ -998,18 +1128,27 @@ export default function EventDetailClient({
                   type="button"
                   onClick={() => setEditingAttendance(null)}
                   disabled={actionLoading}
-                  className="btnSecondary"
-                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                  className="modalBtnCancel"
                 >
-                  ยกเลิก
+                  <X size={15} />
+                  <span>ยกเลิก</span>
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="btnPrimary"
-                  style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+                  className="modalBtnSubmit"
                 >
-                  {actionLoading ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+                  {actionLoading ? (
+                    <>
+                      <Loader2 size={16} className="modalBtnSpinner" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>บันทึกการแก้ไข</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -1051,29 +1190,224 @@ export default function EventDetailClient({
                 type="button"
                 onClick={() => setDeletingAttendance(null)}
                 disabled={actionLoading}
-                className="btnSecondary"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                className="modalBtnCancel"
               >
-                ยกเลิก
+                <X size={15} />
+                <span>ยกเลิก</span>
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={actionLoading}
-                style={{
-                  background: '#dc2626',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  padding: '0.5rem 1.25rem',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="modalBtnDanger"
               >
-                {actionLoading ? 'กำลังลบ...' : 'ยืนยันลบรายชื่อ'}
+                {actionLoading ? (
+                  <>
+                    <Loader2 size={16} className="modalBtnSpinner" />
+                    <span>กำลังลบ...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    <span>ยืนยันลบรายชื่อ</span>
+                  </>
+                )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          Modal 4: แก้ไขรายละเอียดกิจกรรม (Edit Event Details)
+          ───────────────────────────────────────────────────────────── */}
+      {isEditEventModalOpen && (
+        <div className="attendeeModalOverlay">
+          <div className="attendeeModalCard" style={{ maxWidth: 640 }}>
+            <div className="attendeeModalHeader">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Pencil size={18} color="#059669" />
+                <span>แก้ไขรายละเอียดกิจกรรม</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditEventModalOpen(false)}
+                className="attendeeModalCloseBtn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEventSubmit}>
+              <div className="attendeeModalBody" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                {editEventError && (
+                  <div style={{ padding: '0.65rem 0.85rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.5rem', color: '#b91c1c', fontSize: '0.825rem' }}>
+                    {editEventError}
+                  </div>
+                )}
+
+                {/* Title */}
+                <div>
+                  <label className="formLabel">
+                    ชื่อกิจกรรม <span className="formRequired">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="formInput"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="formLabel">คำอธิบาย/วัตถุประสงค์กิจกรรม</label>
+                  <textarea
+                    rows={3}
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="formInput"
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Location & Fiscal Year */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                  <div>
+                    <label className="formLabel">สถานที่จัดงาน</label>
+                    <input
+                      type="text"
+                      value={editLocation}
+                      onChange={(e) => setEditLocation(e.target.value)}
+                      className="formInput"
+                    />
+                  </div>
+                  <div>
+                    <label className="formLabel">ปีงบประมาณ พ.ศ.</label>
+                    <input
+                      type="text"
+                      value={editFiscalYear}
+                      onChange={(e) => setEditFiscalYear(e.target.value)}
+                      className="formInput"
+                    />
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="formLabel">สถานะกิจกรรม</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value)}
+                    className="formInput"
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <option value="UPCOMING">เร็วๆ นี้ (UPCOMING)</option>
+                    <option value="ONGOING">กำลังจัดงาน (ONGOING)</option>
+                    <option value="COMPLETED">สิ้นสุดแล้ว (COMPLETED)</option>
+                    <option value="CANCELLED">ยกเลิกกิจกรรม (CANCELLED)</option>
+                  </select>
+                </div>
+
+                {/* Event Schedule (Start & End) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                  <div>
+                    <label className="formLabel">
+                      วันและเวลาเริ่มกิจกรรม <span className="formRequired">*</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={editStartDate}
+                      onChange={(e) => setEditStartDate(e.target.value)}
+                      className="formInput"
+                    />
+                  </div>
+                  <div>
+                    <label className="formLabel">
+                      วันและเวลาสิ้นสุดกิจกรรม <span className="formRequired">*</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={editEndDate}
+                      onChange={(e) => setEditEndDate(e.target.value)}
+                      className="formInput"
+                    />
+                  </div>
+                </div>
+
+                {/* Custom Check-in Time Toggle */}
+                <div style={{ background: '#f8fafc', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                    <input
+                      type="checkbox"
+                      checked={editHasCustomCheckin}
+                      onChange={(e) => setEditHasCustomCheckin(e.target.checked)}
+                      style={{ width: '1rem', height: '1rem', accentColor: '#059669', cursor: 'pointer' }}
+                    />
+                    <span>กำหนดช่วงเวลาเปิด-ปิดสแกน QR Code เช็คอินแยกต่างหาก</span>
+                  </label>
+
+                  {editHasCustomCheckin && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginTop: '0.75rem' }}>
+                      <div>
+                        <label className="formLabel" style={{ color: '#92400e', fontSize: '0.8rem' }}>
+                          เวลาเปิดรับสแกนเช็คอิน
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editCheckinOpen}
+                          onChange={(e) => setEditCheckinOpen(e.target.value)}
+                          className="formInput"
+                        />
+                      </div>
+                      <div>
+                        <label className="formLabel" style={{ color: '#92400e', fontSize: '0.8rem' }}>
+                          เวลาปิดรับสแกนเช็คอิน
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editCheckinClose}
+                          onChange={(e) => setEditCheckinClose(e.target.value)}
+                          className="formInput"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="attendeeModalFooter">
+                <button
+                  type="button"
+                  onClick={() => setIsEditEventModalOpen(false)}
+                  disabled={editEventLoading}
+                  className="modalBtnCancel"
+                >
+                  <X size={15} />
+                  <span>ยกเลิก</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={editEventLoading}
+                  className="modalBtnSubmit"
+                >
+                  {editEventLoading ? (
+                    <>
+                      <Loader2 size={16} className="modalBtnSpinner" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>บันทึกการแก้ไขกิจกรรม</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

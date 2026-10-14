@@ -87,3 +87,35 @@ export async function PUT(
     )
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireMemberApi()
+  if (auth.error) return auth.error
+
+  const { id } = await params
+  const eventId = parseInt(id, 10)
+  if (isNaN(eventId)) {
+    return NextResponse.json({ success: false, error: 'รหัสกิจกรรมไม่ถูกต้อง' }, { status: 400 })
+  }
+
+  try {
+    const actor = {
+      id: auth.member.id,
+      name: auth.member.name,
+      username: auth.member.username,
+      role: auth.member.role,
+      department: auth.member.department,
+    }
+
+    const result = await eventService.deleteEvent(eventId, actor)
+    return NextResponse.json(result)
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการลบกิจกรรม' },
+      { status: 400 }
+    )
+  }
+}

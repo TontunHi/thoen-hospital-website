@@ -131,7 +131,7 @@ export default function LeaderboardClient({
                 <span>กระดานเกียรติยศการมีส่วนร่วม</span>
               </div>
               <h1 className="eventsHeaderTitle" style={{ margin: '0.25rem 0' }}>
-                กระดานอันดับคะแนน (Leaderboard)
+                กระดานคะแนน
               </h1>
               <p className="eventsHeaderSubtitle" style={{ color: '#fef3c7' }}>
                 คะแนนสะสมจากการเข้าร่วมกิจกรรมโรงพยาบาลเถินผ่าน ThaID (คะแนนเท่ากันครองอันดับร่วมกัน)

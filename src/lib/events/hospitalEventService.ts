@@ -64,6 +64,7 @@ import {
   toDbThaiDateTime,
   toBangkokIsoString,
   validateCheckinWindow,
+  getNowBangkokForDb,
 } from './eventTimeUtils'
 export { calculateThaiFiscalYear }
 
@@ -79,6 +80,9 @@ export class HospitalEventService {
   async createEvent(input: CreateEventInput, actor: Actor) {
     if (!actor.id) {
       throw new Error('กรุณาเข้าสู่ระบบก่อนสร้างกิจกรรม')
+    }
+    if (actor.role !== 'admin') {
+      throw new Error('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถสร้างกิจกรรมได้')
     }
     if (!input.title || !input.title.trim()) {
       throw new Error('กรุณาระบุชื่อกิจกรรม')
@@ -187,7 +191,52 @@ export class HospitalEventService {
     })
   }
 
+  /**
+   * Automatically transition event statuses according to time (Just-in-Time Sync):
+   * 1. UPCOMING -> ONGOING when eventStartDate <= now <= eventEndDate
+   * 2. UPCOMING / ONGOING -> COMPLETED when now > eventEndDate
+   * Note: CANCELLED events are left untouched.
+   */
+  async syncEventStatuses(referenceTime?: Date): Promise<{ updatedToOngoing: number; updatedToCompleted: number }> {
+    if (typeof this.db?.hospitalEvent?.updateMany !== 'function') {
+      return { updatedToOngoing: 0, updatedToCompleted: 0 }
+    }
+
+    try {
+      const dbNow = referenceTime ? toDbThaiDateTime(referenceTime) || getNowBangkokForDb() : getNowBangkokForDb()
+
+      const [completedResult, ongoingResult] = await Promise.all([
+        this.db.hospitalEvent.updateMany({
+          where: {
+            status: { in: ['UPCOMING', 'ONGOING'] },
+            eventEndDate: { lt: dbNow },
+          },
+          data: { status: 'COMPLETED' },
+        }),
+        this.db.hospitalEvent.updateMany({
+          where: {
+            status: 'UPCOMING',
+            eventStartDate: { lte: dbNow },
+            eventEndDate: { gte: dbNow },
+          },
+          data: { status: 'ONGOING' },
+        }),
+      ])
+
+      return {
+        updatedToCompleted: completedResult?.count || 0,
+        updatedToOngoing: ongoingResult?.count || 0,
+      }
+    } catch (err) {
+      logger.error({ err }, 'Error syncing event statuses automatically')
+      return { updatedToOngoing: 0, updatedToCompleted: 0 }
+    }
+  }
+
   async getEvents(options: GetEventsOptions = {}) {
+    // Just-in-Time sync event statuses so queries and filters are always up to date
+    await this.syncEventStatuses()
+
     const {
       status,
       search,
@@ -324,6 +373,32 @@ export class HospitalEventService {
 
     if (!event) return null
 
+    // Just-in-Time Status Auto-Transition for this event
+    if (event.status !== 'CANCELLED') {
+      const dbNow = getNowBangkokForDb()
+      let nextStatus: string | null = null
+
+      if (dbNow > event.eventEndDate && event.status !== 'COMPLETED') {
+        nextStatus = 'COMPLETED'
+      } else if (dbNow >= event.eventStartDate && dbNow <= event.eventEndDate && event.status === 'UPCOMING') {
+        nextStatus = 'ONGOING'
+      }
+
+      if (nextStatus) {
+        try {
+          if (typeof this.db?.hospitalEvent?.update === 'function') {
+            await this.db.hospitalEvent.update({
+              where: { id: event.id },
+              data: { status: nextStatus },
+            })
+          }
+          event.status = nextStatus
+        } catch (err) {
+          logger.error({ err, eventId: event.id }, 'Failed to auto-update event status in getEventById')
+        }
+      }
+    }
+
     const isHeadOrganizer = memberId ? event.headOrganizerId === memberId : false
     const isCoOrganizer = memberId
       ? event.coOrganizers?.some((c: any) => c.memberId === memberId)
@@ -386,8 +461,8 @@ export class HospitalEventService {
 
     if (input.eventStartDate !== undefined) data.eventStartDate = toDbThaiDateTime(input.eventStartDate)
     if (input.eventEndDate !== undefined) data.eventEndDate = toDbThaiDateTime(input.eventEndDate)
-    if (input.checkinOpenTime) data.checkinOpenTime = toDbThaiDateTime(input.checkinOpenTime)
-    if (input.checkinCloseTime) data.checkinCloseTime = toDbThaiDateTime(input.checkinCloseTime)
+    if (input.checkinOpenTime !== undefined) data.checkinOpenTime = toDbThaiDateTime(input.checkinOpenTime)
+    if (input.checkinCloseTime !== undefined) data.checkinCloseTime = toDbThaiDateTime(input.checkinCloseTime)
 
     return await this.db.$transaction(async (tx: any) => {
       const updated = await tx.hospitalEvent.update({
@@ -420,8 +495,51 @@ export class HospitalEventService {
         logger.error({ err }, 'Failed to write audit log for event update')
       }
 
-      return updated
+      return {
+        ...updated,
+        eventStartDate: toBangkokIsoString(updated.eventStartDate) || updated.eventStartDate,
+        eventEndDate: toBangkokIsoString(updated.eventEndDate) || updated.eventEndDate,
+        checkinOpenTime: toBangkokIsoString(updated.checkinOpenTime) || updated.checkinOpenTime,
+        checkinCloseTime: toBangkokIsoString(updated.checkinCloseTime) || updated.checkinCloseTime,
+      }
     })
+  }
+
+  async deleteEvent(id: number, actor: Actor) {
+    const existing = await this.db.hospitalEvent.findUnique({
+      where: { id },
+      include: { coOrganizers: true },
+    })
+
+    if (!existing) {
+      throw new Error('ไม่พบข้อมูลกิจกรรม')
+    }
+
+    const isAuthorized =
+      actor.role === 'admin' ||
+      existing.headOrganizerId === actor.id ||
+      existing.coOrganizers?.some((c: any) => c.memberId === actor.id)
+
+    if (!isAuthorized) {
+      throw new Error('คุณไม่มีสิทธิ์ลบกิจกรรมนี้')
+    }
+
+    await this.db.hospitalEvent.delete({
+      where: { id },
+    })
+
+    try {
+      await logAudit(
+        'DELETE',
+        'hospital_events',
+        `ลบกิจกรรม: "${existing.title}" (ID: ${id}) โดย ${actor.name || actor.username || 'ผู้ดูแลระบบ'}`,
+        { eventId: id, title: existing.title }
+      )
+    } catch (err) {
+      logger.error({ err }, 'Failed to write audit log for event deletion')
+    }
+
+    return { success: true, message: 'ลบกิจกรรมเรียบร้อยแล้ว' }
   }
 
   async registerForEvent(eventId: number, memberId: number) {

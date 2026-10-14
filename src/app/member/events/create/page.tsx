@@ -15,6 +15,11 @@ export default async function CreateEventPage() {
     redirect('/member/login')
   }
 
+  // Only admin can create events
+  if (!member.isAdmin) {
+    redirect('/member/events')
+  }
+
   // Preload materials, loanable assets, and members for co-organizers
   let loanableMaterials: any[] = []
   let loanableAssets: any[] = []

@@ -72,10 +72,10 @@
 
 .memberDashboardContainer .dashboardWrapper {
   width: 100%;
-  max-width: 1040px;
+  max-width: 1120px;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 26px;
   z-index: 10;
   position: relative;
   animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
@@ -385,31 +385,31 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .memberDashboardContainer .sectionTitleWrap {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .memberDashboardContainer .sectionTitle {
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 700;
   color: #0f172a;
   letter-spacing: -0.01em;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .memberDashboardContainer .sectionTitle::before {
   content: '';
   display: block;
-  width: 4px;
-  height: 22px;
+  width: 3.5px;
+  height: 18px;
   background: linear-gradient(to bottom, #10b981, #059669);
   border-radius: 4px;
 }
@@ -419,18 +419,18 @@
 }
 
 .memberDashboardContainer .sectionSubtitle {
-  font-size: 13.5px;
+  font-size: 12.5px;
   color: #64748b;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.45;
   font-weight: 400;
-  padding-left: 14px;
+  padding-left: 11px;
 }
 
 .memberDashboardContainer .adminSectionDivider {
   height: 1px;
   background: linear-gradient(90deg, rgba(226, 232, 240, 0) 0%, rgba(226, 232, 240, 1) 20%, rgba(226, 232, 240, 1) 80%, rgba(226, 232, 240, 0) 100%);
-  margin: 36px 0 24px;
+  margin: 28px 0 16px;
 }
 
 .memberDashboardContainer .adminSectionTitle {
@@ -448,41 +448,49 @@
 .memberDashboardContainer .servicesGrid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: 12px;
 }
 
 @media (min-width: 640px) {
   .memberDashboardContainer .servicesGrid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
   }
 }
 
-/* Service Card Design */
+@media (min-width: 1024px) {
+  .memberDashboardContainer .servicesGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+}
+
+/* Service Card Design (Compact & Clean) */
 .memberDashboardContainer .serviceCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 24px;
+  border-radius: 14px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   text-decoration: none;
   color: inherit;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   box-shadow: 
-    0 1px 3px rgba(0, 0, 0, 0.02),
-    0 4px 12px -2px rgba(15, 23, 42, 0.03);
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 3px 8px -2px rgba(15, 23, 42, 0.03);
   position: relative;
   overflow: hidden;
 }
 
 .memberDashboardContainer .serviceCard:hover:not(.serviceCardDisabled) {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
   border-color: #cbd5e1;
   box-shadow: 
-    0 4px 6px -1px rgba(0, 0, 0, 0.04),
-    0 16px 28px -4px rgba(15, 23, 42, 0.08);
+    0 3px 6px -1px rgba(0, 0, 0, 0.03),
+    0 10px 20px -3px rgba(15, 23, 42, 0.07);
 }
 
 /* Specific Card Themes */
@@ -492,7 +500,7 @@
 }
 .memberDashboardContainer .cardInbox:hover:not(.serviceCardDisabled) {
   border-color: #93c5fd;
-  box-shadow: 0 16px 28px -4px rgba(59, 130, 246, 0.12);
+  box-shadow: 0 8px 18px -3px rgba(59, 130, 246, 0.1);
 }
 .memberDashboardContainer .cardInbox.hasPendingTasks {
   border-color: #bfdbfe;
@@ -504,7 +512,7 @@
 }
 .memberDashboardContainer .cardRepair:hover:not(.serviceCardDisabled) {
   border-color: #86efac;
-  box-shadow: 0 16px 28px -4px rgba(16, 185, 129, 0.12);
+  box-shadow: 0 8px 18px -3px rgba(16, 185, 129, 0.1);
 }
 
 .memberDashboardContainer .cardMedia {
@@ -512,7 +520,7 @@
 }
 .memberDashboardContainer .cardMedia:hover:not(.serviceCardDisabled) {
   border-color: #5eead4;
-  box-shadow: 0 16px 28px -4px rgba(20, 184, 166, 0.12);
+  box-shadow: 0 8px 18px -3px rgba(20, 184, 166, 0.1);
 }
 
 .memberDashboardContainer .cardSalary {
@@ -520,7 +528,7 @@
 }
 .memberDashboardContainer .cardSalary:hover:not(.serviceCardDisabled) {
   border-color: #fde68a;
-  box-shadow: 0 16px 28px -4px rgba(245, 158, 11, 0.12);
+  box-shadow: 0 8px 18px -3px rgba(245, 158, 11, 0.1);
 }
 
 .memberDashboardContainer .cardSignature {
@@ -528,7 +536,23 @@
 }
 .memberDashboardContainer .cardSignature:hover:not(.serviceCardDisabled) {
   border-color: #d8b4fe;
-  box-shadow: 0 16px 28px -4px rgba(168, 85, 247, 0.12);
+  box-shadow: 0 8px 18px -3px rgba(168, 85, 247, 0.1);
+}
+
+.memberDashboardContainer .cardBorrow {
+  border-color: #dcfce7;
+}
+.memberDashboardContainer .cardBorrow:hover:not(.serviceCardDisabled) {
+  border-color: #86efac;
+  box-shadow: 0 8px 18px -3px rgba(16, 185, 129, 0.1);
+}
+
+.memberDashboardContainer .cardEvents {
+  border-color: #fef3c7;
+}
+.memberDashboardContainer .cardEvents:hover:not(.serviceCardDisabled) {
+  border-color: #fde68a;
+  box-shadow: 0 8px 18px -3px rgba(245, 158, 11, 0.1);
 }
 
 .memberDashboardContainer .serviceCardHeader {
@@ -539,18 +563,23 @@
 
 /* Service Icon Wrappers */
 .memberDashboardContainer .serviceIconWrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
 }
 
+.memberDashboardContainer .serviceIconWrapper .material-symbols-outlined {
+  font-size: 20px;
+  line-height: 1;
+}
+
 .memberDashboardContainer .serviceCard:hover:not(.serviceCardDisabled) .serviceIconWrapper {
-  transform: scale(1.06) rotate(1deg);
+  transform: scale(1.05);
 }
 
 .memberDashboardContainer .inboxIcon {
@@ -643,11 +672,11 @@
 .memberDashboardContainer .cardStatusBadge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 2px 8px;
+  border-radius: 12px;
   border: 1px solid transparent;
 }
 
@@ -658,8 +687,8 @@
 }
 
 .memberDashboardContainer .badgePulseDot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background-color: #ef4444;
   box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
@@ -668,7 +697,7 @@
 
 @keyframes badgeDotPulse {
   0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  70% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
@@ -681,10 +710,10 @@
 .memberDashboardContainer .cardTagPill {
   display: inline-flex;
   align-items: center;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 2px 8px;
+  border-radius: 12px;
   border: 1px solid transparent;
 }
 
@@ -729,30 +758,35 @@
 }
 
 .memberDashboardContainer .serviceCardBody h4 {
-  font-size: 16.5px;
+  font-size: 14.5px;
   font-weight: 700;
   color: #0f172a;
-  margin: 0 0 6px 0;
+  margin: 0 0 3px 0;
   letter-spacing: -0.01em;
+  line-height: 1.35;
 }
 
 .memberDashboardContainer .serviceCardBody p {
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.45;
   color: #64748b;
   margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .memberDashboardContainer .serviceCardFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid #f1f5f9;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #475569;
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
 }
 
 .memberDashboardContainer .serviceCard:hover:not(.serviceCardDisabled) .serviceCardFooter {
@@ -760,16 +794,17 @@
 }
 
 .memberDashboardContainer .actionText {
-  transition: color 0.25s ease;
+  transition: color 0.2s ease;
 }
 
 .memberDashboardContainer .chevronIcon {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s ease;
+  font-size: 16px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
   color: #94a3b8;
 }
 
 .memberDashboardContainer .serviceCard:hover:not(.serviceCardDisabled) .chevronIcon {
-  transform: translateX(4px);
+  transform: translateX(3px);
   color: #0f172a;
 }
 
@@ -1785,6 +1820,500 @@
   color: #475569;
   background: #f1f5f9;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Member Portal Hub — Calm & Clean Design System
+   Focus on Breathing Room, Low Cognitive Load, and Refined Craft
+   ══════════════════════════════════════════════════════════════ */
+
+.memberHubContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+}
+
+/* ── Control Strip: Calm, Unified, Minimal ── */
+.hubControlStrip {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #ffffff;
+  padding: 14px 18px;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.02),
+    0 4px 12px -2px rgba(15, 23, 42, 0.03);
+}
+
+@media (min-width: 820px) {
+  .hubControlStrip {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+/* Search Box */
+.hubSearchBox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 100%;
+}
+
+@media (min-width: 820px) {
+  .hubSearchBox {
+    max-width: 380px;
+  }
+}
+
+.hubSearchIcon {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+  font-size: 20px !important;
+  pointer-events: none;
+}
+
+.hubSearchInput {
+  width: 100%;
+  padding: 9px 36px 9px 38px;
+  font-size: 13.5px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #1e293b;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.hubSearchInput:focus {
+  background: #ffffff;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+.hubSearchClearBtn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hubSearchClearBtn:hover {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.hubSearchClearBtn span {
+  font-size: 16px !important;
+}
+
+/* Category Tabs (Segmented Switcher) */
+.hubTabsContainer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.hubTabsContainer::-webkit-scrollbar {
+  display: none;
+}
+
+.hubTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.hubTab:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+.hubTab:active {
+  transform: scale(0.97);
+}
+
+.hubTabActive {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+  box-shadow: 0 2px 8px -1px rgba(5, 150, 105, 0.3);
+}
+
+.hubTabIcon {
+  font-size: 16px !important;
+  opacity: 0.85;
+}
+
+.hubTabActive .hubTabIcon {
+  opacity: 1;
+}
+
+.hubTabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  font-variant-numeric: tabular-nums;
+}
+
+.hubTabActive .hubTabCount {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.hubTabFavIcon {
+  font-size: 15px !important;
+  color: #f59e0b;
+}
+
+.hubTabActive .hubTabFavIcon {
+  color: #fef08a;
+}
+
+/* ── Section Header ── */
+.hubSectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.hubSectionTitleWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hubSectionHeadingRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hubSectionTitleIcon {
+  font-size: 22px !important;
+  color: #059669;
+}
+
+.hubSectionHeader h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.hubSectionSubtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ── Clean 3-Column Cards Grid ── */
+.hubCardsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 640px) {
+  .hubCardsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hubCardsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Minimalist Clean Card (No Clutter, Comfortable & Clickable) */
+.hubCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 3px 8px -2px rgba(15, 23, 42, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+.hubCard:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.04),
+    0 10px 20px -3px rgba(15, 23, 42, 0.07);
+}
+
+.hubCard:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+
+.hubCardAlert {
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
+}
+
+.hubCardAlert:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 8px 20px -2px rgba(59, 130, 246, 0.12);
+}
+
+/* Card Top: Icon Tile & Badges/Pin */
+.hubCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hubIconTile {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.hubCard:hover .hubIconTile {
+  transform: scale(1.06);
+}
+
+/* Soft Hospital Palette (Gentle on the eyes, not loud) */
+.category-daily {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #d1fae5;
+}
+
+.category-system {
+  background: #f0fdfa;
+  color: #0d9488;
+  border: 1px solid #ccfbf1;
+}
+
+.category-admin {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #ffe4e6;
+}
+
+.hubIconTile span {
+  font-size: 22px !important;
+}
+
+/* Card Actions (Badge + Pin) */
+.hubCardActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hubPinBtn {
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.hubPinBtn:hover {
+  color: #f59e0b;
+  background: #fef3c7;
+}
+
+.hubPinBtn.isPinned {
+  color: #f59e0b;
+}
+
+.hubPinBtn span {
+  font-size: 19px !important;
+}
+
+/* Badges */
+.hubBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  line-height: 1.4;
+}
+
+.badgeAlert {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.badgeOk {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.badgeNeutral {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.badgePulseDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2563eb;
+  animation: pulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.3); }
+}
+
+/* Card Content */
+.hubCardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hubCardTitle {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.hubCardDesc {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.45;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Empty State ── */
+.hubEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 20px;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px dashed #cbd5e1;
+  gap: 10px;
+}
+
+.hubEmptyIconWrapper {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #f1f5f9;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hubEmptyIconWrapper span {
+  font-size: 28px !important;
+}
+
+.hubEmptyState h4 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.hubEmptyState p {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  max-width: 380px;
+}
+
+.hubEmptyResetBtn {
+  margin-top: 6px;
+  background: #059669;
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hubEmptyResetBtn:hover {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+
 
 
 

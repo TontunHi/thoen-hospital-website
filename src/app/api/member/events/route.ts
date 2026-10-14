@@ -65,6 +65,13 @@ export async function POST(request: Request) {
   const auth = await requireMemberApi()
   if (auth.error) return auth.error
 
+  if (auth.member.role !== 'admin' && !auth.member.isAdmin) {
+    return NextResponse.json(
+      { success: false, error: 'เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถสร้างกิจกรรมได้' },
+      { status: 403 }
+    )
+  }
+
   try {
     const body = await request.json()
     const parsed = CreateEventSchema.safeParse(body)

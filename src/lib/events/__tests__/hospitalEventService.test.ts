@@ -17,6 +17,7 @@ describe('HospitalEventService', () => {
         findMany: vi.fn(),
         findUnique: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
         count: vi.fn(),
       },
       eventOrganizer: {
@@ -52,7 +53,7 @@ describe('HospitalEventService', () => {
 
   describe('createEvent', () => {
     it('creates an event with head organizer and generates qrToken', async () => {
-      const actor = { id: 10, name: 'นายแพทย์สมชาย', username: '1100200300401', role: 'member' }
+      const actor = { id: 10, name: 'นายแพทย์สมชาย', username: '1100200300401', role: 'admin' }
       const input = {
         title: 'กิจกรรมวิ่งการกุศล รพ.เถิน มินิมาราธอน',
         description: 'งานวิ่งเพื่อสุขภาพบุคลากร',
@@ -93,7 +94,7 @@ describe('HospitalEventService', () => {
     })
 
     it('creates linked equipment borrow request when borrowItems are provided', async () => {
-      const actor = { id: 10, name: 'นายแพทย์สมชาย', username: '1100200300401', role: 'member' }
+      const actor = { id: 10, name: 'นายแพทย์สมชาย', username: '1100200300401', role: 'admin' }
       const input = {
         title: 'กิจกรรมอบรม CPR บุคลากร',
         eventStartDate: new Date('2026-10-25T09:00:00Z'),
@@ -141,7 +142,7 @@ describe('HospitalEventService', () => {
     })
 
     it('rejects if start date is after end date', async () => {
-      const actor = { id: 10, name: 'นายแพทย์สมชาย', username: '1100200300401', role: 'member' }
+      const actor = { id: 10, name: 'นายแพทย์สมชาย', username: '1100200300401', role: 'admin' }
       const input = {
         title: 'วันเวลาผิด',
         eventStartDate: new Date('2026-10-20T12:00:00Z'),
@@ -149,6 +150,17 @@ describe('HospitalEventService', () => {
       }
 
       await expect(service.createEvent(input, actor)).rejects.toThrow('วันเริ่มต้นกิจกรรมต้องมาก่อนวันสิ้นสุด')
+    })
+
+    it('rejects if non-admin actor tries to create event', async () => {
+      const actor = { id: 10, name: 'นายแพทย์สมชาย', username: '1100200300401', role: 'member' }
+      const input = {
+        title: 'กิจกรรมสมาชิกทั่วไป',
+        eventStartDate: new Date('2026-10-20T06:00:00Z'),
+        eventEndDate: new Date('2026-10-20T10:00:00Z'),
+      }
+
+      await expect(service.createEvent(input, actor)).rejects.toThrow('เฉพาะผู้ดูแลระบบ (Admin) เท่านั้นที่สามารถสร้างกิจกรรมได้')
     })
   })
 
@@ -386,6 +398,74 @@ describe('HospitalEventService', () => {
       expect(mockDb.eventAttendance.delete).toHaveBeenCalledWith({
         where: { id: 101 },
       })
+    })
+  })
+
+  describe('syncEventStatuses & JIT auto-transition', () => {
+    it('transitions ended events to COMPLETED and ongoing events to ONGOING', async () => {
+      mockDb.hospitalEvent.updateMany
+        .mockResolvedValueOnce({ count: 2 }) // completed
+        .mockResolvedValueOnce({ count: 1 }) // ongoing
+
+      const result = await service.syncEventStatuses(new Date('2026-10-14T12:00:00Z'))
+      expect(result.updatedToCompleted).toBe(2)
+      expect(result.updatedToOngoing).toBe(1)
+      expect(mockDb.hospitalEvent.updateMany).toHaveBeenCalledTimes(2)
+    })
+
+    it('getEvents automatically invokes syncEventStatuses', async () => {
+      mockDb.hospitalEvent.findMany.mockResolvedValue([])
+      mockDb.hospitalEvent.count.mockResolvedValue(0)
+
+      await service.getEvents()
+      expect(mockDb.hospitalEvent.updateMany).toHaveBeenCalled()
+      expect(mockDb.hospitalEvent.findMany).toHaveBeenCalled()
+    })
+
+    it('getEventById automatically updates status if event is past end date', async () => {
+      const pastEvent = {
+        id: 99,
+        title: 'งานที่ผ่านมาแล้ว',
+        status: 'UPCOMING',
+        eventStartDate: new Date('2026-10-01T08:00:00Z'),
+        eventEndDate: new Date('2026-10-01T10:00:00Z'),
+        checkinOpenTime: new Date('2026-10-01T08:00:00Z'),
+        checkinCloseTime: new Date('2026-10-01T10:00:00Z'),
+        headOrganizerId: 10,
+        coOrganizers: [],
+        registrations: [],
+        attendances: [],
+      }
+      mockDb.hospitalEvent.findUnique.mockResolvedValue(pastEvent)
+      mockDb.hospitalEvent.update.mockResolvedValue({ ...pastEvent, status: 'COMPLETED' })
+
+      const event = await service.getEventById(99)
+      expect(event?.status).toBe('COMPLETED')
+      expect(mockDb.hospitalEvent.update).toHaveBeenCalledWith({
+        where: { id: 99 },
+        data: { status: 'COMPLETED' },
+      })
+    })
+
+    it('getEventById leaves CANCELLED events untouched', async () => {
+      const cancelledEvent = {
+        id: 100,
+        title: 'งานที่ถูกยกเลิก',
+        status: 'CANCELLED',
+        eventStartDate: new Date('2026-10-01T08:00:00Z'),
+        eventEndDate: new Date('2026-10-01T10:00:00Z'),
+        checkinOpenTime: new Date('2026-10-01T08:00:00Z'),
+        checkinCloseTime: new Date('2026-10-01T10:00:00Z'),
+        headOrganizerId: 10,
+        coOrganizers: [],
+        registrations: [],
+        attendances: [],
+      }
+      mockDb.hospitalEvent.findUnique.mockResolvedValue(cancelledEvent)
+
+      const event = await service.getEventById(100)
+      expect(event?.status).toBe('CANCELLED')
+      expect(mockDb.hospitalEvent.update).not.toHaveBeenCalled()
     })
   })
 })

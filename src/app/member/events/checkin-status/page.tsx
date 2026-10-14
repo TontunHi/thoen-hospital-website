@@ -108,7 +108,7 @@ function CheckinStatusContent() {
         <div>
           <Link href="/member/events/leaderboard" className="checkinBtnPrimary">
             <Trophy size={16} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: '-2px' }} />
-            <span>ดูกระดานอันดับคะแนน (Leaderboard)</span>
+            <span>ดูกระดานคะแนน</span>
           </Link>
           <Link href="/member/events" className="checkinBtnSecondary">
             <span>กลับหน้ารายการกิจกรรม</span>

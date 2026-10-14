@@ -2,30 +2,6 @@ import { getAuthenticatedMember, toClientMember } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import Link from 'next/link'
 import ProfileBanner from './ProfileBanner'
-import { 
-  PenTool, 
-  FileText, 
-  ChevronRight, 
-  User, 
-  Shield, 
-  Globe, 
-  Newspaper, 
-  Building2, 
-  Pill, 
-  FileSpreadsheet, 
-  Scale, 
-  Inbox, 
-  Wrench, 
-  MapPin,
-  Package,
-  Palette,
-  Sparkles,
-  LayoutGrid,
-  Settings2,
-  UserCheck,
-  Calendar,
-  Trophy
-} from 'lucide-react'
 import './page.css'
 
 export default async function MemberDashboardPage() {
@@ -98,7 +74,9 @@ export default async function MemberDashboardPage() {
         {member.role === 'subdistrict' ? (
           <div className="subdistrictNotice">
             <div className="subdistrictNoticeIcon">
-              <Building2 size={32} />
+              <span className="material-symbols-outlined" style={{ fontSize: '32px' }} aria-hidden="true">
+                domain
+              </span>
             </div>
             <h3>บัญชีผู้ใช้หน่วยบริการ รพ.สต.</h3>
             <p>
@@ -106,7 +84,9 @@ export default async function MemberDashboardPage() {
             </p>
             <Link href="/service" className="subdistrictNoticeBtn">
               <span>เข้าสู่หน้าระบบงานสารสนเทศ (Services)</span>
-              <ChevronRight size={18} />
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }} aria-hidden="true">
+                chevron_right
+              </span>
             </Link>
           </div>
         ) : (
@@ -118,7 +98,6 @@ export default async function MemberDashboardPage() {
               <div className="sectionHeaderRow">
                 <div className="sectionTitleWrap">
                   <h3 id="section-primary-services" className="sectionTitle">
-                    <Sparkles size={18} className="text-emerald-600" />
                     บริการและคำร้องหลักประจำวัน
                   </h3>
                   <p className="sectionSubtitle">
@@ -136,7 +115,9 @@ export default async function MemberDashboardPage() {
                   >
                     <div className="serviceCardHeader">
                       <div className="serviceIconWrapper inboxIcon">
-                        <Inbox size={24} />
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          inbox
+                        </span>
                       </div>
                       {pendingInboxCount > 0 ? (
                         <span className="cardStatusBadge badgeAlert">
@@ -155,7 +136,9 @@ export default async function MemberDashboardPage() {
                     </div>
                     <div className="serviceCardFooter">
                       <span className="actionText">เปิดกล่องงาน</span>
-                      <ChevronRight size={16} className="chevronIcon" />
+                      <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                        chevron_right
+                      </span>
                     </div>
                   </Link>
                 )}
@@ -165,7 +148,9 @@ export default async function MemberDashboardPage() {
                   <Link href="/member/repairs/new" className="serviceCard cardRepair">
                     <div className="serviceCardHeader">
                       <div className="serviceIconWrapper repairIcon">
-                        <Wrench size={24} />
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          build
+                        </span>
                       </div>
                       <span className="cardTagPill tagRepair">แจ้งซ่อมด่วน</span>
                     </div>
@@ -175,7 +160,9 @@ export default async function MemberDashboardPage() {
                     </div>
                     <div className="serviceCardFooter">
                       <span className="actionText">ยื่นใบแจ้งซ่อมใหม่</span>
-                      <ChevronRight size={16} className="chevronIcon" />
+                      <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                        chevron_right
+                      </span>
                     </div>
                   </Link>
                 )}
@@ -185,7 +172,9 @@ export default async function MemberDashboardPage() {
                   <Link href="/member/media-requests" className="serviceCard cardMedia">
                     <div className="serviceCardHeader">
                       <div className="serviceIconWrapper mediaIcon">
-                        <Palette size={24} />
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          palette
+                        </span>
                       </div>
                       <span className="cardTagPill tagMedia">PR Service</span>
                     </div>
@@ -195,7 +184,9 @@ export default async function MemberDashboardPage() {
                     </div>
                     <div className="serviceCardFooter">
                       <span className="actionText">จัดการและขอสื่อประชาสัมพันธ์</span>
-                      <ChevronRight size={16} className="chevronIcon" />
+                      <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                        chevron_right
+                      </span>
                     </div>
                   </Link>
                 )}
@@ -205,7 +196,9 @@ export default async function MemberDashboardPage() {
                   <Link href="/salary" className="serviceCard cardSalary">
                     <div className="serviceCardHeader">
                       <div className="serviceIconWrapper salaryIcon">
-                        <FileText size={24} />
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          receipt_long
+                        </span>
                       </div>
                       <span className="cardTagPill tagSalary">ความปลอดภัยสูง</span>
                     </div>
@@ -215,7 +208,9 @@ export default async function MemberDashboardPage() {
                     </div>
                     <div className="serviceCardFooter">
                       <span className="actionText">เข้าสู่ระบบสลิปเงินเดือน</span>
-                      <ChevronRight size={16} className="chevronIcon" />
+                      <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                        chevron_right
+                      </span>
                     </div>
                   </Link>
                 )}
@@ -225,7 +220,9 @@ export default async function MemberDashboardPage() {
                   <Link href="/member/signature" className="serviceCard cardSignature">
                     <div className="serviceCardHeader">
                       <div className="serviceIconWrapper signatureIcon">
-                        <PenTool size={24} />
+                        <span className="material-symbols-outlined" aria-hidden="true">
+                          draw
+                        </span>
                       </div>
                       <span className="cardTagPill tagSignature">e-Signature</span>
                     </div>
@@ -235,16 +232,20 @@ export default async function MemberDashboardPage() {
                     </div>
                     <div className="serviceCardFooter">
                       <span className="actionText">ตั้งค่าลายเซ็นดิจิทัล</span>
-                      <ChevronRight size={16} className="chevronIcon" />
+                      <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                        chevron_right
+                      </span>
                     </div>
                   </Link>
                 )}
 
                 {/* 6. ระบบยืม-คืนอุปกรณ์และพัสดุ (Equipment Borrowing) */}
-                <Link href="/member/equipment-borrow" className="serviceCard">
+                <Link href="/member/equipment-borrow" className="serviceCard cardBorrow">
                   <div className="serviceCardHeader">
                     <div className="serviceIconWrapper" style={{ background: '#dcfce7', color: '#15803d' }}>
-                      <Package size={24} />
+                      <span className="material-symbols-outlined" aria-hidden="true">
+                        inventory_2
+                      </span>
                     </div>
                     <span className="cardTagPill" style={{ background: '#d1fae5', color: '#065f46' }}>บริการยืม-คืน</span>
                   </div>
@@ -254,25 +255,31 @@ export default async function MemberDashboardPage() {
                   </div>
                   <div className="serviceCardFooter" style={{ color: '#059669' }}>
                     <span className="actionText">เข้าสู่ระบบยืม-คืนอุปกรณ์</span>
-                    <ChevronRight size={16} className="chevronIcon" />
+                    <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                      chevron_right
+                    </span>
                   </div>
                 </Link>
 
                 {/* 7. ระบบกิจกรรมและคะแนนการมีส่วนร่วม (Hospital Events & Points) */}
-                <Link href="/member/events" className="serviceCard">
+                <Link href="/member/events" className="serviceCard cardEvents">
                   <div className="serviceCardHeader">
                     <div className="serviceIconWrapper" style={{ background: '#fef3c7', color: '#b45309' }}>
-                      <Calendar size={24} />
+                      <span className="material-symbols-outlined" aria-hidden="true">
+                        event_available
+                      </span>
                     </div>
                     <span className="cardTagPill" style={{ background: '#fef9c3', color: '#854d0e' }}>ThaID Check-in</span>
                   </div>
                   <div className="serviceCardBody">
                     <h4>ระบบกิจกรรมและสะสมคะแนน</h4>
-                    <p>ติดตามกิจกรรมเร็วๆ นี้ ลงทะเบียนล่วงหน้า สแกน QR Code ผ่าน ThaID และดูกระดานคะแนน (Leaderboard)</p>
+                    <p>ติดตามกิจกรรมเร็วๆ นี้ ลงทะเบียนล่วงหน้า สแกน QR Code ผ่าน ThaID และดูกระดานคะแนน</p>
                   </div>
                   <div className="serviceCardFooter" style={{ color: '#d97706' }}>
                     <span className="actionText">ดูกิจกรรมและกระดานคะแนน</span>
-                    <ChevronRight size={16} className="chevronIcon" />
+                    <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                      chevron_right
+                    </span>
                   </div>
                 </Link>
               </div>
@@ -282,11 +289,10 @@ export default async function MemberDashboardPage() {
                Category 2: Hospital Management & Information Systems
                ══════════════════════════════════════════════════════════════ */}
             {hasHospitalAdminFeatures && (
-              <section aria-labelledby="section-hospital-mgmt" className="mt-8">
+              <section aria-labelledby="section-hospital-mgmt" className="mt-6">
                 <div className="sectionHeaderRow">
                   <div className="sectionTitleWrap">
                     <h3 id="section-hospital-mgmt" className="sectionTitle sectionTitleInfo">
-                      <LayoutGrid size={18} className="text-blue-600" />
                       ระบบงานสารสนเทศและบริหารจัดการข้อมูล
                     </h3>
                     <p className="sectionSubtitle">
@@ -301,7 +307,9 @@ export default async function MemberDashboardPage() {
                     <Link href="/member/assets" className="serviceCard">
                       <div className="serviceCardHeader">
                         <div className="serviceIconWrapper assetIcon">
-                          <Package size={24} />
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            devices_other
+                          </span>
                         </div>
                       </div>
                       <div className="serviceCardBody">
@@ -310,7 +318,9 @@ export default async function MemberDashboardPage() {
                       </div>
                       <div className="serviceCardFooter footerBlue">
                         <span className="actionText">เข้าสู่ระบบจัดการครุภัณฑ์</span>
-                        <ChevronRight size={16} className="chevronIcon" />
+                        <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                          chevron_right
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -320,7 +330,9 @@ export default async function MemberDashboardPage() {
                     <Link href="/member/news" className="serviceCard">
                       <div className="serviceCardHeader">
                         <div className="serviceIconWrapper newsIcon">
-                          <Newspaper size={24} />
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            newspaper
+                          </span>
                         </div>
                       </div>
                       <div className="serviceCardBody">
@@ -329,7 +341,9 @@ export default async function MemberDashboardPage() {
                       </div>
                       <div className="serviceCardFooter footerSky">
                         <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
-                        <ChevronRight size={16} className="chevronIcon" />
+                        <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                          chevron_right
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -339,7 +353,9 @@ export default async function MemberDashboardPage() {
                     <Link href="/member/ita" className="serviceCard">
                       <div className="serviceCardHeader">
                         <div className="serviceIconWrapper itaIcon">
-                          <Globe size={24} />
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            public
+                          </span>
                         </div>
                       </div>
                       <div className="serviceCardBody">
@@ -348,7 +364,9 @@ export default async function MemberDashboardPage() {
                       </div>
                       <div className="serviceCardFooter footerBlue">
                         <span className="actionText">เข้าสู่หน้าจัดการบทความ</span>
-                        <ChevronRight size={16} className="chevronIcon" />
+                        <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                          chevron_right
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -358,7 +376,9 @@ export default async function MemberDashboardPage() {
                     <Link href="/member/rdu" className="serviceCard">
                       <div className="serviceCardHeader">
                         <div className="serviceIconWrapper rduIcon">
-                          <Pill size={24} />
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            medication
+                          </span>
                         </div>
                       </div>
                       <div className="serviceCardBody">
@@ -367,7 +387,9 @@ export default async function MemberDashboardPage() {
                       </div>
                       <div className="serviceCardFooter footerTeal">
                         <span className="actionText">เข้าสู่ระบบจัดการ RDU</span>
-                        <ChevronRight size={16} className="chevronIcon" />
+                        <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                          chevron_right
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -377,7 +399,9 @@ export default async function MemberDashboardPage() {
                     <Link href="/member/outgoing-document" className="serviceCard">
                       <div className="serviceCardHeader">
                         <div className="serviceIconWrapper outgoingIcon">
-                          <FileSpreadsheet size={24} />
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            description
+                          </span>
                         </div>
                       </div>
                       <div className="serviceCardBody">
@@ -386,7 +410,9 @@ export default async function MemberDashboardPage() {
                       </div>
                       <div className="serviceCardFooter footerEmerald">
                         <span className="actionText">เข้าสู่หน้าจัดการหนังสือส่งออก</span>
-                        <ChevronRight size={16} className="chevronIcon" />
+                        <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                          chevron_right
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -396,7 +422,9 @@ export default async function MemberDashboardPage() {
                     <Link href="/member/ethics" className="serviceCard">
                       <div className="serviceCardHeader">
                         <div className="serviceIconWrapper ethicsIcon">
-                          <Scale size={24} />
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            gavel
+                          </span>
                         </div>
                       </div>
                       <div className="serviceCardBody">
@@ -405,7 +433,9 @@ export default async function MemberDashboardPage() {
                       </div>
                       <div className="serviceCardFooter footerIndigo">
                         <span className="actionText">เข้าสู่หน้าจัดการเอกสารจริยธรรม</span>
-                        <ChevronRight size={16} className="chevronIcon" />
+                        <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                          chevron_right
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -415,7 +445,9 @@ export default async function MemberDashboardPage() {
                     <Link href="/member/upload-salary" className="serviceCard">
                       <div className="serviceCardHeader">
                         <div className="serviceIconWrapper uploadSalaryIcon">
-                          <FileText size={24} />
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            upload_file
+                          </span>
                         </div>
                       </div>
                       <div className="serviceCardBody">
@@ -424,7 +456,9 @@ export default async function MemberDashboardPage() {
                       </div>
                       <div className="serviceCardFooter footerOrange">
                         <span className="actionText">เข้าสู่หน้านำเข้าข้อมูลการเงิน</span>
-                        <ChevronRight size={16} className="chevronIcon" />
+                        <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                          chevron_right
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -434,7 +468,9 @@ export default async function MemberDashboardPage() {
                     <Link href="/member/all-salary" className="serviceCard">
                       <div className="serviceCardHeader">
                         <div className="serviceIconWrapper allSalaryIcon">
-                          <FileText size={24} />
+                          <span className="material-symbols-outlined" aria-hidden="true">
+                            folder_shared
+                          </span>
                         </div>
                       </div>
                       <div className="serviceCardBody">
@@ -443,7 +479,9 @@ export default async function MemberDashboardPage() {
                       </div>
                       <div className="serviceCardFooter footerGreen">
                         <span className="actionText">ค้นหาสลิปเงินเดือนบุคลากร</span>
-                        <ChevronRight size={16} className="chevronIcon" />
+                        <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                          chevron_right
+                        </span>
                       </div>
                     </Link>
                   )}
@@ -457,12 +495,11 @@ export default async function MemberDashboardPage() {
            Category 3: System Administration (Admin Only)
            ══════════════════════════════════════════════════════════════ */}
         {member.role === 'admin' && (
-          <section aria-labelledby="section-admin-settings" className="mt-8">
+          <section aria-labelledby="section-admin-settings" className="mt-6">
             <div className="adminSectionDivider" />
             <div className="sectionHeaderRow">
               <div className="sectionTitleWrap">
                 <h3 id="section-admin-settings" className="sectionTitle adminSectionTitle">
-                  <Settings2 size={18} className="text-red-600" />
                   ระบบควบคุมและตั้งค่า (สำหรับผู้ดูแลระบบ)
                 </h3>
                 <p className="sectionSubtitle">
@@ -476,7 +513,9 @@ export default async function MemberDashboardPage() {
               <Link href="/member/settings" className="serviceCard">
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper settingsIcon">
-                    <Shield size={24} />
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                      admin_panel_settings
+                    </span>
                   </div>
                   <span className="cardTagPill tagAdmin">ตั้งค่าระบบ</span>
                 </div>
@@ -486,7 +525,9 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardFooter footerEmerald">
                   <span className="actionText">เข้าสู่หน้าตั้งค่าระบบ</span>
-                  <ChevronRight size={16} className="chevronIcon" />
+                  <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                    chevron_right
+                  </span>
                 </div>
               </Link>
 
@@ -494,7 +535,9 @@ export default async function MemberDashboardPage() {
               <Link href="/member/news" className="serviceCard">
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper newsIcon">
-                    <Newspaper size={24} />
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                      newspaper
+                    </span>
                   </div>
                   <span className="cardTagPill tagAdmin">ประชาสัมพันธ์</span>
                 </div>
@@ -504,7 +547,9 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardFooter footerSky">
                   <span className="actionText">จัดการข่าวประชาสัมพันธ์</span>
-                  <ChevronRight size={16} className="chevronIcon" />
+                  <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                    chevron_right
+                  </span>
                 </div>
               </Link>
 
@@ -512,7 +557,9 @@ export default async function MemberDashboardPage() {
               <Link href="/member/registrations" className={`serviceCard ${pendingRegistrationsCount > 0 ? 'hasPendingTasks' : ''}`}>
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper" style={{ background: '#ecfdf5', color: '#047857' }}>
-                    <UserCheck size={24} />
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                      person_add_alt
+                    </span>
                   </div>
                   {pendingRegistrationsCount > 0 ? (
                     <span className="cardStatusBadge badgeAlert">
@@ -529,7 +576,9 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardFooter footerEmerald">
                   <span className="actionText">จัดการคำขอลงทะเบียน</span>
-                  <ChevronRight size={16} className="chevronIcon" />
+                  <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                    chevron_right
+                  </span>
                 </div>
               </Link>
 
@@ -537,7 +586,9 @@ export default async function MemberDashboardPage() {
               <Link href="/member/member" className="serviceCard">
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper membersIcon">
-                    <User size={24} />
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                      manage_accounts
+                    </span>
                   </div>
                   <span className="cardTagPill tagAdmin">บัญชีผู้ใช้</span>
                 </div>
@@ -547,7 +598,9 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardFooter footerPurple">
                   <span className="actionText">จัดการข้อมูลสมาชิก</span>
-                  <ChevronRight size={16} className="chevronIcon" />
+                  <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                    chevron_right
+                  </span>
                 </div>
               </Link>
 
@@ -556,7 +609,9 @@ export default async function MemberDashboardPage() {
                 <Link href="/member/locations" className="serviceCard">
                   <div className="serviceCardHeader">
                     <div className="serviceIconWrapper locationsIcon">
-                      <MapPin size={24} />
+                      <span className="material-symbols-outlined" aria-hidden="true">
+                        location_city
+                      </span>
                     </div>
                     <span className="cardTagPill tagAdmin">สถานที่ รพ.</span>
                   </div>
@@ -566,7 +621,9 @@ export default async function MemberDashboardPage() {
                   </div>
                   <div className="serviceCardFooter footerEmerald">
                     <span className="actionText">จัดการข้อมูลสถานที่</span>
-                    <ChevronRight size={16} className="chevronIcon" />
+                    <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                      chevron_right
+                    </span>
                   </div>
                 </Link>
               )}
@@ -575,7 +632,9 @@ export default async function MemberDashboardPage() {
               <Link href="/member/audit-logs" className="serviceCard">
                 <div className="serviceCardHeader">
                   <div className="serviceIconWrapper auditIcon">
-                    <Shield size={24} />
+                    <span className="material-symbols-outlined" aria-hidden="true">
+                      shield
+                    </span>
                   </div>
                   <span className="cardTagPill tagAudit">ความปลอดภัย</span>
                 </div>
@@ -585,7 +644,9 @@ export default async function MemberDashboardPage() {
                 </div>
                 <div className="serviceCardFooter footerRose">
                   <span className="actionText">ตรวจสอบประวัติการใช้งาน</span>
-                  <ChevronRight size={16} className="chevronIcon" />
+                  <span className="material-symbols-outlined chevronIcon" aria-hidden="true">
+                    chevron_right
+                  </span>
                 </div>
               </Link>
             </div>
@@ -595,4 +656,3 @@ export default async function MemberDashboardPage() {
     </div>
   )
 }
-

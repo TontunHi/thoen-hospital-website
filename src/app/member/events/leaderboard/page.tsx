@@ -4,7 +4,7 @@ import { EventLeaderboardService } from '@/lib/events/eventLeaderboardService'
 import LeaderboardClient from './LeaderboardClient'
 
 export const metadata = {
-  title: 'กระดานอันดับคะแนนกิจกรรม (Leaderboard) | โรงพยาบาลเถิน',
+  title: 'กระดานคะแนนกิจกรรม | โรงพยาบาลเถิน',
   description: 'กระดานอันดับการเข้าร่วมกิจกรรมบุคลากรโรงพยาบาลเถิน รายบุคคลและระดับแผนก',
 }
 

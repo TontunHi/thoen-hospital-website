@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { LogOut, Loader2 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 export default function MemberLogoutButton() {
@@ -33,9 +32,21 @@ export default function MemberLogoutButton() {
         type="button"
       >
         {loading ? (
-          <Loader2 className="animate-spin" size={16} />
+          <span 
+            className="material-symbols-outlined animate-spin" 
+            style={{ fontSize: '16px' }}
+            aria-hidden="true"
+          >
+            progress_activity
+          </span>
         ) : (
-          <LogOut size={16} />
+          <span 
+            className="material-symbols-outlined" 
+            style={{ fontSize: '16px' }}
+            aria-hidden="true"
+          >
+            logout
+          </span>
         )}
         <span>{loading ? 'กำลังออกจากระบบ...' : 'ออกจากระบบ'}</span>
       </button>
