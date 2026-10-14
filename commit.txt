@@ -1,1 +1,1 @@
-fix(bridge): handle Windows console close event to prevent lingering background process
+fix(bridge): harden socket error handling and auto-exit on console close

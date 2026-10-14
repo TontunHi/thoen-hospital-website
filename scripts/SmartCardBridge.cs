@@ -501,7 +501,11 @@ namespace ThoenSmartCardBridge
                     }
                     catch (HttpListenerException)
                     {
-                        break;
+                        if (!isRunning || listener == null || !listener.IsListening)
+                        {
+                            break;
+                        }
+                        Thread.Sleep(50);
                     }
                     catch (ObjectDisposedException)
                     {
@@ -510,7 +514,7 @@ namespace ThoenSmartCardBridge
                     catch
                     {
                         if (!isRunning) break;
-                        Thread.Sleep(200);
+                        Thread.Sleep(100);
                     }
                 }
             }
