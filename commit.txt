@@ -1,0 +1,1 @@
+fix(bridge): handle Windows console close event to prevent lingering background process

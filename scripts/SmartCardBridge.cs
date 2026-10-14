@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -309,17 +310,110 @@ namespace ThoenSmartCardBridge
 
     class Program
     {
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetConsoleCtrlHandler(ConsoleCtrlDelegate HandlerRoutine, bool Add);
+
+        private delegate bool ConsoleCtrlDelegate(uint dwCtrlType);
+        private static ConsoleCtrlDelegate ctrlHandler;
+
         private static Mutex singleInstanceMutex = null;
+        private static HttpListener listener = null;
+        private static IntPtr hContextGlobal = IntPtr.Zero;
+        private static volatile bool isRunning = true;
+        private static bool isCleaningUp = false;
+        private static readonly object cleanupLock = new object();
+
+        private static bool OnConsoleCtrl(uint dwCtrlType)
+        {
+            // Catches: 2 = CTRL_CLOSE_EVENT (User clicked [X] on window)
+            //          0 = CTRL_C_EVENT
+            //          1 = CTRL_BREAK_EVENT
+            //          5 = CTRL_LOGOFF_EVENT
+            //          6 = CTRL_SHUTDOWN_EVENT
+            CleanExit();
+            return true;
+        }
+
+        public static void CleanExit()
+        {
+            lock (cleanupLock)
+            {
+                if (isCleaningUp) return;
+                isCleaningUp = true;
+            }
+
+            isRunning = false;
+
+            try
+            {
+                if (listener != null)
+                {
+                    try { listener.Stop(); } catch { }
+                    try { listener.Close(); } catch { }
+                    listener = null;
+                }
+            }
+            catch { }
+
+            try
+            {
+                if (hContextGlobal != IntPtr.Zero)
+                {
+                    try { PcscInterop.SCardReleaseContext(hContextGlobal); } catch { }
+                    hContextGlobal = IntPtr.Zero;
+                }
+            }
+            catch { }
+
+            try
+            {
+                if (singleInstanceMutex != null)
+                {
+                    try { singleInstanceMutex.ReleaseMutex(); } catch { }
+                    try { singleInstanceMutex.Dispose(); } catch { }
+                    singleInstanceMutex = null;
+                }
+            }
+            catch { }
+
+            // Immediately terminate process so it NEVER stays lingering in Task Manager
+            try
+            {
+                Process.GetCurrentProcess().Kill();
+            }
+            catch
+            {
+                Environment.Exit(0);
+            }
+        }
 
         static void Main(string[] args)
         {
+            // Register Windows Console Ctrl Handler FIRST THING to intercept [X] button immediately
+            ctrlHandler = new ConsoleCtrlDelegate(OnConsoleCtrl);
+            SetConsoleCtrlHandler(ctrlHandler, true);
+
+            AppDomain.CurrentDomain.ProcessExit += (s, e) => CleanExit();
+            Console.CancelKeyPress += (s, e) => {
+                e.Cancel = true;
+                CleanExit();
+            };
+
             Console.OutputEncoding = Encoding.UTF8;
             Console.Title = "โรงพยาบาลเถิน - Smart Card Bridge v1.0";
 
             try
             {
                 bool isNewInstance = false;
-                singleInstanceMutex = new Mutex(true, "ThoenHospitalSmartCardBridgeMutex", out isNewInstance);
+                try
+                {
+                    singleInstanceMutex = new Mutex(true, "ThoenHospitalSmartCardBridgeMutex", out isNewInstance);
+                }
+                catch (AbandonedMutexException)
+                {
+                    isNewInstance = true;
+                }
+
                 if (!isNewInstance)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -331,8 +425,9 @@ namespace ThoenSmartCardBridge
                     Console.WriteLine(" สามารถเชื่อมต่อและใช้งานเครื่องอ่านบัตรประชาชนได้ทันทีโดยไม่ต้องเปิดซ้ำ");
                     Console.WriteLine("===============================================================");
                     Console.ResetColor();
-                    Console.WriteLine("\nกรุณากดปุ่ม Enter หรือปิดหน้าต่างนี้ได้เลยครับ...");
+                    Console.WriteLine("\nกรุณากดปุ่ม Enter หรือกดกากบาท [X] เพื่อปิดหน้าต่างนี้ได้เลยครับ...");
                     Console.ReadLine();
+                    CleanExit();
                     return;
                 }
 
@@ -341,19 +436,19 @@ namespace ThoenSmartCardBridge
                 Console.WriteLine("===============================================================");
                 Console.WriteLine(" สถานะ: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
 
-                IntPtr hContext = IntPtr.Zero;
-                int ret = PcscInterop.SCardEstablishContext(PcscInterop.SCARD_SCOPE_USER, IntPtr.Zero, IntPtr.Zero, out hContext);
+                int ret = PcscInterop.SCardEstablishContext(PcscInterop.SCARD_SCOPE_USER, IntPtr.Zero, IntPtr.Zero, out hContextGlobal);
                 if (ret != 0)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine(" [ข้อผิดพลาด] ไม่สามารถเริ่มบริการ Smart Card Subsystem ได้ (Code: " + ret + ")");
                     Console.ResetColor();
-                    Console.WriteLine("\nกรุณากดปุ่ม Enter เพื่อปิดโปรแกรม...");
+                    Console.WriteLine("\nกรุณากดปุ่ม Enter หรือกดกากบาท [X] เพื่อปิดโปรแกรม...");
                     Console.ReadLine();
+                    CleanExit();
                     return;
                 }
 
-                string readerName = CardReader.GetActiveReader(hContext);
+                string readerName = CardReader.GetActiveReader(hContextGlobal);
                 if (!string.IsNullOrEmpty(readerName))
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
@@ -367,7 +462,7 @@ namespace ThoenSmartCardBridge
                     Console.ResetColor();
                 }
 
-                HttpListener listener = new HttpListener();
+                listener = new HttpListener();
                 string prefix = "http://127.0.0.1:8084/";
                 try
                 {
@@ -376,19 +471,20 @@ namespace ThoenSmartCardBridge
                     Console.WriteLine(" [HTTP Server]: เปิดให้บริการที่ " + prefix);
                     Console.WriteLine(" [พร้อมใช้งาน]: หน้าเว็บระบบคัดกรองตรวจนอกพื้นที่จะเชื่อมต่ออัตโนมัติ");
                     Console.WriteLine("===============================================================");
-                    Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กด Ctrl+C เพื่อปิดการทำงาน *");
+                    Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กดกากบาท [X] หรือ Ctrl+C เพื่อปิด *");
                 }
                 catch (Exception ex)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine(" [ข้อผิดพลาด]: ไม่สามารถเปิด Port 8084 ได้: " + ex.Message);
                     Console.ResetColor();
-                    Console.WriteLine("\nกรุณากดปุ่ม Enter เพื่อปิดโปรแกรม...");
+                    Console.WriteLine("\nกรุณากดปุ่ม Enter หรือกดกากบาท [X] เพื่อปิดโปรแกรม...");
                     Console.ReadLine();
+                    CleanExit();
                     return;
                 }
 
-                while (true)
+                while (isRunning && listener != null && listener.IsListening)
                 {
                     try
                     {
@@ -396,15 +492,24 @@ namespace ThoenSmartCardBridge
                         ThreadPool.QueueUserWorkItem((state) => {
                             try
                             {
-                                HandleRequest(context, hContext);
+                                HandleRequest(context, hContextGlobal);
                             }
                             catch
                             {
                             }
                         });
                     }
+                    catch (HttpListenerException)
+                    {
+                        break;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        break;
+                    }
                     catch
                     {
+                        if (!isRunning) break;
                         Thread.Sleep(200);
                     }
                 }
@@ -414,16 +519,12 @@ namespace ThoenSmartCardBridge
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine(" [เกิดข้อผิดพลาดในการทำงาน]: " + ex.Message);
                 Console.ResetColor();
-                Console.WriteLine("\nกรุณากดปุ่ม Enter เพื่อปิดโปรแกรม...");
+                Console.WriteLine("\nกรุณากดปุ่ม Enter หรือกดกากบาท [X] เพื่อปิดโปรแกรม...");
                 Console.ReadLine();
             }
             finally
             {
-                if (singleInstanceMutex != null)
-                {
-                    try { singleInstanceMutex.ReleaseMutex(); }
-                    catch { }
-                }
+                CleanExit();
             }
         }
 
