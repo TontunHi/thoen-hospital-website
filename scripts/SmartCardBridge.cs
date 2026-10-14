@@ -349,10 +349,158 @@ namespace ThoenSmartCardBridge
         }
     }
 
+    public static class BrowserInjector
+    {
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("kernel32.dll")]
+        private static extern IntPtr GetConsoleWindow();
+
+        [DllImport("kernel32.dll")]
+        private static extern uint GetCurrentThreadId();
+
+        [DllImport("user32.dll")]
+        private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+        private const byte VK_CONTROL = 0x11;
+        private const byte VK_V = 0x56;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const int SW_RESTORE = 9;
+
+        public static bool InjectIntoBrowser(string jsonPayload)
+        {
+            try
+            {
+                // 1. Put payload on Windows Clipboard
+                if (!ClipboardHelper.SetText(jsonPayload))
+                {
+                    return false;
+                }
+
+                // 2. Find target Chrome/Edge window matching screening scan
+                IntPtr myConsole = GetConsoleWindow();
+                uint myPid = (uint)Process.GetCurrentProcess().Id;
+                IntPtr targetHwnd = IntPtr.Zero;
+
+                EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
+                {
+                    if (hWnd == myConsole) return true; // NEVER match own console!
+
+                    uint pid = 0;
+                    GetWindowThreadProcessId(hWnd, out pid);
+                    if (pid == 0 || pid == myPid) return true;
+
+                    try
+                    {
+                        Process p = Process.GetProcessById((int)pid);
+                        string procName = p.ProcessName.ToLower();
+                        if (procName != "chrome" && procName != "msedge" && procName != "brave" && procName != "opera")
+                        {
+                            return true; // only consider browsers
+                        }
+                    }
+                    catch
+                    {
+                        return true;
+                    }
+
+                    StringBuilder sb = new StringBuilder(256);
+                    GetWindowText(hWnd, sb, 256);
+                    string title = sb.ToString();
+                    if (!string.IsNullOrEmpty(title))
+                    {
+                        string lower = title.ToLower();
+                        if (lower.Contains("จุดอ่านบัตร") || lower.Contains("คัดกรอง") || lower.Contains("screening") || lower.Contains("thlp.moph.go.th"))
+                        {
+                            targetHwnd = hWnd;
+                            return false; // Found exact match!
+                        }
+                    }
+                    return true;
+                }, IntPtr.Zero);
+
+                // If not found by specific title, find any open browser window
+                if (targetHwnd == IntPtr.Zero)
+                {
+                    EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
+                    {
+                        if (hWnd == myConsole) return true;
+                        uint pid = 0;
+                        GetWindowThreadProcessId(hWnd, out pid);
+                        if (pid == 0 || pid == myPid) return true;
+                        try
+                        {
+                            Process p = Process.GetProcessById((int)pid);
+                            string procName = p.ProcessName.ToLower();
+                            if (procName == "chrome" || procName == "msedge")
+                            {
+                                StringBuilder sb = new StringBuilder(256);
+                                GetWindowText(hWnd, sb, 256);
+                                string title = sb.ToString();
+                                if (!string.IsNullOrEmpty(title) && !title.StartsWith("Chrome Legacy Window"))
+                                {
+                                    targetHwnd = hWnd;
+                                    return false;
+                                }
+                            }
+                        }
+                        catch { }
+                        return true;
+                    }, IntPtr.Zero);
+                }
+
+                if (targetHwnd != IntPtr.Zero)
+                {
+                    IntPtr foreWnd = GetForegroundWindow();
+                    if (foreWnd != targetHwnd)
+                    {
+                        uint dummyPid = 0;
+                        uint foreThread = GetWindowThreadProcessId(foreWnd, out dummyPid);
+                        uint currentThread = GetCurrentThreadId();
+                        AttachThreadInput(currentThread, foreThread, true);
+                        ShowWindow(targetHwnd, SW_RESTORE);
+                        SetForegroundWindow(targetHwnd);
+                        AttachThreadInput(currentThread, foreThread, false);
+                        Thread.Sleep(80);
+                    }
+
+                    // Send Ctrl+V directly to browser window
+                    keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+                    keybd_event(VK_V, 0, 0, UIntPtr.Zero);
+                    keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                    keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+    }
+
     public class CloudBridgeClient
     {
         public static string[] TargetEndpoints = new string[] {
-            "http://192.168.1.142:6060/api/service/screening/bridge-push",
             "https://thlp.moph.go.th/api/service/screening/bridge-push"
         };
         public const string SecretToken = "thoen-smartcard-bridge-secret-2026";
@@ -604,10 +752,21 @@ namespace ThoenSmartCardBridge
                     Console.ResetColor();
                 }
 
-                // Send immediate status update to Web Cloud & LAN Hub
+                // Send immediate status update to Web Cloud & Browser Page
                 ThreadPool.QueueUserWorkItem(delegate
                 {
                     try { CloudBridgeClient.SendPush("status", readerName, false, null); } catch { }
+                    try
+                    {
+                        Thread.Sleep(600);
+                        string readyJson = string.Format(
+                            "{{\"source\":\"thoen_smartcard_bridge\",\"status\":\"ready\",\"reader\":\"{0}\",\"station\":\"{1}\"}}",
+                            (readerName ?? "Smart Card Reader").Replace("\"", "\\\""),
+                            CloudBridgeClient.StationId
+                        );
+                        BrowserInjector.InjectIntoBrowser(readyJson);
+                    }
+                    catch { }
                 });
 
                 // Start local HTTP server as parallel fallback on port 8084
@@ -729,8 +888,8 @@ namespace ThoenSmartCardBridge
                                 sb.Append("}}");
                                 string jsonStr = sb.ToString();
 
-                                // 2. Copy to Windows Clipboard
-                                ClipboardHelper.SetText(jsonStr);
+                                // 2. Copy to Windows Clipboard and Inject directly into Browser
+                                BrowserInjector.InjectIntoBrowser(jsonStr);
 
                                 try { Console.Beep(1200, 150); } catch { }
 
@@ -739,7 +898,7 @@ namespace ThoenSmartCardBridge
                                 Console.WriteLine(" * ข้อมูลแสดงบนหน้าจอทันที ตรวจสอบความถูกต้องแล้วกด [Enter] เพื่อบันทึกเข้าคิว *\n");
                                 Console.ResetColor();
 
-                                // 3. Push to Web SSE Hub (LAN & Cloud)
+                                // 3. Push to Web SSE Hub (Cloud fallback)
                                 ThreadPool.QueueUserWorkItem(delegate
                                 {
                                     try { CloudBridgeClient.SendPush("card_read", reader, true, cardData); } catch { }

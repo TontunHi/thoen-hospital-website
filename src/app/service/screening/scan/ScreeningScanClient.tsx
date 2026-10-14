@@ -132,7 +132,21 @@ export default function ScreeningScanClient({ operator }: Props) {
       const text = e.clipboardData?.getData('text')
       if (!text) return
       try {
-        if (text.includes('"thoen_smartcard_bridge"') || (text.includes('"cid"') && text.includes('"fullNameTh"'))) {
+        if (text.includes('"thoen_smartcard_bridge"')) {
+          e.preventDefault()
+          const json = JSON.parse(text)
+          if (json.status === 'ready' || json.action === 'status') {
+            setIsBridgeConnected(true)
+            setBridgeReaderName(json.reader || 'Smart Card Reader')
+            setDeviceStatus(`เชื่อมต่อเครื่องอ่านบัตรแล้ว: ${json.reader || 'พร้อมอ่านบัตร'}`)
+            playBeep(880, 'sine', 0.1)
+            return
+          }
+          const cardData = json.card || json.data || json
+          if (cardData && cardData.cid && cardData.cid.length >= 13) {
+            applyCardData(cardData)
+          }
+        } else if (text.includes('"cid"') && text.includes('"fullNameTh"')) {
           e.preventDefault()
           const json = JSON.parse(text)
           const cardData = json.card || json.data || json
@@ -147,6 +161,26 @@ export default function ScreeningScanClient({ operator }: Props) {
 
     window.addEventListener('paste', handlePaste)
     return () => window.removeEventListener('paste', handlePaste)
+  }, [applyCardData, playBeep])
+
+  // Initial check on mount: Read status or card from clipboard if bridge was already run
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.readText().then((text) => {
+        if (text && text.includes('"thoen_smartcard_bridge"')) {
+          try {
+            const json = JSON.parse(text)
+            if (json.status === 'ready') {
+              setIsBridgeConnected(true)
+              setBridgeReaderName(json.reader || 'Smart Card Reader')
+              setDeviceStatus(`เชื่อมต่อเครื่องอ่านบัตรแล้ว: ${json.reader || 'พร้อมอ่านบัตร'}`)
+            } else if (json.card && json.card.cid) {
+              applyCardData(json.card)
+            }
+          } catch { }
+        }
+      }).catch(() => { })
+    }
   }, [applyCardData])
 
   // Optional local fetch helper (works if running localhost or unblocked)
@@ -456,25 +490,30 @@ export default function ScreeningScanClient({ operator }: Props) {
           <div className="bridgeBannerTop">
             <div className="bridgeBannerTitleGroup">
               <div className="bridgeBadgeIcon">
-                {isBridgeConnected ? <Zap size={24} /> : <Download size={24} />}
+                {isBridgeConnected ? <Zap size={24} /> : <CreditCard size={24} />}
               </div>
               <div>
                 <h3>
                   <span>
                     {isBridgeConnected
-                      ? `Smart Card Bridge ออนไลน์พร้อมใช้งาน (โต๊ะที่ ${stationId})`
-                      : 'โปรแกรมเชื่อมต่อเครื่องอ่านบัตร (Smart Card Bridge v2.0)'}
+                      ? `Smart Card Bridge ออนไลน์ (โต๊ะที่ ${stationId})`
+                      : `ระบบอ่านบัตรประชาชน Smart Card (โต๊ะที่ ${stationId})`}
                   </span>
-                  {isBridgeConnected ? (
-                    <span className="bridgeConnectedTag">เชื่อมต่อแล้ว (Direct Bridge)</span>
-                  ) : (
-                    <span className="bridgeReqTag" style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>พร้อมรับข้อมูล (Direct Bridge)</span>
-                  )}
+                  <span
+                    className="bridgeConnectedTag"
+                    style={{
+                      background: isBridgeConnected ? '#ecfdf5' : '#f0fdf4',
+                      color: '#047857',
+                      border: '1px solid #a7f3d0',
+                    }}
+                  >
+                    {isBridgeConnected ? '● ออนไลน์ (เชื่อมต่อแล้ว)' : '● พร้อมรับข้อมูล (Direct Bridge)'}
+                  </span>
                 </h3>
                 <p>
                   {isBridgeConnected
                     ? `ตรวจพบเครื่องอ่าน: ${bridgeReaderName || 'Smart Card Reader'} (เสียบบัตรประชาชนได้เลยทันที ข้อมูลจะส่งเข้าหน้าจอนี้อัตโนมัติ)`
-                    : 'เปิดโปรแกรม thoen-smartcard-bridge.exe ทิ้งไว้ที่เครื่อง เมื่อเสียบบัตรประชาชน ข้อมูลจะส่งเข้าหน้าจอนี้อัตโนมัติทันที (100% บน HTTPS ไม่ต้องตั้งค่าเบราว์เซอร์)'}
+                    : 'เปิดโปรแกรม thoen-smartcard-bridge.exe ไว้ที่เครื่อง เสียบบัตรประชาชนแล้วข้อมูลจะส่งขึ้นหน้าจอนี้ทันที (หรือกดแป้น F2 เพื่อดึงข้อมูล)'}
                 </p>
               </div>
             </div>
@@ -528,7 +567,7 @@ export default function ScreeningScanClient({ operator }: Props) {
             </div>
             <div className="deviceStatusText">
               <span className="deviceStatusLabel">
-                <span>สถานะเครื่องอ่านบัตร (Cloud Stream)</span>
+                <span>สถานะเครื่องอ่านบัตร</span>
                 <span className={`statusLedDot ${isBridgeConnected ? 'active' : ''}`} />
               </span>
               <span className="deviceName">{deviceStatus}</span>
