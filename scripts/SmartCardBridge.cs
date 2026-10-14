@@ -385,83 +385,91 @@ namespace ThoenSmartCardBridge
             HttpListenerRequest req = context.Request;
             HttpListenerResponse res = context.Response;
 
-            // CORS & Chrome Private Network Access (PNA) headers
-            res.Headers.Add("Access-Control-Allow-Origin", "*");
-            res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-            res.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Private-Network");
-            res.Headers.Add("Access-Control-Allow-Private-Network", "true");
-
-            if (req.HttpMethod == "OPTIONS")
+            try
             {
-                res.StatusCode = 204;
-                res.Close();
-                return;
-            }
+                // CORS & Chrome Private Network Access (PNA) headers
+                res.Headers.Add("Access-Control-Allow-Origin", "*");
+                res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+                res.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Private-Network");
+                res.Headers.Add("Access-Control-Allow-Private-Network", "true");
 
-            string path = req.Url.AbsolutePath.ToLower();
-            string readerName = CardReader.GetActiveReader(hContext);
-            bool isPresent = CardReader.CheckCardPresent(hContext, readerName);
-
-            string json = "";
-
-            if (path == "/status" || path == "/")
-            {
-                json = string.Format("{{\"online\":true,\"reader\":\"{0}\",\"cardPresent\":{1}}}",
-                    readerName != null ? readerName.Replace("\\", "\\\\").Replace("\"", "\\\"") : "None",
-                    isPresent ? "true" : "false");
-            }
-            else if (path == "/read")
-            {
-                if (!isPresent)
+                if (req.HttpMethod == "OPTIONS")
                 {
-                    json = "{\"success\":false,\"error\":\"NO_CARD_PRESENT\",\"message\":\"ไม่พบบัตรประชาชนในเครื่องอ่าน\"}";
+                    res.StatusCode = 204;
+                    res.Close();
+                    return;
+                }
+
+                string path = req.Url.AbsolutePath.ToLower();
+                string readerName = CardReader.GetActiveReader(hContext);
+                bool isPresent = CardReader.CheckCardPresent(hContext, readerName);
+
+                string json = "";
+
+                if (path == "/status" || path == "/")
+                {
+                    json = string.Format("{{\"online\":true,\"reader\":\"{0}\",\"cardPresent\":{1}}}",
+                        readerName != null ? readerName.Replace("\\", "\\\\").Replace("\"", "\\\"") : "None",
+                        isPresent ? "true" : "false");
+                }
+                else if (path == "/read")
+                {
+                    if (!isPresent)
+                    {
+                        json = "{\"success\":false,\"error\":\"NO_CARD_PRESENT\",\"message\":\"ไม่พบบัตรประชาชนในเครื่องอ่าน\"}";
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var data = CardReader.ReadCardData(hContext, readerName);
+                            if (data != null)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Cyan;
+                                Console.WriteLine("[อ่านสำเร็จ]: " + data["fullNameTh"] + " (" + data["cid"] + ") เวลา " + DateTime.Now.ToString("HH:mm:ss"));
+                                Console.ResetColor();
+
+                                StringBuilder sb = new StringBuilder();
+                                sb.Append("{\"success\":true,\"data\":{");
+                                bool first = true;
+                                foreach (var kv in data)
+                                {
+                                    if (!first) sb.Append(",");
+                                    sb.AppendFormat("\"{0}\":\"{1}\"", kv.Key, kv.Value.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n"));
+                                    first = false;
+                                }
+                                sb.Append("}}");
+                                json = sb.ToString();
+                            }
+                            else
+                            {
+                                json = "{\"success\":false,\"error\":\"READ_FAILED\",\"message\":\"อ่านข้อมูลจากบัตรไม่สำเร็จ (กรุณาเสียบบัตรให้แน่นอีกครั้ง)\"}";
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            json = string.Format("{{\"success\":false,\"error\":\"EXCEPTION\",\"message\":\"{0}\"}}", ex.Message.Replace("\"", "\\\""));
+                        }
+                    }
                 }
                 else
                 {
-                    try
-                    {
-                        var data = CardReader.ReadCardData(hContext, readerName);
-                        if (data != null)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Cyan;
-                            Console.WriteLine("[อ่านสำเร็จ]: " + data["fullNameTh"] + " (" + data["cid"] + ") เวลา " + DateTime.Now.ToString("HH:mm:ss"));
-                            Console.ResetColor();
-
-                            StringBuilder sb = new StringBuilder();
-                            sb.Append("{\"success\":true,\"data\":{");
-                            bool first = true;
-                            foreach (var kv in data)
-                            {
-                                if (!first) sb.Append(",");
-                                sb.AppendFormat("\"{0}\":\"{1}\"", kv.Key, kv.Value.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n"));
-                                first = false;
-                            }
-                            sb.Append("}}");
-                            json = sb.ToString();
-                        }
-                        else
-                        {
-                            json = "{\"success\":false,\"error\":\"READ_FAILED\",\"message\":\"อ่านข้อมูลจากบัตรไม่สำเร็จ (กรุณาเสียบบัตรให้แน่นอีกครั้ง)\"}";
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        json = string.Format("{{\"success\":false,\"error\":\"EXCEPTION\",\"message\":\"{0}\"}}", ex.Message.Replace("\"", "\\\""));
-                    }
+                    res.StatusCode = 404;
+                    res.Close();
+                    return;
                 }
-            }
-            else
-            {
-                res.StatusCode = 404;
-                res.Close();
-                return;
-            }
 
-            byte[] buffer = Encoding.UTF8.GetBytes(json);
-            res.ContentType = "application/json; charset=utf-8";
-            res.ContentLength64 = buffer.Length;
-            res.OutputStream.Write(buffer, 0, buffer.Length);
-            res.OutputStream.Close();
+                byte[] buffer = Encoding.UTF8.GetBytes(json);
+                res.ContentType = "application/json; charset=utf-8";
+                res.ContentLength64 = buffer.Length;
+                res.OutputStream.Write(buffer, 0, buffer.Length);
+                res.OutputStream.Close();
+            }
+            catch
+            {
+                // Client aborted connection or network socket closed - handle gracefully
+                try { res.Close(); } catch { }
+            }
         }
     }
 }
