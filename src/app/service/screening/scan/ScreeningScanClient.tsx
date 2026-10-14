@@ -17,7 +17,6 @@ import {
   Info,
   Download,
   Zap,
-  AlertTriangle,
 } from 'lucide-react'
 import {
   SmartCardData,
@@ -44,7 +43,8 @@ interface RecentSavedItem {
 }
 
 export default function ScreeningScanClient({ operator }: Props) {
-  const [deviceStatus, setDeviceStatus] = useState<string>('กำลังตรวจสอบตัวเชื่อมต่อ...')
+  const [stationId, setStationId] = useState<string>('1')
+  const [deviceStatus, setDeviceStatus] = useState<string>('กำลังเชื่อมต่อระบบ Cloud Bridge...')
   const [isReading, setIsReading] = useState<boolean>(false)
   const [currentCard, setCurrentCard] = useState<SmartCardData | null>(null)
   const [showRawPayload, setShowRawPayload] = useState<boolean>(false)
@@ -53,23 +53,15 @@ export default function ScreeningScanClient({ operator }: Props) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [recentSaved, setRecentSaved] = useState<RecentSavedItem[]>([])
   const [sessionCount, setSessionCount] = useState<number>(0)
-  const [isHttps, setIsHttps] = useState<boolean>(false)
 
-  // Local Bridge States
+  // Cloud & Local Bridge States
   const [isBridgeConnected, setIsBridgeConnected] = useState<boolean>(false)
   const [bridgeReaderName, setBridgeReaderName] = useState<string>('')
   const [cardPresent, setCardPresent] = useState<boolean>(false)
   const [lastReadCid, setLastReadCid] = useState<string>('')
   const [lastSavedCid, setLastSavedCid] = useState<string>('')
 
-  // Check if running on HTTPS
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-      setIsHttps(true)
-    }
-  }, [])
-
-  // Refs for tracking state inside stable polling intervals without teardown
+  // Refs for tracking state inside stable SSE handlers without teardown
   const currentCardRef = useRef<SmartCardData | null>(null)
   currentCardRef.current = currentCard
 
@@ -105,10 +97,7 @@ export default function ScreeningScanClient({ operator }: Props) {
     }
   }, [])
 
-  // Robust Bridge fetch helper:
-  // Direct client-side fetch to local bridge daemon running on the user's PC.
-  // Note: An API proxy route (/api/service/screening/bridge) CANNOT reach the user's USB card reader
-  // when deployed to a remote server (e.g. thlp.moph.go.th), so requests MUST be made from the browser.
+  // Optional local fetch helper (works if running localhost or unblocked)
   const lastWorkingBaseUrlRef = useRef<string>('http://localhost:8084')
 
   const fetchFromBridge = useCallback(async (endpoint: 'status' | 'read') => {
@@ -138,7 +127,7 @@ export default function ScreeningScanClient({ operator }: Props) {
     return null
   }, [])
 
-  // Read card data from bridge
+  // Manual trigger / fallback helper
   const readCardFromBridge = useCallback(
     async (isManual = false) => {
       setIsReading(true)
@@ -162,7 +151,7 @@ export default function ScreeningScanClient({ operator }: Props) {
             birthDate: cardData.birthDate || '',
             gender: cardData.gender || 'ไม่ระบุ',
             address: cardData.address || '',
-            photoBase64: cardData.photo || undefined,
+            photoBase64: cardData.photo || cardData.photoBase64 || undefined,
             rawPayload: cardData,
           })
           playBeep(1046, 'sine', 0.12)
@@ -170,76 +159,124 @@ export default function ScreeningScanClient({ operator }: Props) {
             saveButtonRef.current?.focus()
           }, 80)
         } else if (isManual) {
-          setErrorMessage(result?.message || 'อ่านข้อมูลจากบัตรไม่สำเร็จ หรือข้อมูลไม่สมบูรณ์')
+          if (isBridgeConnected) {
+            setErrorMessage('กรุณาดึงบัตรออกแล้วเสียบใหม่อีกครั้ง โปรแกรม Bridge จะอ่านและส่งข้อมูลขึ้นระบบอัตโนมัติ')
+          } else {
+            setErrorMessage('กรุณาเปิดโปรแกรม thoen-smartcard-bridge.exe ที่เครื่องก่อนอ่านบัตร')
+          }
         }
-      } catch (err: any) {
+      } catch {
         if (isManual) {
-          setErrorMessage(`ไม่สามารถติดต่อ Smart Card Bridge ได้: ${err.message || 'กรุณาตรวจสอบว่าเปิดโปรแกรมอยู่'}`)
+          if (isBridgeConnected) {
+            setErrorMessage('กรุณาดึงบัตรออกแล้วเสียบใหม่อีกครั้ง โปรแกรม Bridge จะอ่านและส่งข้อมูลขึ้นระบบอัตโนมัติ')
+          } else {
+            setErrorMessage('กรุณาเปิดโปรแกรม thoen-smartcard-bridge.exe ที่เครื่องก่อนอ่านบัตร')
+          }
         }
       } finally {
         setIsReading(false)
       }
     },
-    [fetchFromBridge, playBeep]
+    [fetchFromBridge, isBridgeConnected, playBeep]
   )
 
-  // Auto-poll Local Smart Card Bridge every 1.5s
+  // Real-time Cloud SSE Bridge Connection (Zero-Config, Works on HTTPS)
   useEffect(() => {
+    let eventSource: EventSource | null = null
     let isCancelled = false
 
-    const checkBridge = async () => {
-      try {
-        const status = await fetchFromBridge('status')
-        if (isCancelled) return
+    const connectSSE = () => {
+      if (isCancelled) return
+      if (eventSource) {
+        eventSource.close()
+      }
 
-        if (status && status.online) {
-          setIsBridgeConnected(true)
-          setBridgeReaderName(status.reader || 'Generic PC/SC Smart Card Reader')
-          const isPresent = Boolean(status.cardPresent)
+      const streamUrl = `/api/service/screening/bridge-stream?station=${encodeURIComponent(stationId)}`
+      const es = new EventSource(streamUrl)
+      eventSource = es
+
+      es.addEventListener('status', (e: MessageEvent) => {
+        if (isCancelled) return
+        try {
+          const payload = JSON.parse(e.data)
+          const online = Boolean(payload.online)
+          setIsBridgeConnected(online)
+          setBridgeReaderName(payload.reader || '')
+          const isPresent = Boolean(payload.cardPresent)
           setCardPresent(isPresent)
 
-          if (isPresent) {
-            setDeviceStatus(`ตรวจพบบัตรประชาชนในเครื่อง (${status.reader || 'PC/SC Reader'})`)
-            // If card is present, and user hasn't saved this card yet and not viewing it now
-            if (
-              !currentCardRef.current &&
-              !isReadingRef.current &&
-              (!lastSavedCidRef.current || lastSavedCidRef.current !== lastReadCidRef.current)
-            ) {
-              readCardFromBridge(false)
+          if (online) {
+            if (isPresent) {
+              setDeviceStatus(`ตรวจพบบัตรประชาชนในเครื่อง (${payload.reader || 'Smart Card Reader'})`)
+            } else {
+              setDeviceStatus(`Smart Card Bridge ออนไลน์ (โต๊ะ ${stationId}): ${payload.reader || 'พร้อมอ่านบัตร'}`)
             }
           } else {
-            setDeviceStatus(`Smart Card Bridge ออนไลน์: ${status.reader || 'พร้อมอ่านบัตร'}`)
-            // Card removed from reader, allow next scan of same or new card
-            setLastSavedCid('')
-            setLastReadCid('')
+            setDeviceStatus('รอเปิดโปรแกรม Thoen Smart Card Bridge ที่เครื่อง')
           }
-        } else {
-          if (!isCancelled) {
-            setIsBridgeConnected(false)
-            setBridgeReaderName('')
-            setCardPresent(false)
-            setDeviceStatus('ยังไม่ได้เปิดโปรแกรม Smart Card Bridge')
+        } catch {
+          // ignore parse error
+        }
+      })
+
+      es.addEventListener('card', (e: MessageEvent) => {
+        if (isCancelled) return
+        try {
+          const cardData = JSON.parse(e.data)
+          if (cardData && cardData.cid && cardData.cid.length >= 13) {
+            // Only update if not already viewing this card
+            if (currentCardRef.current?.cid !== cardData.cid) {
+              setLastReadCid(cardData.cid)
+              setCurrentCard({
+                cid: cardData.cid,
+                titleTh: cardData.titleTh || '',
+                firstNameTh: cardData.firstNameTh || '',
+                lastNameTh: cardData.lastNameTh || '',
+                fullNameTh: cardData.fullNameTh || '',
+                titleEn: cardData.titleEn || '',
+                firstNameEn: cardData.firstNameEn || '',
+                lastNameEn: cardData.lastNameEn || '',
+                fullNameEn: cardData.fullNameEn || '',
+                birthDate: cardData.birthDate || '',
+                gender: cardData.gender || 'ไม่ระบุ',
+                address: cardData.address || '',
+                photoBase64: cardData.photo || cardData.photoBase64 || undefined,
+                rawPayload: cardData,
+              })
+              playBeep(1046, 'sine', 0.12)
+              setTimeout(() => {
+                saveButtonRef.current?.focus()
+              }, 80)
+            }
           }
+        } catch {
+          // ignore parse error
         }
-      } catch {
-        if (!isCancelled) {
-          setIsBridgeConnected(false)
-          setBridgeReaderName('')
-          setCardPresent(false)
-          setDeviceStatus('ยังไม่ได้เปิดโปรแกรม Smart Card Bridge')
-        }
+      })
+
+      es.addEventListener('card_removed', () => {
+        if (isCancelled) return
+        setCardPresent(false)
+        setLastSavedCid('')
+        setLastReadCid('')
+        setDeviceStatus(`นำบัตรออกแล้ว: พร้อมรับบัตรประชาชนคนถัดไป (โต๊ะ ${stationId})`)
+      })
+
+      es.onerror = () => {
+        if (isCancelled) return
+        // EventSource will automatically reconnect in the background
       }
     }
 
-    const interval = setInterval(checkBridge, 1500)
-    checkBridge()
+    connectSSE()
 
     return () => {
       isCancelled = true
-      clearInterval(interval)
+      if (eventSource) {
+        eventSource.close()
+      }
     }
-  }, [fetchFromBridge, readCardFromBridge])
+  }, [stationId, playBeep])
 
 
   // Save current card to screening queue
@@ -375,17 +412,21 @@ export default function ScreeningScanClient({ operator }: Props) {
               </div>
               <div>
                 <h3>
-                  <span>{isBridgeConnected ? 'Smart Card Bridge เชื่อมต่อพร้อมใช้งาน' : 'โปรแกรมเชื่อมต่อเครื่องอ่านบัตร (Smart Card Bridge)'}</span>
+                  <span>
+                    {isBridgeConnected
+                      ? `Smart Card Bridge ออนไลน์พร้อมใช้งาน (โต๊ะที่ ${stationId})`
+                      : 'โปรแกรมเชื่อมต่อเครื่องอ่านบัตร (Smart Card Bridge v2.0)'}
+                  </span>
                   {isBridgeConnected ? (
-                    <span className="bridgeConnectedTag">เชื่อมต่อแล้ว (Online)</span>
+                    <span className="bridgeConnectedTag">เชื่อมต่อแล้ว (Cloud Realtime)</span>
                   ) : (
-                    <span className="bridgeReqTag">จำเป็นต้องเปิดก่อนใช้งาน</span>
+                    <span className="bridgeReqTag">รอเปิดโปรแกรมที่เครื่อง</span>
                   )}
                 </h3>
                 <p>
                   {isBridgeConnected
-                    ? `ตรวจพบเครื่องอ่าน: ${bridgeReaderName || 'Generic PC/SC USB Smart Card Reader'} (เสียบบัตรประชาชนได้เลยทันที)`
-                    : 'เนื่องจากระบบความปลอดภัยของเบราว์เซอร์ จำเป็นต้องเปิดโปรแกรมตัวเชื่อมต่อขนาดเล็ก (22 KB) เพื่อให้อ่านข้อมูลจากเครื่องอ่านบัตรประชาชน PC/SC ได้'}
+                    ? `ตรวจพบเครื่องอ่าน: ${bridgeReaderName || 'Generic PC/SC USB Smart Card Reader'} (เสียบบัตรประชาชนได้เลยทันที ข้อมูลจะส่งขึ้นระบบอัตโนมัติ)`
+                    : 'ดาวน์โหลดและเปิดโปรแกรม thoen-smartcard-bridge.exe ที่เครื่อง ระบบจะเชื่อมต่อกับหน้านี้ผ่าน HTTPS อัตโนมัติ (ไม่ต้องตั้งค่าเบราว์เซอร์)'}
                 </p>
               </div>
             </div>
@@ -398,18 +439,7 @@ export default function ScreeningScanClient({ operator }: Props) {
                 title="คลิกเพื่อดาวน์โหลดโปรแกรมตัวเชื่อมต่อเครื่องอ่านบัตร"
               >
                 <Download size={18} />
-                <span>{isBridgeConnected ? 'ดาวน์โหลด Bridge (.exe)' : 'ดาวน์โหลด Bridge (.exe)'}</span>
-              </a>
-
-              <a
-                href="/downloads/launch-thoen-screening.bat"
-                download="เปิดระบบคัดกรอง_รพเถิน.bat"
-                className="bridgeDownloadBtn"
-                style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}
-                title="ดาวน์โหลดไฟล์เปิดระบบอัตโนมัติ (คลิกเดียวใช้งานได้เลย ไม่ต้องตั้งค่าเบราว์เซอร์)"
-              >
-                <Zap size={18} />
-                <span>⚡ ตัวเปิดอัตโนมัติ (.bat)</span>
+                <span>ดาวน์โหลด Bridge (.exe)</span>
               </a>
             </div>
           </div>
@@ -420,101 +450,26 @@ export default function ScreeningScanClient({ operator }: Props) {
               <div className="stepNumberCircle">1</div>
               <div className="stepContent">
                 <h4>เปิดโปรแกรม Bridge</h4>
-                <p>เปิดไฟล์ <strong>thoen-smartcard-bridge.exe</strong> ทิ้งไว้ที่เครื่อง (โปรแกรมจะสร้างทางลัดบน Desktop ให้ทันที)</p>
+                <p>เปิดไฟล์ <strong>thoen-smartcard-bridge.exe</strong> หน้าต่างคอนโซลสีดำจะเชื่อมต่อไปยังระบบคลาวด์</p>
               </div>
             </div>
 
             <div className="bridgeStepItem">
               <div className="stepNumberCircle">2</div>
               <div className="stepContent">
-                <h4>เข้าใช้งานหน้าเว็บ</h4>
-                <p>โปรแกรมจะเปิดเบราว์เซอร์ให้อัตโนมัติ หรือดับเบิ้ลคลิกไฟล์ <strong>.bat</strong> ที่ดาวน์โหลด</p>
+                <h4>เสียบบัตรประชาชน</h4>
+                <p>เสียบบัตรประชาชนเข้าเครื่องอ่าน USB ระบบจะอ่านและส่งข้อมูลขึ้นหน้าจอนี้โดยตรง</p>
               </div>
             </div>
 
             <div className="bridgeStepItem">
               <div className="stepNumberCircle">3</div>
               <div className="stepContent">
-                <h4>เสียบบัตรใช้งานทันที</h4>
-                <p>เมื่อโปรแกรมเปิดอยู่ เสียบบัตรประชาชนแล้วข้อมูลจะเด้งขึ้นหน้าจอทันที</p>
+                <h4>กดปุ่ม Enter เพื่อบันทึก</h4>
+                <p>ตรวจสอบข้อมูลผู้รับบริการ แล้วกดปุ่ม <strong>Enter</strong> บนคีย์บอร์ดเพื่อบันทึกเข้าคิว</p>
               </div>
             </div>
           </div>
-
-          {/* Notice for HTTPS / Production environment */}
-          {isHttps && !isBridgeConnected && (
-            <div className="httpsBridgeNotice">
-              <div className="httpsNoticeHeader">
-                <AlertTriangle size={22} className="httpsNoticeIcon" />
-                <div>
-                  <h4 className="httpsNoticeHeading">
-                    คำแนะนำสำหรับหน้าเว็บ HTTPS ({typeof window !== 'undefined' ? window.location.hostname : 'thlp.moph.go.th'})
-                  </h4>
-                  <p className="httpsNoticeSub">
-                    หากเปิดโปรแกรม <strong>thoen-smartcard-bridge.exe</strong> แล้ว แต่หน้าจอยังขึ้นสถานะ <em>&ldquo;ยังไม่ได้เปิดโปรแกรม&rdquo;</em> (เนื่องจาก Chrome บล็อกการเชื่อมต่อ Localhost)
-                  </p>
-                </div>
-              </div>
-              <div className="httpsNoticeCard">
-                <div style={{ background: '#fef3c7', padding: '0.85rem 1rem', borderRadius: '10px', marginBottom: '0.75rem', border: '1px solid #fde68a' }}>
-                  <strong style={{ color: '#92400e', display: 'block', marginBottom: '0.35rem', fontSize: '0.9rem' }}>
-                    ⚡ วิธีที่ 1 (ง่ายที่สุด - คลิกเดียวใช้งานได้ทันที ไม่ต้องตั้งค่าอะไรเลย):
-                  </strong>
-                  <span style={{ color: '#78350f', fontSize: '0.85rem', lineHeight: 1.5, display: 'block' }}>
-                    ดาวน์โหลดไฟล์ <strong>เปิดระบบคัดกรอง_รพเถิน.bat</strong> ไว้ที่หน้า Desktop เมื่อเปิดโปรแกรม Bridge แล้ว ให้ดับเบิ้ลคลิกไฟล์นี้ ระบบจะเปิด Google Chrome พร้อมปลดล็อกสิทธิ์เครื่องอ่านบัตรให้อัตโนมัติทันที
-                  </span>
-                  <div style={{ marginTop: '0.65rem' }}>
-                    <a
-                      href="/downloads/launch-thoen-screening.bat"
-                      download="เปิดระบบคัดกรอง_รพเถิน.bat"
-                      className="btnTestBridgeConnection"
-                      style={{ background: '#0284c7', textDecoration: 'none' }}
-                    >
-                      <Download size={15} />
-                      <span>ดาวน์โหลดไฟล์เปิดระบบอัตโนมัติ (.bat)</span>
-                    </a>
-                  </div>
-                </div>
-
-                <div style={{ background: '#ffffff', padding: '0.85rem 1rem', borderRadius: '10px', marginBottom: '0.75rem', border: '1px solid #fed7aa' }}>
-                  <strong style={{ color: '#9a3412', display: 'block', marginBottom: '0.35rem', fontSize: '0.9rem' }}>
-                    ⚙️ วิธีที่ 2 (ตั้งค่าถาวรใน Chrome Flags - ทำครั้งเดียวใช้ได้ตลอดไป):
-                  </strong>
-                  <ol className="httpsNoticeList" style={{ margin: '0.35rem 0 0 1.25rem', fontSize: '0.85rem' }}>
-                    <li>
-                      เปิดแท็บใหม่ใน Chrome แล้วพิมพ์: <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>
-                    </li>
-                    <li>
-                      เปลี่ยนเป็น <strong>Enabled</strong> แล้วใส่ในช่อง: <code>http://localhost:8084, http://127.0.0.1:8084</code>
-                    </li>
-                    <li>
-                      กดปุ่มสีน้ำเงิน <strong>Relaunch</strong> ที่มุมขวาล่าง 1 ครั้ง
-                    </li>
-                  </ol>
-                </div>
-
-                <div className="httpsNoticeFooter">
-                  <span>💡 ปลอดภัยตามมาตรฐานความปลอดภัยระบบสาธารณสุข</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      fetchFromBridge('status').then((res) => {
-                        if (res && res.online) {
-                          alert('✅ เชื่อมต่อ Smart Card Bridge สำเร็จแล้ว!')
-                        } else {
-                          alert('⚠️ ยังไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบว่า:\n1. ได้เปิดโปรแกรม thoen-smartcard-bridge.exe แล้ว\n2. เปิดผ่านไฟล์ .bat หรือตั้งค่า Chrome Flags แล้ว\n3. กดรีเฟรชหน้าเว็บ (F5) อีกครั้ง')
-                        }
-                      })
-                    }}
-                    className="btnTestBridgeConnection"
-                  >
-                    <RefreshCw size={14} />
-                    <span>ทดสอบการเชื่อมต่ออีกครั้ง</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Hardware Status & Operator Bar */}
@@ -525,20 +480,38 @@ export default function ScreeningScanClient({ operator }: Props) {
             </div>
             <div className="deviceStatusText">
               <span className="deviceStatusLabel">
-                <span>สถานะเครื่องอ่านบัตร</span>
+                <span>สถานะเครื่องอ่านบัตร (Cloud Stream)</span>
                 <span className={`statusLedDot ${isBridgeConnected ? 'active' : ''}`} />
               </span>
               <span className="deviceName">{deviceStatus}</span>
             </div>
           </div>
 
-          <div className="operatorMetaBox">
-            <div>
-              <span style={{ color: '#94a3b8' }}>ผู้ปฏิบัติงาน: </span>
-              <strong style={{ color: '#1e293b' }}>{operator.name || operator.username}</strong>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div className="stationSelectorBadge">
+              <span>จุดบริการ: </span>
+              <select
+                value={stationId}
+                onChange={(e) => setStationId(e.target.value)}
+                className="stationSelect"
+                title="เลือกหมายเลขโต๊ะตรวจ/จุดบริการ"
+              >
+                <option value="1">โต๊ะที่ 1 (ค่าเริ่มต้น)</option>
+                <option value="2">โต๊ะที่ 2</option>
+                <option value="3">โต๊ะที่ 3</option>
+                <option value="4">โต๊ะที่ 4</option>
+                <option value="5">โต๊ะที่ 5</option>
+              </select>
             </div>
-            <div className="sessionCounterBadge">
-              บันทึกแล้วในเซสชันนี้: {sessionCount} คน
+
+            <div className="operatorMetaBox">
+              <div>
+                <span style={{ color: '#94a3b8' }}>ผู้ปฏิบัติงาน: </span>
+                <strong style={{ color: '#1e293b' }}>{operator.name || operator.username}</strong>
+              </div>
+              <div className="sessionCounterBadge">
+                บันทึกแล้วในเซสชันนี้: {sessionCount} คน
+              </div>
             </div>
           </div>
         </div>
@@ -616,7 +589,7 @@ export default function ScreeningScanClient({ operator }: Props) {
                       style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem' }}
                     >
                       <Download size={18} />
-                      <span>ดาวน์โหลด Bridge (22 KB)</span>
+                      <span>ดาวน์โหลด Bridge (.exe)</span>
                     </a>
                   )}
                 </div>

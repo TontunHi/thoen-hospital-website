@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 
@@ -46,7 +48,6 @@ namespace ThoenSmartCardBridge
     public class CardReader
     {
         private static readonly object cardLock = new object();
-        private static bool lastCardPresentState = false;
 
         // Thai National ID APDU commands
         private static byte[] APDU_SELECT_APPLET = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x00, 0x54, 0x48, 0x00, 0x01 };
@@ -90,7 +91,6 @@ namespace ThoenSmartCardBridge
             int ret = PcscInterop.SCardTransmit(hCard, ref pci, apdu, apdu.Length, IntPtr.Zero, recv, ref recvLen);
             if (ret != 0) return new byte[0];
 
-            // If SW1 == 0x61, card says: XX bytes available, send GET RESPONSE (00 C0 00 00 Le)
             if (recvLen == 2 && recv[0] == 0x61)
             {
                 byte le = recv[1];
@@ -148,162 +148,215 @@ namespace ThoenSmartCardBridge
                     if (ret == 0)
                     {
                         PcscInterop.SCardDisconnect(hCard, PcscInterop.SCARD_LEAVE_CARD);
-                        if (!lastCardPresentState)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Cyan;
-                            Console.WriteLine(string.Format(" [{0}] ตรวจพบบัตรประชาชนเสียบเข้าเครื่องอ่าน ({1})", DateTime.Now.ToString("HH:mm:ss"), readerName));
-                            Console.ResetColor();
-                        }
-                        lastCardPresentState = true;
                         return true;
                     }
                 }
-                catch { }
-
-                if (lastCardPresentState)
+                catch
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine(string.Format(" [{0}] นำบัตรประชาชนออกจากเครื่องอ่านแล้ว", DateTime.Now.ToString("HH:mm:ss")));
-                    Console.ResetColor();
                 }
-                lastCardPresentState = false;
                 return false;
+            }
+        }
+
+        public static string DecodeTis620(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0) return "";
+            try
+            {
+                Encoding enc = Encoding.GetEncoding(874);
+                return enc.GetString(bytes).Replace("\0", "").Trim();
+            }
+            catch
+            {
+                return Encoding.UTF8.GetString(bytes).Replace("\0", "").Trim();
             }
         }
 
         public static Dictionary<string, object> ReadCardData(IntPtr hContext, string readerName)
         {
             if (string.IsNullOrEmpty(readerName)) return null;
+
             lock (cardLock)
             {
                 IntPtr hCard = IntPtr.Zero;
-                uint proto = 0;
-                int ret = PcscInterop.SCardConnect(hContext, readerName, PcscInterop.SCARD_SHARE_SHARED, PcscInterop.SCARD_PROTOCOL_T0 | PcscInterop.SCARD_PROTOCOL_T1, out hCard, out proto);
+                uint activeProtocol = 0;
+                int ret = PcscInterop.SCardConnect(hContext, readerName, PcscInterop.SCARD_SHARE_SHARED, PcscInterop.SCARD_PROTOCOL_T0 | PcscInterop.SCARD_PROTOCOL_T1, out hCard, out activeProtocol);
                 if (ret != 0) return null;
 
-            try
-            {
-                SCARD_IO_REQUEST pci = new SCARD_IO_REQUEST();
-                pci.dwProtocol = proto;
-                pci.cbPciLength = (uint)Marshal.SizeOf(typeof(SCARD_IO_REQUEST));
-
-                // 1. Select Thai ID MOI Applet
-                SendApdu(hCard, ref pci, APDU_SELECT_APPLET);
-
-                Encoding thaiEncoding;
-                try { thaiEncoding = Encoding.GetEncoding(874); }
-                catch { thaiEncoding = Encoding.UTF8; }
-
-                // 2. CID (13 Digits)
-                byte[] cidBytes = SendApdu(hCard, ref pci, APDU_READ_CID);
-                string cid = Encoding.ASCII.GetString(cidBytes).Trim();
-                if (string.IsNullOrEmpty(cid) || cid.Length < 13)
-                {
-                    return null;
-                }
-
-                // 3. Name Thai
-                byte[] nameThBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_TH);
-                string rawNameTh = thaiEncoding.GetString(nameThBytes).Trim();
-                string[] nameThParts = rawNameTh.Split(new char[] { '#' });
-                string titleTh = nameThParts.Length > 0 ? nameThParts[0].Trim() : "";
-                string firstTh = nameThParts.Length > 1 ? nameThParts[1].Trim() : "";
-                string midTh = nameThParts.Length > 2 ? nameThParts[2].Trim() : "";
-                string lastTh = nameThParts.Length > 3 ? nameThParts[3].Trim() : "";
-                string fullTh = string.Join(" ", new string[] { titleTh, firstTh, midTh, lastTh }).Replace("  ", " ").Trim();
-
-                // 4. Name English
-                byte[] nameEnBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_EN);
-                string rawNameEn = Encoding.ASCII.GetString(nameEnBytes).Trim();
-                string[] nameEnParts = rawNameEn.Split(new char[] { '#' });
-                string titleEn = nameEnParts.Length > 0 ? nameEnParts[0].Trim() : "";
-                string firstEn = nameEnParts.Length > 1 ? nameEnParts[1].Trim() : "";
-                string midEn = nameEnParts.Length > 2 ? nameEnParts[2].Trim() : "";
-                string lastEn = nameEnParts.Length > 3 ? nameEnParts[3].Trim() : "";
-                string fullEn = string.Join(" ", new string[] { titleEn, firstEn, midEn, lastEn }).Replace("  ", " ").Trim();
-
-                // 5. Date of Birth (YYYYMMDD)
-                byte[] dobBytes = SendApdu(hCard, ref pci, APDU_READ_DOB);
-                string dobRaw = Encoding.ASCII.GetString(dobBytes).Trim();
-                string birthDate = dobRaw.Length >= 8 
-                    ? string.Format("{0}-{1}-{2}", dobRaw.Substring(0, 4), dobRaw.Substring(4, 2), dobRaw.Substring(6, 2)) 
-                    : dobRaw;
-
-                // 6. Gender (1 = ชาย, 2 = หญิง)
-                byte[] genderBytes = SendApdu(hCard, ref pci, APDU_READ_GENDER);
-                string genderCode = Encoding.ASCII.GetString(genderBytes).Trim();
-                string gender = genderCode == "1" ? "ชาย" : (genderCode == "2" ? "หญิง" : "ไม่ระบุ");
-
-                // 7. Address
-                byte[] addrBytes = SendApdu(hCard, ref pci, APDU_READ_ADDRESS);
-                string rawAddress = thaiEncoding.GetString(addrBytes).Trim();
-                string[] addrParts = rawAddress.Split(new char[] { '#' }, StringSplitOptions.RemoveEmptyEntries);
-                string address = string.Join(" ", addrParts).Trim();
-
-                // 8. Issuer, Issue Date & Expire Date
-                byte[] issuerBytes = SendApdu(hCard, ref pci, APDU_READ_ISSUER);
-                string issuer = thaiEncoding.GetString(issuerBytes).Trim();
-
-                byte[] issueDateBytes = SendApdu(hCard, ref pci, APDU_READ_ISSUE_DATE);
-                string rawIssueDate = Encoding.ASCII.GetString(issueDateBytes).Trim();
-                string issueDate = rawIssueDate.Length >= 8 
-                    ? string.Format("{0}-{1}-{2}", rawIssueDate.Substring(0, 4), rawIssueDate.Substring(4, 2), rawIssueDate.Substring(6, 2)) 
-                    : rawIssueDate;
-
-                byte[] expDateBytes = SendApdu(hCard, ref pci, APDU_READ_EXP_DATE);
-                string rawExpDate = Encoding.ASCII.GetString(expDateBytes).Trim();
-                string expireDate = rawExpDate.Length >= 8 
-                    ? string.Format("{0}-{1}-{2}", rawExpDate.Substring(0, 4), rawExpDate.Substring(4, 2), rawExpDate.Substring(6, 2)) 
-                    : rawExpDate;
-
-                // 9. Photo (JPEG)
-                string photoBase64 = "";
                 try
                 {
-                    using (MemoryStream ms = new MemoryStream())
+                    SCARD_IO_REQUEST pci = new SCARD_IO_REQUEST();
+                    pci.dwProtocol = activeProtocol;
+                    pci.cbPciLength = (uint)Marshal.SizeOf(typeof(SCARD_IO_REQUEST));
+
+                    // 1. Select Thai National ID Applet
+                    byte[] selectResp = SendApdu(hCard, ref pci, APDU_SELECT_APPLET);
+
+                    // 2. Read CID (13 bytes)
+                    byte[] cidBytes = SendApdu(hCard, ref pci, APDU_READ_CID);
+                    string cid = DecodeTis620(cidBytes);
+                    if (string.IsNullOrEmpty(cid) || cid.Length < 13) return null;
+
+                    // 3. Read Full Name TH
+                    byte[] nameThBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_TH);
+                    string rawNameTh = DecodeTis620(nameThBytes);
+                    string[] nameThParts = rawNameTh.Split(new char[] { '#' }, StringSplitOptions.None);
+                    string titleTh = nameThParts.Length > 0 ? nameThParts[0].Trim() : "";
+                    string firstNameTh = nameThParts.Length > 1 ? nameThParts[1].Trim() : "";
+                    string middleNameTh = nameThParts.Length > 2 ? nameThParts[2].Trim() : "";
+                    string lastNameTh = nameThParts.Length > 3 ? nameThParts[3].Trim() : "";
+                    string fullNameTh = (titleTh + " " + firstNameTh + (middleNameTh != "" ? " " + middleNameTh : "") + " " + lastNameTh).Trim();
+
+                    // 4. Read Full Name EN
+                    byte[] nameEnBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_EN);
+                    string rawNameEn = DecodeTis620(nameEnBytes);
+                    string[] nameEnParts = rawNameEn.Split(new char[] { '#' }, StringSplitOptions.None);
+                    string titleEn = nameEnParts.Length > 0 ? nameEnParts[0].Trim() : "";
+                    string firstNameEn = nameEnParts.Length > 1 ? nameEnParts[1].Trim() : "";
+                    string middleNameEn = nameEnParts.Length > 2 ? nameEnParts[2].Trim() : "";
+                    string lastNameEn = nameEnParts.Length > 3 ? nameEnParts[3].Trim() : "";
+                    string fullNameEn = (titleEn + " " + firstNameEn + (middleNameEn != "" ? " " + middleNameEn : "") + " " + lastNameEn).Trim();
+
+                    // 5. Read Date of Birth (YYYYMMDD)
+                    byte[] dobBytes = SendApdu(hCard, ref pci, APDU_READ_DOB);
+                    string rawDob = DecodeTis620(dobBytes);
+                    string birthDate = "";
+                    if (rawDob.Length >= 8)
                     {
-                        foreach (byte[] apdu in PHOTO_APDUS)
+                        birthDate = rawDob.Substring(0, 4) + "-" + rawDob.Substring(4, 2) + "-" + rawDob.Substring(6, 2);
+                    }
+
+                    // 6. Read Gender (1 = Male, 2 = Female)
+                    byte[] genderBytes = SendApdu(hCard, ref pci, APDU_READ_GENDER);
+                    string rawGender = DecodeTis620(genderBytes);
+                    string gender = "ไม่ระบุ";
+                    if (rawGender == "1") gender = "ชาย";
+                    else if (rawGender == "2") gender = "หญิง";
+
+                    // 7. Read Address
+                    byte[] addrBytes = SendApdu(hCard, ref pci, APDU_READ_ADDRESS);
+                    string rawAddr = DecodeTis620(addrBytes);
+                    string address = rawAddr.Replace("#", " ").Trim();
+
+                    // 8. Read Issuer, Issue Date, Expire Date
+                    string issuer = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_ISSUER));
+                    string issueDate = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_ISSUE_DATE));
+                    string expireDate = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_EXP_DATE));
+
+                    // 9. Read Photo JPEG
+                    List<byte> photoBytes = new List<byte>();
+                    foreach (var apdu in PHOTO_APDUS)
+                    {
+                        byte[] chunk = SendApdu(hCard, ref pci, apdu);
+                        if (chunk.Length > 0)
                         {
-                            byte[] chunk = SendApdu(hCard, ref pci, apdu);
-                            if (chunk.Length == 0) break;
-                            ms.Write(chunk, 0, chunk.Length);
-                        }
-                        byte[] allPhotoBytes = ms.ToArray();
-                        if (allPhotoBytes.Length > 200 && allPhotoBytes[0] == 0xFF && allPhotoBytes[1] == 0xD8)
-                        {
-                            photoBase64 = "data:image/jpeg;base64," + Convert.ToBase64String(allPhotoBytes);
+                            photoBytes.AddRange(chunk);
                         }
                     }
+                    string photoBase64 = "";
+                    if (photoBytes.Count > 100)
+                    {
+                        photoBase64 = "data:image/jpeg;base64," + Convert.ToBase64String(photoBytes.ToArray());
+                    }
+
+                    Dictionary<string, object> data = new Dictionary<string, object>();
+                    data["cid"] = cid;
+                    data["titleTh"] = titleTh;
+                    data["firstNameTh"] = firstNameTh;
+                    data["lastNameTh"] = lastNameTh;
+                    data["fullNameTh"] = fullNameTh;
+                    data["titleEn"] = titleEn;
+                    data["firstNameEn"] = firstNameEn;
+                    data["lastNameEn"] = lastNameEn;
+                    data["fullNameEn"] = fullNameEn;
+                    data["birthDate"] = birthDate;
+                    data["gender"] = gender;
+                    data["address"] = address;
+                    data["issuer"] = issuer;
+                    data["issueDate"] = issueDate;
+                    data["expireDate"] = expireDate;
+                    data["photo"] = photoBase64;
+
+                    return data;
                 }
-                catch { }
-
-                Dictionary<string, object> data = new Dictionary<string, object>();
-                data["cid"] = cid;
-                data["titleTh"] = titleTh;
-                data["firstNameTh"] = firstTh;
-                data["lastNameTh"] = lastTh;
-                data["fullNameTh"] = fullTh;
-                data["titleEn"] = titleEn;
-                data["firstNameEn"] = firstEn;
-                data["lastNameEn"] = lastEn;
-                data["fullNameEn"] = fullEn;
-                data["birthDate"] = birthDate;
-                data["gender"] = gender;
-                data["address"] = address;
-                data["issuer"] = issuer;
-                data["issueDate"] = issueDate;
-                data["expireDate"] = expireDate;
-                data["photo"] = photoBase64;
-                data["readTimestamp"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz");
-                data["readerName"] = readerName;
-                data["source"] = "SMART_CARD_BRIDGE_PCSC";
-
-                return data;
+                finally
+                {
+                    PcscInterop.SCardDisconnect(hCard, PcscInterop.SCARD_LEAVE_CARD);
+                }
             }
-            finally
+        }
+    }
+
+    public class CloudBridgeClient
+    {
+        public static string ServerUrl = "https://thlp.moph.go.th/api/service/screening/bridge-push";
+        public const string SecretToken = "thoen-smartcard-bridge-secret-2026";
+        public static string StationId = "1";
+
+        static CloudBridgeClient()
+        {
+            try
             {
-                PcscInterop.SCardDisconnect(hCard, PcscInterop.SCARD_LEAVE_CARD);
+                // Force TLS 1.2 and bypass SSL validation for hospital proxies
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;
+                ServicePointManager.ServerCertificateValidationCallback = delegate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+                {
+                    return true;
+                };
             }
+            catch { }
+        }
+
+        public static bool SendPush(string action, string readerName, bool cardPresent, Dictionary<string, object> cardData)
+        {
+            try
+            {
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(ServerUrl);
+                req.Method = "POST";
+                req.ContentType = "application/json; charset=utf-8";
+                req.Headers.Add("x-bridge-token", SecretToken);
+                req.UserAgent = "ThoenSmartCardBridge/2.0";
+                req.Timeout = 4000;
+                req.ReadWriteTimeout = 4000;
+
+                StringBuilder sb = new StringBuilder();
+                sb.Append("{");
+                sb.AppendFormat("\"station\":\"{0}\",", StationId.Replace("\"", "\\\""));
+                sb.AppendFormat("\"action\":\"{0}\",", action);
+                sb.AppendFormat("\"reader\":\"{0}\",", (readerName ?? "None").Replace("\\", "\\\\").Replace("\"", "\\\""));
+                sb.AppendFormat("\"cardPresent\":{0}", cardPresent ? "true" : "false");
+
+                if (cardData != null)
+                {
+                    sb.Append(",\"card\":{");
+                    bool first = true;
+                    foreach (var kv in cardData)
+                    {
+                        if (!first) sb.Append(",");
+                        string val = kv.Value != null ? kv.Value.ToString() : "";
+                        sb.AppendFormat("\"{0}\":\"{1}\"", kv.Key, val.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n"));
+                        first = false;
+                    }
+                    sb.Append("}");
+                }
+                sb.Append("}");
+
+                byte[] data = Encoding.UTF8.GetBytes(sb.ToString());
+                req.ContentLength = data.Length;
+
+                using (Stream stream = req.GetRequestStream())
+                {
+                    stream.Write(data, 0, data.Length);
+                }
+
+                using (HttpWebResponse res = (HttpWebResponse)req.GetResponse())
+                {
+                    return res.StatusCode == HttpStatusCode.OK;
+                }
+            }
+            catch
+            {
+                return false;
             }
         }
     }
@@ -325,11 +378,6 @@ namespace ThoenSmartCardBridge
 
         private static bool OnConsoleCtrl(uint dwCtrlType)
         {
-            // Catches: 2 = CTRL_CLOSE_EVENT (User clicked [X] on window)
-            //          0 = CTRL_C_EVENT
-            //          1 = CTRL_BREAK_EVENT
-            //          5 = CTRL_LOGOFF_EVENT
-            //          6 = CTRL_SHUTDOWN_EVENT
             CleanExit();
             return true;
         }
@@ -376,7 +424,6 @@ namespace ThoenSmartCardBridge
             }
             catch { }
 
-            // Immediately terminate process so it NEVER stays lingering in Task Manager
             try
             {
                 Process.GetCurrentProcess().Kill();
@@ -389,18 +436,23 @@ namespace ThoenSmartCardBridge
 
         static void Main(string[] args)
         {
-            // Register Windows Console Ctrl Handler FIRST THING to intercept [X] button immediately
             ctrlHandler = new ConsoleCtrlDelegate(OnConsoleCtrl);
             SetConsoleCtrlHandler(ctrlHandler, true);
 
-            AppDomain.CurrentDomain.ProcessExit += (s, e) => CleanExit();
-            Console.CancelKeyPress += (s, e) => {
+            AppDomain.CurrentDomain.ProcessExit += delegate { CleanExit(); };
+            Console.CancelKeyPress += delegate(object s, ConsoleCancelEventArgs e)
+            {
                 e.Cancel = true;
                 CleanExit();
             };
 
             Console.OutputEncoding = Encoding.UTF8;
-            Console.Title = "โรงพยาบาลเถิน - Smart Card Bridge v1.0";
+            Console.Title = "โรงพยาบาลเถิน - Thoen Smart Card Bridge v2.0";
+
+            if (args != null && args.Length > 0 && !string.IsNullOrEmpty(args[0]))
+            {
+                CloudBridgeClient.StationId = args[0].Trim();
+            }
 
             try
             {
@@ -418,23 +470,24 @@ namespace ThoenSmartCardBridge
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine("===============================================================");
-                    Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge v1.0               ");
+                    Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge v2.0               ");
                     Console.WriteLine("===============================================================");
                     Console.WriteLine(" [แจ้งเตือน]: โปรแกรมนี้กำลังเปิดทำงานอยู่แล้วที่คอมพิวเตอร์เครื่องนี้");
-                    Console.WriteLine(" หน้าเว็บ http://localhost:3000/service/screening/scan");
-                    Console.WriteLine(" สามารถเชื่อมต่อและใช้งานเครื่องอ่านบัตรประชาชนได้ทันทีโดยไม่ต้องเปิดซ้ำ");
+                    Console.WriteLine(" เสียบบัตรประชาชนแล้วข้อมูลจะส่งเข้าหน้าเว็บตรวจคัดกรองทันที");
                     Console.WriteLine("===============================================================");
                     Console.ResetColor();
-                    Console.WriteLine("\nกรุณากดปุ่ม Enter หรือกดกากบาท [X] เพื่อปิดหน้าต่างนี้ได้เลยครับ...");
+                    Console.WriteLine("\nกรุณากดปุ่ม Enter หรือกดกากบาท [X] เพื่อปิดหน้าต่างนี้...");
                     Console.ReadLine();
                     CleanExit();
                     return;
                 }
 
                 Console.WriteLine("===============================================================");
-                Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge Service v1.0       ");
+                Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge v2.0 (HTTPS Push)  ");
                 Console.WriteLine("===============================================================");
-                Console.WriteLine(" สถานะ: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
+                Console.WriteLine(" [เป้าหมาย]: " + CloudBridgeClient.ServerUrl);
+                Console.WriteLine(" [จุดบริการ]: จุดตรวจที่ " + CloudBridgeClient.StationId);
+                Console.WriteLine(" [สถานะ]: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
 
                 int ret = PcscInterop.SCardEstablishContext(PcscInterop.SCARD_SCOPE_USER, IntPtr.Zero, IntPtr.Zero, out hContextGlobal);
                 if (ret != 0)
@@ -462,90 +515,44 @@ namespace ThoenSmartCardBridge
                     Console.ResetColor();
                 }
 
-                listener = new HttpListener();
-                string prefix1 = "http://127.0.0.1:8084/";
-                string prefix2 = "http://localhost:8084/";
-                listener.Prefixes.Add(prefix1);
+                // Start local HTTP server as parallel fallback on port 8084
                 try
                 {
-                    listener.Prefixes.Add(prefix2);
+                    listener = new HttpListener();
+                    listener.Prefixes.Add("http://127.0.0.1:8084/");
+                    try { listener.Prefixes.Add("http://localhost:8084/"); } catch { }
+                    listener.Start();
+                    Console.WriteLine(" [Local HTTP]: เปิดให้บริการสำรองที่ port 8084 (localhost)");
                 }
                 catch
                 {
+                    // If port 8084 is taken, cloud push will still function 100%
                 }
 
-                try
-                {
-                    listener.Start();
-                    Console.WriteLine(" [HTTP Server]: เปิดให้บริการที่ port 8084 (127.0.0.1 / localhost)");
-                    Console.WriteLine(" [พร้อมใช้งาน]: หน้าเว็บระบบคัดกรองตรวจนอกพื้นที่จะเชื่อมต่ออัตโนมัติ");
-                    
-                    // Setup 1-click Desktop shortcut and launch browser with automated security bypass
-                    SetupDesktopShortcut();
-                    ThreadPool.QueueUserWorkItem((s) => {
-                        Thread.Sleep(800);
-                        LaunchBrowserWithSecurityBypass();
-                    });
+                // Start the automatic Card Monitor and Cloud Push loop
+                StartCardMonitorLoop();
 
-                    // Listen for Enter key to re-open browser anytime
-                    ThreadPool.QueueUserWorkItem((s) => {
-                        while (isRunning)
-                        {
-                            try
-                            {
-                                string line = Console.ReadLine();
-                                if (line != null && isRunning)
-                                {
-                                    LaunchBrowserWithSecurityBypass();
-                                }
-                            }
-                            catch
-                            {
-                                break;
-                            }
-                        }
-                    });
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(" [พร้อมใช้งาน]: เสียบบัตรประชาชนได้เลย ข้อมูลจะเด้งขึ้นหน้าเว็บทันที");
+                Console.ResetColor();
+                Console.WriteLine("===============================================================");
+                Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กดกากบาท [X] หรือ Ctrl+C เพื่อปิด *");
 
-                    Console.WriteLine("===============================================================");
-                    Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กด Enter เพื่อเปิดหน้าเว็บ | กด [X] เพื่อปิด *");
-                }
-                catch (Exception ex)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine(" [ข้อผิดพลาด]: ไม่สามารถเปิด Port 8084 ได้: " + ex.Message);
-                    Console.ResetColor();
-                    Console.WriteLine("\nกรุณากดปุ่ม Enter หรือกดกากบาท [X] เพื่อปิดโปรแกรม...");
-                    Console.ReadLine();
-                    CleanExit();
-                    return;
-                }
-
+                // Process requests on local listener (if active)
                 while (isRunning && listener != null && listener.IsListening)
                 {
                     try
                     {
                         HttpListenerContext context = listener.GetContext();
-                        ThreadPool.QueueUserWorkItem((state) => {
-                            try
-                            {
-                                HandleRequest(context, hContextGlobal);
-                            }
-                            catch
-                            {
-                            }
+                        ThreadPool.QueueUserWorkItem(delegate
+                        {
+                            try { HandleLocalRequest(context, hContextGlobal); } catch { }
                         });
                     }
                     catch (HttpListenerException)
                     {
-                        if (!isRunning || listener == null || !listener.IsListening)
-                        {
-                            break;
-                        }
+                        if (!isRunning) break;
                         Thread.Sleep(50);
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        break;
                     }
                     catch
                     {
@@ -568,7 +575,102 @@ namespace ThoenSmartCardBridge
             }
         }
 
-        static void HandleRequest(HttpListenerContext context, IntPtr hContext)
+        static void StartCardMonitorLoop()
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                bool wasPresent = false;
+                DateTime lastHeartbeat = DateTime.MinValue;
+
+                while (isRunning)
+                {
+                    try
+                    {
+                        string reader = CardReader.GetActiveReader(hContextGlobal);
+                        bool isPresent = false;
+                        if (!string.IsNullOrEmpty(reader))
+                        {
+                            isPresent = CardReader.CheckCardPresent(hContextGlobal, reader);
+                        }
+
+                        // State transition: Card Inserted
+                        if (isPresent && !wasPresent)
+                        {
+                            wasPresent = true;
+                            Console.ForegroundColor = ConsoleColor.Cyan;
+                            Console.WriteLine(string.Format("\n [{0}] ตรวจพบบัตรประชาชนเสียบเข้าเครื่องอ่าน ({1})", DateTime.Now.ToString("HH:mm:ss"), reader));
+                            Console.WriteLine(" [กำลังอ่านข้อมูลจากชิปการ์ด]...");
+                            Console.ResetColor();
+
+                            var cardData = CardReader.ReadCardData(hContextGlobal, reader);
+                            if (cardData != null)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine("===============================================================");
+                                Console.WriteLine(" [อ่านข้อมูลบัตรประชาชนสำเร็จ] " + DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+                                Console.WriteLine("---------------------------------------------------------------");
+                                Console.WriteLine(" * เลขประจำตัวประชาชน : " + cardData["cid"]);
+                                Console.WriteLine(" * ชื่อ - สกุล (ภาษาไทย) : " + cardData["fullNameTh"]);
+                                if (!string.IsNullOrEmpty(cardData["fullNameEn"].ToString()))
+                                    Console.WriteLine(" * Name (English)     : " + cardData["fullNameEn"]);
+                                Console.WriteLine(" * วันเดือนปีเกิด       : " + cardData["birthDate"] + " (เพศ: " + cardData["gender"] + ")");
+                                Console.WriteLine(" * ที่อยู่ตามทะเบียนบ้าน : " + cardData["address"]);
+                                if (!string.IsNullOrEmpty(cardData["photo"].ToString()))
+                                    Console.WriteLine(" * รูปถ่ายหน้าตรง      : อ่านสำเร็จ (พบข้อมูลภาพ JPEG ในชิป)");
+                                Console.WriteLine("===============================================================");
+                                Console.ResetColor();
+
+                                // Push directly to Website via HTTPS
+                                bool pushed = CloudBridgeClient.SendPush("card_read", reader, true, cardData);
+                                if (pushed)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Green;
+                                    Console.WriteLine(string.Format(" >>> [ส่งขึ้นเว็บสำเร็จ]: ส่งข้อมูลไปยัง https://thlp.moph.go.th (จุดตรวจ {0}) เรียบร้อยแล้ว <<<\n", CloudBridgeClient.StationId));
+                                    Console.ResetColor();
+                                }
+                                else
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Yellow;
+                                    Console.WriteLine(" [หมายเหตุ]: ไม่สามารถส่งข้อมูลขึ้นเว็บได้ (ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต)\n");
+                                    Console.ResetColor();
+                                }
+                            }
+                            else
+                            {
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                Console.WriteLine(" [แจ้งเตือน]: อ่านข้อมูลจากบัตรไม่สำเร็จ (กรุณาเสียบบัตรให้แน่นอีกครั้ง)\n");
+                                Console.ResetColor();
+                            }
+                        }
+                        // State transition: Card Removed
+                        else if (!isPresent && wasPresent)
+                        {
+                            wasPresent = false;
+                            Console.ForegroundColor = ConsoleColor.Cyan;
+                            Console.WriteLine(string.Format(" [{0}] ดึงบัตรประชาชนออกจากเครื่องอ่านแล้ว (พร้อมรับบัตรใบถัดไป...)\n", DateTime.Now.ToString("HH:mm:ss")));
+                            Console.ResetColor();
+
+                            CloudBridgeClient.SendPush("card_removed", reader, false, null);
+                        }
+
+                        // Periodic Heartbeat every 2.5 seconds
+                        if ((DateTime.Now - lastHeartbeat).TotalSeconds >= 2.5)
+                        {
+                            lastHeartbeat = DateTime.Now;
+                            CloudBridgeClient.SendPush("heartbeat", reader, isPresent, null);
+                        }
+
+                        Thread.Sleep(300);
+                    }
+                    catch
+                    {
+                        Thread.Sleep(500);
+                    }
+                }
+            });
+        }
+
+        static void HandleLocalRequest(HttpListenerContext context, IntPtr hContext)
         {
             if (context == null) return;
             HttpListenerRequest req = null;
@@ -578,7 +680,7 @@ namespace ThoenSmartCardBridge
             {
                 req = context.Request;
                 res = context.Response;
-                // CORS & Chrome Private Network Access (PNA) headers
+
                 string origin = req.Headers["Origin"];
                 if (!string.IsNullOrEmpty(origin))
                 {
@@ -632,50 +734,24 @@ namespace ThoenSmartCardBridge
                     }
                     else
                     {
-                        try
+                        var data = CardReader.ReadCardData(hContext, readerName);
+                        if (data != null)
                         {
-                            var data = CardReader.ReadCardData(hContext, readerName);
-                            if (data != null)
+                            StringBuilder sb = new StringBuilder();
+                            sb.Append("{\"success\":true,\"data\":{");
+                            bool first = true;
+                            foreach (var kv in data)
                             {
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                Console.WriteLine("\n===============================================================");
-                                Console.WriteLine(" [อ่านข้อมูลบัตรประชาชนสำเร็จ] " + DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
-                                Console.WriteLine("---------------------------------------------------------------");
-                                Console.WriteLine(" * เลขประจำตัวประชาชน : " + data["cid"]);
-                                Console.WriteLine(" * ชื่อ - สกุล (ภาษาไทย) : " + data["fullNameTh"]);
-                                if (!string.IsNullOrEmpty(data["fullNameEn"].ToString()))
-                                    Console.WriteLine(" * Name (English)     : " + data["fullNameEn"]);
-                                Console.WriteLine(" * วันเดือนปีเกิด       : " + data["birthDate"] + " (เพศ: " + data["gender"] + ")");
-                                Console.WriteLine(" * ที่อยู่ตามทะเบียนบ้าน : " + data["address"]);
-                                if (!string.IsNullOrEmpty(data["issuer"].ToString()))
-                                    Console.WriteLine(" * หน่วยงานที่ออกบัตร : " + data["issuer"]);
-                                if (!string.IsNullOrEmpty(data["issueDate"].ToString()) || !string.IsNullOrEmpty(data["expireDate"].ToString()))
-                                    Console.WriteLine(" * วันออกบัตร / หมดอายุ : " + data["issueDate"] + " / " + data["expireDate"]);
-                                if (!string.IsNullOrEmpty(data["photo"].ToString()))
-                                    Console.WriteLine(" * รูปถ่ายหน้าตรง      : อ่านสำเร็จ (พบข้อมูลภาพ JPEG ในชิป)");
-                                Console.WriteLine("===============================================================\n");
-                                Console.ResetColor();
-
-                                StringBuilder sb = new StringBuilder();
-                                sb.Append("{\"success\":true,\"data\":{");
-                                bool first = true;
-                                foreach (var kv in data)
-                                {
-                                    if (!first) sb.Append(",");
-                                    sb.AppendFormat("\"{0}\":\"{1}\"", kv.Key, kv.Value.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n"));
-                                    first = false;
-                                }
-                                sb.Append("}}");
-                                json = sb.ToString();
+                                if (!first) sb.Append(",");
+                                sb.AppendFormat("\"{0}\":\"{1}\"", kv.Key, kv.Value.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n"));
+                                first = false;
                             }
-                            else
-                            {
-                                json = "{\"success\":false,\"error\":\"READ_FAILED\",\"message\":\"อ่านข้อมูลจากบัตรไม่สำเร็จ (กรุณาเสียบบัตรให้แน่นอีกครั้ง)\"}";
-                            }
+                            sb.Append("}}");
+                            json = sb.ToString();
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            json = string.Format("{{\"success\":false,\"error\":\"EXCEPTION\",\"message\":\"{0}\"}}", ex.Message.Replace("\"", "\\\""));
+                            json = "{\"success\":false,\"error\":\"READ_FAILED\",\"message\":\"อ่านข้อมูลจากบัตรไม่สำเร็จ\"}";
                         }
                     }
                 }
@@ -694,68 +770,7 @@ namespace ThoenSmartCardBridge
             }
             catch
             {
-                // Client aborted connection or network socket closed - handle gracefully
                 try { res.Close(); } catch { }
-            }
-        }
-
-        static void SetupDesktopShortcut()
-        {
-            try
-            {
-                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                if (Directory.Exists(desktopPath))
-                {
-                    string batPath = Path.Combine(desktopPath, "เปิดระบบคัดกรอง_รพเถิน.bat");
-                    string content = "@echo off\r\n" +
-                        "title ระบบคัดกรองตรวจนอกพื้นที่ - โรงพยาบาลเถิน\r\n" +
-                        "start chrome --unsafely-treat-insecure-origin-as-secure=\"http://localhost:8084,http://127.0.0.1:8084\" --user-data-dir=\"%TEMP%\\ThoenScreeningKiosk\" https://thlp.moph.go.th/service/screening/scan\r\n" +
-                        "if %errorlevel% neq 0 start msedge --unsafely-treat-insecure-origin-as-secure=\"http://localhost:8084,http://127.0.0.1:8084\" --user-data-dir=\"%TEMP%\\ThoenScreeningKiosk\" https://thlp.moph.go.th/service/screening/scan\r\n";
-                    File.WriteAllText(batPath, content, Encoding.GetEncoding(874));
-                    Console.WriteLine(" [ไอคอนทางลัด]: สร้างไฟล์ \"เปิดระบบคัดกรอง_รพเถิน.bat\" ไว้ที่หน้าจอ Desktop ให้แล้ว");
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        static void LaunchBrowserWithSecurityBypass()
-        {
-            try
-            {
-                string targetUrl = "https://thlp.moph.go.th/service/screening/scan";
-                string tempDir = Path.Combine(Path.GetTempPath(), "ThoenScreeningKiosk");
-                string args = string.Format("--unsafely-treat-insecure-origin-as-secure=\"http://localhost:8084,http://127.0.0.1:8084\" --user-data-dir=\"{0}\" \"{1}\"", tempDir, targetUrl);
-
-                string[] browsers = new string[] { "chrome.exe", "msedge.exe" };
-                bool launched = false;
-                foreach (var b in browsers)
-                {
-                    try
-                    {
-                        ProcessStartInfo psi = new ProcessStartInfo();
-                        psi.FileName = b;
-                        psi.Arguments = args;
-                        psi.UseShellExecute = true;
-                        Process.Start(psi);
-                        Console.WriteLine(" [เปิดหน้าเว็บ]: เปิดระบบคัดกรองบน " + b + " พร้อมเชื่อมต่ออัตโนมัติเรียบร้อยแล้ว");
-                        launched = true;
-                        break;
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                if (!launched)
-                {
-                    Process.Start(targetUrl);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(" [หมายเหตุการเปิดเว็บ]: " + ex.Message);
             }
         }
     }
