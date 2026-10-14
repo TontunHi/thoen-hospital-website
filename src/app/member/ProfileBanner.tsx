@@ -5,6 +5,7 @@ import MemberLogoutButton from './LogoutButton'
 import TelegramLinkModal from './TelegramLinkModal'
 import TelegramPromptModal from './TelegramPromptModal'
 import { useRouter } from 'next/navigation'
+import { Send } from 'lucide-react'
 
 interface MemberInfo {
   id: number
@@ -205,13 +206,11 @@ export default function ProfileBanner({
             onClick={() => setIsTelegramModalOpen(true)}
             title="คลิกเพื่อดูข้อมูลการเชื่อมต่อ Telegram"
           >
-            <span 
-              className="material-symbols-outlined pb-chipIcon pb-chipIconTg" 
-              style={{ fontSize: '16px' }}
-              aria-hidden="true"
-            >
-              send
-            </span>
+            <Send 
+              size={15} 
+              className="pb-chipIcon pb-chipIconTg" 
+              aria-hidden="true" 
+            />
             <span className="pb-chipLabel">การแจ้งเตือน</span>
             <span className="pb-chipValue" style={{ color: '#0088cc', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span 
@@ -230,13 +229,11 @@ export default function ProfileBanner({
             className="pb-chip pb-chipAction" 
             onClick={() => setIsTelegramModalOpen(true)}
           >
-            <span 
-              className="material-symbols-outlined pb-chipIcon pb-chipIconTg" 
-              style={{ fontSize: '16px' }}
-              aria-hidden="true"
-            >
-              send
-            </span>
+            <Send 
+              size={15} 
+              className="pb-chipIcon pb-chipIconTg" 
+              aria-hidden="true" 
+            />
             <span className="pb-chipLabel">การแจ้งเตือน</span>
             <span className="pb-chipValue">เชื่อมระบบ Telegram</span>
           </button>
