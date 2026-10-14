@@ -1,8 +1,0 @@
-feat(screening): implement smart card direct browser bridge via clipboard and simulated paste
-
-- Add ClipboardHelper to copy card payload directly to OS clipboard
-- Add WindowHelper to detect active screening browser and simulate paste
-- Add global paste event listener in ScreeningScanClient to auto-populate card data
-- Support 1-click clipboard read fallback via manual read button
-- Completely eliminate mixed content, network dependency, and Cloudflare WAF block
-- Recompile thoen-smartcard-bridge.exe for production zero-config deployment
