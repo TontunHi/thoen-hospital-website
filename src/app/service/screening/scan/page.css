@@ -805,16 +805,31 @@
   color: #0f172a;
 }
 
+.rawPayloadWrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
 .rawPayloadBox {
   background: #0f172a;
   color: #34d399;
   padding: 1rem;
   border-radius: 12px;
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.75rem;
-  max-height: 200px;
+  line-height: 1.5;
+  max-height: 250px;
+  max-width: 100%;
   overflow-x: auto;
-  margin-top: 0.5rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  margin: 0;
+  box-sizing: border-box;
+  border: 1px solid #1e293b;
 }
 
 .cardActionButtons {

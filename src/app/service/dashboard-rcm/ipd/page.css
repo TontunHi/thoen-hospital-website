@@ -351,7 +351,7 @@ tr:hover .rcm-dept-sticky-col {
 /* Department Mini Bar Track */
 .rcm-dept-bar-track {
   width: 100%;
-  height: 5px;
+  height: 6px;
   background-color: #e2e8f0;
   border-radius: 9999px;
   overflow: hidden;
@@ -363,4 +363,220 @@ tr:hover .rcm-dept-sticky-col {
   border-radius: 9999px;
   background: linear-gradient(90deg, #10b981, #059669);
   transition: width 0.3s ease;
+}
+
+/* Enhanced Department as Rows Table Styling */
+.rcm-dept-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.rcm-dept-header-sticky {
+  min-width: 200px;
+  background-color: #f8fafc !important;
+  border-bottom: 2px solid #cbd5e1;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.rcm-dept-count-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+.rcm-month-peak-th {
+  background-color: #fefce8 !important;
+  color: #854d0e !important;
+  border-bottom: 2px solid #fde047 !important;
+}
+
+.rcm-peak-month-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background-color: #fef08a;
+  color: #854d0e;
+  letter-spacing: 0.02em;
+}
+
+.rcm-dept-total-th {
+  min-width: 140px;
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%) !important;
+  color: #065f46 !important;
+  font-weight: 800;
+  border-left: 2px solid #a7f3d0 !important;
+  border-bottom: 2px solid #6ee7b7 !important;
+}
+
+.rcm-dept-row {
+  transition: background-color 0.15s ease;
+}
+
+.rcm-dept-row:hover {
+  background-color: #f0fdf4 !important;
+}
+
+.rcm-dept-row:hover .rcm-dept-cell-sticky {
+  background-color: #f0fdf4 !important;
+}
+
+.rcm-dept-cell-sticky {
+  min-width: 200px;
+  padding: 0.65rem 0.85rem !important;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.rcm-dept-name-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.rcm-rank-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  line-height: 1;
+}
+
+.rcm-rank-pill.rank-1 {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  box-shadow: 0 1px 2px rgba(217, 119, 6, 0.15);
+}
+
+.rcm-rank-pill.rank-2 {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.rcm-rank-pill.rank-3 {
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+.rcm-rank-pill.rank-default {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.rcm-cell-val-active {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.rcm-cell-val-empty {
+  color: #cbd5e1 !important;
+  font-weight: 400 !important;
+}
+
+.rcm-val-number {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rcm-val-dash {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.rcm-dept-total-cell {
+  background-color: #f7fee7;
+  border-left: 2px solid #a7f3d0;
+  padding: 0.6rem 0.85rem !important;
+  vertical-align: middle;
+}
+
+.rcm-dept-row:hover .rcm-dept-total-cell {
+  background-color: #ecfdf5 !important;
+}
+
+.rcm-dept-total-num {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #064e3b;
+  font-variant-numeric: tabular-nums;
+}
+
+.rcm-dept-total-breakdown {
+  margin-top: 0.25rem;
+}
+
+.rcm-dept-pct-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.rcm-dept-pct-sub {
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Footer Row */
+.rcm-dept-tfoot-row {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-top: 2px solid #94a3b8 !important;
+}
+
+.rcm-dept-tfoot-sticky {
+  background: #f1f5f9 !important;
+  font-weight: 900;
+  color: #0f172a;
+  padding: 0.75rem 0.85rem !important;
+  border-top: 2px solid #94a3b8;
+}
+
+.rcm-dept-tfoot-month-cell {
+  font-weight: 900 !important;
+  color: #0f172a !important;
+  font-size: 0.85rem;
+  border-top: 2px solid #94a3b8;
+  padding: 0.75rem 0.5rem !important;
+}
+
+.rcm-dept-tfoot-grand-cell {
+  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%) !important;
+  border-left: 2px solid #86efac !important;
+  border-top: 2px solid #059669 !important;
+  padding: 0.75rem 0.85rem !important;
+}
+
+.rcm-grand-total-val {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #064e3b;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.rcm-grand-total-sub {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #047857;
+  margin-top: 0.15rem;
 }

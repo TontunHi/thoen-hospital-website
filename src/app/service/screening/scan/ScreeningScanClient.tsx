@@ -763,9 +763,21 @@ export default function ScreeningScanClient({ operator }: Props) {
                       <span>{showRawPayload ? 'ซ่อนข้อมูลดิบจากบัตร (Raw Payload)' : 'ดูข้อมูลดิบทั้งหมดที่เครื่องอ่านส่งมา (Raw Payload)'}</span>
                     </button>
                     {showRawPayload && (
-                      <pre className="rawPayloadBox">
-                        {JSON.stringify(currentCard.rawPayload, null, 2)}
-                      </pre>
+                      <div className="rawPayloadWrapper">
+                        <pre className="rawPayloadBox">
+                          {(() => {
+                            if (!currentCard.rawPayload) return 'ไม่มีข้อมูลดิบ'
+                            if (typeof currentCard.rawPayload === 'object' && currentCard.rawPayload !== null) {
+                              const displayPayload: Record<string, unknown> = { ...(currentCard.rawPayload as Record<string, unknown>) }
+                              if (typeof displayPayload.photo === 'string' && displayPayload.photo.length > 100) {
+                                displayPayload.photo = `[รูปถ่ายขนาด ${displayPayload.photo.length.toLocaleString('th-TH')} ตัวอักษร (JPEG Base64)]`
+                              }
+                              return JSON.stringify(displayPayload, null, 2)
+                            }
+                            return String(currentCard.rawPayload)
+                          })()}
+                        </pre>
+                      </div>
                     )}
                   </div>
 

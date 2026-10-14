@@ -86,29 +86,55 @@ namespace ThoenSmartCardBridge
 
         public static byte[] SendApdu(IntPtr hCard, ref SCARD_IO_REQUEST pci, byte[] apdu)
         {
-            byte[] recv = new byte[300];
-            int recvLen = recv.Length;
-            int ret = PcscInterop.SCardTransmit(hCard, ref pci, apdu, apdu.Length, IntPtr.Zero, recv, ref recvLen);
-            if (ret != 0) return new byte[0];
+            // Pacing delay (10ms) to ensure reader buffer and smart card chip synchronization
+            Thread.Sleep(10);
 
-            if (recvLen == 2 && recv[0] == 0x61)
+            for (int attempt = 0; attempt < 2; attempt++)
             {
-                byte le = recv[1];
-                byte[] getResponse = new byte[] { 0x00, 0xC0, 0x00, 0x00, le };
-                recvLen = recv.Length;
-                ret = PcscInterop.SCardTransmit(hCard, ref pci, getResponse, getResponse.Length, IntPtr.Zero, recv, ref recvLen);
-                if (ret == 0 && recvLen >= 2 && recv[recvLen - 2] == 0x90 && recv[recvLen - 1] == 0x00)
+                byte[] recv = new byte[300];
+                int recvLen = recv.Length;
+                int ret = PcscInterop.SCardTransmit(hCard, ref pci, apdu, apdu.Length, IntPtr.Zero, recv, ref recvLen);
+                if (ret != 0)
+                {
+                    Thread.Sleep(20);
+                    continue;
+                }
+
+                if (recvLen == 2 && recv[0] == 0x61)
+                {
+                    byte le = recv[1];
+                    byte[] getResponse = new byte[] { 0x00, 0xC0, 0x00, 0x00, le };
+                    recvLen = recv.Length;
+                    ret = PcscInterop.SCardTransmit(hCard, ref pci, getResponse, getResponse.Length, IntPtr.Zero, recv, ref recvLen);
+                    if (ret == 0 && recvLen >= 2 && recv[recvLen - 2] == 0x90 && recv[recvLen - 1] == 0x00)
+                    {
+                        byte[] data = new byte[recvLen - 2];
+                        Array.Copy(recv, 0, data, 0, recvLen - 2);
+                        return data;
+                    }
+                }
+                else if (recvLen == 2 && recv[0] == 0x6C)
+                {
+                    byte correctLe = recv[1];
+                    byte[] retryApdu = (byte[])apdu.Clone();
+                    retryApdu[retryApdu.Length - 1] = correctLe;
+                    recvLen = recv.Length;
+                    ret = PcscInterop.SCardTransmit(hCard, ref pci, retryApdu, retryApdu.Length, IntPtr.Zero, recv, ref recvLen);
+                    if (ret == 0 && recvLen >= 2 && recv[recvLen - 2] == 0x90 && recv[recvLen - 1] == 0x00)
+                    {
+                        byte[] data = new byte[recvLen - 2];
+                        Array.Copy(recv, 0, data, 0, recvLen - 2);
+                        return data;
+                    }
+                }
+                else if (recvLen >= 2 && recv[recvLen - 2] == 0x90 && recv[recvLen - 1] == 0x00)
                 {
                     byte[] data = new byte[recvLen - 2];
                     Array.Copy(recv, 0, data, 0, recvLen - 2);
                     return data;
                 }
-            }
-            else if (recvLen >= 2 && recv[recvLen - 2] == 0x90 && recv[recvLen - 1] == 0x00)
-            {
-                byte[] data = new byte[recvLen - 2];
-                Array.Copy(recv, 0, data, 0, recvLen - 2);
-                return data;
+
+                Thread.Sleep(20);
             }
 
             return new byte[0];
@@ -178,111 +204,132 @@ namespace ThoenSmartCardBridge
 
             lock (cardLock)
             {
-                IntPtr hCard = IntPtr.Zero;
-                uint activeProtocol = 0;
-                int ret = PcscInterop.SCardConnect(hContext, readerName, PcscInterop.SCARD_SHARE_SHARED, PcscInterop.SCARD_PROTOCOL_T0 | PcscInterop.SCARD_PROTOCOL_T1, out hCard, out activeProtocol);
-                if (ret != 0) return null;
-
-                try
+                // Retry up to 3 times to handle contact bounce or temporary bus busy
+                for (int attempt = 1; attempt <= 3; attempt++)
                 {
-                    SCARD_IO_REQUEST pci = new SCARD_IO_REQUEST();
-                    pci.dwProtocol = activeProtocol;
-                    pci.cbPciLength = (uint)Marshal.SizeOf(typeof(SCARD_IO_REQUEST));
-
-                    // 1. Select Thai National ID Applet
-                    byte[] selectResp = SendApdu(hCard, ref pci, APDU_SELECT_APPLET);
-
-                    // 2. Read CID (13 bytes)
-                    byte[] cidBytes = SendApdu(hCard, ref pci, APDU_READ_CID);
-                    string cid = DecodeTis620(cidBytes);
-                    if (string.IsNullOrEmpty(cid) || cid.Length < 13) return null;
-
-                    // 3. Read Full Name TH
-                    byte[] nameThBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_TH);
-                    string rawNameTh = DecodeTis620(nameThBytes);
-                    string[] nameThParts = rawNameTh.Split(new char[] { '#' }, StringSplitOptions.None);
-                    string titleTh = nameThParts.Length > 0 ? nameThParts[0].Trim() : "";
-                    string firstNameTh = nameThParts.Length > 1 ? nameThParts[1].Trim() : "";
-                    string middleNameTh = nameThParts.Length > 2 ? nameThParts[2].Trim() : "";
-                    string lastNameTh = nameThParts.Length > 3 ? nameThParts[3].Trim() : "";
-                    string fullNameTh = (titleTh + " " + firstNameTh + (middleNameTh != "" ? " " + middleNameTh : "") + " " + lastNameTh).Trim();
-
-                    // 4. Read Full Name EN
-                    byte[] nameEnBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_EN);
-                    string rawNameEn = DecodeTis620(nameEnBytes);
-                    string[] nameEnParts = rawNameEn.Split(new char[] { '#' }, StringSplitOptions.None);
-                    string titleEn = nameEnParts.Length > 0 ? nameEnParts[0].Trim() : "";
-                    string firstNameEn = nameEnParts.Length > 1 ? nameEnParts[1].Trim() : "";
-                    string middleNameEn = nameEnParts.Length > 2 ? nameEnParts[2].Trim() : "";
-                    string lastNameEn = nameEnParts.Length > 3 ? nameEnParts[3].Trim() : "";
-                    string fullNameEn = (titleEn + " " + firstNameEn + (middleNameEn != "" ? " " + middleNameEn : "") + " " + lastNameEn).Trim();
-
-                    // 5. Read Date of Birth (YYYYMMDD)
-                    byte[] dobBytes = SendApdu(hCard, ref pci, APDU_READ_DOB);
-                    string rawDob = DecodeTis620(dobBytes);
-                    string birthDate = "";
-                    if (rawDob.Length >= 8)
+                    IntPtr hCard = IntPtr.Zero;
+                    uint activeProtocol = 0;
+                    int ret = PcscInterop.SCardConnect(hContext, readerName, PcscInterop.SCARD_SHARE_SHARED, PcscInterop.SCARD_PROTOCOL_T0 | PcscInterop.SCARD_PROTOCOL_T1, out hCard, out activeProtocol);
+                    if (ret != 0)
                     {
-                        birthDate = rawDob.Substring(0, 4) + "-" + rawDob.Substring(4, 2) + "-" + rawDob.Substring(6, 2);
+                        Thread.Sleep(150);
+                        continue;
                     }
 
-                    // 6. Read Gender (1 = Male, 2 = Female)
-                    byte[] genderBytes = SendApdu(hCard, ref pci, APDU_READ_GENDER);
-                    string rawGender = DecodeTis620(genderBytes);
-                    string gender = "ไม่ระบุ";
-                    if (rawGender == "1") gender = "ชาย";
-                    else if (rawGender == "2") gender = "หญิง";
-
-                    // 7. Read Address
-                    byte[] addrBytes = SendApdu(hCard, ref pci, APDU_READ_ADDRESS);
-                    string rawAddr = DecodeTis620(addrBytes);
-                    string address = rawAddr.Replace("#", " ").Trim();
-
-                    // 8. Read Issuer, Issue Date, Expire Date
-                    string issuer = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_ISSUER));
-                    string issueDate = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_ISSUE_DATE));
-                    string expireDate = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_EXP_DATE));
-
-                    // 9. Read Photo JPEG
-                    List<byte> photoBytes = new List<byte>();
-                    foreach (var apdu in PHOTO_APDUS)
+                    try
                     {
-                        byte[] chunk = SendApdu(hCard, ref pci, apdu);
-                        if (chunk.Length > 0)
+                        SCARD_IO_REQUEST pci = new SCARD_IO_REQUEST();
+                        pci.dwProtocol = activeProtocol;
+                        pci.cbPciLength = (uint)Marshal.SizeOf(typeof(SCARD_IO_REQUEST));
+
+                        // 1. Select Thai National ID Applet
+                        byte[] selectResp = SendApdu(hCard, ref pci, APDU_SELECT_APPLET);
+
+                        // 2. Read CID (13 bytes)
+                        byte[] cidBytes = SendApdu(hCard, ref pci, APDU_READ_CID);
+                        string cid = DecodeTis620(cidBytes);
+                        if (string.IsNullOrEmpty(cid) || cid.Length < 13)
                         {
-                            photoBytes.AddRange(chunk);
+                            Thread.Sleep(150);
+                            continue;
                         }
+
+                        // 3. Read Full Name TH
+                        byte[] nameThBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_TH);
+                        string rawNameTh = DecodeTis620(nameThBytes);
+                        string[] nameThParts = rawNameTh.Split(new char[] { '#' }, StringSplitOptions.None);
+                        string titleTh = nameThParts.Length > 0 ? nameThParts[0].Trim() : "";
+                        string firstNameTh = nameThParts.Length > 1 ? nameThParts[1].Trim() : "";
+                        string middleNameTh = nameThParts.Length > 2 ? nameThParts[2].Trim() : "";
+                        string lastNameTh = nameThParts.Length > 3 ? nameThParts[3].Trim() : "";
+                        string fullNameTh = (titleTh + " " + firstNameTh + (middleNameTh != "" ? " " + middleNameTh : "") + " " + lastNameTh).Trim();
+
+                        // Crucial verification: Thai ID chip must yield a non-empty Thai full name!
+                        // If empty, the read was partial/glitched. Do NOT return partial data; retry!
+                        if (string.IsNullOrEmpty(fullNameTh))
+                        {
+                            Thread.Sleep(150);
+                            continue;
+                        }
+
+                        // 4. Read Full Name EN
+                        byte[] nameEnBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_EN);
+                        string rawNameEn = DecodeTis620(nameEnBytes);
+                        string[] nameEnParts = rawNameEn.Split(new char[] { '#' }, StringSplitOptions.None);
+                        string titleEn = nameEnParts.Length > 0 ? nameEnParts[0].Trim() : "";
+                        string firstNameEn = nameEnParts.Length > 1 ? nameEnParts[1].Trim() : "";
+                        string middleNameEn = nameEnParts.Length > 2 ? nameEnParts[2].Trim() : "";
+                        string lastNameEn = nameEnParts.Length > 3 ? nameEnParts[3].Trim() : "";
+                        string fullNameEn = (titleEn + " " + firstNameEn + (middleNameEn != "" ? " " + middleNameEn : "") + " " + lastNameEn).Trim();
+
+                        // 5. Read Date of Birth (YYYYMMDD)
+                        byte[] dobBytes = SendApdu(hCard, ref pci, APDU_READ_DOB);
+                        string rawDob = DecodeTis620(dobBytes);
+                        string birthDate = "";
+                        if (rawDob.Length >= 8)
+                        {
+                            birthDate = rawDob.Substring(0, 4) + "-" + rawDob.Substring(4, 2) + "-" + rawDob.Substring(6, 2);
+                        }
+
+                        // 6. Read Gender (1 = Male, 2 = Female)
+                        byte[] genderBytes = SendApdu(hCard, ref pci, APDU_READ_GENDER);
+                        string rawGender = DecodeTis620(genderBytes);
+                        string gender = "ไม่ระบุ";
+                        if (rawGender == "1") gender = "ชาย";
+                        else if (rawGender == "2") gender = "หญิง";
+
+                        // 7. Read Address
+                        byte[] addrBytes = SendApdu(hCard, ref pci, APDU_READ_ADDRESS);
+                        string rawAddr = DecodeTis620(addrBytes);
+                        string address = rawAddr.Replace("#", " ").Trim();
+
+                        // 8. Read Issuer, Issue Date, Expire Date
+                        string issuer = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_ISSUER));
+                        string issueDate = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_ISSUE_DATE));
+                        string expireDate = DecodeTis620(SendApdu(hCard, ref pci, APDU_READ_EXP_DATE));
+
+                        // 9. Read Photo JPEG
+                        List<byte> photoBytes = new List<byte>();
+                        foreach (var apdu in PHOTO_APDUS)
+                        {
+                            byte[] chunk = SendApdu(hCard, ref pci, apdu);
+                            if (chunk.Length > 0)
+                            {
+                                photoBytes.AddRange(chunk);
+                            }
+                        }
+                        string photoBase64 = "";
+                        if (photoBytes.Count > 100)
+                        {
+                            photoBase64 = "data:image/jpeg;base64," + Convert.ToBase64String(photoBytes.ToArray());
+                        }
+
+                        Dictionary<string, object> data = new Dictionary<string, object>();
+                        data["cid"] = cid;
+                        data["titleTh"] = titleTh;
+                        data["firstNameTh"] = firstNameTh;
+                        data["lastNameTh"] = lastNameTh;
+                        data["fullNameTh"] = fullNameTh;
+                        data["titleEn"] = titleEn;
+                        data["firstNameEn"] = firstNameEn;
+                        data["lastNameEn"] = lastNameEn;
+                        data["fullNameEn"] = fullNameEn;
+                        data["birthDate"] = birthDate;
+                        data["gender"] = gender;
+                        data["address"] = address;
+                        data["issuer"] = issuer;
+                        data["issueDate"] = issueDate;
+                        data["expireDate"] = expireDate;
+                        data["photo"] = photoBase64;
+
+                        return data;
                     }
-                    string photoBase64 = "";
-                    if (photoBytes.Count > 100)
+                    finally
                     {
-                        photoBase64 = "data:image/jpeg;base64," + Convert.ToBase64String(photoBytes.ToArray());
+                        PcscInterop.SCardDisconnect(hCard, PcscInterop.SCARD_LEAVE_CARD);
                     }
-
-                    Dictionary<string, object> data = new Dictionary<string, object>();
-                    data["cid"] = cid;
-                    data["titleTh"] = titleTh;
-                    data["firstNameTh"] = firstNameTh;
-                    data["lastNameTh"] = lastNameTh;
-                    data["fullNameTh"] = fullNameTh;
-                    data["titleEn"] = titleEn;
-                    data["firstNameEn"] = firstNameEn;
-                    data["lastNameEn"] = lastNameEn;
-                    data["fullNameEn"] = fullNameEn;
-                    data["birthDate"] = birthDate;
-                    data["gender"] = gender;
-                    data["address"] = address;
-                    data["issuer"] = issuer;
-                    data["issueDate"] = issueDate;
-                    data["expireDate"] = expireDate;
-                    data["photo"] = photoBase64;
-
-                    return data;
                 }
-                finally
-                {
-                    PcscInterop.SCardDisconnect(hCard, PcscInterop.SCARD_LEAVE_CARD);
-                }
+                return null;
             }
         }
     }
@@ -851,6 +898,8 @@ namespace ThoenSmartCardBridge
                         if (isPresent && !wasPresent)
                         {
                             wasPresent = true;
+                            // Wait 350ms for electrical contacts to settle and ATR to stabilize
+                            Thread.Sleep(350);
                             Console.ForegroundColor = ConsoleColor.Cyan;
                             Console.WriteLine(string.Format("\n [{0}] ตรวจพบบัตรประชาชนเสียบเข้าเครื่องอ่าน ({1})", DateTime.Now.ToString("HH:mm:ss"), reader));
                             Console.WriteLine(" [กำลังอ่านข้อมูลจากชิปการ์ด]...");

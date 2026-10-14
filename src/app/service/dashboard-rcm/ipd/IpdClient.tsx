@@ -153,6 +153,23 @@ export default function IpdClient() {
     }
   }, [deptAdjrwData])
 
+  // Sorted department rank map based on grand total SumAdjRW
+  const deptRankings = useMemo(() => {
+    if (!deptAdjrwData || deptAdjrwData.length === 0) return {}
+    const list = IPD_DEPARTMENTS.map((dept) => {
+      const total = deptTotalSummaryRow
+        ? deptTotalSummaryRow[dept.key]
+        : deptMonthRows.reduce((acc, m) => acc + m[dept.key], 0)
+      return { key: dept.key, total }
+    })
+    list.sort((a, b) => b.total - a.total)
+    const map: Record<string, number> = {}
+    list.forEach((item, idx) => {
+      map[item.key] = idx + 1
+    })
+    return map
+  }, [deptAdjrwData, deptTotalSummaryRow, deptMonthRows])
+
   // Telegram test trigger state
   const [telegramLoading, setTelegramLoading] = useState<boolean>(false)
 
@@ -1487,28 +1504,38 @@ export default function IpdClient() {
             <div className="rcm-table-responsive" style={{ maxHeight: '650px' }}>
               {deptTableOrientation === 'dept_as_rows' ? (
                 /* มุมมองที่ 1: แผนกเป็นแถว (Department as Rows) และ เดือนเป็นคอลัมน์ */
-                <table className="rcm-table">
+                <table className="rcm-table rcm-dept-table">
                   <thead>
                     <tr>
-                      <th className="rcm-dept-sticky-col" style={{ textAlign: 'left', minWidth: '170px' }}>
-                        รายชื่อแผนก
+                      <th className="rcm-dept-sticky-col rcm-dept-header-sticky">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <Building2 size={15} style={{ color: '#059669' }} />
+                          <span>แผนกการรักษา</span>
+                          <span className="rcm-dept-count-pill">{IPD_DEPARTMENTS.length} สาขา</span>
+                        </div>
                       </th>
-                      {deptMonthRows.map((m) => (
-                        <th key={m.month} className="rcm-text-center" style={{ minWidth: '85px' }}>
-                          {m.month}
-                        </th>
-                      ))}
-                      <th
-                        className="rcm-text-center"
-                        style={{
-                          minWidth: '125px',
-                          backgroundColor: '#ecfdf5',
-                          color: '#065f46',
-                          fontWeight: 800,
-                          borderLeft: '2px solid #a7f3d0',
-                        }}
-                      >
-                        รวม (SumAdjRW)
+                      {deptMonthRows.map((m) => {
+                        const isPeakMonth = deptStats && deptStats.peakMonthName === m.month
+                        return (
+                          <th
+                            key={m.month}
+                            className={`rcm-text-center ${isPeakMonth ? 'rcm-month-peak-th' : ''}`}
+                            style={{ minWidth: '92px' }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem' }}>
+                              <span>{m.month}</span>
+                              {isPeakMonth && (
+                                <span className="rcm-peak-month-badge">สูงสุด</span>
+                              )}
+                            </div>
+                          </th>
+                        )
+                      })}
+                      <th className="rcm-text-center rcm-dept-total-th">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                          <BarChart3 size={14} />
+                          <span>รวม (SumAdjRW)</span>
+                        </div>
                       </th>
                     </tr>
                   </thead>
@@ -1557,27 +1584,37 @@ export default function IpdClient() {
                           deptStats && deptStats.grandTotal > 0
                             ? (deptTotal / deptStats.grandTotal) * 100
                             : 0
+                        const rank = deptRankings[dept.key] || 99
+
                         return (
-                          <tr key={dept.key}>
-                            <td
-                              className="rcm-dept-sticky-col"
-                              style={{ textAlign: 'left', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <tr key={dept.key} className="rcm-dept-row">
+                            <td className="rcm-dept-sticky-col rcm-dept-cell-sticky">
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                  <span
+                                    className="rcm-dept-name-badge"
+                                    style={{
+                                      backgroundColor: dept.bg,
+                                      color: dept.color,
+                                      border: `1px solid ${dept.border}`,
+                                    }}
+                                  >
+                                    {dept.name}
+                                  </span>
+                                </div>
                                 <span
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    padding: '0.2rem 0.55rem',
-                                    borderRadius: '6px',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 700,
-                                    backgroundColor: dept.bg,
-                                    color: dept.color,
-                                    border: `1px solid ${dept.border}`,
-                                  }}
+                                  className={`rcm-rank-pill ${
+                                    rank === 1
+                                      ? 'rank-1'
+                                      : rank === 2
+                                      ? 'rank-2'
+                                      : rank === 3
+                                      ? 'rank-3'
+                                      : 'rank-default'
+                                  }`}
+                                  title={`อันดับ ${rank} ของโรงพยาบาล (${pctShare.toFixed(1)}%)`}
                                 >
-                                  {dept.name}
+                                  #{rank}
                                 </span>
                               </div>
                             </td>
@@ -1586,36 +1623,31 @@ export default function IpdClient() {
                               return (
                                 <td
                                   key={m.month}
-                                  className="rcm-text-center font-mono"
-                                  style={{
-                                    fontWeight: val > 0 ? 700 : 400,
-                                    color: val > 0 ? '#0f172a' : '#cbd5e1',
-                                  }}
+                                  className={`rcm-text-center font-mono ${val > 0 ? 'rcm-cell-val-active' : 'rcm-cell-val-empty'}`}
                                 >
-                                  {val > 0 ? val.toFixed(4) : '-'}
+                                  {val > 0 ? (
+                                    <span className="rcm-val-number">{val.toFixed(4)}</span>
+                                  ) : (
+                                    <span className="rcm-val-dash">–</span>
+                                  )}
                                 </td>
                               )
                             })}
-                            <td
-                              className="rcm-text-center font-mono"
-                              style={{
-                                fontWeight: 800,
-                                color: '#064e3b',
-                                backgroundColor: '#f0fdf4',
-                                borderLeft: '2px solid #a7f3d0',
-                                padding: '0.5rem 0.75rem',
-                              }}
-                            >
-                              <div style={{ fontSize: '0.86rem' }}>{deptTotal.toFixed(4)}</div>
+                            <td className="rcm-text-center font-mono rcm-dept-total-cell">
+                              <div className="rcm-dept-total-num">{deptTotal.toFixed(4)}</div>
                               {deptStats && deptStats.grandTotal > 0 && (
-                                <div style={{ marginTop: '0.2rem' }}>
-                                  <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 700 }}>
-                                    {pctShare.toFixed(1)}% ของ รพ.
+                                <div className="rcm-dept-total-breakdown">
+                                  <div className="rcm-dept-pct-label">
+                                    <span>{pctShare.toFixed(1)}%</span>
+                                    <span className="rcm-dept-pct-sub">ของ รพ.</span>
                                   </div>
                                   <div className="rcm-dept-bar-track">
                                     <div
                                       className="rcm-dept-bar-fill"
-                                      style={{ width: `${Math.min(100, Math.max(3, pctShare))}%` }}
+                                      style={{
+                                        width: `${Math.min(100, Math.max(4, pctShare))}%`,
+                                        background: rank === 1 ? 'linear-gradient(90deg, #10b981, #047857)' : `linear-gradient(90deg, ${dept.color}, #059669)`,
+                                      }}
                                     />
                                   </div>
                                 </div>
@@ -1628,47 +1660,31 @@ export default function IpdClient() {
                   </tbody>
                   {!deptAdjrwLoading && deptAdjrwData.length > 0 && (
                     <tfoot>
-                      <tr
-                        className="total-row"
-                        style={{ backgroundColor: '#f8fafc', borderTop: '2px solid #cbd5e1' }}
-                      >
-                        <td
-                          className="rcm-dept-sticky-col"
-                          style={{
-                            textAlign: 'left',
-                            fontWeight: 900,
-                            color: '#0f172a',
-                            backgroundColor: '#f8fafc',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            <Sparkles size={14} style={{ color: '#059669' }} />
-                            <span>รวมทั้งหมด</span>
+                      <tr className="rcm-dept-tfoot-row">
+                        <td className="rcm-dept-sticky-col rcm-dept-tfoot-sticky">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Sparkles size={15} style={{ color: '#059669' }} />
+                            <span>รวมทุกแผนก</span>
                           </div>
                         </td>
                         {deptMonthRows.map((m) => (
                           <td
                             key={m.month}
-                            className="rcm-text-center font-mono"
-                            style={{ fontWeight: 900, color: '#0f172a' }}
+                            className="rcm-text-center font-mono rcm-dept-tfoot-month-cell"
                           >
                             {m.total.toFixed(4)}
                           </td>
                         ))}
-                        <td
-                          className="rcm-text-center font-mono"
-                          style={{
-                            fontWeight: 900,
-                            color: '#064e3b',
-                            backgroundColor: '#dcfce7',
-                            borderLeft: '2px solid #86efac',
-                            fontSize: '0.92rem',
-                          }}
-                        >
-                          {(deptTotalSummaryRow
-                            ? deptTotalSummaryRow.total
-                            : deptMonthRows.reduce((acc, m) => acc + m.total, 0)
-                          ).toFixed(4)}
+                        <td className="rcm-text-center font-mono rcm-dept-tfoot-grand-cell">
+                          <div className="rcm-grand-total-val">
+                            {(deptTotalSummaryRow
+                              ? deptTotalSummaryRow.total
+                              : deptMonthRows.reduce((acc, m) => acc + m.total, 0)
+                            ).toFixed(4)}
+                          </div>
+                          <div className="rcm-grand-total-sub">
+                            100.0% (Grand Total)
+                          </div>
                         </td>
                       </tr>
                     </tfoot>

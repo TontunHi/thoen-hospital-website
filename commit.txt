@@ -1,1 +1,13 @@
-refactor(screening-scan): remove redundant blue read button and make green manual read button compact
+fix(smartcard-ipd): fix incomplete card reads, raw payload overflow, and enhance IPD department table
+
+- scripts/SmartCardBridge.cs & thoen-smartcard-bridge.exe:
+  - Add 350ms settling delay upon card insertion to stabilize physical pin contact and ATR
+  - Add 10ms pacing delay and retry logic in SendApdu with 0x6C status word handling
+  - Implement 3-attempt retry loop in ReadCardData requiring both 13-digit CID and non-empty Thai name
+- ScreeningScanClient.tsx & page.css:
+  - Sanitize raw payload preview by summarizing large JPEG base64 photos
+  - Add rawPayloadWrapper with pre-wrap, break-all, and overflow bounds
+- IpdClient.tsx & ipd/page.css:
+  - Add department workload ranking badges (#1, #2, #3, ...) based on SumAdjRW share
+  - Highlight peak month and polish cell values (muted dash for zeroes, bold tabular numbers)
+  - Add sleek progress bar in summary column and distinct grand total footer
