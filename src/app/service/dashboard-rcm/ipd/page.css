@@ -580,3 +580,42 @@ tr:hover .rcm-dept-sticky-col {
   color: #047857;
   margin-top: 0.15rem;
 }
+
+/* 6 KPI Cards Grid: 3 per row for balanced layout */
+.rcm-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .rcm-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .rcm-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Dividing line between Month and Department columns in month_as_rows */
+.rcm-month-col-divided {
+  border-right: 2px solid #cbd5e1 !important;
+}
+
+thead th.rcm-month-col-divided {
+  border-right: 2px solid #94a3b8 !important;
+}
+
+tfoot td.rcm-month-col-divided {
+  border-right: 2px solid #94a3b8 !important;
+}
+
+/* Force white text and icon on primary fetch buttons */
+.rcm-btn-primary,
+.rcm-btn-primary span,
+.rcm-btn-primary svg {
+  color: #ffffff !important;
+}

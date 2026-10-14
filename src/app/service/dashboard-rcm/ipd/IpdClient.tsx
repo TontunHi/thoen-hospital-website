@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   CheckCircle,
   Send,
-  BarChart3,
   Stethoscope,
   Clock,
   RotateCcw,
@@ -24,7 +23,6 @@ import {
   Award,
   Calendar,
   Building2,
-  Sparkles,
 } from 'lucide-react'
 import {
   BarChart,
@@ -152,23 +150,6 @@ export default function IpdClient() {
       deptCount: IPD_DEPARTMENTS.length,
     }
   }, [deptAdjrwData])
-
-  // Sorted department rank map based on grand total SumAdjRW
-  const deptRankings = useMemo(() => {
-    if (!deptAdjrwData || deptAdjrwData.length === 0) return {}
-    const list = IPD_DEPARTMENTS.map((dept) => {
-      const total = deptTotalSummaryRow
-        ? deptTotalSummaryRow[dept.key]
-        : deptMonthRows.reduce((acc, m) => acc + m[dept.key], 0)
-      return { key: dept.key, total }
-    })
-    list.sort((a, b) => b.total - a.total)
-    const map: Record<string, number> = {}
-    list.forEach((item, idx) => {
-      map[item.key] = idx + 1
-    })
-    return map
-  }, [deptAdjrwData, deptTotalSummaryRow, deptMonthRows])
 
   // Telegram test trigger state
   const [telegramLoading, setTelegramLoading] = useState<boolean>(false)
@@ -619,10 +600,10 @@ export default function IpdClient() {
                 }}
                 disabled={loading || deptAdjrwLoading}
                 className="rcm-btn rcm-btn-primary"
-                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ffffff' }}
               >
-                <Filter size={13} />
-                <span>ดึงข้อมูล</span>
+                <Filter size={13} style={{ color: '#ffffff' }} />
+                <span style={{ color: '#ffffff' }}>ดึงข้อมูล</span>
               </button>
             </div>
           )}
@@ -649,10 +630,10 @@ export default function IpdClient() {
                 }}
                 disabled={loading || deptAdjrwLoading}
                 className="rcm-btn rcm-btn-primary"
-                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ffffff' }}
               >
-                <Filter size={13} />
-                <span>ดึงข้อมูล</span>
+                <Filter size={13} style={{ color: '#ffffff' }} />
+                <span style={{ color: '#ffffff' }}>ดึงข้อมูล</span>
               </button>
             </div>
           )}
@@ -679,10 +660,10 @@ export default function IpdClient() {
                 }}
                 disabled={loading || deptAdjrwLoading}
                 className="rcm-btn rcm-btn-primary"
-                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#ffffff' }}
               >
-                <Filter size={13} />
-                <span>ดึงข้อมูล</span>
+                <Filter size={13} style={{ color: '#ffffff' }} />
+                <span style={{ color: '#ffffff' }}>ดึงข้อมูล</span>
               </button>
             </div>
           )}
@@ -1511,7 +1492,6 @@ export default function IpdClient() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                           <Building2 size={15} style={{ color: '#059669' }} />
                           <span>แผนกการรักษา</span>
-                          <span className="rcm-dept-count-pill">{IPD_DEPARTMENTS.length} สาขา</span>
                         </div>
                       </th>
                       {deptMonthRows.map((m) => {
@@ -1532,10 +1512,7 @@ export default function IpdClient() {
                         )
                       })}
                       <th className="rcm-text-center rcm-dept-total-th">
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
-                          <BarChart3 size={14} />
-                          <span>รวม (SumAdjRW)</span>
-                        </div>
+                        <span>รวม (SumAdjRW)</span>
                       </th>
                     </tr>
                   </thead>
@@ -1584,39 +1561,20 @@ export default function IpdClient() {
                           deptStats && deptStats.grandTotal > 0
                             ? (deptTotal / deptStats.grandTotal) * 100
                             : 0
-                        const rank = deptRankings[dept.key] || 99
 
                         return (
                           <tr key={dept.key} className="rcm-dept-row">
                             <td className="rcm-dept-sticky-col rcm-dept-cell-sticky">
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                                  <span
-                                    className="rcm-dept-name-badge"
-                                    style={{
-                                      backgroundColor: dept.bg,
-                                      color: dept.color,
-                                      border: `1px solid ${dept.border}`,
-                                    }}
-                                  >
-                                    {dept.name}
-                                  </span>
-                                </div>
-                                <span
-                                  className={`rcm-rank-pill ${
-                                    rank === 1
-                                      ? 'rank-1'
-                                      : rank === 2
-                                      ? 'rank-2'
-                                      : rank === 3
-                                      ? 'rank-3'
-                                      : 'rank-default'
-                                  }`}
-                                  title={`อันดับ ${rank} ของโรงพยาบาล (${pctShare.toFixed(1)}%)`}
-                                >
-                                  #{rank}
-                                </span>
-                              </div>
+                              <span
+                                className="rcm-dept-name-badge"
+                                style={{
+                                  backgroundColor: dept.bg,
+                                  color: dept.color,
+                                  border: `1px solid ${dept.border}`,
+                                }}
+                              >
+                                {dept.name}
+                              </span>
                             </td>
                             {deptMonthRows.map((m) => {
                               const val = m[dept.key]
@@ -1646,7 +1604,7 @@ export default function IpdClient() {
                                       className="rcm-dept-bar-fill"
                                       style={{
                                         width: `${Math.min(100, Math.max(4, pctShare))}%`,
-                                        background: rank === 1 ? 'linear-gradient(90deg, #10b981, #047857)' : `linear-gradient(90deg, ${dept.color}, #059669)`,
+                                        background: `linear-gradient(90deg, ${dept.color}, #059669)`,
                                       }}
                                     />
                                   </div>
@@ -1662,10 +1620,7 @@ export default function IpdClient() {
                     <tfoot>
                       <tr className="rcm-dept-tfoot-row">
                         <td className="rcm-dept-sticky-col rcm-dept-tfoot-sticky">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            <Sparkles size={15} style={{ color: '#059669' }} />
-                            <span>รวมทุกแผนก</span>
-                          </div>
+                          <span>รวมทุกแผนก</span>
                         </td>
                         {deptMonthRows.map((m) => (
                           <td
@@ -1695,7 +1650,7 @@ export default function IpdClient() {
                 <table className="rcm-table">
                   <thead>
                     <tr>
-                      <th className="rcm-text-center" style={{ width: '90px' }}>เดือน</th>
+                      <th className="rcm-text-center rcm-month-col-divided" style={{ width: '90px' }}>เดือน</th>
                       <th className="rcm-text-center">อายุรกรรม</th>
                       <th className="rcm-text-center">ศัลยกรรม</th>
                       <th className="rcm-text-center">สูตินารีเวชกรรม</th>
@@ -1751,7 +1706,7 @@ export default function IpdClient() {
                       deptMonthRows.map((row, idx) => (
                         <tr key={row.month || idx}>
                           <td
-                            className="rcm-text-center font-mono"
+                            className="rcm-text-center font-mono rcm-month-col-divided"
                             style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}
                           >
                             {row.month}
@@ -1867,11 +1822,8 @@ export default function IpdClient() {
                         className="total-row"
                         style={{ backgroundColor: '#f8fafc', borderTop: '2px solid #cbd5e1' }}
                       >
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
-                            <Sparkles size={14} style={{ color: '#059669' }} />
-                            <span>รวม</span>
-                          </div>
+                        <td className="rcm-text-center font-mono rcm-month-col-divided" style={{ fontWeight: 900, color: '#0f172a' }}>
+                          <span>รวม</span>
                         </td>
                         <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
                           {deptTotalSummaryRow.medicine.toFixed(4)}
@@ -1920,33 +1872,6 @@ export default function IpdClient() {
                   )}
                 </table>
               )}
-            </div>
-            <div
-              style={{
-                padding: '0.75rem 1.25rem',
-                backgroundColor: '#f8fafc',
-                borderTop: '1px solid #e2e8f0',
-                fontSize: '0.85rem',
-                color: '#1e293b',
-                fontWeight: 600,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-              }}
-            >
-              <span>แสดงข้อมูล SumAdjRW รวม 10 แผนกการรักษา</span>
-              <span>
-                {deptTotalSummaryRow ? (
-                  <>
-                    SumAdjRW รวมทั้งหมด:{' '}
-                    <b style={{ color: '#047857', fontSize: '0.95rem' }}>
-                      {deptTotalSummaryRow.total.toFixed(4)}
-                    </b>
-                  </>
-                ) : null}
-              </span>
             </div>
           </div>
         </div>
