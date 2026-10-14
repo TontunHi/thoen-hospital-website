@@ -29,13 +29,26 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { IPDRecord } from '@/lib/clinical/rcmDashboardService'
+import { IPDRecord, IpdDepartmentAdjrwItem } from '@/lib/clinical/rcmDashboardService'
 import '../sss-dental/page.css'
 import './page.css'
 
 const THAI_MONTH_NAMES = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+]
+
+const IPD_DEPARTMENTS: { key: keyof Omit<IpdDepartmentAdjrwItem, 'month' | 'total'>; name: string }[] = [
+  { key: 'medicine', name: 'อายุรกรรม' },
+  { key: 'surgery', name: 'ศัลยกรรม' },
+  { key: 'obgyn', name: 'สูตินารีเวชกรรม' },
+  { key: 'pediatrics', name: 'กุมารเวชกรรม' },
+  { key: 'orthopedics', name: 'ออร์โธปิติกส์' },
+  { key: 'ent', name: 'ENT' },
+  { key: 'eye', name: 'จักษุ' },
+  { key: 'other', name: 'อื่นๆ' },
+  { key: 'dental', name: 'ทันตกรรม' },
+  { key: 'psychiatry', name: 'จิตเวช' },
 ]
 
 export default function IpdClient() {
@@ -56,8 +69,8 @@ export default function IpdClient() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })
 
-  // Subtab within IPD: 4 tabs per original spec
-  const [subTab, setSubTab] = useState<'list' | 'doctor' | 'doctor_dc' | 'overview'>('list')
+  // Subtab within IPD: 5 tabs
+  const [subTab, setSubTab] = useState<'list' | 'doctor' | 'doctor_dc' | 'department' | 'overview'>('list')
 
   // Filters
   const [search, setSearch] = useState<string>('')
@@ -71,6 +84,15 @@ export default function IpdClient() {
   const [data, setData] = useState<IPDRecord[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Department SumAdjRW States
+  const [deptAdjrwData, setDeptAdjrwData] = useState<IpdDepartmentAdjrwItem[]>([])
+  const [deptAdjrwLoading, setDeptAdjrwLoading] = useState<boolean>(false)
+  const [deptAdjrwError, setDeptAdjrwError] = useState<string | null>(null)
+  const [deptTableOrientation, setDeptTableOrientation] = useState<'dept_as_rows' | 'month_as_rows'>('dept_as_rows')
+
+  const deptMonthRows = useMemo(() => deptAdjrwData.filter((r) => r.month !== 'รวม'), [deptAdjrwData])
+  const deptTotalSummaryRow = useMemo(() => deptAdjrwData.find((r) => r.month === 'รวม'), [deptAdjrwData])
 
   // Telegram test trigger state
   const [telegramLoading, setTelegramLoading] = useState<boolean>(false)
@@ -116,9 +138,29 @@ export default function IpdClient() {
     }
   }, [ds1, ds2])
 
+  const fetchDeptAdjrwData = useCallback(async (start = ds1, end = ds2) => {
+    setDeptAdjrwLoading(true)
+    setDeptAdjrwError(null)
+    try {
+      const url = `/api/service/dashboard-rcm/ipd-dept-adjrw?ds1=${start}&ds2=${end}`
+      const res = await fetch(url, { cache: 'no-store' })
+      const json = await res.json()
+      if (json.success) {
+        setDeptAdjrwData(json.data || [])
+      } else {
+        setDeptAdjrwError(json.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล SumAdjRW แยกรายแผนก')
+      }
+    } catch (err: any) {
+      setDeptAdjrwError(err?.message || 'ไม่สามารถเชื่อมต่อ API ได้')
+    } finally {
+      setDeptAdjrwLoading(false)
+    }
+  }, [ds1, ds2])
+
   useEffect(() => {
     fetchData(ds1, ds2)
-  }, [ds1, ds2, fetchData])
+    fetchDeptAdjrwData(ds1, ds2)
+  }, [ds1, ds2, fetchData, fetchDeptAdjrwData])
 
   // Telegram Notification Trigger
   const handleSendTelegramTest = async () => {
@@ -305,6 +347,83 @@ export default function IpdClient() {
     document.body.removeChild(link)
   }
 
+  const exportDeptAdjrwCSV = () => {
+    if (deptTableOrientation === 'dept_as_rows') {
+      const headers = ['รายชื่อแผนก', ...deptMonthRows.map((m) => m.month), 'รวม']
+      const rows = IPD_DEPARTMENTS.map((dept) => {
+        const deptTotal = deptTotalSummaryRow
+          ? deptTotalSummaryRow[dept.key]
+          : deptMonthRows.reduce((acc, m) => acc + m[dept.key], 0)
+        return [
+          `"${dept.name}"`,
+          ...deptMonthRows.map((m) => m[dept.key].toFixed(4)),
+          deptTotal.toFixed(4),
+        ]
+      })
+
+      const grandTotal = deptTotalSummaryRow
+        ? deptTotalSummaryRow.total
+        : deptMonthRows.reduce((acc, m) => acc + m.total, 0)
+      const totalRowLine = [
+        '"รวม"',
+        ...deptMonthRows.map((m) => m.total.toFixed(4)),
+        grandTotal.toFixed(4),
+      ]
+
+      const csvContent =
+        '\uFEFF' +
+        [headers.join(','), ...rows.map((r) => r.join(',')), totalRowLine.join(',')].join('\r\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `ipd_dept_sumadjrw_${ds1}_to_${ds2}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      const headers = [
+        'เดือน',
+        'อายุรกรรม',
+        'ศัลยกรรม',
+        'สูตินารีเวชกรรม',
+        'กุมารเวชกรรม',
+        'ออร์โธปิติกส์',
+        'ENT',
+        'จักษุ',
+        'อื่นๆ',
+        'ทันตกรรม',
+        'จิตเวช',
+        'รวม (SumAdjRW)',
+      ]
+
+      const rows = deptAdjrwData.map((d) => [
+        `"${d.month}"`,
+        d.medicine.toFixed(4),
+        d.surgery.toFixed(4),
+        d.obgyn.toFixed(4),
+        d.pediatrics.toFixed(4),
+        d.orthopedics.toFixed(4),
+        d.ent.toFixed(4),
+        d.eye.toFixed(4),
+        d.other.toFixed(4),
+        d.dental.toFixed(4),
+        d.psychiatry.toFixed(4),
+        d.total.toFixed(4),
+      ])
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `ipd_dept_sumadjrw_${ds1}_to_${ds2}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+  }
+
   const formatNumber = (num: number) => num.toLocaleString('th-TH')
   const formatCurrency = (num: number) =>
     '฿' + num.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -339,17 +458,24 @@ export default function IpdClient() {
           </button>
           <button
             type="button"
-            onClick={() => fetchData()}
-            disabled={loading}
+            onClick={() => {
+              fetchData()
+              fetchDeptAdjrwData()
+            }}
+            disabled={loading || deptAdjrwLoading}
             className="rcm-btn rcm-btn-secondary"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading || deptAdjrwLoading ? 'animate-spin' : ''} />
             <span>รีเฟรช</span>
           </button>
           <button
             type="button"
-            onClick={exportCSV}
-            disabled={loading || filteredData.length === 0}
+            onClick={() => (subTab === 'department' ? exportDeptAdjrwCSV() : exportCSV())}
+            disabled={
+              subTab === 'department'
+                ? deptAdjrwLoading || deptAdjrwData.length === 0
+                : loading || filteredData.length === 0
+            }
             className="rcm-btn rcm-btn-primary"
           >
             <Download size={14} />
@@ -411,8 +537,11 @@ export default function IpdClient() {
               />
               <button
                 type="button"
-                onClick={() => fetchData(ds1, ds2)}
-                disabled={loading}
+                onClick={() => {
+                  fetchData(ds1, ds2)
+                  fetchDeptAdjrwData(ds1, ds2)
+                }}
+                disabled={loading || deptAdjrwLoading}
                 className="rcm-btn rcm-btn-primary"
                 style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
               >
@@ -438,8 +567,11 @@ export default function IpdClient() {
               </select>
               <button
                 type="button"
-                onClick={() => fetchData(ds1, ds2)}
-                disabled={loading}
+                onClick={() => {
+                  fetchData(ds1, ds2)
+                  fetchDeptAdjrwData(ds1, ds2)
+                }}
+                disabled={loading || deptAdjrwLoading}
                 className="rcm-btn rcm-btn-primary"
                 style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
               >
@@ -465,8 +597,11 @@ export default function IpdClient() {
               </select>
               <button
                 type="button"
-                onClick={() => fetchData(ds1, ds2)}
-                disabled={loading}
+                onClick={() => {
+                  fetchData(ds1, ds2)
+                  fetchDeptAdjrwData(ds1, ds2)
+                }}
+                disabled={loading || deptAdjrwLoading}
                 className="rcm-btn rcm-btn-primary"
                 style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
               >
@@ -805,7 +940,7 @@ export default function IpdClient() {
         </div>
       </div>
 
-      {/* Subtab Selector: 4 Tabs Per User Specification */}
+      {/* Subtab Selector */}
       <div className="rcm-subtab-bar">
         <button
           type="button"
@@ -827,6 +962,13 @@ export default function IpdClient() {
           className={`rcm-subtab-btn ${subTab === 'doctor_dc' ? 'active' : ''}`}
         >
           <span>👨‍⚕️ แพทย์ D/C (จำนวน & SumAdjRW)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab('department')}
+          className={`rcm-subtab-btn ${subTab === 'department' ? 'active' : ''}`}
+        >
+          <span>🏢 จำนวน SumAdjRW แยกรายแผนก</span>
         </button>
         <button
           type="button"
@@ -1159,6 +1301,402 @@ export default function IpdClient() {
                 </tr>
               </tfoot>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUBTAB: 🏢 จำนวน SumAdjRW แยกรายแผนก                                      */}
+      {/* ========================================================================= */}
+      {subTab === 'department' && (
+        <div className="rcm-table-card">
+          <div className="rcm-table-header">
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                🏢 ตารางจำนวน SumAdjRW แยกรายแผนก IPD
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: '#334155', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                {deptTableOrientation === 'dept_as_rows'
+                  ? 'แสดงผลรวมค่าน้ำหนักสัมพัทธ์ (SumAdjRW) จำแนกตามรายชื่อแผนก (แถว) และรายเดือน (คอลัมน์)'
+                  : 'แสดงผลรวมค่าน้ำหนักสัมพัทธ์ (SumAdjRW) จำแนกตามรายเดือน (แถว) และรายชื่อแผนก (คอลัมน์)'}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() =>
+                  setDeptTableOrientation((prev) =>
+                    prev === 'dept_as_rows' ? 'month_as_rows' : 'dept_as_rows'
+                  )
+                }
+                className="rcm-btn rcm-btn-secondary"
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                title="สลับแกนแสดงผล แผนก ⇄ เดือน"
+              >
+                <RotateCcw size={13} />
+                <span>
+                  {deptTableOrientation === 'dept_as_rows'
+                    ? 'สลับเป็นมุมมองรายเดือน'
+                    : 'สลับแผนกเป็นแถว'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={exportDeptAdjrwCSV}
+                disabled={deptAdjrwLoading || deptAdjrwData.length === 0}
+                className="rcm-btn rcm-btn-secondary"
+                style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                title="ส่งออกตาราง SumAdjRW แยกรายแผนก เป็นไฟล์ CSV"
+              >
+                <Download size={13} />
+                <span>ส่งออก CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="rcm-table-responsive" style={{ maxHeight: '650px' }}>
+            {deptTableOrientation === 'dept_as_rows' ? (
+              /* มุมมองที่ 1: แผนกเป็นแถว (Department as Rows) และ เดือนเป็นคอลัมน์ */
+              <table className="rcm-table">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', minWidth: '160px' }}>รายชื่อแผนก</th>
+                    {deptMonthRows.map((m) => (
+                      <th key={m.month} className="rcm-text-center" style={{ minWidth: '85px' }}>
+                        {m.month}
+                      </th>
+                    ))}
+                    <th
+                      className="rcm-text-center"
+                      style={{
+                        minWidth: '100px',
+                        backgroundColor: '#f0fdf4',
+                        color: '#166534',
+                        fontWeight: 800,
+                      }}
+                    >
+                      รวม
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deptAdjrwLoading ? (
+                    <tr>
+                      <td
+                        colSpan={deptMonthRows.length + 2}
+                        style={{ textAlign: 'center', padding: '3rem' }}
+                      >
+                        <RefreshCw
+                          size={24}
+                          className="animate-spin"
+                          style={{ margin: '0 auto 0.5rem', color: '#059669' }}
+                        />
+                        <p style={{ color: '#334155', fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>
+                          กำลังดึงข้อมูล SumAdjRW แยกรายแผนกจากฐานข้อมูล HOSxP...
+                        </p>
+                      </td>
+                    </tr>
+                  ) : deptAdjrwError ? (
+                    <tr>
+                      <td
+                        colSpan={deptMonthRows.length + 2}
+                        style={{ textAlign: 'center', padding: '2rem', color: '#dc2626', fontWeight: 600 }}
+                      >
+                        <AlertCircle size={20} style={{ margin: '0 auto 0.5rem' }} />
+                        <p style={{ margin: 0 }}>{deptAdjrwError}</p>
+                      </td>
+                    </tr>
+                  ) : deptAdjrwData.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={deptMonthRows.length + 2}
+                        style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: 600 }}
+                      >
+                        ไม่พบข้อมูล SumAdjRW ในช่วงเวลาที่เลือก
+                      </td>
+                    </tr>
+                  ) : (
+                    IPD_DEPARTMENTS.map((dept) => {
+                      const deptTotal = deptTotalSummaryRow
+                        ? deptTotalSummaryRow[dept.key]
+                        : deptMonthRows.reduce((acc, m) => acc + m[dept.key], 0)
+                      return (
+                        <tr key={dept.key}>
+                          <td style={{ textAlign: 'left', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span
+                                style={{
+                                  width: '7px',
+                                  height: '7px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#059669',
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span>{dept.name}</span>
+                            </div>
+                          </td>
+                          {deptMonthRows.map((m) => {
+                            const val = m[dept.key]
+                            return (
+                              <td
+                                key={m.month}
+                                className="rcm-text-center font-mono"
+                                style={{ fontWeight: 600, color: val > 0 ? '#0f172a' : '#94a3b8' }}
+                              >
+                                {val.toFixed(4)}
+                              </td>
+                            )
+                          })}
+                          <td
+                            className="rcm-text-center font-mono"
+                            style={{ fontWeight: 800, color: '#047857', backgroundColor: '#f0fdf4' }}
+                          >
+                            {deptTotal.toFixed(4)}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+                {!deptAdjrwLoading && deptAdjrwData.length > 0 && (
+                  <tfoot>
+                    <tr
+                      className="total-row"
+                      style={{ backgroundColor: '#f8fafc', borderTop: '2px solid #cbd5e1' }}
+                    >
+                      <td style={{ textAlign: 'left', fontWeight: 900, color: '#0f172a' }}>
+                        รวมทั้งหมด
+                      </td>
+                      {deptMonthRows.map((m) => (
+                        <td
+                          key={m.month}
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 900, color: '#0f172a' }}
+                        >
+                          {m.total.toFixed(4)}
+                        </td>
+                      ))}
+                      <td
+                        className="rcm-text-center font-mono"
+                        style={{ fontWeight: 900, color: '#047857', backgroundColor: '#dcfce7' }}
+                      >
+                        {(deptTotalSummaryRow
+                          ? deptTotalSummaryRow.total
+                          : deptMonthRows.reduce((acc, m) => acc + m.total, 0)
+                        ).toFixed(4)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            ) : (
+              /* มุมมองที่ 2: เดือนเป็นแถว (Month as Rows) และ แผนกเป็นคอลัมน์ */
+              <table className="rcm-table">
+                <thead>
+                  <tr>
+                    <th className="rcm-text-center" style={{ width: '90px' }}>เดือน</th>
+                    <th className="rcm-text-center">อายุรกรรม</th>
+                    <th className="rcm-text-center">ศัลยกรรม</th>
+                    <th className="rcm-text-center">สูตินารีเวชกรรม</th>
+                    <th className="rcm-text-center">กุมารเวชกรรม</th>
+                    <th className="rcm-text-center">ออร์โธปิติกส์</th>
+                    <th className="rcm-text-center">ENT</th>
+                    <th className="rcm-text-center">จักษุ</th>
+                    <th className="rcm-text-center">อื่นๆ</th>
+                    <th className="rcm-text-center">ทันตกรรม</th>
+                    <th className="rcm-text-center">จิตเวช</th>
+                    <th
+                      className="rcm-text-center"
+                      style={{ backgroundColor: '#f0fdf4', color: '#166534', fontWeight: 800 }}
+                    >
+                      รวม
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deptAdjrwLoading ? (
+                    <tr>
+                      <td colSpan={12} style={{ textAlign: 'center', padding: '3rem' }}>
+                        <RefreshCw
+                          size={24}
+                          className="animate-spin"
+                          style={{ margin: '0 auto 0.5rem', color: '#059669' }}
+                        />
+                        <p style={{ color: '#334155', fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>
+                          กำลังดึงข้อมูล SumAdjRW แยกรายแผนกจากฐานข้อมูล HOSxP...
+                        </p>
+                      </td>
+                    </tr>
+                  ) : deptAdjrwError ? (
+                    <tr>
+                      <td colSpan={12} style={{ textAlign: 'center', padding: '2rem', color: '#dc2626', fontWeight: 600 }}>
+                        <AlertCircle size={20} style={{ margin: '0 auto 0.5rem' }} />
+                        <p style={{ margin: 0 }}>{deptAdjrwError}</p>
+                      </td>
+                    </tr>
+                  ) : deptAdjrwData.length === 0 ? (
+                    <tr>
+                      <td colSpan={12} style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: 600 }}>
+                        ไม่พบข้อมูล SumAdjRW ในช่วงเวลาที่เลือก
+                      </td>
+                    </tr>
+                  ) : (
+                    deptMonthRows.map((row, idx) => (
+                      <tr key={row.month || idx}>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}
+                        >
+                          {row.month}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.medicine > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.medicine.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.surgery > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.surgery.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.obgyn > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.obgyn.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.pediatrics > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.pediatrics.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.orthopedics > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.orthopedics.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.ent > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.ent.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.eye > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.eye.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.other > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.other.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.dental > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.dental.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 600, color: row.psychiatry > 0 ? '#0f172a' : '#94a3b8' }}
+                        >
+                          {row.psychiatry.toFixed(4)}
+                        </td>
+                        <td
+                          className="rcm-text-center font-mono"
+                          style={{ fontWeight: 800, color: '#047857', backgroundColor: '#f0fdf4' }}
+                        >
+                          {row.total.toFixed(4)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                {deptTotalSummaryRow && (
+                  <tfoot>
+                    <tr
+                      className="total-row"
+                      style={{ backgroundColor: '#f8fafc', borderTop: '2px solid #cbd5e1' }}
+                    >
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        รวม
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.medicine.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.surgery.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.obgyn.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.pediatrics.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.orthopedics.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.ent.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.eye.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.other.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.dental.toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
+                        {deptTotalSummaryRow.psychiatry.toFixed(4)}
+                      </td>
+                      <td
+                        className="rcm-text-center font-mono"
+                        style={{ fontWeight: 900, color: '#047857', backgroundColor: '#dcfce7' }}
+                      >
+                        {deptTotalSummaryRow.total.toFixed(4)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            )}
+          </div>
+          <div
+            style={{
+              padding: '0.75rem 1.25rem',
+              backgroundColor: '#f8fafc',
+              borderTop: '1px solid #e2e8f0',
+              fontSize: '0.85rem',
+              color: '#1e293b',
+              fontWeight: 600,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <span>แสดงข้อมูล SumAdjRW รวม 10 แผนกการรักษา</span>
+            <span>
+              {deptTotalSummaryRow ? (
+                <>
+                  SumAdjRW รวมทั้งหมด:{' '}
+                  <b style={{ color: '#047857', fontSize: '0.95rem' }}>
+                    {deptTotalSummaryRow.total.toFixed(4)}
+                  </b>
+                </>
+              ) : null}
+            </span>
           </div>
         </div>
       )}

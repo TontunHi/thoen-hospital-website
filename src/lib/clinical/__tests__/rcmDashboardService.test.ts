@@ -162,6 +162,68 @@ describe('RcmDashboardService', () => {
     })
   })
 
+  describe('getIpdDepartmentAdjrw', () => {
+    it('queries and maps department SumAdjRW per month and overall total correctly', async () => {
+      const mockDeptRows = [
+        {
+          เดือน: 'ต.ค.-67',
+          อายุรกรรม: 120.4500,
+          ศัลยกรรม: 45.1200,
+          สูตินารีเวชกรรม: 12.3000,
+          กุมารเวชกรรม: 30.1500,
+          ออร์โธปิติกส์: 18.2200,
+          ENT: 5.1000,
+          จักษุ: 3.4000,
+          อื่นๆ: 1.2000,
+          ทันตกรรม: 0.5000,
+          จิตเวช: 2.1000,
+        },
+        {
+          เดือน: 'รวม',
+          อายุรกรรม: 1200.4500,
+          ศัลยกรรม: 450.1200,
+          สูตินารีเวชกรรม: 120.3000,
+          กุมารเวชกรรม: 300.1500,
+          ออร์โธปิติกส์: 180.2200,
+          ENT: 50.1000,
+          จักษุ: 34.4000,
+          อื่นๆ: 12.2000,
+          ทันตกรรม: 5.5000,
+          จิตเวช: 21.1000,
+        },
+      ]
+
+      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockDeptRows)
+
+      const result = await RcmDashboardService.getIpdDepartmentAdjrw(
+        { ds1: '2024-10-01', ds2: '2025-09-30' },
+        mockExecutor
+      )
+
+      expect(mockExecutor).toHaveBeenCalledWith(
+        expect.stringContaining('dch_month AS `เดือน`'),
+        ['2024-10-01', '2025-09-30', '2024-10-01', '2025-09-30']
+      )
+
+      expect(result).toHaveLength(2)
+      expect(result[0].month).toBe('ต.ค.-67')
+      expect(result[0].medicine).toBe(120.45)
+      expect(result[0].surgery).toBe(45.12)
+      expect(result[0].obgyn).toBe(12.3)
+      expect(result[0].pediatrics).toBe(30.15)
+      expect(result[0].orthopedics).toBe(18.22)
+      expect(result[0].ent).toBe(5.1)
+      expect(result[0].eye).toBe(3.4)
+      expect(result[0].other).toBe(1.2)
+      expect(result[0].dental).toBe(0.5)
+      expect(result[0].psychiatry).toBe(2.1)
+      expect(result[0].total).toBeCloseTo(238.54, 2)
+
+      expect(result[1].month).toBe('รวม')
+      expect(result[1].medicine).toBe(1200.45)
+    })
+  })
+
   describe('Telegram chart notification formatting', () => {
     it('formats HTML message correctly for Telegram delivery', () => {
       const mockReportData = {

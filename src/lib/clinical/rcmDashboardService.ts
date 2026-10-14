@@ -172,6 +172,21 @@ export interface IPDReportResult {
   data: IPDRecord[]
 }
 
+export interface IpdDepartmentAdjrwItem {
+  month: string
+  medicine: number
+  surgery: number
+  obgyn: number
+  pediatrics: number
+  orthopedics: number
+  ent: number
+  eye: number
+  other: number
+  dental: number
+  psychiatry: number
+  total: number
+}
+
 // ── 4. Telegram Notification Types ─────────────────────────
 
 export interface DoctorChartSummary {
@@ -662,6 +677,151 @@ export class RcmDashboardService {
         const queryParams = pttype ? [ds1, ds2, pttype] : [ds1, ds2]
         const rows = await executor(query, queryParams)
         return rows as IPDRecord[]
+      },
+      30000
+    )
+  }
+
+  /**
+   * 2.1.2.2 จำนวน SumAdjRW แยกรายแผนก IPD
+   */
+  static async getIpdDepartmentAdjrw(
+    params: {
+      ds1?: string
+      ds2?: string
+    } = {},
+    executor: QueryExecutor = queryClinicalDb
+  ): Promise<IpdDepartmentAdjrwItem[]> {
+    const ds1 = params.ds1 || '2024-10-01'
+    const ds2 = params.ds2 || '2025-09-30'
+    const cacheKey = `rcm-ipd-dept-adjrw-${ds1}-${ds2}`
+
+    return getCachedData(
+      cacheKey,
+      async () => {
+        const query = `
+          SELECT 
+            dch_month AS \`เดือน\`,
+            \`อายุรกรรม\`,
+            \`ศัลยกรรม\`,
+            \`สูตินารีเวชกรรม\`,
+            \`กุมารเวชกรรม\`,
+            \`ออร์โธปิติกส์\`,
+            \`ENT\`,
+            \`จักษุ\`,
+            \`อื่นๆ\`,
+            \`ทันตกรรม\`,
+            \`จิตเวช\`
+          FROM (
+            -- ส่วนข้อมูลรายเดือน
+            SELECT 
+              CASE WHEN MONTH(i.dchdate) >= 10 THEN MONTH(i.dchdate) - 9 ELSE MONTH(i.dchdate) + 3 END AS sort_order,
+              CONCAT(
+                ELT(MONTH(i.dchdate), 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'),
+                '-',
+                RIGHT(YEAR(i.dchdate) + 543, 2)
+              ) AS dch_month,
+              ROUND(SUM(CASE WHEN i.spclty IN ('01', '21') OR s.name LIKE '%อายุร%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`อายุรกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty = '02' OR (s.name LIKE '%ศัลยกรรม%' AND s.name NOT LIKE '%กระดูก%' AND s.name NOT LIKE '%ออร์โธ%') THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ศัลยกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty IN ('03', '04') OR s.name LIKE '%สูติ%' OR s.name LIKE '%นรีเวช%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`สูตินารีเวชกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty = '05' OR s.name LIKE '%กุมาร%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`กุมารเวชกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty = '08' OR s.name LIKE '%กระดูก%' OR s.name LIKE '%ออร์โธ%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ออร์โธปิติกส์\`,
+              ROUND(SUM(CASE WHEN i.spclty = '06' OR s.name LIKE '%ENT%' OR s.name LIKE '%โสต%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ENT\`,
+              ROUND(SUM(CASE WHEN i.spclty = '07' OR s.name LIKE '%จักษุ%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`จักษุ\`,
+              ROUND(SUM(CASE WHEN i.spclty NOT IN ('01','02','03','04','05','06','07','08','09','11','21')
+                              AND s.name NOT LIKE '%อายุร%'
+                              AND s.name NOT LIKE '%ศัลย%'
+                              AND s.name NOT LIKE '%สูติ%' AND s.name NOT LIKE '%นรีเวช%'
+                              AND s.name NOT LIKE '%กุมาร%'
+                              AND s.name NOT LIKE '%โสต%' AND s.name NOT LIKE '%ENT%'
+                              AND s.name NOT LIKE '%จักษุ%'
+                              AND s.name NOT LIKE '%ทันต%'
+                              AND s.name NOT LIKE '%จิตเวช%'
+                              AND s.name NOT LIKE '%กระดูก%'
+                         THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`อื่นๆ\`,
+              ROUND(SUM(CASE WHEN i.spclty = '11' OR s.name LIKE '%ทันต%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ทันตกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty = '09' OR s.name LIKE '%จิตเวช%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`จิตเวช\`
+            FROM ipt i
+            LEFT JOIN spclty s ON s.spclty = i.spclty
+            WHERE i.dchdate BETWEEN ? AND ?
+            GROUP BY YEAR(i.dchdate), MONTH(i.dchdate)
+
+            UNION ALL
+
+            -- แถวสรุปรวม
+            SELECT 
+              99 AS sort_order,
+              'รวม' AS dch_month,
+              ROUND(SUM(CASE WHEN i.spclty IN ('01', '21') OR s.name LIKE '%อายุร%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`อายุรกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty = '02' OR (s.name LIKE '%ศัลยกรรม%' AND s.name NOT LIKE '%กระดูก%' AND s.name NOT LIKE '%ออร์โธ%') THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ศัลยกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty IN ('03', '04') OR s.name LIKE '%สูติ%' OR s.name LIKE '%นรีเวช%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`สูตินารีเวชกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty = '05' OR s.name LIKE '%กุมาร%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`กุมารเวชกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty = '08' OR s.name LIKE '%กระดูก%' OR s.name LIKE '%ออร์โธ%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ออร์โธปิติกส์\`,
+              ROUND(SUM(CASE WHEN i.spclty = '06' OR s.name LIKE '%ENT%' OR s.name LIKE '%โสต%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ENT\`,
+              ROUND(SUM(CASE WHEN i.spclty = '07' OR s.name LIKE '%จักษุ%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`จักษุ\`,
+              ROUND(SUM(CASE WHEN i.spclty NOT IN ('01','02','03','04','05','06','07','08','09','11','21')
+                              AND s.name NOT LIKE '%อายุร%'
+                              AND s.name NOT LIKE '%ศัลย%'
+                              AND s.name NOT LIKE '%สูติ%' AND s.name NOT LIKE '%นรีเวช%'
+                              AND s.name NOT LIKE '%กุมาร%'
+                              AND s.name NOT LIKE '%โสต%' AND s.name NOT LIKE '%ENT%'
+                              AND s.name NOT LIKE '%จักษุ%'
+                              AND s.name NOT LIKE '%ทันต%'
+                              AND s.name NOT LIKE '%จิตเวช%'
+                              AND s.name NOT LIKE '%กระดูก%'
+                         THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`อื่นๆ\`,
+              ROUND(SUM(CASE WHEN i.spclty = '11' OR s.name LIKE '%ทันต%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ทันตกรรม\`,
+              ROUND(SUM(CASE WHEN i.spclty = '09' OR s.name LIKE '%จิตเวช%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`จิตเวช\`
+            FROM ipt i
+            LEFT JOIN spclty s ON s.spclty = i.spclty
+            WHERE i.dchdate BETWEEN ? AND ?
+          ) t
+          ORDER BY sort_order
+        `
+
+        const rows = await executor(query, [ds1, ds2, ds1, ds2])
+
+        return rows.map((r: any) => {
+          const medicine = Number(r['อายุรกรรม'] ?? r.medicine ?? 0)
+          const surgery = Number(r['ศัลยกรรม'] ?? r.surgery ?? 0)
+          const obgyn = Number(r['สูตินารีเวชกรรม'] ?? r.obgyn ?? 0)
+          const pediatrics = Number(r['กุมารเวชกรรม'] ?? r.pediatrics ?? 0)
+          const orthopedics = Number(r['ออร์โธปิติกส์'] ?? r.orthopedics ?? 0)
+          const ent = Number(r['ENT'] ?? r.ent ?? 0)
+          const eye = Number(r['จักษุ'] ?? r.eye ?? 0)
+          const other = Number(r['อื่นๆ'] ?? r.other ?? 0)
+          const dental = Number(r['ทันตกรรม'] ?? r.dental ?? 0)
+          const psychiatry = Number(r['จิตเวช'] ?? r.psychiatry ?? 0)
+          const total = Number(
+            (
+              medicine +
+              surgery +
+              obgyn +
+              pediatrics +
+              orthopedics +
+              ent +
+              eye +
+              other +
+              dental +
+              psychiatry
+            ).toFixed(4)
+          )
+
+          return {
+            month: String(r['เดือน'] ?? r.dch_month ?? r.month ?? ''),
+            medicine,
+            surgery,
+            obgyn,
+            pediatrics,
+            orthopedics,
+            ent,
+            eye,
+            other,
+            dental,
+            psychiatry,
+            total,
+          }
+        })
       },
       30000
     )
