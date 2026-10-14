@@ -84,10 +84,6 @@ export default function RootLayout({
         />
       </head>
       <body>
-        {/* Skip to main content link for keyboard & screen reader accessibility (A11) */}
-        <a href="#main-content" className="skip-to-content">
-          ข้ามไปเนื้อหาหลัก
-        </a>
         <Suspense fallback={<nav className="navbar" style={{ height: "var(--navbar-height)" }}></nav>}>
           <Navbar />
         </Suspense>

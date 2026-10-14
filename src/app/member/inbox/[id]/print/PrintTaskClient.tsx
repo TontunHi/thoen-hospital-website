@@ -129,7 +129,6 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
         body.print-document-active footer,
         body.print-document-active .navbar,
         body.print-document-active .site-footer,
-        body.print-document-active .skip-to-content,
         body.print-document-active #navbar,
         body.print-document-active header.navbar {
           display: none !important;
@@ -187,7 +186,6 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
           footer,
           .navbar,
           .site-footer,
-          .skip-to-content,
           header.navbar {
             display: none !important;
           }
