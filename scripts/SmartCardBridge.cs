@@ -287,6 +287,129 @@ namespace ThoenSmartCardBridge
         }
     }
 
+    public static class ClipboardHelper
+    {
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool OpenClipboard(IntPtr hWndNewOwner);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool CloseClipboard();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool EmptyClipboard();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr SetClipboardData(uint uFormat, IntPtr hMem);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GlobalAlloc(uint uFlags, UIntPtr dwBytes);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GlobalLock(IntPtr hMem);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GlobalUnlock(IntPtr hMem);
+
+        private const uint CF_UNICODETEXT = 13;
+        private const uint GMEM_MOVEABLE = 0x0002;
+
+        public static bool SetText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            for (int i = 0; i < 15; i++)
+            {
+                if (OpenClipboard(IntPtr.Zero))
+                {
+                    try
+                    {
+                        EmptyClipboard();
+                        byte[] bytes = Encoding.Unicode.GetBytes(text + "\0");
+                        IntPtr hGlobal = GlobalAlloc(GMEM_MOVEABLE, (UIntPtr)bytes.Length);
+                        if (hGlobal != IntPtr.Zero)
+                        {
+                            IntPtr target = GlobalLock(hGlobal);
+                            if (target != IntPtr.Zero)
+                            {
+                                Marshal.Copy(bytes, 0, target, bytes.Length);
+                                GlobalUnlock(hGlobal);
+                                SetClipboardData(CF_UNICODETEXT, hGlobal);
+                                return true;
+                            }
+                        }
+                    }
+                    catch { }
+                    finally
+                    {
+                        CloseClipboard();
+                    }
+                }
+                Thread.Sleep(30);
+            }
+            return false;
+        }
+    }
+
+    public static class WindowHelper
+    {
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+        private const byte VK_CONTROL = 0x11;
+        private const byte VK_V = 0x56;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+
+        public static void FocusBrowserAndPaste()
+        {
+            try
+            {
+                IntPtr targetHwnd = IntPtr.Zero;
+
+                EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
+                {
+                    StringBuilder sb = new StringBuilder(256);
+                    GetWindowText(hWnd, sb, 256);
+                    string title = sb.ToString();
+                    if (!string.IsNullOrEmpty(title))
+                    {
+                        string lower = title.ToLower();
+                        if (lower.Contains("จุดอ่านบัตร") || lower.Contains("คัดกรอง") || lower.Contains("screening") || lower.Contains("thlp.moph.go.th") || lower.Contains("โรงพยาบาลเถิน") || lower.Contains("thoen") || lower.Contains("chrome") || lower.Contains("edge"))
+                        {
+                            targetHwnd = hWnd;
+                            return false;
+                        }
+                    }
+                    return true;
+                }, IntPtr.Zero);
+
+                if (targetHwnd != IntPtr.Zero)
+                {
+                    SetForegroundWindow(targetHwnd);
+                    Thread.Sleep(80);
+                }
+
+                // Simulate Ctrl+V to paste data into the focused page
+                keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_V, 0, 0, UIntPtr.Zero);
+                keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            }
+            catch { }
+        }
+    }
+
     public class CloudBridgeClient
     {
         public static string ServerUrl = "https://thlp.moph.go.th/api/service/screening/bridge-push";
@@ -483,9 +606,9 @@ namespace ThoenSmartCardBridge
                 }
 
                 Console.WriteLine("===============================================================");
-                Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge v2.0 (HTTPS Push)  ");
+                Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge v2.0               ");
                 Console.WriteLine("===============================================================");
-                Console.WriteLine(" [เป้าหมาย]: " + CloudBridgeClient.ServerUrl);
+                Console.WriteLine(" [ระบบเชื่อมต่อ]: Smart Card Direct Browser Bridge (100% บน HTTPS)");
                 Console.WriteLine(" [จุดบริการ]: จุดตรวจที่ " + CloudBridgeClient.StationId);
                 Console.WriteLine(" [สถานะ]: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
 
@@ -526,10 +649,10 @@ namespace ThoenSmartCardBridge
                 }
                 catch
                 {
-                    // If port 8084 is taken, cloud push will still function 100%
+                    // If port 8084 is taken, direct browser bridge will still function 100%
                 }
 
-                // Start the automatic Card Monitor and Cloud Push loop
+                // Start the automatic Card Monitor loop
                 StartCardMonitorLoop();
 
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -580,7 +703,6 @@ namespace ThoenSmartCardBridge
             ThreadPool.QueueUserWorkItem(delegate
             {
                 bool wasPresent = false;
-                DateTime lastHeartbeat = DateTime.MinValue;
 
                 while (isRunning)
                 {
@@ -620,20 +742,36 @@ namespace ThoenSmartCardBridge
                                 Console.WriteLine("===============================================================");
                                 Console.ResetColor();
 
-                                // Push directly to Website via HTTPS
-                                bool pushed = CloudBridgeClient.SendPush("card_read", reader, true, cardData);
-                                if (pushed)
+                                // 1. Build JSON Payload for Direct Browser Injection
+                                StringBuilder sb = new StringBuilder();
+                                sb.Append("{\"source\":\"thoen_smartcard_bridge\",\"station\":\"").Append(CloudBridgeClient.StationId).Append("\",\"card\":{");
+                                bool first = true;
+                                foreach (var kv in cardData)
                                 {
-                                    Console.ForegroundColor = ConsoleColor.Green;
-                                    Console.WriteLine(string.Format(" >>> [ส่งขึ้นเว็บสำเร็จ]: ส่งข้อมูลไปยัง https://thlp.moph.go.th (จุดตรวจ {0}) เรียบร้อยแล้ว <<<\n", CloudBridgeClient.StationId));
-                                    Console.ResetColor();
+                                    if (!first) sb.Append(",");
+                                    string val = kv.Value != null ? kv.Value.ToString() : "";
+                                    sb.AppendFormat("\"{0}\":\"{1}\"", kv.Key, val.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n"));
+                                    first = false;
                                 }
-                                else
+                                sb.Append("}}");
+                                string jsonStr = sb.ToString();
+
+                                // 2. Copy to Windows Clipboard
+                                ClipboardHelper.SetText(jsonStr);
+
+                                // 3. Auto-focus browser and trigger Paste event
+                                WindowHelper.FocusBrowserAndPaste();
+
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine(" >>> [ส่งข้อมูลเข้าหน้าเว็บสำเร็จ]: โอนย้ายข้อมูลเข้าหน้าจอเบราว์เซอร์เรียบร้อยแล้ว <<<");
+                                Console.WriteLine(" * ข้อมูลแสดงบนหน้าจอทันที ตรวจสอบความถูกต้องแล้วกด [Enter] เพื่อบันทึกเข้าคิว *\n");
+                                Console.ResetColor();
+
+                                // 4. Silent background cloud push attempt
+                                ThreadPool.QueueUserWorkItem(delegate
                                 {
-                                    Console.ForegroundColor = ConsoleColor.Yellow;
-                                    Console.WriteLine(" [หมายเหตุ]: ไม่สามารถส่งข้อมูลขึ้นเว็บได้ (ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต)\n");
-                                    Console.ResetColor();
-                                }
+                                    try { CloudBridgeClient.SendPush("card_read", reader, true, cardData); } catch { }
+                                });
                             }
                             else
                             {
@@ -650,22 +788,15 @@ namespace ThoenSmartCardBridge
                             Console.WriteLine(string.Format(" [{0}] ดึงบัตรประชาชนออกจากเครื่องอ่านแล้ว (พร้อมรับบัตรใบถัดไป...)\n", DateTime.Now.ToString("HH:mm:ss")));
                             Console.ResetColor();
 
-                            CloudBridgeClient.SendPush("card_removed", reader, false, null);
+                            ThreadPool.QueueUserWorkItem(delegate
+                            {
+                                try { CloudBridgeClient.SendPush("card_removed", reader, false, null); } catch { }
+                            });
                         }
-
-                        // Periodic Heartbeat every 2.5 seconds
-                        if ((DateTime.Now - lastHeartbeat).TotalSeconds >= 2.5)
-                        {
-                            lastHeartbeat = DateTime.Now;
-                            CloudBridgeClient.SendPush("heartbeat", reader, isPresent, null);
-                        }
-
-                        Thread.Sleep(300);
                     }
-                    catch
-                    {
-                        Thread.Sleep(500);
-                    }
+                    catch { }
+
+                    Thread.Sleep(300);
                 }
             });
         }

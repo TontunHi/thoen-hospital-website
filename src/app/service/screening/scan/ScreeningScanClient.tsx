@@ -44,7 +44,7 @@ interface RecentSavedItem {
 
 export default function ScreeningScanClient({ operator }: Props) {
   const [stationId, setStationId] = useState<string>('1')
-  const [deviceStatus, setDeviceStatus] = useState<string>('กำลังเชื่อมต่อระบบ Cloud Bridge...')
+  const [deviceStatus, setDeviceStatus] = useState<string>('พร้อมอ่านบัตรประชาชน (Smart Card Direct Bridge)')
   const [isReading, setIsReading] = useState<boolean>(false)
   const [currentCard, setCurrentCard] = useState<SmartCardData | null>(null)
   const [showRawPayload, setShowRawPayload] = useState<boolean>(false)
@@ -97,6 +97,58 @@ export default function ScreeningScanClient({ operator }: Props) {
     }
   }, [])
 
+  // Universal Card Apply Handler (used by Direct Bridge, Paste, Clipboard & SSE)
+  const applyCardData = useCallback((cardData: any) => {
+    if (!cardData || !cardData.cid || cardData.cid.length < 13) return
+    setLastReadCid(cardData.cid)
+    setCurrentCard({
+      cid: cardData.cid,
+      titleTh: cardData.titleTh || '',
+      firstNameTh: cardData.firstNameTh || '',
+      lastNameTh: cardData.lastNameTh || '',
+      fullNameTh: cardData.fullNameTh || '',
+      titleEn: cardData.titleEn || '',
+      firstNameEn: cardData.firstNameEn || '',
+      lastNameEn: cardData.lastNameEn || '',
+      fullNameEn: cardData.fullNameEn || '',
+      birthDate: cardData.birthDate || '',
+      gender: cardData.gender || 'ไม่ระบุ',
+      address: cardData.address || '',
+      photoBase64: cardData.photo || cardData.photoBase64 || undefined,
+      rawPayload: cardData,
+    })
+    setIsBridgeConnected(true)
+    setCardPresent(true)
+    setDeviceStatus('อ่านข้อมูลจากบัตรประชาชนสำเร็จ (Smart Card Direct Bridge)')
+    playBeep(1046, 'sine', 0.12)
+    setTimeout(() => {
+      saveButtonRef.current?.focus()
+    }, 80)
+  }, [playBeep])
+
+  // Direct Browser Bridge: Listen for automatic Card Paste events from Bridge .exe
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const text = e.clipboardData?.getData('text')
+      if (!text) return
+      try {
+        if (text.includes('"thoen_smartcard_bridge"') || (text.includes('"cid"') && text.includes('"fullNameTh"'))) {
+          e.preventDefault()
+          const json = JSON.parse(text)
+          const cardData = json.card || json.data || json
+          if (cardData && cardData.cid && cardData.cid.length >= 13) {
+            applyCardData(cardData)
+          }
+        }
+      } catch {
+        // Not a card JSON payload
+      }
+    }
+
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [applyCardData])
+
   // Optional local fetch helper (works if running localhost or unblocked)
   const lastWorkingBaseUrlRef = useRef<string>('http://localhost:8084')
 
@@ -127,57 +179,50 @@ export default function ScreeningScanClient({ operator }: Props) {
     return null
   }, [])
 
-  // Manual trigger / fallback helper
+  // Manual trigger / fallback helper (reads Clipboard first, then local port)
   const readCardFromBridge = useCallback(
     async (isManual = false) => {
       setIsReading(true)
       if (isManual) setErrorMessage(null)
 
       try {
+        // 1. Try reading from Clipboard first (100% works on HTTPS, zero mixed content)
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          try {
+            const text = await navigator.clipboard.readText()
+            if (text && (text.includes('"thoen_smartcard_bridge"') || (text.includes('"cid"') && text.includes('"fullNameTh"')))) {
+              const json = JSON.parse(text)
+              const cardData = json.card || json.data || json
+              if (cardData && cardData.cid && cardData.cid.length >= 13) {
+                applyCardData(cardData)
+                return
+              }
+            }
+          } catch {
+            // Clipboard read permission might be required or denied
+          }
+        }
+
+        // 2. Try local fetch (if unblocked / localhost)
         const result = await fetchFromBridge('read')
         const cardData = result?.data || result
         if (result && result.success !== false && cardData && cardData.cid && cardData.cid.length >= 13) {
-          setLastReadCid(cardData.cid)
-          setCurrentCard({
-            cid: cardData.cid,
-            titleTh: cardData.titleTh || '',
-            firstNameTh: cardData.firstNameTh || '',
-            lastNameTh: cardData.lastNameTh || '',
-            fullNameTh: cardData.fullNameTh || '',
-            titleEn: cardData.titleEn || '',
-            firstNameEn: cardData.firstNameEn || '',
-            lastNameEn: cardData.lastNameEn || '',
-            fullNameEn: cardData.fullNameEn || '',
-            birthDate: cardData.birthDate || '',
-            gender: cardData.gender || 'ไม่ระบุ',
-            address: cardData.address || '',
-            photoBase64: cardData.photo || cardData.photoBase64 || undefined,
-            rawPayload: cardData,
-          })
-          playBeep(1046, 'sine', 0.12)
-          setTimeout(() => {
-            saveButtonRef.current?.focus()
-          }, 80)
-        } else if (isManual) {
-          if (isBridgeConnected) {
-            setErrorMessage('กรุณาดึงบัตรออกแล้วเสียบใหม่อีกครั้ง โปรแกรม Bridge จะอ่านและส่งข้อมูลขึ้นระบบอัตโนมัติ')
-          } else {
-            setErrorMessage('กรุณาเปิดโปรแกรม thoen-smartcard-bridge.exe ที่เครื่องก่อนอ่านบัตร')
-          }
+          applyCardData(cardData)
+          return
+        }
+
+        if (isManual) {
+          setErrorMessage('กรุณาเสียบบัตรประชาชนเข้าเครื่องอ่าน โปรแกรม Bridge จะอ่านและส่งข้อมูลให้อัตโนมัติทันที')
         }
       } catch {
         if (isManual) {
-          if (isBridgeConnected) {
-            setErrorMessage('กรุณาดึงบัตรออกแล้วเสียบใหม่อีกครั้ง โปรแกรม Bridge จะอ่านและส่งข้อมูลขึ้นระบบอัตโนมัติ')
-          } else {
-            setErrorMessage('กรุณาเปิดโปรแกรม thoen-smartcard-bridge.exe ที่เครื่องก่อนอ่านบัตร')
-          }
+          setErrorMessage('กรุณาเสียบบัตรประชาชนเข้าเครื่องอ่าน โปรแกรม Bridge จะอ่านและส่งข้อมูลให้อัตโนมัติทันที')
         }
       } finally {
         setIsReading(false)
       }
     },
-    [fetchFromBridge, isBridgeConnected, playBeep]
+    [fetchFromBridge, applyCardData]
   )
 
   // Real-time Cloud SSE Bridge Connection (Zero-Config, Works on HTTPS)
@@ -211,8 +256,6 @@ export default function ScreeningScanClient({ operator }: Props) {
             } else {
               setDeviceStatus(`Smart Card Bridge ออนไลน์ (โต๊ะ ${stationId}): ${payload.reader || 'พร้อมอ่านบัตร'}`)
             }
-          } else {
-            setDeviceStatus('รอเปิดโปรแกรม Thoen Smart Card Bridge ที่เครื่อง')
           }
         } catch {
           // ignore parse error
@@ -224,29 +267,8 @@ export default function ScreeningScanClient({ operator }: Props) {
         try {
           const cardData = JSON.parse(e.data)
           if (cardData && cardData.cid && cardData.cid.length >= 13) {
-            // Only update if not already viewing this card
             if (currentCardRef.current?.cid !== cardData.cid) {
-              setLastReadCid(cardData.cid)
-              setCurrentCard({
-                cid: cardData.cid,
-                titleTh: cardData.titleTh || '',
-                firstNameTh: cardData.firstNameTh || '',
-                lastNameTh: cardData.lastNameTh || '',
-                fullNameTh: cardData.fullNameTh || '',
-                titleEn: cardData.titleEn || '',
-                firstNameEn: cardData.firstNameEn || '',
-                lastNameEn: cardData.lastNameEn || '',
-                fullNameEn: cardData.fullNameEn || '',
-                birthDate: cardData.birthDate || '',
-                gender: cardData.gender || 'ไม่ระบุ',
-                address: cardData.address || '',
-                photoBase64: cardData.photo || cardData.photoBase64 || undefined,
-                rawPayload: cardData,
-              })
-              playBeep(1046, 'sine', 0.12)
-              setTimeout(() => {
-                saveButtonRef.current?.focus()
-              }, 80)
+              applyCardData(cardData)
             }
           }
         } catch {
@@ -276,7 +298,7 @@ export default function ScreeningScanClient({ operator }: Props) {
         eventSource.close()
       }
     }
-  }, [stationId, playBeep])
+  }, [stationId, applyCardData])
 
 
   // Save current card to screening queue
@@ -418,15 +440,15 @@ export default function ScreeningScanClient({ operator }: Props) {
                       : 'โปรแกรมเชื่อมต่อเครื่องอ่านบัตร (Smart Card Bridge v2.0)'}
                   </span>
                   {isBridgeConnected ? (
-                    <span className="bridgeConnectedTag">เชื่อมต่อแล้ว (Cloud Realtime)</span>
+                    <span className="bridgeConnectedTag">เชื่อมต่อแล้ว (Direct Bridge)</span>
                   ) : (
-                    <span className="bridgeReqTag">รอเปิดโปรแกรมที่เครื่อง</span>
+                    <span className="bridgeReqTag" style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>พร้อมรับข้อมูล (Direct Bridge)</span>
                   )}
                 </h3>
                 <p>
                   {isBridgeConnected
-                    ? `ตรวจพบเครื่องอ่าน: ${bridgeReaderName || 'Generic PC/SC USB Smart Card Reader'} (เสียบบัตรประชาชนได้เลยทันที ข้อมูลจะส่งขึ้นระบบอัตโนมัติ)`
-                    : 'ดาวน์โหลดและเปิดโปรแกรม thoen-smartcard-bridge.exe ที่เครื่อง ระบบจะเชื่อมต่อกับหน้านี้ผ่าน HTTPS อัตโนมัติ (ไม่ต้องตั้งค่าเบราว์เซอร์)'}
+                    ? `ตรวจพบเครื่องอ่าน: ${bridgeReaderName || 'Smart Card Reader'} (เสียบบัตรประชาชนได้เลยทันที ข้อมูลจะส่งเข้าหน้าจอนี้อัตโนมัติ)`
+                    : 'เปิดโปรแกรม thoen-smartcard-bridge.exe ทิ้งไว้ที่เครื่อง เมื่อเสียบบัตรประชาชน ข้อมูลจะส่งเข้าหน้าจอนี้อัตโนมัติทันที (100% บน HTTPS ไม่ต้องตั้งค่าเบราว์เซอร์)'}
                 </p>
               </div>
             </div>
@@ -450,7 +472,7 @@ export default function ScreeningScanClient({ operator }: Props) {
               <div className="stepNumberCircle">1</div>
               <div className="stepContent">
                 <h4>เปิดโปรแกรม Bridge</h4>
-                <p>เปิดไฟล์ <strong>thoen-smartcard-bridge.exe</strong> หน้าต่างคอนโซลสีดำจะเชื่อมต่อไปยังระบบคลาวด์</p>
+                <p>เปิดไฟล์ <strong>thoen-smartcard-bridge.exe</strong> ทิ้งไว้ที่เครื่อง หน้าต่างสีดำจะพร้อมอ่านบัตรอัตโนมัติ</p>
               </div>
             </div>
 
