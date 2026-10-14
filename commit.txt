@@ -1,1 +1,1 @@
-style(screening): enhance header titles with golden contrast and display CID without dash separators
+refactor(screening-scan): remove redundant blue read button and make green manual read button compact

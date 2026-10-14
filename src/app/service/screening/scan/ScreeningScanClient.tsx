@@ -443,21 +443,6 @@ export default function ScreeningScanClient({ operator }: Props) {
             </div>
           </div>
 
-          <div className="hardwareActions">
-            {isBridgeConnected && (
-              <button
-                type="button"
-                onClick={() => readCardFromBridge(true)}
-                disabled={isReading}
-                className="btnBridgeRead"
-                title="สั่งอ่านข้อมูลจากเครื่องอ่านบัตรประชาชนทันที"
-              >
-                <CreditCard size={16} />
-                <span>{isReading ? 'กำลังอ่านบัตร...' : 'อ่านข้อมูลจากบัตรทันที'}</span>
-              </button>
-            )}
-          </div>
-
           <div className="operatorMetaBox">
             <div>
               <span style={{ color: '#94a3b8' }}>ผู้ปฏิบัติงาน: </span>
@@ -526,12 +511,11 @@ export default function ScreeningScanClient({ operator }: Props) {
                       type="button"
                       onClick={() => readCardFromBridge(true)}
                       disabled={isReading}
-                      className="btnPrimarySave"
-                      style={{ padding: '0.65rem 1.75rem', fontSize: '0.95rem', margin: 0 }}
+                      className="btnManualReadCard"
                       title="คลิกเพื่อสั่งอ่านข้อมูลจากบัตรประชาชนในเครื่องอ่านทันที"
                     >
-                      <CreditCard size={18} />
-                      <span>{isReading ? 'กำลังดึงข้อมูลจากบัตร...' : 'อ่านข้อมูลจากบัตรประชาชน'}</span>
+                      <CreditCard size={16} />
+                      <span>{isReading ? 'กำลังดึงข้อมูล...' : 'อ่านข้อมูลจากบัตรประชาชน'}</span>
                     </button>
                   )}
 
