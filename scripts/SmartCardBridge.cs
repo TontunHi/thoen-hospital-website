@@ -44,12 +44,71 @@ namespace ThoenSmartCardBridge
 
     public class CardReader
     {
+        // Thai National ID APDU commands
         private static byte[] APDU_SELECT_APPLET = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x00, 0x54, 0x48, 0x00, 0x01 };
         private static byte[] APDU_READ_CID = new byte[] { 0x80, 0xB0, 0x00, 0x04, 0x02, 0x00, 0x0D };
         private static byte[] APDU_READ_NAME_TH = new byte[] { 0x80, 0xB0, 0x00, 0x11, 0x02, 0x00, 0x64 };
         private static byte[] APDU_READ_NAME_EN = new byte[] { 0x80, 0xB0, 0x00, 0x75, 0x02, 0x00, 0x64 };
-        private static byte[] APDU_READ_DOB_GENDER = new byte[] { 0x80, 0xB0, 0x00, 0xE1, 0x02, 0x00, 0x12 };
+        private static byte[] APDU_READ_DOB = new byte[] { 0x80, 0xB0, 0x00, 0xD9, 0x02, 0x00, 0x08 };
+        private static byte[] APDU_READ_GENDER = new byte[] { 0x80, 0xB0, 0x00, 0xE1, 0x02, 0x00, 0x01 };
+        private static byte[] APDU_READ_ISSUER = new byte[] { 0x80, 0xB0, 0x00, 0xF6, 0x02, 0x00, 0x64 };
+        private static byte[] APDU_READ_ISSUE_DATE = new byte[] { 0x80, 0xB0, 0x01, 0x67, 0x02, 0x00, 0x08 };
+        private static byte[] APDU_READ_EXP_DATE = new byte[] { 0x80, 0xB0, 0x01, 0x6F, 0x02, 0x00, 0x08 };
         private static byte[] APDU_READ_ADDRESS = new byte[] { 0x80, 0xB0, 0x15, 0x79, 0x02, 0x00, 0x64 };
+
+        private static byte[][] PHOTO_APDUS = new byte[][] {
+            new byte[] { 0x80, 0xB0, 0x01, 0x7B, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x02, 0x79, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x03, 0x77, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x04, 0x75, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x05, 0x73, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x06, 0x71, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x07, 0x6F, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x08, 0x6D, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x09, 0x6B, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x0A, 0x69, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x0B, 0x67, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x0C, 0x65, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x0D, 0x63, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x0E, 0x61, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x0F, 0x5F, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x10, 0x5D, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x11, 0x5B, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x12, 0x59, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x13, 0x57, 0x02, 0x00, 0xFE },
+            new byte[] { 0x80, 0xB0, 0x14, 0x55, 0x02, 0x00, 0xFE }
+        };
+
+        public static byte[] SendApdu(IntPtr hCard, ref SCARD_IO_REQUEST pci, byte[] apdu)
+        {
+            byte[] recv = new byte[300];
+            int recvLen = recv.Length;
+            int ret = PcscInterop.SCardTransmit(hCard, ref pci, apdu, apdu.Length, IntPtr.Zero, recv, ref recvLen);
+            if (ret != 0) return new byte[0];
+
+            // If SW1 == 0x61, card says: XX bytes available, send GET RESPONSE (00 C0 00 00 Le)
+            if (recvLen == 2 && recv[0] == 0x61)
+            {
+                byte le = recv[1];
+                byte[] getResponse = new byte[] { 0x00, 0xC0, 0x00, 0x00, le };
+                recvLen = recv.Length;
+                ret = PcscInterop.SCardTransmit(hCard, ref pci, getResponse, getResponse.Length, IntPtr.Zero, recv, ref recvLen);
+                if (ret == 0 && recvLen >= 2 && recv[recvLen - 2] == 0x90 && recv[recvLen - 1] == 0x00)
+                {
+                    byte[] data = new byte[recvLen - 2];
+                    Array.Copy(recv, 0, data, 0, recvLen - 2);
+                    return data;
+                }
+            }
+            else if (recvLen >= 2 && recv[recvLen - 2] == 0x90 && recv[recvLen - 1] == 0x00)
+            {
+                byte[] data = new byte[recvLen - 2];
+                Array.Copy(recv, 0, data, 0, recvLen - 2);
+                return data;
+            }
+
+            return new byte[0];
+        }
 
         public static string GetActiveReader(IntPtr hContext)
         {
@@ -89,24 +148,24 @@ namespace ThoenSmartCardBridge
                 pci.dwProtocol = proto;
                 pci.cbPciLength = (uint)Marshal.SizeOf(typeof(SCARD_IO_REQUEST));
 
-                // Select Thai ID Applet
-                byte[] recv = new byte[258];
-                int recvLen = recv.Length;
-                PcscInterop.SCardTransmit(hCard, ref pci, APDU_SELECT_APPLET, APDU_SELECT_APPLET.Length, IntPtr.Zero, recv, ref recvLen);
+                // 1. Select Thai ID MOI Applet
+                SendApdu(hCard, ref pci, APDU_SELECT_APPLET);
 
                 Encoding thaiEncoding;
                 try { thaiEncoding = Encoding.GetEncoding(874); }
                 catch { thaiEncoding = Encoding.UTF8; }
 
-                // 1. CID 13 Digits
-                recvLen = recv.Length;
-                PcscInterop.SCardTransmit(hCard, ref pci, APDU_READ_CID, APDU_READ_CID.Length, IntPtr.Zero, recv, ref recvLen);
-                string cid = Encoding.ASCII.GetString(recv, 0, Math.Min(13, recvLen)).Trim();
+                // 2. CID (13 Digits)
+                byte[] cidBytes = SendApdu(hCard, ref pci, APDU_READ_CID);
+                string cid = Encoding.ASCII.GetString(cidBytes).Trim();
+                if (string.IsNullOrEmpty(cid) || cid.Length < 13)
+                {
+                    return null;
+                }
 
-                // 2. Name TH
-                recvLen = recv.Length;
-                PcscInterop.SCardTransmit(hCard, ref pci, APDU_READ_NAME_TH, APDU_READ_NAME_TH.Length, IntPtr.Zero, recv, ref recvLen);
-                string rawNameTh = thaiEncoding.GetString(recv, 0, Math.Max(0, recvLen - 2)).Trim('\0');
+                // 3. Name Thai
+                byte[] nameThBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_TH);
+                string rawNameTh = thaiEncoding.GetString(nameThBytes).Trim();
                 string[] nameThParts = rawNameTh.Split(new char[] { '#' });
                 string titleTh = nameThParts.Length > 0 ? nameThParts[0].Trim() : "";
                 string firstTh = nameThParts.Length > 1 ? nameThParts[1].Trim() : "";
@@ -114,10 +173,9 @@ namespace ThoenSmartCardBridge
                 string lastTh = nameThParts.Length > 3 ? nameThParts[3].Trim() : "";
                 string fullTh = string.Join(" ", new string[] { titleTh, firstTh, midTh, lastTh }).Replace("  ", " ").Trim();
 
-                // 3. Name EN
-                recvLen = recv.Length;
-                PcscInterop.SCardTransmit(hCard, ref pci, APDU_READ_NAME_EN, APDU_READ_NAME_EN.Length, IntPtr.Zero, recv, ref recvLen);
-                string rawNameEn = Encoding.ASCII.GetString(recv, 0, Math.Max(0, recvLen - 2)).Trim('\0');
+                // 4. Name English
+                byte[] nameEnBytes = SendApdu(hCard, ref pci, APDU_READ_NAME_EN);
+                string rawNameEn = Encoding.ASCII.GetString(nameEnBytes).Trim();
                 string[] nameEnParts = rawNameEn.Split(new char[] { '#' });
                 string titleEn = nameEnParts.Length > 0 ? nameEnParts[0].Trim() : "";
                 string firstEn = nameEnParts.Length > 1 ? nameEnParts[1].Trim() : "";
@@ -125,20 +183,60 @@ namespace ThoenSmartCardBridge
                 string lastEn = nameEnParts.Length > 3 ? nameEnParts[3].Trim() : "";
                 string fullEn = string.Join(" ", new string[] { titleEn, firstEn, midEn, lastEn }).Replace("  ", " ").Trim();
 
-                // 4. DOB / Gender
-                recvLen = recv.Length;
-                PcscInterop.SCardTransmit(hCard, ref pci, APDU_READ_DOB_GENDER, APDU_READ_DOB_GENDER.Length, IntPtr.Zero, recv, ref recvLen);
-                string dobRaw = Encoding.ASCII.GetString(recv, 0, Math.Min(8, recvLen)).Trim();
-                string birthDate = dobRaw.Length >= 8 ? string.Format("{0}-{1}-{2}", dobRaw.Substring(0, 4), dobRaw.Substring(4, 2), dobRaw.Substring(6, 2)) : dobRaw;
-                string genderCode = recvLen >= 9 ? Encoding.ASCII.GetString(recv, 8, 1) : "";
+                // 5. Date of Birth (YYYYMMDD)
+                byte[] dobBytes = SendApdu(hCard, ref pci, APDU_READ_DOB);
+                string dobRaw = Encoding.ASCII.GetString(dobBytes).Trim();
+                string birthDate = dobRaw.Length >= 8 
+                    ? string.Format("{0}-{1}-{2}", dobRaw.Substring(0, 4), dobRaw.Substring(4, 2), dobRaw.Substring(6, 2)) 
+                    : dobRaw;
+
+                // 6. Gender (1 = ชาย, 2 = หญิง)
+                byte[] genderBytes = SendApdu(hCard, ref pci, APDU_READ_GENDER);
+                string genderCode = Encoding.ASCII.GetString(genderBytes).Trim();
                 string gender = genderCode == "1" ? "ชาย" : (genderCode == "2" ? "หญิง" : "ไม่ระบุ");
 
-                // 5. Address
-                recvLen = recv.Length;
-                PcscInterop.SCardTransmit(hCard, ref pci, APDU_READ_ADDRESS, APDU_READ_ADDRESS.Length, IntPtr.Zero, recv, ref recvLen);
-                string rawAddress = thaiEncoding.GetString(recv, 0, Math.Max(0, recvLen - 2)).Trim('\0');
+                // 7. Address
+                byte[] addrBytes = SendApdu(hCard, ref pci, APDU_READ_ADDRESS);
+                string rawAddress = thaiEncoding.GetString(addrBytes).Trim();
                 string[] addrParts = rawAddress.Split(new char[] { '#' }, StringSplitOptions.RemoveEmptyEntries);
                 string address = string.Join(" ", addrParts).Trim();
+
+                // 8. Issuer, Issue Date & Expire Date
+                byte[] issuerBytes = SendApdu(hCard, ref pci, APDU_READ_ISSUER);
+                string issuer = thaiEncoding.GetString(issuerBytes).Trim();
+
+                byte[] issueDateBytes = SendApdu(hCard, ref pci, APDU_READ_ISSUE_DATE);
+                string rawIssueDate = Encoding.ASCII.GetString(issueDateBytes).Trim();
+                string issueDate = rawIssueDate.Length >= 8 
+                    ? string.Format("{0}-{1}-{2}", rawIssueDate.Substring(0, 4), rawIssueDate.Substring(4, 2), rawIssueDate.Substring(6, 2)) 
+                    : rawIssueDate;
+
+                byte[] expDateBytes = SendApdu(hCard, ref pci, APDU_READ_EXP_DATE);
+                string rawExpDate = Encoding.ASCII.GetString(expDateBytes).Trim();
+                string expireDate = rawExpDate.Length >= 8 
+                    ? string.Format("{0}-{1}-{2}", rawExpDate.Substring(0, 4), rawExpDate.Substring(4, 2), rawExpDate.Substring(6, 2)) 
+                    : rawExpDate;
+
+                // 9. Photo (JPEG)
+                string photoBase64 = "";
+                try
+                {
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        foreach (byte[] apdu in PHOTO_APDUS)
+                        {
+                            byte[] chunk = SendApdu(hCard, ref pci, apdu);
+                            if (chunk.Length == 0) break;
+                            ms.Write(chunk, 0, chunk.Length);
+                        }
+                        byte[] allPhotoBytes = ms.ToArray();
+                        if (allPhotoBytes.Length > 200 && allPhotoBytes[0] == 0xFF && allPhotoBytes[1] == 0xD8)
+                        {
+                            photoBase64 = "data:image/jpeg;base64," + Convert.ToBase64String(allPhotoBytes);
+                        }
+                    }
+                }
+                catch { }
 
                 Dictionary<string, object> data = new Dictionary<string, object>();
                 data["cid"] = cid;
@@ -153,6 +251,10 @@ namespace ThoenSmartCardBridge
                 data["birthDate"] = birthDate;
                 data["gender"] = gender;
                 data["address"] = address;
+                data["issuer"] = issuer;
+                data["issueDate"] = issueDate;
+                data["expireDate"] = expireDate;
+                data["photo"] = photoBase64;
                 data["readTimestamp"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:sszzz");
                 data["readerName"] = readerName;
                 data["source"] = "SMART_CARD_BRIDGE_PCSC";
@@ -171,10 +273,10 @@ namespace ThoenSmartCardBridge
         static void Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
-            Console.Title = "โรงพยาบาลเถิน - Smart Card Bridge v1.0";
+            Console.Title = "โรงพยาบาลเถิน - Smart Card Bridge v1.1";
 
             Console.WriteLine("===============================================================");
-            Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge Service v1.0       ");
+            Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge Service v1.1       ");
             Console.WriteLine("===============================================================");
             Console.WriteLine(" สถานะ: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
 
@@ -285,7 +387,7 @@ namespace ThoenSmartCardBridge
                             foreach (var kv in data)
                             {
                                 if (!first) sb.Append(",");
-                                sb.AppendFormat("\"{0}\":\"{1}\"", kv.Key, kv.Value.ToString().Replace("\\", "\\\\").Replace("\"", "\\\""));
+                                sb.AppendFormat("\"{0}\":\"{1}\"", kv.Key, kv.Value.ToString().Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n"));
                                 first = false;
                             }
                             sb.Append("}}");
@@ -293,7 +395,7 @@ namespace ThoenSmartCardBridge
                         }
                         else
                         {
-                            json = "{\"success\":false,\"error\":\"READ_FAILED\",\"message\":\"อ่านข้อมูลจากบัตรไม่สำเร็จ\"}";
+                            json = "{\"success\":false,\"error\":\"READ_FAILED\",\"message\":\"อ่านข้อมูลจากบัตรไม่สำเร็จ (กรุณาเสียบบัตรให้แน่นอีกครั้ง)\"}";
                         }
                     }
                     catch (Exception ex)

@@ -62,7 +62,9 @@ export default function ScreeningScanClient({ operator }: Props) {
   // Local Bridge States
   const [isBridgeConnected, setIsBridgeConnected] = useState<boolean>(false)
   const [bridgeReaderName, setBridgeReaderName] = useState<string>('')
+  const [cardPresent, setCardPresent] = useState<boolean>(false)
   const [lastReadCid, setLastReadCid] = useState<string>('')
+  const [lastSavedCid, setLastSavedCid] = useState<string>('')
 
   const saveButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -95,6 +97,56 @@ export default function ScreeningScanClient({ operator }: Props) {
     }
   }, [])
 
+  // Read card data from local bridge endpoint
+  const readCardFromBridge = useCallback(
+    async (isManual = false) => {
+      setIsReading(true)
+      if (isManual) setErrorMessage(null)
+
+      try {
+        const res = await fetch('http://127.0.0.1:8084/read', { mode: 'cors' })
+        const json = await res.json()
+        if (json.success && json.data) {
+          const cardData = json.data
+          if (cardData.cid && cardData.cid.length >= 13) {
+            setLastReadCid(cardData.cid)
+            setCurrentCard({
+              cid: cardData.cid,
+              titleTh: cardData.titleTh || '',
+              firstNameTh: cardData.firstNameTh || '',
+              lastNameTh: cardData.lastNameTh || '',
+              fullNameTh: cardData.fullNameTh || '',
+              titleEn: cardData.titleEn || '',
+              firstNameEn: cardData.firstNameEn || '',
+              lastNameEn: cardData.lastNameEn || '',
+              fullNameEn: cardData.fullNameEn || '',
+              birthDate: cardData.birthDate || '',
+              gender: cardData.gender || 'ไม่ระบุ',
+              address: cardData.address || '',
+              photoBase64: cardData.photo || undefined,
+              rawPayload: cardData,
+            })
+            playBeep(1046, 'sine', 0.12)
+            setTimeout(() => {
+              saveButtonRef.current?.focus()
+            }, 80)
+          } else if (isManual) {
+            setErrorMessage('อ่านข้อมูลจากบัตรไม่สำเร็จ หรือข้อมูลไม่สมบูรณ์')
+          }
+        } else if (isManual) {
+          setErrorMessage(json.message || 'อ่านข้อมูลจากบัตรไม่สำเร็จ กรุณาเสียบบัตรให้แน่นอีกครั้ง')
+        }
+      } catch (err: any) {
+        if (isManual) {
+          setErrorMessage(`ไม่สามารถติดต่อ Smart Card Bridge ได้: ${err.message || 'กรุณาตรวจสอบว่าเปิดโปรแกรมอยู่'}`)
+        }
+      } finally {
+        setIsReading(false)
+      }
+    },
+    [playBeep]
+  )
+
   // Auto-poll Local Smart Card Bridge (http://127.0.0.1:8084) every 1.2s
   useEffect(() => {
     let isCancelled = false
@@ -118,13 +170,19 @@ export default function ScreeningScanClient({ operator }: Props) {
         if (json.online) {
           setIsBridgeConnected(true)
           setBridgeReaderName(json.reader || 'Generic PC/SC Smart Card Reader')
-          setDeviceStatus(`Smart Card Bridge ออนไลน์: ${json.reader || 'พร้อมอ่านบัตร'}`)
+          const isPresent = Boolean(json.cardPresent)
+          setCardPresent(isPresent)
 
-          // If card is present and not currently displaying this card
-          if (json.cardPresent && !currentCard && !isReading) {
-            readCardFromBridge()
-          } else if (!json.cardPresent && lastReadCid) {
-            // Card removed from reader, allow next scan of same card if needed
+          if (isPresent) {
+            setDeviceStatus(`ตรวจพบบัตรประชาชนในเครื่อง (${json.reader || 'PC/SC Reader'})`)
+            // If card is present, and user hasn't saved this card yet and not viewing it now
+            if (!currentCard && !isReading && (!lastSavedCid || lastSavedCid !== lastReadCid)) {
+              readCardFromBridge(false)
+            }
+          } else {
+            setDeviceStatus(`Smart Card Bridge ออนไลน์: ${json.reader || 'พร้อมอ่านบัตร'}`)
+            // Card removed from reader, allow next scan of same or new card
+            setLastSavedCid('')
             setLastReadCid('')
           }
         }
@@ -132,48 +190,11 @@ export default function ScreeningScanClient({ operator }: Props) {
         if (!isCancelled) {
           setIsBridgeConnected(false)
           setBridgeReaderName('')
+          setCardPresent(false)
           if (!hidDevice) {
             setDeviceStatus('ยังไม่ได้เปิดโปรแกรม Smart Card Bridge')
           }
         }
-      }
-    }
-
-    // Auto-read from bridge when card detected
-    const readCardFromBridge = async () => {
-      setIsReading(true)
-      try {
-        const res = await fetch('http://127.0.0.1:8084/read', { mode: 'cors' })
-        const json = await res.json()
-        if (json.success && json.data) {
-          const cardData = json.data
-          if (cardData.cid !== lastReadCid) {
-            setLastReadCid(cardData.cid)
-            setCurrentCard({
-              cid: cardData.cid,
-              titleTh: cardData.titleTh,
-              firstNameTh: cardData.firstNameTh,
-              lastNameTh: cardData.lastNameTh,
-              fullNameTh: cardData.fullNameTh,
-              titleEn: cardData.titleEn,
-              firstNameEn: cardData.firstNameEn,
-              lastNameEn: cardData.lastNameEn,
-              fullNameEn: cardData.fullNameEn,
-              birthDate: cardData.birthDate,
-              gender: cardData.gender,
-              address: cardData.address,
-              rawPayload: cardData,
-            })
-            playBeep(1046, 'sine', 0.12)
-            setTimeout(() => {
-              saveButtonRef.current?.focus()
-            }, 60)
-          }
-        }
-      } catch {
-        // bridge read error
-      } finally {
-        setIsReading(false)
       }
     }
 
@@ -184,7 +205,7 @@ export default function ScreeningScanClient({ operator }: Props) {
       isCancelled = true
       clearInterval(interval)
     }
-  }, [currentCard, isReading, lastReadCid, hidDevice, playBeep])
+  }, [currentCard, isReading, lastSavedCid, lastReadCid, hidDevice, readCardFromBridge])
 
   // Connect physical Smart Card reader via WebHID fallback
   const handleConnectHid = async () => {
@@ -299,6 +320,7 @@ export default function ScreeningScanClient({ operator }: Props) {
         ...prev.slice(0, 9),
       ])
 
+      setLastSavedCid(currentCard.cid)
       setCurrentCard(null)
       setShowRawPayload(false)
 
@@ -448,6 +470,19 @@ export default function ScreeningScanClient({ operator }: Props) {
           </div>
 
           <div className="hardwareActions">
+            {isBridgeConnected && (
+              <button
+                type="button"
+                onClick={() => readCardFromBridge(true)}
+                disabled={isReading}
+                className="btnBridgeRead"
+                title="สั่งอ่านข้อมูลจากเครื่องอ่านบัตรประชาชนทันที"
+              >
+                <CreditCard size={16} />
+                <span>{isReading ? 'กำลังอ่านบัตร...' : 'อ่านข้อมูลจากบัตรทันที'}</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleMockScan}
@@ -524,15 +559,31 @@ export default function ScreeningScanClient({ operator }: Props) {
                   <CreditCard size={38} />
                 </div>
                 <h3 className="emptyCardTitle">
-                  {isBridgeConnected ? 'พร้อมรับบัตรประชาชนใบถัดไป' : 'เสียบบัตรประชาชนเข้าเครื่องอ่าน'}
+                  {isBridgeConnected ? (cardPresent ? 'ตรวจพบบัตรประชาชนในเครื่อง' : 'พร้อมรับบัตรประชาชนใบถัดไป') : 'เสียบบัตรประชาชนเข้าเครื่องอ่าน'}
                 </h3>
                 <p className="emptyCardDesc">
                   {isBridgeConnected
-                    ? 'เครื่องอ่านพร้อมทำงานแล้ว เสียบบัตรประชาชนเข้าเครื่อง ข้อมูลจะดึงขึ้นหน้าจอโดยอัตโนมัติทันที'
+                    ? (cardPresent 
+                        ? 'กำลังดึงข้อมูล หรือกดปุ่ม "อ่านข้อมูลจากบัตรประชาชน" เพื่ออ่านข้อมูลทันที'
+                        : 'เครื่องอ่านพร้อมทำงานแล้ว เสียบบัตรประชาชนเข้าเครื่อง ข้อมูลจะดึงขึ้นหน้าจอโดยอัตโนมัติทันที')
                     : 'เปิดโปรแกรม Thoen Smart Card Bridge ทิ้งไว้ที่เครื่อง หรือกดปุ่ม "จำลองอ่านบัตรตัวอย่าง" เพื่อทดสอบระบบได้ทันที'}
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  {isBridgeConnected && (
+                    <button
+                      type="button"
+                      onClick={() => readCardFromBridge(true)}
+                      disabled={isReading}
+                      className="btnPrimarySave"
+                      style={{ padding: '0.65rem 1.75rem', fontSize: '0.95rem', margin: 0 }}
+                      title="คลิกเพื่อสั่งอ่านข้อมูลจากบัตรประชาชนในเครื่องอ่านทันที"
+                    >
+                      <CreditCard size={18} />
+                      <span>{isReading ? 'กำลังดึงข้อมูลจากบัตร...' : 'อ่านข้อมูลจากบัตรประชาชน'}</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={handleMockScan}
@@ -589,36 +640,50 @@ export default function ScreeningScanClient({ operator }: Props) {
                     </div>
                   </div>
 
-                  {/* Name and Demographics */}
-                  <div className="demographicsGrid">
-                    <div className="demographicBox">
-                      <span className="boxLabel">
-                        <User size={14} />
-                        <span>ชื่อ - สกุล (ภาษาไทย)</span>
-                      </span>
-                      <p className="boxValueLarge">{currentCard.fullNameTh}</p>
-                      {currentCard.fullNameEn && (
-                        <p className="boxValueSub">{currentCard.fullNameEn}</p>
-                      )}
-                    </div>
+                  {/* Photo & Demographics Details Container */}
+                  <div className="idCardDetailsContainer">
+                    {currentCard.photoBase64 && (
+                      <div className="idCardPhotoWrapper" title="รูปถ่ายหน้าตรงจากชิปบัตรประชาชน">
+                        <img
+                          src={currentCard.photoBase64}
+                          alt="รูปถ่ายบัตรประชาชน"
+                          className="idCardPhotoImage"
+                        />
+                      </div>
+                    )}
+                    <div className="demographicsWrapper">
+                      {/* Name and Demographics */}
+                      <div className="demographicsGrid">
+                        <div className="demographicBox">
+                          <span className="boxLabel">
+                            <User size={14} />
+                            <span>ชื่อ - สกุล (ภาษาไทย)</span>
+                          </span>
+                          <p className="boxValueLarge">{currentCard.fullNameTh}</p>
+                          {currentCard.fullNameEn && (
+                            <p className="boxValueSub">{currentCard.fullNameEn}</p>
+                          )}
+                        </div>
 
-                    <div className="demographicBox">
-                      <span className="boxLabel">
-                        <Calendar size={14} />
-                        <span>วันเดือนปีเกิด</span>
-                      </span>
-                      <p className="boxValueMedium">{currentCard.birthDate || 'ไม่ระบุ'}</p>
-                      <p className="boxValueSub">พ.ศ. ตามฐานข้อมูลบัตร</p>
-                    </div>
-                  </div>
+                        <div className="demographicBox">
+                          <span className="boxLabel">
+                            <Calendar size={14} />
+                            <span>วันเดือนปีเกิด</span>
+                          </span>
+                          <p className="boxValueMedium">{currentCard.birthDate || 'ไม่ระบุ'}</p>
+                          <p className="boxValueSub">พ.ศ. ตามฐานข้อมูลบัตร</p>
+                        </div>
+                      </div>
 
-                  {/* Address */}
-                  <div className="demographicBox">
-                    <span className="boxLabel">
-                      <MapPin size={14} />
-                      <span>ที่อยู่ตามทะเบียนบ้าน</span>
-                    </span>
-                    <p className="boxAddress">{currentCard.address || 'ไม่ระบุที่อยู่'}</p>
+                      {/* Address */}
+                      <div className="demographicBox">
+                        <span className="boxLabel">
+                          <MapPin size={14} />
+                          <span>ที่อยู่ตามทะเบียนบ้าน</span>
+                        </span>
+                        <p className="boxAddress">{currentCard.address || 'ไม่ระบุที่อยู่'}</p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Toggle Raw JSON Payload */}
