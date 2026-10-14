@@ -66,6 +66,19 @@ export default function ScreeningScanClient({ operator }: Props) {
   const [lastReadCid, setLastReadCid] = useState<string>('')
   const [lastSavedCid, setLastSavedCid] = useState<string>('')
 
+  // Refs for tracking state inside stable polling intervals without teardown
+  const currentCardRef = useRef<SmartCardData | null>(null)
+  currentCardRef.current = currentCard
+
+  const isReadingRef = useRef<boolean>(false)
+  isReadingRef.current = isReading
+
+  const lastSavedCidRef = useRef<string>('')
+  lastSavedCidRef.current = lastSavedCid
+
+  const lastReadCidRef = useRef<string>('')
+  lastReadCidRef.current = lastReadCid
+
   const saveButtonRef = useRef<HTMLButtonElement>(null)
 
   // Check WebHID support in current browser
@@ -97,44 +110,78 @@ export default function ScreeningScanClient({ operator }: Props) {
     }
   }, [])
 
-  // Read card data from local bridge endpoint
+  // Robust Bridge fetch helper:
+  // 1. Tries Next.js same-origin proxy first (bypasses Chrome Private Network Access & Mixed-Content)
+  // 2. Falls back to direct 127.0.0.1:8084
+  const fetchFromBridge = useCallback(async (endpoint: 'status' | 'read') => {
+    // Attempt 1: Next.js same-origin proxy
+    try {
+      const res = await fetch(`/api/service/screening/bridge?endpoint=${endpoint}`, {
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const json = await res.json()
+        if (json.success && json.data) {
+          return json.data
+        }
+      }
+    } catch {
+      // Proxy failed or unavailable, try direct
+    }
+
+    // Attempt 2: Direct local bridge daemon
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3500)
+      const res = await fetch(`http://127.0.0.1:8084/${endpoint}`, {
+        signal: controller.signal,
+        mode: 'cors',
+        cache: 'no-store',
+      })
+      clearTimeout(timeoutId)
+      if (res.ok) {
+        return await res.json()
+      }
+    } catch {
+      // Direct bridge call failed
+    }
+
+    return null
+  }, [])
+
+  // Read card data from bridge
   const readCardFromBridge = useCallback(
     async (isManual = false) => {
       setIsReading(true)
       if (isManual) setErrorMessage(null)
 
       try {
-        const res = await fetch('http://127.0.0.1:8084/read', { mode: 'cors' })
-        const json = await res.json()
-        if (json.success && json.data) {
-          const cardData = json.data
-          if (cardData.cid && cardData.cid.length >= 13) {
-            setLastReadCid(cardData.cid)
-            setCurrentCard({
-              cid: cardData.cid,
-              titleTh: cardData.titleTh || '',
-              firstNameTh: cardData.firstNameTh || '',
-              lastNameTh: cardData.lastNameTh || '',
-              fullNameTh: cardData.fullNameTh || '',
-              titleEn: cardData.titleEn || '',
-              firstNameEn: cardData.firstNameEn || '',
-              lastNameEn: cardData.lastNameEn || '',
-              fullNameEn: cardData.fullNameEn || '',
-              birthDate: cardData.birthDate || '',
-              gender: cardData.gender || 'ไม่ระบุ',
-              address: cardData.address || '',
-              photoBase64: cardData.photo || undefined,
-              rawPayload: cardData,
-            })
-            playBeep(1046, 'sine', 0.12)
-            setTimeout(() => {
-              saveButtonRef.current?.focus()
-            }, 80)
-          } else if (isManual) {
-            setErrorMessage('อ่านข้อมูลจากบัตรไม่สำเร็จ หรือข้อมูลไม่สมบูรณ์')
-          }
+        const result = await fetchFromBridge('read')
+        const cardData = result?.data || result
+        if (result && result.success !== false && cardData && cardData.cid && cardData.cid.length >= 13) {
+          setLastReadCid(cardData.cid)
+          setCurrentCard({
+            cid: cardData.cid,
+            titleTh: cardData.titleTh || '',
+            firstNameTh: cardData.firstNameTh || '',
+            lastNameTh: cardData.lastNameTh || '',
+            fullNameTh: cardData.fullNameTh || '',
+            titleEn: cardData.titleEn || '',
+            firstNameEn: cardData.firstNameEn || '',
+            lastNameEn: cardData.lastNameEn || '',
+            fullNameEn: cardData.fullNameEn || '',
+            birthDate: cardData.birthDate || '',
+            gender: cardData.gender || 'ไม่ระบุ',
+            address: cardData.address || '',
+            photoBase64: cardData.photo || undefined,
+            rawPayload: cardData,
+          })
+          playBeep(1046, 'sine', 0.12)
+          setTimeout(() => {
+            saveButtonRef.current?.focus()
+          }, 80)
         } else if (isManual) {
-          setErrorMessage(json.message || 'อ่านข้อมูลจากบัตรไม่สำเร็จ กรุณาเสียบบัตรให้แน่นอีกครั้ง')
+          setErrorMessage(result?.message || 'อ่านข้อมูลจากบัตรไม่สำเร็จ หรือข้อมูลไม่สมบูรณ์')
         }
       } catch (err: any) {
         if (isManual) {
@@ -144,46 +191,46 @@ export default function ScreeningScanClient({ operator }: Props) {
         setIsReading(false)
       }
     },
-    [playBeep]
+    [fetchFromBridge, playBeep]
   )
 
-  // Auto-poll Local Smart Card Bridge (http://127.0.0.1:8084) every 1.2s
+  // Auto-poll Local Smart Card Bridge every 1.5s
   useEffect(() => {
     let isCancelled = false
 
     const checkBridge = async () => {
       try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 1000)
-
-        const res = await fetch('http://127.0.0.1:8084/status', {
-          signal: controller.signal,
-          mode: 'cors',
-        })
-        clearTimeout(timeoutId)
-
-        if (!res.ok) throw new Error('Bridge status not ok')
-        const json = await res.json()
-
+        const status = await fetchFromBridge('status')
         if (isCancelled) return
 
-        if (json.online) {
+        if (status && status.online) {
           setIsBridgeConnected(true)
-          setBridgeReaderName(json.reader || 'Generic PC/SC Smart Card Reader')
-          const isPresent = Boolean(json.cardPresent)
+          setBridgeReaderName(status.reader || 'Generic PC/SC Smart Card Reader')
+          const isPresent = Boolean(status.cardPresent)
           setCardPresent(isPresent)
 
           if (isPresent) {
-            setDeviceStatus(`ตรวจพบบัตรประชาชนในเครื่อง (${json.reader || 'PC/SC Reader'})`)
+            setDeviceStatus(`ตรวจพบบัตรประชาชนในเครื่อง (${status.reader || 'PC/SC Reader'})`)
             // If card is present, and user hasn't saved this card yet and not viewing it now
-            if (!currentCard && !isReading && (!lastSavedCid || lastSavedCid !== lastReadCid)) {
+            if (
+              !currentCardRef.current &&
+              !isReadingRef.current &&
+              (!lastSavedCidRef.current || lastSavedCidRef.current !== lastReadCidRef.current)
+            ) {
               readCardFromBridge(false)
             }
           } else {
-            setDeviceStatus(`Smart Card Bridge ออนไลน์: ${json.reader || 'พร้อมอ่านบัตร'}`)
+            setDeviceStatus(`Smart Card Bridge ออนไลน์: ${status.reader || 'พร้อมอ่านบัตร'}`)
             // Card removed from reader, allow next scan of same or new card
             setLastSavedCid('')
             setLastReadCid('')
+          }
+        } else {
+          if (!isCancelled) {
+            setIsBridgeConnected(false)
+            setBridgeReaderName('')
+            setCardPresent(false)
+            setDeviceStatus('ยังไม่ได้เปิดโปรแกรม Smart Card Bridge')
           }
         }
       } catch {
@@ -191,21 +238,19 @@ export default function ScreeningScanClient({ operator }: Props) {
           setIsBridgeConnected(false)
           setBridgeReaderName('')
           setCardPresent(false)
-          if (!hidDevice) {
-            setDeviceStatus('ยังไม่ได้เปิดโปรแกรม Smart Card Bridge')
-          }
+          setDeviceStatus('ยังไม่ได้เปิดโปรแกรม Smart Card Bridge')
         }
       }
     }
 
-    const interval = setInterval(checkBridge, 1200)
+    const interval = setInterval(checkBridge, 1500)
     checkBridge()
 
     return () => {
       isCancelled = true
       clearInterval(interval)
     }
-  }, [currentCard, isReading, lastSavedCid, lastReadCid, hidDevice, readCardFromBridge])
+  }, [fetchFromBridge, readCardFromBridge])
 
   // Connect physical Smart Card reader via WebHID fallback
   const handleConnectHid = async () => {

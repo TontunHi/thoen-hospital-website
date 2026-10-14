@@ -385,10 +385,11 @@ namespace ThoenSmartCardBridge
             HttpListenerRequest req = context.Request;
             HttpListenerResponse res = context.Response;
 
-            // CORS headers for web browser communication
+            // CORS & Chrome Private Network Access (PNA) headers
             res.Headers.Add("Access-Control-Allow-Origin", "*");
             res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-            res.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+            res.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Private-Network");
+            res.Headers.Add("Access-Control-Allow-Private-Network", "true");
 
             if (req.HttpMethod == "OPTIONS")
             {
