@@ -209,27 +209,6 @@
   background: #e2e8f0;
 }
 
-.btnMockScan {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #047857;
-  padding: 0.5rem 1.15rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(4, 120, 87, 0.08);
-}
-
-.btnMockScan:hover {
-  background: #d1fae5;
-  border-color: #6ee7b7;
-}
-
 .operatorMetaBox {
   display: flex;
   align-items: center;

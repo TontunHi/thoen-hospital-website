@@ -11,7 +11,6 @@ import {
   User,
   MapPin,
   Calendar,
-  Sparkles,
   ListFilter,
   Check,
   ExternalLink,
@@ -22,7 +21,6 @@ import {
 } from 'lucide-react'
 import {
   SmartCardData,
-  generateMockCardData,
   decodeTis620,
 } from '@/lib/screening/smartCardReader'
 import './page.css'
@@ -295,20 +293,6 @@ export default function ScreeningScanClient({ operator }: Props) {
     }
   }
 
-  // Simulate reading mock card (for testing and offline demo)
-  const handleMockScan = () => {
-    setErrorMessage(null)
-    setIsReading(true)
-    setTimeout(() => {
-      const mock = generateMockCardData()
-      setCurrentCard(mock)
-      setIsReading(false)
-      playBeep(1046, 'sine', 0.12)
-      setTimeout(() => {
-        saveButtonRef.current?.focus()
-      }, 50)
-    }, 250)
-  }
 
   // Save current card to screening queue
   const handleSaveQueue = async () => {
@@ -528,16 +512,6 @@ export default function ScreeningScanClient({ operator }: Props) {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={handleMockScan}
-              disabled={isReading}
-              className="btnMockScan"
-              title="จำลองการเสียบบัตรประชาชนเพื่อทดสอบระบบ"
-            >
-              <Sparkles size={16} />
-              <span>{isReading ? 'กำลังอ่านบัตร...' : 'จำลองอ่านบัตรตัวอย่าง (Mock Scan)'}</span>
-            </button>
 
             {isWebHidSupported && (
               <button
@@ -611,7 +585,7 @@ export default function ScreeningScanClient({ operator }: Props) {
                     ? (cardPresent 
                         ? 'กำลังดึงข้อมูล หรือกดปุ่ม "อ่านข้อมูลจากบัตรประชาชน" เพื่ออ่านข้อมูลทันที'
                         : 'เครื่องอ่านพร้อมทำงานแล้ว เสียบบัตรประชาชนเข้าเครื่อง ข้อมูลจะดึงขึ้นหน้าจอโดยอัตโนมัติทันที')
-                    : 'เปิดโปรแกรม Thoen Smart Card Bridge ทิ้งไว้ที่เครื่อง หรือกดปุ่ม "จำลองอ่านบัตรตัวอย่าง" เพื่อทดสอบระบบได้ทันที'}
+                    : 'เปิดโปรแกรม Thoen Smart Card Bridge ทิ้งไว้ที่เครื่อง แล้วเสียบบัตรประชาชนเพื่ออ่านข้อมูลเข้าระบบ'}
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -628,17 +602,6 @@ export default function ScreeningScanClient({ operator }: Props) {
                       <span>{isReading ? 'กำลังดึงข้อมูลจากบัตร...' : 'อ่านข้อมูลจากบัตรประชาชน'}</span>
                     </button>
                   )}
-
-                  <button
-                    type="button"
-                    onClick={handleMockScan}
-                    disabled={isReading}
-                    className="btnMockScan"
-                    style={{ padding: '0.65rem 1.5rem', fontSize: '0.95rem' }}
-                  >
-                    <Sparkles size={18} />
-                    <span>{isReading ? 'กำลังดึงข้อมูล...' : 'จำลองอ่านบัตรตัวอย่าง (Mock Data)'}</span>
-                  </button>
 
                   {!isBridgeConnected && (
                     <a
