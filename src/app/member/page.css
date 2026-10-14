@@ -330,6 +330,22 @@
 .memberDashboardContainer .pb-chipIconTg {
   color: #0088cc;
 }
+.memberDashboardContainer .pb-telegramBadge {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #0088cc 0%, #229ed9 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 136, 204, 0.25);
+  transition: transform 0.2s ease;
+}
+.memberDashboardContainer .pb-chipAction:hover .pb-telegramBadge {
+  transform: scale(1.08);
+}
 
 /* Chip label & value */
 .memberDashboardContainer .pb-chipLabel {

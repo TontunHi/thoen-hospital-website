@@ -1,0 +1,700 @@
+/* ========================================================================
+   SCREENING SMART CARD SCAN KIOSK - Rapid Batch Flow
+   ======================================================================== */
+
+.scanPage {
+  padding-top: calc(var(--navbar-height, 60px) + 1.5rem);
+  padding-bottom: 4rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), sans-serif;
+  color: #1e293b;
+}
+
+.scanContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* Top Header */
+.scanHeaderCard {
+  background: linear-gradient(135deg, #065f46 0%, #047857 50%, #064e3b 100%);
+  border-radius: 20px;
+  padding: 1.25rem 2rem;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  box-shadow: 0 10px 25px -5px rgba(6, 95, 70, 0.25);
+  margin-bottom: 1.5rem;
+}
+
+.scanTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.scanIconBadge {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  color: #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.scanTitleSection h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.scanBadgeKiosk {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.35);
+  border: 1px solid rgba(110, 231, 183, 0.4);
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  color: #d1fae5;
+}
+
+.scanSubtitle {
+  color: #a7f3d0;
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0 0;
+}
+
+.scanNavControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dashboardQuickLink {
+  background: #ffffff;
+  color: #065f46;
+  padding: 0.55rem 1.15rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dashboardQuickLink:hover {
+  background: #ecfdf5;
+  transform: translateY(-1px);
+}
+
+.backServiceBtn {
+  background: rgba(0, 0, 0, 0.2);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.55rem 0.95rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+/* Hardware & Operator Status Bar */
+.hardwareBar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.deviceStatusGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.usbIconCircle {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usbIconCircle.connected {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.deviceStatusText {
+  display: flex;
+  flex-direction: column;
+}
+
+.deviceStatusLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.statusLedDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.statusLedDot.active {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.deviceName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.hardwareActions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.btnConnectWebHid {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+}
+
+.btnConnectWebHid:hover {
+  background: #e2e8f0;
+}
+
+.btnMockScan {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  padding: 0.5rem 1.15rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(4, 120, 87, 0.08);
+}
+
+.btnMockScan:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.operatorMetaBox {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  border-left: 1px solid #e2e8f0;
+  padding-left: 1rem;
+}
+
+@media (max-width: 768px) {
+  .operatorMetaBox {
+    border-left: none;
+    padding-left: 0;
+    width: 100%;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 0.75rem;
+  }
+}
+
+.sessionCounterBadge {
+  background: #ecfdf5;
+  color: #047857;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #a7f3d0;
+}
+
+/* Success Flash Alert */
+.successBannerBox {
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  border-radius: 16px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  animation: slideDown 0.25s ease-out;
+}
+
+.successBannerContent {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.successBannerTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #065f46;
+  margin: 0;
+}
+
+.successBannerDesc {
+  font-size: 0.8rem;
+  color: #047857;
+  margin: 0.15rem 0 0 0;
+}
+
+.dismissBtn {
+  background: transparent;
+  border: none;
+  color: #047857;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Main Grid Layout */
+.scanMainGrid {
+  display: grid;
+  grid-template-columns: 8fr 4fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .scanMainGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Empty Card Slot State */
+.emptyCardSlot {
+  background: #ffffff;
+  border: 2px dashed #cbd5e1;
+  border-radius: 20px;
+  padding: 4rem 2rem;
+  text-align: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.cardIconPulseCircle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem auto;
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+  0% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { transform: scale(1.04); box-shadow: 0 0 0 16px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.emptyCardTitle {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.5rem 0;
+}
+
+.emptyCardDesc {
+  color: #64748b;
+  font-size: 0.95rem;
+  max-width: 480px;
+  margin: 0 auto 1.75rem auto;
+  line-height: 1.6;
+}
+
+/* National ID Card Mockup Style */
+.idCardMockup {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.idCardTopHeader {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  color: #ffffff;
+  padding: 1.25rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.idCardHeaderTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.idCardHeaderTitle h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.idCardHeaderTitle p {
+  font-size: 0.75rem;
+  color: #a7f3d0;
+  margin: 0;
+}
+
+.readSuccessBadge {
+  background: #10b981;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+}
+
+.idCardBody {
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cidDisplayCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.cidLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cidNumber {
+  font-family: monospace;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.08em;
+  margin-top: 0.2rem;
+}
+
+.genderTag {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+  border-radius: 8px;
+}
+
+.demographicsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .demographicsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.demographicBox {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+}
+
+.boxLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.boxValueLarge {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.boxValueSub {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.2rem;
+}
+
+.boxValueMedium {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.boxAddress {
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.rawPayloadToggleBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+}
+
+.rawPayloadToggleBtn:hover {
+  color: #0f172a;
+}
+
+.rawPayloadBox {
+  background: #0f172a;
+  color: #34d399;
+  padding: 1rem;
+  border-radius: 12px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  max-height: 200px;
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+.cardActionButtons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.5rem;
+}
+
+.btnPrimarySave {
+  flex: 1;
+  background: #059669;
+  color: #ffffff;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 14px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  box-shadow: 0 8px 18px rgba(5, 150, 105, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btnPrimarySave:hover {
+  background: #047857;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(5, 150, 105, 0.4);
+}
+
+.btnPrimarySave:active {
+  transform: translateY(0);
+}
+
+.btnPrimarySave:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btnSecondaryClear {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  padding: 1rem 1.5rem;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnSecondaryClear:hover {
+  background: #e2e8f0;
+}
+
+/* Sidebar Box */
+.recentScansBox {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.recentScansHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.recentScansHeader h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.recentBadgeCount {
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+}
+
+.recentScansList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.recentScanItem {
+  padding: 0.65rem 0.5rem;
+  border-bottom: 1px solid #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.recentItemName {
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+}
+
+.recentItemCid {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.recentItemTime {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.guideBox {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 16px;
+  padding: 1.25rem;
+  font-size: 0.825rem;
+  color: #065f46;
+  margin-top: 1rem;
+}
+
+.guideBox h5 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #047857;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.guideList {
+  padding-left: 1.25rem;
+  margin: 0;
+  line-height: 1.6;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

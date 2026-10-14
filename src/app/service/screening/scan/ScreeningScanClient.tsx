@@ -8,14 +8,12 @@ import {
   AlertCircle,
   RefreshCw,
   Usb,
-  ArrowRight,
   User,
   MapPin,
   Calendar,
   Sparkles,
   ListFilter,
   Check,
-  ChevronRight,
   ExternalLink,
   Info,
 } from 'lucide-react'
@@ -24,6 +22,7 @@ import {
   generateMockCardData,
   decodeTis620,
 } from '@/lib/screening/smartCardReader'
+import './page.css'
 
 interface OperatorInfo {
   id?: number | null
@@ -98,7 +97,7 @@ export default function ScreeningScanClient({ operator }: Props) {
 
     try {
       const devices = await (navigator as any).hid.requestDevice({
-        filters: [], // Allow user to select any USB HID / CCID reader
+        filters: [],
       })
 
       if (devices && devices.length > 0) {
@@ -110,11 +109,9 @@ export default function ScreeningScanClient({ operator }: Props) {
         setDeviceStatus(`เชื่อมต่อแล้ว: ${device.productName || 'USB Smart Card Reader'}`)
         playBeep(659, 'sine', 0.1)
 
-        // Listen to HID input reports
         device.oninputreport = (event: any) => {
           const { data } = event
           if (!data || data.byteLength === 0) return
-          // When card insertion or report is detected
           try {
             const rawBytes = new Uint8Array(data.buffer)
             const decoded = decodeTis620(rawBytes)
@@ -122,7 +119,7 @@ export default function ScreeningScanClient({ operator }: Props) {
               setDeviceStatus(`ตรวจพบบัตร: กำลังประมวลผล...`)
             }
           } catch {
-            // handle raw byte stream
+            // raw bytes
           }
         }
       }
@@ -141,8 +138,7 @@ export default function ScreeningScanClient({ operator }: Props) {
       const mock = generateMockCardData()
       setCurrentCard(mock)
       setIsReading(false)
-      playBeep(1046, 'sine', 0.12) // High crisp beep on card read
-      // Focus the save button for instant Enter confirmation
+      playBeep(1046, 'sine', 0.12)
       setTimeout(() => {
         saveButtonRef.current?.focus()
       }, 50)
@@ -182,13 +178,11 @@ export default function ScreeningScanClient({ operator }: Props) {
       }
 
       const savedData = json.data
-      playBeep(1318, 'triangle', 0.2) // Success double chime tone
+      playBeep(1318, 'triangle', 0.2)
 
-      // Flash success banner
       setSuccessBanner(`บันทึก ${savedData.fullName} เข้าระบบคิวเรียบร้อยแล้ว`)
       setSessionCount((prev) => prev + 1)
 
-      // Add to recent list
       const timeStr = new Intl.DateTimeFormat('th-TH', {
         timeZone: 'Asia/Bangkok',
         hour: '2-digit',
@@ -206,11 +200,9 @@ export default function ScreeningScanClient({ operator }: Props) {
         ...prev.slice(0, 9),
       ])
 
-      // Clear card immediately to be ready for next patient
       setCurrentCard(null)
       setShowRawPayload(false)
 
-      // Auto dismiss success banner after 4 seconds
       setTimeout(() => {
         setSuccessBanner((cur) =>
           cur === `บันทึก ${savedData.fullName} เข้าระบบคิวเรียบร้อยแล้ว` ? null : cur
@@ -241,86 +233,69 @@ export default function ScreeningScanClient({ operator }: Props) {
   }, [currentCard, isSaving])
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-16">
-      {/* Top Navigation Bar */}
-      <div className="bg-emerald-800 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-700/60 rounded-lg">
-              <CreditCard className="w-6 h-6 text-emerald-200" />
+    <div className="scanPage">
+      <div className="scanContainer">
+        {/* Top Header Card */}
+        <div className="scanHeaderCard">
+          <div className="scanTitleWrapper">
+            <div className="scanIconBadge">
+              <CreditCard size={26} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg sm:text-xl font-bold tracking-tight">
-                  จุดอ่านบัตรประชาชนตรวจนอกพื้นที่
-                </h1>
-                <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-600/80 rounded-full text-emerald-100 border border-emerald-500/50">
-                  Smart Card Kiosk
-                </span>
-              </div>
-              <p className="text-xs text-emerald-200">
+            <div className="scanTitleSection">
+              <h1>
+                <span>จุดอ่านบัตรประชาชนตรวจนอกพื้นที่</span>
+                <span className="scanBadgeKiosk">Smart Card Kiosk</span>
+              </h1>
+              <p className="scanSubtitle">
                 เสียบบัตรเพื่อนำเข้ารายชื่อผู้รับบริการอย่างต่อเนื่อง (Rapid Batch Flow)
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="scanNavControls">
             <Link
               href="/service/screening"
               target="_blank"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white transition-colors shadow-sm"
+              className="dashboardQuickLink"
             >
-              <ListFilter className="w-3.5 h-3.5" />
+              <ListFilter size={15} />
               <span>เปิดแดชบอร์ดติดตามคิว</span>
-              <ExternalLink className="w-3 h-3 text-emerald-300" />
+              <ExternalLink size={13} style={{ marginLeft: '2px', opacity: 0.8 }} />
             </Link>
-            <Link
-              href="/service"
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-900/50 hover:bg-emerald-900 text-emerald-100 transition-colors"
-            >
+            <Link href="/service" className="backServiceBtn">
               กลับหน้าบริการ
             </Link>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         {/* Hardware Status & Operator Bar */}
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div
-              className={`p-2 rounded-lg ${
-                hidDevice ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              <Usb className="w-5 h-5" />
+        <div className="hardwareBar">
+          <div className="deviceStatusGroup">
+            <div className={`usbIconCircle ${hidDevice ? 'connected' : ''}`}>
+              <Usb size={20} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-500 uppercase">สถานะเครื่องอ่าน</span>
-                <span
-                  className={`inline-block w-2 h-2 rounded-full ${
-                    hidDevice ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
-                  }`}
-                />
-              </div>
-              <p className="text-sm font-medium text-slate-800">{deviceStatus}</p>
+            <div className="deviceStatusText">
+              <span className="deviceStatusLabel">
+                <span>สถานะเครื่องอ่าน</span>
+                <span className={`statusLedDot ${hidDevice ? 'active' : ''}`} />
+              </span>
+              <span className="deviceName">{deviceStatus}</span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="hardwareActions">
             {isWebHidSupported ? (
               <button
                 type="button"
                 onClick={handleConnectHid}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200"
+                className="btnConnectWebHid"
               >
-                <Usb className="w-4 h-4 text-slate-600" />
+                <Usb size={16} />
                 <span>{hidDevice ? 'เปลี่ยนเครื่องอ่าน' : 'เชื่อมต่อเครื่องอ่านบัตร (WebHID)'}</span>
               </button>
             ) : (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-50 text-amber-800 border border-amber-200 rounded-lg">
-                <AlertCircle className="w-4 h-4 text-amber-600" />
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#fffbeb', color: '#b45309', padding: '0.4rem 0.8rem', borderRadius: '8px', fontSize: '0.8rem', border: '1px solid #fde68a' }}>
+                <AlertCircle size={15} />
                 <span>เบราว์เซอร์ไม่รองรับ WebHID (แนะนำ Chrome / Edge)</span>
               </div>
             )}
@@ -329,20 +304,20 @@ export default function ScreeningScanClient({ operator }: Props) {
               type="button"
               onClick={handleMockScan}
               disabled={isReading}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-sm"
+              className="btnMockScan"
               title="จำลองการเสียบบัตรประชาชนเพื่อทดสอบระบบ"
             >
-              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <Sparkles size={16} />
               <span>{isReading ? 'กำลังอ่านบัตร...' : 'จำลองอ่านบัตรตัวอย่าง (Mock Scan)'}</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-4 text-xs text-slate-500 border-t sm:border-t-0 sm:border-l border-slate-200 sm:pl-4 pt-2 sm:pt-0 w-full sm:w-auto">
+          <div className="operatorMetaBox">
             <div>
-              <span className="text-slate-400">ผู้ปฏิบัติงาน: </span>
-              <span className="font-semibold text-slate-700">{operator.name || operator.username}</span>
+              <span style={{ color: '#94a3b8' }}>ผู้ปฏิบัติงาน: </span>
+              <strong style={{ color: '#1e293b' }}>{operator.name || operator.username}</strong>
             </div>
-            <div className="bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-md border border-emerald-200">
+            <div className="sessionCounterBadge">
               บันทึกแล้วในเซสชันนี้: {sessionCount} คน
             </div>
           </div>
@@ -350,12 +325,12 @@ export default function ScreeningScanClient({ operator }: Props) {
 
         {/* Success Banner */}
         {successBanner && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between text-emerald-900 shadow-sm animate-in fade-in">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-6 h-6 text-emerald-600 shrink-0" />
+          <div className="successBannerBox">
+            <div className="successBannerContent">
+              <CheckCircle size={24} style={{ color: '#059669', flexShrink: 0 }} />
               <div>
-                <p className="font-bold text-sm sm:text-base">{successBanner}</p>
-                <p className="text-xs text-emerald-700 mt-0.5">
+                <p className="successBannerTitle">{successBanner}</p>
+                <p className="successBannerDesc">
                   ระบบได้เพิ่มชื่อเข้าคิวแล้ว และรีเซ็ตหน้าจอพร้อมรับบัตรคนถัดไปทันที
                 </p>
               </div>
@@ -363,7 +338,7 @@ export default function ScreeningScanClient({ operator }: Props) {
             <button
               type="button"
               onClick={() => setSuccessBanner(null)}
-              className="text-emerald-700 hover:text-emerald-900 text-xs font-semibold px-2 py-1"
+              className="dismissBtn"
             >
               ปิด
             </button>
@@ -372,49 +347,49 @@ export default function ScreeningScanClient({ operator }: Props) {
 
         {/* Error Message */}
         {errorMessage && (
-          <div className="mb-6 p-4 bg-rose-50 border border-rose-300 rounded-xl flex items-center gap-3 text-rose-900 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-            <p className="text-sm font-medium">{errorMessage}</p>
+          <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', color: '#be123c', padding: '1rem', borderRadius: '14px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.9rem' }}>
+            <AlertCircle size={20} style={{ flexShrink: 0 }} />
+            <span>{errorMessage}</span>
           </div>
         )}
 
         {/* Main Grid: Card Reader Interface & Recent History */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="scanMainGrid">
           {/* Card Reader Area */}
-          <div className="lg:col-span-8 space-y-4">
+          <div>
             {!currentCard ? (
               /* Waiting Card Slot */
-              <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-10 sm:p-14 text-center shadow-sm">
-                <div className="mx-auto w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 mb-4 animate-pulse">
-                  <CreditCard className="w-10 h-10" />
+              <div className="emptyCardSlot">
+                <div className="cardIconPulseCircle">
+                  <CreditCard size={38} />
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-slate-800">
+                <h3 className="emptyCardTitle">
                   พร้อมรับบัตรประชาชนใบถัดไป
                 </h3>
-                <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 leading-relaxed">
+                <p className="emptyCardDesc">
                   เสียบบัตรประชาชนเข้าเครื่องอ่าน Smart Card ที่ต่ออยู่กับเครื่อง
-                  หรือกดปุ่ม{' '}
-                  <span className="font-semibold text-emerald-700">"จำลองอ่านบัตรตัวอย่าง"</span>{' '}
-                  เพื่อทดสอบระบบได้ทันที
+                  หรือกดปุ่ม <strong style={{ color: '#059669' }}>"จำลองอ่านบัตรตัวอย่าง"</strong> เพื่อทดสอบระบบได้ทันที
                 </p>
 
-                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={handleMockScan}
                     disabled={isReading}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl transition-colors shadow"
+                    className="btnMockScan"
+                    style={{ padding: '0.65rem 1.5rem', fontSize: '0.95rem' }}
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Sparkles size={18} />
                     <span>{isReading ? 'กำลังดึงข้อมูล...' : 'จำลองอ่านบัตรตัวอย่าง (Mock Data)'}</span>
                   </button>
                   {isWebHidSupported && !hidDevice && (
                     <button
                       type="button"
                       onClick={handleConnectHid}
-                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-sm rounded-xl transition-colors border border-slate-300"
+                      className="btnConnectWebHid"
+                      style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem' }}
                     >
-                      <Usb className="w-4 h-4" />
+                      <Usb size={18} />
                       <span>เชื่อมต่อเครื่องอ่าน USB</span>
                     </button>
                   )}
@@ -422,113 +397,102 @@ export default function ScreeningScanClient({ operator }: Props) {
               </div>
             ) : (
               /* Card Data Preview & Action Card */
-              <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden">
-                {/* Header banner of the card */}
-                <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 text-white px-6 py-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-5 h-5 text-emerald-200" />
+              <div className="idCardMockup">
+                <div className="idCardTopHeader">
+                  <div className="idCardHeaderTitle">
+                    <CreditCard size={22} style={{ color: '#a7f3d0' }} />
                     <div>
-                      <h3 className="font-bold text-sm sm:text-base">ข้อมูลจากบัตรประจำตัวประชาชน</h3>
-                      <p className="text-xs text-emerald-200">ตรวจสอบความถูกต้องก่อนกดบันทึกเข้าคิว</p>
+                      <h3>ข้อมูลจากบัตรประจำตัวประชาชน</h3>
+                      <p>ตรวจสอบความถูกต้องก่อนกดบันทึกเข้าคิว</p>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 text-xs font-semibold bg-emerald-600/90 rounded-md border border-emerald-400/40">
+                  <span className="readSuccessBadge">
                     อ่านสำเร็จ
                   </span>
                 </div>
 
-                <div className="p-6 sm:p-8 space-y-6">
-                  {/* Citizen ID (Large Display) */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="idCardBody">
+                  {/* Citizen ID Large Display */}
+                  <div className="cidDisplayCard">
                     <div>
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        เลขประจำตัวประชาชน (13 หลัก)
-                      </span>
-                      <div className="text-xl sm:text-2xl font-mono font-bold text-slate-900 tracking-wider mt-0.5">
+                      <span className="cidLabel">เลขประจำตัวประชาชน (13 หลัก)</span>
+                      <div className="cidNumber">
                         {currentCard.cid.replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5')}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-md">
+                    <div>
+                      <span className="genderTag">
                         เพศ: {currentCard.gender || 'ไม่ระบุ'}
                       </span>
                     </div>
                   </div>
 
                   {/* Name and Demographics */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="border border-slate-200 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase mb-1">
-                        <User className="w-3.5 h-3.5" />
+                  <div className="demographicsGrid">
+                    <div className="demographicBox">
+                      <span className="boxLabel">
+                        <User size={14} />
                         <span>ชื่อ - สกุล (ภาษาไทย)</span>
-                      </div>
-                      <p className="text-lg font-bold text-slate-800">
-                        {currentCard.fullNameTh}
-                      </p>
+                      </span>
+                      <p className="boxValueLarge">{currentCard.fullNameTh}</p>
                       {currentCard.fullNameEn && (
-                        <p className="text-xs text-slate-500 font-mono mt-0.5">
-                          {currentCard.fullNameEn}
-                        </p>
+                        <p className="boxValueSub">{currentCard.fullNameEn}</p>
                       )}
                     </div>
 
-                    <div className="border border-slate-200 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase mb-1">
-                        <Calendar className="w-3.5 h-3.5" />
+                    <div className="demographicBox">
+                      <span className="boxLabel">
+                        <Calendar size={14} />
                         <span>วันเดือนปีเกิด</span>
-                      </div>
-                      <p className="text-base font-semibold text-slate-800">
-                        {currentCard.birthDate || 'ไม่ระบุ'}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">พ.ศ. ตามฐานข้อมูลบัตร</p>
+                      </span>
+                      <p className="boxValueMedium">{currentCard.birthDate || 'ไม่ระบุ'}</p>
+                      <p className="boxValueSub">พ.ศ. ตามฐานข้อมูลบัตร</p>
                     </div>
                   </div>
 
                   {/* Address */}
-                  <div className="border border-slate-200 rounded-xl p-4">
-                    <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase mb-1">
-                      <MapPin className="w-3.5 h-3.5" />
+                  <div className="demographicBox">
+                    <span className="boxLabel">
+                      <MapPin size={14} />
                       <span>ที่อยู่ตามทะเบียนบ้าน</span>
-                    </div>
-                    <p className="text-sm font-medium text-slate-800 leading-relaxed">
-                      {currentCard.address || 'ไม่ระบุที่อยู่'}
-                    </p>
+                    </span>
+                    <p className="boxAddress">{currentCard.address || 'ไม่ระบุที่อยู่'}</p>
                   </div>
 
                   {/* Toggle Raw JSON Payload */}
-                  <div className="pt-1">
+                  <div>
                     <button
                       type="button"
                       onClick={() => setShowRawPayload(!showRawPayload)}
-                      className="text-xs font-medium text-slate-500 hover:text-slate-800 inline-flex items-center gap-1.5 transition-colors"
+                      className="rawPayloadToggleBtn"
                     >
-                      <Info className="w-3.5 h-3.5" />
+                      <Info size={14} />
                       <span>{showRawPayload ? 'ซ่อนข้อมูลดิบจากบัตร (Raw Payload)' : 'ดูข้อมูลดิบทั้งหมดที่เครื่องอ่านส่งมา (Raw Payload)'}</span>
                     </button>
                     {showRawPayload && (
-                      <pre className="mt-2.5 p-3.5 bg-slate-900 text-emerald-400 rounded-xl text-xs font-mono overflow-x-auto max-h-56 leading-relaxed">
+                      <pre className="rawPayloadBox">
                         {JSON.stringify(currentCard.rawPayload, null, 2)}
                       </pre>
                     )}
                   </div>
 
                   {/* Big Primary Action Buttons */}
-                  <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <div className="cardActionButtons">
                     <button
                       ref={saveButtonRef}
                       type="button"
                       onClick={handleSaveQueue}
                       disabled={isSaving}
-                      className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-xl transition-all shadow-lg hover:shadow-emerald-600/30 active:scale-[0.99] disabled:opacity-60"
+                      className="btnPrimarySave"
                     >
                       {isSaving ? (
                         <>
-                          <RefreshCw className="w-5 h-5 animate-spin" />
+                          <RefreshCw size={20} className="refreshIconSpin" />
                           <span>กำลังบันทึกข้อมูล...</span>
                         </>
                       ) : (
                         <>
-                          <Check className="w-5 h-5 stroke-[2.5]" />
+                          <Check size={22} style={{ strokeWidth: 3 }} />
                           <span>เพิ่มเข้าระบบ (กดปุ่ม Enter)</span>
                         </>
                       )}
@@ -538,7 +502,7 @@ export default function ScreeningScanClient({ operator }: Props) {
                       type="button"
                       onClick={() => setCurrentCard(null)}
                       disabled={isSaving}
-                      className="px-5 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition-colors border border-slate-300"
+                      className="btnSecondaryClear"
                     >
                       ยกเลิก / ล้างหน้าจอ (Esc)
                     </button>
@@ -548,58 +512,50 @@ export default function ScreeningScanClient({ operator }: Props) {
             )}
           </div>
 
-          {/* Sidebar: Recent Scans in this session & Fast Tips */}
-          <div className="lg:col-span-4 space-y-5">
-            {/* Recent Scans Box */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" />
-                  <h4 className="font-bold text-sm text-slate-800">
-                    บันทึกล่าสุดในเซสชันนี้
-                  </h4>
-                </div>
-                <span className="text-xs font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+          {/* Sidebar */}
+          <div>
+            <div className="recentScansBox">
+              <div className="recentScansHeader">
+                <h4>
+                  <CheckCircle size={16} style={{ color: '#059669' }} />
+                  <span>บันทึกล่าสุดในเซสชันนี้</span>
+                </h4>
+                <span className="recentBadgeCount">
                   {recentSaved.length} รายการ
                 </span>
               </div>
 
               {recentSaved.length === 0 ? (
-                <div className="py-8 text-center text-slate-400 text-xs">
+                <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
                   ยังไม่มีรายการที่บันทึกในเซสชันนี้
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                <div className="recentScansList">
                   {recentSaved.map((item, idx) => (
-                    <div key={item.id || idx} className="py-2.5 flex items-center justify-between text-xs">
+                    <div key={item.id || idx} className="recentScanItem">
                       <div>
-                        <p className="font-semibold text-slate-800 truncate max-w-[170px]">
-                          {item.fullName}
-                        </p>
-                        <p className="text-slate-400 font-mono text-[11px]">
+                        <div className="recentItemName">{item.fullName}</div>
+                        <div className="recentItemCid">
                           {item.cid.replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5')}
-                        </p>
+                        </div>
                       </div>
-                      <span className="text-slate-400 font-mono text-[11px] shrink-0">
-                        {item.savedAt}
-                      </span>
+                      <span className="recentItemTime">{item.savedAt}</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Operator Quick Guide */}
-            <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-5 text-xs text-slate-600 space-y-2.5">
-              <h5 className="font-bold text-emerald-900 flex items-center gap-1.5">
-                <Info className="w-4 h-4 text-emerald-700" />
+            <div className="guideBox">
+              <h5>
+                <Info size={16} />
                 <span>คำแนะนำการใช้งานจุดอ่านบัตร</span>
               </h5>
-              <ul className="space-y-1.5 text-slate-600 list-disc list-inside">
+              <ul className="guideList">
                 <li>เมื่อเสียบบัตร ระบบจะดึงข้อมูลพรีวิวขึ้นหน้าจอโดยอัตโนมัติ</li>
-                <li>สามารถกดปุ่ม <span className="font-semibold text-slate-800">Enter</span> บนคีย์บอร์ดเพื่อบันทึกได้ทันที</li>
+                <li>สามารถกดปุ่ม <strong>Enter</strong> บนคีย์บอร์ดเพื่อบันทึกได้ทันที</li>
                 <li>เมื่อบันทึกเสร็จ หน้าจอจะล้างและค้างไว้เพื่อพร้อมรับคนถัดไปทันที</li>
-                <li>จุดคัดกรองหรือห้องบัตรสามารถเปิดดูรายชื่อสดได้ที่หน้า <Link href="/service/screening" target="_blank" className="text-emerald-700 underline font-semibold">แดชบอร์ดคิว</Link></li>
+                <li>จุดคัดกรองหรือห้องบัตรสามารถเปิดดูรายชื่อสดได้ที่หน้า <Link href="/service/screening" target="_blank" style={{ color: '#047857', fontWeight: 700, textDecoration: 'underline' }}>แดชบอร์ดคิว</Link></li>
               </ul>
             </div>
           </div>

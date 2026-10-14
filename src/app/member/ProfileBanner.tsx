@@ -206,11 +206,9 @@ export default function ProfileBanner({
             onClick={() => setIsTelegramModalOpen(true)}
             title="คลิกเพื่อดูข้อมูลการเชื่อมต่อ Telegram"
           >
-            <Send 
-              size={15} 
-              className="pb-chipIcon pb-chipIconTg" 
-              aria-hidden="true" 
-            />
+            <div className="pb-telegramBadge" aria-hidden="true">
+              <Send size={13} style={{ transform: 'translate(-0.5px, 0.5px)' }} />
+            </div>
             <span className="pb-chipLabel">การแจ้งเตือน</span>
             <span className="pb-chipValue" style={{ color: '#0088cc', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span 
@@ -229,11 +227,9 @@ export default function ProfileBanner({
             className="pb-chip pb-chipAction" 
             onClick={() => setIsTelegramModalOpen(true)}
           >
-            <Send 
-              size={15} 
-              className="pb-chipIcon pb-chipIconTg" 
-              aria-hidden="true" 
-            />
+            <div className="pb-telegramBadge" aria-hidden="true">
+              <Send size={13} style={{ transform: 'translate(-0.5px, 0.5px)' }} />
+            </div>
             <span className="pb-chipLabel">การแจ้งเตือน</span>
             <span className="pb-chipValue">เชื่อมระบบ Telegram</span>
           </button>

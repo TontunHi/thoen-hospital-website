@@ -12,17 +12,12 @@ import {
   XCircle,
   FileText,
   CreditCard,
-  ExternalLink,
-  ChevronRight,
-  Filter,
-  Eye,
   X,
   Copy,
   Check,
-  AlertTriangle,
-  Play,
   Pause,
 } from 'lucide-react'
+import './page.css'
 
 interface UserInfo {
   id?: number | null
@@ -126,7 +121,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
     let vn: string | undefined = undefined
     if (vnPrompt && newStatus === 'VISIT_OPENED') {
       const enteredVn = window.prompt('ระบุเลข Visit (VN) หากมี (เว้นว่างได้):', '')
-      if (enteredVn === null) return // cancelled by user
+      if (enteredVn === null) return
       vn = enteredVn.trim() || undefined
     }
 
@@ -146,7 +141,6 @@ export default function ScreeningDashboardClient({ user }: Props) {
         throw new Error(json.error?.message || 'ปรับปรุงสถานะไม่สำเร็จ')
       }
 
-      // Update local state immediately
       setItems((prev) =>
         prev.map((item) =>
           item.id === id ? { ...item, status: newStatus, vn: vn ?? item.vn } : item
@@ -234,7 +228,6 @@ export default function ScreeningDashboardClient({ user }: Props) {
       if (parts.length >= 1) {
         const year = parseInt(parts[0], 10)
         if (!isNaN(year)) {
-          // Thai Buddhist year or CE year
           const currentThaiYear = new Date().getFullYear() + 543
           if (year > 2400) {
             const age = currentThaiYear - year
@@ -252,94 +245,82 @@ export default function ScreeningDashboardClient({ user }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-16">
-      {/* Top Header */}
-      <div className="bg-emerald-800 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-700/60 rounded-xl">
-              <Users className="w-6 h-6 text-emerald-200" />
+    <div className="screeningPage">
+      <div className="screeningContainer">
+        {/* Top Header Card */}
+        <div className="screeningHeaderCard">
+          <div className="screeningTitleWrapper">
+            <div className="screeningIconBadge">
+              <Users size={28} />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-                  ระบบคัดกรองตรวจนอกพื้นที่
-                </h1>
-                <span className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-600/80 rounded-full text-emerald-100 border border-emerald-500/50">
-                  Screening Queue
-                </span>
-              </div>
-              <p className="text-xs text-emerald-200 mt-0.5">
+            <div className="screeningTitleSection">
+              <h1>
+                <span>ระบบคัดกรองตรวจนอกพื้นที่</span>
+                <span className="screeningTag">Screening Queue</span>
+              </h1>
+              <p className="screeningSubtitle">
                 ติดตามรายชื่อผู้รับบริการจากเครื่องอ่านบัตรประชาชน Smart Card แบบเรียลไทม์
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <Link
-              href="/service/screening/scan"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 transition-all shadow-sm"
-            >
-              <CreditCard className="w-4 h-4 text-emerald-600" />
-              <span>ไปที่จุดอ่านบัตรประชาชน</span>
+          <div className="screeningNavControls">
+            <Link href="/service/screening/scan" className="scanKioskLink">
+              <CreditCard size={18} />
+              <span>จุดอ่านบัตรประชาชน</span>
             </Link>
-            <Link
-              href="/service"
-              className="inline-flex items-center gap-1 px-3 py-2 text-xs font-medium rounded-xl bg-emerald-900/50 hover:bg-emerald-900 text-emerald-100 transition-colors"
-            >
+            <Link href="/service" className="backServiceLink">
               กลับหน้าบริการ
             </Link>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {/* Statistics Banner Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">คิวทั้งหมด</span>
-              <Users className="w-4 h-4 text-slate-400" />
+        {/* Statistics Cards */}
+        <div className="screeningStatsGrid">
+          <div className="screeningStatCard">
+            <div className="statCardHeader">
+              <span>คิวทั้งหมด</span>
+              <Users size={18} />
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</p>
-            <span className="text-[11px] text-slate-400">
+            <div className="statCardNumber">{stats.total}</div>
+            <div className="statCardDesc">
               {selectedDate === 'today' ? 'วันนี้' : selectedDate}
-            </span>
+            </div>
           </div>
 
-          <div className="bg-white border border-amber-200 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-amber-700">รอเปิด Visit</span>
-              <Clock className="w-4 h-4 text-amber-500" />
+          <div className="screeningStatCard waiting">
+            <div className="statCardHeader">
+              <span>รอเปิด Visit</span>
+              <Clock size={18} />
             </div>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{stats.waiting}</p>
-            <span className="text-[11px] text-amber-600/80">พร้อมส่งห้องบัตร</span>
+            <div className="statCardNumber">{stats.waiting}</div>
+            <div className="statCardDesc">พร้อมส่งห้องบัตร</div>
           </div>
 
-          <div className="bg-white border border-emerald-200 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-700">เปิด Visit แล้ว</span>
-              <CheckCircle className="w-4 h-4 text-emerald-500" />
+          <div className="screeningStatCard opened">
+            <div className="statCardHeader">
+              <span>เปิด Visit แล้ว</span>
+              <CheckCircle size={18} />
             </div>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.opened}</p>
-            <span className="text-[11px] text-emerald-600/80">เข้าสู่ระบบสำเร็จ</span>
+            <div className="statCardNumber">{stats.opened}</div>
+            <div className="statCardDesc">เข้าสู่ระบบสำเร็จ</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">ยกเลิก</span>
-              <XCircle className="w-4 h-4 text-slate-400" />
+          <div className="screeningStatCard cancelled">
+            <div className="statCardHeader">
+              <span>ยกเลิก</span>
+              <XCircle size={18} />
             </div>
-            <p className="text-2xl font-bold text-slate-600 mt-1">{stats.cancelled}</p>
-            <span className="text-[11px] text-slate-400">ไม่มารับบริการ/ยกเลิก</span>
+            <div className="statCardNumber">{stats.cancelled}</div>
+            <div className="statCardDesc">ไม่มารับบริการ / ยกเลิก</div>
           </div>
         </div>
 
-        {/* Toolbar & Controls Bar */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm mb-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {/* Status Filter Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+        {/* Toolbar & Filters */}
+        <div className="screeningToolbar">
+          <div className="toolbarTopRow">
+            {/* Status Tabs */}
+            <div className="statusFilterTabs">
               {[
                 { id: 'ALL', label: 'ทั้งหมด', count: stats.total },
                 { id: 'WAITING', label: 'รอเปิด Visit', count: stats.waiting },
@@ -350,46 +331,30 @@ export default function ScreeningDashboardClient({ user }: Props) {
                   key={tab.id}
                   type="button"
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
-                    statusFilter === tab.id
-                      ? 'bg-white text-emerald-800 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`filterTabBtn ${statusFilter === tab.id ? 'active' : ''}`}
                 >
                   <span>{tab.label}</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      statusFilter === tab.id
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-slate-200 text-slate-600'
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
+                  <span className="filterTabBadge">{tab.count}</span>
                 </button>
               ))}
             </div>
 
-            {/* Auto Refresh & Action Controls */}
-            <div className="flex items-center gap-2">
+            {/* Controls */}
+            <div className="toolbarControls">
               <button
                 type="button"
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                  autoRefresh
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-slate-50 text-slate-600 border-slate-200'
-                }`}
-                title={autoRefresh ? 'กำลังรีเฟรชอัตโนมัติทุก 3 วินาที' : 'หยุดรีเฟรชอัตโนมัติ'}
+                className={`autoRefreshToggleBtn ${autoRefresh ? 'active' : ''}`}
+                title={autoRefresh ? 'กำลังอัปเดตสดทุก 3 วินาที' : 'หยุดอัปเดตสด'}
               >
                 {autoRefresh ? (
                   <>
-                    <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <RefreshCw size={14} className={isRefreshing ? 'refreshIconSpin' : ''} />
                     <span>อัปเดตสด (3s)</span>
                   </>
                 ) : (
                   <>
-                    <Pause className="w-3.5 h-3.5 text-slate-400" />
+                    <Pause size={14} />
                     <span>หยุดอัปเดตสด</span>
                   </>
                 )}
@@ -399,23 +364,19 @@ export default function ScreeningDashboardClient({ user }: Props) {
                 type="button"
                 onClick={() => fetchQueues()}
                 disabled={loading}
-                className="p-1.5 text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                className="autoRefreshToggleBtn"
                 title="กดรีเฟรชข้อมูลทันที"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw size={14} className={loading ? 'refreshIconSpin' : ''} />
+                <span>รีเฟรช</span>
               </button>
 
-              {/* Historical View Toggle Button */}
               <button
                 type="button"
                 onClick={() => setIsHistoricalOpen(!isHistoricalOpen)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                  isHistoricalOpen || selectedDate !== 'today'
-                    ? 'bg-slate-800 text-white border-slate-800'
-                    : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
-                }`}
+                className={`historyToggleBtn ${isHistoricalOpen || selectedDate !== 'today' ? 'active' : ''}`}
               >
-                <Calendar className="w-3.5 h-3.5" />
+                <Calendar size={14} />
                 <span>{selectedDate === 'today' ? 'ดูข้อมูลย้อนหลัง' : `วันที่: ${selectedDate}`}</span>
               </button>
             </div>
@@ -423,14 +384,16 @@ export default function ScreeningDashboardClient({ user }: Props) {
 
           {/* Historical Date Picker Accordion */}
           {isHistoricalOpen && (
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-3 animate-in fade-in">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-600">เลือกวันที่ต้องการดู:</span>
+            <div className="historyPickerBar">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>
+                  เลือกวันที่ต้องการดู:
+                </span>
                 <input
                   type="date"
                   value={customDateInput}
                   onChange={(e) => setCustomDateInput(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800"
+                  className="historyDateInput"
                 />
                 <button
                   type="button"
@@ -439,7 +402,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
                       setSelectedDate(customDateInput)
                     }
                   }}
-                  className="px-3 py-1.5 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  className="historySubmitBtn"
                 >
                   ค้นหาตามวันที่
                 </button>
@@ -453,7 +416,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
                     setCustomDateInput('')
                     setIsHistoricalOpen(false)
                   }}
-                  className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline"
+                  className="backTodayBtn"
                 >
                   กลับไปดูของวันนี้ (Today)
                 </button>
@@ -461,23 +424,23 @@ export default function ScreeningDashboardClient({ user }: Props) {
             </div>
           )}
 
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          {/* Search Box */}
+          <div className="searchBoxFull">
+            <Search size={16} className="searchIcon" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="ค้นหาด้วยชื่อ-สกุล, เลขประจำตัวประชาชน 13 หลัก, หรือเลข VN..."
-              className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-slate-800 placeholder:text-slate-400"
+              className="searchInput"
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                className="clearSearchBtn"
               >
-                <X className="w-3.5 h-3.5" />
+                <X size={14} />
               </button>
             )}
           </div>
@@ -485,41 +448,41 @@ export default function ScreeningDashboardClient({ user }: Props) {
 
         {/* Error Notification */}
         {errorMessage && (
-          <div className="mb-6 p-4 bg-rose-50 border border-rose-300 rounded-xl text-rose-800 text-sm">
+          <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', color: '#be123c', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
             {errorMessage}
           </div>
         )}
 
         {/* Queue Items Table */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+        <div className="screeningTableCard">
+          <div className="tableResponsive">
+            <table className="screeningTable">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3.5 text-center w-12">ลำดับ</th>
-                  <th className="px-4 py-3.5 w-24">เวลาอ่านบัตร</th>
-                  <th className="px-4 py-3.5 w-44">เลขบัตรประชาชน</th>
-                  <th className="px-4 py-3.5">ชื่อ - สกุล</th>
-                  <th className="px-4 py-3.5 w-20 text-center">อายุ</th>
-                  <th className="px-4 py-3.5 hidden md:table-cell max-w-xs">ที่อยู่</th>
-                  <th className="px-4 py-3.5 w-32 text-center">สถานะ</th>
-                  <th className="px-4 py-3.5 w-32 text-center">การกระทำ</th>
+                  <th className="tableColCenter" style={{ width: '50px' }}>ลำดับ</th>
+                  <th style={{ width: '110px' }}>เวลาอ่านบัตร</th>
+                  <th style={{ width: '170px' }}>เลขบัตรประชาชน</th>
+                  <th>ชื่อ - สกุล</th>
+                  <th className="tableColCenter" style={{ width: '80px' }}>อายุ</th>
+                  <th style={{ maxWidth: '280px' }}>ที่อยู่</th>
+                  <th className="tableColCenter" style={{ width: '130px' }}>สถานะ</th>
+                  <th className="tableColCenter" style={{ width: '140px' }}>การกระทำ</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {loading && items.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center text-slate-400">
-                      <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
-                      <span>กำลังโหลดรายการคิว...</span>
+                    <td colSpan={8} className="emptyTableState">
+                      <RefreshCw size={28} className="refreshIconSpin" style={{ margin: '0 auto 0.5rem auto', color: '#059669', display: 'block' }} />
+                      <p className="emptyStateTitle">กำลังโหลดรายการคิว...</p>
                     </td>
                   </tr>
                 ) : filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center text-slate-400">
-                      <Users className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                      <p className="font-medium text-slate-600">ยังไม่มีรายชื่อในคิว</p>
-                      <p className="text-xs text-slate-400 mt-1">
+                    <td colSpan={8} className="emptyTableState">
+                      <Users size={36} style={{ margin: '0 auto 0.5rem auto', color: '#cbd5e1', display: 'block' }} />
+                      <p className="emptyStateTitle">ยังไม่มีรายชื่อในคิว</p>
+                      <p className="emptyStateDesc">
                         {searchTerm
                           ? 'ไม่พบข้อมูลที่ตรงกับคำค้นหา'
                           : 'เสียบบัตรประชาชนที่หน้าจุดอ่านบัตรเพื่อเริ่มนำเข้ารายชื่อ'}
@@ -528,82 +491,73 @@ export default function ScreeningDashboardClient({ user }: Props) {
                   </tr>
                 ) : (
                   filteredItems.map((item, idx) => (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-slate-50/70 transition-colors group"
-                    >
+                    <tr key={item.id}>
                       {/* Number */}
-                      <td className="px-4 py-3.5 text-center font-mono text-xs text-slate-400">
-                        {idx + 1}
-                      </td>
+                      <td className="tableColCenter timeMono">{idx + 1}</td>
 
-                      {/* Scan Time */}
-                      <td className="px-4 py-3.5 text-xs text-slate-600 font-mono whitespace-nowrap">
-                        {formatTime(item.createdAt)}
-                      </td>
+                      {/* Time */}
+                      <td className="timeMono">{formatTime(item.createdAt)}</td>
 
-                      {/* Citizen ID */}
-                      <td className="px-4 py-3.5 font-mono text-xs text-slate-800 font-semibold whitespace-nowrap">
+                      {/* CID */}
+                      <td className="cidMono">
                         {item.cid.replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5')}
                       </td>
 
                       {/* Full Name */}
-                      <td className="px-4 py-3.5">
-                        <div className="font-bold text-slate-800">{item.fullName}</div>
-                        <div className="text-[11px] text-slate-400">
-                          {item.gender ? `เพศ: ${item.gender}` : ''}
-                          {item.birthDate ? ` • เกิด: ${item.birthDate}` : ''}
+                      <td>
+                        <div className="patientNameCell">
+                          <span className="patientFullName">{item.fullName}</span>
+                          <span className="patientMeta">
+                            {item.gender ? `เพศ: ${item.gender}` : ''}
+                            {item.birthDate ? ` • เกิด: ${item.birthDate}` : ''}
+                          </span>
                         </div>
                       </td>
 
                       {/* Age */}
-                      <td className="px-4 py-3.5 text-center text-xs text-slate-600 whitespace-nowrap">
+                      <td className="tableColCenter" style={{ fontSize: '0.85rem' }}>
                         {formatAge(item.birthDate)}
                       </td>
 
                       {/* Address */}
-                      <td className="px-4 py-3.5 hidden md:table-cell text-xs text-slate-500 truncate max-w-xs" title={item.address || ''}>
+                      <td style={{ fontSize: '0.85rem', color: '#64748b' }}>
                         {item.address || '-'}
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      <td className="tableColCenter">
                         {item.status === 'WAITING' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            <Clock className="w-3 h-3 text-amber-500" />
+                          <span className="statusBadge waiting">
+                            <Clock size={12} />
                             <span>รอเปิด Visit</span>
                           </span>
                         )}
                         {item.status === 'VISIT_OPENED' && (
-                          <div className="inline-flex flex-col items-center">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <CheckCircle className="w-3 h-3 text-emerald-500" />
+                          <div>
+                            <span className="statusBadge opened">
+                              <CheckCircle size={12} />
                               <span>เปิด Visit แล้ว</span>
                             </span>
-                            {item.vn && (
-                              <span className="text-[10px] font-mono text-emerald-700 font-semibold mt-0.5">
-                                VN: {item.vn}
-                              </span>
-                            )}
+                            {item.vn && <span className="vnText">VN: {item.vn}</span>}
                           </div>
                         )}
                         {item.status === 'CANCELLED' && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                            <XCircle className="w-3 h-3 text-slate-400" />
+                          <span className="statusBadge cancelled">
+                            <XCircle size={12} />
                             <span>ยกเลิก</span>
                           </span>
                         )}
                       </td>
 
-                      {/* Action Buttons */}
-                      <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
+                      {/* Actions */}
+                      <td className="tableColCenter">
+                        <div className="tableActionRow">
                           {item.status === 'WAITING' ? (
                             <button
                               type="button"
                               onClick={() => handleUpdateStatus(item.id, 'VISIT_OPENED', true)}
                               disabled={actionLoadingId === item.id}
-                              className="px-2.5 py-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                              className="btnActionOpenVisit"
                               title="เปลี่ยนสถานะเป็นเปิด Visit แล้ว"
                             >
                               {actionLoadingId === item.id ? '...' : 'เปิด Visit'}
@@ -613,7 +567,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
                               type="button"
                               onClick={() => handleUpdateStatus(item.id, 'WAITING')}
                               disabled={actionLoadingId === item.id}
-                              className="px-2 py-1 text-xs text-slate-500 hover:text-slate-800 bg-slate-100 rounded-lg"
+                              className="btnActionReset"
                               title="ย้อนกลับเป็นรอเปิด Visit"
                             >
                               รีเซ็ต
@@ -625,20 +579,20 @@ export default function ScreeningDashboardClient({ user }: Props) {
                               type="button"
                               onClick={() => handleUpdateStatus(item.id, 'CANCELLED')}
                               disabled={actionLoadingId === item.id}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded-lg transition-colors"
+                              className="btnActionIcon cancel"
                               title="ยกเลิกคิวนี้"
                             >
-                              <XCircle className="w-4 h-4" />
+                              <XCircle size={14} />
                             </button>
                           )}
 
                           <button
                             type="button"
                             onClick={() => handleOpenRawPayload(item.id)}
-                            className="p-1 text-slate-400 hover:text-emerald-700 rounded-lg transition-colors"
+                            className="btnActionIcon rawPayload"
                             title="ดูข้อมูลดิบจากบัตร (Raw Payload)"
                           >
-                            <FileText className="w-4 h-4" />
+                            <FileText size={14} />
                           </button>
                         </div>
                       </td>
@@ -651,16 +605,18 @@ export default function ScreeningDashboardClient({ user }: Props) {
         </div>
       </div>
 
-      {/* Raw Payload Detail Modal */}
+      {/* Raw Payload Modal */}
       {payloadModalOpen && selectedItemForPayload && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <FileText className="w-5 h-5 text-emerald-400" />
+        <div className="rawModalOverlay" onClick={() => setPayloadModalOpen(false)}>
+          <div className="rawModalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="rawModalHeader">
+              <div className="rawModalTitleGroup">
+                <FileText size={20} style={{ color: '#34d399' }} />
                 <div>
-                  <h3 className="font-bold text-sm sm:text-base">ข้อมูลดิบจากบัตรประชาชน (Raw Payload)</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
+                    ข้อมูลดิบจากบัตรประชาชน (Raw Payload)
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.15rem 0 0 0' }}>
                     {selectedItemForPayload.fullName} (CID: {selectedItemForPayload.cid})
                   </p>
                 </div>
@@ -668,61 +624,61 @@ export default function ScreeningDashboardClient({ user }: Props) {
               <button
                 type="button"
                 onClick={() => setPayloadModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
+                className="rawModalCloseBtn"
               >
-                <X className="w-5 h-5" />
+                <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <div className="rawModalBody">
+              <div className="rawMetaBox">
                 <div>
-                  <span className="text-slate-400 font-semibold">ชื่อ-สกุล:</span>{' '}
-                  <span className="font-bold text-slate-800">{selectedItemForPayload.fullName}</span>
+                  <strong style={{ color: '#64748b' }}>ชื่อ-สกุล:</strong>{' '}
+                  <span style={{ fontWeight: 700 }}>{selectedItemForPayload.fullName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">เลขบัตร:</span>{' '}
-                  <span className="font-mono font-bold text-slate-800">{selectedItemForPayload.cid}</span>
+                  <strong style={{ color: '#64748b' }}>เลขบัตร:</strong>{' '}
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                    {selectedItemForPayload.cid}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">วันเกิด:</span>{' '}
+                  <strong style={{ color: '#64748b' }}>วันเกิด:</strong>{' '}
                   <span>{selectedItemForPayload.birthDate || '-'}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-semibold">เพศ:</span>{' '}
+                  <strong style={{ color: '#64748b' }}>เพศ:</strong>{' '}
                   <span>{selectedItemForPayload.gender || '-'}</span>
                 </div>
-                <div className="col-span-2">
-                  <span className="text-slate-400 font-semibold">ที่อยู่:</span>{' '}
+                <div style={{ gridColumn: 'span 2' }}>
+                  <strong style={{ color: '#64748b' }}>ที่อยู่:</strong>{' '}
                   <span>{selectedItemForPayload.address || '-'}</span>
                 </div>
               </div>
 
               <div>
-                <div className="flex items-center justify-between pb-1.5">
-                  <span className="text-xs font-semibold text-slate-600">
-                    โครงสร้าง JSON ที่ได้รับจากเครื่องอ่าน (rawPayload):
-                  </span>
+                <div className="rawJsonToolbar">
+                  <span>โครงสร้าง JSON จากเครื่องอ่าน (rawPayload):</span>
                   <button
                     type="button"
                     onClick={handleCopyPayload}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                    className="copyJsonBtn"
                   >
                     {copied ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-emerald-700 font-semibold">คัดลอกแล้ว</span>
+                        <Check size={14} style={{ color: '#059669' }} />
+                        <span style={{ color: '#059669' }}>คัดลอกแล้ว</span>
                       </>
                     ) : (
                       <>
-                        <Copy className="w-3.5 h-3.5 text-slate-500" />
+                        <Copy size={14} />
                         <span>คัดลอก JSON</span>
                       </>
                     )}
                   </button>
                 </div>
 
-                <pre className="p-4 bg-slate-900 text-emerald-400 text-xs font-mono rounded-xl overflow-x-auto max-h-72 leading-relaxed">
+                <pre className="rawJsonPre">
                   {selectedItemForPayload.rawPayload
                     ? typeof selectedItemForPayload.rawPayload === 'string'
                       ? JSON.stringify(JSON.parse(selectedItemForPayload.rawPayload), null, 2)
@@ -732,11 +688,11 @@ export default function ScreeningDashboardClient({ user }: Props) {
               </div>
             </div>
 
-            <div className="bg-slate-50 px-6 py-3 border-t border-slate-200 text-right">
+            <div className="rawModalFooter">
               <button
                 type="button"
                 onClick={() => setPayloadModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-colors"
+                className="closeModalBtn"
               >
                 ปิดหน้าต่าง
               </button>
