@@ -270,67 +270,112 @@ namespace ThoenSmartCardBridge
 
     class Program
     {
+        private static Mutex singleInstanceMutex = null;
+
         static void Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
-            Console.Title = "โรงพยาบาลเถิน - Smart Card Bridge v1.1";
+            Console.Title = "โรงพยาบาลเถิน - Smart Card Bridge v1.2";
 
-            Console.WriteLine("===============================================================");
-            Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge Service v1.1       ");
-            Console.WriteLine("===============================================================");
-            Console.WriteLine(" สถานะ: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
-
-            IntPtr hContext = IntPtr.Zero;
-            int ret = PcscInterop.SCardEstablishContext(PcscInterop.SCARD_SCOPE_USER, IntPtr.Zero, IntPtr.Zero, out hContext);
-            if (ret != 0)
-            {
-                Console.WriteLine(" [ข้อผิดพลาด] ไม่สามารถเริ่มบริการ Smart Card Subsystem ได้ (Code: " + ret + ")");
-                Console.WriteLine(" กรุณากดปุ่มใดๆ เพื่อปิดโปรแกรม");
-                Console.ReadKey();
-                return;
-            }
-
-            string readerName = CardReader.GetActiveReader(hContext);
-            if (!string.IsNullOrEmpty(readerName))
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine(" [ตรวจพบเครื่องอ่าน]: " + readerName);
-                Console.ResetColor();
-            }
-            else
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(" [รอการเชื่อมต่อ]: กรุณาเสียบเครื่องอ่านบัตร USB เข้ากับคอมพิวเตอร์");
-                Console.ResetColor();
-            }
-
-            HttpListener listener = new HttpListener();
-            string prefix = "http://127.0.0.1:8084/";
             try
             {
-                listener.Prefixes.Add(prefix);
-                listener.Start();
-                Console.WriteLine(" [HTTP Server]: เปิดให้บริการที่ " + prefix);
-                Console.WriteLine(" [พร้อมใช้งาน]: หน้าเว็บระบบคัดกรองตรวจนอกพื้นที่จะเชื่อมต่ออัตโนมัติ");
+                bool isNewInstance = false;
+                singleInstanceMutex = new Mutex(true, "ThoenHospitalSmartCardBridgeMutex", out isNewInstance);
+                if (!isNewInstance)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("===============================================================");
+                    Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge                    ");
+                    Console.WriteLine("===============================================================");
+                    Console.WriteLine(" [แจ้งเตือน]: โปรแกรมนี้กำลังเปิดทำงานอยู่แล้วที่คอมพิวเตอร์เครื่องนี้");
+                    Console.WriteLine(" หน้าเว็บ http://localhost:3000/service/screening/scan");
+                    Console.WriteLine(" สามารถเชื่อมต่อและใช้งานเครื่องอ่านบัตรประชาชนได้ทันทีโดยไม่ต้องเปิดซ้ำ");
+                    Console.WriteLine("===============================================================");
+                    Console.ResetColor();
+                    Console.WriteLine("\nกรุณากดปุ่ม Enter หรือปิดหน้าต่างนี้ได้เลยครับ...");
+                    Console.ReadLine();
+                    return;
+                }
+
                 Console.WriteLine("===============================================================");
-                Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กด Ctrl+C เพื่อปิดการทำงาน *");
+                Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge Service v1.2       ");
+                Console.WriteLine("===============================================================");
+                Console.WriteLine(" สถานะ: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
+
+                IntPtr hContext = IntPtr.Zero;
+                int ret = PcscInterop.SCardEstablishContext(PcscInterop.SCARD_SCOPE_USER, IntPtr.Zero, IntPtr.Zero, out hContext);
+                if (ret != 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(" [ข้อผิดพลาด] ไม่สามารถเริ่มบริการ Smart Card Subsystem ได้ (Code: " + ret + ")");
+                    Console.ResetColor();
+                    Console.WriteLine("\nกรุณากดปุ่ม Enter เพื่อปิดโปรแกรม...");
+                    Console.ReadLine();
+                    return;
+                }
+
+                string readerName = CardReader.GetActiveReader(hContext);
+                if (!string.IsNullOrEmpty(readerName))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine(" [ตรวจพบเครื่องอ่าน]: " + readerName);
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine(" [รอการเชื่อมต่อ]: กรุณาเสียบเครื่องอ่านบัตร USB เข้ากับคอมพิวเตอร์");
+                    Console.ResetColor();
+                }
+
+                HttpListener listener = new HttpListener();
+                string prefix = "http://127.0.0.1:8084/";
+                try
+                {
+                    listener.Prefixes.Add(prefix);
+                    listener.Start();
+                    Console.WriteLine(" [HTTP Server]: เปิดให้บริการที่ " + prefix);
+                    Console.WriteLine(" [พร้อมใช้งาน]: หน้าเว็บระบบคัดกรองตรวจนอกพื้นที่จะเชื่อมต่ออัตโนมัติ");
+                    Console.WriteLine("===============================================================");
+                    Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กด Ctrl+C เพื่อปิดการทำงาน *");
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine(" [ข้อผิดพลาด]: ไม่สามารถเปิด Port 8084 ได้: " + ex.Message);
+                    Console.ResetColor();
+                    Console.WriteLine("\nกรุณากดปุ่ม Enter เพื่อปิดโปรแกรม...");
+                    Console.ReadLine();
+                    return;
+                }
+
+                while (true)
+                {
+                    try
+                    {
+                        HttpListenerContext context = listener.GetContext();
+                        ThreadPool.QueueUserWorkItem((state) => HandleRequest(context, hContext));
+                    }
+                    catch
+                    {
+                        Thread.Sleep(500);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(" [ข้อผิดพลาด]: ไม่สามารถเปิด Port 8084 ได้: " + ex.Message);
-                return;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(" [เกิดข้อผิดพลาดในการทำงาน]: " + ex.Message);
+                Console.ResetColor();
+                Console.WriteLine("\nกรุณากดปุ่ม Enter เพื่อปิดโปรแกรม...");
+                Console.ReadLine();
             }
-
-            while (true)
+            finally
             {
-                try
+                if (singleInstanceMutex != null)
                 {
-                    HttpListenerContext context = listener.GetContext();
-                    ThreadPool.QueueUserWorkItem((state) => HandleRequest(context, hContext));
-                }
-                catch
-                {
-                    break;
+                    try { singleInstanceMutex.ReleaseMutex(); }
+                    catch { }
                 }
             }
         }
