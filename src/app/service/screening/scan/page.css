@@ -416,6 +416,90 @@
   font-weight: 700;
 }
 
+/* HTTPS Site Settings Guidance Box */
+.httpsBridgeNotice {
+  margin-top: 1.25rem;
+  border-top: 1px dashed #fdba74;
+  padding-top: 1.25rem;
+}
+
+.httpsNoticeHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.httpsNoticeIcon {
+  color: #ea580c;
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+}
+
+.httpsNoticeHeading {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #9a3412;
+  margin: 0;
+}
+
+.httpsNoticeSub {
+  font-size: 0.825rem;
+  color: #c2410c;
+  margin: 0.2rem 0 0 0;
+}
+
+.httpsNoticeCard {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  color: #7c2d12;
+  font-size: 0.85rem;
+}
+
+.httpsNoticeList {
+  margin: 0.5rem 0 0.75rem 1.25rem;
+  padding: 0;
+  line-height: 1.6;
+}
+
+.httpsNoticeList li {
+  margin-bottom: 0.35rem;
+}
+
+.httpsNoticeFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #fed7aa;
+  font-size: 0.8rem;
+  color: #9a3412;
+}
+
+.btnTestBridgeConnection {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnTestBridgeConnection:hover {
+  background: #c2410c;
+  transform: translateY(-1px);
+}
+
 /* Success Flash Alert */
 .successBannerBox {
   background: #ecfdf5;

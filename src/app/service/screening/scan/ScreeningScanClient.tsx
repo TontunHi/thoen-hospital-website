@@ -17,6 +17,7 @@ import {
   Info,
   Download,
   Zap,
+  AlertTriangle,
 } from 'lucide-react'
 import {
   SmartCardData,
@@ -52,6 +53,7 @@ export default function ScreeningScanClient({ operator }: Props) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [recentSaved, setRecentSaved] = useState<RecentSavedItem[]>([])
   const [sessionCount, setSessionCount] = useState<number>(0)
+  const [isHttps, setIsHttps] = useState<boolean>(false)
 
   // Local Bridge States
   const [isBridgeConnected, setIsBridgeConnected] = useState<boolean>(false)
@@ -59,6 +61,13 @@ export default function ScreeningScanClient({ operator }: Props) {
   const [cardPresent, setCardPresent] = useState<boolean>(false)
   const [lastReadCid, setLastReadCid] = useState<string>('')
   const [lastSavedCid, setLastSavedCid] = useState<string>('')
+
+  // Check if running on HTTPS
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+      setIsHttps(true)
+    }
+  }, [])
 
   // Refs for tracking state inside stable polling intervals without teardown
   const currentCardRef = useRef<SmartCardData | null>(null)
@@ -97,39 +106,33 @@ export default function ScreeningScanClient({ operator }: Props) {
   }, [])
 
   // Robust Bridge fetch helper:
-  // 1. Tries Next.js same-origin proxy first (bypasses Chrome Private Network Access & Mixed-Content)
-  // 2. Falls back to direct 127.0.0.1:8084
-  const fetchFromBridge = useCallback(async (endpoint: 'status' | 'read') => {
-    // Attempt 1: Next.js same-origin proxy
-    try {
-      const res = await fetch(`/api/service/screening/bridge?endpoint=${endpoint}`, {
-        cache: 'no-store',
-      })
-      if (res.ok) {
-        const json = await res.json()
-        if (json.success && json.data) {
-          return json.data
-        }
-      }
-    } catch {
-      // Proxy failed or unavailable, try direct
-    }
+  // Direct client-side fetch to local bridge daemon running on the user's PC.
+  // Note: An API proxy route (/api/service/screening/bridge) CANNOT reach the user's USB card reader
+  // when deployed to a remote server (e.g. thlp.moph.go.th), so requests MUST be made from the browser.
+  const lastWorkingBaseUrlRef = useRef<string>('http://localhost:8084')
 
-    // Attempt 2: Direct local bridge daemon
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 3500)
-      const res = await fetch(`http://127.0.0.1:8084/${endpoint}`, {
-        signal: controller.signal,
-        mode: 'cors',
-        cache: 'no-store',
-      })
-      clearTimeout(timeoutId)
-      if (res.ok) {
-        return await res.json()
+  const fetchFromBridge = useCallback(async (endpoint: 'status' | 'read') => {
+    const primary = lastWorkingBaseUrlRef.current
+    const secondary = primary === 'http://localhost:8084' ? 'http://127.0.0.1:8084' : 'http://localhost:8084'
+    const targets = [primary, secondary]
+
+    for (const baseUrl of targets) {
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), endpoint === 'read' ? 6000 : 1200)
+        const res = await fetch(`${baseUrl}/${endpoint}`, {
+          signal: controller.signal,
+          mode: 'cors',
+          cache: 'no-store',
+        })
+        clearTimeout(timeoutId)
+        if (res.ok) {
+          lastWorkingBaseUrlRef.current = baseUrl
+          return await res.json()
+        }
+      } catch {
+        // Target unreachable or blocked, try next
       }
-    } catch {
-      // Direct bridge call failed
     }
 
     return null
@@ -382,7 +385,7 @@ export default function ScreeningScanClient({ operator }: Props) {
                 <p>
                   {isBridgeConnected
                     ? `ตรวจพบเครื่องอ่าน: ${bridgeReaderName || 'Generic PC/SC USB Smart Card Reader'} (เสียบบัตรประชาชนได้เลยทันที)`
-                    : 'เนื่องจากระบบความปลอดภัยของเบราว์เซอร์ จำเป็นต้องเปิดโปรแกรมตัวเชื่อมต่อขนาดเล็ก (14 KB) เพื่อให้อ่านข้อมูลจากเครื่องอ่านบัตรประชาชน PC/SC ได้'}
+                    : 'เนื่องจากระบบความปลอดภัยของเบราว์เซอร์ จำเป็นต้องเปิดโปรแกรมตัวเชื่อมต่อขนาดเล็ก (22 KB) เพื่อให้อ่านข้อมูลจากเครื่องอ่านบัตรประชาชน PC/SC ได้'}
                 </p>
               </div>
             </div>
@@ -395,7 +398,7 @@ export default function ScreeningScanClient({ operator }: Props) {
                 title="คลิกเพื่อดาวน์โหลดโปรแกรมตัวเชื่อมต่อเครื่องอ่านบัตร"
               >
                 <Download size={18} />
-                <span>{isBridgeConnected ? 'ดาวน์โหลดสำรอง (.exe)' : 'ดาวน์โหลดโปรแกรม Bridge (14 KB)'}</span>
+                <span>{isBridgeConnected ? 'ดาวน์โหลดสำรอง (.exe)' : 'ดาวน์โหลดโปรแกรม Bridge (22 KB)'}</span>
               </a>
             </div>
           </div>
@@ -414,7 +417,7 @@ export default function ScreeningScanClient({ operator }: Props) {
               <div className="stepNumberCircle">2</div>
               <div className="stepContent">
                 <h4>ดับเบิ้ลคลิกเปิดโปรแกรม</h4>
-                <p>เปิดโปรแกรมทิ้งไว้ที่เครื่อง (ไฟล์ขนาดเล็ก 14 KB ไม่ต้องติดตั้ง)</p>
+                <p>เปิดโปรแกรมทิ้งไว้ที่เครื่อง (ไฟล์ขนาดเล็ก 22 KB ไม่ต้องติดตั้ง)</p>
               </div>
             </div>
 
@@ -426,6 +429,61 @@ export default function ScreeningScanClient({ operator }: Props) {
               </div>
             </div>
           </div>
+
+          {/* Notice for HTTPS / Production environment */}
+          {isHttps && !isBridgeConnected && (
+            <div className="httpsBridgeNotice">
+              <div className="httpsNoticeHeader">
+                <AlertTriangle size={22} className="httpsNoticeIcon" />
+                <div>
+                  <h4 className="httpsNoticeHeading">
+                    คำแนะนำสำหรับหน้าเว็บ HTTPS ({typeof window !== 'undefined' ? window.location.hostname : 'thlp.moph.go.th'})
+                  </h4>
+                  <p className="httpsNoticeSub">
+                    หากเปิดโปรแกรม <strong>thoen-smartcard-bridge.exe</strong> แล้ว แต่หน้าจอยังขึ้นสถานะ <em>&ldquo;ยังไม่ได้เปิดโปรแกรม&rdquo;</em>
+                  </p>
+                </div>
+              </div>
+              <div className="httpsNoticeCard">
+                <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600 }}>
+                  เบราว์เซอร์ Chrome/Edge บล็อกการเชื่อมต่อกับ Localhost บนหน้าเว็บที่มี HTTPS เป็นค่าเริ่มต้น กรุณาตั้งค่าให้อนุญาต (ตั้งค่าเพียงครั้งเดียว):
+                </p>
+                <ol className="httpsNoticeList">
+                  <li>
+                    คลิกที่ไอคอน <strong>การตั้งค่าเว็บไซต์ (Site Settings)</strong> หรือ รูปปรับแต่ง/กุญแจ ⚙️ ทางซ้ายสุดของแถบ URL ด้านบน
+                  </li>
+                  <li>
+                    เลือกเมนู <strong>&ldquo;การตั้งค่าเว็บไซต์&rdquo; (Site settings)</strong>
+                  </li>
+                  <li>
+                    เลื่อนหาหัวข้อ <strong>&ldquo;เนื้อหาที่ไม่ปลอดภัย&rdquo; (Insecure content)</strong> แล้วเปลี่ยนจากบล็อก เป็น <strong>&ldquo;อนุญาต&rdquo; (Allow)</strong>
+                  </li>
+                  <li>
+                    กลับมาที่หน้านี้แล้วกดปุ่ม <strong>รีเฟรชหน้าเว็บ (F5)</strong> ระบบจะเชื่อมต่อกับเครื่องอ่านบัตรทันที
+                  </li>
+                </ol>
+                <div className="httpsNoticeFooter">
+                  <span>💡 เป็นมาตรฐานความปลอดภัยเดียวกับระบบ Authen Smart Card ของ สปสช. / กระทรวงสาธารณสุข</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchFromBridge('status').then((res) => {
+                        if (res && res.online) {
+                          alert('✅ เชื่อมต่อ Smart Card Bridge สำเร็จแล้ว!')
+                        } else {
+                          alert('⚠️ ยังไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบว่า:\n1. ได้เปิดโปรแกรม thoen-smartcard-bridge.exe แล้ว\n2. ได้ปรับ Insecure Content ใน Site Settings เป็น Allow แล้ว\n3. กดรีเฟรชหน้าเว็บ (F5) อีกครั้ง')
+                        }
+                      })
+                    }}
+                    className="btnTestBridgeConnection"
+                  >
+                    <RefreshCw size={14} />
+                    <span>ทดสอบการเชื่อมต่ออีกครั้ง</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Hardware Status & Operator Bar */}
@@ -527,7 +585,7 @@ export default function ScreeningScanClient({ operator }: Props) {
                       style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem' }}
                     >
                       <Download size={18} />
-                      <span>ดาวน์โหลด Bridge (14 KB)</span>
+                      <span>ดาวน์โหลด Bridge (22 KB)</span>
                     </a>
                   )}
                 </div>

@@ -463,12 +463,21 @@ namespace ThoenSmartCardBridge
                 }
 
                 listener = new HttpListener();
-                string prefix = "http://127.0.0.1:8084/";
+                string prefix1 = "http://127.0.0.1:8084/";
+                string prefix2 = "http://localhost:8084/";
+                listener.Prefixes.Add(prefix1);
                 try
                 {
-                    listener.Prefixes.Add(prefix);
+                    listener.Prefixes.Add(prefix2);
+                }
+                catch
+                {
+                }
+
+                try
+                {
                     listener.Start();
-                    Console.WriteLine(" [HTTP Server]: เปิดให้บริการที่ " + prefix);
+                    Console.WriteLine(" [HTTP Server]: เปิดให้บริการที่ port 8084 (127.0.0.1 / localhost)");
                     Console.WriteLine(" [พร้อมใช้งาน]: หน้าเว็บระบบคัดกรองตรวจนอกพื้นที่จะเชื่อมต่ออัตโนมัติ");
                     Console.WriteLine("===============================================================");
                     Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กดกากบาท [X] หรือ Ctrl+C เพื่อปิด *");
@@ -543,10 +552,31 @@ namespace ThoenSmartCardBridge
                 req = context.Request;
                 res = context.Response;
                 // CORS & Chrome Private Network Access (PNA) headers
-                res.Headers.Add("Access-Control-Allow-Origin", "*");
+                string origin = req.Headers["Origin"];
+                if (!string.IsNullOrEmpty(origin))
+                {
+                    res.Headers.Add("Access-Control-Allow-Origin", origin);
+                    res.Headers.Add("Access-Control-Allow-Credentials", "true");
+                }
+                else
+                {
+                    res.Headers.Add("Access-Control-Allow-Origin", "*");
+                }
+
                 res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                res.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Private-Network");
+
+                string reqHeaders = req.Headers["Access-Control-Request-Headers"];
+                if (!string.IsNullOrEmpty(reqHeaders))
+                {
+                    res.Headers.Add("Access-Control-Allow-Headers", reqHeaders);
+                }
+                else
+                {
+                    res.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Private-Network, Authorization, X-Requested-With, Cache-Control, Pragma");
+                }
+
                 res.Headers.Add("Access-Control-Allow-Private-Network", "true");
+                res.Headers.Add("Access-Control-Max-Age", "86400");
 
                 if (req.HttpMethod == "OPTIONS")
                 {
