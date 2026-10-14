@@ -190,25 +190,6 @@
   flex-wrap: wrap;
 }
 
-.btnConnectWebHid {
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: all 0.2s;
-}
-
-.btnConnectWebHid:hover {
-  background: #e2e8f0;
-}
-
 .operatorMetaBox {
   display: flex;
   align-items: center;
@@ -231,11 +212,11 @@
 
 .sessionCounterBadge {
   background: #ecfdf5;
-  color: #047857;
+  color: #065f46;
   font-weight: 700;
   padding: 0.35rem 0.75rem;
   border-radius: 8px;
-  border: 1px solid #a7f3d0;
+  border: 1px solid #86efac;
 }
 
 /* Smart Card Bridge Download & Guidance Banner */
@@ -251,9 +232,9 @@
 }
 
 .bridgeBannerCard.connected {
-  border-color: #a7f3d0;
+  border-color: #86efac;
   background: #f0fdf4;
-  box-shadow: 0 4px 15px -2px rgba(16, 185, 129, 0.08);
+  box-shadow: 0 4px 15px -2px rgba(16, 185, 129, 0.12);
 }
 
 .bridgeBannerTop {
@@ -298,6 +279,10 @@
   gap: 0.5rem;
 }
 
+.bridgeBannerCard.connected .bridgeBannerTitleGroup h3 {
+  color: #064e3b;
+}
+
 .bridgeReqTag {
   font-size: 0.75rem;
   font-weight: 700;
@@ -311,15 +296,21 @@
   font-size: 0.75rem;
   font-weight: 700;
   background: #dcfce7;
-  color: #15803d;
+  color: #14532d;
   padding: 0.15rem 0.55rem;
   border-radius: 6px;
+  border: 1px solid #86efac;
 }
 
 .bridgeBannerTitleGroup p {
   font-size: 0.85rem;
-  color: #64748b;
+  color: #475569;
   margin: 0.25rem 0 0 0;
+}
+
+.bridgeBannerCard.connected .bridgeBannerTitleGroup p {
+  color: #14532d;
+  font-weight: 500;
 }
 
 .bridgeDownloadBtn {
@@ -343,12 +334,26 @@
   box-shadow: 0 6px 16px rgba(2, 132, 199, 0.4);
 }
 
+.bridgeBannerCard.connected .bridgeDownloadBtn {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+}
+
+.bridgeBannerCard.connected .bridgeDownloadBtn:hover {
+  background: linear-gradient(135deg, #047857 0%, #064e3b 100%);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
+}
+
 .bridgeStepsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
   border-top: 1px solid #e0f2fe;
   padding-top: 1.25rem;
+}
+
+.bridgeBannerCard.connected .bridgeStepsGrid {
+  border-top: 1px solid #bbf7d0;
 }
 
 @media (max-width: 768px) {
@@ -379,7 +384,7 @@
 }
 
 .bridgeBannerCard.connected .stepNumberCircle {
-  background: #16a34a;
+  background: #15803d;
 }
 
 .stepContent h4 {
@@ -389,17 +394,35 @@
   margin: 0;
 }
 
+.bridgeBannerCard.connected .stepContent h4 {
+  color: #064e3b;
+}
+
 .stepContent p {
   font-size: 0.8rem;
-  color: #64748b;
+  color: #475569;
   margin: 0.2rem 0 0 0;
   line-height: 1.4;
+}
+
+.stepContent p strong {
+  color: #0369a1;
+}
+
+.bridgeBannerCard.connected .stepContent p {
+  color: #14532d;
+  font-weight: 500;
+}
+
+.bridgeBannerCard.connected .stepContent p strong {
+  color: #064e3b;
+  font-weight: 700;
 }
 
 /* Success Flash Alert */
 .successBannerBox {
   background: #ecfdf5;
-  border: 1px solid #6ee7b7;
+  border: 1.5px solid #86efac;
   border-radius: 16px;
   padding: 1rem 1.5rem;
   display: flex;
@@ -408,6 +431,7 @@
   gap: 1rem;
   margin-bottom: 1.5rem;
   animation: slideDown 0.25s ease-out;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08);
 }
 
 .successBannerContent {
@@ -417,24 +441,33 @@
 }
 
 .successBannerTitle {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #065f46;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #064e3b;
   margin: 0;
 }
 
 .successBannerDesc {
-  font-size: 0.8rem;
-  color: #047857;
-  margin: 0.15rem 0 0 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #14532d;
+  margin: 0.2rem 0 0 0;
 }
 
 .dismissBtn {
   background: transparent;
   border: none;
-  color: #047857;
+  color: #065f46;
   font-weight: 700;
   cursor: pointer;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.dismissBtn:hover {
+  background: #dcfce7;
+  color: #064e3b;
 }
 
 /* Main Grid Layout */

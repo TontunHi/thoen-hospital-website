@@ -16,12 +16,10 @@ import {
   ExternalLink,
   Info,
   Download,
-  Terminal,
   Zap,
 } from 'lucide-react'
 import {
   SmartCardData,
-  decodeTis620,
 } from '@/lib/screening/smartCardReader'
 import './page.css'
 
@@ -45,8 +43,6 @@ interface RecentSavedItem {
 }
 
 export default function ScreeningScanClient({ operator }: Props) {
-  const [isWebHidSupported, setIsWebHidSupported] = useState<boolean>(true)
-  const [hidDevice, setHidDevice] = useState<any>(null)
   const [deviceStatus, setDeviceStatus] = useState<string>('กำลังตรวจสอบตัวเชื่อมต่อ...')
   const [isReading, setIsReading] = useState<boolean>(false)
   const [currentCard, setCurrentCard] = useState<SmartCardData | null>(null)
@@ -78,14 +74,6 @@ export default function ScreeningScanClient({ operator }: Props) {
   lastReadCidRef.current = lastReadCid
 
   const saveButtonRef = useRef<HTMLButtonElement>(null)
-
-  // Check WebHID support in current browser
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const supported = 'hid' in navigator
-      setIsWebHidSupported(supported)
-    }
-  }, [])
 
   // Web Audio tone for successful card scan / save
   const playBeep = useCallback((freq = 880, type: OscillatorType = 'sine', duration = 0.15) => {
@@ -249,49 +237,6 @@ export default function ScreeningScanClient({ operator }: Props) {
       clearInterval(interval)
     }
   }, [fetchFromBridge, readCardFromBridge])
-
-  // Connect physical Smart Card reader via WebHID fallback
-  const handleConnectHid = async () => {
-    setErrorMessage(null)
-    if (!('hid' in navigator)) {
-      setErrorMessage('เบราว์เซอร์นี้ไม่รองรับ WebHID กรุณาใช้ Google Chrome หรือ Microsoft Edge')
-      return
-    }
-
-    try {
-      const devices = await (navigator as any).hid.requestDevice({
-        filters: [],
-      })
-
-      if (devices && devices.length > 0) {
-        const device = devices[0]
-        if (!device.opened) {
-          await device.open()
-        }
-        setHidDevice(device)
-        setDeviceStatus(`เชื่อมต่อแล้ว: ${device.productName || 'USB Smart Card Reader'}`)
-        playBeep(659, 'sine', 0.1)
-
-        device.oninputreport = (event: any) => {
-          const { data } = event
-          if (!data || data.byteLength === 0) return
-          try {
-            const rawBytes = new Uint8Array(data.buffer)
-            const decoded = decodeTis620(rawBytes)
-            if (decoded && decoded.length > 5) {
-              setDeviceStatus(`ตรวจพบบัตร: กำลังประมวลผล...`)
-            }
-          } catch {
-            // raw bytes
-          }
-        }
-      }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        setErrorMessage(`ไม่สามารถเชื่อมต่อเครื่องอ่านได้: ${err.message}`)
-      }
-    }
-  }
 
 
   // Save current card to screening queue
@@ -461,7 +406,7 @@ export default function ScreeningScanClient({ operator }: Props) {
               <div className="stepNumberCircle">1</div>
               <div className="stepContent">
                 <h4>ดาวน์โหลดไฟล์</h4>
-                <p>กดปุ่มดาวน์โหลดไฟล์ <strong style={{ color: '#0284c7' }}>thoen-smartcard-bridge.exe</strong> ด้านบน</p>
+                <p>กดปุ่มดาวน์โหลดไฟล์ <strong>thoen-smartcard-bridge.exe</strong> ด้านบน</p>
               </div>
             </div>
 
@@ -486,13 +431,13 @@ export default function ScreeningScanClient({ operator }: Props) {
         {/* Hardware Status & Operator Bar */}
         <div className="hardwareBar">
           <div className="deviceStatusGroup">
-            <div className={`usbIconCircle ${isBridgeConnected || hidDevice ? 'connected' : ''}`}>
+            <div className={`usbIconCircle ${isBridgeConnected ? 'connected' : ''}`}>
               <Usb size={20} />
             </div>
             <div className="deviceStatusText">
               <span className="deviceStatusLabel">
                 <span>สถานะเครื่องอ่านบัตร</span>
-                <span className={`statusLedDot ${isBridgeConnected || hidDevice ? 'active' : ''}`} />
+                <span className={`statusLedDot ${isBridgeConnected ? 'active' : ''}`} />
               </span>
               <span className="deviceName">{deviceStatus}</span>
             </div>
@@ -509,19 +454,6 @@ export default function ScreeningScanClient({ operator }: Props) {
               >
                 <CreditCard size={16} />
                 <span>{isReading ? 'กำลังอ่านบัตร...' : 'อ่านข้อมูลจากบัตรทันที'}</span>
-              </button>
-            )}
-
-
-            {isWebHidSupported && (
-              <button
-                type="button"
-                onClick={handleConnectHid}
-                className="btnConnectWebHid"
-                title="เชื่อมต่อผ่าน WebHID สำรอง"
-              >
-                <Usb size={16} />
-                <span>{hidDevice ? 'เปลี่ยนอุปกรณ์ WebHID' : 'เชื่อมต่อ WebHID สำรอง'}</span>
               </button>
             )}
           </div>

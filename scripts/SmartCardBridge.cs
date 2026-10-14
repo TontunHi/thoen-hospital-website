@@ -44,6 +44,9 @@ namespace ThoenSmartCardBridge
 
     public class CardReader
     {
+        private static readonly object cardLock = new object();
+        private static bool lastCardPresentState = false;
+
         // Thai National ID APDU commands
         private static byte[] APDU_SELECT_APPLET = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x00, 0x54, 0x48, 0x00, 0x01 };
         private static byte[] APDU_READ_CID = new byte[] { 0x80, 0xB0, 0x00, 0x04, 0x02, 0x00, 0x0D };
@@ -112,35 +115,70 @@ namespace ThoenSmartCardBridge
 
         public static string GetActiveReader(IntPtr hContext)
         {
-            int chars = 2048;
-            byte[] readers = new byte[chars];
-            int ret = PcscInterop.SCardListReaders(hContext, null, readers, ref chars);
-            if (ret != 0 || chars <= 1) return null;
-            string raw = Encoding.ASCII.GetString(readers, 0, chars);
-            string[] parts = raw.Split(new char[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
-            return parts.Length > 0 ? parts[0] : null;
+            lock (cardLock)
+            {
+                try
+                {
+                    int chars = 2048;
+                    byte[] readers = new byte[chars];
+                    int ret = PcscInterop.SCardListReaders(hContext, null, readers, ref chars);
+                    if (ret != 0 || chars <= 1) return null;
+                    string raw = Encoding.ASCII.GetString(readers, 0, chars);
+                    string[] parts = raw.Split(new char[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
+                    return parts.Length > 0 ? parts[0] : null;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
         }
 
         public static bool CheckCardPresent(IntPtr hContext, string readerName)
         {
             if (string.IsNullOrEmpty(readerName)) return false;
-            IntPtr hCard = IntPtr.Zero;
-            uint proto = 0;
-            int ret = PcscInterop.SCardConnect(hContext, readerName, PcscInterop.SCARD_SHARE_SHARED, PcscInterop.SCARD_PROTOCOL_T0 | PcscInterop.SCARD_PROTOCOL_T1, out hCard, out proto);
-            if (ret == 0)
+            lock (cardLock)
             {
-                PcscInterop.SCardDisconnect(hCard, PcscInterop.SCARD_LEAVE_CARD);
-                return true;
+                try
+                {
+                    IntPtr hCard = IntPtr.Zero;
+                    uint proto = 0;
+                    int ret = PcscInterop.SCardConnect(hContext, readerName, PcscInterop.SCARD_SHARE_SHARED, PcscInterop.SCARD_PROTOCOL_T0 | PcscInterop.SCARD_PROTOCOL_T1, out hCard, out proto);
+                    if (ret == 0)
+                    {
+                        PcscInterop.SCardDisconnect(hCard, PcscInterop.SCARD_LEAVE_CARD);
+                        if (!lastCardPresentState)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Cyan;
+                            Console.WriteLine(string.Format(" [{0}] ตรวจพบบัตรประชาชนเสียบเข้าเครื่องอ่าน ({1})", DateTime.Now.ToString("HH:mm:ss"), readerName));
+                            Console.ResetColor();
+                        }
+                        lastCardPresentState = true;
+                        return true;
+                    }
+                }
+                catch { }
+
+                if (lastCardPresentState)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine(string.Format(" [{0}] นำบัตรประชาชนออกจากเครื่องอ่านแล้ว", DateTime.Now.ToString("HH:mm:ss")));
+                    Console.ResetColor();
+                }
+                lastCardPresentState = false;
+                return false;
             }
-            return false;
         }
 
         public static Dictionary<string, object> ReadCardData(IntPtr hContext, string readerName)
         {
-            IntPtr hCard = IntPtr.Zero;
-            uint proto = 0;
-            int ret = PcscInterop.SCardConnect(hContext, readerName, PcscInterop.SCARD_SHARE_SHARED, PcscInterop.SCARD_PROTOCOL_T0 | PcscInterop.SCARD_PROTOCOL_T1, out hCard, out proto);
-            if (ret != 0) return null;
+            if (string.IsNullOrEmpty(readerName)) return null;
+            lock (cardLock)
+            {
+                IntPtr hCard = IntPtr.Zero;
+                uint proto = 0;
+                int ret = PcscInterop.SCardConnect(hContext, readerName, PcscInterop.SCARD_SHARE_SHARED, PcscInterop.SCARD_PROTOCOL_T0 | PcscInterop.SCARD_PROTOCOL_T1, out hCard, out proto);
+                if (ret != 0) return null;
 
             try
             {
@@ -265,6 +303,7 @@ namespace ThoenSmartCardBridge
             {
                 PcscInterop.SCardDisconnect(hCard, PcscInterop.SCARD_LEAVE_CARD);
             }
+            }
         }
     }
 
@@ -275,7 +314,7 @@ namespace ThoenSmartCardBridge
         static void Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
-            Console.Title = "โรงพยาบาลเถิน - Smart Card Bridge v1.2";
+            Console.Title = "โรงพยาบาลเถิน - Smart Card Bridge v1.0";
 
             try
             {
@@ -285,7 +324,7 @@ namespace ThoenSmartCardBridge
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine("===============================================================");
-                    Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge                    ");
+                    Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge v1.0               ");
                     Console.WriteLine("===============================================================");
                     Console.WriteLine(" [แจ้งเตือน]: โปรแกรมนี้กำลังเปิดทำงานอยู่แล้วที่คอมพิวเตอร์เครื่องนี้");
                     Console.WriteLine(" หน้าเว็บ http://localhost:3000/service/screening/scan");
@@ -298,7 +337,7 @@ namespace ThoenSmartCardBridge
                 }
 
                 Console.WriteLine("===============================================================");
-                Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge Service v1.2       ");
+                Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge Service v1.0       ");
                 Console.WriteLine("===============================================================");
                 Console.WriteLine(" สถานะ: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
 
@@ -354,11 +393,19 @@ namespace ThoenSmartCardBridge
                     try
                     {
                         HttpListenerContext context = listener.GetContext();
-                        ThreadPool.QueueUserWorkItem((state) => HandleRequest(context, hContext));
+                        ThreadPool.QueueUserWorkItem((state) => {
+                            try
+                            {
+                                HandleRequest(context, hContext);
+                            }
+                            catch
+                            {
+                            }
+                        });
                     }
                     catch
                     {
-                        Thread.Sleep(500);
+                        Thread.Sleep(200);
                     }
                 }
             }
@@ -382,11 +429,14 @@ namespace ThoenSmartCardBridge
 
         static void HandleRequest(HttpListenerContext context, IntPtr hContext)
         {
-            HttpListenerRequest req = context.Request;
-            HttpListenerResponse res = context.Response;
+            if (context == null) return;
+            HttpListenerRequest req = null;
+            HttpListenerResponse res = null;
 
             try
             {
+                req = context.Request;
+                res = context.Response;
                 // CORS & Chrome Private Network Access (PNA) headers
                 res.Headers.Add("Access-Control-Allow-Origin", "*");
                 res.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -425,8 +475,23 @@ namespace ThoenSmartCardBridge
                             var data = CardReader.ReadCardData(hContext, readerName);
                             if (data != null)
                             {
-                                Console.ForegroundColor = ConsoleColor.Cyan;
-                                Console.WriteLine("[อ่านสำเร็จ]: " + data["fullNameTh"] + " (" + data["cid"] + ") เวลา " + DateTime.Now.ToString("HH:mm:ss"));
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine("\n===============================================================");
+                                Console.WriteLine(" [อ่านข้อมูลบัตรประชาชนสำเร็จ] " + DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+                                Console.WriteLine("---------------------------------------------------------------");
+                                Console.WriteLine(" * เลขประจำตัวประชาชน : " + data["cid"]);
+                                Console.WriteLine(" * ชื่อ - สกุล (ภาษาไทย) : " + data["fullNameTh"]);
+                                if (!string.IsNullOrEmpty(data["fullNameEn"].ToString()))
+                                    Console.WriteLine(" * Name (English)     : " + data["fullNameEn"]);
+                                Console.WriteLine(" * วันเดือนปีเกิด       : " + data["birthDate"] + " (เพศ: " + data["gender"] + ")");
+                                Console.WriteLine(" * ที่อยู่ตามทะเบียนบ้าน : " + data["address"]);
+                                if (!string.IsNullOrEmpty(data["issuer"].ToString()))
+                                    Console.WriteLine(" * หน่วยงานที่ออกบัตร : " + data["issuer"]);
+                                if (!string.IsNullOrEmpty(data["issueDate"].ToString()) || !string.IsNullOrEmpty(data["expireDate"].ToString()))
+                                    Console.WriteLine(" * วันออกบัตร / หมดอายุ : " + data["issueDate"] + " / " + data["expireDate"]);
+                                if (!string.IsNullOrEmpty(data["photo"].ToString()))
+                                    Console.WriteLine(" * รูปถ่ายหน้าตรง      : อ่านสำเร็จ (พบข้อมูลภาพ JPEG ในชิป)");
+                                Console.WriteLine("===============================================================\n");
                                 Console.ResetColor();
 
                                 StringBuilder sb = new StringBuilder();
