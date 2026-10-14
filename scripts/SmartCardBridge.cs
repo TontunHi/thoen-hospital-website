@@ -479,8 +479,35 @@ namespace ThoenSmartCardBridge
                     listener.Start();
                     Console.WriteLine(" [HTTP Server]: เปิดให้บริการที่ port 8084 (127.0.0.1 / localhost)");
                     Console.WriteLine(" [พร้อมใช้งาน]: หน้าเว็บระบบคัดกรองตรวจนอกพื้นที่จะเชื่อมต่ออัตโนมัติ");
+                    
+                    // Setup 1-click Desktop shortcut and launch browser with automated security bypass
+                    SetupDesktopShortcut();
+                    ThreadPool.QueueUserWorkItem((s) => {
+                        Thread.Sleep(800);
+                        LaunchBrowserWithSecurityBypass();
+                    });
+
+                    // Listen for Enter key to re-open browser anytime
+                    ThreadPool.QueueUserWorkItem((s) => {
+                        while (isRunning)
+                        {
+                            try
+                            {
+                                string line = Console.ReadLine();
+                                if (line != null && isRunning)
+                                {
+                                    LaunchBrowserWithSecurityBypass();
+                                }
+                            }
+                            catch
+                            {
+                                break;
+                            }
+                        }
+                    });
+
                     Console.WriteLine("===============================================================");
-                    Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กดกากบาท [X] หรือ Ctrl+C เพื่อปิด *");
+                    Console.WriteLine(" * เสียบบัตรประชาชนเพื่ออ่านข้อมูล | กด Enter เพื่อเปิดหน้าเว็บ | กด [X] เพื่อปิด *");
                 }
                 catch (Exception ex)
                 {
@@ -669,6 +696,66 @@ namespace ThoenSmartCardBridge
             {
                 // Client aborted connection or network socket closed - handle gracefully
                 try { res.Close(); } catch { }
+            }
+        }
+
+        static void SetupDesktopShortcut()
+        {
+            try
+            {
+                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                if (Directory.Exists(desktopPath))
+                {
+                    string batPath = Path.Combine(desktopPath, "เปิดระบบคัดกรอง_รพเถิน.bat");
+                    string content = "@echo off\r\n" +
+                        "title ระบบคัดกรองตรวจนอกพื้นที่ - โรงพยาบาลเถิน\r\n" +
+                        "start chrome --unsafely-treat-insecure-origin-as-secure=\"http://localhost:8084,http://127.0.0.1:8084\" --user-data-dir=\"%TEMP%\\ThoenScreeningKiosk\" https://thlp.moph.go.th/service/screening/scan\r\n" +
+                        "if %errorlevel% neq 0 start msedge --unsafely-treat-insecure-origin-as-secure=\"http://localhost:8084,http://127.0.0.1:8084\" --user-data-dir=\"%TEMP%\\ThoenScreeningKiosk\" https://thlp.moph.go.th/service/screening/scan\r\n";
+                    File.WriteAllText(batPath, content, Encoding.GetEncoding(874));
+                    Console.WriteLine(" [ไอคอนทางลัด]: สร้างไฟล์ \"เปิดระบบคัดกรอง_รพเถิน.bat\" ไว้ที่หน้าจอ Desktop ให้แล้ว");
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        static void LaunchBrowserWithSecurityBypass()
+        {
+            try
+            {
+                string targetUrl = "https://thlp.moph.go.th/service/screening/scan";
+                string tempDir = Path.Combine(Path.GetTempPath(), "ThoenScreeningKiosk");
+                string args = string.Format("--unsafely-treat-insecure-origin-as-secure=\"http://localhost:8084,http://127.0.0.1:8084\" --user-data-dir=\"{0}\" \"{1}\"", tempDir, targetUrl);
+
+                string[] browsers = new string[] { "chrome.exe", "msedge.exe" };
+                bool launched = false;
+                foreach (var b in browsers)
+                {
+                    try
+                    {
+                        ProcessStartInfo psi = new ProcessStartInfo();
+                        psi.FileName = b;
+                        psi.Arguments = args;
+                        psi.UseShellExecute = true;
+                        Process.Start(psi);
+                        Console.WriteLine(" [เปิดหน้าเว็บ]: เปิดระบบคัดกรองบน " + b + " พร้อมเชื่อมต่ออัตโนมัติเรียบร้อยแล้ว");
+                        launched = true;
+                        break;
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                if (!launched)
+                {
+                    Process.Start(targetUrl);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(" [หมายเหตุการเปิดเว็บ]: " + ex.Message);
             }
         }
     }

@@ -390,7 +390,7 @@ export default function ScreeningScanClient({ operator }: Props) {
               </div>
             </div>
 
-            <div>
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
               <a
                 href="/downloads/thoen-smartcard-bridge.exe"
                 download="thoen-smartcard-bridge.exe"
@@ -398,7 +398,18 @@ export default function ScreeningScanClient({ operator }: Props) {
                 title="คลิกเพื่อดาวน์โหลดโปรแกรมตัวเชื่อมต่อเครื่องอ่านบัตร"
               >
                 <Download size={18} />
-                <span>{isBridgeConnected ? 'ดาวน์โหลดสำรอง (.exe)' : 'ดาวน์โหลดโปรแกรม Bridge (22 KB)'}</span>
+                <span>{isBridgeConnected ? 'ดาวน์โหลด Bridge (.exe)' : 'ดาวน์โหลด Bridge (.exe)'}</span>
+              </a>
+
+              <a
+                href="/downloads/launch-thoen-screening.bat"
+                download="เปิดระบบคัดกรอง_รพเถิน.bat"
+                className="bridgeDownloadBtn"
+                style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}
+                title="ดาวน์โหลดไฟล์เปิดระบบอัตโนมัติ (คลิกเดียวใช้งานได้เลย ไม่ต้องตั้งค่าเบราว์เซอร์)"
+              >
+                <Zap size={18} />
+                <span>⚡ ตัวเปิดอัตโนมัติ (.bat)</span>
               </a>
             </div>
           </div>
@@ -408,16 +419,16 @@ export default function ScreeningScanClient({ operator }: Props) {
             <div className="bridgeStepItem">
               <div className="stepNumberCircle">1</div>
               <div className="stepContent">
-                <h4>ดาวน์โหลดไฟล์</h4>
-                <p>กดปุ่มดาวน์โหลดไฟล์ <strong>thoen-smartcard-bridge.exe</strong> ด้านบน</p>
+                <h4>เปิดโปรแกรม Bridge</h4>
+                <p>เปิดไฟล์ <strong>thoen-smartcard-bridge.exe</strong> ทิ้งไว้ที่เครื่อง (โปรแกรมจะสร้างทางลัดบน Desktop ให้ทันที)</p>
               </div>
             </div>
 
             <div className="bridgeStepItem">
               <div className="stepNumberCircle">2</div>
               <div className="stepContent">
-                <h4>ดับเบิ้ลคลิกเปิดโปรแกรม</h4>
-                <p>เปิดโปรแกรมทิ้งไว้ที่เครื่อง (ไฟล์ขนาดเล็ก 22 KB ไม่ต้องติดตั้ง)</p>
+                <h4>เข้าใช้งานหน้าเว็บ</h4>
+                <p>โปรแกรมจะเปิดเบราว์เซอร์ให้อัตโนมัติ หรือดับเบิ้ลคลิกไฟล์ <strong>.bat</strong> ที่ดาวน์โหลด</p>
               </div>
             </div>
 
@@ -440,30 +451,50 @@ export default function ScreeningScanClient({ operator }: Props) {
                     คำแนะนำสำหรับหน้าเว็บ HTTPS ({typeof window !== 'undefined' ? window.location.hostname : 'thlp.moph.go.th'})
                   </h4>
                   <p className="httpsNoticeSub">
-                    หากเปิดโปรแกรม <strong>thoen-smartcard-bridge.exe</strong> แล้ว แต่หน้าจอยังขึ้นสถานะ <em>&ldquo;ยังไม่ได้เปิดโปรแกรม&rdquo;</em>
+                    หากเปิดโปรแกรม <strong>thoen-smartcard-bridge.exe</strong> แล้ว แต่หน้าจอยังขึ้นสถานะ <em>&ldquo;ยังไม่ได้เปิดโปรแกรม&rdquo;</em> (เนื่องจาก Chrome บล็อกการเชื่อมต่อ Localhost)
                   </p>
                 </div>
               </div>
               <div className="httpsNoticeCard">
-                <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600 }}>
-                  เบราว์เซอร์ Chrome/Edge บล็อกการเชื่อมต่อกับ Localhost บนหน้าเว็บที่มี HTTPS เป็นค่าเริ่มต้น กรุณาตั้งค่าให้อนุญาต (ตั้งค่าเพียงครั้งเดียว):
-                </p>
-                <ol className="httpsNoticeList">
-                  <li>
-                    คลิกที่ไอคอน <strong>การตั้งค่าเว็บไซต์ (Site Settings)</strong> หรือ รูปปรับแต่ง/กุญแจ ⚙️ ทางซ้ายสุดของแถบ URL ด้านบน
-                  </li>
-                  <li>
-                    เลือกเมนู <strong>&ldquo;การตั้งค่าเว็บไซต์&rdquo; (Site settings)</strong>
-                  </li>
-                  <li>
-                    เลื่อนหาหัวข้อ <strong>&ldquo;เนื้อหาที่ไม่ปลอดภัย&rdquo; (Insecure content)</strong> แล้วเปลี่ยนจากบล็อก เป็น <strong>&ldquo;อนุญาต&rdquo; (Allow)</strong>
-                  </li>
-                  <li>
-                    กลับมาที่หน้านี้แล้วกดปุ่ม <strong>รีเฟรชหน้าเว็บ (F5)</strong> ระบบจะเชื่อมต่อกับเครื่องอ่านบัตรทันที
-                  </li>
-                </ol>
+                <div style={{ background: '#fef3c7', padding: '0.85rem 1rem', borderRadius: '10px', marginBottom: '0.75rem', border: '1px solid #fde68a' }}>
+                  <strong style={{ color: '#92400e', display: 'block', marginBottom: '0.35rem', fontSize: '0.9rem' }}>
+                    ⚡ วิธีที่ 1 (ง่ายที่สุด - คลิกเดียวใช้งานได้ทันที ไม่ต้องตั้งค่าอะไรเลย):
+                  </strong>
+                  <span style={{ color: '#78350f', fontSize: '0.85rem', lineHeight: 1.5, display: 'block' }}>
+                    ดาวน์โหลดไฟล์ <strong>เปิดระบบคัดกรอง_รพเถิน.bat</strong> ไว้ที่หน้า Desktop เมื่อเปิดโปรแกรม Bridge แล้ว ให้ดับเบิ้ลคลิกไฟล์นี้ ระบบจะเปิด Google Chrome พร้อมปลดล็อกสิทธิ์เครื่องอ่านบัตรให้อัตโนมัติทันที
+                  </span>
+                  <div style={{ marginTop: '0.65rem' }}>
+                    <a
+                      href="/downloads/launch-thoen-screening.bat"
+                      download="เปิดระบบคัดกรอง_รพเถิน.bat"
+                      className="btnTestBridgeConnection"
+                      style={{ background: '#0284c7', textDecoration: 'none' }}
+                    >
+                      <Download size={15} />
+                      <span>ดาวน์โหลดไฟล์เปิดระบบอัตโนมัติ (.bat)</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div style={{ background: '#ffffff', padding: '0.85rem 1rem', borderRadius: '10px', marginBottom: '0.75rem', border: '1px solid #fed7aa' }}>
+                  <strong style={{ color: '#9a3412', display: 'block', marginBottom: '0.35rem', fontSize: '0.9rem' }}>
+                    ⚙️ วิธีที่ 2 (ตั้งค่าถาวรใน Chrome Flags - ทำครั้งเดียวใช้ได้ตลอดไป):
+                  </strong>
+                  <ol className="httpsNoticeList" style={{ margin: '0.35rem 0 0 1.25rem', fontSize: '0.85rem' }}>
+                    <li>
+                      เปิดแท็บใหม่ใน Chrome แล้วพิมพ์: <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>
+                    </li>
+                    <li>
+                      เปลี่ยนเป็น <strong>Enabled</strong> แล้วใส่ในช่อง: <code>http://localhost:8084, http://127.0.0.1:8084</code>
+                    </li>
+                    <li>
+                      กดปุ่มสีน้ำเงิน <strong>Relaunch</strong> ที่มุมขวาล่าง 1 ครั้ง
+                    </li>
+                  </ol>
+                </div>
+
                 <div className="httpsNoticeFooter">
-                  <span>💡 เป็นมาตรฐานความปลอดภัยเดียวกับระบบ Authen Smart Card ของ สปสช. / กระทรวงสาธารณสุข</span>
+                  <span>💡 ปลอดภัยตามมาตรฐานความปลอดภัยระบบสาธารณสุข</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -471,7 +502,7 @@ export default function ScreeningScanClient({ operator }: Props) {
                         if (res && res.online) {
                           alert('✅ เชื่อมต่อ Smart Card Bridge สำเร็จแล้ว!')
                         } else {
-                          alert('⚠️ ยังไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบว่า:\n1. ได้เปิดโปรแกรม thoen-smartcard-bridge.exe แล้ว\n2. ได้ปรับ Insecure Content ใน Site Settings เป็น Allow แล้ว\n3. กดรีเฟรชหน้าเว็บ (F5) อีกครั้ง')
+                          alert('⚠️ ยังไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบว่า:\n1. ได้เปิดโปรแกรม thoen-smartcard-bridge.exe แล้ว\n2. เปิดผ่านไฟล์ .bat หรือตั้งค่า Chrome Flags แล้ว\n3. กดรีเฟรชหน้าเว็บ (F5) อีกครั้ง')
                         }
                       })
                     }}
