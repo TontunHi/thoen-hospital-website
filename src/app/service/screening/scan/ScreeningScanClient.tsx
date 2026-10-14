@@ -212,11 +212,11 @@ export default function ScreeningScanClient({ operator }: Props) {
         }
 
         if (isManual) {
-          setErrorMessage('กรุณาเสียบบัตรประชาชนเข้าเครื่องอ่าน โปรแกรม Bridge จะอ่านและส่งข้อมูลให้อัตโนมัติทันที')
+          setErrorMessage('กรุณาเสียบบัตรประชาชนเข้าเครื่องอ่าน แล้วกดปุ่ม F2 หรือคลิกอ่านข้อมูลจากบัตรอีกครั้ง')
         }
       } catch {
         if (isManual) {
-          setErrorMessage('กรุณาเสียบบัตรประชาชนเข้าเครื่องอ่าน โปรแกรม Bridge จะอ่านและส่งข้อมูลให้อัตโนมัติทันที')
+          setErrorMessage('กรุณาเสียบบัตรประชาชนเข้าเครื่องอ่าน แล้วกดปุ่ม F2 หรือคลิกอ่านข้อมูลจากบัตรอีกครั้ง')
         }
       } finally {
         setIsReading(false)
@@ -300,7 +300,6 @@ export default function ScreeningScanClient({ operator }: Props) {
     }
   }, [stationId, applyCardData])
 
-
   // Save current card to screening queue
   const handleSaveQueue = async () => {
     if (!currentCard || isSaving) return
@@ -314,23 +313,37 @@ export default function ScreeningScanClient({ operator }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           cid: currentCard.cid,
-          title: currentCard.titleTh,
-          firstName: currentCard.firstNameTh,
-          lastName: currentCard.lastNameTh,
-          fullName: currentCard.fullNameTh,
-          gender: currentCard.gender,
-          birthDate: currentCard.birthDate,
-          address: currentCard.address,
+          title: currentCard.titleTh || null,
+          firstName: currentCard.firstNameTh || null,
+          lastName: currentCard.lastNameTh || null,
+          fullName: currentCard.fullNameTh || null,
+          gender: currentCard.gender || null,
+          birthDate: currentCard.birthDate || null,
+          address: currentCard.address || null,
           photoBase64: currentCard.photoBase64 || null,
-          rawPayload: currentCard.rawPayload,
           status: 'WAITING',
         }),
       })
 
+      const contentType = res.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        const text = await res.text()
+        if (res.status === 404) {
+          throw new Error('เซิร์ฟเวอร์ยังไม่อัปเดตระบบคัดกรอง (HTTP 404): กรุณาอัปเดตโค้ดบนเซิร์ฟเวอร์แล้วรัน npm run build')
+        }
+        if (res.status === 401 || res.status === 403) {
+          throw new Error(`เซสชันสมาชิกหมดอายุ (HTTP ${res.status}) กรุณารีเฟรชหน้าเว็บหรือเข้าสู่ระบบใหม่`)
+        }
+        if (res.status === 413) {
+          throw new Error('ขนาดข้อมูลภาพใหญ่เกินขีดจำกัดของเซิร์ฟเวอร์ (HTTP 413 Payload Too Large)')
+        }
+        throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status}): ${text.slice(0, 80)}`)
+      }
+
       const json = await res.json()
 
       if (!res.ok || !json.success) {
-        throw new Error(json.error?.message || 'บันทึกข้อมูลไม่สำเร็จ')
+        throw new Error(json.error?.message || json.error || 'บันทึกข้อมูลไม่สำเร็จ')
       }
 
       const savedData = json.data
@@ -373,7 +386,7 @@ export default function ScreeningScanClient({ operator }: Props) {
     }
   }
 
-  // Keyboard shortcut listener for Enter and Escape
+  // Keyboard shortcut listener for Enter, Escape, and F2
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && currentCard && !isSaving) {
@@ -382,12 +395,25 @@ export default function ScreeningScanClient({ operator }: Props) {
       } else if (e.key === 'Escape' && currentCard) {
         e.preventDefault()
         setCurrentCard(null)
+      } else if (e.key === 'F2') {
+        e.preventDefault()
+        readCardFromBridge(true)
+      }
+    }
+
+    const handleWindowFocus = () => {
+      if (!currentCardRef.current && !isReadingRef.current) {
+        readCardFromBridge(false)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentCard, isSaving])
+    window.addEventListener('focus', handleWindowFocus)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('focus', handleWindowFocus)
+    }
+  }, [currentCard, isSaving, readCardFromBridge])
 
   return (
     <div className="scanPage">
@@ -579,41 +605,34 @@ export default function ScreeningScanClient({ operator }: Props) {
                   <CreditCard size={38} />
                 </div>
                 <h3 className="emptyCardTitle">
-                  {isBridgeConnected ? (cardPresent ? 'ตรวจพบบัตรประชาชนในเครื่อง' : 'พร้อมรับบัตรประชาชนใบถัดไป') : 'เสียบบัตรประชาชนเข้าเครื่องอ่าน'}
+                  {cardPresent ? 'ตรวจพบบัตรประชาชนในเครื่อง' : 'พร้อมรับข้อมูลบัตรประชาชน (Smart Card)'}
                 </h3>
                 <p className="emptyCardDesc">
-                  {isBridgeConnected
-                    ? (cardPresent 
-                        ? 'กำลังดึงข้อมูล หรือกดปุ่ม "อ่านข้อมูลจากบัตรประชาชน" เพื่ออ่านข้อมูลทันที'
-                        : 'เครื่องอ่านพร้อมทำงานแล้ว เสียบบัตรประชาชนเข้าเครื่อง ข้อมูลจะดึงขึ้นหน้าจอโดยอัตโนมัติทันที')
-                    : 'เปิดโปรแกรม Thoen Smart Card Bridge ทิ้งไว้ที่เครื่อง แล้วเสียบบัตรประชาชนเพื่ออ่านข้อมูลเข้าระบบ'}
+                  เสียบบัตรประชาชนเข้าเครื่องอ่าน USB ข้อมูลจะปรากฏบนหน้าจอโดยอัตโนมัติ (หรือกดแป้น <strong>F2</strong> / คลิกปุ่มอ่านข้อมูลด้านล่าง)
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  {isBridgeConnected && (
-                    <button
-                      type="button"
-                      onClick={() => readCardFromBridge(true)}
-                      disabled={isReading}
-                      className="btnManualReadCard"
-                      title="คลิกเพื่อสั่งอ่านข้อมูลจากบัตรประชาชนในเครื่องอ่านทันที"
-                    >
-                      <CreditCard size={16} />
-                      <span>{isReading ? 'กำลังดึงข้อมูล...' : 'อ่านข้อมูลจากบัตรประชาชน'}</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => readCardFromBridge(true)}
+                    disabled={isReading}
+                    className="btnManualReadCard"
+                    title="คลิกเพื่อสั่งอ่านข้อมูลจากบัตรประชาชนในเครื่องอ่าน หรือกดแป้น F2"
+                  >
+                    <CreditCard size={18} />
+                    <span>{isReading ? 'กำลังดึงข้อมูล...' : 'อ่านข้อมูลจากบัตรประชาชน (F2)'}</span>
+                  </button>
 
-                  {!isBridgeConnected && (
-                    <a
-                      href="/downloads/thoen-smartcard-bridge.exe"
-                      download="thoen-smartcard-bridge.exe"
-                      className="bridgeDownloadBtn"
-                      style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem' }}
-                    >
-                      <Download size={18} />
-                      <span>ดาวน์โหลด Bridge (.exe)</span>
-                    </a>
-                  )}
+                  <a
+                    href="/downloads/thoen-smartcard-bridge.exe"
+                    download="thoen-smartcard-bridge.exe"
+                    className="bridgeDownloadBtn"
+                    style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem', opacity: isBridgeConnected ? 0.75 : 1 }}
+                    title="ดาวน์โหลดโปรแกรม Thoen Smart Card Bridge ไปเปิดไว้ที่คอมพิวเตอร์"
+                  >
+                    <Download size={18} />
+                    <span>ดาวน์โหลด Bridge (.exe)</span>
+                  </a>
                 </div>
               </div>
             ) : (

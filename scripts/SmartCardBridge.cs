@@ -349,72 +349,15 @@ namespace ThoenSmartCardBridge
         }
     }
 
-    public static class WindowHelper
-    {
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
-
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-        [DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-        private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-        [DllImport("user32.dll")]
-        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-
-        private const byte VK_CONTROL = 0x11;
-        private const byte VK_V = 0x56;
-        private const uint KEYEVENTF_KEYUP = 0x0002;
-
-        public static void FocusBrowserAndPaste()
-        {
-            try
-            {
-                IntPtr targetHwnd = IntPtr.Zero;
-
-                EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
-                {
-                    StringBuilder sb = new StringBuilder(256);
-                    GetWindowText(hWnd, sb, 256);
-                    string title = sb.ToString();
-                    if (!string.IsNullOrEmpty(title))
-                    {
-                        string lower = title.ToLower();
-                        if (lower.Contains("จุดอ่านบัตร") || lower.Contains("คัดกรอง") || lower.Contains("screening") || lower.Contains("thlp.moph.go.th") || lower.Contains("โรงพยาบาลเถิน") || lower.Contains("thoen") || lower.Contains("chrome") || lower.Contains("edge"))
-                        {
-                            targetHwnd = hWnd;
-                            return false;
-                        }
-                    }
-                    return true;
-                }, IntPtr.Zero);
-
-                if (targetHwnd != IntPtr.Zero)
-                {
-                    SetForegroundWindow(targetHwnd);
-                    Thread.Sleep(80);
-                }
-
-                // Simulate Ctrl+V to paste data into the focused page
-                keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
-                keybd_event(VK_V, 0, 0, UIntPtr.Zero);
-                keybd_event(VK_V, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-                keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-            }
-            catch { }
-        }
-    }
-
     public class CloudBridgeClient
     {
-        public static string ServerUrl = "https://thlp.moph.go.th/api/service/screening/bridge-push";
+        public static string[] TargetEndpoints = new string[] {
+            "http://192.168.1.142:6060/api/service/screening/bridge-push",
+            "https://thlp.moph.go.th/api/service/screening/bridge-push"
+        };
         public const string SecretToken = "thoen-smartcard-bridge-secret-2026";
         public static string StationId = "1";
+        private static string activeUrl = null;
 
         static CloudBridgeClient()
         {
@@ -432,15 +375,38 @@ namespace ThoenSmartCardBridge
 
         public static bool SendPush(string action, string readerName, bool cardPresent, Dictionary<string, object> cardData)
         {
+            if (!string.IsNullOrEmpty(activeUrl))
+            {
+                if (TryPostTo(activeUrl, action, readerName, cardPresent, cardData))
+                {
+                    return true;
+                }
+                activeUrl = null;
+            }
+
+            foreach (string url in TargetEndpoints)
+            {
+                if (TryPostTo(url, action, readerName, cardPresent, cardData))
+                {
+                    activeUrl = url;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryPostTo(string url, string action, string readerName, bool cardPresent, Dictionary<string, object> cardData)
+        {
             try
             {
-                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(ServerUrl);
+                HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
                 req.Method = "POST";
                 req.ContentType = "application/json; charset=utf-8";
                 req.Headers.Add("x-bridge-token", SecretToken);
-                req.UserAgent = "ThoenSmartCardBridge/2.0";
-                req.Timeout = 4000;
-                req.ReadWriteTimeout = 4000;
+                req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 ThoenBridge/2.0";
+                req.Timeout = 2500;
+                req.ReadWriteTimeout = 2500;
 
                 StringBuilder sb = new StringBuilder();
                 sb.Append("{");
@@ -638,6 +604,12 @@ namespace ThoenSmartCardBridge
                     Console.ResetColor();
                 }
 
+                // Send immediate status update to Web Cloud & LAN Hub
+                ThreadPool.QueueUserWorkItem(delegate
+                {
+                    try { CloudBridgeClient.SendPush("status", readerName, false, null); } catch { }
+                });
+
                 // Start local HTTP server as parallel fallback on port 8084
                 try
                 {
@@ -703,6 +675,7 @@ namespace ThoenSmartCardBridge
             ThreadPool.QueueUserWorkItem(delegate
             {
                 bool wasPresent = false;
+                int idleTicks = 0;
 
                 while (isRunning)
                 {
@@ -759,15 +732,14 @@ namespace ThoenSmartCardBridge
                                 // 2. Copy to Windows Clipboard
                                 ClipboardHelper.SetText(jsonStr);
 
-                                // 3. Auto-focus browser and trigger Paste event
-                                WindowHelper.FocusBrowserAndPaste();
+                                try { Console.Beep(1200, 150); } catch { }
 
                                 Console.ForegroundColor = ConsoleColor.Green;
-                                Console.WriteLine(" >>> [ส่งข้อมูลเข้าหน้าเว็บสำเร็จ]: โอนย้ายข้อมูลเข้าหน้าจอเบราว์เซอร์เรียบร้อยแล้ว <<<");
+                                Console.WriteLine(" >>> [อ่านข้อมูลบัตรประชาชนสำเร็จ]: ส่งข้อมูลเข้าหน้าจอและบันทึกในคลิปบอร์ดแล้ว <<<");
                                 Console.WriteLine(" * ข้อมูลแสดงบนหน้าจอทันที ตรวจสอบความถูกต้องแล้วกด [Enter] เพื่อบันทึกเข้าคิว *\n");
                                 Console.ResetColor();
 
-                                // 4. Silent background cloud push attempt
+                                // 3. Push to Web SSE Hub (LAN & Cloud)
                                 ThreadPool.QueueUserWorkItem(delegate
                                 {
                                     try { CloudBridgeClient.SendPush("card_read", reader, true, cardData); } catch { }
@@ -792,6 +764,21 @@ namespace ThoenSmartCardBridge
                             {
                                 try { CloudBridgeClient.SendPush("card_removed", reader, false, null); } catch { }
                             });
+                        }
+                        else
+                        {
+                            // Periodic heartbeat every ~3 seconds (10 ticks * 300ms)
+                            idleTicks++;
+                            if (idleTicks >= 10)
+                            {
+                                idleTicks = 0;
+                                string curReader = reader;
+                                bool curPresent = isPresent;
+                                ThreadPool.QueueUserWorkItem(delegate
+                                {
+                                    try { CloudBridgeClient.SendPush("status", curReader, curPresent, null); } catch { }
+                                });
+                            }
                         }
                     }
                     catch { }
