@@ -18,6 +18,7 @@
     "bot:appointment": "tsx scripts/appointmentMismatchBot.ts",
     "bot:repair": "tsx scripts/telegramRepairPollingBot.ts",
     "bot:ipd-chart": "tsx scripts/ipdChartNotificationBot.ts",
+    "card:bridge": "scripts\\smartcard-bridge.bat",
     "precommit": "lint-staged"
   },
   "dependencies": {
