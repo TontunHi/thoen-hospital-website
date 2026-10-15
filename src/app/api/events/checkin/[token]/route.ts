@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { getThaidConfig, generateEventOAuthState, buildThaidAuthorizeUrl } from '@/lib/thaidAuth'
 import { validateCheckinWindow, toBangkokIsoString } from '@/lib/events/eventTimeUtils'
 
@@ -19,9 +19,18 @@ export async function GET(
     return NextResponse.redirect(errUrl)
   }
 
-  const event = await prisma.hospitalEvent.findUnique({
-    where: { qrToken: token },
-  })
+  const eventRows = await queryMemberDb(`
+    SELECT id, title, qr_token AS qrToken, checkin_open_time AS checkinOpenTime, checkin_close_time AS checkinCloseTime
+    FROM hospital_events
+    WHERE qr_token = ?
+    LIMIT 1
+  `, [token])
+
+  const event = eventRows.length > 0 ? {
+    ...eventRows[0],
+    checkinOpenTime: eventRows[0].checkinOpenTime ? new Date(eventRows[0].checkinOpenTime) : null,
+    checkinCloseTime: eventRows[0].checkinCloseTime ? new Date(eventRows[0].checkinCloseTime) : null,
+  } : null
 
   if (!event) {
     const errUrl = new URL('/member/events/checkin-status', baseUrl)

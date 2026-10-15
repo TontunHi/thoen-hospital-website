@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import EventDetailClient from './EventDetailClient'
 
 export const metadata = {
@@ -38,10 +38,11 @@ export default async function EventDetailPage({
   let availableMembers: any[] = []
   if (canManage) {
     try {
-      availableMembers = await prisma.member.findMany({
-        select: { id: true, name: true, department: true, position: true },
-        orderBy: { name: 'asc' },
-      })
+      availableMembers = await queryMemberDb(`
+        SELECT id, name, department, position
+        FROM members
+        ORDER BY name ASC
+      `)
     } catch (err) {
       console.error('Error fetching members for attendee picker:', err)
     }

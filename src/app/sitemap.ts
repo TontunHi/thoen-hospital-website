@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { siteConfig } from '@/config/site'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -120,33 +120,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${baseUrl}/contact`,
       lastModified: now,
       changeFrequency: 'monthly',
-      priority: 0.7,
+      priority: 0.5,
     },
   ]
 
   // Dynamic news pages
   let newsRoutes: MetadataRoute.Sitemap = []
   try {
-    const publishedNews = await prisma.news.findMany({
-      where: {
-        startDate: { lte: now },
-        endDate: { gte: now },
-      },
-      select: {
-        slug: true,
-        updatedAt: true,
-      },
-      take: 100,
-    })
+    const publishedNews = await queryMemberDb(`
+      SELECT slug, updated_at AS updatedAt
+      FROM news
+      WHERE start_date <= NOW() AND end_date >= NOW()
+      LIMIT 100
+    `)
 
-    newsRoutes = publishedNews.map((item: { slug: string; updatedAt: Date }) => ({
+    newsRoutes = publishedNews.map((item: any) => ({
       url: `${baseUrl}/news/${item.slug}`,
-      lastModified: item.updatedAt,
+      lastModified: item.updatedAt ? new Date(item.updatedAt) : now,
       changeFrequency: 'weekly',
       priority: 0.7,
     }))
   } catch {
-    // If DB is unreachable during build, fallback to static routes
+    // If Gateway is unreachable during build, fallback to static routes
     newsRoutes = []
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { newsCreateSchema } from '@/lib/schemas/news'
 
@@ -23,38 +23,60 @@ export async function GET(request: Request) {
     const skip = (page - 1) * limit
     const now = new Date()
 
-    const where: any = {}
+    const whereClauses: string[] = []
+    const params: any[] = []
 
-    // In the external DB schema, we don't have a status column. Instead, active news are determined by dates.
-    // We check if start_date <= now <= end_date
     if (!all) {
-      where.startDate = { lte: now }
-      where.endDate = { gte: now }
+      whereClauses.push('start_date <= NOW() AND end_date >= NOW()')
     }
 
     if (category) {
-      where.category = category
+      whereClauses.push('category = ?')
+      params.push(category)
     }
 
-    const [news, total] = await Promise.all([
-      prisma.news.findMany({
-        where,
-        orderBy: { startDate: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          attachments: {
-            orderBy: { id: 'asc' }
-          }
-        }
-      }),
-      prisma.news.count({ where }),
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    const [news, countRows] = await Promise.all([
+      queryMemberDb(`
+        SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
+        FROM news
+        ${whereSql}
+        ORDER BY start_date DESC
+        LIMIT ${Number(limit)} OFFSET ${Number(skip)}
+      `, params),
+      queryMemberDb(`
+        SELECT COUNT(*) AS total
+        FROM news
+        ${whereSql}
+      `, params),
     ])
+
+    const total = countRows[0]?.total ? Number(countRows[0].total) : 0
+
+    const attachmentsByNewsId = new Map<number, any[]>()
+    if (news.length > 0) {
+      const newsIds = news.map((n: any) => n.id)
+      const placeholders = newsIds.map(() => '?').join(',')
+      const attachments = await queryMemberDb(`
+        SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
+        FROM attachments
+        WHERE news_id IN (${placeholders})
+        ORDER BY id ASC
+      `, newsIds)
+
+      for (const att of attachments) {
+        const list = attachmentsByNewsId.get(att.newsId) || []
+        list.push(att)
+        attachmentsByNewsId.set(att.newsId, list)
+      }
+    }
 
     // Adapt fields to retain compatibility with old frontend references (like images, publishedAt, pdfUrl, status)
     const adaptedNews = news.map((item: any) => {
+      const atts = attachmentsByNewsId.get(item.id) || []
       // images logic: filter only image attachments
-      const imageAttachments = item.attachments.filter((att: any) => 
+      const imageAttachments = atts.filter((att: any) => 
         att.fileType && att.fileType.startsWith('image/')
       )
       const images = imageAttachments.map((att: any) => ({
@@ -64,28 +86,26 @@ export async function GET(request: Request) {
       }))
 
       // pdfUrl logic: filter only pdf attachments
-      const pdfAttachment = item.attachments.find((att: any) => 
+      const pdfAttachment = atts.find((att: any) => 
         att.fileType === 'application/pdf'
       )
 
       // status mapping based on dates
       let status = 'PUBLISHED'
-      if (item.startDate > now) {
+      const startD = new Date(item.startDate)
+      const endD = new Date(item.endDate)
+      if (startD > now) {
         status = 'DRAFT' // Scheduled to show later
-      } else if (item.endDate < now) {
+      } else if (endD < now) {
         status = 'ARCHIVED' // Expired
       }
-
-      // excerpt fallback (no excerpt column in database)
-      // we can try to extract clean text from any other sources if available, or empty string
-      const excerpt = ''
 
       return {
         id: item.id,
         title: item.title,
         slug: item.slug,
-        excerpt,
-        content: '', // content not present in the new schema but used in view detail.
+        excerpt: '',
+        content: '',
         youtubeUrl: item.youtubeLink,
         pdfUrl: pdfAttachment ? pdfAttachment.filePath : null,
         status,
@@ -105,7 +125,7 @@ export async function GET(request: Request) {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / limit) || 1,
       },
     })
   } catch (error) {
@@ -155,14 +175,14 @@ export async function POST(request: Request) {
     }
 
     // Attachments generation
-    const attachmentsToCreate = []
+    const attachmentsToCreate: any[] = []
     
     // Add images to attachments list
     if (Array.isArray(images)) {
       images.forEach((imgUrl: string) => {
         attachmentsToCreate.push({
           filePath: imgUrl,
-          fileType: 'image/jpeg', // Defaulting to jpeg, could parse extension
+          fileType: 'image/jpeg',
           originalName: imgUrl.split('/').pop() || 'image.jpg'
         })
       })
@@ -177,23 +197,40 @@ export async function POST(request: Request) {
       })
     }
 
-    const news = await prisma.news.create({
-      data: {
-        title,
-        slug,
-        category: category || 'PR',
-        youtubeLink: youtubeUrl || null,
-        startDate,
-        endDate,
-        viewCount: 0,
-        attachments: {
-          create: attachmentsToCreate
-        }
-      },
-      include: {
-        attachments: true
-      }
-    })
+    const insertRes = await queryMemberDb(`
+      INSERT INTO news (title, slug, category, youtube_link, start_date, end_date, view_count, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 0, NOW(), NOW())
+    `, [title, slug, category || 'PR', youtubeUrl || null, startDate, endDate])
+
+    const insertId = (insertRes as any)?.insertId || (insertRes as any)?.[0]?.insertId
+
+    const createdAttachments: any[] = []
+    for (const att of attachmentsToCreate) {
+      const attRes = await queryMemberDb(`
+        INSERT INTO attachments (news_id, file_path, file_type, original_name, created_at)
+        VALUES (?, ?, ?, ?, NOW())
+      `, [insertId, att.filePath, att.fileType, att.originalName])
+      const attId = (attRes as any)?.insertId || (attRes as any)?.[0]?.insertId
+      createdAttachments.push({
+        id: attId,
+        newsId: insertId,
+        filePath: att.filePath,
+        fileType: att.fileType,
+        originalName: att.originalName,
+      })
+    }
+
+    const news = {
+      id: insertId,
+      title,
+      slug,
+      category: category || 'PR',
+      youtubeLink: youtubeUrl || null,
+      startDate,
+      endDate,
+      viewCount: 0,
+      attachments: createdAttachments
+    }
 
     return NextResponse.json({ success: true, news }, { status: 201 })
   } catch (error) {

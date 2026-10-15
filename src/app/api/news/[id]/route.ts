@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { newsCreateSchema } from '@/lib/schemas/news'
 
@@ -19,19 +19,28 @@ export async function GET(
       )
     }
 
-    const news = await prisma.news.findUnique({
-      where: { id: newsId },
-      include: {
-        attachments: true
-      }
-    })
+    const newsRows = await queryMemberDb(`
+      SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
+      FROM news
+      WHERE id = ?
+      LIMIT 1
+    `, [newsId])
 
-    if (!news) {
+    if (newsRows.length === 0) {
       return NextResponse.json(
         { error: 'ไม่พบข่าวที่ต้องการ' },
         { status: 404 }
       )
     }
+    const news = newsRows[0]
+
+    const attachments = await queryMemberDb(`
+      SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
+      FROM attachments
+      WHERE news_id = ?
+      ORDER BY id ASC
+    `, [newsId])
+    news.attachments = attachments
 
     // Adapt to match what front-end expects
     const now = new Date()
@@ -157,60 +166,42 @@ function calculateNewsDates(
 }
 
 async function recreateNewsAttachments(
-  tx: any,
   newsId: number,
   images: any,
   pdfUrl: any,
   existingAttachments: any
 ) {
-  let finalImages = []
+  let finalImages: string[] = []
   if (images !== undefined) {
     finalImages = Array.isArray(images) ? images : []
   } else {
     finalImages = existingAttachments
-      .filter((att: any) => att.fileType && att.fileType.startsWith('image/'))
-      .map((att: any) => att.filePath)
+      .filter((att: any) => att.file_type && att.file_type.startsWith('image/'))
+      .map((att: any) => att.file_path)
   }
 
   let finalPdfUrl = null
   if (pdfUrl !== undefined) {
     finalPdfUrl = pdfUrl
   } else {
-    const existingPdf = existingAttachments.find((att: any) => att.fileType === 'application/pdf')
-    finalPdfUrl = existingPdf ? existingPdf.filePath : null
+    const existingPdf = existingAttachments.find((att: any) => att.file_type === 'application/pdf')
+    finalPdfUrl = existingPdf ? existingPdf.file_path : null
   }
 
-  await tx.attachment.deleteMany({
-    where: { newsId }
-  })
+  await queryMemberDb('DELETE FROM attachments WHERE news_id = ?', [newsId])
 
-  const attachmentsToCreate: any[] = []
-
-  finalImages.forEach((imgUrl: string) => {
-    attachmentsToCreate.push({
-      filePath: imgUrl,
-      fileType: 'image/jpeg',
-      originalName: imgUrl.split('/').pop() || 'image.jpg'
-    })
-  })
+  for (const imgUrl of finalImages) {
+    await queryMemberDb(`
+      INSERT INTO attachments (news_id, file_path, file_type, original_name, created_at)
+      VALUES (?, ?, 'image/jpeg', ?, NOW())
+    `, [newsId, imgUrl, imgUrl.split('/').pop() || 'image.jpg'])
+  }
 
   if (finalPdfUrl) {
-    attachmentsToCreate.push({
-      filePath: finalPdfUrl,
-      fileType: 'application/pdf',
-      originalName: finalPdfUrl.split('/').pop() || 'document.pdf'
-    })
-  }
-
-  if (attachmentsToCreate.length > 0) {
-    await tx.attachment.createMany({
-      data: attachmentsToCreate.map((att: any) => ({
-        newsId,
-        filePath: att.filePath,
-        fileType: att.fileType,
-        originalName: att.originalName
-      }))
-    })
+    await queryMemberDb(`
+      INSERT INTO attachments (news_id, file_path, file_type, original_name, created_at)
+      VALUES (?, ?, 'application/pdf', ?, NOW())
+    `, [newsId, finalPdfUrl, finalPdfUrl.split('/').pop() || 'document.pdf'])
   }
 }
 
@@ -244,43 +235,54 @@ export async function PUT(
 
     const { title, youtubeUrl, pdfUrl, status, category, publishedAt, expiredAt, images } = parsed.data
 
-    const existing = await prisma.news.findUnique({
-      where: { id: newsId },
-    })
+    const existingRows = await queryMemberDb(`
+      SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate
+      FROM news
+      WHERE id = ?
+      LIMIT 1
+    `, [newsId])
 
-    if (!existing) {
+    if (existingRows.length === 0) {
       return NextResponse.json(
         { error: 'ไม่พบข่าวที่ต้องการแก้ไข' },
         { status: 404 }
       )
     }
+    const existing = existingRows[0]
 
-    const news = await prisma.$transaction(async (tx: any) => {
-      const { startDate, endDate } = calculateNewsDates(status, publishedAt, expiredAt, existing)
+    const { startDate, endDate } = calculateNewsDates(status, publishedAt, expiredAt, existing)
 
-      if (images !== undefined || pdfUrl !== undefined) {
-        const existingAttachments = await tx.attachment.findMany({
-          where: { newsId }
-        })
-        await recreateNewsAttachments(tx, newsId, images, pdfUrl, existingAttachments)
-      }
+    if (images !== undefined || pdfUrl !== undefined) {
+      const existingAttachments = await queryMemberDb('SELECT * FROM attachments WHERE news_id = ?', [newsId])
+      await recreateNewsAttachments(newsId, images, pdfUrl, existingAttachments)
+    }
 
-      return tx.news.update({
-        where: { id: newsId },
-        data: {
-          ...(title !== undefined && { title }),
-          youtubeLink: youtubeUrl !== undefined ? youtubeUrl : undefined,
-          category: category !== undefined ? category : undefined,
-          startDate,
-          endDate,
-        },
-        include: {
-          attachments: true
-        }
-      })
-    })
+    await queryMemberDb(`
+      UPDATE news
+      SET title = COALESCE(?, title),
+          youtube_link = COALESCE(?, youtube_link),
+          category = COALESCE(?, category),
+          start_date = ?,
+          end_date = ?,
+          updated_at = NOW()
+      WHERE id = ?
+    `, [
+      title !== undefined ? title : null,
+      youtubeUrl !== undefined ? youtubeUrl : null,
+      category !== undefined ? category : null,
+      startDate,
+      endDate,
+      newsId,
+    ])
 
-    return NextResponse.json({ success: true, news })
+    const updatedRows = await queryMemberDb('SELECT * FROM news WHERE id = ? LIMIT 1', [newsId])
+    const updatedAttachments = await queryMemberDb('SELECT * FROM attachments WHERE news_id = ? ORDER BY id ASC', [newsId])
+    const updatedNews = {
+      ...updatedRows[0],
+      attachments: updatedAttachments,
+    }
+
+    return NextResponse.json({ success: true, news: updatedNews })
   } catch (error) {
     console.error('News update error:', error)
     return NextResponse.json(
@@ -308,20 +310,17 @@ export async function DELETE(
       )
     }
 
-    const existing = await prisma.news.findUnique({
-      where: { id: newsId },
-    })
+    const existingRows = await queryMemberDb('SELECT id FROM news WHERE id = ? LIMIT 1', [newsId])
 
-    if (!existing) {
+    if (existingRows.length === 0) {
       return NextResponse.json(
         { error: 'ไม่พบข่าวที่ต้องการลบ' },
         { status: 404 }
       )
     }
 
-    await prisma.news.delete({
-      where: { id: newsId },
-    })
+    await queryMemberDb('DELETE FROM attachments WHERE news_id = ?', [newsId])
+    await queryMemberDb('DELETE FROM news WHERE id = ?', [newsId])
 
     return NextResponse.json({ success: true })
   } catch (error) {

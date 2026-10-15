@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
 
@@ -20,12 +20,11 @@ export async function GET() {
     const { error } = await requireMemberApi({ requiredPermission: 'manage_outgoing_doc' })
     if (error) return error
 
-    const documents = await prisma.outgoingDocument.findMany({
-      orderBy: [
-        { displayOrder: 'asc' },
-        { year: 'asc' }
-      ]
-    })
+    const documents = await queryMemberDb(`
+      SELECT id, year, label, note, url, status, display_order AS displayOrder, is_active AS isActive, created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt, updated_at AS updatedAt
+      FROM outgoing_documents
+      ORDER BY display_order ASC, year ASC
+    `)
 
     return NextResponse.json({
       success: true,
@@ -52,19 +51,25 @@ export async function POST(request: Request) {
 
     const { year, label, note, url, status, displayOrder, isActive } = parsed.data
 
-    const created = await prisma.outgoingDocument.create({
-      data: {
-        year,
-        label,
-        note: note || '',
-        url,
-        status,
-        displayOrder,
-        isActive,
-        createdBy: member.username,
-        updatedBy: member.username,
-      }
-    })
+    const insertRes = await queryMemberDb(`
+      INSERT INTO outgoing_documents (year, label, note, url, status, display_order, is_active, created_by, updated_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `, [year, label, note || '', url, status, displayOrder, isActive ? 1 : 0, member.username, member.username])
+
+    const insertId = (insertRes as any)?.insertId || (insertRes as any)?.[0]?.insertId
+
+    const created = {
+      id: insertId,
+      year,
+      label,
+      note: note || '',
+      url,
+      status,
+      displayOrder,
+      isActive,
+      createdBy: member.username,
+      updatedBy: member.username,
+    }
 
     await logAudit(
       'CREATE',
@@ -105,27 +110,18 @@ export async function PUT(request: Request) {
 
     const { year, label, note, url, status, displayOrder, isActive } = parsed.data
 
-    const existing = await prisma.outgoingDocument.findUnique({
-      where: { id }
-    })
-
-    if (!existing) {
+    const existingRows = await queryMemberDb('SELECT id, year, label FROM outgoing_documents WHERE id = ? LIMIT 1', [id])
+    if (existingRows.length === 0) {
       return NextResponse.json({ error: 'ไม่พบข้อมูลรายการหนังสือส่งออกนี้' }, { status: 404 })
     }
 
-    const updated = await prisma.outgoingDocument.update({
-      where: { id },
-      data: {
-        year,
-        label,
-        note: note || '',
-        url,
-        status,
-        displayOrder,
-        isActive,
-        updatedBy: member.username,
-      }
-    })
+    await queryMemberDb(`
+      UPDATE outgoing_documents
+      SET year = ?, label = ?, note = ?, url = ?, status = ?, display_order = ?, is_active = ?, updated_by = ?, updated_at = NOW()
+      WHERE id = ?
+    `, [year, label, note || '', url, status, displayOrder, isActive ? 1 : 0, member.username, id])
+
+    const updatedRows = await queryMemberDb('SELECT * FROM outgoing_documents WHERE id = ? LIMIT 1', [id])
 
     await logAudit(
       'UPDATE',
@@ -136,7 +132,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({
       success: true,
-      document: updated,
+      document: updatedRows[0] || { id, year, label },
       message: 'อัปเดตข้อมูลสำเร็จ'
     })
   } catch (error: any) {
@@ -159,17 +155,13 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'รหัสเอกสาร (id) ไม่ถูกต้อง' }, { status: 400 })
     }
 
-    const existing = await prisma.outgoingDocument.findUnique({
-      where: { id }
-    })
-
-    if (!existing) {
+    const existingRows = await queryMemberDb('SELECT id, year, label FROM outgoing_documents WHERE id = ? LIMIT 1', [id])
+    if (existingRows.length === 0) {
       return NextResponse.json({ error: 'ไม่พบรายการที่ต้องการลบ' }, { status: 404 })
     }
+    const existing = existingRows[0]
 
-    await prisma.outgoingDocument.delete({
-      where: { id }
-    })
+    await queryMemberDb('DELETE FROM outgoing_documents WHERE id = ?', [id])
 
     await logAudit(
       'DELETE',

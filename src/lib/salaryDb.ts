@@ -1,53 +1,22 @@
-import mysql from 'mysql2/promise'
+import { apiGateway } from '@/lib/apiGateway'
 
-let pool: mysql.Pool | null = null
+/**
+ * Execute salary read queries via the Thoen Unified API Gateway.
+ * Fully decoupled from direct MySQL database connections (Zero-DB Architecture).
+ * Strict fail-closed: Throws GatewayUnavailableError if the Gateway is down.
+ */
+export async function querySalaryDb(sql: string, params: any[] = []): Promise<any[]> {
+  return apiGateway.salary.query(sql, params)
+}
 
-function getPool() {
-  if (!pool) {
-    pool = mysql.createPool({
-      host: process.env.SALARY_DB_HOST,
-      port: parseInt(process.env.SALARY_DB_PORT || '3306'),
-      user: process.env.SALARY_DB_USER,
-      password: process.env.SALARY_DB_PASSWORD,
-      database: process.env.SALARY_DB_NAME,
-      charset: process.env.SALARY_DB_CHARSET || 'tis620',
-      connectionLimit: 10,
-      waitForConnections: true,
-      queueLimit: 0,
-      connectTimeout: 5000,
-    })
+/**
+ * Execute salary write or edit queries via the Thoen Unified API Gateway.
+ * Selects route through query, while mutations route through execute.
+ */
+export async function querySalaryEditDb(sql: string, params: any[] = []): Promise<any> {
+  const trimmed = sql.trim().toUpperCase()
+  if (trimmed.startsWith('SELECT') || trimmed.startsWith('EXPLAIN') || trimmed.startsWith('SHOW')) {
+    return apiGateway.salary.query(sql, params)
   }
-  return pool
-}
-
-export async function querySalaryDb(sql: string, params: any[] = []) {
-  const currentPool = getPool()
-  const [results] = await currentPool.query(sql, params)
-  return results as any[]
-}
-
-let editPool: mysql.Pool | null = null
-
-function getEditPool() {
-  if (!editPool) {
-    editPool = mysql.createPool({
-      host: process.env.SALARY_EDIT_DB_HOST,
-      port: parseInt(process.env.SALARY_EDIT_DB_PORT || '3306'),
-      user: process.env.SALARY_EDIT_DB_USER,
-      password: process.env.SALARY_EDIT_DB_PASSWORD,
-      database: process.env.SALARY_EDIT_DB_NAME,
-      charset: process.env.SALARY_EDIT_DB_CHARSET || 'tis620',
-      connectionLimit: 10,
-      waitForConnections: true,
-      queueLimit: 0,
-      connectTimeout: 5000,
-    })
-  }
-  return editPool
-}
-
-export async function querySalaryEditDb(sql: string, params: any[] = []) {
-  const currentPool = getEditPool()
-  const [results] = await currentPool.query(sql, params)
-  return results as any[]
+  return apiGateway.salary.execute(sql, params)
 }

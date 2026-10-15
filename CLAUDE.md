@@ -16,35 +16,38 @@ cmd.exe /c "npm run build:full"   # Run prisma generate + build
 # Testing & Quality
 cmd.exe /c "npm run test"         # Run Vitest test suite
 cmd.exe /c "npm run test:watch"   # Run Vitest in watch mode
+cmd.exe /c "npx vitest run src/lib/__tests__/apiGateway.test.ts" # Run Gateway SDK test suite
 cmd.exe /c "npx tsc --noEmit"     # Run TypeScript type check
 cmd.exe /c "npm run lint"         # Run ESLint
 
 # Database & Maintenance
 cmd.exe /c "npm run db:generate"  # Generate Prisma client
-cmd.exe /c "npm run db:backup"    # Run DB backup script
-cmd.exe /c "npm run db:safe-push" # Safe schema sync
 cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
 ```
 
-## Architecture & DB Boundaries
-1. **Primary DB (Prisma):** `@/lib/prisma` — CMS, users, tickets, approvals, audit logs.
-2. **HOSxP DB (Read-Only):** `@/lib/clinicalDb`, `@/lib/clinical/ipdWardService` — Appointments, Lab, ER, IPD, Bed Occupancy, OR. Never write/mutate.
-3. **Salary DB (Read-Only):** `@/lib/salaryDb` — Encrypted pay slip data.
-4. **File Storage Seam:** `@/lib/storage/documentStorage` (`DocumentStorage`) — Never import raw `fs` in API routes. Use `readBuffer()` for image/binary reads, `serveFile()` for HTTP 206 byte-range streaming (video/Safari), `save()`/`saveBatch()`/`delete()` for writes.
-5. **Member Auth Seam:** `@/lib/auth/MemberAuthService` — All OTP, JWT build/verify, and ThaID OAuth flows. Route handlers: read cookie/body → call service → set cookie. Never create or verify JWTs inside a route handler.
-6. **Ethics CMS Seam:** `@/lib/cms/EthicsDocumentService` — Tree building, year aggregation, cascading file+record delete. Ethics route handlers are thin adapters only.
-7. **Hospital Asset Seam:** `@/lib/assets/assetService` (`HospitalAssetService`) — Auto-categorization (IT/Medical/General), FSN mapping, Gotowin integration. Route handlers: `@/app/api/assets/**`.
-8. **Hospital Events Seam:** `@/lib/events/hospitalEventService` (`HospitalEventService`) & `@/lib/events/eventTimeUtils` — Event creation, ThaID QR check-in window validation (`validateCheckinWindow`), attendee management, leaderboard, Thai fiscal year (1 Oct - 30 Sep). MySQL `DATETIME` stores literal Thai Local Time (`Asia/Bangkok` UTC+7).
-9. **Equipment Borrowing Seam:** `@/lib/equipment/equipmentBorrowService` (`EquipmentBorrowService`) — Centralized equipment & consumable borrowing workflows (`equipment_borrow_requests`, `equipment_borrow_items`).
-10. **Revenue Cycle Analytics Seam:** `@/lib/clinical/rcmDashboardService` (`RcmDashboardService`) — Standardized 10 clinical specialties (`buildDepartmentSqlCase`, `classifySpecialty`), strongly typed `FiscalDateRange` (`startDate`, `endDate`), and dynamic Thai fiscal bounds (`getDefaultFiscalYearDateRange`, `resolveFiscalDateRange`).
-11. **Member Work Summary Seam:** `@/lib/taskInboxService` (`TaskInboxService.getMemberWorkSummary`) — Centralized pending inbox task and registration counts. Never embed raw SQL queries inside Page Server Components.
-12. **Shared Formatters:** `@/lib/formatters` (`getInitials`) — Canonical helper for staff avatars, stripping Thai civil & medical honorifics.
+## Architecture & Zero-DB Boundaries
+1. **100% Zero-Database Architecture (Unified API Gateway):** The Next.js application opens ZERO direct database sockets (no MySQL port 3306). All data operations route strictly through the centralized **Thoen Hospital Unified API Gateway** (`http://192.168.1.208:8443`) via `@/lib/apiGateway` (`ApiGatewayClient`).
+2. **Strict Fail-Closed Security Policy:** If the Gateway is unreachable, `GatewayUnavailableError` (HTTP 503) is thrown immediately. Never silently fallback to direct DB connections.
+3. **HOSxP Clinical DB (Read-Only):** `@/lib/clinicalDb` (`queryClinicalDb`) and domain services (e.g. `@/lib/clinical/ipdWardService`) delegate to `apiGateway.clinical.query`. Strictly enforced read-only (`SELECT`, `EXPLAIN`, `SHOW`).
+4. **Salary DB:** `@/lib/salaryDb` (`querySalaryDb`, `querySalaryEditDb`) delegates to `apiGateway.salary`.
+5. **Website Core & Member DB:** `@/lib/memberDb` (`queryMemberDb`) delegates to `apiGateway.app.query` and `apiGateway.app.execute`.
+6. **Prisma in Zero-DB Mode:** `@/lib/prisma` uses a dummy datasource fallback so `PrismaClient` initializes without `DATABASE_URL` in `.env`, and routes raw ping/health checks via `queryMemberDb('SELECT 1')`.
+7. **File Storage Seam:** `@/lib/storage/documentStorage` (`DocumentStorage`) — Never import raw `fs` in API routes. Use `readBuffer()` for image/binary reads, `serveFile()` for HTTP 206 byte-range streaming (video/Safari), `save()`/`saveBatch()`/`delete()` for writes.
+8. **Member Auth Seam:** `@/lib/auth/MemberAuthService` — All OTP, JWT build/verify, and ThaID OAuth flows. Route handlers: read cookie/body → call service → set cookie. Never create or verify JWTs inside a route handler.
+9. **Ethics CMS Seam:** `@/lib/cms/EthicsDocumentService` — Tree building, year aggregation, cascading file+record delete. Ethics route handlers are thin adapters only.
+10. **Hospital Asset Seam:** `@/lib/assets/assetService` (`HospitalAssetService`) — Auto-categorization (IT/Medical/General), FSN mapping, Gotowin integration. Route handlers: `@/app/api/assets/**`.
+11. **Hospital Events Seam:** `@/lib/events/hospitalEventService` (`HospitalEventService`) & `@/lib/events/eventTimeUtils` — Event creation, ThaID QR check-in window validation (`validateCheckinWindow`), attendee management, leaderboard, Thai fiscal year (1 Oct - 30 Sep). MySQL `DATETIME` stores literal Thai Local Time (`Asia/Bangkok` UTC+7).
+12. **Equipment Borrowing Seam:** `@/lib/equipment/equipmentBorrowService` (`EquipmentBorrowService`) — Centralized equipment & consumable borrowing workflows (`equipment_borrow_requests`, `equipment_borrow_items`).
+13. **Revenue Cycle Analytics Seam:** `@/lib/clinical/rcmDashboardService` (`RcmDashboardService`) — Standardized 10 clinical specialties (`buildDepartmentSqlCase`, `classifySpecialty`), strongly typed `FiscalDateRange` (`startDate`, `endDate`), and dynamic Thai fiscal bounds (`getDefaultFiscalYearDateRange`, `resolveFiscalDateRange`).
+14. **Member Work Summary Seam:** `@/lib/taskInboxService` (`TaskInboxService.getMemberWorkSummary`) — Centralized pending inbox task and registration counts. Never embed raw SQL queries inside Page Server Components.
+15. **Shared Formatters:** `@/lib/formatters` (`getInitials`) — Canonical helper for staff avatars, stripping Thai civil & medical honorifics.
+16. **No Contact Form:** The contact inquiry and complaint messages feature has been permanently deleted from both UI and API.
 
 ## Architectural & Coding Standards
 - **Thin Route Adapters:** API routes (`src/app/api/**`) must be thin (~20–40 lines) delegating to deep domain modules in `@/lib/`.
 - **Task Permissions (Single Source of Truth):** Use `@/lib/taskPermissionResolver` (`resolveTaskPermissions`) for all inbox authorization (`canView`, `canEdit`, `canApprove`, `canTakeJob`, `canCancel`).
 - **Task Workflow Actions:** All APPROVE/REJECT/SEND_BACK transitions go through `@/lib/taskInboxService` (`executeWorkflowAction`) — handles permission check, HMAC verify, step advance, audit log, and Telegram notify. Manager field edits use `updateTaskByManager`.
-- **Test Seams:** Domain services accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb` for 100% Vitest unit testability.
+- **Test Seams:** Domain services accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb` or `queryMemberDb` for 100% Vitest unit testability without live databases.
 - **File Uploads:** Use `DocumentStorage.save()`, `saveBatch()`, or `formatDateDirectory()`.
 - **No Duplicate Keys in Responses:** Never write `{ success: true, ...result }` if `result` already contains `success: boolean` (fails strict `npx tsc --noEmit` with TS2783).
 - **Non-Intrusive UX:** Use status chips with direct links for profile actions (e.g. `/member/signature`). Never introduce unsolicited popup modals that interrupt staff on dashboard load.
@@ -60,9 +63,11 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
     return { ...actual, RcmDashboardService: { ...actual.RcmDashboardService, getOpdDepartmentSummary: vi.fn() } }
   })
   ```
+- **OPD Doctor Summary Query Indexing:** Queries in `RcmDashboardService.getOpdDoctorSummary` MUST drive from `vn_stat v` (`v.vstdate BETWEEN ? AND ?`) using index `ix_vstdate`, joining `ovst` and `pttype` via primary keys (`eq_ref`). Never drive the query from unconstrained `pttype` scans which cause timeout >30s.
 - **MariaDB tis620 Charset:** The hospital's MariaDB server defaults `init_connect='SET NAMES tis620'`. Always use `@/lib/prisma` (which pins `SET NAMES utf8mb4`) rather than raw `new PrismaClient()` in scripts to prevent UTF-8 conversion errors.
 - **Event Timezone in DB:** `hospital_events` DATETIME columns store literal Thai local time (UTC parts match Bangkok time). API responses serialize them via `toBangkokIsoString` (`+07:00`) so clients don't double-shift.
 - **Event QR Scanning:** QR codes point to `/api/events/checkin/[token]` which redirects to ThaID OAuth. Must be scanned with a standard mobile camera/LINE scanner to launch the browser (ThaID app internal scanner does not handle web URLs).
+- **Zero-DB Testing:** When writing integration tests for services using `apiGateway`, mock `apiGateway` directly or inject mock executors into service constructors.
 
 
 ## Critical Hospital Rules (Zero Exception)

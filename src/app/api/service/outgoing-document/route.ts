@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 
 export async function GET() {
   try {
@@ -16,13 +16,12 @@ export async function GET() {
     // Check if member has management permission
     const canManage = await checkPositionPermission(session.username, 'manage_outgoing_doc')
 
-    const documents = await prisma.outgoingDocument.findMany({
-      where: { isActive: true },
-      orderBy: [
-        { year: 'desc' },
-        { displayOrder: 'desc' }
-      ]
-    })
+    const documents = await queryMemberDb(`
+      SELECT id, year, label, note, url, status, display_order AS displayOrder, is_active AS isActive, created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt, updated_at AS updatedAt
+      FROM outgoing_documents
+      WHERE is_active = 1
+      ORDER BY year DESC, display_order DESC
+    `)
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { logger } from '@/lib/logger'
 
@@ -35,14 +35,7 @@ export async function POST(
     // In the new schema (thoen_hospital_website database), there is no newsView table to record IP logs.
     // We will just directly increment viewCount on the news table when called.
 
-    await prisma.news.update({
-      where: { id: newsId },
-      data: {
-        viewCount: {
-          increment: 1
-        }
-      }
-    })
+    await queryMemberDb('UPDATE news SET view_count = view_count + 1 WHERE id = ?', [newsId])
 
     return NextResponse.json({ success: true, incremented: true })
   } catch (error) {

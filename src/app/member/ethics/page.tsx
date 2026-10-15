@@ -1,6 +1,6 @@
 import { getAuthenticatedMember } from '@/lib/memberAuth'
 import EthicsAdminClient from './EthicsAdminClient'
-import { prisma } from '@/lib/prisma'
+import { EthicsDocumentService } from '@/lib/cms/EthicsDocumentService'
 
 export const metadata = {
   title: 'จัดการเอกสารชมรมจริยธรรม | Thoen Hospital Member Portal',
@@ -15,28 +15,7 @@ export default async function MemberEthicsPage() {
     redirectTo: '/member',
   })
 
-  const years = await prisma.ethicsYear.findMany({
-    orderBy: [
-      { displayOrder: 'asc' },
-      { year: 'desc' }
-    ],
-    include: {
-      documents: {
-        orderBy: [
-          { displayOrder: 'asc' },
-          { id: 'asc' }
-        ]
-      }
-    }
-  })
-
-  const safeYears = years.map((y: any) => ({
-    ...y,
-    documents: y.documents.map((d: any) => ({
-      ...d,
-      fileSize: d.fileSize ? d.fileSize.toString() : null
-    }))
-  }))
+  const safeYears = await EthicsDocumentService.getYears()
 
   return <EthicsAdminClient username={member.username} initialYears={safeYears} />
 }

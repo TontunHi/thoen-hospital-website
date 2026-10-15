@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
+import { queryMemberDb } from '@/lib/memberDb';
 import HeroSlideshow from '@/components/common/HeroSlideshow';
 import { 
   Phone,
@@ -12,36 +12,50 @@ import './page.css';
 import { FacebookIcon } from '@/components/common/Icons';
 import { services, relatedOrgs } from '@/config/home';
 import { siteConfig } from '@/config/site';
-import { DbNews, DbAttachment, NewsListItem } from '@/types/news';
+import { NewsListItem } from '@/types/news';
 
 export const dynamic = 'force-dynamic';
 
 async function getLatestNews(): Promise<NewsListItem[]> {
   try {
-    const now = new Date()
-    const news = await prisma.news.findMany({
-      where: {
-        startDate: { lte: now },
-        endDate: { gte: now }
-      },
-      orderBy: { startDate: 'desc' },
-      take: 20,
-      include: {
-        attachments: true
-      }
-    })
+    const rawNews = await queryMemberDb(`
+      SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
+      FROM news
+      WHERE start_date <= NOW() AND end_date >= NOW()
+      ORDER BY start_date DESC
+      LIMIT 20
+    `)
 
-    const newsList: NewsListItem[] = (news as unknown as (DbNews & { attachments: DbAttachment[] })[]).map((item) => {
-      const imageAttachments = item.attachments.filter((att) => 
+    if (rawNews.length === 0) return []
+
+    const newsIds = rawNews.map((n: any) => n.id)
+    const placeholders = newsIds.map(() => '?').join(',')
+    const attachments = await queryMemberDb(`
+      SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
+      FROM attachments
+      WHERE news_id IN (${placeholders})
+      ORDER BY id ASC
+    `, newsIds)
+
+    const attachmentsByNewsId = new Map<number, any[]>()
+    for (const att of attachments) {
+      const list = attachmentsByNewsId.get(att.newsId) || []
+      list.push(att)
+      attachmentsByNewsId.set(att.newsId, list)
+    }
+
+    const newsList: NewsListItem[] = rawNews.map((item: any) => {
+      const atts = attachmentsByNewsId.get(item.id) || []
+      const imageAttachments = atts.filter((att: any) => 
         att.fileType && att.fileType.startsWith('image/')
       )
-      const images = imageAttachments.map((att) => ({
+      const images = imageAttachments.map((att: any) => ({
         id: att.id,
         imageUrl: att.filePath,
         order: 0
       }))
 
-      const pdfAttachment = item.attachments.find((att) => 
+      const pdfAttachment = atts.find((att: any) => 
         att.fileType === 'application/pdf'
       )
 
@@ -98,17 +112,12 @@ async function getLatestNews(): Promise<NewsListItem[]> {
 
 async function getActiveSlides() {
   try {
-    const now = new Date()
-    const slides = await prisma.heroSlide.findMany({
-      where: {
-        startDate: { lte: now },
-        endDate: { gte: now }
-      },
-      orderBy: [
-        { displayOrder: 'asc' },
-        { createdAt: 'desc' }
-      ]
-    })
+    const slides = await queryMemberDb(`
+      SELECT id, title, image_path AS imagePath, link_url AS linkUrl, start_date AS startDate, end_date AS endDate, display_order AS displayOrder, duration, created_at AS createdAt, updated_at AS updatedAt
+      FROM hero_slides
+      WHERE start_date <= NOW() AND end_date >= NOW()
+      ORDER BY display_order ASC, created_at DESC
+    `)
     return slides
   } catch (error) {
     console.error('Fetch active slides error:', error)

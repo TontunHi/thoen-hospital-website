@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { heroSlideSchema } from '@/lib/schemas/heroSlide'
 import { logAudit } from '@/lib/audit'
@@ -9,15 +9,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const all = searchParams.get('all') === 'true'
 
-    let slides
+    let slides: any[]
     if (all) {
       // For Admin: fetch all slides ordered by displayOrder then creation date
-      slides = await prisma.heroSlide.findMany({
-        orderBy: [
-          { displayOrder: 'asc' },
-          { createdAt: 'desc' },
-        ],
-      })
+      slides = await queryMemberDb(`
+        SELECT id, image_path AS imagePath, title, link_url AS linkUrl, start_date AS startDate, end_date AS endDate, display_order AS displayOrder, duration, created_at AS createdAt, updated_at AS updatedAt
+        FROM hero_slides
+        ORDER BY display_order ASC, created_at DESC
+      `)
 
       // Normalize gaps if any exist
       let hasGap = false
@@ -31,37 +30,29 @@ export async function GET(request: Request) {
       if (hasGap) {
         for (let i = 0; i < slides.length; i++) {
           if (slides[i].displayOrder !== i + 1) {
-            await prisma.heroSlide.update({
-              where: { id: slides[i].id },
-              data: { displayOrder: i + 1 },
-            })
+            await queryMemberDb('UPDATE hero_slides SET display_order = ? WHERE id = ?', [i + 1, slides[i].id])
             slides[i].displayOrder = i + 1
           }
         }
       }
     } else {
       // For Public: fetch only scheduled/active slides
-      const now = new Date()
-      slides = await prisma.heroSlide.findMany({
-        where: {
-          startDate: { lte: now },
-          endDate: { gte: now },
-        },
-        orderBy: [
-          { displayOrder: 'asc' },
-          { createdAt: 'desc' },
-        ],
-      })
+      slides = await queryMemberDb(`
+        SELECT id, image_path AS imagePath, title, link_url AS linkUrl, start_date AS startDate, end_date AS endDate, display_order AS displayOrder, duration, created_at AS createdAt, updated_at AS updatedAt
+        FROM hero_slides
+        WHERE start_date <= NOW() AND end_date >= NOW()
+        ORDER BY display_order ASC, created_at DESC
+      `)
     }
 
     // Fetch slide duration setting
     let slideDuration = 6
     try {
-      const durationSetting = await prisma.memberSystemSetting.findUnique({
-        where: { configKey: 'hero_slide_duration_seconds' },
-      })
-      if (durationSetting?.configValue) {
-        const parsedSec = parseInt(durationSetting.configValue, 10)
+      const durationRows = await queryMemberDb(
+        "SELECT config_value AS configValue FROM member_system_settings WHERE config_key = 'hero_slide_duration_seconds' LIMIT 1"
+      )
+      if (durationRows.length > 0 && durationRows[0]?.configValue) {
+        const parsedSec = parseInt(durationRows[0].configValue, 10)
         if (!isNaN(parsedSec) && parsedSec >= 2 && parsedSec <= 30) {
           slideDuration = parsedSec
         }
@@ -97,11 +88,11 @@ export async function PATCH(request: Request) {
       )
     }
 
-    await prisma.memberSystemSetting.upsert({
-      where: { configKey: 'hero_slide_duration_seconds' },
-      update: { configValue: String(durationNum) },
-      create: { configKey: 'hero_slide_duration_seconds', configValue: String(durationNum) },
-    })
+    await queryMemberDb(`
+      INSERT INTO member_system_settings (config_key, config_value, updated_at)
+      VALUES ('hero_slide_duration_seconds', ?, NOW())
+      ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()
+    `, [String(durationNum), String(durationNum)])
 
     await logAudit(
       'UPDATE',
@@ -142,29 +133,33 @@ export async function POST(request: Request) {
 
     let finalOrder = displayOrder
     if (!finalOrder || finalOrder <= 0) {
-      const maxSlide = await prisma.heroSlide.findFirst({
-        orderBy: { displayOrder: 'desc' },
-        select: { displayOrder: true },
-      })
-      finalOrder = (maxSlide?.displayOrder ?? 0) + 1
+      const maxSlideRows = await queryMemberDb('SELECT MAX(display_order) AS maxOrder FROM hero_slides')
+      const maxOrder = maxSlideRows[0]?.maxOrder ?? 0
+      finalOrder = maxOrder + 1
     }
 
-    const slide = await prisma.heroSlide.create({
-      data: {
-        imagePath,
-        title: title || null,
-        linkUrl: linkUrl || null,
-        startDate: start,
-        endDate: end,
-        displayOrder: finalOrder,
-        duration: duration || 6,
-      },
-    })
+    const insertRes = await queryMemberDb(`
+      INSERT INTO hero_slides (image_path, title, link_url, start_date, end_date, display_order, duration, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `, [imagePath, title || null, linkUrl || null, start, end, finalOrder, duration || 6])
+
+    const insertId = (insertRes as any)?.insertId || (insertRes as any)?.[0]?.insertId
+
+    const slide = {
+      id: insertId,
+      imagePath,
+      title: title || null,
+      linkUrl: linkUrl || null,
+      startDate: start,
+      endDate: end,
+      displayOrder: finalOrder,
+      duration: duration || 6,
+    }
 
     await logAudit(
       'CREATE',
       'hero_slides',
-      `สร้างสไลด์หัวเว็บ ID ${slide.id}: ${title || 'ไม่มีหัวข้อ'} (${imagePath.endsWith('.mp4') ? 'วิดีโอ MP4' : 'รูปภาพ'})`,
+      `สร้างสไลด์หัวเว็บ ID ${insertId || ''}: ${title || 'ไม่มีหัวข้อ'} (${imagePath.endsWith('.mp4') ? 'วิดีโอ MP4' : 'รูปภาพ'})`,
       authResult.session
     )
 

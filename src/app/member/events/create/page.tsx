@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getAuthenticatedMember } from '@/lib/memberAuth'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import CreateEventClient from './CreateEventClient'
 
 export const metadata = {
@@ -27,20 +27,15 @@ export default async function CreateEventPage() {
 
   try {
     const [materials, assets, members] = await Promise.all([
-      prisma.hospitalMaterial.findMany({
-        where: { isActive: true },
-        select: { id: true, name: true, category: true, availableQty: true, unit: true },
-        orderBy: { name: 'asc' },
-      }),
-      prisma.hospitalAsset.findMany({
-        where: { isLoanable: true, status: 'ACTIVE' },
-        select: { id: true, articleNum: true, name: true, category: true },
-        orderBy: { name: 'asc' },
-      }),
-      prisma.member.findMany({
-        select: { id: true, name: true, department: true, position: true },
-        orderBy: { name: 'asc' },
-      }),
+      queryMemberDb(
+        'SELECT id, name, category, available_qty AS availableQty, unit FROM hospital_materials WHERE is_active = 1 ORDER BY name ASC'
+      ),
+      queryMemberDb(
+        'SELECT id, article_num AS articleNum, name, category FROM hospital_assets WHERE is_loanable = 1 AND status = "ACTIVE" ORDER BY name ASC'
+      ),
+      queryMemberDb(
+        'SELECT id, name, department, position FROM members ORDER BY name ASC'
+      ),
     ])
 
     loanableMaterials = materials

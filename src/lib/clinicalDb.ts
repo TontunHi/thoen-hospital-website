@@ -54,25 +54,17 @@ export function getClinicalPool(): mysql.Pool {
   return pool
 }
 
+import { apiGateway } from '@/lib/apiGateway'
+
 /**
- * Execute raw SQL with parameter binding on the HOSxP pool.
- * Uses pool.query (text protocol) instead of pool.execute (binary prepared statements)
- * to prevent MySQL ER_NEED_REPREPARE (errno 1615) errors on complex clinical JOINs and views.
+ * Execute clinical queries via the Thoen Unified API Gateway.
+ * Fully decoupled from direct MySQL database connections (Zero-DB Architecture).
+ * Strict fail-closed: Throws GatewayUnavailableError if the Gateway is down.
  */
 export async function queryClinicalDb<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  const currentPool = getClinicalPool()
-  try {
-    const [results] = await currentPool.query(sql, params)
-    return results as T[]
-  } catch (error: any) {
-    if (error?.code === 'ER_NEED_REPREPARE' || error?.errno === 1615) {
-      // Retry once if MySQL table definition cache was invalidated
-      const [retryResults] = await currentPool.query(sql, params)
-      return retryResults as T[]
-    }
-    throw error
-  }
+  return apiGateway.clinical.query<T>(sql, params)
 }
+
 
 // -------------------------------------------------------------
 // Domain Queries (Deep Module Interface)

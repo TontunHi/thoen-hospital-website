@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getAuthenticatedMember } from '@/lib/memberAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import EventsClient from './EventsClient'
 
 export const metadata = {
@@ -24,22 +24,18 @@ export default async function MemberEventsPage() {
   let registeredEventsCount = 0
 
   try {
-    const [eventsRes, pointsCount, regCount] = await Promise.all([
+    const [eventsRes, pointsRows, regRows] = await Promise.all([
       eventService.getEvents({
         memberId: member.id,
         limit: 30,
       }),
-      prisma.eventAttendance.count({
-        where: { memberId: member.id },
-      }),
-      prisma.eventRegistration.count({
-        where: { memberId: member.id },
-      }),
+      queryMemberDb('SELECT COUNT(*) AS count FROM event_attendances WHERE member_id = ?', [member.id]),
+      queryMemberDb('SELECT COUNT(*) AS count FROM event_registrations WHERE member_id = ?', [member.id]),
     ])
 
     initialEvents = eventsRes.events || []
-    userTotalPoints = pointsCount
-    registeredEventsCount = regCount
+    userTotalPoints = Number(pointsRows[0]?.count ?? 0)
+    registeredEventsCount = Number(regRows[0]?.count ?? 0)
   } catch (err) {
     console.error('Error fetching initial events:', err)
   }

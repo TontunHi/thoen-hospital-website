@@ -1,6 +1,6 @@
 'use client'
 
-import { Phone, Printer, Clock, MapPin, MessageSquare, ExternalLink } from 'lucide-react'
+import { Phone, Printer, Clock, MapPin, ExternalLink } from 'lucide-react'
 import Breadcrumb from '@/components/ui/Breadcrumb'
 import { FacebookIcon } from '@/components/common/Icons'
 import { siteConfig } from '@/config/site'
@@ -18,7 +18,7 @@ export default function ContactClientView() {
         <div className="contactHeader animate-fadeInUp">
           <h1 className="contactHeader__title">ติดต่อเรา</h1>
           <p className="contactHeader__desc">
-            สามารถติดต่อสอบถามข้อมูลการบริการ ปรึกษาปัญหาสุขภาพ หรือส่งเรื่องร้องเรียน/ข้อเสนอแนะถึงโรงพยาบาลเถินได้ผ่านช่องทางด้านล่าง
+            สามารถติดต่อสอบถามข้อมูลการบริการ ปรึกษาปัญหาสุขภาพ และข้อมูลติดต่อโรงพยาบาลเถินได้ผ่านช่องทางด้านล่าง
           </p>
         </div>
 
@@ -83,32 +83,6 @@ export default function ContactClientView() {
                 <span>เปิดแผนที่นำทาง (Google Maps)</span>
                 <ExternalLink size={14} />
               </a>
-            </div>
-          </div>
-
-          {/* Contact form side */}
-          <div className="contactFormSection">
-            <div className="card-header-with-icon">
-              <span className="card-header-icon-wrap gold-wrap" style={{ backgroundColor: 'var(--accent-gold-light)', color: 'var(--accent-gold-dark)' }}>
-                <MessageSquare size={22} />
-              </span>
-              <h2>ส่งเรื่องร้องเรียน / ข้อเสนอแนะ</h2>
-            </div>
-            <p className="formSubtitle">
-              กรอกข้อมูลลงในแบบฟอร์มด้านล่าง ข้อมูลของท่านจะถูกส่งตรงถึงผู้บริหารโรงพยาบาลเถินเพื่อปรับปรุงการบริการ
-            </p>
-
-            <div className="iframeContainer">
-              <iframe
-                src="https://docs.google.com/forms/d/e/1FAIpQLSekKnRyhF09oqU1s4CThb4x99VJ3ZOaP2r7RWQ6Ey0LkMWahg/viewform?embedded=true"
-                width="100%"
-                height="100%"
-                style={{ border: 'none', background: 'transparent', minHeight: '480px' }}
-                title="แบบฟอร์มร้องเรียน โรงพยาบาลเถิน"
-                loading="lazy"
-              >
-                กำลังโหลดแบบฟอร์ม…
-              </iframe>
             </div>
           </div>
         </div>

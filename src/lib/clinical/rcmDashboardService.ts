@@ -616,8 +616,7 @@ export class RcmDashboardService {
         const allPttypeRows = (await executor(allPttypeQuery)) as PttypeOption[]
 
         const whereClauses: string[] = [
-          'o.vstdate BETWEEN ? AND ?',
-          "IFNULL(o.an, '') = ''",
+          'v.vstdate BETWEEN ? AND ?',
         ]
         const queryParams: any[] = [ds1, ds2]
 
@@ -638,19 +637,19 @@ export class RcmDashboardService {
           SELECT 
             IFNULL(o.doctor, 'UNKNOWN') AS doctor_code,
             IFNULL(d.name, IFNULL(o.doctor, 'ไม่ระบุชื่อแพทย์')) AS doctor_name,
-            DATE_FORMAT(o.vstdate, '%Y-%m') AS ym,
-            COUNT(DISTINCT o.vn) AS visits,
+            DATE_FORMAT(v.vstdate, '%Y-%m') AS ym,
+            COUNT(v.vn) AS visits,
             SUM(IFNULL(v.income, 0)) AS income,
             SUM(IFNULL(v.uc_money, 0)) AS uc_money,
             SUM(IFNULL(v.discount_money, 0)) AS discount_money,
             SUM(IFNULL(v.rcpt_money, 0)) AS rcpt_money,
             SUM(IFNULL(v.income, 0) - IFNULL(v.discount_money, 0) - IFNULL(v.rcpt_money, 0)) AS debit
-          FROM ovst o
-          INNER JOIN vn_stat v ON v.vn = o.vn
-          INNER JOIN pttype ptt ON ptt.pttype = o.pttype
+          FROM vn_stat v
+          INNER JOIN ovst o ON o.vn = v.vn AND (o.an IS NULL OR o.an = '')
+          INNER JOIN pttype ptt ON ptt.pttype = v.pttype
           LEFT JOIN doctor d ON d.code = o.doctor
           WHERE ${whereClauses.join(' AND ')}
-          GROUP BY IFNULL(o.doctor, 'UNKNOWN'), IFNULL(d.name, IFNULL(o.doctor, 'ไม่ระบุชื่อแพทย์')), DATE_FORMAT(o.vstdate, '%Y-%m')
+          GROUP BY IFNULL(o.doctor, 'UNKNOWN'), IFNULL(d.name, IFNULL(o.doctor, 'ไม่ระบุชื่อแพทย์')), DATE_FORMAT(v.vstdate, '%Y-%m')
           ORDER BY doctor_name ASC, ym ASC
         `
 

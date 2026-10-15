@@ -6,7 +6,25 @@ const globalForPrisma = globalThis as unknown as {
   prisma: any
 }
 
-const basePrisma = globalForPrisma.prisma ?? new PrismaClient()
+const basePrisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    datasources: {
+      db: {
+        url:
+          process.env.DATABASE_URL ||
+          'mysql://gateway_managed:disabled@127.0.0.1:3306/thoen_hospital_website',
+      },
+    },
+  })
+
+// In Zero-DB mode, route raw health/ping checks through Gateway
+if (!process.env.DATABASE_URL) {
+  basePrisma.$queryRaw = async (...args: any[]) => {
+    const { queryMemberDb } = await import('./memberDb')
+    return queryMemberDb('SELECT 1')
+  }
+}
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma
 

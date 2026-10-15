@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Newspaper, ChevronRight } from 'lucide-react'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import Breadcrumb from '@/components/ui/Breadcrumb'
 import { siteConfig } from '@/config/site'
 import './page.css'
@@ -22,32 +22,54 @@ async function getNewsList(page: number, limit: number, category?: string) {
     const skip = (page - 1) * limit
     const now = new Date()
 
-    const where: any = {
-      startDate: { lte: now },
-      endDate: { gte: now },
-    }
+    const whereClauses = ['start_date <= NOW()', 'end_date >= NOW()']
+    const params: any[] = []
 
     if (category) {
-      where.category = category
+      whereClauses.push('category = ?')
+      params.push(category)
     }
 
-    const [news, total] = await Promise.all([
-      prisma.news.findMany({
-        where,
-        orderBy: { startDate: 'desc' },
-        skip,
-        take: limit,
-        include: {
-          attachments: {
-            orderBy: { id: 'asc' },
-          },
-        },
-      }),
-      prisma.news.count({ where }),
+    const whereSql = whereClauses.join(' AND ')
+
+    const [rawNews, countRows] = await Promise.all([
+      queryMemberDb(`
+        SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
+        FROM news
+        WHERE ${whereSql}
+        ORDER BY start_date DESC
+        LIMIT ${Number(limit)} OFFSET ${Number(skip)}
+      `, params),
+      queryMemberDb(`
+        SELECT COUNT(*) AS total
+        FROM news
+        WHERE ${whereSql}
+      `, params),
     ])
 
-    const adaptedNews = news.map((item: any) => {
-      const imageAttachments = item.attachments.filter((att: any) =>
+    const total = countRows[0]?.total ? Number(countRows[0].total) : 0
+
+    const attachmentsByNewsId = new Map<number, any[]>()
+    if (rawNews.length > 0) {
+      const newsIds = rawNews.map((n: any) => n.id)
+      const placeholders = newsIds.map(() => '?').join(',')
+      const attachments = await queryMemberDb(`
+        SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
+        FROM attachments
+        WHERE news_id IN (${placeholders})
+        ORDER BY id ASC
+      `, newsIds)
+
+      for (const att of attachments) {
+        const list = attachmentsByNewsId.get(att.newsId) || []
+        list.push(att)
+        attachmentsByNewsId.set(att.newsId, list)
+      }
+    }
+
+    const adaptedNews = rawNews.map((item: any) => {
+      const atts = attachmentsByNewsId.get(item.id) || []
+      const imageAttachments = atts.filter((att: any) =>
         att.fileType && att.fileType.startsWith('image/')
       )
       const images = imageAttachments.map((att: any) => ({
@@ -56,14 +78,16 @@ async function getNewsList(page: number, limit: number, category?: string) {
         order: 0,
       }))
 
-      const pdfAttachment = item.attachments.find((att: any) =>
+      const pdfAttachment = atts.find((att: any) =>
         att.fileType === 'application/pdf'
       )
 
       let status = 'PUBLISHED'
-      if (item.startDate > now) {
+      const startD = new Date(item.startDate)
+      const endD = new Date(item.endDate)
+      if (startD > now) {
         status = 'DRAFT'
-      } else if (item.endDate < now) {
+      } else if (endD < now) {
         status = 'ARCHIVED'
       }
 
