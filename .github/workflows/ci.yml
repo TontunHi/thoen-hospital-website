@@ -34,10 +34,16 @@ jobs:
 
       - name: Run Unit Tests (Vitest)
         run: npm test
+        env:
+          API_GATEWAY_URL: 'http://127.0.0.1:8443'
+          API_GATEWAY_KEY: 'test_ci_gateway_key'
+          MEMBER_SESSION_SECRET: 'test-secret-at-least-32-chars-long-for-ci-build'
+          COOKIE_SECURE: 'false'
 
       - name: Build Next.js
         run: npm run build
         env:
-          DATABASE_URL: 'mysql://fake:fake@localhost:3306/fake'
+          API_GATEWAY_URL: 'http://127.0.0.1:8443'
+          API_GATEWAY_KEY: 'test_ci_gateway_key'
           MEMBER_SESSION_SECRET: 'test-secret-at-least-32-chars-long-for-ci-build'
           COOKIE_SECURE: 'false'

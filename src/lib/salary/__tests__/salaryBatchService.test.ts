@@ -8,6 +8,10 @@ import {
   SalaryDbExecutor,
 } from '../salaryBatchService'
 
+vi.mock('@/lib/audit', () => ({
+  logAudit: vi.fn().mockResolvedValue(undefined),
+}))
+
 describe('SalaryBatchService', () => {
   describe('decodeBuffer', () => {
     it('decodes standard UTF-8 buffer correctly', () => {
