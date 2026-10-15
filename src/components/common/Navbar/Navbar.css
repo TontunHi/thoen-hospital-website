@@ -1,5 +1,10 @@
 /* ==========================================================================
    Thoen Hospital - Premium Navigation Bar (UX/UI Overhaul)
+   Hallmark & Superfuture Design Review Standards
+   - Progressive Disclosure Architecture
+   - Fluid 1400px Container with Adaptive Padding
+   - Responsive Compact CTA States for 1081px - 1280px
+   - Clean 1080px Breakpoint to eliminate zoom-out on small screens
    ========================================================================== */
 
 .navbar {
@@ -28,11 +33,16 @@
   box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
 }
 
+/* Fluid Responsive Container (Max 1400px for generous breathing room) */
 .navbar__container {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
 }
 
 /* Mourning Ribbon (Configurable via siteConfig - D7) */
@@ -110,6 +120,7 @@
   font-weight: 800;
   color: #0D7446;
   letter-spacing: -0.015em;
+  white-space: nowrap;
 }
 
 .navbar__logo-sub {
@@ -117,6 +128,7 @@
   color: #64748b;
   font-weight: 500;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 /* ==========================================================================
@@ -125,7 +137,7 @@
 .navbar__links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   justify-content: center;
   flex: 1;
   list-style: none;
@@ -138,8 +150,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 0.45rem 0.7rem;
-  font-size: 0.875rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: #334155;
   border-radius: 8px;
@@ -149,11 +161,17 @@
   border: none;
   cursor: pointer;
   text-decoration: none;
+  font-family: inherit;
 }
 
 .navbar__link:hover {
   color: #0D7446;
   background: rgba(13, 116, 70, 0.06);
+}
+
+.navbar__link:focus-visible {
+  outline: 2px solid #0D7446;
+  outline-offset: 2px;
 }
 
 .navbar__link--active {
@@ -175,7 +193,7 @@
 }
 
 /* ==========================================================================
-   Dropdown Menus (Desktop Hover Architecture)
+   Dropdown Menus (Desktop Hover & Keyboard Architecture)
    ========================================================================== */
 .navbar__dropdown {
   position: relative;
@@ -203,8 +221,11 @@
   color: #0D7446;
 }
 
-@media (min-width: 901px) {
-  /* Floating Dropdown Card */
+/* ==========================================================================
+   Desktop Dropdown Card (>= 1081px)
+   ========================================================================== */
+@media (min-width: 1081px) {
+  /* Standard Dropdown Card */
   .navbar__submenu {
     position: absolute;
     top: calc(100% + 4px);
@@ -230,7 +251,8 @@
   }
 
   /* Safe Invisible Hover Bridge */
-  .navbar__submenu::before {
+  .navbar__submenu::before,
+  .navbar__grouped-dropdown::before {
     content: '';
     position: absolute;
     top: -16px;
@@ -240,7 +262,10 @@
     background: transparent;
   }
 
-  .navbar__dropdown:hover > .navbar__submenu {
+  .navbar__dropdown:hover > .navbar__submenu,
+  .navbar__dropdown.is-active-dropdown > .navbar__submenu,
+  .navbar__dropdown:hover > .navbar__grouped-dropdown,
+  .navbar__dropdown.is-active-dropdown > .navbar__grouped-dropdown {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -277,142 +302,201 @@
     background: rgba(13, 116, 70, 0.09);
   }
 
-  /* RDU Nested Submenu on Desktop */
-  .navbar__submenu--rdu {
-    min-width: 260px;
-  }
-
-  .navbar__submenu-divider {
-    height: 1px;
-    background-color: #f1f5f9;
-    margin: 6px 4px;
-  }
-
-  .navbar__nested-item {
-    position: relative;
-  }
-
-  .navbar__nested-trigger {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.55rem 0.85rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #334155;
-    background: transparent;
-    border: none;
-    border-radius: 10px;
-    cursor: default;
-    text-align: left;
-    transition: all 0.15s ease;
-  }
-
-  .navbar__nested-trigger:hover,
-  .navbar__nested-item:hover > .navbar__nested-trigger {
-    background: rgba(13, 116, 70, 0.06);
-    color: #0D7446;
-  }
-
-  .nested-arrow {
-    color: #94a3b8;
-    margin-left: 8px;
-    flex-shrink: 0;
-    transition: transform 0.15s ease, color 0.15s ease;
-  }
-
-  .navbar__nested-item:hover .nested-arrow {
-    color: #0D7446;
-    transform: translateX(2px);
-  }
-
-  .navbar__nested-menu {
+  /* ========================================================================
+     Grouped Governance Card Dropdown (Hallmark & Superfuture Architecture)
+     ======================================================================== */
+  .navbar__grouped-dropdown {
     position: absolute;
-    top: -6px;
-    left: 100%;
-    margin-left: 6px;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
     background: #ffffff;
-    min-width: 250px;
-    box-shadow: 0 20px 40px -6px rgba(15, 23, 42, 0.14), 0 8px 16px -4px rgba(15, 23, 42, 0.05);
-    border-radius: 14px;
+    width: 620px;
+    box-shadow: 0 24px 48px -10px rgba(15, 23, 42, 0.16), 0 10px 20px -5px rgba(15, 23, 42, 0.06);
+    border-radius: 20px;
     border: 1px solid rgba(226, 232, 240, 0.95);
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
+    padding: 1.25rem;
     z-index: 120;
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transform: translateX(-6px);
-    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-                visibility 0.2s ease;
-    list-style: none;
-    margin: 0;
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.22s ease;
   }
 
-  /* Safe Bridge for Nested Menu */
-  .navbar__nested-menu::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -16px;
-    width: 18px;
-    bottom: 0;
-    background: transparent;
+  .navbar__grouped-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
   }
 
-  .navbar__nested-item:hover > .navbar__nested-menu {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: translateX(0);
+  .navbar__grouped-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 
-  .navbar__nested-header {
+  .navbar__grouped-col-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 0.35rem 0.65rem;
+    gap: 7px;
     font-size: 0.75rem;
     font-weight: 700;
-    color: #64748b;
+    color: #0D7446;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    border-bottom: 1px solid #f1f5f9;
-    margin-bottom: 4px;
+    letter-spacing: 0.05em;
+    padding: 0 0.25rem 4px;
+    border-bottom: 1.5px solid #f1f5f9;
   }
 
-  .navbar__nested-file-link {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    color: #334155;
-    text-decoration: none;
-    border-radius: 8px;
-    white-space: nowrap;
-    transition: all 0.15s ease;
-  }
-
-  .navbar__nested-file-icon {
+  .navbar__grouped-col-icon {
     color: #0D7446;
     flex-shrink: 0;
   }
 
-  .navbar__nested-file-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 220px;
+  .navbar__grouped-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
-  .navbar__nested-file-link:hover {
-    background: rgba(13, 116, 70, 0.06);
+  .navbar__grouped-card {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 0.85rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .navbar__grouped-card:hover {
+    background: #f0fdf4;
+    border-color: #a7f3d0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 116, 70, 0.08);
+  }
+
+  .navbar__grouped-card--active {
+    background: #f0fdf4;
+    border-color: #6ee7b7;
+    box-shadow: inset 0 0 0 1px #10b981;
+  }
+
+  .navbar__grouped-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+  }
+
+  .navbar__grouped-card-head-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .navbar__grouped-card-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
     color: #0D7446;
-    transform: translateX(3px);
+    background: #dcfce7;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+
+  .navbar__grouped-card-badge--rdu {
+    color: #0284c7;
+    background: #e0f2fe;
+  }
+
+  .navbar__grouped-card-badge--sys {
+    color: #7c3aed;
+    background: #ede9fe;
+  }
+
+  .navbar__grouped-card-icon {
+    color: #0D7446;
+    flex-shrink: 0;
+  }
+
+  .navbar__grouped-card-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #1e293b;
+    transition: color 0.15s ease;
+  }
+
+  .navbar__grouped-card:hover .navbar__grouped-card-title,
+  .navbar__grouped-card-head-link:hover .navbar__grouped-card-title {
+    color: #0D7446;
+  }
+
+  .navbar__grouped-card-desc {
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.35;
+    margin: 0;
+  }
+
+  /* Subtags & Quick links inside grouped card */
+  .navbar__grouped-subtags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed #e2e8f0;
+  }
+
+  .navbar__grouped-subtag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .navbar__grouped-subtag:hover {
+    color: #0D7446;
+    border-color: #86efac;
+    background: #f0fdf4;
+    transform: translateY(-1px);
+  }
+
+  .navbar__grouped-subtag--more {
+    color: #0D7446;
+    background: #dcfce7;
+    border-color: #bbf7d0;
+  }
+
+  .navbar__grouped-rdu-folders {
+    margin-top: 6px;
+  }
+
+  .navbar__grouped-rdu-label {
+    display: block;
+    font-size: 10.5px;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-bottom: 3px;
   }
 }
 
@@ -432,7 +516,7 @@
   gap: 10px;
 }
 
-/* 1. ปุ่มตรวจสอบวันนัดหมาย (Check Appointment Button - High-End Emerald Pill) */
+/* Check Date Button */
 .navbar__check-date-btn {
   display: inline-flex;
   align-items: center;
@@ -464,6 +548,14 @@
   transition: transform 0.2s ease;
 }
 
+.navbar__check-date-text-short {
+  display: none;
+}
+
+.navbar__check-date-text-full {
+  display: inline;
+}
+
 .navbar__check-date-btn:hover {
   background: linear-gradient(135deg, #0f8652 0%, #0D7446 100%);
   color: #ffffff;
@@ -480,7 +572,7 @@
   box-shadow: 0 2px 6px rgba(13, 116, 70, 0.25);
 }
 
-/* 2. ปุ่มชื่อหลัง Login (Member Staff Profile Pill) */
+/* Member Profile Pill */
 .navbar__member-btn {
   display: inline-flex;
   align-items: center;
@@ -571,7 +663,7 @@
   transform: translateY(0);
 }
 
-/* 3. ปุ่มเข้าสู่ระบบ (Login Button) */
+/* Login Button */
 .navbar__login-btn {
   display: inline-flex;
   align-items: center;
@@ -655,28 +747,60 @@
   display: none;
 }
 
-/* Intermediate screen sizes adjustments */
-@media (min-width: 901px) and (max-width: 1240px) {
+/* ==========================================================================
+   Responsive Adaptations for Small Laptop Displays (1081px - 1280px)
+   ========================================================================== */
+@media (min-width: 1081px) and (max-width: 1280px) {
+  .navbar__container {
+    padding: 0 1rem;
+  }
+
   .navbar__links {
     padding: 0 0.5rem;
     gap: 2px;
   }
+
   .navbar__link {
-    padding: 0.4rem 0.5rem;
-    font-size: 13px;
+    padding: 0.4rem 0.55rem;
+    font-size: 13.5px;
   }
+
   .navbar__logo-sub {
     display: none;
   }
+
   .navbar__logo-name {
-    font-size: 1rem;
+    font-size: 1.05rem;
+  }
+
+  .navbar__check-date-text-full {
+    display: none;
+  }
+
+  .navbar__check-date-text-short {
+    display: inline;
+  }
+
+  .navbar__check-date-btn {
+    padding: 5px 12px 5px 6px;
+    font-size: 13px;
+  }
+
+  .navbar__login-btn {
+    padding: 5px 12px 5px 6px;
+    font-size: 13px;
   }
 }
 
 /* ==========================================================================
-   Mobile & Tablet Drawer Navigation (max-width: 900px)
+   Mobile & Tablet Drawer Navigation (max-width: 1080px)
+   Switches cleanly at 1080px to completely prevent overflow / zoom-out
    ========================================================================== */
-@media (max-width: 900px) {
+@media (max-width: 1080px) {
+  .navbar__container {
+    padding: 0 1rem;
+  }
+
   .navbar__links {
     display: none;
   }
@@ -697,7 +821,7 @@
     top: 0;
     right: -100%;
     width: 86%;
-    max-width: 360px;
+    max-width: 380px;
     height: 100vh;
     height: 100dvh;
     background: #ffffff;
@@ -946,6 +1070,14 @@
     transition: all 0.15s ease;
   }
 
+  .navbar__mobile-link--btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+  }
+
   .navbar__mobile-link:hover {
     background: rgba(13, 116, 70, 0.06);
     color: #0D7446;
@@ -987,7 +1119,7 @@
     border-left: 2px solid #e2e8f0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
   }
 
   .navbar__mobile-sublink {
@@ -1000,6 +1132,11 @@
     text-decoration: none;
     border-radius: 6px;
     transition: all 0.15s ease;
+  }
+
+  .navbar__mobile-subicon {
+    color: #0D7446;
+    flex-shrink: 0;
   }
 
   .navbar__mobile-sublink:hover {
@@ -1019,20 +1156,16 @@
     flex-direction: column;
   }
 
-  .navbar__mobile-subfolder-trigger {
-    width: 100%;
+  .navbar__mobile-subfolder-trigger-btn {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.5rem 0.65rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #475569;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
     background: transparent;
     border: none;
-    border-radius: 6px;
+    color: #64748b;
     cursor: pointer;
-    text-align: left;
   }
 
   .navbar__mobile-subchevron {
@@ -1041,6 +1174,7 @@
 
   .navbar__mobile-subchevron.is-rotated {
     transform: rotate(180deg);
+    color: #0D7446;
   }
 
   .navbar__mobile-filelist {

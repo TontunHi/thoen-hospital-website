@@ -9,16 +9,12 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  AlertCircle,
   FileText,
   Printer,
   ChevronRight,
-  Filter,
   Layers,
-  Share2,
-  ExternalLink,
   RotateCcw,
-  Sparkles,
+  ArrowLeft,
 } from 'lucide-react'
 import './mediaRequests.css'
 
@@ -79,7 +75,12 @@ export default function MediaRequestsListClient({
     }
   }
 
+  const isFirstRender = React.useRef(true)
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
     fetchFilteredTasks()
   }, [statusFilter])
 
@@ -115,15 +116,27 @@ export default function MediaRequestsListClient({
 
   return (
     <div className="mediaRequestsWrapper">
+      {/* Top Navigation Bar */}
+      <nav aria-label="นำทาง" className="mediaNav">
+        <Link href="/member" className="mediaNavBackLink">
+          <ArrowLeft aria-hidden="true" className="w-4 h-4" />
+          <span>กลับสู่พอร์ทัลสมาชิก</span>
+        </Link>
+        <Link href="/member/inbox" className="mediaNavInboxLink">
+          <Layers aria-hidden="true" className="w-4 h-4" />
+          <span>กล่องงาน (Task Inbox)</span>
+        </Link>
+      </nav>
+
       {/* Top Header Card */}
-      <div className="mediaHeaderCard">
+      <header className="mediaHeaderCard">
         <div className="mediaHeaderLeft">
-          <div className="mediaBadgeIcon">
-            <Palette className="w-7 h-7" />
+          <div className="mediaBadgeIcon" aria-hidden="true">
+            <Palette className="w-6 h-6" />
           </div>
           <div>
             <span className="mediaEyebrow">
-              Hospital PR & Media Requisition
+              Hospital PR & Digital Media Requisition
             </span>
             <h1 className="mediaHeaderTitle">
               ระบบขอสื่อประชาสัมพันธ์
@@ -134,43 +147,79 @@ export default function MediaRequestsListClient({
           </div>
         </div>
 
-        <div>
+        <div className="mediaHeaderActions">
           <Link href="/member/media-requests/new" className="btnCreateNew">
-            <Plus className="w-5 h-5" />
+            <Plus aria-hidden="true" className="w-4 h-4" />
             <span>ยื่นขอสื่อประชาสัมพันธ์ใหม่</span>
           </Link>
         </div>
-      </div>
+      </header>
 
       {/* Stats Cards Grid */}
-      <div className="mediaStatsGrid">
-        <div className="mediaStatCard">
-          <div className="mediaStatIcon total">
-            <FileText className="w-6 h-6" />
+      <div className="mediaStatsGrid" role="region" aria-label="สรุปภาพรวมคำขอสื่อ">
+        <div
+          role="button"
+          tabIndex={0}
+          className={`mediaStatCard ${statusFilter === 'ALL' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('ALL')}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault()
+              setStatusFilter('ALL')
+            }
+          }}
+          aria-label={`คำขอทั้งหมด ${totalCount} รายการ`}
+        >
+          <div className="mediaStatIcon total" aria-hidden="true">
+            <FileText className="w-5 h-5" />
           </div>
           <div>
             <span className="mediaStatLabel">คำขอทั้งหมด</span>
-            <span className="mediaStatValue">{totalCount}</span>
+            <span className="mediaStatValue tabularNums">{totalCount}</span>
           </div>
         </div>
 
-        <div className="mediaStatCard">
-          <div className="mediaStatIcon pending">
-            <Clock className="w-6 h-6" />
+        <div
+          role="button"
+          tabIndex={0}
+          className={`mediaStatCard ${statusFilter === 'PENDING' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('PENDING')}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault()
+              setStatusFilter('PENDING')
+            }
+          }}
+          aria-label={`รอดำเนินการหรือลงนาม ${pendingCount} รายการ`}
+        >
+          <div className="mediaStatIcon pending" aria-hidden="true">
+            <Clock className="w-5 h-5" />
           </div>
           <div>
             <span className="mediaStatLabel">รอดำเนินการ / ลงนาม</span>
-            <span className="mediaStatValue pending">{pendingCount}</span>
+            <span className="mediaStatValue pending tabularNums">{pendingCount}</span>
           </div>
         </div>
 
-        <div className="mediaStatCard">
-          <div className="mediaStatIcon approved">
-            <CheckCircle2 className="w-6 h-6" />
+        <div
+          role="button"
+          tabIndex={0}
+          className={`mediaStatCard ${statusFilter === 'APPROVED' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('APPROVED')}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault()
+              setStatusFilter('APPROVED')
+            }
+          }}
+          aria-label={`อนุมัติเสร็จสิ้น ${approvedCount} รายการ`}
+        >
+          <div className="mediaStatIcon approved" aria-hidden="true">
+            <CheckCircle2 className="w-5 h-5" />
           </div>
           <div>
             <span className="mediaStatLabel">อนุมัติเสร็จสิ้น</span>
-            <span className="mediaStatValue approved">{approvedCount}</span>
+            <span className="mediaStatValue approved tabularNums">{approvedCount}</span>
           </div>
         </div>
       </div>
@@ -180,9 +229,11 @@ export default function MediaRequestsListClient({
         {/* Filter Bar */}
         <div className="mediaFilterBar">
           {/* Status Tabs */}
-          <div className="mediaFilterTabs">
+          <div className="mediaFilterTabs" role="tablist" aria-label="กรองสถานะคำขอ">
             <button
               type="button"
+              role="tab"
+              aria-selected={statusFilter === 'ALL'}
               className={`mediaFilterTab ${statusFilter === 'ALL' ? 'active' : ''}`}
               onClick={() => setStatusFilter('ALL')}
             >
@@ -190,6 +241,8 @@ export default function MediaRequestsListClient({
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={statusFilter === 'PENDING'}
               className={`mediaFilterTab ${statusFilter === 'PENDING' ? 'active' : ''}`}
               onClick={() => setStatusFilter('PENDING')}
             >
@@ -197,6 +250,8 @@ export default function MediaRequestsListClient({
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={statusFilter === 'APPROVED'}
               className={`mediaFilterTab ${statusFilter === 'APPROVED' ? 'active' : ''}`}
               onClick={() => setStatusFilter('APPROVED')}
             >
@@ -204,6 +259,8 @@ export default function MediaRequestsListClient({
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={statusFilter === 'SENT_BACK'}
               className={`mediaFilterTab ${statusFilter === 'SENT_BACK' ? 'active' : ''}`}
               onClick={() => setStatusFilter('SENT_BACK')}
             >
@@ -212,34 +269,51 @@ export default function MediaRequestsListClient({
           </div>
 
           {/* Search Form */}
-          <form onSubmit={handleSearchSubmit} className="mediaSearchForm">
+          <form onSubmit={handleSearchSubmit} className="mediaSearchForm" role="search">
             <div className="mediaSearchWrap">
-              <Search className="w-4 h-4 mediaSearchIcon" />
+              <Search aria-hidden="true" className="w-4 h-4 mediaSearchIcon" />
               <input
-                type="text"
+                type="search"
                 className="mediaSearchInput"
                 placeholder="ค้นหาเลขที่, เรื่อง, ผู้ขอ..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                aria-label="ค้นหาคำขอสื่อประชาสัมพันธ์"
               />
             </div>
             <button type="submit" className="mediaSearchBtn">
               ค้นหา
             </button>
+            {(search || statusFilter !== 'ALL' || urgencyFilter !== 'ALL') && (
+              <button
+                type="button"
+                className="mediaResetBtn"
+                onClick={() => {
+                  setSearch('')
+                  setStatusFilter('ALL')
+                  setUrgencyFilter('ALL')
+                }}
+                title="ล้างตัวกรองทั้งหมด"
+                aria-label="ล้างตัวกรองทั้งหมด"
+              >
+                <RotateCcw aria-hidden="true" className="w-3.5 h-3.5" />
+                <span>ล้างตัวกรอง</span>
+              </button>
+            )}
           </form>
         </div>
 
         {/* Requests List */}
         <div>
           {loading ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-              <Clock style={{ width: '2rem', height: '2rem', animation: 'spin 1s linear infinite', margin: '0 auto 0.5rem', color: '#0d9488' }} />
-              <div style={{ fontSize: '0.875rem' }}>กำลังโหลดรายการคำขอสื่อ...</div>
+            <div className="mediaLoadingState">
+              <Clock aria-hidden="true" className="w-8 h-8 mediaLoadingSpinner" />
+              <div className="mediaLoadingText">กำลังโหลดรายการคำขอสื่อ...</div>
             </div>
           ) : displayedTasks.length === 0 ? (
             <div className="mediaEmptyState">
-              <div className="mediaEmptyIcon">
-                <Palette style={{ width: '2rem', height: '2rem' }} />
+              <div className="mediaEmptyIcon" aria-hidden="true">
+                <Palette className="w-8 h-8" />
               </div>
               <h3 className="mediaEmptyTitle">ไม่พบรายการคำขอสื่อประชาสัมพันธ์</h3>
               <p className="mediaEmptyDesc">
@@ -247,9 +321,9 @@ export default function MediaRequestsListClient({
                   ? 'ไม่พบข้อมูลที่ตรงกับเงื่อนไขการค้นหา ลองเปลี่ยนคำค้นหาหรือตัวกรอง'
                   : 'คุณยังไม่เคยยื่นคำขอสื่อประชาสัมพันธ์ สามารถกดปุ่มด้านล่างเพื่อเริ่มยื่นคำขอแรก'}
               </p>
-              <Link href="/member/media-requests/new" className="btnActionDetail" style={{ padding: '0.65rem 1.25rem', fontSize: '0.875rem' }}>
-                <Plus style={{ width: '1rem', height: '1rem' }} />
-                ยื่นคำขอสื่อประชาสัมพันธ์ใหม่
+              <Link href="/member/media-requests/new" className="btnActionDetail btnEmptyCreate">
+                <Plus aria-hidden="true" className="w-4 h-4" />
+                <span>ยื่นคำขอสื่อประชาสัมพันธ์ใหม่</span>
               </Link>
             </div>
           ) : (
@@ -330,12 +404,12 @@ export default function MediaRequestsListClient({
                           </span>
                         ))}
                         {workTypes.length > 3 && (
-                          <span style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 500 }}>
+                          <span className="mediaTagMore">
                             +{workTypes.length - 3} อื่นๆ
                           </span>
                         )}
 
-                        <span style={{ color: '#cbd5e1' }}>•</span>
+                        <span className="mediaMetaDot" aria-hidden="true">•</span>
 
                         <span className="mediaRequesterText">
                           ผู้ขอ: <strong>{t.requester_name}</strong> ({t.requester_dept || '-'})
@@ -345,14 +419,14 @@ export default function MediaRequestsListClient({
                       {/* Progress Step & Dates */}
                       <div className="mediaBottomMeta">
                         <span className="mediaStepIndicator">
-                          <span className="mediaStepDot" />
+                          <span className="mediaStepDot" aria-hidden="true" />
                           ขั้นตอน: {t.current_step_name || 'พิจารณาอนุมัติ'}
                         </span>
 
                         {payload.deliveryDate && (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#475569' }}>
-                            <Calendar style={{ width: '0.875rem', height: '0.875rem', color: '#94a3b8' }} />
-                            กำหนดรับงาน: <strong>{payload.deliveryDate}</strong>
+                          <span className="mediaDeliveryDate">
+                            <Calendar aria-hidden="true" className="w-3.5 h-3.5 mediaDateIcon" />
+                            <span>กำหนดรับงาน: <strong>{payload.deliveryDate}</strong></span>
                           </span>
                         )}
 
@@ -367,7 +441,7 @@ export default function MediaRequestsListClient({
                         className="btnActionDetail"
                       >
                         <span>เปิดดู / อนุมัติ</span>
-                        <ChevronRight style={{ width: '0.875rem', height: '0.875rem' }} />
+                        <ChevronRight aria-hidden="true" className="w-3.5 h-3.5 shrink-0" />
                       </Link>
 
                       <Link
@@ -375,8 +449,9 @@ export default function MediaRequestsListClient({
                         target="_blank"
                         className="btnActionPrint"
                         title="พิมพ์ใบขอรับบริการ (A4)"
+                        aria-label={`พิมพ์ใบขอรับบริการเลขที่ ${t.task_no}`}
                       >
-                        <Printer style={{ width: '1rem', height: '1rem' }} />
+                        <Printer aria-hidden="true" className="w-4 h-4 shrink-0" />
                       </Link>
                     </div>
                   </div>

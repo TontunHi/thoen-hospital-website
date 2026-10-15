@@ -7,7 +7,6 @@ import {
   Palette,
   User,
   Phone,
-  Building,
   UploadCloud,
   X,
   Link as LinkIcon,
@@ -213,12 +212,6 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
   const [createdTaskInfo, setCreatedTaskInfo] = useState<{ taskId: string; taskNo: string } | null>(
     null
   )
-
-  // Current Thai Date for Display
-  const thaiDateFormatted = new Intl.DateTimeFormat('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    dateStyle: 'full',
-  }).format(new Date())
 
   // Today for date minimum limit
   const todayDateString = new Date().toISOString().split('T')[0]
@@ -638,10 +631,6 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
           <ArrowLeft aria-hidden="true" className="w-4 h-4" />
           <span>กลับหน้ารายการคำขอสื่อ</span>
         </Link>
-        <div className="mediaNavLocationBadge">
-          <Building aria-hidden="true" className="w-3.5 h-3.5 text-teal-600" />
-          <span>โรงพยาบาลเถิน จ.ลำปาง • กลุ่มงานดิจิทัลทางการแพทย์</span>
-        </div>
       </nav>
 
       {/* Main Form Shell */}
@@ -660,13 +649,6 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
               <p className="mediaHeaderSubtitle">
                 ส่งความต้องการผลิตสื่อเพื่อเข้าสู่ระบบพิจารณาอนุมัติและลงนามอิเล็กทรอนิกส์ (e-Signature)
               </p>
-            </div>
-            <div className="mediaHeaderDateBox">
-              <div className="flex items-center gap-1.5 justify-end">
-                <CalendarDays aria-hidden="true" className="w-3.5 h-3.5 text-teal-200" />
-                <span className="mediaDateLabel">วันที่ทำรายการ</span>
-              </div>
-              <span className="mediaDateValue tabularNums">{thaiDateFormatted}</span>
             </div>
           </div>
         </header>
@@ -689,7 +671,8 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 <div className="sectionNumberBadge" aria-hidden="true">1</div>
                 <div>
                   <h2 id="section-brief-title" className="sectionTitleText">
-                    เรื่องและรายละเอียดงาน
+                    <FileText aria-hidden="true" className="w-4 h-4 text-emerald-800 shrink-0" />
+                    <span>เรื่องและรายละเอียดงาน</span>
                     <span className="requiredAsterisk" aria-hidden="true">*</span>
                   </h2>
                   <p className="sectionSubtext">ระบุชื่อหัวข้อและเนื้อหาที่ต้องการให้ออกแบบผลิตสื่อ</p>
@@ -713,7 +696,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 />
               </div>
 
-              <div className="formGroup" style={{ marginTop: '1.25rem' }}>
+              <div className="formGroup formGroupSpaced">
                 <div className="flex items-center justify-between">
                   <label htmlFor={descriptionInputId} className="formLabel">
                     รายละเอียดเนื้อหาและข้อกำหนดพิเศษ <span className="requiredAsterisk" aria-hidden="true">*</span>
@@ -772,7 +755,8 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 <div className="sectionNumberBadge" aria-hidden="true">2</div>
                 <div>
                   <h2 id="section-worktypes-title" className="sectionTitleText">
-                    ลักษณะงานสื่อที่ต้องการ (เลือกได้หลายรายการ)
+                    <Palette aria-hidden="true" className="w-4 h-4 text-emerald-800 shrink-0" />
+                    <span>ลักษณะงานสื่อที่ต้องการ (เลือกได้หลายรายการ)</span>
                     <span className="requiredAsterisk" aria-hidden="true">*</span>
                   </h2>
                   <p className="sectionSubtext">เลือกรูปแบบของสื่อที่ต้องการให้กลุ่มงานดิจิทัลผลิต</p>
@@ -855,7 +839,8 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 <div className="sectionNumberBadge" aria-hidden="true">3</div>
                 <div>
                   <h2 id="section-channels-title" className="sectionTitleText">
-                    ต้องการเผยแพร่ทางช่องทางใด (เลือกได้หลายรายการ)
+                    <Send aria-hidden="true" className="w-4 h-4 text-emerald-800 shrink-0" />
+                    <span>ต้องการเผยแพร่ทางช่องทางใด (เลือกได้หลายรายการ)</span>
                     <span className="requiredAsterisk" aria-hidden="true">*</span>
                   </h2>
                   <p className="sectionSubtext">เลือกช่องทางสื่อสารเป้าหมายที่ต้องการนำสื่อไปเผยแพร่</p>
@@ -938,13 +923,14 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 <div className="sectionNumberBadge" aria-hidden="true">4</div>
                 <div>
                   <h2 id="section-assets-title" className="sectionTitleText">
-                    แนบไฟล์ตัวอย่าง / เอกสารเนื้อหา / ลิงก์ไดรฟ์
+                    <UploadCloud aria-hidden="true" className="w-4 h-4 text-emerald-800 shrink-0" />
+                    <span>แนบไฟล์ตัวอย่าง / เอกสารเนื้อหา / ลิงก์ไดรฟ์</span>
                   </h2>
                   <p className="sectionSubtext">อัปโหลดไฟล์ตัวอย่าง โลโก้ ข้อความ หรือแนบลิงก์ Canva / Google Drive</p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="mediaAttachmentsWrapper">
                 {/* File Dropzone */}
                 <div
                   className={`fileUploadZone ${isDragging ? 'isDragging' : ''}`}
@@ -956,15 +942,15 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                     type="file"
                     id="media-files"
                     name="mediaFiles"
-                    style={{ display: 'none' }}
+                    className="fileInputHidden"
                     multiple
                     accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.ppt,.pptx,.zip"
                     onChange={handleFileUpload}
                     disabled={isUploading}
                   />
-                  <label htmlFor="media-files" style={{ cursor: 'pointer', display: 'block' }}>
+                  <label htmlFor="media-files" className="fileUploadLabel">
                     {isUploading ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                      <div className="uploadSpinnerBox">
                         <Loader2 aria-hidden="true" className="w-8 h-8 text-teal-600 animate-spin mb-2" />
                         <span className="fileUploadTitle">กำลังอัปโหลดไฟล์…</span>
                       </div>
@@ -987,13 +973,13 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 {/* Uploaded Files Chips */}
                 {uploadedFiles.length > 0 && (
                   <div>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'block', marginBottom: '0.4rem' }}>
+                    <span className="attachedFilesTitle">
                       ไฟล์ที่แนบแล้ว ({uploadedFiles.length} รายการ):
                     </span>
                     <div className="uploadedFilesGrid">
                       {uploadedFiles.map((file, idx) => (
                         <div key={idx} className="uploadedFileChip">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+                          <div className="uploadedFileInfo">
                             {getFileIcon(file.fileName)}
                             <span className="uploadedFileName" title={file.fileName}>
                               {file.fileName}
@@ -1018,8 +1004,8 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 )}
 
                 {/* Cloud Storage Link */}
-                <div className="formGroup" style={{ marginTop: '0.5rem' }}>
-                  <label htmlFor={driveLinkInputId} className="formLabel" style={{ fontSize: '0.825rem' }}>
+                <div className="formGroup driveLinkGroup">
+                  <label htmlFor={driveLinkInputId} className="formLabel formLabelSm">
                     <LinkIcon aria-hidden="true" className="w-3.5 h-3.5 text-teal-600" />
                     หรือ แนบลิงก์ Google Drive / Canva / Cloud Storage
                   </label>
@@ -1038,61 +1024,50 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
 
                 {/* Quotation Upload Section (Visible only when costType === 'HAS_COST') */}
                 {costType === 'HAS_COST' && (
-                  <div
-                    style={{
-                      marginTop: '0.85rem',
-                      paddingTop: '1rem',
-                      borderTop: '1.5px dashed #99f6e4',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-                      <label htmlFor="quotation-files" className="formLabel" style={{ fontSize: '0.875rem', fontWeight: 700, color: '#0f766e', margin: 0 }}>
+                  <div className="quotationSection">
+                    <div className="quotationHeader">
+                      <label htmlFor="quotation-files" className="formLabel quotationLabel">
                         <FileSpreadsheet aria-hidden="true" className="w-4 h-4 text-emerald-600" />
                         <span>เอกสารใบเสนอราคา (Quotation)</span>
                         <span className="requiredAsterisk" aria-hidden="true">*</span>
                       </label>
-                      <span style={{ fontSize: '0.75rem', color: '#0d9488', fontWeight: 600, backgroundColor: '#f0fdfa', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #ccfbf1' }}>
+                      <span className="quotationBadge">
                         สำหรับงานที่มีค่าใช้จ่าย (เสนอ ผอ.)
                       </span>
                     </div>
 
                     {/* Quotation Dropzone */}
                     <div
-                      className={`fileUploadZone ${isDraggingQuotations ? 'isDragging' : ''}`}
+                      className={`fileUploadZone quotationDropzone ${isDraggingQuotations ? 'isDragging' : ''}`}
                       onDragOver={handleQuotationDragOver}
                       onDragLeave={handleQuotationDragLeave}
                       onDrop={handleQuotationDrop}
-                      style={{
-                        backgroundColor: '#f0fdf4',
-                        borderColor: '#86efac',
-                        padding: '1.25rem 1rem',
-                      }}
                     >
                       <input
                         type="file"
                         id="quotation-files"
                         name="quotationFiles"
-                        style={{ display: 'none' }}
+                        className="fileInputHidden"
                         multiple
                         accept=".pdf,.jpg,.jpeg,.png,.webp"
                         onChange={handleQuotationUpload}
                         disabled={isUploadingQuotations}
                       />
-                      <label htmlFor="quotation-files" style={{ cursor: 'pointer', display: 'block' }}>
+                      <label htmlFor="quotation-files" className="fileUploadLabel">
                         {isUploadingQuotations ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <div className="uploadSpinnerBox">
                             <Loader2 aria-hidden="true" className="w-7 h-7 text-emerald-600 animate-spin mb-1.5" />
-                            <span className="fileUploadTitle" style={{ fontSize: '0.875rem', color: '#065f46' }}>กำลังอัปโหลดใบเสนอราคา…</span>
+                            <span className="fileUploadTitle quotationFileTitle">กำลังอัปโหลดใบเสนอราคา…</span>
                           </div>
                         ) : (
                           <div>
-                            <div className="fileUploadIcon" style={{ color: '#059669', width: '38px', height: '38px', marginBottom: '0.45rem', backgroundColor: '#ffffff' }}>
+                            <div className="fileUploadIcon quotationIcon">
                               <UploadCloud aria-hidden="true" className="w-5 h-5" />
                             </div>
-                            <span className="fileUploadTitle" style={{ fontSize: '0.9rem', color: '#065f46' }}>
+                            <span className="fileUploadTitle quotationTitleText">
                               {isDraggingQuotations ? 'วางไฟล์ใบเสนอราคาที่นี่' : 'คลิกเพื่อเลือกไฟล์ใบเสนอราคา หรือลากไฟล์มาวางที่นี่'}
                             </span>
-                            <span className="fileUploadDesc" style={{ fontSize: '0.775rem', color: '#047857' }}>
+                            <span className="fileUploadDesc quotationDescText">
                               รองรับไฟล์ PDF หรือรูปภาพ (JPG, PNG, WebP) สูงสุด 10MB ต่อไฟล์ (สามารถเลือกได้หลายไฟล์)
                             </span>
                           </div>
@@ -1102,22 +1077,21 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
 
                     {/* Uploaded Quotation Files Chips */}
                     {quotationFiles.length > 0 && (
-                      <div style={{ marginTop: '0.65rem' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#065f46', display: 'block', marginBottom: '0.35rem' }}>
+                      <div className="quotationFilesWrapper">
+                        <span className="attachedFilesTitle quotationFilesTitle">
                           ใบเสนอราคาที่แนบแล้ว ({quotationFiles.length} ไฟล์):
                         </span>
                         <div className="uploadedFilesGrid">
                           {quotationFiles.map((file, idx) => (
-                            <div key={idx} className="uploadedFileChip" style={{ borderColor: '#a7f3d0', backgroundColor: '#ffffff' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+                            <div key={idx} className="uploadedFileChip quotationFileChip">
+                              <div className="uploadedFileInfo">
                                 {getFileIcon(file.fileName)}
                                 <a
                                   href={file.filePath}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="uploadedFileName"
+                                  className="uploadedFileName quotationFileName"
                                   title={file.fileName}
-                                  style={{ color: '#047857', textDecoration: 'none' }}
                                 >
                                   {file.fileName}
                                 </a>
@@ -1163,8 +1137,8 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 </div>
               </div>
 
-              <div className="formGroup" style={{ marginTop: '0.85rem' }}>
-                <label htmlFor={phoneInputId} className="formLabel" style={{ fontSize: '0.8rem' }}>
+              <div className="formGroup formGroupSpacedSm">
+                <label htmlFor={phoneInputId} className="formLabel formLabelXs">
                   <Phone aria-hidden="true" className="w-3.5 h-3.5 text-slate-500" />
                   เบอร์โทรส่วนตัว / แผนก <span className="requiredAsterisk" aria-hidden="true">*</span>
                 </label>
@@ -1175,8 +1149,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                   inputMode="tel"
                   autoComplete="tel"
                   required
-                  className="formInput"
-                  style={{ padding: '0.45rem 0.75rem', fontSize: '0.875rem' }}
+                  className="formInput formInputSm"
                   placeholder="เช่น 102, 108 หรือ 08X-XXXXXXX"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
@@ -1193,7 +1166,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
 
               {/* Urgency Selector */}
               <div className="formGroup">
-                <span id="urgency-label" className="formLabel" style={{ fontSize: '0.825rem' }}>
+                <span id="urgency-label" className="formLabel formLabelSm">
                   ระดับความเร่งด่วน <span className="requiredAsterisk" aria-hidden="true">*</span>
                 </span>
                 <div role="radiogroup" aria-labelledby="urgency-label" className="urgencyCardsGrid">
@@ -1240,8 +1213,8 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
               </div>
 
               {/* Delivery Date */}
-              <div className="formGroup" style={{ marginTop: '1rem' }}>
-                <label htmlFor={deliveryDateInputId} className="formLabel" style={{ fontSize: '0.825rem' }}>
+              <div className="formGroup formGroupSpacedMd">
+                <label htmlFor={deliveryDateInputId} className="formLabel formLabelSm">
                   วันที่ขอรับงานเสร็จ <span className="requiredAsterisk" aria-hidden="true">*</span>
                 </label>
                 <input
@@ -1279,7 +1252,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
                 </div>
 
                 {selectedWorkTypes.video_editing?.selected && (
-                  <div className="smartHintBox" style={{ marginTop: '0.65rem' }}>
+                  <div className="smartHintBox smartHintSpaced">
                     <Info aria-hidden="true" className="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
                     <span>🎬 ตัดต่อวิดีโอ แนะนำเผื่อเวลา 5–7 วันทำการ</span>
                   </div>
@@ -1341,7 +1314,7 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
               </div>
 
               {mightNeedCost && (
-                <div className="smartHintBox" style={{ marginTop: '0.65rem' }}>
+                <div className="smartHintBox smartHintSpaced">
                   <Info aria-hidden="true" className="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
                   <span>
                     💡 หากมีสั่งพิมพ์ภายนอก (ไวนิล/ป้าย) โปรดเลือก <strong>มีค่าใช้จ่าย</strong> เพื่อเสนอ ผอ.

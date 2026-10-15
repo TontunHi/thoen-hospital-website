@@ -87,6 +87,35 @@
   gap: 1.25rem;
 }
 
+.rcm-chart-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 1.25rem 0 0.85rem 0;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.rcm-chart-section-title h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rcm-chart-section-badge {
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
 .rcm-status-pill {
   display: inline-flex;
   align-items: center;
@@ -308,7 +337,7 @@ th.rcm-dept-sticky-col {
 }
 
 tr:hover .rcm-dept-sticky-col {
-  background-color: #f0fdf4 !important;
+  background-color: #f8fafc !important;
 }
 
 /* Segmented View Mode Switcher */
@@ -406,12 +435,12 @@ tr:hover .rcm-dept-sticky-col {
 }
 
 .rcm-dept-total-th {
-  min-width: 140px;
-  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%) !important;
-  color: #065f46 !important;
+  min-width: 130px;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
   font-weight: 800;
-  border-left: 2px solid #a7f3d0 !important;
-  border-bottom: 2px solid #6ee7b7 !important;
+  border-left: 1px solid #e2e8f0 !important;
+  border-bottom: 2px solid #cbd5e1 !important;
 }
 
 .rcm-dept-row {
@@ -419,15 +448,15 @@ tr:hover .rcm-dept-sticky-col {
 }
 
 .rcm-dept-row:hover {
-  background-color: #f0fdf4 !important;
+  background-color: #f8fafc !important;
 }
 
 .rcm-dept-row:hover .rcm-dept-cell-sticky {
-  background-color: #f0fdf4 !important;
+  background-color: #f8fafc !important;
 }
 
 .rcm-dept-cell-sticky {
-  min-width: 200px;
+  min-width: 180px;
   padding: 0.65rem 0.85rem !important;
   background-color: #ffffff;
   border-bottom: 1px solid #e2e8f0;
@@ -436,11 +465,9 @@ tr:hover .rcm-dept-sticky-col {
 .rcm-dept-name-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.65rem;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .rcm-rank-pill {
@@ -500,20 +527,20 @@ tr:hover .rcm-dept-sticky-col {
 }
 
 .rcm-dept-total-cell {
-  background-color: #f7fee7;
-  border-left: 2px solid #a7f3d0;
+  background-color: #ffffff;
+  border-left: 1px solid #e2e8f0;
   padding: 0.6rem 0.85rem !important;
   vertical-align: middle;
 }
 
 .rcm-dept-row:hover .rcm-dept-total-cell {
-  background-color: #ecfdf5 !important;
+  background-color: #f8fafc !important;
 }
 
 .rcm-dept-total-num {
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: #064e3b;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
   font-variant-numeric: tabular-nums;
 }
 
@@ -527,49 +554,50 @@ tr:hover .rcm-dept-sticky-col {
   justify-content: center;
   gap: 0.25rem;
   font-size: 0.72rem;
-  font-weight: 700;
-  color: #059669;
+  font-weight: 600;
+  color: #64748b;
 }
 
 .rcm-dept-pct-sub {
   font-size: 0.65rem;
-  color: #64748b;
+  color: #94a3b8;
   font-weight: 500;
 }
 
 /* Footer Row */
 .rcm-dept-tfoot-row {
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  border-top: 2px solid #94a3b8 !important;
+  background-color: #f8fafc;
+  border-top: 2px solid #cbd5e1 !important;
 }
 
 .rcm-dept-tfoot-sticky {
-  background: #f1f5f9 !important;
-  font-weight: 900;
+  background: #f8fafc !important;
+  font-weight: 800;
   color: #0f172a;
   padding: 0.75rem 0.85rem !important;
-  border-top: 2px solid #94a3b8;
+  border-top: 2px solid #cbd5e1;
 }
 
 .rcm-dept-tfoot-month-cell {
-  font-weight: 900 !important;
+  font-weight: 800 !important;
   color: #0f172a !important;
   font-size: 0.85rem;
-  border-top: 2px solid #94a3b8;
+  border-top: 2px solid #cbd5e1;
   padding: 0.75rem 0.5rem !important;
 }
 
 .rcm-dept-tfoot-grand-cell {
-  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%) !important;
-  border-left: 2px solid #86efac !important;
-  border-top: 2px solid #059669 !important;
+  background-color: #f1f5f9 !important;
+  border-left: 1px solid #cbd5e1 !important;
+  border-top: 2px solid #cbd5e1 !important;
   padding: 0.75rem 0.85rem !important;
+  color: #0f172a !important;
 }
 
 .rcm-grand-total-val {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 900;
-  color: #064e3b;
+  color: #0f172a;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
@@ -618,4 +646,46 @@ tfoot td.rcm-month-col-divided {
 .rcm-btn-primary span,
 .rcm-btn-primary svg {
   color: #ffffff !important;
+}
+
+/* Merged Month Cell in IPD Department Table */
+.rcm-dept-merged-month {
+  vertical-align: middle !important;
+  text-align: center !important;
+  background-color: #f8fafc !important;
+  border-right: 1px solid #cbd5e1 !important;
+  border-bottom: 2px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  font-size: 0.92rem !important;
+  padding: 0.75rem 0.5rem !important;
+  white-space: nowrap !important;
+}
+
+/* Light Green Subtotal Row for each Month */
+.rcm-dept-subtotal-row td {
+  background-color: #dcfce7 !important;
+  color: #14532d !important;
+  border-top: 1px solid #86efac !important;
+  border-bottom: 2px solid #86efac !important;
+  font-weight: 800 !important;
+  padding: 0.65rem 0.75rem !important;
+}
+
+.rcm-dept-subtotal-row:hover td {
+  background-color: #bbf7d0 !important;
+}
+
+/* Light/Vibrant Green Grand Total Row in Table Footer */
+.rcm-dept-grand-total-row td {
+  background-color: #bbf7d0 !important;
+  color: #064e3b !important;
+  border-top: 2px solid #16a34a !important;
+  border-bottom: 2px solid #16a34a !important;
+  font-weight: 900 !important;
+  padding: 0.75rem 0.75rem !important;
+}
+
+.rcm-dept-grand-total-row:hover td {
+  background-color: #86efac !important;
 }

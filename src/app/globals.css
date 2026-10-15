@@ -37,7 +37,7 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
+  overflow-x: clip; /* Hallmark Gate 34: prevent scroll jitter & enable sticky */
   max-width: 100%;
 }
 
@@ -53,7 +53,7 @@ body {
   background-color: var(--bg-main);
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
+  overflow-x: clip; /* Hallmark Gate 34 */
   max-width: 100%;
   width: 100%;
 }
@@ -194,6 +194,17 @@ a:hover {
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
   --shadow-glass: 0 8px 32px rgba(13, 116, 70, 0.08);
 
+  /* Hallmark Tactile Shadows */
+  --shadow-card: 0 1px 3px rgba(13, 116, 70, 0.05), 0 4px 12px rgba(13, 116, 70, 0.04);
+  --shadow-hover: 0 6px 20px rgba(13, 116, 70, 0.09), 0 2px 6px rgba(13, 116, 70, 0.04);
+  --shadow-active: 0 1px 2px rgba(13, 116, 70, 0.08);
+
+  /* Hallmark Named Easings & Durations */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 150ms;
+  --dur-normal: 220ms;
+
   /* Borders & Radii */
   --radius-sm: 0.375rem;
   --radius: 0.5rem;
@@ -225,10 +236,11 @@ a:hover {
   --navbar-height: 80px;
 }
 
-/* Headings */
+/* Headings - Hallmark Typography Purity: Roman headers only (Discipline 6) */
 h1, h2, h3, h4, h5, h6 {
   line-height: 1.35;
   font-weight: 700;
+  font-style: normal;
   color: var(--gray-900);
 }
 

@@ -5,6 +5,7 @@ import {
   MemberDbExecutor,
   generateSignatureStampHash,
   generateTaskNo,
+  TaskInboxService,
 } from '../taskInboxService'
 
 describe('taskInboxService', () => {
@@ -570,5 +571,79 @@ describe('taskInboxService', () => {
       )
     })
   })
+
+  describe('TaskInboxService.getMemberWorkSummary', () => {
+    it('queries pending tasks for individual assignee and role queue', async () => {
+      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
+        if (sql.includes('FROM inbox_tasks')) {
+          expect(params).toEqual([15, 'ช่างซ่อมบำรุง', 'member'])
+          return Promise.resolve([{ cnt: 7 }])
+        }
+        return Promise.resolve([])
+      })
+
+      const summary = await TaskInboxService.getMemberWorkSummary(
+        { memberId: 15, role: 'member', position: 'ช่างซ่อมบำรุง' },
+        mockExecutor
+      )
+
+      expect(summary.pendingInboxCount).toBe(7)
+      expect(summary.pendingRegistrationsCount).toBe(0)
+      expect(mockExecutor).toHaveBeenCalledTimes(1)
+    })
+
+    it('queries pending registrations count for admin role', async () => {
+      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
+        if (sql.includes('FROM inbox_tasks')) {
+          return Promise.resolve([{ cnt: 3 }])
+        }
+        if (sql.includes('FROM member_registrations')) {
+          return Promise.resolve([{ cnt: 5 }])
+        }
+        return Promise.resolve([])
+      })
+
+      const summary = await TaskInboxService.getMemberWorkSummary(
+        { memberId: 1, role: 'admin', position: 'ผู้ดูแลระบบ' },
+        mockExecutor
+      )
+
+      expect(summary.pendingInboxCount).toBe(3)
+      expect(summary.pendingRegistrationsCount).toBe(5)
+      expect(mockExecutor).toHaveBeenCalledTimes(2)
+    })
+
+    it('supports looking up member role and position when only memberId is passed', async () => {
+      const mockExecutor: MemberDbExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
+        if (sql.includes('FROM members WHERE id = ?')) {
+          return Promise.resolve([{ id: 20, role: 'member', position: 'พยาบาลวิชาชีพ' }])
+        }
+        if (sql.includes('FROM inbox_tasks')) {
+          expect(params).toEqual([20, 'พยาบาลวิชาชีพ', 'member'])
+          return Promise.resolve([{ cnt: 2 }])
+        }
+        return Promise.resolve([])
+      })
+
+      const summary = await TaskInboxService.getMemberWorkSummary(20, mockExecutor)
+
+      expect(summary.pendingInboxCount).toBe(2)
+      expect(summary.pendingRegistrationsCount).toBe(0)
+      expect(mockExecutor).toHaveBeenCalledTimes(2)
+    })
+
+    it('handles query failures gracefully without throwing', async () => {
+      const mockExecutor: MemberDbExecutor = vi.fn().mockRejectedValue(new Error('DB connection dropped'))
+
+      const summary = await TaskInboxService.getMemberWorkSummary(
+        { memberId: 99, role: 'member' },
+        mockExecutor
+      )
+
+      expect(summary.pendingInboxCount).toBe(0)
+      expect(summary.pendingRegistrationsCount).toBe(0)
+    })
+  })
 })
+
 

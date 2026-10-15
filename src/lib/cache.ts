@@ -1,4 +1,4 @@
-﻿/**
+/**
  * In-Memory Short-Lived TTL Cache
  * Designed for caching read-only replica queries (HOSxP / ER / Lab Status)
  * Protects database health against rapid concurrent polling.
@@ -45,4 +45,11 @@ export async function getCachedData<T>(
   }
 
   return freshData
+}
+
+/**
+ * Clears all in-memory cache entries (useful for test isolation).
+ */
+export function clearMemoryCache(): void {
+  memoryCache.clear()
 }

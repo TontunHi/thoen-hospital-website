@@ -16,8 +16,12 @@ import {
   Folder,
   ArrowRight,
   Sparkles,
-  LogIn
+  LogIn,
+  ShieldCheck,
+  Scale,
+  Server
 } from 'lucide-react';
+import { calculateThaiFiscalYear } from '@/lib/events/eventUtils';
 import './Navbar.css';
 
 interface SubmenuItem {
@@ -42,7 +46,7 @@ interface NavItem {
   label: string;
   href?: string;
   submenu?: SubmenuItem[];
-  isRdu?: boolean;
+  isGovernance?: boolean;
   folders?: RduFolder[];
 }
 
@@ -60,6 +64,9 @@ export default function Navbar() {
   const yearParam = searchParams.get('year');
   const navRef = useRef<HTMLElement>(null);
   const burgerButtonRef = useRef<HTMLButtonElement>(null);
+
+  const currentFiscalYear = parseInt(calculateThaiFiscalYear(), 10);
+  const ethicsFiscalYears = [currentFiscalYear, currentFiscalYear - 1, currentFiscalYear - 2];
 
   const getDisplayName = useCallback(() => {
     if (!member) return '';
@@ -186,6 +193,12 @@ export default function Navbar() {
     return !categoryParam && !yearParam;
   };
 
+  const isGovernanceActive = 
+    pathname.startsWith('/ita') || 
+    pathname.startsWith('/ethics') || 
+    pathname.startsWith('/rdu') || 
+    pathname.startsWith('/systems');
+
   if (pathname && pathname.includes('/tv-mode')) {
     return null;
   }
@@ -215,21 +228,9 @@ export default function Navbar() {
         { href: '/news?category=ANNOUNCEMENT', label: 'ประกาศ' },
       ]
     },
-    { href: '/systems', label: 'ระบบสารสนเทศ' },
     {
-      label: 'ชมรมจริยธรรม',
-      href: '/ethics',
-      submenu: [
-        { href: '/ethics?year=2569', label: 'จริยธรรมปีงบประมาณ 2569' },
-        { href: '/ethics?year=2568', label: 'จริยธรรมปีงบประมาณ 2568' },
-        { href: '/ethics?year=2567', label: 'จริยธรรมปีงบประมาณ 2567' },
-      ]
-    },
-    { href: '/ita', label: 'ITA' },
-    {
-      label: 'RDU',
-      href: '/rdu',
-      isRdu: true,
+      label: 'ข้อมูลองค์กรและธรรมาภิบาล',
+      isGovernance: true,
       folders: rduFolders
     },
     {
@@ -268,7 +269,7 @@ export default function Navbar() {
         </div>
       )}
 
-      <div className="navbar__container container">
+      <div className="navbar__container">
         {/* Brand Logo */}
         <Link href="/" className="navbar__logo" aria-label="กลับสู่หน้าแรกโรงพยาบาลเถิน">
           <div className="navbar__logo-badge">
@@ -290,80 +291,126 @@ export default function Navbar() {
         {/* Primary Desktop Navigation */}
         <ul className="navbar__links" id="primary-navigation">
           {navLinks.map((link) => {
-            // RDU Menu item with nested dynamic folders
-            if (link.isRdu) {
-              const isRduActive = pathname.startsWith('/rdu');
-              const folders = link.folders || [];
+            // Grouped Governance Dropdown (Hallmark & Superfuture Card Architecture)
+            if (link.isGovernance) {
               const isDropdownOpen = activeDropdown === link.label;
+              const folders = link.folders || [];
 
               return (
                 <li
                   key={link.label}
-                  className={`navbar__dropdown navbar__dropdown--rdu ${isDropdownOpen ? 'is-active-dropdown' : ''}`}
+                  className={`navbar__dropdown navbar__dropdown--governance ${isDropdownOpen ? 'is-active-dropdown' : ''}`}
                 >
                   <div className="navbar__dropdown-trigger-row">
-                    <Link
-                      href="/rdu"
-                      className={`navbar__link navbar__link--has-sub ${isRduActive ? 'navbar__link--active' : ''}`}
+                    <button
+                      type="button"
+                      className={`navbar__link navbar__link--has-sub ${isGovernanceActive ? 'navbar__link--active' : ''}`}
+                      onClick={() => toggleDropdown(link.label)}
+                      aria-expanded={isDropdownOpen}
+                      aria-haspopup="true"
                     >
                       <span>{link.label}</span>
                       <ChevronDown size={14} strokeWidth={2.5} className="dropdown-arrow" aria-hidden="true" />
-                    </Link>
+                    </button>
                   </div>
 
-                  <ul
-                    className="navbar__submenu navbar__submenu--rdu"
-                    aria-label="เมนูเอกสาร RDU"
-                  >
-                    <li key="rdu-main">
-                      <Link
-                        href="/rdu"
-                        className={`navbar__submenu-link ${pathname === '/rdu' ? 'navbar__submenu-link--active' : ''}`}
-                      >
-                        <Folder size={15} className="navbar__submenu-icon" aria-hidden="true" />
-                        <span>หน้าหลักเอกสาร RDU ทั้งหมด</span>
-                      </Link>
-                    </li>
-                    {folders.length > 0 && <li className="navbar__submenu-divider" />}
-                    {folders.map((folder) => {
-                      const hasFiles = folder.files && folder.files.length > 0;
+                  <div className="navbar__grouped-dropdown" role="region" aria-label="เมนูข้อมูลองค์กรและธรรมาภิบาล">
+                    <div className="navbar__grouped-grid">
+                      {/* Column 1: ธรรมาภิบาลและความโปร่งใส */}
+                      <div className="navbar__grouped-col">
+                        <div className="navbar__grouped-col-header">
+                          <ShieldCheck size={16} className="navbar__grouped-col-icon" aria-hidden="true" />
+                          <span>ธรรมาภิบาล & ความโปร่งใส</span>
+                        </div>
+                        <div className="navbar__grouped-cards">
+                          {/* ITA Card */}
+                          <Link
+                            href="/ita"
+                            className={`navbar__grouped-card ${pathname.startsWith('/ita') ? 'navbar__grouped-card--active' : ''}`}
+                          >
+                            <div className="navbar__grouped-card-head">
+                              <span className="navbar__grouped-card-badge">ITA</span>
+                              <span className="navbar__grouped-card-title">การประเมิน ITA</span>
+                            </div>
+                            <p className="navbar__grouped-card-desc">การประเมินคุณธรรมและความโปร่งใสในการดำเนินงาน</p>
+                          </Link>
 
-                      return (
-                        <li
-                          key={`folder-${folder.id}`}
-                          className={`navbar__nested-item ${hasFiles ? 'has-sub' : ''}`}
-                        >
-                          <div className="navbar__nested-trigger">
-                            <span className="navbar__nested-title">{folder.folder_name}</span>
-                            {hasFiles && <ChevronRight size={14} strokeWidth={2.5} className="nested-arrow" aria-hidden="true" />}
+                          {/* ชมรมจริยธรรม Card */}
+                          <div className={`navbar__grouped-card ${pathname.startsWith('/ethics') ? 'navbar__grouped-card--active' : ''}`}>
+                            <Link
+                              href="/ethics"
+                              className="navbar__grouped-card-head-link"
+                            >
+                              <div className="navbar__grouped-card-head">
+                                <Scale size={15} className="navbar__grouped-card-icon" aria-hidden="true" />
+                                <span className="navbar__grouped-card-title">ชมรมจริยธรรม</span>
+                              </div>
+                              <p className="navbar__grouped-card-desc">วัฒนธรรมองค์กร คุณธรรม และจริยธรรมบุคลากร</p>
+                            </Link>
+                            <div className="navbar__grouped-subtags">
+                              {ethicsFiscalYears.map((year) => (
+                                <Link key={year} href={`/ethics?year=${year}`} className="navbar__grouped-subtag">
+                                  ปี {year}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Column 2: ระบบงานและข้อมูลวิชาการ */}
+                      <div className="navbar__grouped-col">
+                        <div className="navbar__grouped-col-header">
+                          <Server size={16} className="navbar__grouped-col-icon" aria-hidden="true" />
+                          <span>ระบบ & ข้อมูลวิชาการ</span>
+                        </div>
+                        <div className="navbar__grouped-cards">
+                          {/* RDU Card */}
+                          <div className={`navbar__grouped-card ${pathname.startsWith('/rdu') ? 'navbar__grouped-card--active' : ''}`}>
+                            <Link
+                              href="/rdu"
+                              className="navbar__grouped-card-head-link"
+                            >
+                              <div className="navbar__grouped-card-head">
+                                <span className="navbar__grouped-card-badge navbar__grouped-card-badge--rdu">RDU</span>
+                                <span className="navbar__grouped-card-title">เอกสาร RDU</span>
+                              </div>
+                              <p className="navbar__grouped-card-desc">โรงพยาบาลส่งเสริมการใช้ยาอย่างสมเหตุผล</p>
+                            </Link>
+                            {folders.length > 0 && (
+                              <div className="navbar__grouped-rdu-folders">
+                                <span className="navbar__grouped-rdu-label">โฟลเดอร์เอกสาร:</span>
+                                <div className="navbar__grouped-subtags">
+                                  {folders.slice(0, 3).map((f) => (
+                                    <Link key={f.id} href={`/rdu#folder-${f.id}`} className="navbar__grouped-subtag" title={f.folder_name}>
+                                      {f.folder_name}
+                                    </Link>
+                                  ))}
+                                  {folders.length > 3 && (
+                                    <Link href="/rdu" className="navbar__grouped-subtag navbar__grouped-subtag--more">
+                                      +{folders.length - 3} โฟลเดอร์
+                                    </Link>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          {hasFiles && (
-                            <ul className="navbar__nested-menu">
-                              <li className="navbar__nested-header">
-                                <Folder size={13} aria-hidden="true" />
-                                <span>{folder.folder_name}</span>
-                              </li>
-                              {folder.files.map((file) => (
-                                <li key={`file-${file.id}`}>
-                                  <a
-                                    href={file.file_path}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="navbar__nested-file-link"
-                                    title={`เปิดอ่าน ${file.display_name}`}
-                                  >
-                                    <FileText size={14} className="navbar__nested-file-icon" aria-hidden="true" />
-                                    <span className="navbar__nested-file-name">{file.display_name}</span>
-                                  </a>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
+                          {/* ระบบสารสนเทศ Card */}
+                          <Link
+                            href="/systems"
+                            className={`navbar__grouped-card ${pathname.startsWith('/systems') ? 'navbar__grouped-card--active' : ''}`}
+                          >
+                            <div className="navbar__grouped-card-head">
+                              <span className="navbar__grouped-card-badge navbar__grouped-card-badge--sys">SYSTEMS</span>
+                              <span className="navbar__grouped-card-title">ระบบสารสนเทศ</span>
+                            </div>
+                            <p className="navbar__grouped-card-desc">ระบบสารสนเทศโรงพยาบาล บริการสำหรับประชาชนและบุคลากร</p>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </li>
               );
             }
@@ -443,7 +490,8 @@ export default function Navbar() {
               <span className="navbar__check-date-icon-wrap">
                 <Calendar size={15} strokeWidth={2.2} aria-hidden="true" />
               </span>
-              <span>ตรวจสอบวันนัดหมาย</span>
+              <span className="navbar__check-date-text-full">ตรวจสอบวันนัดหมาย</span>
+              <span className="navbar__check-date-text-short">วันนัดหมาย</span>
             </Link>
 
             {member ? (
@@ -572,21 +620,22 @@ export default function Navbar() {
           <span className="navbar__drawer-section-label">เมนูนำทาง</span>
           <ul className="navbar__mobile-links">
             {navLinks.map((link) => {
-              if (link.isRdu) {
-                const isRduActive = pathname.startsWith('/rdu');
-                const folders = link.folders || [];
+              // Grouped Governance Dropdown in Mobile Drawer (Accordion)
+              if (link.isGovernance) {
                 const isDropdownOpen = activeDropdown === link.label;
+                const folders = link.folders || [];
 
                 return (
                   <li key={link.label} className="navbar__mobile-item">
                     <div className="navbar__mobile-row">
-                      <Link
-                        href="/rdu"
-                        className={`navbar__mobile-link ${isRduActive ? 'navbar__mobile-link--active' : ''}`}
-                        onClick={() => setIsOpen(false)}
+                      <button
+                        type="button"
+                        className={`navbar__mobile-link navbar__mobile-link--btn ${isGovernanceActive ? 'navbar__mobile-link--active' : ''}`}
+                        onClick={() => toggleDropdown(link.label)}
+                        aria-expanded={isDropdownOpen}
                       >
                         {link.label}
-                      </Link>
+                      </button>
                       <button
                         type="button"
                         className="navbar__mobile-accordion-btn"
@@ -606,61 +655,112 @@ export default function Navbar() {
 
                     {isDropdownOpen && (
                       <ul className="navbar__mobile-submenu">
+                        {/* ITA */}
                         <li>
                           <Link
-                            href="/rdu"
-                            className={`navbar__mobile-sublink ${pathname === '/rdu' ? 'navbar__mobile-sublink--active' : ''}`}
+                            href="/ita"
+                            className={`navbar__mobile-sublink ${pathname.startsWith('/ita') ? 'navbar__mobile-sublink--active' : ''}`}
                             onClick={() => setIsOpen(false)}
                           >
-                            <Folder size={14} aria-hidden="true" />
-                            <span>หน้าหลักเอกสาร RDU ทั้งหมด</span>
+                            <ShieldCheck size={15} className="navbar__mobile-subicon" aria-hidden="true" />
+                            <span>การประเมิน ITA</span>
                           </Link>
                         </li>
-                        {folders.map((folder) => {
-                          const hasFiles = folder.files && folder.files.length > 0;
-                          const isExpanded = expandedFolderId === folder.id;
 
-                          return (
-                            <li key={`mobile-folder-${folder.id}`} className="navbar__mobile-subfolder">
+                        {/* ชมรมจริยธรรม */}
+                        <li className="navbar__mobile-subfolder">
+                          <div className="navbar__mobile-row">
+                            <Link
+                              href="/ethics"
+                              className={`navbar__mobile-sublink ${pathname.startsWith('/ethics') ? 'navbar__mobile-sublink--active' : ''}`}
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <Scale size={15} className="navbar__mobile-subicon" aria-hidden="true" />
+                              <span>ชมรมจริยธรรม</span>
+                            </Link>
+                            <button
+                              type="button"
+                              className="navbar__mobile-subfolder-trigger-btn"
+                              onClick={() => setExpandedFolderId(expandedFolderId === -1 ? null : -1)}
+                              aria-label="แสดงปีงบประมาณจริยธรรม"
+                            >
+                              <ChevronDown
+                                size={14}
+                                className={`navbar__mobile-subchevron ${expandedFolderId === -1 ? 'is-rotated' : ''}`}
+                              />
+                            </button>
+                          </div>
+                          {expandedFolderId === -1 && (
+                            <ul className="navbar__mobile-filelist">
+                              {ethicsFiscalYears.map((year) => (
+                                <li key={year}>
+                                  <Link
+                                    href={`/ethics?year=${year}`}
+                                    className="navbar__mobile-filelink"
+                                    onClick={() => setIsOpen(false)}
+                                  >
+                                    <span>จริยธรรมปีงบประมาณ {year}</span>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+
+                        {/* RDU */}
+                        <li className="navbar__mobile-subfolder">
+                          <div className="navbar__mobile-row">
+                            <Link
+                              href="/rdu"
+                              className={`navbar__mobile-sublink ${pathname.startsWith('/rdu') ? 'navbar__mobile-sublink--active' : ''}`}
+                              onClick={() => setIsOpen(false)}
+                            >
+                              <Folder size={15} className="navbar__mobile-subicon" aria-hidden="true" />
+                              <span>เอกสาร RDU ทั้งหมด</span>
+                            </Link>
+                            {folders.length > 0 && (
                               <button
                                 type="button"
-                                className="navbar__mobile-subfolder-trigger"
-                                onClick={() => {
-                                  if (hasFiles) {
-                                    setExpandedFolderId(isExpanded ? null : folder.id);
-                                  }
-                                }}
+                                className="navbar__mobile-subfolder-trigger-btn"
+                                onClick={() => setExpandedFolderId(expandedFolderId === -2 ? null : -2)}
+                                aria-label="แสดงโฟลเดอร์เอกสาร RDU"
                               >
-                                <span>{folder.folder_name}</span>
-                                {hasFiles && (
-                                  <ChevronDown 
-                                    size={14} 
-                                    className={`navbar__mobile-subchevron ${isExpanded ? 'is-rotated' : ''}`} 
-                                  />
-                                )}
+                                <ChevronDown
+                                  size={14}
+                                  className={`navbar__mobile-subchevron ${expandedFolderId === -2 ? 'is-rotated' : ''}`}
+                                />
                               </button>
+                            )}
+                          </div>
+                          {expandedFolderId === -2 && folders.length > 0 && (
+                            <ul className="navbar__mobile-filelist">
+                              {folders.map((folder) => (
+                                <li key={`mobile-rdu-${folder.id}`}>
+                                  <Link
+                                    href={`/rdu#folder-${folder.id}`}
+                                    className="navbar__mobile-filelink"
+                                    onClick={() => setIsOpen(false)}
+                                  >
+                                    <FileText size={13} aria-hidden="true" />
+                                    <span>{folder.folder_name}</span>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
 
-                              {hasFiles && isExpanded && (
-                                <ul className="navbar__mobile-filelist">
-                                  {folder.files.map((file) => (
-                                    <li key={`mobile-file-${file.id}`}>
-                                      <a
-                                        href={file.file_path}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="navbar__mobile-filelink"
-                                        onClick={() => setIsOpen(false)}
-                                      >
-                                        <FileText size={13} aria-hidden="true" />
-                                        <span>{file.display_name}</span>
-                                      </a>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </li>
-                          );
-                        })}
+                        {/* ระบบสารสนเทศ */}
+                        <li>
+                          <Link
+                            href="/systems"
+                            className={`navbar__mobile-sublink ${pathname.startsWith('/systems') ? 'navbar__mobile-sublink--active' : ''}`}
+                            onClick={() => setIsOpen(false)}
+                          >
+                            <Server size={15} className="navbar__mobile-subicon" aria-hidden="true" />
+                            <span>ระบบสารสนเทศ</span>
+                          </Link>
+                        </li>
                       </ul>
                     )}
                   </li>

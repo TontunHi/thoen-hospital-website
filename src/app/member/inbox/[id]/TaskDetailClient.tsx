@@ -41,7 +41,10 @@ import {
   Link as LinkIcon,
   Loader2,
   PauseCircle,
-  PlayCircle
+  PlayCircle,
+  ChevronDown,
+  ChevronUp,
+  Check
 } from 'lucide-react'
 
 // Predefined Work Types with quick assist tags for Media Request
@@ -171,6 +174,10 @@ export default function TaskDetailClient({
   const [actionComment, setActionComment] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Timeline collapsible view state
+  const [isTimelineExpanded, setIsTimelineExpanded] = useState<boolean>(false)
+  const [isAuditTrailExpanded, setIsAuditTrailExpanded] = useState<boolean>(false)
 
   // Repair Action Modals / Panels
   const [isCoWorkerModalOpen, setIsCoWorkerModalOpen] = useState(false)
@@ -850,6 +857,32 @@ export default function TaskDetailClient({
     }
   }
 
+  const formatThaiOnlyDate = (dateStr: string | null) => {
+    if (!dateStr) return '-'
+    try {
+      const parts = dateStr.split('T')[0].split('-')
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10)
+        const m = parseInt(parts[1], 10) - 1
+        const d = parseInt(parts[2], 10)
+        const dateObj = new Date(y, m, d)
+        return new Intl.DateTimeFormat('th-TH', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }).format(dateObj)
+      }
+      const d = new Date(dateStr)
+      return new Intl.DateTimeFormat('th-TH', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(d)
+    } catch {
+      return dateStr
+    }
+  }
+
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'IT_REPAIR':
@@ -971,7 +1004,7 @@ export default function TaskDetailClient({
       {/* ── Top Header Card ── */}
       <div className="detailHeaderCard">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
+          <div className="detailHeaderBadgeRow">
             <span className="taskNoBadge">{task.task_no}</span>
             {getTypeBadge(task.task_type)}
             <span className={`statusBadge ${
@@ -980,7 +1013,7 @@ export default function TaskDetailClient({
               task.status === 'SENT_BACK' ? 'statusSentBack' : 
               task.status === 'ON_HOLD' ? 'statusOnHold' :
               task.status === 'IN_PROGRESS' ? 'statusInProgress' : 'statusPending'
-            }`} style={task.status === 'ON_HOLD' ? { backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' } : undefined}>
+            }`}>
               {task.status === 'APPROVED' && <CheckCircle2 size={13} className="flex-shrink-0" />}
               {task.status === 'REJECTED' && <XCircle size={13} className="flex-shrink-0" />}
               {task.status === 'SENT_BACK' && <AlertCircle size={13} className="flex-shrink-0" />}
@@ -1007,8 +1040,7 @@ export default function TaskDetailClient({
           <Link 
             href={`/member/inbox/${taskId}/print`} 
             target="_blank" 
-            className="backBtn" 
-            style={{ color: '#2563eb', borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }}
+            className="btnPrintA4Action"
           >
             <Printer size={16} />
             <span>พิมพ์ใบงาน (A4)</span>
@@ -1017,18 +1049,7 @@ export default function TaskDetailClient({
             <button
               type="button"
               onClick={handleOpenEditModal}
-              className="backBtn"
-              style={{
-                backgroundColor: '#0f766e',
-                color: '#ffffff',
-                borderColor: '#0f766e',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                boxShadow: '0 2px 4px rgba(15, 118, 110, 0.25)',
-              }}
+              className="btnEditTaskAction"
             >
               <Edit3 size={16} />
               <span>แก้ไขข้อมูลคำขอ</span>
@@ -1039,14 +1060,14 @@ export default function TaskDetailClient({
 
       {/* ── Alerts Banner ── */}
       {error && (
-        <div style={{ backgroundColor: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', padding: '0.85rem 1.15rem', borderRadius: '0.75rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+        <div className="alertBannerError">
           <AlertCircle size={18} className="flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {successMsg && (
-        <div style={{ backgroundColor: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '0.85rem 1.15rem', borderRadius: '0.75rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+        <div className="alertBannerSuccess">
           <CheckCircle2 size={18} className="flex-shrink-0" />
           <span>{successMsg}</span>
         </div>
@@ -1054,38 +1075,16 @@ export default function TaskDetailClient({
 
       {/* ── On Hold Notification Banner ── */}
       {task.status === 'ON_HOLD' && (
-        <div style={{
-          backgroundColor: '#fffbeb',
-          border: '1px solid #fde68a',
-          borderRadius: '0.75rem',
-          padding: '1.25rem',
-          marginBottom: '1.25rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          boxShadow: '0 2px 6px rgba(217, 119, 6, 0.08)'
-        }}>
+        <div className="onHoldBannerCard">
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-            <div style={{
-              width: '2.5rem',
-              height: '2.5rem',
-              borderRadius: '0.5rem',
-              backgroundColor: '#fef3c7',
-              color: '#d97706',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
+            <div className="onHoldBannerIcon">
               <PauseCircle size={24} />
             </div>
             <div>
-              <h4 style={{ margin: '0 0 0.25rem 0', color: '#92400e', fontSize: '1rem', fontWeight: 700 }}>
+              <h4 className="onHoldBannerTitle">
                 งานนี้ถูกพักการดำเนินการชั่วคราว (On Hold)
               </h4>
-              <div style={{ fontSize: '0.875rem', color: '#78350f', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              <div className="onHoldBannerDetails">
                 <div>
                   <strong>เหตุผล:</strong> {task.custom_payload?.holdInfo?.reason || 'รอการจัดสรรงบ'}
                 </div>
@@ -1107,20 +1106,7 @@ export default function TaskDetailClient({
               type="button"
               disabled={actionLoading}
               onClick={handleResumeTask}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                backgroundColor: '#0d9488',
-                color: '#ffffff',
-                border: 'none',
-                padding: '0.65rem 1.25rem',
-                borderRadius: '0.5rem',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(13, 148, 136, 0.25)'
-              }}
+              className="btnResumeTask"
             >
               <PlayCircle size={18} />
               <span>ปลดพักงาน / ดำเนินการต่อ (Resume)</span>
@@ -1166,32 +1152,26 @@ export default function TaskDetailClient({
               </div>
 
               {/* Media Request Summary Banner */}
-              <div style={{
-                background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)',
-                border: '1px solid #99f6e4',
-                borderRadius: '0.75rem',
-                padding: '1.25rem',
-                marginBottom: '1.25rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '0.75rem'
-              }}>
+              <div className="mediaDetailSummaryCard">
                 <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block' }}>
+                  <span className="mediaCostHeaderLabel">
                     รูปแบบค่าใช้จ่าย / การพิจารณา
                   </span>
-                  <strong style={{ color: '#115e59', fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
+                  <strong className={`mediaCostValueText ${task.custom_payload?.costType === 'HAS_COST' ? 'hasCost' : 'noCost'}`}>
                     {task.custom_payload?.costType === 'HAS_COST' ? '🔴 มีค่าใช้จ่าย' : '🟢 ไม่มีค่าใช้จ่าย'}
+                    {task.custom_payload?.costType === 'HAS_COST' && task.custom_payload?.estimatedBudget ? (
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#991b1b' }}>
+                        (ประมาณการ {Number(task.custom_payload.estimatedBudget).toLocaleString()} บาท)
+                      </span>
+                    ) : null}
                   </strong>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                   {task.custom_payload?.deliveryDate && (
-                    <div style={{ background: '#ffffff', padding: '0.4rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #99f6e4', fontSize: '0.8rem', color: '#0f766e', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
+                    <div className="deliveryDateTag">
                       <Calendar size={14} />
-                      <span>ขอรับงานภายใน: {task.custom_payload.deliveryDate}</span>
+                      <span>ขอรับงานภายใน: {formatThaiOnlyDate(task.custom_payload.deliveryDate)}</span>
                     </div>
                   )}
                   {getUrgencyBadge(task.urgency, task.task_type)}
@@ -1209,18 +1189,7 @@ export default function TaskDetailClient({
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                     {task.custom_payload?.workTypes && Array.isArray(task.custom_payload.workTypes) && task.custom_payload.workTypes.length > 0 ? (
                       task.custom_payload.workTypes.map((wt: any, idx: number) => (
-                        <span key={idx} style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.35rem 0.65rem',
-                          backgroundColor: '#ffffff',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '0.5rem',
-                          fontSize: '0.825rem',
-                          fontWeight: 600,
-                          color: '#0f172a'
-                        }}>
+                        <span key={idx} className="mediaPillTag">
                           <span>✓ {wt.label}</span>
                           {wt.customDetail && (
                             <span style={{ color: '#0d9488', fontWeight: 500, fontSize: '0.775rem' }}>
@@ -1244,18 +1213,7 @@ export default function TaskDetailClient({
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                     {task.custom_payload?.channels && Array.isArray(task.custom_payload.channels) && task.custom_payload.channels.length > 0 ? (
                       task.custom_payload.channels.map((ch: any, idx: number) => (
-                        <span key={idx} style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.35rem 0.65rem',
-                          backgroundColor: '#ffffff',
-                          border: '1px solid #cbd5e1',
-                          borderRadius: '0.5rem',
-                          fontSize: '0.825rem',
-                          fontWeight: 600,
-                          color: '#0f172a'
-                        }}>
+                        <span key={idx} className="mediaPillTag">
                           <span>📢 {ch.label}</span>
                           {ch.customDetail && (
                             <span style={{ color: '#2563eb', fontWeight: 500, fontSize: '0.775rem' }}>
@@ -1277,32 +1235,13 @@ export default function TaskDetailClient({
                   <FileText size={15} className="text-teal-600" />
                   รายละเอียดและเนื้อหาที่ต้องการให้ใส่ในสื่อ
                 </span>
-                <div style={{
-                  backgroundColor: '#f8fafc',
-                  padding: '1rem',
-                  borderRadius: '0.65rem',
-                  border: '1px solid #e2e8f0',
-                  color: '#1e293b',
-                  fontSize: '0.9rem',
-                  lineHeight: '1.65',
-                  whiteSpace: 'pre-line'
-                }}>
+                <div className="detailDescriptionBlock">
                   {task.description || 'ไม่มีรายละเอียดเพิ่มเติม'}
                 </div>
               </div>
 
               {/* Requester & Contact Info */}
-              <div style={{
-                backgroundColor: '#f8fafc',
-                padding: '1rem',
-                borderRadius: '0.75rem',
-                border: '1px solid #e2e8f0',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '0.75rem',
-                marginBottom: '1.25rem',
-                fontSize: '0.85rem'
-              }}>
+              <div className="requesterInfoGrid">
                 <div>
                   <span style={{ color: '#64748b', display: 'block', fontSize: '0.75rem' }}>ผู้ยื่นคำขอ</span>
                   <strong style={{ color: '#0f172a' }}>{task.requester_name}</strong>
@@ -1328,26 +1267,14 @@ export default function TaskDetailClient({
                   </span>
 
                   {task.custom_payload?.attachments && task.custom_payload.attachments.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: task.custom_payload?.driveLink ? '0.75rem' : '0' }}>
+                    <div className="attachmentListWrap" style={{ marginBottom: task.custom_payload?.driveLink ? '0.75rem' : '0' }}>
                       {task.custom_payload.attachments.map((att: any, idx: number) => (
                         <a
                           key={idx}
                           href={att.filePath}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            padding: '0.4rem 0.75rem',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #99f6e4',
-                            borderRadius: '0.5rem',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            color: '#0f766e',
-                            textDecoration: 'none'
-                          }}
+                          className="attachmentLinkItem"
                         >
                           <FileText size={14} />
                           <span>{att.fileName}</span>
@@ -1375,38 +1302,25 @@ export default function TaskDetailClient({
 
               {/* Quotations Card (Shown if quotations present) */}
               {task.custom_payload?.quotations && Array.isArray(task.custom_payload.quotations) && task.custom_payload.quotations.length > 0 && (
-                <div style={{ backgroundColor: '#f0fdf4', padding: '1rem', borderRadius: '0.75rem', border: '1px solid #a7f3d0', marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                    <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div className="quotationsContainer">
+                  <div className="quotationHeaderRow">
+                    <span className="quotationTitle">
                       <FileSpreadsheet size={16} className="text-emerald-600" />
                       เอกสารใบเสนอราคา (Quotation) ({task.custom_payload.quotations.length} ไฟล์)
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: '#047857', fontWeight: 600, backgroundColor: '#d1fae5', padding: '0.2rem 0.55rem', borderRadius: '4px' }}>
+                    <span className="quotationTag">
                       งบประมาณ / จัดซื้อจัดจ้าง
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div className="attachmentListWrap">
                     {task.custom_payload.quotations.map((q: any, idx: number) => (
                       <a
                         key={idx}
                         href={q.filePath}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.4rem',
-                          padding: '0.45rem 0.85rem',
-                          backgroundColor: '#ffffff',
-                          border: '1px solid #86efac',
-                          borderRadius: '0.5rem',
-                          fontSize: '0.825rem',
-                          fontWeight: 600,
-                          color: '#065f46',
-                          textDecoration: 'none',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
-                        }}
+                        className="quotationCard"
                       >
                         {getFileIcon(q.fileName)}
                         <span>{q.fileName}</span>
@@ -1881,11 +1795,11 @@ export default function TaskDetailClient({
               </div>
 
               {!currentUser?.hasSignature && (
-                <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', padding: '0.75rem 1rem', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.825rem', color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="noSignatureNotice">
                   <AlertCircle size={16} className="flex-shrink-0" />
                   <span>
                     คุณยังไม่ได้ตั้งค่าลายเซ็นดิจิทัล สามารถ{' '}
-                    <Link href="/member/signature" target="_blank" style={{ textDecoration: 'underline', fontWeight: 700 }}>
+                    <Link href="/member/signature" target="_blank">
                       คลิกเพื่อตั้งค่าลายเซ็นที่นี่
                     </Link>{' '}
                     ก่อนกดอนุมัติเพื่อประทับลงในเอกสาร
@@ -1906,7 +1820,7 @@ export default function TaskDetailClient({
                 />
               </div>
 
-              <div className="actionButtonRow" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div className="actionButtonRow">
                 <button
                   type="button"
                   disabled={actionLoading}
@@ -1929,19 +1843,6 @@ export default function TaskDetailClient({
                     disabled={actionLoading}
                     onClick={() => setIsHoldModalOpen(true)}
                     className="btnHoldJob"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      backgroundColor: '#fffbeb',
-                      color: '#b45309',
-                      border: '1px solid #fde68a',
-                      padding: '0.6rem 1rem',
-                      borderRadius: '0.5rem',
-                      fontWeight: 600,
-                      fontSize: '0.875rem',
-                      cursor: 'pointer'
-                    }}
                   >
                     <PauseCircle size={16} />
                     <span>พักงาน (Hold)</span>
@@ -1978,7 +1879,7 @@ export default function TaskDetailClient({
           <div className="contentCard">
             <div className="contentCardHeader">
               <h3 className="contentCardTitle">
-                <FileText size={18} className="text-blue-600" />
+                <FileText size={18} className="text-emerald-700" />
                 <span>ข้อมูลคำร้อง</span>
               </h3>
             </div>
@@ -2016,96 +1917,319 @@ export default function TaskDetailClient({
             </div>
           </div>
 
-          {/* 2. ขั้นตอนการอนุมัติ (Workflow Timeline) */}
-          <div className="contentCard">
-            <div className="contentCardHeader">
-              <h3 className="contentCardTitle">
-                <Clock size={18} className="text-blue-600" />
-                <span>ขั้นตอนการอนุมัติ (Workflow Timeline)</span>
-              </h3>
-            </div>
+          {/* 2. ขั้นตอนการอนุมัติ (Workflow Timeline - Collapsible / Minimized) */}
+          {(() => {
+            const totalSteps = steps.length
+            const completedSteps = steps.filter((s) => s.status === 'COMPLETED').length
+            const progressPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
+            const currentStep = steps.find((s) => s.step_no === task.current_step_no) || steps[0]
+            const isAllApproved = task.status === 'APPROVED'
+            const isTaskRejected = task.status === 'REJECTED'
+            const isTaskOnHold = task.status === 'ON_HOLD'
+            const isTaskSentBack = task.status === 'SENT_BACK'
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {steps.map((st) => {
-                const isCurrent = st.step_no === task.current_step_no && task.status === 'PENDING'
-                const isDone = st.status === 'COMPLETED'
-                const isRejected = st.status === 'REJECTED'
+            return (
+              <div className="contentCard">
+                <div className="contentCardHeader">
+                  <div className="timelineHeaderRow">
+                    <h3 className="contentCardTitle">
+                      <Clock size={18} className="text-emerald-700" />
+                      <span>ขั้นตอนการอนุมัติ</span>
+                      {totalSteps > 0 && (
+                        <span className="timelineStepCountBadge">
+                          {completedSteps}/{totalSteps}
+                        </span>
+                      )}
+                    </h3>
 
-                return (
-                  <div
-                    key={st.id}
-                    className={`timelineStepCard ${isDone ? 'isDone' : isRejected ? 'isRejected' : isCurrent ? 'isCurrent' : ''}`}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>
-                        ขั้นตอนที่ {st.step_no}
-                      </span>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        color: isDone ? '#16a34a' : isRejected ? '#dc2626' : isCurrent ? '#2563eb' : '#94a3b8',
-                      }}>
-                        {isDone ? '✓ อนุมัติแล้ว' : isRejected ? '✗ ไม่อนุมัติ' : isCurrent ? '● กำลังรอพิจารณา' : 'รอดำเนินการ'}
-                      </span>
-                    </div>
-
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e293b', marginBottom: '0.2rem' }}>
-                      {st.step_name}
-                    </div>
-
-                    <div style={{ fontSize: '0.8rem', color: '#475569' }}>
-                      ผู้รับผิดชอบ: {st.assigned_to_name || st.assigned_role || 'ผู้รับมอบหมาย'}
-                    </div>
-
-                    {st.action_by_name && (
-                      <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(0,0,0,0.06)', fontSize: '0.8rem' }}>
-                        <div style={{ color: '#0f172a' }}>
-                          ลงนามโดย: <strong>{st.action_by_name}</strong>
-                        </div>
-                        <div style={{ color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-                          {formatThaiDate(st.action_at)}
-                        </div>
-                        {st.comment && (
-                          <div style={{ marginTop: '0.25rem', fontStyle: 'italic', color: '#334155' }}>
-                            "{st.comment}"
-                          </div>
+                    {totalSteps > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsTimelineExpanded(!isTimelineExpanded)}
+                        className="timelineToggleBtn"
+                        aria-expanded={isTimelineExpanded}
+                        title={isTimelineExpanded ? 'ย่อเพื่อดูเฉพาะขั้นตอนปัจจุบัน' : 'คลิกเพื่อดูขั้นตอนทั้งหมด'}
+                      >
+                        {isTimelineExpanded ? (
+                          <>
+                            <ChevronUp size={14} />
+                            <span>ย่อขั้นตอน</span>
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={14} />
+                            <span>ดูทั้งหมด ({totalSteps})</span>
+                          </>
                         )}
-                        {st.signature_path && (
-                          <div style={{ marginTop: '0.4rem' }}>
-                            <span style={{ fontSize: '0.725rem', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
-                              <ShieldCheck size={13} />
-                              ประทับ e-Signature ยืนยันแล้ว
-                            </span>
-                          </div>
-                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Bar Track */}
+                {totalSteps > 0 && (
+                  <div className="timelineProgressContainer">
+                    <div className="timelineProgressBarTrack">
+                      <div
+                        className="timelineProgressBarFill"
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                    <div className="timelineProgressLabelRow">
+                      <span>ความคืบหน้าภาพรวม</span>
+                      <strong>{progressPct}% ({completedSteps}/{totalSteps})</strong>
+                    </div>
+                  </div>
+                )}
+
+                {/* Collapsed Mode: Active Step Card */}
+                {!isTimelineExpanded && totalSteps > 0 ? (
+                  <div className={`timelineActiveStepCard ${
+                    isAllApproved ? 'isApproved' :
+                    isTaskRejected ? 'isRejected' :
+                    isTaskOnHold ? 'isOnHold' : ''
+                  }`}>
+                    <div className="timelineActiveStepHeader">
+                      <span className="timelineActiveStepTag">
+                        {isAllApproved ? '✓ อนุมัติครบถ้วนสมบูรณ์' :
+                         isTaskRejected ? '✗ ไม่อนุมัติ / ยุติเรื่อง' :
+                         isTaskOnHold ? '⏸ พักการดำเนินงาน' :
+                         isTaskSentBack ? '↩ ส่งกลับให้แก้ไข' :
+                         `ขั้นตอนปัจจุบัน (${currentStep?.step_no || 1}/${totalSteps})`}
+                      </span>
+                      <span className={`timelineStepStatusText ${
+                        isAllApproved ? 'isDone' :
+                        isTaskRejected ? 'isRejected' :
+                        isTaskOnHold ? 'isPending' : 'isCurrent'
+                      }`}>
+                        {isAllApproved ? '✓ สำเร็จสิ้นสุด' :
+                         isTaskRejected ? '✗ ไม่อนุมัติ' :
+                         isTaskOnHold ? '● พักงานชั่วคราว' :
+                         isTaskSentBack ? '● ส่งกลับแก้ไข' :
+                         '● กำลังรอพิจารณา'}
+                      </span>
+                    </div>
+
+                    <div className="timelineActiveStepTitle">
+                      {isAllApproved ? 'ดำเนินการตามกระบวนการเสร็จสิ้นครบถ้วน' : (currentStep?.step_name || 'พิจารณาอนุมัติ')}
+                    </div>
+
+                    <div className="timelineActiveStepMeta">
+                      <div className="timelineActiveStepAssignee">
+                        <User size={13} className="text-slate-500" />
+                        <span>ผู้รับผิดชอบ: <strong>{currentStep?.assigned_to_name || currentStep?.assigned_role || 'ผู้รับมอบหมาย'}</strong></span>
+                      </div>
+                      {currentStep?.assigned_to_position && (
+                        <span style={{ color: '#64748b', fontSize: '0.75rem' }}>ตำแหน่ง: {currentStep.assigned_to_position}</span>
+                      )}
+                    </div>
+
+                    {totalSteps > 1 && (
+                      <div className="timelineActiveStepHint">
+                        <span>
+                          {completedSteps > 0 
+                            ? `✓ ผ่านขั้นตอนก่อนหน้าแล้ว ${completedSteps} ขั้นตอน` 
+                            : `รอเริ่มกระบวนการขั้นตอนแรก`}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsTimelineExpanded(true)}
+                          className="timelineMiniExpandBtn"
+                        >
+                          <span>ดูทุกขั้นตอน ({totalSteps})</span>
+                          <ChevronDown size={13} />
+                        </button>
                       </div>
                     )}
                   </div>
-                )
-              })}
-            </div>
-          </div>
+                ) : null}
 
-          {/* 3. ประวัติการดำเนินงาน (Audit Trail) */}
+                {/* Expanded Mode: Full Stepper Pipeline */}
+                {(isTimelineExpanded || totalSteps <= 1) && totalSteps > 0 && (
+                  <div className="timelinePipelineList">
+                    {steps.map((st, idx) => {
+                      const isCurrent = st.step_no === task.current_step_no && (task.status === 'PENDING' || task.status === 'IN_PROGRESS')
+                      const isDone = st.status === 'COMPLETED'
+                      const isRejected = st.status === 'REJECTED'
+                      const isLast = idx === steps.length - 1
+
+                      return (
+                        <div key={st.id} className="timelinePipelineItem">
+                          <div className="timelineStepTrackCol">
+                            <div className={`timelineStepMarker ${
+                              isDone ? 'isDone' :
+                              isRejected ? 'isRejected' :
+                              isCurrent ? 'isCurrent' : 'isPending'
+                            }`}>
+                              {isDone ? (
+                                <Check size={14} />
+                              ) : isRejected ? (
+                                <X size={14} />
+                              ) : (
+                                <span>{st.step_no}</span>
+                              )}
+                            </div>
+                            {!isLast && (
+                              <div className={`timelineStepLine ${isDone ? 'isDoneLine' : ''}`} />
+                            )}
+                          </div>
+
+                          <div className={`timelineStepBodyCard ${
+                            isDone ? 'isDone' :
+                            isRejected ? 'isRejected' :
+                            isCurrent ? 'isCurrent' : ''
+                          }`}>
+                            <div className="timelineStepStatusRow">
+                              <span className="timelineStepNumberText">ขั้นตอนที่ {st.step_no}</span>
+                              <span className={`timelineStepStatusText ${
+                                isDone ? 'isDone' :
+                                isRejected ? 'isRejected' :
+                                isCurrent ? 'isCurrent' : 'isPending'
+                              }`}>
+                                {isDone ? '✓ อนุมัติแล้ว' :
+                                 isRejected ? '✗ ไม่อนุมัติ' :
+                                 isCurrent ? '● กำลังรอพิจารณา' : 'รอดำเนินการ'}
+                              </span>
+                            </div>
+
+                            <div className="timelineStepNameText">{st.step_name}</div>
+                            <div className="timelineStepAssigneeText">
+                              ผู้รับผิดชอบ: {st.assigned_to_name || st.assigned_role || 'ผู้รับมอบหมาย'}
+                            </div>
+
+                            {st.action_by_name && (
+                              <div className="timelineStepActionBox">
+                                <div className="timelineStepSigner">
+                                  ลงนามโดย: <strong>{st.action_by_name}</strong>
+                                </div>
+                                <div className="timelineStepDate">
+                                  {formatThaiDate(st.action_at)}
+                                </div>
+                                {st.comment && (
+                                  <div className="timelineStepCommentQuote">
+                                    &ldquo;{st.comment}&rdquo;
+                                  </div>
+                                )}
+                                {st.signature_path && (
+                                  <div className="timelineSignatureBadge">
+                                    <ShieldCheck size={13} />
+                                    <span>ประทับ e-Signature ยืนยันแล้ว</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {totalSteps > 1 && (
+                      <div className="timelineCollapseFooter">
+                        <button
+                          type="button"
+                          onClick={() => setIsTimelineExpanded(false)}
+                          className="timelineToggleBtn"
+                        >
+                          <ChevronUp size={14} />
+                          <span>ย่อขั้นตอน</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* 3. ประวัติการดำเนินงาน (Audit Trail - Collapsible) */}
           <div className="contentCard">
             <div className="contentCardHeader">
-              <h3 className="contentCardTitle" style={{ fontSize: '0.95rem' }}>
-                <History size={16} className="text-slate-600" />
-                <span>ประวัติการดำเนินงาน (Audit Trail)</span>
-              </h3>
+              <div className="auditHeaderRow">
+                <h3 className="contentCardTitle" style={{ fontSize: '0.95rem' }}>
+                  <History size={16} className="text-slate-600" />
+                  <span>ประวัติการดำเนินงาน</span>
+                  {auditLogs.length > 0 && (
+                    <span className="auditCountBadge">
+                      {auditLogs.length} รายการ
+                    </span>
+                  )}
+                </h3>
+
+                {auditLogs.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAuditTrailExpanded(!isAuditTrailExpanded)}
+                    className="timelineToggleBtn"
+                    aria-expanded={isAuditTrailExpanded}
+                    title={isAuditTrailExpanded ? 'คลิกเพื่อซ่อนประวัติ' : 'คลิกเพื่อดูประวัติการดำเนินงาน'}
+                  >
+                    {isAuditTrailExpanded ? (
+                      <>
+                        <ChevronUp size={14} />
+                        <span>ซ่อนประวัติ</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown size={14} />
+                        <span>ดูประวัติ ({auditLogs.length})</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div style={{ maxHeight: '240px', overflowY: 'auto', fontSize: '0.775rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {auditLogs.map((log) => (
-                <div key={log.id} style={{ borderBottom: '1px dashed #e2e8f0', paddingBottom: '0.35rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong style={{ color: '#334155' }}>{log.action}</strong>
-                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatThaiDate(log.created_at)}</span>
-                  </div>
-                  <div>โดย: {log.performer_name || `ID #${log.performed_by}`}</div>
+            {!isAuditTrailExpanded ? (
+              <div
+                className="auditCollapsedBox"
+                onClick={() => setIsAuditTrailExpanded(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setIsAuditTrailExpanded(true)
+                  }
+                }}
+              >
+                <span className="auditCollapsedText">
+                  {auditLogs.length > 0
+                    ? `มีบันทึกประวัติการดำเนินงาน ${auditLogs.length} รายการ`
+                    : 'ยังไม่มีประวัติการดำเนินงาน'}
+                </span>
+                {auditLogs.length > 0 && (
+                  <span className="auditCollapsedAction">
+                    <span>กดเพื่อดูประวัติ</span>
+                    <ChevronDown size={14} />
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div className="auditTrailList">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="auditTrailItem">
+                      <div className="auditTrailTopRow">
+                        <span className="auditTrailActionText">{log.action}</span>
+                        <span className="auditTrailDateText">{formatThaiDate(log.created_at)}</span>
+                      </div>
+                      <div>โดย: {log.performer_name || `ID #${log.performed_by}`}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+
+                <div className="auditCollapseFooter">
+                  <button
+                    type="button"
+                    onClick={() => setIsAuditTrailExpanded(false)}
+                    className="timelineToggleBtn"
+                  >
+                    <ChevronUp size={14} />
+                    <span>ซ่อนประวัติ</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

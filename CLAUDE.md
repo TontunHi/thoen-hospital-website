@@ -36,6 +36,9 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
 7. **Hospital Asset Seam:** `@/lib/assets/assetService` (`HospitalAssetService`) — Auto-categorization (IT/Medical/General), FSN mapping, Gotowin integration. Route handlers: `@/app/api/assets/**`.
 8. **Hospital Events Seam:** `@/lib/events/hospitalEventService` (`HospitalEventService`) & `@/lib/events/eventTimeUtils` — Event creation, ThaID QR check-in window validation (`validateCheckinWindow`), attendee management, leaderboard, Thai fiscal year (1 Oct - 30 Sep). MySQL `DATETIME` stores literal Thai Local Time (`Asia/Bangkok` UTC+7).
 9. **Equipment Borrowing Seam:** `@/lib/equipment/equipmentBorrowService` (`EquipmentBorrowService`) — Centralized equipment & consumable borrowing workflows (`equipment_borrow_requests`, `equipment_borrow_items`).
+10. **Revenue Cycle Analytics Seam:** `@/lib/clinical/rcmDashboardService` (`RcmDashboardService`) — Standardized 10 clinical specialties (`buildDepartmentSqlCase`, `classifySpecialty`), strongly typed `FiscalDateRange` (`startDate`, `endDate`), and dynamic Thai fiscal bounds (`getDefaultFiscalYearDateRange`, `resolveFiscalDateRange`).
+11. **Member Work Summary Seam:** `@/lib/taskInboxService` (`TaskInboxService.getMemberWorkSummary`) — Centralized pending inbox task and registration counts. Never embed raw SQL queries inside Page Server Components.
+12. **Shared Formatters:** `@/lib/formatters` (`getInitials`) — Canonical helper for staff avatars, stripping Thai civil & medical honorifics.
 
 ## Architectural & Coding Standards
 - **Thin Route Adapters:** API routes (`src/app/api/**`) must be thin (~20–40 lines) delegating to deep domain modules in `@/lib/`.
@@ -44,10 +47,19 @@ cmd.exe /c "npm run maintenance:cleanup" # Purge old audit logs
 - **Test Seams:** Domain services accept an injectable `QueryExecutor` parameter defaulting to `queryClinicalDb` for 100% Vitest unit testability.
 - **File Uploads:** Use `DocumentStorage.save()`, `saveBatch()`, or `formatDateDirectory()`.
 - **No Duplicate Keys in Responses:** Never write `{ success: true, ...result }` if `result` already contains `success: boolean` (fails strict `npx tsc --noEmit` with TS2783).
+- **Non-Intrusive UX:** Use status chips with direct links for profile actions (e.g. `/member/signature`). Never introduce unsolicited popup modals that interrupt staff on dashboard load.
 
 ## Testing Gotchas
 - **Mock `logAudit` in service unit tests:** Services that call `logAudit()` internally (e.g. `MemberAuthService.buildSession`, `EthicsDocumentService.deleteDocument`) need: `vi.mock('../audit', () => ({ logAudit: vi.fn().mockResolvedValue(undefined) }))`
 - **`buildSession` is async:** `MemberAuthService.buildSession()` returns `Promise<string>` — always `await` it. The old `createToken` was sync and is now deprecated (throws).
+- **In-Memory Cache Isolation:** When testing functions wrapped in `getCachedData()` from `@/lib/cache`, import `clearMemoryCache` and call it in `beforeEach(() => { clearMemoryCache() })` to prevent inter-test cache crosstalk.
+- **Partial Mocking of Service Modules:** When mocking `@/lib/clinical/rcmDashboardService` in Vitest, use `importOriginal` to preserve pure domain functions like `getDefaultFiscalYearDateRange`:
+  ```ts
+  vi.mock('@/lib/clinical/rcmDashboardService', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/lib/clinical/rcmDashboardService')>()
+    return { ...actual, RcmDashboardService: { ...actual.RcmDashboardService, getOpdDepartmentSummary: vi.fn() } }
+  })
+  ```
 - **MariaDB tis620 Charset:** The hospital's MariaDB server defaults `init_connect='SET NAMES tis620'`. Always use `@/lib/prisma` (which pins `SET NAMES utf8mb4`) rather than raw `new PrismaClient()` in scripts to prevent UTF-8 conversion errors.
 - **Event Timezone in DB:** `hospital_events` DATETIME columns store literal Thai local time (UTC parts match Bangkok time). API responses serialize them via `toBangkokIsoString` (`+07:00`) so clients don't double-shift.
 - **Event QR Scanning:** QR codes point to `/api/events/checkin/[token]` which redirects to ThaID OAuth. Must be scanned with a standard mobile camera/LINE scanner to launch the browser (ThaID app internal scanner does not handle web URLs).

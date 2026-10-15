@@ -9,7 +9,6 @@ import {
   HeartPulse,
   MapPin,
   User,
-  Calendar,
   X,
   UploadCloud,
   CheckCircle2,
@@ -22,15 +21,12 @@ import {
   Layers,
   ShieldCheck,
   ShieldAlert,
-  Building,
   Check,
   Info,
   Clock,
   Zap,
   CheckCircle,
-  Sparkles,
-  Phone,
-  FileImage,
+  Camera,
 } from 'lucide-react'
 import './repair.css'
 
@@ -192,8 +188,8 @@ export default function RepairFormClient({
   const roomSelectId = useId()
   const specificNoteId = useId()
 
-  // 1. Repair Category State
-  const [repairType, setRepairType] = useState<'GENERAL_REPAIR' | 'IT_REPAIR' | 'MEDICAL_REPAIR'>('IT_REPAIR')
+  // 1. Repair Category State (initially unselected)
+  const [repairType, setRepairType] = useState<'GENERAL_REPAIR' | 'IT_REPAIR' | 'MEDICAL_REPAIR' | null>(null)
 
   // 2. Item Category State (EQUIPMENT vs NON_EQUIPMENT)
   const [itemCategory, setItemCategory] = useState<'EQUIPMENT' | 'NON_EQUIPMENT'>('EQUIPMENT')
@@ -228,21 +224,6 @@ export default function RepairFormClient({
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successInfo, setSuccessInfo] = useState<{ taskId: string; taskNo: string } | null>(null)
-
-  // Current Date/Time in Thai format for display
-  const [currentDateTimeThai, setCurrentDateTimeThai] = useState('')
-
-  useEffect(() => {
-    const now = new Date()
-    const thaiFormatter = new Intl.DateTimeFormat('th-TH', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    setCurrentDateTimeThai(thaiFormatter.format(now))
-  }, [])
 
   // Close asset dropdown when clicking outside
   useEffect(() => {
@@ -426,6 +407,12 @@ export default function RepairFormClient({
     setErrorMessage(null)
 
     // Validation
+    if (!repairType) {
+      setErrorMessage('กรุณาเลือกประเภทงานซ่อม (คอมพิวเตอร์ / IT, งานช่างทั่วไป หรือ เครื่องมือแพทย์)')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
     if (itemCategory === 'EQUIPMENT' && !equipmentNumber.trim() && !equipmentName.trim()) {
       setErrorMessage('กรุณาระบุเลขทะเบียนครุภัณฑ์ หรือชื่อครุภัณฑ์')
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -573,10 +560,6 @@ export default function RepairFormClient({
           <ArrowLeft aria-hidden="true" className="w-4 h-4" />
           <span>กลับสู่กล่องงาน</span>
         </Link>
-        <div className="repairNavLocationBadge">
-          <Building aria-hidden="true" className="w-3.5 h-3.5 text-teal-600" />
-          <span>โรงพยาบาลเถิน จ.ลำปาง • ระบบแจ้งซ่อมบำรุง</span>
-        </div>
       </nav>
 
       {/* ── Main Form Shell Card ── */}
@@ -593,14 +576,6 @@ export default function RepairFormClient({
               <p className="repairHeroSubtitle">
                 ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมแจ้งเตือนส่งตรงเข้ากลุ่มงานช่างทันที
               </p>
-            </div>
-
-            <div className="repairHeroDateBox">
-              <div className="flex items-center gap-1.5 justify-end">
-                <Clock aria-hidden="true" className="w-3.5 h-3.5 text-teal-200" />
-                <span className="repairDateLabel">เวลาปัจจุบัน</span>
-              </div>
-              <span className="repairDateValue tabularNums">{currentDateTimeThai || 'กำลังโหลด…'}</span>
             </div>
           </div>
         </header>
@@ -736,7 +711,7 @@ export default function RepairFormClient({
               {itemCategory === 'EQUIPMENT' ? (
                 <div className="equipmentLookupBlock">
                   <div className="grid2Cols">
-                    <div className="formGroup" ref={assetWrapperRef} style={{ position: 'relative' }}>
+                    <div className="formGroup formGroupRelative" ref={assetWrapperRef}>
                       <label htmlFor={equipNumId} className="formLabel">
                         เลขทะเบียนครุภัณฑ์ (พิมพ์ค้นหาจากระบบ) <span className="reqStar" aria-hidden="true">*</span>
                       </label>
@@ -861,7 +836,7 @@ export default function RepairFormClient({
                   )}
                 </div>
               ) : (
-                <div className="formGroup" style={{ marginTop: '1rem' }}>
+                <div className="formGroup formGroupSpaced">
                   <label htmlFor={nonEquipId} className="formLabel">
                     รายการ / สิ่งของที่ชำรุดเสียหาย <span className="reqStar" aria-hidden="true">*</span>
                   </label>
@@ -948,7 +923,8 @@ export default function RepairFormClient({
                 <div className="repairStepBadge" aria-hidden="true">4</div>
                 <div>
                   <h2 id="step-4-title" className="repairSectionTitle">
-                    แนบรูปถ่ายประกอบความเสียหาย (ไม่บังคับ)
+                    <Camera aria-hidden="true" className="w-4 h-4 text-emerald-800 shrink-0" />
+                    <span>แนบรูปถ่ายประกอบความเสียหาย (ไม่บังคับ)</span>
                   </h2>
                   <p className="repairSectionSubtext">แนบรูปภาพหน้างานหรือจุดที่ชำรุด สูงสุด 5 รูป (รูปละไม่เกิน 10MB)</p>
                 </div>
@@ -992,7 +968,7 @@ export default function RepairFormClient({
                       accept="image/jpeg,image/png,image/webp"
                       multiple
                       onChange={handlePhotoSelect}
-                      style={{ display: 'none' }}
+                      className="fileInputHidden"
                     />
                     <div className="photoUploadIconWrap" aria-hidden="true">
                       <UploadCloud className="w-6 h-6 text-teal-600" />
@@ -1019,7 +995,7 @@ export default function RepairFormClient({
               <div className="locationCascadeWrap">
                 {/* Building */}
                 <div className="formGroup">
-                  <label htmlFor={buildingSelectId} className="formLabel" style={{ fontSize: '0.8rem' }}>
+                  <label htmlFor={buildingSelectId} className="formLabel formLabelSmall">
                     1. อาคาร / ตึก <span className="reqStar" aria-hidden="true">*</span>
                   </label>
                   <select
@@ -1045,7 +1021,7 @@ export default function RepairFormClient({
 
                 {/* Floor */}
                 <div className="formGroup">
-                  <label htmlFor={floorSelectId} className="formLabel" style={{ fontSize: '0.8rem' }}>
+                  <label htmlFor={floorSelectId} className="formLabel formLabelSmall">
                     2. ชั้น <span className="reqStar" aria-hidden="true">*</span>
                   </label>
                   <select
@@ -1073,7 +1049,7 @@ export default function RepairFormClient({
 
                 {/* Room */}
                 <div className="formGroup">
-                  <label htmlFor={roomSelectId} className="formLabel" style={{ fontSize: '0.8rem' }}>
+                  <label htmlFor={roomSelectId} className="formLabel formLabelSmall">
                     3. ห้อง / แผนก / จุดบริการ <span className="reqStar" aria-hidden="true">*</span>
                   </label>
                   <select
@@ -1111,7 +1087,7 @@ export default function RepairFormClient({
                   </label>
 
                   {hasSpecificNote && (
-                    <div className="formGroup" style={{ marginTop: '0.45rem' }}>
+                    <div className="formGroup formGroupCompact">
                       <label htmlFor={specificNoteId} className="sr-only">
                         จุดเฉพาะเจาะจง
                       </label>
@@ -1119,8 +1095,7 @@ export default function RepairFormClient({
                         id={specificNoteId}
                         name="specificNote"
                         type="text"
-                        className="formInput"
-                        style={{ padding: '0.45rem 0.75rem', fontSize: '0.85rem' }}
+                        className="formInput specificNoteInput"
                         placeholder="เช่น หน้าห้องน้ำ, เสาต้นที่ 3, โต๊ะพยาบาลหมายเลข 2"
                         value={specificNote}
                         onChange={(e) => setSpecificNote(e.target.value)}

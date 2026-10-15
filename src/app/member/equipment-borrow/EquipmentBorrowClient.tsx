@@ -707,9 +707,13 @@ export default function EquipmentBorrowClient({
       {/* ── Header ── */}
       <header className="borrowHeader">
         <div className="borrowHeaderTitle">
-          <Link href="/member" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#059669', fontSize: '0.85rem', marginBottom: '0.35rem', textDecoration: 'none' }}>
+          <Link href="/member" className="borrowBackLink">
             <ArrowLeft size={16} /> กลับสู่ระบบสมาชิก
           </Link>
+          <div className="borrowHospitalBadge">
+            <ShieldCheck size={14} />
+            <span>โรงพยาบาลเถิน จ.ลำปาง • ระบบยืม-คืนอุปกรณ์และพัสดุ</span>
+          </div>
           <h1>
             <Package size={28} />
             ระบบยืม-คืนอุปกรณ์และพัสดุ
@@ -731,24 +735,24 @@ export default function EquipmentBorrowClient({
 
       {/* ── Notifications ── */}
       {errorMsg && (
-        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', padding: '0.9rem 1.25rem', borderRadius: '0.75rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div role="alert" className="borrowAlert borrowAlertError">
+          <div className="borrowAlertContent">
             <AlertCircle size={20} />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c' }}>
+          <button onClick={() => setErrorMsg(null)} className="borrowAlertClose" aria-label="ปิดการแจ้งเตือน">
             <X size={18} />
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', padding: '0.9rem 1.25rem', borderRadius: '0.75rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div role="alert" className="borrowAlert borrowAlertSuccess">
+          <div className="borrowAlertContent">
             <CheckCircle2 size={20} />
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#15803d' }}>
+          <button onClick={() => setSuccessMsg(null)} className="borrowAlertClose" aria-label="ปิดการแจ้งเตือน">
             <X size={18} />
           </button>
         </div>
@@ -825,7 +829,7 @@ export default function EquipmentBorrowClient({
               <ShieldCheck size={18} />
               จัดการคำขอ & รับคืน
               {(stats.overdueRequests > 0 || pendingRequests.length > 0) && (
-                <span className="tabBadge" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+                <span className="tabBadge tabBadgeUrgent">
                   {pendingRequests.length + stats.overdueRequests}
                 </span>
               )}
@@ -856,13 +860,13 @@ export default function EquipmentBorrowClient({
                 onChange={(e) => setCatalogSearch(e.target.value)}
               />
               {catalogSearch && (
-                <button onClick={() => setCatalogSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                <button onClick={() => setCatalogSearch('')} className="borrowAlertClose" aria-label="ล้างคำค้นหา">
                   <X size={16} />
                 </button>
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="filterSelectGroup">
               <select
                 className="filterSelect"
                 value={catalogType}

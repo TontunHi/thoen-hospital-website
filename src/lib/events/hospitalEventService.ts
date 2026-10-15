@@ -53,6 +53,8 @@ export interface GetEventsOptions {
   search?: string
   fiscalYear?: string
   memberId?: number
+  onlyUpcoming?: boolean
+  onlyCompleted?: boolean
   onlyMyEvents?: boolean
   onlyMyRegistrations?: boolean
   page?: number
@@ -242,6 +244,8 @@ export class HospitalEventService {
       search,
       fiscalYear,
       memberId,
+      onlyUpcoming,
+      onlyCompleted,
       onlyMyEvents,
       onlyMyRegistrations,
       page = 1,
@@ -250,6 +254,13 @@ export class HospitalEventService {
 
     const skip = (Math.max(1, page) - 1) * limit
     const where: any = {}
+    const dbNow = getNowBangkokForDb()
+
+    if (onlyUpcoming) {
+      where.eventEndDate = { gte: dbNow }
+    } else if (onlyCompleted) {
+      where.eventEndDate = { lt: dbNow }
+    }
 
     if (status && status !== 'ALL') {
       where.status = status
@@ -277,30 +288,52 @@ export class HospitalEventService {
       where.registrations = { some: { memberId } }
     }
 
+    const includeConfig: any = {
+      headOrganizer: {
+        select: { id: true, name: true, department: true, profilePath: true },
+      },
+      coOrganizers: {
+        include: {
+          member: {
+            select: { id: true, name: true, department: true, profilePath: true },
+          },
+        },
+      },
+      _count: {
+        select: {
+          registrations: true,
+          attendances: true,
+        },
+      },
+    }
+
+    if (memberId) {
+      includeConfig.registrations = {
+        where: { memberId },
+        select: { id: true },
+      }
+      includeConfig.attendances = {
+        where: { memberId },
+        select: { id: true },
+      }
+    }
+
+    let orderBy: any = { eventStartDate: 'asc' }
+    if (onlyCompleted) {
+      orderBy = { eventEndDate: 'desc' }
+    } else if (onlyUpcoming) {
+      orderBy = { eventStartDate: 'asc' }
+    } else {
+      orderBy = [{ eventStartDate: 'desc' }]
+    }
+
     const [events, total] = await Promise.all([
       this.db.hospitalEvent.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { eventStartDate: 'asc' },
-        include: {
-          headOrganizer: {
-            select: { id: true, name: true, department: true, profilePath: true },
-          },
-          coOrganizers: {
-            include: {
-              member: {
-                select: { id: true, name: true, department: true, profilePath: true },
-              },
-            },
-          },
-          _count: {
-            select: {
-              registrations: true,
-              attendances: true,
-            },
-          },
-        },
+        orderBy,
+        include: includeConfig,
       }),
       this.db.hospitalEvent.count({ where }),
     ])
@@ -310,6 +343,12 @@ export class HospitalEventService {
       const isHeadOrganizer = memberId ? ev.headOrganizerId === memberId : false
       const isCoOrganizer = memberId
         ? ev.coOrganizers?.some((c: any) => c.memberId === memberId)
+        : false
+      const hasRegistered = memberId
+        ? Boolean(Array.isArray(ev.registrations) && ev.registrations.length > 0)
+        : false
+      const hasAttended = memberId
+        ? Boolean(Array.isArray(ev.attendances) && ev.attendances.length > 0)
         : false
 
       return {
@@ -321,6 +360,8 @@ export class HospitalEventService {
         registrationCount: ev._count?.registrations || 0,
         attendanceCount: ev._count?.attendances || 0,
         isOrganizer: isHeadOrganizer || isCoOrganizer,
+        hasRegistered,
+        hasAttended,
       }
     })
 

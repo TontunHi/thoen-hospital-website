@@ -1,11 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
-import { LayoutDashboard, Newspaper, LogOut, Image as ImageIcon, ArrowLeft } from 'lucide-react'
-import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { 
+  LayoutDashboard, 
+  Newspaper, 
+  Image as ImageIcon, 
+  ArrowLeft,
+  Globe,
+  Plus
+} from 'lucide-react'
 import './layout.css'
 
 export default function AdminLayoutClient({
@@ -14,99 +18,84 @@ export default function AdminLayoutClient({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true)
-    try {
-      await fetch('/api/member/logout', { method: 'POST' })
-      router.push('/member/login')
-    } catch (error) {
-      console.error('Logout error:', error)
-      setIsLoggingOut(false)
-      setShowLogoutConfirm(false)
-    }
-  }
-
-  const navItems = [
-    { href: '/member/news', label: 'แดชบอร์ด', icon: LayoutDashboard },
-    { href: '/member/news/news', label: 'ข่าวสาร', icon: Newspaper },
-    { href: '/member/news/slides', label: 'สไลด์โชว์', icon: ImageIcon },
+  const navTabs = [
+    { href: '/member/news', label: 'ภาพรวมแดชบอร์ด', icon: LayoutDashboard },
+    { href: '/member/news/news', label: 'ข่าวสารและกิจกรรม', icon: Newspaper },
+    { href: '/member/news/slides', label: 'ป้ายสไลด์ประชาสัมพันธ์', icon: ImageIcon },
   ]
 
   return (
-    <div className="adminLayout">
-      <aside className="sidebar">
-        <div className="sidebarHeader">
-          <div className="sidebarLogoContainer">
-            <Image
-              src="/images/common/logo-website.webp"
-              alt="โรงพยาบาลเถิน"
-              width={64}
-              height={64}
-              className="sidebarLogo"
-              priority
-            />
-            <div className="sidebarHospitalName">โรงพยาบาลเถิน</div>
-          </div>
-          <h2>ระบบจัดการเว็บไซต์</h2>
-          <p>Thoen Hospital Admin Panel</p>
-        </div>
+    <div className="newsPortalPage">
+      <div className="container">
+        {/* Executive Hospital CMS Header */}
+        <header className="pageHeader">
+          <div className="pageHeaderTop">
+            <Link href="/member" className="backLinkBtn">
+              <ArrowLeft size={16} />
+              <span>กลับสู่แดชบอร์ดสมาชิก</span>
+            </Link>
 
-        <nav className="sidebarNav">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === '/member/news'
-                ? pathname === '/member/news'
-                : pathname.startsWith(item.href)
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`navLink ${isActive ? 'navLinkActive' : ''}`}
+            <div className="headerActions">
+              <Link 
+                href="/news" 
+                target="_blank" 
+                className="viewPublicBtn"
+                title="เปิดดูหน้าเว็บประชาสัมพันธ์ของประชาชน"
               >
-                <Icon size={18} className="navIcon" />
-                <span>{item.label}</span>
+                <Globe size={15} />
+                <span>ดูหน้าเว็บข่าวจริง</span>
               </Link>
-            )
-          })}
+              <Link 
+                href="/member/news/news/create" 
+                className="addNewsBtn"
+              >
+                <Plus size={16} />
+                <span>เขียนข่าวใหม่</span>
+              </Link>
+            </div>
+          </div>
 
-          <div className="navDivider" />
+          <div className="headerText">
+            <div className="titleWithBadge">
+              <h1>ระบบจัดการข่าวสารและสื่อประชาสัมพันธ์</h1>
+              <span className="cmsBadge">โรงพยาบาลเถิน CMS</span>
+            </div>
+            <p>
+              จัดการเนื้อหาข่าวสาร กิจกรรม ประกาศจัดซื้อจัดจ้าง และภาพสไลด์แบนเนอร์หน้าแรกของโรงพยาบาลเถิน
+            </p>
+          </div>
 
-          <Link href="/member" className="navLink navLinkBack">
-            <ArrowLeft size={18} className="navIcon" />
-            <span>กลับหน้าหลักสมาชิก</span>
-          </Link>
-        </nav>
+          {/* Subnav Navigation Tabs */}
+          <nav className="newsSubnav" role="tablist" aria-label="หมวดหมู่การจัดการข่าวสาร">
+            {navTabs.map((tab) => {
+              const isActive =
+                tab.href === '/member/news'
+                  ? pathname === '/member/news'
+                  : pathname.startsWith(tab.href)
+              const Icon = tab.icon
 
-        <div className="sidebarFooter">
-          <button type="button" onClick={() => setShowLogoutConfirm(true)} className="logoutButton">
-            <LogOut size={18} className="navIcon" />
-            <span>ออกจากระบบ</span>
-          </button>
-        </div>
-      </aside>
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`newsSubnavTab ${isActive ? 'active' : ''}`}
+                >
+                  <Icon size={16} className="tabIcon" />
+                  <span>{tab.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
+        </header>
 
-      <main className="mainContent">
-        <div className="mainContentWrapper">
+        {/* Content Area */}
+        <main className="newsContentContainer">
           {children}
-        </div>
-      </main>
-
-      <ConfirmDialog
-        isOpen={showLogoutConfirm}
-        title="ยืนยันการออกจากระบบ"
-        description="คุณต้องการออกจากระบบจัดการเว็บไซต์ใช่หรือไม่?"
-        confirmText="ออกจากระบบ"
-        cancelText="ยกเลิก"
-        type="warning"
-        loading={isLoggingOut}
-        onConfirm={handleLogout}
-        onCancel={() => setShowLogoutConfirm(false)}
-      />
+        </main>
+      </div>
     </div>
   )
 }

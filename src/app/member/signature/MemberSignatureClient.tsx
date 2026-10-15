@@ -1,7 +1,19 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { Trash2, Upload, Check, AlertCircle, PenTool, Loader2, ArrowLeft } from 'lucide-react'
+import {
+  Trash2,
+  Upload,
+  Check,
+  AlertCircle,
+  PenTool,
+  Loader2,
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
+  Info,
+} from 'lucide-react'
 import Link from 'next/link'
 import './page.css'
 
@@ -12,14 +24,13 @@ export default function MemberSignatureClient() {
   const [loading, setLoading] = useState<boolean>(true)
   const [saving, setSaving] = useState<boolean>(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  
+
   // Signature Drawing States
   const [isDrawing, setIsDrawing] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const contextRef = useRef<CanvasRenderingContext2D | null>(null)
 
   // Signature Upload States
-
   const [processedImageSrc, setProcessedImageSrc] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -27,6 +38,23 @@ export default function MemberSignatureClient() {
   useEffect(() => {
     fetchSignatureStatus()
   }, [])
+
+  const formatThaiDate = (dateString: string) => {
+    try {
+      const d = new Date(dateString)
+      const thaiMonths = [
+        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+      ]
+      const day = d.getDate()
+      const month = thaiMonths[d.getMonth()]
+      const year = d.getFullYear() + 543
+      const time = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      return `${day} ${month} ${year} เวลา ${time} น.`
+    } catch {
+      return dateString
+    }
+  }
 
   const fetchSignatureStatus = async () => {
     try {
@@ -36,7 +64,7 @@ export default function MemberSignatureClient() {
       if (data.success) {
         setCurrentSignatureExists(data.exists)
         if (data.exists && data.updatedAt) {
-          setLastUpdated(new Date(data.updatedAt).toLocaleString('th-TH'))
+          setLastUpdated(formatThaiDate(data.updatedAt))
         }
       }
     } catch (err) {
@@ -52,10 +80,10 @@ export default function MemberSignatureClient() {
     if (activeTab === 'draw' && canvasRef.current) {
       const canvas = canvasRef.current
       const rect = canvas.getBoundingClientRect()
-      canvas.width = rect.width * 2 // Higher resolution
-      canvas.height = 250 * 2
+      canvas.width = rect.width * 2 // Higher resolution for crisp stroke
+      canvas.height = 260 * 2
       canvas.style.width = '100%'
-      canvas.style.height = '250px'
+      canvas.style.height = '260px'
 
       const context = canvas.getContext('2d')
       if (context) {
@@ -83,7 +111,8 @@ export default function MemberSignatureClient() {
 
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    let clientX, clientY
+    let clientX: number
+    let clientY: number
 
     if ('touches' in e) {
       clientX = e.touches[0].clientX
@@ -107,7 +136,8 @@ export default function MemberSignatureClient() {
 
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    let clientX, clientY
+    let clientX: number
+    let clientY: number
 
     if ('touches' in e) {
       clientX = e.touches[0].clientX
@@ -168,12 +198,12 @@ export default function MemberSignatureClient() {
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const data = imgData.data
 
-      // Pixel background removal
+      // Pixel background removal for white/light paper background
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i]
         const g = data[i + 1]
         const b = data[i + 2]
-        
+
         if (r > 215 && g > 215 && b > 215) {
           data[i + 3] = 0 // transparent
         }
@@ -190,13 +220,21 @@ export default function MemberSignatureClient() {
 
     if (activeTab === 'draw') {
       if (!canvasRef.current) return
-      
+
       const canvas = canvasRef.current
-      const buffer = new Uint32Array(
-        canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data.buffer
-      )
-      const hasContent = buffer.some(color => color !== 0)
-      
+      const ctx = canvas.getContext('2d')
+      let hasContent = false
+      if (ctx) {
+        try {
+          const buffer = new Uint32Array(
+            ctx.getImageData(0, 0, canvas.width, canvas.height).data.buffer
+          )
+          hasContent = buffer.some((color) => color !== 0)
+        } catch {
+          hasContent = false
+        }
+      }
+
       if (!hasContent) {
         showStatus('error', 'กรุณาวาดลายเซ็นของคุณก่อนกดบันทึก')
         return
@@ -223,7 +261,7 @@ export default function MemberSignatureClient() {
       if (data.success) {
         showStatus('success', 'บันทึกลายเซ็นดิจิทัลของคุณเรียบร้อยแล้ว')
         setCurrentSignatureExists(true)
-        setLastUpdated(new Date().toLocaleString('th-TH'))
+        setLastUpdated(formatThaiDate(new Date().toISOString()))
         if (activeTab === 'draw') clearCanvas()
         else {
           setProcessedImageSrc(null)
@@ -241,80 +279,132 @@ export default function MemberSignatureClient() {
 
   return (
     <div className="signatureContainer">
-      <Link href="/member" className="backButton">
+      <Link href="/member" className="signatureBackLink">
         <ArrowLeft size={16} />
         กลับหน้าข้อมูลสมาชิก
       </Link>
 
-      <div className="signatureHeader">
-        <h1>จัดการลายเซ็นดิจิทัลของคุณ (Member Signature)</h1>
-        <p>ตั้งค่าลายเซ็นของคุณ เพื่อใช้สำหรับประทับตกลงนามเอกสารและระบบขอผลิตสื่อผ่านหน้าเว็บได้อย่างสะดวกรวดเร็ว</p>
-      </div>
+      <header className="signatureHeaderCard">
+        <div className="signatureHospitalBadge">
+          <ShieldCheck size={14} />
+          <span>โรงพยาบาลเถิน จ.ลำปาง • ระบบลายเซ็นดิจิทัล</span>
+        </div>
+        <h1 className="signatureHeaderTitle">จัดการลายเซ็นดิจิทัลเจ้าหน้าที่ (Digital Signature)</h1>
+        <p className="signatureHeaderDesc">
+          ตั้งค่าลายเซ็นอิเล็กทรอนิกส์ประจำตัว เพื่อใช้สำหรับประทับตกลงนามเอกสารดิจิทัล ใบเบิกพัสดุ
+          และระบบขอผลิตสื่อผ่านระบบเครือข่ายโรงพยาบาลเถินได้อย่างสะดวกรวดเร็ว
+        </p>
+      </header>
 
       {status && (
-        <div className={`statusMessage ${status.type === 'success' ? 'statusSuccess' : 'statusError'}`}>
-          {status.type === 'success' ? <Check size={18} /> : <AlertCircle size={18} />}
+        <div
+          role="alert"
+          className={`statusMessage ${status.type === 'success' ? 'statusSuccess' : 'statusError'}`}
+        >
+          {status.type === 'success' ? (
+            <CheckCircle2 size={18} className="statusIcon" />
+          ) : (
+            <AlertCircle size={18} className="statusIcon" />
+          )}
           <span>{status.message}</span>
         </div>
       )}
 
       <div className="signatureGrid">
-        {/* Left Card */}
-        <div className="signatureCard">
-          <h2 className="cardTitle">
-            <Check size={18} style={{ color: '#0284c7' }} />
-            ลายเซ็นปัจจุบันของคุณ
-          </h2>
-          
+        {/* Left Column: Current Signature Card */}
+        <section className="signatureCard" aria-labelledby="current-signature-heading">
+          <div className="cardHeaderRow">
+            <h2 id="current-signature-heading" className="cardTitle">
+              <CheckCircle2 size={18} className="cardTitleIcon" />
+              ลายเซ็นปัจจุบัน
+            </h2>
+            <span
+              className={`statusChip ${currentSignatureExists ? 'statusChipActive' : 'statusChipEmpty'}`}
+            >
+              {currentSignatureExists ? 'ลงทะเบียนแล้ว' : 'ยังไม่มีข้อมูล'}
+            </span>
+          </div>
+
           <div className="currentSignatureWrapper transparentPattern">
             {loading ? (
-              <Loader2 className="animate-spin" size={24} style={{ color: '#0284c7' }} />
+              <Loader2 className="animate-spin text-emerald-700" size={28} />
             ) : currentSignatureExists ? (
-              <img 
-                src={`/api/signatures/image?t=${Date.now()}`} 
-                alt="ลายเซ็นดิจิทัล" 
+              <img
+                src={`/api/signatures/image?t=${Date.now()}`}
+                alt="ลายเซ็นดิจิทัลที่ลงทะเบียนในระบบ"
                 className="signatureImage"
               />
             ) : (
-              <div className="noSignatureText">คุณยังไม่ได้ลงทะเบียนลายเซ็นในระบบ</div>
+              <div className="noSignatureState">
+                <PenTool size={36} className="noSignatureIcon" />
+                <span className="noSignatureText">ยังไม่ได้ลงทะเบียนลายเซ็น</span>
+                <span className="noSignatureSubtext">
+                  วาดหรืออัปโหลดลายเซ็นทางฝั่งขวาเพื่อเริ่มใช้งาน
+                </span>
+              </div>
             )}
           </div>
 
           {currentSignatureExists && lastUpdated && (
-            <div style={{ marginTop: '12px', fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
-              อัปเดตล่าสุด: {lastUpdated}
+            <div className="updatedMeta">
+              <Clock size={13} />
+              <span>อัปเดตล่าสุด: {lastUpdated}</span>
             </div>
           )}
-        </div>
 
-        {/* Right Card */}
-        <div className="signatureCard">
-          <h2 className="cardTitle">
-            <PenTool size={18} style={{ color: '#0284c7' }} />
-            ลงทะเบียน / เปลี่ยนแปลงลายเซ็น
-          </h2>
+          <div className="policyNotice">
+            <div className="flex items-start gap-2">
+              <Info size={15} className="text-emerald-800 shrink-0 mt-0.5" />
+              <div>
+                <strong>มาตรฐานความปลอดภัย PDPA:</strong> ลายเซ็นอิเล็กทรอนิกส์จะถูกจัดเก็บแบบเข้ารหัส
+                และใช้รับรองเฉพาะการปฏิบัติงานของเจ้าหน้าที่ผู้เป็นเจ้าของบัญชีเท่านั้น
+              </div>
+            </div>
+          </div>
+        </section>
 
-          <div className="tabButtons">
+        {/* Right Column: Signature Studio Card */}
+        <section className="signatureCard" aria-labelledby="studio-signature-heading">
+          <div className="cardHeaderRow">
+            <h2 id="studio-signature-heading" className="cardTitle">
+              <PenTool size={18} className="cardTitleIcon" />
+              ลงทะเบียน / เปลี่ยนแปลงลายเซ็น
+            </h2>
+          </div>
+
+          <div className="tabButtons" role="tablist" aria-label="วิธีการนำเข้าลายเซ็น">
             <button
+              role="tab"
+              aria-selected={activeTab === 'draw'}
               onClick={() => setActiveTab('draw')}
               className={`tabButton ${activeTab === 'draw' ? 'tabButtonActive' : ''}`}
             >
-              วาดลายเซ็นดิจิทัล
+              <PenTool size={16} />
+              <span>วาดลายเซ็นดิจิทัล</span>
             </button>
             <button
+              role="tab"
+              aria-selected={activeTab === 'upload'}
               onClick={() => setActiveTab('upload')}
               className={`tabButton ${activeTab === 'upload' ? 'tabButtonActive' : ''}`}
             >
-              อัปโหลดไฟล์ภาพ
+              <Upload size={16} />
+              <span>อัปโหลดไฟล์ภาพ</span>
             </button>
           </div>
 
           {activeTab === 'draw' ? (
             <div>
+              <div className="canvasInstruction">
+                <Info size={14} />
+                <span>ใช้เมาส์ หรือปากกา/นิ้วสัมผัส วาดลายเซ็นลงในกรอบด้านล่าง</span>
+              </div>
+
               <div className="canvasWrapper transparentPattern">
                 <canvas
                   ref={canvasRef}
                   className="drawingCanvas"
+                  aria-label="กระดานวาดลายเซ็น"
                   onMouseDown={startDrawing}
                   onMouseMove={draw}
                   onMouseUp={stopDrawing}
@@ -324,18 +414,24 @@ export default function MemberSignatureClient() {
                   onTouchEnd={stopDrawing}
                 />
               </div>
+
               <div className="canvasToolbar">
-                <button onClick={clearCanvas} className="button buttonSecondary">
+                <button
+                  type="button"
+                  onClick={clearCanvas}
+                  className="button buttonSecondary"
+                >
                   <Trash2 size={16} />
-                  ล้างหน้าจอ
+                  <span>ล้างกระดาน</span>
                 </button>
                 <button
+                  type="button"
                   onClick={handleSaveSignature}
                   disabled={saving}
                   className="button buttonPrimary"
                 >
                   {saving ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
-                  บันทึกลายเซ็นนี้
+                  <span>{saving ? 'กำลังบันทึก...' : 'บันทึกลายเซ็นนี้'}</span>
                 </button>
               </div>
             </div>
@@ -343,6 +439,11 @@ export default function MemberSignatureClient() {
             <div>
               {processedImageSrc ? (
                 <div>
+                  <div className="canvasInstruction">
+                    <CheckCircle2 size={14} className="text-emerald-700" />
+                    <span>ตัวอย่างลายเซ็นที่ตัดพื้นหลังสีขาวออกแล้ว</span>
+                  </div>
+
                   <div className="previewContainer transparentPattern">
                     <img
                       src={processedImageSrc}
@@ -350,23 +451,24 @@ export default function MemberSignatureClient() {
                       className="previewImage"
                     />
                   </div>
+
                   <div className="canvasToolbar">
                     <button
-                      onClick={() => {
-                        setProcessedImageSrc(null)
-                      }}
+                      type="button"
+                      onClick={() => setProcessedImageSrc(null)}
                       className="button buttonSecondary"
                     >
                       <Trash2 size={16} />
-                      เลือกภาพใหม่
+                      <span>เลือกภาพใหม่</span>
                     </button>
                     <button
+                      type="button"
                       onClick={handleSaveSignature}
                       disabled={saving}
                       className="button buttonPrimary"
                     >
                       {saving ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />}
-                      บันทึกลายเซ็นนี้
+                      <span>{saving ? 'กำลังบันทึก...' : 'บันทึกลายเซ็นนี้'}</span>
                     </button>
                   </div>
                 </div>
@@ -375,24 +477,24 @@ export default function MemberSignatureClient() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/png, image/jpeg, image/jpg"
                     onChange={handleImageUpload}
                     className="uploadInput"
                     id="member-signature-upload-input"
                   />
                   <label htmlFor="member-signature-upload-input" className="uploadLabel">
-                    <Upload size={32} className="uploadIcon" />
-                    <span className="uploadText">เลือกรูปภาพลายเซ็น</span>
-                    <span className="uploadSubtext">รองรับไฟล์ PNG, JPG หรือ JPEG</span>
-                    <span className="uploadSubtext" style={{ fontSize: '11px', marginTop: '6px', color: '#0284c7' }}>
-                      *ระบบจะลบพื้นหลังสีขาวออกให้เป็นภาพโปร่งใสโดยอัตโนมัติ
+                    <Upload size={36} className="uploadIcon" />
+                    <span className="uploadText">คลิกเพื่อเลือกไฟล์รูปภาพลายเซ็น</span>
+                    <span className="uploadSubtext">รองรับรูปแบบ PNG, JPG หรือ JPEG</span>
+                    <span className="uploadHint">
+                      * ระบบจะทำการลบพื้นหลังกระดาษสีขาวให้อัตโนมัติ
                     </span>
                   </label>
                 </div>
               )}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   )

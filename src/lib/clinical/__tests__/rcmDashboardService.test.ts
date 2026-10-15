@@ -2,9 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   RcmDashboardService,
   QueryExecutor,
+  getDefaultFiscalYearDateRange,
+  resolveFiscalDateRange,
+  buildDepartmentSqlCase,
+  classifySpecialty,
+  CLINICAL_DEPARTMENT_DEFINITIONS,
 } from '../rcmDashboardService'
+import { clearMemoryCache } from '@/lib/cache'
 
 describe('RcmDashboardService', () => {
+  beforeEach(() => {
+    clearMemoryCache()
+  })
+
   describe('getSssDentalReport', () => {
     it('aggregates doctor summaries and computes grand totals correctly', async () => {
       const mockRows = [
@@ -163,33 +173,61 @@ describe('RcmDashboardService', () => {
   })
 
   describe('getIpdDepartmentAdjrw', () => {
-    it('queries and maps department SumAdjRW per month and overall total correctly', async () => {
+    it('queries and maps department metrics (patients, visits, adjrw, cmi) per month and overall total correctly', async () => {
       const mockDeptRows = [
         {
-          เดือน: 'ต.ค.-67',
-          อายุรกรรม: 120.4500,
-          ศัลยกรรม: 45.1200,
-          สูตินารีเวชกรรม: 12.3000,
-          กุมารเวชกรรม: 30.1500,
-          ออร์โธปิติกส์: 18.2200,
-          ENT: 5.1000,
-          จักษุ: 3.4000,
-          อื่นๆ: 1.2000,
-          ทันตกรรม: 0.5000,
-          จิตเวช: 2.1000,
+          sort_order: 1,
+          dch_month: 'ต.ค.-67',
+          dept_key: 'medicine',
+          patients: 50,
+          visits: 60,
+          adjrw: 120.45,
+          cmi: 2.0075,
         },
         {
-          เดือน: 'รวม',
-          อายุรกรรม: 1200.4500,
-          ศัลยกรรม: 450.1200,
-          สูตินารีเวชกรรม: 120.3000,
-          กุมารเวชกรรม: 300.1500,
-          ออร์โธปิติกส์: 180.2200,
-          ENT: 50.1000,
-          จักษุ: 34.4000,
-          อื่นๆ: 12.2000,
-          ทันตกรรม: 5.5000,
-          จิตเวช: 21.1000,
+          sort_order: 1,
+          dch_month: 'ต.ค.-67',
+          dept_key: 'surgery',
+          patients: 20,
+          visits: 25,
+          adjrw: 45.12,
+          cmi: 1.8048,
+        },
+        {
+          sort_order: 1,
+          dch_month: 'ต.ค.-67',
+          dept_key: 'total',
+          patients: 150,
+          visits: 180,
+          adjrw: 238.54,
+          cmi: 1.3252,
+        },
+        {
+          sort_order: 99,
+          dch_month: 'รวม',
+          dept_key: 'medicine',
+          patients: 500,
+          visits: 600,
+          adjrw: 1200.45,
+          cmi: 2.0008,
+        },
+        {
+          sort_order: 99,
+          dch_month: 'รวม',
+          dept_key: 'surgery',
+          patients: 200,
+          visits: 250,
+          adjrw: 450.12,
+          cmi: 1.8005,
+        },
+        {
+          sort_order: 99,
+          dch_month: 'รวม',
+          dept_key: 'total',
+          patients: 1500,
+          visits: 1800,
+          adjrw: 2385.4,
+          cmi: 1.3252,
         },
       ]
 
@@ -201,26 +239,94 @@ describe('RcmDashboardService', () => {
       )
 
       expect(mockExecutor).toHaveBeenCalledWith(
-        expect.stringContaining('dch_month AS `เดือน`'),
-        ['2024-10-01', '2025-09-30', '2024-10-01', '2025-09-30']
+        expect.stringContaining('dept_key'),
+        [
+          '2024-10-01',
+          '2025-09-30',
+          '2024-10-01',
+          '2025-09-30',
+          '2024-10-01',
+          '2025-09-30',
+          '2024-10-01',
+          '2025-09-30',
+        ]
       )
 
       expect(result).toHaveLength(2)
+      // Month row
       expect(result[0].month).toBe('ต.ค.-67')
+      expect(result[0].total_patients).toBe(150)
+      expect(result[0].total_visits).toBe(180)
+      expect(result[0].adjrw_sum).toBeCloseTo(238.54, 2)
+      expect(result[0].cmi).toBeCloseTo(1.3252, 4)
       expect(result[0].medicine).toBe(120.45)
       expect(result[0].surgery).toBe(45.12)
-      expect(result[0].obgyn).toBe(12.3)
-      expect(result[0].pediatrics).toBe(30.15)
-      expect(result[0].orthopedics).toBe(18.22)
-      expect(result[0].ent).toBe(5.1)
-      expect(result[0].eye).toBe(3.4)
-      expect(result[0].other).toBe(1.2)
-      expect(result[0].dental).toBe(0.5)
-      expect(result[0].psychiatry).toBe(2.1)
-      expect(result[0].total).toBeCloseTo(238.54, 2)
+      // Check depts object
+      expect(result[0].depts.medicine).toEqual({
+        patients: 50,
+        visits: 60,
+        adjrw: 120.45,
+        cmi: 2.0075,
+      })
+      expect(result[0].depts.surgery).toEqual({
+        patients: 20,
+        visits: 25,
+        adjrw: 45.12,
+        cmi: 1.8048,
+      })
 
+      // Total summary row
       expect(result[1].month).toBe('รวม')
+      expect(result[1].total_patients).toBe(1500)
+      expect(result[1].total_visits).toBe(1800)
+      expect(result[1].adjrw_sum).toBeCloseTo(2385.4, 2)
+      expect(result[1].cmi).toBeCloseTo(1.3252, 4)
       expect(result[1].medicine).toBe(1200.45)
+      expect(result[1].depts.medicine).toEqual({
+        patients: 500,
+        visits: 600,
+        adjrw: 1200.45,
+        cmi: 2.0008,
+      })
+      expect(result[1].depts.surgery).toEqual({
+        patients: 200,
+        visits: 250,
+        adjrw: 450.12,
+        cmi: 1.8005,
+      })
+    })
+
+    it('supports legacy flat row format with backwards compatibility', async () => {
+      const mockFlatRows = [
+        {
+          เดือน: 'ต.ค.-67',
+          คนรวม: 150,
+          ครั้งรวม: 180,
+          'AdjRW รวม': 238.54,
+          'CMI รวม': 1.3252,
+          อายุรกรรม: 120.45,
+          ศัลยกรรม: 45.12,
+          สูตินารีเวชกรรม: 12.3,
+          กุมารเวชกรรม: 30.15,
+          ออร์โธปิติกส์: 18.22,
+          ENT: 5.1,
+          จักษุ: 3.4,
+          อื่นๆ: 1.2,
+          ทันตกรรม: 0.5,
+          จิตเวช: 2.1,
+        },
+      ]
+
+      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockFlatRows)
+      const result = await RcmDashboardService.getIpdDepartmentAdjrw(
+        { ds1: '2023-10-01', ds2: '2024-09-30' },
+        mockExecutor
+      )
+
+      expect(result).toHaveLength(1)
+      expect(result[0].month).toBe('ต.ค.-67')
+      expect(result[0].medicine).toBe(120.45)
+      expect(result[0].depts.medicine.adjrw).toBe(120.45)
     })
   })
 
@@ -298,6 +404,174 @@ describe('RcmDashboardService', () => {
       expect(result.doctors).toHaveLength(1)
       expect(result.doctors[0].doctor_name).toBe('พญ. วรินทร ถาคร')
       expect(result.doctors[0].uncompleted_charts).toBe(15)
+    })
+  })
+
+  describe('getOpdDepartmentSummary', () => {
+    it('returns parsed OPD department summary rows and total correctly', async () => {
+      const mockRows = [
+        { dept_group: '01. อายุรกรรม', patients: 1250, visits: 2400 },
+        { dept_group: '02. ศัลยกรรม', patients: 600, visits: 950 },
+        { dept_group: 'รวมทั้งหมด', patients: 1850, visits: 3350 },
+      ]
+
+      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockRows)
+
+      const result = await RcmDashboardService.getOpdDepartmentSummary(
+        { ds1: '2024-10-01', ds2: '2025-09-30' },
+        mockExecutor
+      )
+
+      expect(mockExecutor).toHaveBeenCalledTimes(1)
+      expect(result).toHaveLength(3)
+      expect(result[0].dept_group).toBe('01. อายุรกรรม')
+      expect(result[0].patients).toBe(1250)
+      expect(result[0].visits).toBe(2400)
+      expect(result[2].dept_group).toBe('รวมทั้งหมด')
+      expect(result[2].patients).toBe(1850)
+      expect(result[2].visits).toBe(3350)
+    })
+
+    it('handles empty response gracefully', async () => {
+      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue([])
+
+      const result = await RcmDashboardService.getOpdDepartmentSummary(
+        { ds1: '2025-10-01', ds2: '2026-09-30' },
+        mockExecutor
+      )
+
+      expect(result).toEqual([])
+    })
+
+    it('accepts strongly-typed FiscalDateRange with startDate and endDate', async () => {
+      const mockRows = [
+        { dept_group: '01. อายุรกรรม', patients: 10, visits: 20 },
+      ]
+      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue(mockRows)
+
+      const result = await RcmDashboardService.getOpdDepartmentSummary(
+        { startDate: '2026-10-01', endDate: '2027-09-30' },
+        mockExecutor
+      )
+
+      expect(mockExecutor).toHaveBeenCalledWith(
+        expect.stringContaining('ovst'),
+        ['2026-10-01', '2027-09-30', '2026-10-01', '2027-09-30']
+      )
+      expect(result).toHaveLength(1)
+      expect(result[0].dept_group).toBe('01. อายุรกรรม')
+    })
+
+    it('defaults to active fiscal year when params are empty', async () => {
+      const mockExecutor: QueryExecutor = vi.fn().mockResolvedValue([])
+      const expectedRange = getDefaultFiscalYearDateRange()
+
+      await RcmDashboardService.getOpdDepartmentSummary({}, mockExecutor)
+
+      expect(mockExecutor).toHaveBeenCalledWith(
+        expect.stringContaining('ovst'),
+        [expectedRange.startDate, expectedRange.endDate, expectedRange.startDate, expectedRange.endDate]
+      )
+    })
+  })
+
+  describe('FiscalDateRange domain logic', () => {
+    it('calculates Thai fiscal year bounds correctly across month boundaries', () => {
+      // In October, fiscal year is year + 1
+      const octDate = new Date('2026-10-15T00:00:00+07:00')
+      const octRange = getDefaultFiscalYearDateRange(octDate)
+      expect(octRange.startDate).toBe('2026-10-01')
+      expect(octRange.endDate).toBe('2027-09-30')
+
+      // In September, fiscal year is current calendar year
+      const sepDate = new Date('2026-09-20T00:00:00+07:00')
+      const sepRange = getDefaultFiscalYearDateRange(sepDate)
+      expect(sepRange.startDate).toBe('2025-10-01')
+      expect(sepRange.endDate).toBe('2026-09-30')
+
+      // In January, fiscal year is current calendar year
+      const janDate = new Date('2026-01-10T00:00:00+07:00')
+      const janRange = getDefaultFiscalYearDateRange(janDate)
+      expect(janRange.startDate).toBe('2025-10-01')
+      expect(janRange.endDate).toBe('2026-09-30')
+    })
+
+    it('resolves explicit params over default range', () => {
+      const explicit = resolveFiscalDateRange({ startDate: '2025-01-01', endDate: '2025-01-31' })
+      expect(explicit.startDate).toBe('2025-01-01')
+      expect(explicit.endDate).toBe('2025-01-31')
+
+      const legacy = resolveFiscalDateRange({ ds1: '2025-02-01', ds2: '2025-02-28' })
+      expect(legacy.startDate).toBe('2025-02-01')
+      expect(legacy.endDate).toBe('2025-02-28')
+
+      const empty = resolveFiscalDateRange()
+      const expected = getDefaultFiscalYearDateRange()
+      expect(empty.startDate).toBe(expected.startDate)
+      expect(empty.endDate).toBe(expected.endDate)
+    })
+  })
+
+  describe('Specialty Classification Domain', () => {
+    it('defines exactly 10 clinical specialties', () => {
+      expect(CLINICAL_DEPARTMENT_DEFINITIONS).toHaveLength(10)
+    })
+
+    it('correctly classifies all 10 hospital specialties in memory', () => {
+      // 1. Medicine
+      expect(classifySpecialty('01', 'แผนกอายุรกรรม').key).toBe('medicine')
+      expect(classifySpecialty('21', 'อายุรศาสตร์').key).toBe('medicine')
+      expect(classifySpecialty('99', 'คลินิกอายุรกรรมพิเศษ').key).toBe('medicine')
+
+      // 2. Surgery (excluding orthopedics keywords)
+      expect(classifySpecialty('02', 'ศัลยกรรมทั่วไป').key).toBe('surgery')
+      expect(classifySpecialty('08', 'ศัลยกรรมกระดูก').key).toBe('orthopedics')
+      expect(classifySpecialty('99', 'ศัลยกรรมกระดูก').key).toBe('orthopedics')
+      expect(classifySpecialty('99', 'ศัลยกรรมออร์โธปิดิกส์').key).toBe('orthopedics')
+
+      // 3. Obgyn
+      expect(classifySpecialty('03', 'สูติ-นรีเวช').key).toBe('obgyn')
+      expect(classifySpecialty('04', 'นรีเวชกรรม').key).toBe('obgyn')
+
+      // 4. Pediatrics
+      expect(classifySpecialty('05', 'กุมารเวชกรรม').key).toBe('pediatrics')
+      expect(classifySpecialty('99', 'คลินิกเด็กและกุมาร').key).toBe('pediatrics')
+
+      // 5. Orthopedics
+      expect(classifySpecialty('08', 'กระดูกและข้อ').key).toBe('orthopedics')
+
+      // 6. ENT
+      expect(classifySpecialty('06', 'หู คอ จมูก').key).toBe('ent')
+      expect(classifySpecialty('99', 'โสต ศอ นาสิก').key).toBe('ent')
+      expect(classifySpecialty('99', 'คลินิก ENT').key).toBe('ent')
+
+      // 7. Eye
+      expect(classifySpecialty('07', 'จักษุวิทยา').key).toBe('eye')
+
+      // 8. Dental
+      expect(classifySpecialty('11', 'ทันตกรรม').key).toBe('dental')
+
+      // 9. Psychiatry
+      expect(classifySpecialty('09', 'จิตเวชและสุขภาพจิต').key).toBe('psychiatry')
+
+      // 10. Other
+      expect(classifySpecialty('99', 'เวชศาสตร์ฟื้นฟู').key).toBe('other')
+      expect(classifySpecialty(null, null).key).toBe('other')
+    })
+
+    it('builds valid SQL CASE statement for keys and labels', () => {
+      const keySql = buildDepartmentSqlCase('i', 's', 'key')
+      expect(keySql).toContain("i.spclty IN ('01', '21')")
+      expect(keySql).toContain("s.name LIKE '%อายุร%'")
+      expect(keySql).toContain("'medicine'")
+      expect(keySql).toContain("'surgery'")
+      expect(keySql).toContain("'other'")
+
+      const labelSql = buildDepartmentSqlCase('o', 's', 'label')
+      expect(labelSql).toContain("o.spclty IN ('01', '21')")
+      expect(labelSql).toContain("'01. อายุรกรรม'")
+      expect(labelSql).toContain("'02. ศัลยกรรม'")
+      expect(labelSql).toContain("'10. อื่นๆ'")
     })
   })
 })

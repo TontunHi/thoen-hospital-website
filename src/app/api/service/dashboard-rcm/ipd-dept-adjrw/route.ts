@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { RcmDashboardService } from '@/lib/clinical/rcmDashboardService'
+import { RcmDashboardService, getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
 import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -22,8 +22,9 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const ds1 = searchParams.get('ds1') || '2024-10-01'
-    const ds2 = searchParams.get('ds2') || '2025-09-30'
+    const defaultRange = getDefaultFiscalYearDateRange()
+    const ds1 = searchParams.get('ds1') || defaultRange.startDate
+    const ds2 = searchParams.get('ds2') || defaultRange.endDate
 
     logThrottledAudit(
       'READ',

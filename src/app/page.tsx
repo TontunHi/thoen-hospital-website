@@ -196,7 +196,6 @@ export default async function HomePage() {
                   style={{ objectFit: 'cover', width: '100%', height: '100%' }}
                 />
               </div>
-              <div className="director__image-accent" />
             </div>
             <div className="director__content">
               <span className="badge badge-primary">สารจากผู้อำนวยการ</span>
@@ -286,26 +285,34 @@ export default async function HomePage() {
             {services.map((service, i) => {
               const IconComponent = service.icon;
               const CardContent = (
-                <>
-                  <div className="service-card__accent" />
-                  <div className="service-card__icon-container">
-                    <IconComponent className="service-card__icon" size={28} />
+                <div className="service-card__inner">
+                  <div className="service-card__header">
+                    <div className="service-card__icon-wrap">
+                      <IconComponent size={24} />
+                    </div>
+                    <span className="service-card__arrow" aria-hidden="true">
+                      <ChevronRight size={18} />
+                    </span>
                   </div>
                   <h3 className="service-card__title">{service.title}</h3>
                   <p className="service-card__desc">{service.desc}</p>
-                </>
+                  <div className="service-card__action">
+                    <span>ดูรายละเอียดบริการ</span>
+                    <ChevronRight size={14} />
+                  </div>
+                </div>
               )
 
               if (service.link) {
                 return (
-                  <Link href={service.link} key={i} className="service-card card-glass touch-target" style={{ textDecoration: 'none', display: 'flex', cursor: 'pointer' }}>
+                  <Link href={service.link} key={i} className="service-card touch-target">
                     {CardContent}
                   </Link>
                 );
               }
 
               return (
-                <div key={i} className="service-card card-glass">
+                <div key={i} className="service-card">
                   {CardContent}
                 </div>
               );
@@ -379,20 +386,27 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ===== QUICK CONTACT CTA SECTION ===== */}
+      {/* ===== QUICK CONTACT & EMERGENCY CTA SECTION ===== */}
       <section className="cta-section">
-        <div className="cta__bg" />
         <div className="container cta__content">
-          <h2 className="cta__title">ต้องการความช่วยเหลือด้านสุขภาพ?</h2>
+          <div className="cta__badge">
+            <Phone size={16} />
+            <span>บริการตลอด 24 ชั่วโมง</span>
+          </div>
+          <h2 className="cta__title">ต้องการความช่วยเหลือด้านสุขภาพหรือเหตุฉุกเฉิน?</h2>
           <p className="cta__desc">
-            ทีมแพทย์และบุคลากรโรงพยาบาลเถินพร้อมให้บริการและดูแลคุณตลอด 24 ชั่วโมง
+            ทีมแพทย์ พยาบาลวิชาชีพ และบุคลากรโรงพยาบาลเถินพร้อมให้บริการดูแลรักษาและรับแจ้งเหตุฉุกเฉินตลอด 24 ชม.
           </p>
           <div className="cta__actions">
+            <a href="tel:1669" className="btn btn-emergency btn-lg touch-target" title="โทรสายด่วน 1669">
+              <Phone size={20} />
+              <span>สายด่วนฉุกเฉิน 1669 (ฟรี)</span>
+            </a>
             <a href={`tel:${siteConfig.contact.hospitalPhone}`} className="btn btn-white btn-lg touch-target">
               <Phone size={20} />
               <span>โทร {siteConfig.contact.hospitalPhone}</span>
             </a>
-            <Link href="/contact" className="btn btn-gold btn-lg touch-target" style={{ backgroundColor: 'var(--accent-gold-dark)', color: '#ffffff', borderColor: 'transparent' }}>
+            <Link href="/contact" className="btn btn-outline-white btn-lg touch-target">
               <MessageSquare size={20} />
               <span>ส่งข้อความ / ข้อเสนอแนะ</span>
             </Link>

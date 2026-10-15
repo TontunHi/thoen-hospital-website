@@ -3,6 +3,21 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { 
+  ArrowLeft, 
+  Upload, 
+  Image as ImageIcon, 
+  FileText, 
+  Video, 
+  Sparkles, 
+  Trash2, 
+  ExternalLink, 
+  AlertCircle, 
+  CheckCircle2, 
+  Clock,
+  Layers,
+  Calendar
+} from 'lucide-react'
 import './page.css'
 
 interface ImageItem {
@@ -11,10 +26,9 @@ interface ImageItem {
   order: number
 }
 
-// Next.js 16 requires dynamic params to be treated as a Promise or unwrapped with React.use()
 export default function EditNewsPage(props: any) {
   const router = useRouter()
-  // Unwrap parameters using React.use()
+  // Unwrap parameters using React.use() for Next.js 16+
   const resolvedParams = use(props.params) as { id: string }
   const id = resolvedParams.id
 
@@ -76,10 +90,10 @@ export default function EditNewsPage(props: any) {
             setImages(data.news.images.map((img: ImageItem) => img.imageUrl))
           }
         } else {
-          setError('ไม่พบข่าวที่ต้องการแก้ไข')
+          setError('ไม่พบข้อมูลข่าวสารที่ต้องการแก้ไข')
         }
       } catch {
-        setError('ไม่สามารถโหลดข้อมูลข่าวได้')
+        setError('ไม่สามารถโหลดข้อมูลข่าวจากระบบได้')
       } finally {
         setFetching(false)
       }
@@ -100,7 +114,7 @@ export default function EditNewsPage(props: any) {
       const file = files[i]
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('title', title)
+      formData.append('title', title || 'news-image')
       formData.append('publishedAt', publishedAt)
 
       try {
@@ -133,7 +147,7 @@ export default function EditNewsPage(props: any) {
     setError('')
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('title', title)
+    formData.append('title', title || 'news-document')
     formData.append('publishedAt', publishedAt)
 
     try {
@@ -186,10 +200,10 @@ export default function EditNewsPage(props: any) {
       const data = await res.json()
 
       if (res.ok) {
-        setSuccess('บันทึกการแก้ไขเรียบร้อยแล้ว')
+        setSuccess('บันทึกการแก้ไขข้อมูลข่าวเรียบร้อยแล้ว กำลังนำท่านกลับสู่หน้ารายการ...')
         setTimeout(() => router.push('/member/news/news'), 1200)
       } else {
-        setError(data.error || 'เกิดข้อผิดพลาด')
+        setError(data.error || 'เกิดข้อผิดพลาดในการบันทึกข่าว')
       }
     } catch {
       setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
@@ -199,173 +213,344 @@ export default function EditNewsPage(props: any) {
   }
 
   if (fetching) {
-    return <div className="loadingState">กำลังโหลดข้อมูลข่าว...</div>
+    return (
+      <div className="workbenchLoadingState">
+        <span className="uploadSpinner" />
+        <p>กำลังโหลดข้อมูลข่าวสาร #{id}...</p>
+      </div>
+    )
   }
 
   return (
-    <div className="newsFormPage">
-      <h1>แก้ไขข่าว</h1>
-
-      {error && <div className="errorMessage">{error}</div>}
-      {success && <div className="successMessage">{success}</div>}
-
-      <div className="formCard">
-        <form onSubmit={handleSubmit}>
-          <div className="formGroup">
-            <label htmlFor="title">หัวข้อข่าว *</label>
-            <input
-              id="title"
-              type="text"
-              className="formInput"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="กรอกหัวข้อข่าวประชาสัมพันธ์"
-              required
-            />
-          </div>
-
-          {/* Excerpt and content sections removed */}
-
-          <div className="formRow">
-            <div className="formGroup col-6">
-              <label htmlFor="youtubeUrl">ลิงก์วิดีโอ YouTube (ถ้ามี)</label>
-              <input
-                id="youtubeUrl"
-                type="url"
-                className="formInput"
-                value={youtubeUrl}
-                onChange={(e) => setYoutubeUrl(e.target.value)}
-                placeholder="เช่น https://www.youtube.com/watch?v=..."
-              />
+    <div className="newsFormWorkbench">
+      {/* ── Top Navigation & Title Bar ── */}
+      <div className="workbenchHeader">
+        <Link href="/member/news/news" className="backToNewsLink">
+          <ArrowLeft size={16} />
+          <span>ย้อนกลับไปรายการข่าว</span>
+        </Link>
+        <div className="workbenchTitleRow">
+          <div>
+            <div className="titleWithIdBadge">
+              <h1 className="workbenchTitle">แก้ไขข้อมูลข่าวสาร</h1>
+              <span className="newsIdBadge">รหัส #{id}</span>
             </div>
-
-            <div className="formGroup col-6">
-              <label htmlFor="pdfFile">แนบเอกสาร PDF (ถ้ามี)</label>
-              <input
-                id="pdfFile"
-                type="file"
-                className="formInput"
-                accept="application/pdf"
-                onChange={handlePdfUpload}
-              />
-              {uploadingPdf && <div className="uploadProgress">กำลังอัปโหลด PDF...</div>}
-              {pdfUrl && (
-                <div className="pdfUploadedInfo">
-                  <span>เอกสารที่แนบ: </span>
-                  <a href={pdfUrl} target="_blank" rel="noopener noreferrer">ดูเอกสาร</a>
-                  <button type="button" className="removeFileBtn" onClick={() => setPdfUrl('')}>ลบ</button>
-                </div>
-              )}
-            </div>
+            <p className="workbenchSubtitle">
+              ปรับปรุงรายละเอียด รูปภาพประกอบ หรือตั้งเวลาแสดงผลของข่าวนี้ใหม่
+            </p>
           </div>
-
-          <div className="formGroup">
-            <label>รูปภาพประกอบข่าว (อัปโหลดเพิ่มได้หลายรูปภาพ)</label>
-            <input
-              type="file"
-              className="formInput"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              multiple
-              onChange={handleImageUpload}
-            />
-            {uploadingImage && <div className="uploadProgress">กำลังอัปโหลดรูปภาพ...</div>}
-            
-            {images.length > 0 && (
-              <div className="imagesPreviewGrid">
-                {images.map((url, idx) => (
-                  <div key={idx} className="imagePreviewCard">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={`Preview ${idx + 1}`} />
-                    <button
-                      type="button"
-                      className="imageDeleteBtn"
-                      onClick={() => removeImage(idx)}
-                      title="ลบรูปภาพนี้"
-                    >
-                      ✕
-                    </button>
-                    <span className="imageOrderBadge">รูปที่ {idx + 1}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="statusPreviewBadge">
+            <span className="dot" />
+            <span>สถานะ: {status === 'PUBLISHED' ? 'เผยแพร่อยู่' : status === 'DRAFT' ? 'ฉบับร่าง' : 'จัดเก็บ'}</span>
           </div>
-
-          <div className="formRow">
-            <div className="formGroup col-6">
-              <label htmlFor="publishedAt">เวลาเริ่มเผยแพร่ข่าวสาร (เริ่มแสดงผล)</label>
-              <input
-                id="publishedAt"
-                type="datetime-local"
-                className="formInput"
-                value={publishedAt}
-                onChange={(e) => setPublishedAt(e.target.value)}
-                onClick={(e) => e.currentTarget.showPicker?.()}
-              />
-              <span className="fieldTip">เวลาที่ข่าวประชาสัมพันธ์จะปรากฏบนเว็บไซต์</span>
-            </div>
-
-            <div className="formGroup col-6">
-              <label htmlFor="expiredAt">เวลาสิ้นสุดการเผยแพร่ (วันหมดอายุข่าว) *</label>
-              <input
-                id="expiredAt"
-                type="datetime-local"
-                className="formInput"
-                value={expiredAt}
-                onChange={(e) => setExpiredAt(e.target.value)}
-                onClick={(e) => e.currentTarget.showPicker?.()}
-                required
-              />
-              <span className="fieldTip">ข่าวจะหยุดแสดงผลหลังจากถึงช่วงเวลาที่ระบุนี้</span>
-            </div>
-          </div>
-
-          <div className="formRow">
-            <div className="formGroup col-6">
-              <label htmlFor="category">ประเภทข่าวสาร *</label>
-              <select
-                id="category"
-                className="formInput"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                required
-              >
-                <option value="PR">ข่าวสารประชาสัมพันธ์</option>
-                <option value="TRAINING">ประชุมอบรม / สัมมนา</option>
-                <option value="JOBS">ประกาศรับสมัครงาน</option>
-                <option value="ANNOUNCEMENT">ประกาศ</option>
-              </select>
-            </div>
-
-            <div className="formGroup col-6">
-              <label htmlFor="status">สถานะข่าวประชาสัมพันธ์</label>
-              <select
-                id="status"
-                className="formInput"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="PUBLISHED">ลงข่าว (เผยแพร่ตามเวลาเริ่ม-หมดอายุ)</option>
-                <option value="DRAFT">ดราฟ (บันทึกร่างไว้แก้ไขต่อ)</option>
-                <option value="ARCHIVED">เก็บเข้าคลัง (ไม่แสดงบนหน้าเว็บหลัก)</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="formActions">
-            <button
-              type="submit"
-              className="submitButton"
-              disabled={loading || uploadingImage || uploadingPdf}
-            >
-              {loading ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
-            </button>
-            <Link href="/member/news/news" className="cancelButton">
-              ยกเลิก
-            </Link>
-          </div>
-        </form>
+        </div>
       </div>
+
+      {error && (
+        <div className="workbenchAlert alertDanger">
+          <AlertCircle size={18} />
+          <div>{error}</div>
+        </div>
+      )}
+
+      {success && (
+        <div className="workbenchAlert alertSuccess">
+          <CheckCircle2 size={18} />
+          <div>{success}</div>
+        </div>
+      )}
+
+      {/* ── Main Form ── */}
+      <form onSubmit={handleSubmit} className="formWorkbenchLayout">
+        <div className="formMainColumn">
+          {/* Card 1: Main Info */}
+          <div className="formSectionCard">
+            <div className="sectionCardHeader">
+              <div className="sectionCardIcon">
+                <Layers size={18} />
+              </div>
+              <div>
+                <h2 className="sectionCardTitle">ข้อมูลข่าวสาร</h2>
+                <p className="sectionCardDesc">ระบุหัวข้อ ประเภท และสถานะการเผยแพร่</p>
+              </div>
+            </div>
+
+            <div className="cardBody">
+              <div className="formFieldGroup">
+                <label htmlFor="title" className="fieldLabel">
+                  หัวข้อข่าวสาร <span className="requiredAsterisk">*</span>
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  className="fieldInput"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="กรอกหัวข้อข่าวประชาสัมพันธ์"
+                  required
+                />
+              </div>
+
+              <div className="formFieldRow">
+                <div className="formFieldCol">
+                  <label htmlFor="category" className="fieldLabel">
+                    ประเภทข่าวสาร <span className="requiredAsterisk">*</span>
+                  </label>
+                  <select
+                    id="category"
+                    className="fieldSelect"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    required
+                  >
+                    <option value="PR">📢 ข่าวสารประชาสัมพันธ์</option>
+                    <option value="TRAINING">🎓 ประชุมอบรม / สัมมนา</option>
+                    <option value="JOBS">💼 ประกาศรับสมัครงาน</option>
+                    <option value="ANNOUNCEMENT">📑 ประกาศทั่วไป / จัดซื้อจัดจ้าง</option>
+                  </select>
+                </div>
+
+                <div className="formFieldCol">
+                  <label htmlFor="status" className="fieldLabel">
+                    สถานะการเผยแพร่
+                  </label>
+                  <select
+                    id="status"
+                    className="fieldSelect"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                  >
+                    <option value="PUBLISHED">🟢 ลงข่าว (เผยแพร่ตามเวลาเริ่ม-หมดอายุ)</option>
+                    <option value="DRAFT">🟡 ดราฟ (บันทึกร่างไว้แก้ไขต่อ)</option>
+                    <option value="ARCHIVED">⚪ เก็บเข้าคลัง (ไม่แสดงบนหน้าเว็บหลัก)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Media & Attachments */}
+          <div className="formSectionCard">
+            <div className="sectionCardHeader">
+              <div className="sectionCardIcon">
+                <ImageIcon size={18} />
+              </div>
+              <div>
+                <h2 className="sectionCardTitle">รูปภาพและสื่อประกอบข่าวสาร</h2>
+                <p className="sectionCardDesc">อัปโหลดภาพประกอบ วิดีโอ YouTube หรือเอกสาร PDF</p>
+              </div>
+            </div>
+
+            <div className="cardBody">
+              {/* Multiple Images Upload */}
+              <div className="formFieldGroup">
+                <label className="fieldLabel">
+                  รูปภาพประกอบข่าว (อัปโหลดเพิ่มได้หลายรูป)
+                </label>
+                
+                <div className="uploadDropzone">
+                  <input
+                    id="imageUploadInput"
+                    type="file"
+                    className="hiddenFileInput"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    multiple
+                    onChange={handleImageUpload}
+                  />
+                  <label htmlFor="imageUploadInput" className="uploadDropzoneContent">
+                    <div className="uploadDropzoneIcon">
+                      <Upload size={24} />
+                    </div>
+                    <div className="uploadDropzoneText">
+                      <strong>คลิกเพื่ออัปโหลดรูปภาพเพิ่มเติม</strong>
+                      <span>รองรับ JPEG, PNG, WebP (เลือกหลายรูปพร้อมกันได้)</span>
+                    </div>
+                  </label>
+                </div>
+
+                {uploadingImage && (
+                  <div className="uploadingStatus">
+                    <span className="uploadSpinner" />
+                    <span>กำลังอัปโหลดรูปภาพเข้าสู่ระบบคลังไฟล์...</span>
+                  </div>
+                )}
+
+                {images.length > 0 && (
+                  <div className="imagesPreviewContainer">
+                    <div className="imagesHeader">
+                      <span className="imagesCountText">รูปภาพทั้งหมด ({images.length} รูป)</span>
+                      <span className="coverHintText">* รูปแรกจะใช้เป็นภาพหน้าปกข่าว</span>
+                    </div>
+                    <div className="imagesPreviewGrid">
+                      {images.map((url, idx) => (
+                        <div key={idx} className="imageCard">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt={`รูปข่าวที่ ${idx + 1}`} />
+                          <button
+                            type="button"
+                            className="deleteImageBtn"
+                            onClick={() => removeImage(idx)}
+                            title="ลบรูปภาพนี้"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                          <span className={`orderBadge ${idx === 0 ? 'isCover' : ''}`}>
+                            {idx === 0 ? '★ หน้าปก' : `รูปที่ ${idx + 1}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* YouTube & PDF Row */}
+              <div className="formFieldRow">
+                <div className="formFieldCol">
+                  <label htmlFor="youtubeUrl" className="fieldLabel">
+                    <Video size={14} className="inlineIcon" />
+                    <span>ลิงก์วิดีโอ YouTube (ถ้ามี)</span>
+                  </label>
+                  <input
+                    id="youtubeUrl"
+                    type="url"
+                    className="fieldInput"
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                  />
+                  <span className="fieldHelpText">ระบบจะสร้างเครื่องเล่นวิดีโอ YouTube ฝังลงในเนื้อหาข่าวโดยอัตโนมัติ</span>
+                </div>
+
+                <div className="formFieldCol">
+                  <label htmlFor="pdfFile" className="fieldLabel">
+                    <FileText size={14} className="inlineIcon" />
+                    <span>แนบเอกสาร PDF (ถ้ามี)</span>
+                  </label>
+                  <input
+                    id="pdfFile"
+                    type="file"
+                    className="fieldInput filePickerInput"
+                    accept="application/pdf"
+                    onChange={handlePdfUpload}
+                  />
+                  {uploadingPdf && (
+                    <div className="uploadingStatus">
+                      <span className="uploadSpinner" />
+                      <span>กำลังอัปโหลดเอกสาร PDF...</span>
+                    </div>
+                  )}
+                  {pdfUrl && (
+                    <div className="attachedFileInfoCard">
+                      <div className="attachedFileLeft">
+                        <FileText size={18} className="pdfFileIcon" />
+                        <div>
+                          <span className="attachedFileName">เอกสารที่แนบไว้</span>
+                          <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="previewPdfLink">
+                            คลิกเพื่อดูเอกสาร <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      </div>
+                      <button 
+                        type="button" 
+                        className="removeAttachedBtn" 
+                        onClick={() => setPdfUrl('')}
+                        title="ลบเอกสารแนบ"
+                      >
+                        ลบออก
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Sidebar Column: Schedule & Publishing ── */}
+        <div className="formSidebarColumn">
+          {/* Schedule Card */}
+          <div className="formSectionCard">
+            <div className="sectionCardHeader">
+              <div className="sectionCardIcon">
+                <Clock size={18} />
+              </div>
+              <div>
+                <h2 className="sectionCardTitle">กำหนดการแสดงผล</h2>
+                <p className="sectionCardDesc">ตั้งเวลาเริ่มและสิ้นสุดการเผยแพร่</p>
+              </div>
+            </div>
+
+            <div className="cardBody">
+              <div className="formFieldGroup">
+                <label htmlFor="publishedAt" className="fieldLabel">
+                  เวลาเริ่มเผยแพร่ข่าวสาร
+                </label>
+                <input
+                  id="publishedAt"
+                  type="datetime-local"
+                  className="fieldInput"
+                  value={publishedAt}
+                  onChange={(e) => setPublishedAt(e.target.value)}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                />
+                <span className="fieldHelpText">เวลาที่ข่าวประชาสัมพันธ์จะปรากฏบนเว็บไซต์</span>
+              </div>
+
+              <div className="formFieldGroup">
+                <label htmlFor="expiredAt" className="fieldLabel">
+                  เวลาสิ้นสุดการเผยแพร่ <span className="requiredAsterisk">*</span>
+                </label>
+                <input
+                  id="expiredAt"
+                  type="datetime-local"
+                  className="fieldInput"
+                  value={expiredAt}
+                  onChange={(e) => setExpiredAt(e.target.value)}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  required
+                />
+                <span className="fieldHelpText">ข่าวจะถูกปลดจากการแสดงผลบนหน้าแรกอัตโนมัติเมื่อครบกำหนด</span>
+              </div>
+
+              {/* Info Guide */}
+              <div className="publishingNoticeBox">
+                <CheckCircle2 size={16} className="noticeIcon" />
+                <p>
+                  การแก้ไขจะมีผลต่อหน้าเว็บไซต์โรงพยาบาลเถินทันทีหลังจากกดบันทึก
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Card */}
+          <div className="formSectionCard actionStickyCard">
+            <div className="cardBody">
+              <button
+                type="submit"
+                className="submitWorkbenchBtn"
+                disabled={loading || uploadingImage || uploadingPdf}
+              >
+                {loading ? (
+                  <>
+                    <span className="uploadSpinner" />
+                    <span>กำลังบันทึกการแก้ไข...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    <span>บันทึกการแก้ไขข่าว</span>
+                  </>
+                )}
+              </button>
+
+              <Link href="/member/news/news" className="cancelWorkbenchBtn">
+                ยกเลิก
+              </Link>
+            </div>
+          </div>
+        </div>
+      </form>
     </div>
   )
 }

@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import MemberLogoutButton from './LogoutButton'
 import TelegramLinkModal from './TelegramLinkModal'
 import TelegramPromptModal from './TelegramPromptModal'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Send } from 'lucide-react'
 
@@ -16,6 +17,7 @@ interface MemberInfo {
   position: string | null
   profile_path: string | null
   role?: string
+  hasSignature?: boolean
 }
 
 interface ProfileBannerProps {
@@ -38,11 +40,13 @@ export default function ProfileBanner({
   const [uploading, setUploading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState<boolean>(false)
+  const [isTelegramPromptOpen, setIsTelegramPromptOpen] = useState<boolean>(false)
   const [telegramLinked, setTelegramLinked] = useState<boolean>(isTelegramLinked)
 
   React.useEffect(() => {
     setTelegramLinked(isTelegramLinked)
   }, [isTelegramLinked])
+
 
   const handleAvatarClick = () => {
     if (fileInputRef.current) {
@@ -72,7 +76,7 @@ export default function ProfileBanner({
       if (res.ok && data?.success) {
         setHasAvatar(true)
         setAvatarTimestamp(Date.now())
-        router.refresh() // Refresh page to propagate changes
+        router.refresh()
       } else {
         setError(data?.error || 'ไม่สามารถอัปโหลดรูปโปรไฟล์ได้')
       }
@@ -87,18 +91,23 @@ export default function ProfileBanner({
     }
   }
 
+  const deptAndPositionText = useMemo(() => {
+    const parts = [member.position, member.department].filter(Boolean)
+    return parts.length > 0 ? parts.join(' · ') : null
+  }, [member.position, member.department])
+
   return (
     <div className="pb-card">
-      {/* ── Section 1: Gradient Header Strip ── */}
-      <div className="pb-header" />
+      {/* ── Section 1: Hospital Brand Accent Header Strip ── */}
+      <div className="pb-header" aria-hidden="true" />
 
       {/* ── Section 2: Identity Row (Avatar + Name + Logout) ── */}
       <div className="pb-identity">
         {/* Avatar */}
         <div className="pb-avatarWrap">
-          <div 
-            className="pb-avatar" 
-            onClick={handleAvatarClick} 
+          <div
+            className="pb-avatar"
+            onClick={handleAvatarClick}
             title="คลิกเพื่ออัปโหลดรูปภาพโปรไฟล์"
             role="button"
             tabIndex={0}
@@ -118,20 +127,18 @@ export default function ProfileBanner({
             ) : (
               <span className="pb-avatarInitials">{initials}</span>
             )}
-            <div className="pb-avatarOverlay">
+            <div className="pb-avatarOverlay" aria-hidden="true">
               {uploading ? (
-                <span 
-                  className="material-symbols-outlined animate-spin" 
-                  style={{ fontSize: '22px' }}
-                  aria-hidden="true"
+                <span
+                  className="material-symbols-outlined animate-spin"
+                  style={{ fontSize: '20px' }}
                 >
                   progress_activity
                 </span>
               ) : (
-                <span 
-                  className="material-symbols-outlined" 
-                  style={{ fontSize: '22px' }}
-                  aria-hidden="true"
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: '20px' }}
                 >
                   photo_camera
                 </span>
@@ -148,72 +155,68 @@ export default function ProfileBanner({
           />
         </div>
 
-        {/* Name & Tags */}
+        {/* User Info Details */}
         <div className="pb-nameGroup">
-          <h2 className="pb-fullName">{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
-          <div className="pb-tagsRow">
-            <span className="pb-tag pb-tagId">
-              <span 
-                className="material-symbols-outlined" 
-                style={{ fontSize: '13px' }}
-                aria-hidden="true"
-              >
-                person
-              </span>
-              @{member.username}
-            </span>
+          <div className="pb-nameRow">
+            <h2 className="pb-fullName">{member.name || 'ไม่ได้ระบุชื่อ-นามสกุล'}</h2>
             <span className={`pb-tag pb-tagRole ${member.role === 'subdistrict' ? 'pb-tagRoleSub' : ''}`}>
               {displayRole}
             </span>
           </div>
+
+          <div className="pb-subInfo">
+            <span>ตำแหน่งและแผนก: </span>
+            {deptAndPositionText ? (
+              <span className="pb-subInfoValue">{deptAndPositionText}</span>
+            ) : (
+              <span className="pb-subInfoEmpty">
+                ยังไม่ระบุ · <span className="pb-addInfoText">เพิ่มข้อมูล</span>
+              </span>
+            )}
+          </div>
+
           {error && <div className="pb-errorMsg">{error}</div>}
         </div>
 
-        {/* Logout – pushed right on desktop */}
+        {/* Logout slot */}
         <div className="pb-logoutSlot">
           <MemberLogoutButton />
         </div>
       </div>
 
-      {/* ── Section 3: Quick-Info Chips ── */}
+      {/* ── Section 3: Quick Info & Status Chips Bar ── */}
       <div className="pb-infoBar">
         <div className="pb-chip">
-          <span 
-            className="material-symbols-outlined pb-chipIcon" 
-            style={{ fontSize: '16px' }}
-            aria-hidden="true"
-          >
-            work
+          <span className="material-symbols-outlined pb-chipIcon" aria-hidden="true">
+            badge
           </span>
           <span className="pb-chipLabel">ตำแหน่ง</span>
           <span className="pb-chipValue">{member.position || 'ไม่ได้ระบุ'}</span>
         </div>
+
         <div className="pb-chip">
-          <span 
-            className="material-symbols-outlined pb-chipIcon" 
-            style={{ fontSize: '16px' }}
-            aria-hidden="true"
-          >
+          <span className="material-symbols-outlined pb-chipIcon" aria-hidden="true">
             domain
           </span>
           <span className="pb-chipLabel">แผนก</span>
           <span className="pb-chipValue">{member.department || 'ไม่ได้ระบุ'}</span>
         </div>
+
         {telegramLinked ? (
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="pb-chip pb-chipAction pb-chipConnected"
             onClick={() => setIsTelegramModalOpen(true)}
             title="คลิกเพื่อดูข้อมูลการเชื่อมต่อ Telegram"
           >
             <div className="pb-telegramBadge" aria-hidden="true">
-              <Send size={13} style={{ transform: 'translate(-0.5px, 0.5px)' }} />
+              <Send size={13} />
             </div>
             <span className="pb-chipLabel">การแจ้งเตือน</span>
-            <span className="pb-chipValue" style={{ color: '#0088cc', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span 
-                className="material-symbols-outlined" 
-                style={{ fontSize: '15px', color: '#0088cc' }}
+            <span className="pb-chipValue pb-chipConnectedValue">
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: '15px' }}
                 aria-hidden="true"
               >
                 check_circle
@@ -222,22 +225,72 @@ export default function ProfileBanner({
             </span>
           </button>
         ) : (
-          <button 
-            type="button" 
-            className="pb-chip pb-chipAction" 
+          <button
+            type="button"
+            className="pb-chip pb-chipAction"
             onClick={() => setIsTelegramModalOpen(true)}
+            title="คลิกเพื่อเชื่อมต่อบัญชี Telegram"
           >
             <div className="pb-telegramBadge" aria-hidden="true">
-              <Send size={13} style={{ transform: 'translate(-0.5px, 0.5px)' }} />
+              <Send size={13} />
             </div>
             <span className="pb-chipLabel">การแจ้งเตือน</span>
-            <span className="pb-chipValue">เชื่อมระบบ Telegram</span>
+            <span className="pb-chipValue pb-chipPromptValue">
+              ยังไม่ได้เชื่อมต่อ
+            </span>
           </button>
+        )}
+
+        {member.role !== 'subdistrict' && (
+          member.hasSignature ? (
+            <Link
+              href="/member/signature"
+              className="pb-chip pb-chipAction pb-chipConnected"
+              title="ดูลายมือชื่ออิเล็กทรอนิกส์ของคุณ"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: '15px' }}
+                aria-hidden="true"
+              >
+                draw
+              </span>
+              <span className="pb-chipLabel">ลายเซ็น</span>
+              <span className="pb-chipValue pb-chipConnectedValue">
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: '15px' }}
+                  aria-hidden="true"
+                >
+                  check_circle
+                </span>
+                มีแล้ว
+              </span>
+            </Link>
+          ) : (
+            <Link
+              href="/member/signature"
+              className="pb-chip pb-chipAction"
+              title="คลิกเพื่อบันทึกลายมือชื่ออิเล็กทรอนิกส์"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: '15px' }}
+                aria-hidden="true"
+              >
+                draw
+              </span>
+              <span className="pb-chipLabel">ลายเซ็น</span>
+              <span className="pb-chipValue pb-chipPromptValue">
+                ยังไม่มีลายเซ็น
+              </span>
+            </Link>
+          )
         )}
       </div>
 
-      <TelegramLinkModal 
-        isOpen={isTelegramModalOpen} 
+      <TelegramLinkModal
+        isOpen={isTelegramModalOpen}
         onClose={() => setIsTelegramModalOpen(false)}
         onLinked={() => {
           setTelegramLinked(true)
@@ -249,11 +302,11 @@ export default function ProfileBanner({
         }}
       />
 
-      {/* Auto Prompt for unlinked users */}
       <TelegramPromptModal
         isLinked={telegramLinked}
         memberId={member.id}
         onOpenConnectModal={() => setIsTelegramModalOpen(true)}
+        onVisibilityChange={setIsTelegramPromptOpen}
       />
     </div>
   )

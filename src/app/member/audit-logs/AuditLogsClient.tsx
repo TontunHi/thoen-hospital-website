@@ -15,30 +15,30 @@ import {
   FileCode, 
   Globe, 
   X, 
-  AlertCircle,
-  ArrowLeft,
-  Download,
-  Shield,
-  ShieldCheck,
-  HardDrive,
-  Laptop,
-  Smartphone,
-  Tablet,
-  Bot,
-  Copy,
-  Check,
-  Clock,
-  User,
-  PlusCircle,
-  Edit3,
-  Trash2,
-  Filter,
-  Activity,
-  Server
+  AlertCircle, 
+  ArrowLeft, 
+  Download, 
+  Shield, 
+  ShieldCheck, 
+  HardDrive, 
+  Laptop, 
+  Smartphone, 
+  Tablet, 
+  Bot, 
+  Copy, 
+  Check, 
+  Clock, 
+  PlusCircle, 
+  Edit3, 
+  Trash2, 
+  Filter, 
+  Activity, 
+  Server 
 } from 'lucide-react'
 import Link from 'next/link'
 import { parseUserAgent } from '@/lib/userAgentParser'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
+import { getInitials as formatInitials } from '@/lib/formatters'
 
 interface AuditLog {
   id: number
@@ -69,6 +69,10 @@ interface AuditStats {
   loginsToday: number
   readsToday: number
   changesToday: number
+}
+
+function getInitials(name: string): string {
+  return formatInitials(name, true)
 }
 
 export default function AuditLogsClient() {
@@ -200,7 +204,6 @@ export default function AuditLogsClient() {
     }
   }
 
-  // Trigger fetch on page or actionType change
   useEffect(() => {
     fetchLogs(page)
   }, [page, actionType, fetchLogs])
@@ -414,7 +417,7 @@ export default function AuditLogsClient() {
           
           <div className="headerStatusBadges">
             <div className="livePulseBadge" title="ระบบบันทึก Audit Logs ทำงานตลอด 24 ชั่วโมง">
-              <span className="pulseDot"></span>
+              <span className="pulseDot" aria-hidden="true"></span>
               <span className="pulseText">บันทึกเรียลไทม์ Tier-1 Audit</span>
             </div>
             <button 
@@ -431,8 +434,8 @@ export default function AuditLogsClient() {
         </div>
 
         <div className="titleWrapper">
-          <div className="titleIcon">
-            <ShieldCheck size={32} />
+          <div className="titleIcon" aria-hidden="true">
+            <ShieldCheck size={28} />
           </div>
           <div className="titleText">
             <div className="titleRow">
@@ -440,7 +443,7 @@ export default function AuditLogsClient() {
               <span className="complianceBadge">PDPA & Hospital Security Standard</span>
             </div>
             <p className="subtitle">
-              ตรวจสอบและบันทึกประวัติการเข้าใช้งาน, การสืบค้นข้อมูลสำคัญ (PHI/Salary), การเปลี่ยนแปลงสิทธิ และการดำเนินงาน CRUD ทั้งหมดของโรงพยาบาลเถิน
+              ตรวจสอบและบันทึกประวัติการเข้าใช้งาน การสืบค้นข้อมูลสำคัญ (PHI/Salary) การเปลี่ยนแปลงสิทธิ และการดำเนินงาน CRUD ทั้งหมดของโรงพยาบาลเถิน
             </p>
           </div>
         </div>
@@ -450,8 +453,8 @@ export default function AuditLogsClient() {
       <section className="auditStatsGrid" aria-label="สถิติความปลอดภัย">
         <div className="statCard statCardTotal">
           <div className="statCardHeader">
-            <div className="statIconWrapper statIconTotal">
-              <Database size={22} />
+            <div className="statIconWrapper statIconTotal" aria-hidden="true">
+              <Database size={20} />
             </div>
             <span className="statBadge">ระบบทั้งหมด</span>
           </div>
@@ -468,8 +471,8 @@ export default function AuditLogsClient() {
 
         <div className="statCard statCardLogin">
           <div className="statCardHeader">
-            <div className="statIconWrapper statIconLogin">
-              <LogIn size={22} />
+            <div className="statIconWrapper statIconLogin" aria-hidden="true">
+              <LogIn size={20} />
             </div>
             <span className="statBadge statBadgeSuccess">วันนี้</span>
           </div>
@@ -486,8 +489,8 @@ export default function AuditLogsClient() {
 
         <div className="statCard statCardRead">
           <div className="statCardHeader">
-            <div className="statIconWrapper statIconRead">
-              <Shield size={22} />
+            <div className="statIconWrapper statIconRead" aria-hidden="true">
+              <Shield size={20} />
             </div>
             <span className="statBadge statBadgePurple">Sensitive Access</span>
           </div>
@@ -504,10 +507,10 @@ export default function AuditLogsClient() {
 
         <div className="statCard statCardRetention">
           <div className="statCardHeader">
-            <div className="statIconWrapper statIconRetention">
-              <HardDrive size={22} />
+            <div className="statIconWrapper statIconRetention" aria-hidden="true">
+              <HardDrive size={20} />
             </div>
-            <span className="statBadge statBadgeAmber">มาตรฐาน 90 วัน</span>
+            <span className="statBadge statBadgeAmber">เกณฑ์ 90 วัน</span>
           </div>
           <div className="statInfo">
             <span className="statLabel">อายุจัดเก็บข้อมูล (Retention)</span>
@@ -529,7 +532,7 @@ export default function AuditLogsClient() {
             <span className="chipsLabel">
               <Filter size={14} /> ประเภทกิจกรรม:
             </span>
-            <div className="chipsList">
+            <div className="chipsList" role="tablist" aria-label="กรองประเภทกิจกรรม">
               {[
                 { id: '', label: 'ทั้งหมด (All)' },
                 { id: 'LOGIN', label: 'LOGIN (เข้าสู่ระบบ)' },
@@ -544,6 +547,8 @@ export default function AuditLogsClient() {
                 <button
                   key={chip.id}
                   type="button"
+                  role="tab"
+                  aria-selected={actionType === chip.id}
                   className={`actionChip ${actionType === chip.id ? 'active' : ''}`}
                   onClick={() => {
                     setActionType(chip.id)
@@ -579,6 +584,7 @@ export default function AuditLogsClient() {
                       fetchLogs(1, { search: '' })
                     }}
                     title="ล้างคำค้นหา"
+                    aria-label="ล้างคำค้นหา"
                   >
                     <X size={14} />
                   </button>
@@ -588,8 +594,8 @@ export default function AuditLogsClient() {
 
             {/* Quick Date Range Presets & Date Pickers */}
             <div className="filterField">
-              <label>ช่วงวันที่ (Date Range)</label>
-              <div className="datePresetsRow">
+              <label>ช่วงวันที่ด่วน</label>
+              <div className="datePresetsRow" role="group" aria-label="เลือกช่วงวันที่ด่วน">
                 <button
                   type="button"
                   className={`presetBtn ${activeDatePreset === 'all' ? 'active' : ''}`}
@@ -667,24 +673,24 @@ export default function AuditLogsClient() {
                   {search && (
                     <span className="filterTag">
                       คำค้นหา: &ldquo;{search}&rdquo;
-                      <button type="button" onClick={() => { setSearch(''); fetchLogs(1, { search: '' }) }}><X size={12} /></button>
+                      <button type="button" onClick={() => { setSearch(''); fetchLogs(1, { search: '' }) }} aria-label="ลบตัวกรองคำค้นหา"><X size={12} /></button>
                     </span>
                   )}
                   {actionType && (
                     <span className="filterTag">
                       ประเภท: {actionType}
-                      <button type="button" onClick={() => { setActionType(''); fetchLogs(1, { actionType: '' }) }}><X size={12} /></button>
+                      <button type="button" onClick={() => { setActionType(''); fetchLogs(1, { actionType: '' }) }} aria-label="ลบตัวกรองประเภท"><X size={12} /></button>
                     </span>
                   )}
                   {(startDate || endDate) && (
                     <span className="filterTag">
                       วันที่: {startDate || '...'} ถึง {endDate || '...'}
-                      <button type="button" onClick={() => { setStartDate(''); setEndDate(''); setActiveDatePreset('all'); fetchLogs(1, { startDate: '', endDate: '' }) }}><X size={12} /></button>
+                      <button type="button" onClick={() => { setStartDate(''); setEndDate(''); setActiveDatePreset('all'); fetchLogs(1, { startDate: '', endDate: '' }) }} aria-label="ลบตัวกรองวันที่"><X size={12} /></button>
                     </span>
                   )}
                 </div>
               ) : (
-                <span className="inactiveFilterNote">แสดงข้อมูลประวัติการใช้งานทั้งหมด</span>
+                <span className="inactiveFilterNote">แสดงข้อมูลประวัติการใช้งานทั้งหมดตามลำดับล่าสุด</span>
               )}
             </div>
 
@@ -725,7 +731,7 @@ export default function AuditLogsClient() {
         <div className="tableControlBar">
           <div className="tableTitle">
             <h3>รายการประวัติความปลอดภัย ({pagination.total.toLocaleString()} รายการ)</h3>
-            <span className="tableSubtitle">แสดงผลหน้าละ 25 รายการ</span>
+            <span className="tableSubtitle">แสดงผลหน้าละ 25 รายการ • จัดเก็บตามเกณฑ์มาตรฐาน PDPA</span>
           </div>
         </div>
 
@@ -745,13 +751,13 @@ export default function AuditLogsClient() {
             ))}
           </div>
         ) : error ? (
-          <div className="errorState">
+          <div className="errorState" role="alert">
             <div className="stateIconWrapper stateIconError">
-              <AlertCircle size={36} />
+              <AlertCircle size={32} />
             </div>
             <h4>เกิดข้อผิดพลาดในการโหลดข้อมูล</h4>
             <p>{error}</p>
-            <button onClick={() => fetchLogs()} className="btnRetry">
+            <button onClick={() => fetchLogs()} className="btnRetry" type="button">
               <RefreshCw size={16} />
               <span>ลองใหม่อีกครั้ง</span>
             </button>
@@ -759,12 +765,12 @@ export default function AuditLogsClient() {
         ) : logs.length === 0 ? (
           <div className="emptyState">
             <div className="stateIconWrapper stateIconEmpty">
-              <Search size={36} />
+              <Search size={32} />
             </div>
             <h4>ไม่พบบันทึกประวัติการใช้งาน</h4>
             <p>ไม่มีรายการที่ตรงกับเงื่อนไขการค้นหา หรือยังไม่มีกิจกรรมในช่วงเวลาที่เลือก</p>
             {hasActiveFilters && (
-              <button onClick={handleResetFilters} className="btnSecondary">
+              <button onClick={handleResetFilters} className="btnSecondary" type="button">
                 <RefreshCw size={15} />
                 <span>ล้างตัวกรองเพื่อดูทั้งหมด</span>
               </button>
@@ -772,74 +778,171 @@ export default function AuditLogsClient() {
           </div>
         ) : (
           <>
-            <div className="tableWrapper">
-              <table className="logsTable">
-                <thead>
-                  <tr>
-                    <th scope="col" style={{ width: '175px' }}>วัน-เวลา (Timestamp)</th>
-                    <th scope="col" style={{ width: '220px' }}>ผู้ใช้งาน (Account)</th>
-                    <th scope="col" style={{ width: '130px' }}>ประเภท (Action)</th>
-                    <th scope="col" style={{ minWidth: '180px' }}>เป้าหมาย (Target)</th>
-                    <th scope="col" style={{ width: '150px' }}>IP Address</th>
-                    <th scope="col" style={{ width: '180px' }}>อุปกรณ์ / เบราว์เซอร์</th>
-                    <th scope="col" style={{ width: '110px', textAlign: 'center' }}>จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.map((log) => {
-                    const relative = formatRelativeTime(log.timestamp)
-                    const isLocal = isLocalIp(log.ip_address)
+            {/* Desktop Table View - Clean Proportions, Zero Horizontal Scroll */}
+            <div className="desktopTableContainer">
+              <div className="tableWrapper">
+                <table className="logsTable">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="col-time">วัน-เวลา (Timestamp)</th>
+                      <th scope="col" className="col-user">ผู้ใช้งาน (Account)</th>
+                      <th scope="col" className="col-action">ประเภท (Action)</th>
+                      <th scope="col" className="col-target">เป้าหมาย (Target)</th>
+                      <th scope="col" className="col-ip">IP Address</th>
+                      <th scope="col" className="col-device">อุปกรณ์ / เบราว์เซอร์</th>
+                      <th scope="col" className="col-actions">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map((log) => {
+                      const relative = formatRelativeTime(log.timestamp)
+                      const isLocal = isLocalIp(log.ip_address)
 
-                    return (
-                      <tr key={log.id} className="logRow">
-                        <td className="timeCell">
-                          <div className="timeCellWrapper">
-                            <span className="timePrimary">{formatDate(log.timestamp)}</span>
-                            {relative && <span className="timeRelative">{relative}</span>}
+                      return (
+                        <tr key={log.id} className="logRow">
+                          <td className="timeCell">
+                            <div className="timeCellWrapper">
+                              <span className="timePrimary">{formatDate(log.timestamp)}</span>
+                              {relative && <span className="timeRelative">{relative}</span>}
+                            </div>
+                          </td>
+
+                          <td className="userCell">
+                            {log.username ? (
+                              <div className="userDetails">
+                                <div className="userAvatarCircle" aria-hidden="true">
+                                  <span>{getInitials(log.username)}</span>
+                                </div>
+                                <div className="userTextWrapper">
+                                  <span className="usernameText" title={log.username}>{log.username}</span>
+                                  {log.email && <span className="emailText" title={log.email}>{log.email}</span>}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="guestUserDetails">
+                                <div className="guestAvatarCircle" aria-hidden="true">
+                                  <Globe size={13} />
+                                </div>
+                                <span className="guestText">Guest / System</span>
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="badgeCell">
+                            {getActionBadge(log.action_type)}
+                          </td>
+
+                          <td className="targetCell">
+                            <span className="targetBadge" title={log.target_table || ''}>
+                              {getTargetTableName(log.target_table)}
+                            </span>
+                          </td>
+
+                          <td className="ipCell">
+                            {log.ip_address ? (
+                              <div className="ipBadgeWrapper">
+                                <span className="ipText">{log.ip_address}</span>
+                                {isLocal && <span className="lanBadge">LAN</span>}
+                                <button
+                                  type="button"
+                                  className="copyIpBtn"
+                                  onClick={() => copyToClipboard(log.ip_address!, `IP Address ${log.ip_address}`)}
+                                  title="คัดลอก IP Address"
+                                  aria-label="คัดลอก IP Address"
+                                >
+                                  {copiedField === `IP Address ${log.ip_address}` ? (
+                                    <Check size={12} className="copySuccessIcon" />
+                                  ) : (
+                                    <Copy size={12} />
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="emptyText">-</span>
+                            )}
+                          </td>
+
+                          <td className="deviceCell">
+                            {getDeviceBadge(log.user_agent)}
+                          </td>
+
+                          <td className="actionCell">
+                            <button 
+                              type="button"
+                              className="viewDetailBtn"
+                              onClick={() => setSelectedLog(log)}
+                              title="ดูข้อมูลเจาะลึกความปลอดภัย"
+                              aria-label={`ดูบันทึก #${log.id}`}
+                            >
+                              <Eye size={14} />
+                              <span>ดูบันทึก</span>
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile / Tablet Responsive Cards View (No Horizontal Scroll) */}
+            <div className="mobileCardsContainer">
+              {logs.map((log) => {
+                const relative = formatRelativeTime(log.timestamp)
+                const isLocal = isLocalIp(log.ip_address)
+
+                return (
+                  <div key={log.id} className="mobileLogCard">
+                    <div className="mobileLogCardTop">
+                      <div className="mobileActionWrap">
+                        {getActionBadge(log.action_type)}
+                        <span className="mobileLogId">#{log.id}</span>
+                      </div>
+                      <div className="mobileTimeWrap">
+                        <span className="mobileTimePrimary">{formatDate(log.timestamp)}</span>
+                        {relative && <span className="mobileTimeRelative">{relative}</span>}
+                      </div>
+                    </div>
+
+                    <div className="mobileLogCardBody">
+                      <div className="mobileUserRow">
+                        {log.username ? (
+                          <div className="userDetails">
+                            <div className="userAvatarCircle" aria-hidden="true">
+                              <span>{getInitials(log.username)}</span>
+                            </div>
+                            <div className="userTextWrapper">
+                              <span className="usernameText">{log.username}</span>
+                              {log.email && <span className="emailText">{log.email}</span>}
+                            </div>
                           </div>
-                        </td>
-
-                        <td className="userCell">
-                          {log.username ? (
-                            <div className="userDetails">
-                              <div className="userAvatarCircle">
-                                <User size={14} />
-                              </div>
-                              <div className="userTextWrapper">
-                                <span className="usernameText">{log.username}</span>
-                                {log.email && <span className="emailText">{log.email}</span>}
-                              </div>
+                        ) : (
+                          <div className="guestUserDetails">
+                            <div className="guestAvatarCircle" aria-hidden="true">
+                              <Globe size={13} />
                             </div>
-                          ) : (
-                            <div className="guestUserDetails">
-                              <div className="guestAvatarCircle">
-                                <Globe size={13} />
-                              </div>
-                              <span className="guestText">Guest / System</span>
-                            </div>
-                          )}
-                        </td>
+                            <span className="guestText">Guest / System</span>
+                          </div>
+                        )}
+                      </div>
 
-                        <td className="badgeCell">
-                          {getActionBadge(log.action_type)}
-                        </td>
-
-                        <td className="targetCell">
-                          <span className="targetBadge" title={log.target_table || ''}>
-                            {getTargetTableName(log.target_table)}
-                          </span>
-                        </td>
-
-                        <td className="ipCell">
-                          {log.ip_address ? (
-                            <div className="ipBadgeWrapper">
-                              <span className="ipText">{log.ip_address}</span>
-                              {isLocal && <span className="lanBadge">LAN</span>}
+                      <div className="mobileMetaGrid">
+                        <div className="mobileMetaItem">
+                          <span className="mobileMetaLabel">เป้าหมาย:</span>
+                          <span className="targetBadge mobileTarget">{getTargetTableName(log.target_table)}</span>
+                        </div>
+                        <div className="mobileMetaItem">
+                          <span className="mobileMetaLabel">IP:</span>
+                          <span className="ipBadgeWrapper">
+                            <span className="ipText">{log.ip_address || '-'}</span>
+                            {isLocal && <span className="lanBadge">LAN</span>}
+                            {log.ip_address && (
                               <button
                                 type="button"
                                 className="copyIpBtn"
                                 onClick={() => copyToClipboard(log.ip_address!, `IP Address ${log.ip_address}`)}
-                                title="คัดลอก IP Address"
+                                title="คัดลอก IP"
                               >
                                 {copiedField === `IP Address ${log.ip_address}` ? (
                                   <Check size={12} className="copySuccessIcon" />
@@ -847,31 +950,29 @@ export default function AuditLogsClient() {
                                   <Copy size={12} />
                                 )}
                               </button>
-                            </div>
-                          ) : (
-                            <span className="emptyText">-</span>
-                          )}
-                        </td>
-
-                        <td className="deviceCell">
+                            )}
+                          </span>
+                        </div>
+                        <div className="mobileMetaItem fullWidth">
+                          <span className="mobileMetaLabel">อุปกรณ์:</span>
                           {getDeviceBadge(log.user_agent)}
-                        </td>
+                        </div>
+                      </div>
+                    </div>
 
-                        <td className="actionCell">
-                          <button 
-                            className="viewDetailBtn"
-                            onClick={() => setSelectedLog(log)}
-                            title="ดูข้อมูลเจาะลึกความปลอดภัย"
-                          >
-                            <Eye size={14} />
-                            <span>ดูบันทึก</span>
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                    <div className="mobileLogCardFooter">
+                      <button
+                        type="button"
+                        className="mobileViewDetailBtn"
+                        onClick={() => setSelectedLog(log)}
+                      >
+                        <Eye size={15} />
+                        <span>ดูบันทึกเจาะลึก</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
             {/* Pagination Controls */}
@@ -886,6 +987,8 @@ export default function AuditLogsClient() {
                   onClick={() => setPage(1)}
                   className="pageBtn pageBtnSquare"
                   title="หน้าแรก"
+                  type="button"
+                  aria-label="หน้าแรก"
                 >
                   «
                 </button>
@@ -893,6 +996,7 @@ export default function AuditLogsClient() {
                   disabled={page <= 1 || loading}
                   onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                   className="pageBtn"
+                  type="button"
                 >
                   <ChevronLeft size={16} />
                   <span>ก่อนหน้า</span>
@@ -906,6 +1010,7 @@ export default function AuditLogsClient() {
                   disabled={page >= pagination.totalPages || loading}
                   onClick={() => setPage((prev) => Math.min(pagination.totalPages, prev + 1))}
                   className="pageBtn"
+                  type="button"
                 >
                   <span>ถัดไป</span>
                   <ChevronRight size={16} />
@@ -915,6 +1020,8 @@ export default function AuditLogsClient() {
                   onClick={() => setPage(pagination.totalPages)}
                   className="pageBtn pageBtnSquare"
                   title="หน้าสุดท้าย"
+                  type="button"
+                  aria-label="หน้าสุดท้าย"
                 >
                   »
                 </button>
@@ -930,8 +1037,8 @@ export default function AuditLogsClient() {
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
               <div className="modalHeaderTitle">
-                <div className="modalHeaderIcon">
-                  <ShieldCheck size={24} />
+                <div className="modalHeaderIcon" aria-hidden="true">
+                  <ShieldCheck size={22} />
                 </div>
                 <div>
                   <h3>รายละเอียดบันทึกความปลอดภัย</h3>
@@ -939,11 +1046,12 @@ export default function AuditLogsClient() {
                 </div>
               </div>
               <button 
+                type="button"
                 className="closeBtn" 
                 onClick={() => setSelectedLog(null)}
                 aria-label="ปิดหน้าต่าง"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             
@@ -981,6 +1089,7 @@ export default function AuditLogsClient() {
                         className="modalCopyBtn"
                         onClick={() => copyToClipboard(selectedLog.username!, 'ชื่อผู้ใช้')}
                         title="คัดลอกชื่อผู้ใช้"
+                        aria-label="คัดลอกชื่อผู้ใช้"
                       >
                         <Copy size={13} />
                       </button>
@@ -1001,13 +1110,13 @@ export default function AuditLogsClient() {
                     {(() => {
                       const p = parseUserAgent(selectedLog.user_agent)
                       return p.deviceType === 'desktop' 
-                        ? '💻 เครื่องคอมพิวเตอร์ (Desktop PC / Mac)' 
+                        ? 'เครื่องคอมพิวเตอร์ (Desktop PC / Mac)' 
                         : p.deviceType === 'mobile' 
-                        ? `📱 โทรศัพท์มือถือ (${p.deviceModel || 'Smartphone'})` 
+                        ? `โทรศัพท์มือถือ (${p.deviceModel || 'Smartphone'})` 
                         : p.deviceType === 'tablet' 
-                        ? `📟 แท็บเล็ต (${p.deviceModel || 'Tablet'})` 
+                        ? `แท็บเล็ต (${p.deviceModel || 'Tablet'})` 
                         : p.deviceType === 'bot' 
-                        ? '🤖 สคริปต์อัตโนมัติ / บอท (Bot Crawler)' 
+                        ? 'สคริปต์อัตโนมัติ / บอท (Bot Crawler)' 
                         : 'ไม่สามารถระบุอุปกรณ์ได้'
                     })()}
                   </span>

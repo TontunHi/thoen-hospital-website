@@ -5,6 +5,11 @@ import './page.css'
 
 export const dynamic = 'force-dynamic'
 
+export const metadata = {
+  title: 'ประวัติความปลอดภัยและ Audit Logs | โรงพยาบาลเถิน',
+  description: 'ระบบตรวจสอบและบันทึกประวัติความปลอดภัย กิจกรรมระบบ และการเข้าถึงข้อมูลสำคัญ โรงพยาบาลเถิน',
+}
+
 export default async function AdminAuditLogsPage() {
   const session = await verifyMemberSession()
 
@@ -18,8 +23,6 @@ export default async function AdminAuditLogsPage() {
 
   return (
     <div className="auditLogsContainer">
-      <div className="glowOrb glowOrb1"></div>
-      <div className="glowOrb glowOrb2"></div>
       <div className="auditLogsWrapper">
         <AuditLogsClient />
       </div>

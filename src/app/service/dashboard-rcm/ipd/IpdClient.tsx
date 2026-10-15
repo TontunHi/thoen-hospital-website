@@ -27,6 +27,7 @@ import {
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
@@ -42,7 +43,7 @@ const THAI_MONTH_NAMES = [
 ]
 
 const IPD_DEPARTMENTS: {
-  key: keyof Omit<IpdDepartmentAdjrwItem, 'month' | 'total'>
+  key: keyof Omit<IpdDepartmentAdjrwItem, 'month' | 'total' | 'total_patients' | 'total_visits' | 'adjrw_sum' | 'cmi' | 'depts'>
   name: string
   color: string
   bg: string
@@ -98,7 +99,8 @@ export default function IpdClient() {
   const [deptAdjrwData, setDeptAdjrwData] = useState<IpdDepartmentAdjrwItem[]>([])
   const [deptAdjrwLoading, setDeptAdjrwLoading] = useState<boolean>(false)
   const [deptAdjrwError, setDeptAdjrwError] = useState<string | null>(null)
-  const [deptTableOrientation, setDeptTableOrientation] = useState<'dept_as_rows' | 'month_as_rows'>('dept_as_rows')
+  const [selectedDeptMonth, setSelectedDeptMonth] = useState<string>('all')
+  const [hideZeroRows, setHideZeroRows] = useState<boolean>(false)
 
   const deptMonthRows = useMemo(() => deptAdjrwData.filter((r) => r.month !== 'รวม'), [deptAdjrwData])
   const deptTotalSummaryRow = useMemo(() => deptAdjrwData.find((r) => r.month === 'รวม'), [deptAdjrwData])
@@ -109,7 +111,10 @@ export default function IpdClient() {
     const monthRows = deptAdjrwData.filter((r) => r.month !== 'รวม')
     const totalRow = deptAdjrwData.find((r) => r.month === 'รวม')
 
-    const grandTotal = totalRow ? totalRow.total : monthRows.reduce((acc, m) => acc + m.total, 0)
+    const grandTotal = totalRow ? (totalRow.adjrw_sum || totalRow.total) : monthRows.reduce((acc, m) => acc + (m.adjrw_sum || m.total), 0)
+    const grandPatients = totalRow?.total_patients ?? monthRows.reduce((acc, m) => acc + (m.total_patients || 0), 0)
+    const grandVisits = totalRow?.total_visits ?? monthRows.reduce((acc, m) => acc + (m.total_visits || 0), 0)
+    const grandCmi = totalRow?.cmi ?? (grandVisits > 0 ? Number((grandTotal / grandVisits).toFixed(4)) : 0)
 
     // Find top department
     let topDeptName = '-'
@@ -117,7 +122,7 @@ export default function IpdClient() {
     let topDeptColor = '#059669'
     let topDeptBg = '#ecfdf5'
     IPD_DEPARTMENTS.forEach((d) => {
-      const val = totalRow ? totalRow[d.key] : monthRows.reduce((acc, m) => acc + m[d.key], 0)
+      const val = totalRow ? Number(totalRow[d.key] || 0) : monthRows.reduce((acc, m) => acc + Number(m[d.key] || 0), 0)
       if (val > topDeptVal) {
         topDeptVal = val
         topDeptName = d.name
@@ -131,14 +136,18 @@ export default function IpdClient() {
     let peakMonthName = '-'
     let peakMonthVal = 0
     monthRows.forEach((m) => {
-      if (m.total > peakMonthVal) {
-        peakMonthVal = m.total
+      const val = m.adjrw_sum || m.total
+      if (val > peakMonthVal) {
+        peakMonthVal = val
         peakMonthName = m.month
       }
     })
 
     return {
       grandTotal,
+      grandPatients,
+      grandVisits,
+      grandCmi,
       topDeptName,
       topDeptVal,
       topDeptPercent,
@@ -150,6 +159,75 @@ export default function IpdClient() {
       deptCount: IPD_DEPARTMENTS.length,
     }
   }, [deptAdjrwData])
+
+  // Overview Chart Filter Category State
+  const [chartCategory, setChartCategory] = useState<'all' | 'department' | 'doctor'>('all')
+
+  // Department Chart Data
+  const deptChartData = useMemo(() => {
+    if (!deptAdjrwData || deptAdjrwData.length === 0) return []
+
+    const totalRow = deptAdjrwData.find((r) => r.month === 'รวม')
+    const monthRows = deptAdjrwData.filter((r) => r.month !== 'รวม')
+
+    return IPD_DEPARTMENTS.map((dept) => {
+      let adjrw = 0
+      let visits = 0
+      let patients = 0
+
+      if (totalRow) {
+        const dData = totalRow.depts?.[dept.key]
+        adjrw = dData?.adjrw ?? Number((totalRow as any)[dept.key] || 0)
+        visits = dData?.visits ?? 0
+        patients = dData?.patients ?? 0
+      } else {
+        monthRows.forEach((m) => {
+          const dData = m.depts?.[dept.key]
+          adjrw += dData?.adjrw ?? Number((m as any)[dept.key] || 0)
+          visits += dData?.visits ?? 0
+          patients += dData?.patients ?? 0
+        })
+      }
+
+      const cmi = visits > 0 ? Number((adjrw / visits).toFixed(4)) : 0
+
+      return {
+        key: dept.key,
+        name: dept.name,
+        adjrw: Number(adjrw.toFixed(4)),
+        visits,
+        patients,
+        cmi,
+        color: dept.color,
+        bg: dept.bg,
+      }
+    })
+  }, [deptAdjrwData])
+
+  const deptChartSortedByAdjrw = useMemo(() => {
+    const nonZero = deptChartData.filter((d) => d.adjrw > 0 || d.visits > 0)
+    return (nonZero.length > 0 ? nonZero : deptChartData).sort((a, b) => b.adjrw - a.adjrw)
+  }, [deptChartData])
+
+  const deptChartSortedByVisits = useMemo(() => {
+    const nonZero = deptChartData.filter((d) => d.visits > 0 || d.adjrw > 0)
+    return (nonZero.length > 0 ? nonZero : deptChartData).sort((a, b) => b.visits - a.visits)
+  }, [deptChartData])
+
+  const deptChartSortedByCmi = useMemo(() => {
+    const nonZero = deptChartData.filter((d) => d.visits > 0)
+    return (nonZero.length > 0 ? nonZero : deptChartData).sort((a, b) => b.cmi - a.cmi)
+  }, [deptChartData])
+
+  const deptMonthlyTrendData = useMemo(() => {
+    return deptMonthRows.map((m) => ({
+      month: m.month,
+      adjrw: Number((m.adjrw_sum || m.total).toFixed(4)),
+      visits: m.total_visits,
+      patients: m.total_patients,
+      cmi: m.cmi,
+    }))
+  }, [deptMonthRows])
 
   // Telegram test trigger state
   const [telegramLoading, setTelegramLoading] = useState<boolean>(false)
@@ -404,83 +482,6 @@ export default function IpdClient() {
     document.body.removeChild(link)
   }
 
-  const exportDeptAdjrwCSV = () => {
-    if (deptTableOrientation === 'dept_as_rows') {
-      const headers = ['รายชื่อแผนก', ...deptMonthRows.map((m) => m.month), 'รวม']
-      const rows = IPD_DEPARTMENTS.map((dept) => {
-        const deptTotal = deptTotalSummaryRow
-          ? deptTotalSummaryRow[dept.key]
-          : deptMonthRows.reduce((acc, m) => acc + m[dept.key], 0)
-        return [
-          `"${dept.name}"`,
-          ...deptMonthRows.map((m) => m[dept.key].toFixed(4)),
-          deptTotal.toFixed(4),
-        ]
-      })
-
-      const grandTotal = deptTotalSummaryRow
-        ? deptTotalSummaryRow.total
-        : deptMonthRows.reduce((acc, m) => acc + m.total, 0)
-      const totalRowLine = [
-        '"รวม"',
-        ...deptMonthRows.map((m) => m.total.toFixed(4)),
-        grandTotal.toFixed(4),
-      ]
-
-      const csvContent =
-        '\uFEFF' +
-        [headers.join(','), ...rows.map((r) => r.join(',')), totalRowLine.join(',')].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `ipd_dept_sumadjrw_${ds1}_to_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } else {
-      const headers = [
-        'เดือน',
-        'อายุรกรรม',
-        'ศัลยกรรม',
-        'สูตินารีเวชกรรม',
-        'กุมารเวชกรรม',
-        'ออร์โธปิติกส์',
-        'ENT',
-        'จักษุ',
-        'อื่นๆ',
-        'ทันตกรรม',
-        'จิตเวช',
-        'รวม (SumAdjRW)',
-      ]
-
-      const rows = deptAdjrwData.map((d) => [
-        `"${d.month}"`,
-        d.medicine.toFixed(4),
-        d.surgery.toFixed(4),
-        d.obgyn.toFixed(4),
-        d.pediatrics.toFixed(4),
-        d.orthopedics.toFixed(4),
-        d.ent.toFixed(4),
-        d.eye.toFixed(4),
-        d.other.toFixed(4),
-        d.dental.toFixed(4),
-        d.psychiatry.toFixed(4),
-        d.total.toFixed(4),
-      ])
-
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `ipd_dept_sumadjrw_${ds1}_to_${ds2}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    }
-  }
-
   const formatNumber = (num: number) => num.toLocaleString('th-TH')
   const formatCurrency = (num: number) =>
     '฿' + num.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
@@ -525,19 +526,17 @@ export default function IpdClient() {
             <RefreshCw size={14} className={loading || deptAdjrwLoading ? 'animate-spin' : ''} />
             <span>รีเฟรช</span>
           </button>
-          <button
-            type="button"
-            onClick={() => (subTab === 'department' ? exportDeptAdjrwCSV() : exportCSV())}
-            disabled={
-              subTab === 'department'
-                ? deptAdjrwLoading || deptAdjrwData.length === 0
-                : loading || filteredData.length === 0
-            }
-            className="rcm-btn rcm-btn-primary"
-          >
-            <Download size={14} />
-            <span>ส่งออก Excel (CSV)</span>
-          </button>
+          {subTab !== 'department' && (
+            <button
+              type="button"
+              onClick={exportCSV}
+              disabled={loading || filteredData.length === 0}
+              className="rcm-btn rcm-btn-primary"
+            >
+              <Download size={14} />
+              <span>ส่งออก Excel (CSV)</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1386,6 +1385,36 @@ export default function IpdClient() {
               </div>
 
               <div className="rcm-dept-kpi-card">
+                <div className="rcm-dept-kpi-icon" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>
+                  <TrendingUp size={22} />
+                </div>
+                <div>
+                  <p className="rcm-dept-kpi-label">CMI รวมเฉลี่ย</p>
+                  <p className="rcm-dept-kpi-val" style={{ color: '#1d4ed8' }}>
+                    {deptStats.grandCmi.toFixed(4)}
+                  </p>
+                  <p className="rcm-dept-kpi-sub">
+                    AdjRW รวม / ครั้งรวม
+                  </p>
+                </div>
+              </div>
+
+              <div className="rcm-dept-kpi-card">
+                <div className="rcm-dept-kpi-icon" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
+                  <Users size={22} />
+                </div>
+                <div>
+                  <p className="rcm-dept-kpi-label">ยอดผู้ป่วยใน (IPD)</p>
+                  <p className="rcm-dept-kpi-val" style={{ color: '#15803d', fontSize: '1.05rem' }}>
+                    {deptStats.grandPatients.toLocaleString()} คน / {deptStats.grandVisits.toLocaleString()} ครั้ง
+                  </p>
+                  <p className="rcm-dept-kpi-sub">
+                    คนรวม (HN) / ครั้งรวม (AN)
+                  </p>
+                </div>
+              </div>
+
+              <div className="rcm-dept-kpi-card">
                 <div className="rcm-dept-kpi-icon" style={{ backgroundColor: deptStats.topDeptBg, color: deptStats.topDeptColor }}>
                   <Award size={22} />
                 </div>
@@ -1399,479 +1428,267 @@ export default function IpdClient() {
                   </p>
                 </div>
               </div>
-
-              <div className="rcm-dept-kpi-card">
-                <div className="rcm-dept-kpi-icon" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>
-                  <TrendingUp size={22} />
-                </div>
-                <div>
-                  <p className="rcm-dept-kpi-label">เดือนภาระงานสูงสุด</p>
-                  <p className="rcm-dept-kpi-val" style={{ color: '#1d4ed8' }}>
-                    {deptStats.peakMonthName}
-                  </p>
-                  <p className="rcm-dept-kpi-sub">
-                    SumAdjRW รวม {deptStats.peakMonthVal.toFixed(4)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rcm-dept-kpi-card">
-                <div className="rcm-dept-kpi-icon" style={{ backgroundColor: '#f5f3ff', color: '#7c3aed' }}>
-                  <Building2 size={22} />
-                </div>
-                <div>
-                  <p className="rcm-dept-kpi-label">กลุ่มแผนกการรักษา</p>
-                  <p className="rcm-dept-kpi-val" style={{ color: '#6d28d9' }}>
-                    {deptStats.deptCount} แผนก
-                  </p>
-                  <p className="rcm-dept-kpi-sub">
-                    ครอบคลุมบริการผู้ป่วยในทุกสาขา
-                  </p>
-                </div>
-              </div>
             </div>
           )}
 
-          {/* Table Card */}
+          {/* ========================================================================= */}
+          {/* ตารางข้อมูลผู้ป่วยใน (IPD) แยกรายเดือนและรายแผนก: เดือน | แผนก | คน | ครั้ง | SumAdjRW | CMI */}
+          {/* ========================================================================= */}
           <div className="rcm-table-card">
             <div className="rcm-table-header">
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
-                  🏢 ตารางจำนวน SumAdjRW แยกรายแผนก IPD
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <Building2 size={18} style={{ color: '#0f172a' }} />
+                  <span>🏢 ตารางสรุปข้อมูลผู้ป่วยใน (IPD) แยกรายเดือนและรายแผนก</span>
                 </h3>
-                <p style={{ fontSize: '0.85rem', color: '#334155', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
-                  {deptTableOrientation === 'dept_as_rows'
-                    ? 'แสดงผลรวมค่าน้ำหนักสัมพัทธ์ (SumAdjRW) จำแนกตามรายชื่อแผนก (แถว) และรายเดือน (คอลัมน์)'
-                    : 'แสดงผลรวมค่าน้ำหนักสัมพัทธ์ (SumAdjRW) จำแนกตามรายเดือน (แถว) และรายชื่อแผนก (คอลัมน์)'}
+                <p style={{ fontSize: '0.85rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                  แสดงรายละเอียด คน, ครั้ง, SumAdjRW และ CMI แยกตามเดือนและแผนกการรักษา
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                {/* Segmented Switcher */}
-                <div className="rcm-view-switcher">
-                  <button
-                    type="button"
-                    onClick={() => setDeptTableOrientation('dept_as_rows')}
-                    className={`rcm-view-switcher-btn ${deptTableOrientation === 'dept_as_rows' ? 'active' : ''}`}
-                    title="แสดงรายชื่อแผนกเป็นแถว และแสดงเดือนเป็นคอลัมน์"
-                  >
-                    <Building2 size={13} />
-                    <span>แผนกเป็นแถว</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeptTableOrientation('month_as_rows')}
-                    className={`rcm-view-switcher-btn ${deptTableOrientation === 'month_as_rows' ? 'active' : ''}`}
-                    title="แสดงรายเดือนเป็นแถว และแสดงแผนกเป็นคอลัมน์"
-                  >
-                    <Calendar size={13} />
-                    <span>เดือนเป็นแถว</span>
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={exportDeptAdjrwCSV}
-                  disabled={deptAdjrwLoading || deptAdjrwData.length === 0}
-                  className="rcm-btn rcm-btn-secondary"
-                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                  title="ส่งออกตาราง SumAdjRW แยกรายแผนก เป็นไฟล์ CSV"
+                {/* Month Filter */}
+                <select
+                  value={selectedDeptMonth}
+                  onChange={(e) => setSelectedDeptMonth(e.target.value)}
+                  className="rcm-input"
+                  style={{ width: 'auto', minWidth: '160px', padding: '0.35rem 0.65rem', fontSize: '0.82rem' }}
                 >
-                  <Download size={13} />
-                  <span>ส่งออก CSV</span>
-                </button>
+                  <option value="all">ทุกเดือน (ทั้งหมด {deptMonthRows.length} เดือน)</option>
+                  {deptMonthRows.map((m) => (
+                    <option key={m.month} value={m.month}>
+                      เดือน {m.month}
+                    </option>
+                  ))}
+                  {deptTotalSummaryRow && <option value="รวม">รวมทั้งปี (สรุปรวม)</option>}
+                </select>
+
+                {/* Hide zero rows toggle */}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={hideZeroRows}
+                    onChange={(e) => setHideZeroRows(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>ซ่อนแถวที่ยอดเป็น 0</span>
+                </label>
               </div>
             </div>
 
-            <div className="rcm-table-responsive" style={{ maxHeight: '650px' }}>
-              {deptTableOrientation === 'dept_as_rows' ? (
-                /* มุมมองที่ 1: แผนกเป็นแถว (Department as Rows) และ เดือนเป็นคอลัมน์ */
-                <table className="rcm-table rcm-dept-table">
-                  <thead>
+            <div className="rcm-table-responsive" style={{ maxHeight: '720px' }}>
+              <table className="rcm-table">
+                <thead>
+                  <tr>
+                    <th className="rcm-text-center" style={{ minWidth: '100px' }}>เดือน</th>
+                    <th style={{ textAlign: 'left', minWidth: '160px' }}>แผนก</th>
+                    <th className="rcm-text-center" style={{ minWidth: '95px' }}>คน</th>
+                    <th className="rcm-text-center" style={{ minWidth: '95px' }}>ครั้ง</th>
+                    <th className="rcm-text-center" style={{ minWidth: '120px' }}>SumAdjRW</th>
+                    <th className="rcm-text-center" style={{ minWidth: '100px' }}>CMI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deptAdjrwLoading ? (
                     <tr>
-                      <th className="rcm-dept-sticky-col rcm-dept-header-sticky">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                          <Building2 size={15} style={{ color: '#059669' }} />
-                          <span>แผนกการรักษา</span>
-                        </div>
-                      </th>
-                      {deptMonthRows.map((m) => {
-                        const isPeakMonth = deptStats && deptStats.peakMonthName === m.month
-                        return (
-                          <th
-                            key={m.month}
-                            className={`rcm-text-center ${isPeakMonth ? 'rcm-month-peak-th' : ''}`}
-                            style={{ minWidth: '92px' }}
-                          >
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.15rem' }}>
-                              <span>{m.month}</span>
-                              {isPeakMonth && (
-                                <span className="rcm-peak-month-badge">สูงสุด</span>
-                              )}
-                            </div>
-                          </th>
-                        )
-                      })}
-                      <th className="rcm-text-center rcm-dept-total-th">
-                        <span>รวม (SumAdjRW)</span>
-                      </th>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '3.5rem' }}>
+                        <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#475569' }} />
+                        <p style={{ color: '#334155', fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>
+                          กำลังดึงข้อมูลแยกรายเดือนและรายแผนกจากฐานข้อมูล HOSxP...
+                        </p>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {deptAdjrwLoading ? (
-                      <tr>
-                        <td
-                          colSpan={deptMonthRows.length + 2}
-                          style={{ textAlign: 'center', padding: '3.5rem' }}
-                        >
-                          <RefreshCw
-                            size={24}
-                            className="animate-spin"
-                            style={{ margin: '0 auto 0.5rem', color: '#059669' }}
-                          />
-                          <p style={{ color: '#334155', fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>
-                            กำลังดึงข้อมูล SumAdjRW แยกรายแผนกจากฐานข้อมูล HOSxP...
-                          </p>
-                        </td>
-                      </tr>
-                    ) : deptAdjrwError ? (
-                      <tr>
-                        <td
-                          colSpan={deptMonthRows.length + 2}
-                          style={{ textAlign: 'center', padding: '2rem', color: '#dc2626', fontWeight: 600 }}
-                        >
-                          <AlertCircle size={20} style={{ margin: '0 auto 0.5rem' }} />
-                          <p style={{ margin: 0 }}>{deptAdjrwError}</p>
-                        </td>
-                      </tr>
-                    ) : deptAdjrwData.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={deptMonthRows.length + 2}
-                          style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: 600 }}
-                        >
-                          ไม่พบข้อมูล SumAdjRW ในช่วงเวลาที่เลือก
-                        </td>
-                      </tr>
-                    ) : (
-                      IPD_DEPARTMENTS.map((dept) => {
-                        const deptTotal = deptTotalSummaryRow
-                          ? deptTotalSummaryRow[dept.key]
-                          : deptMonthRows.reduce((acc, m) => acc + m[dept.key], 0)
-                        const pctShare =
-                          deptStats && deptStats.grandTotal > 0
-                            ? (deptTotal / deptStats.grandTotal) * 100
-                            : 0
+                  ) : deptAdjrwError ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: '#dc2626', fontWeight: 600 }}>
+                        <AlertCircle size={20} style={{ margin: '0 auto 0.5rem' }} />
+                        <p style={{ margin: 0 }}>{deptAdjrwError}</p>
+                      </td>
+                    </tr>
+                  ) : deptAdjrwData.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: 600 }}>
+                        ไม่พบข้อมูลในช่วงเวลาที่เลือก
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {/* 1. Monthly blocks */}
+                      {(selectedDeptMonth === 'all'
+                        ? deptMonthRows
+                        : deptMonthRows.filter((m) => m.month === selectedDeptMonth)
+                      ).map((m) => {
+                        const deptsToRender = IPD_DEPARTMENTS.filter((dept) => {
+                          if (!hideZeroRows) return true
+                          const dData = m.depts?.[dept.key]
+                          const p = dData?.patients ?? 0
+                          const v = dData?.visits ?? 0
+                          const a = dData?.adjrw ?? Number((m as any)[dept.key] || 0)
+                          return p > 0 || v > 0 || a > 0
+                        })
 
                         return (
-                          <tr key={dept.key} className="rcm-dept-row">
-                            <td className="rcm-dept-sticky-col rcm-dept-cell-sticky">
-                              <span
-                                className="rcm-dept-name-badge"
-                                style={{
-                                  backgroundColor: dept.bg,
-                                  color: dept.color,
-                                  border: `1px solid ${dept.border}`,
-                                }}
-                              >
-                                {dept.name}
-                              </span>
-                            </td>
-                            {deptMonthRows.map((m) => {
-                              const val = m[dept.key]
-                              return (
-                                <td
-                                  key={m.month}
-                                  className={`rcm-text-center font-mono ${val > 0 ? 'rcm-cell-val-active' : 'rcm-cell-val-empty'}`}
-                                >
-                                  {val > 0 ? (
-                                    <span className="rcm-val-number">{val.toFixed(4)}</span>
-                                  ) : (
-                                    <span className="rcm-val-dash">–</span>
-                                  )}
+                          <React.Fragment key={m.month}>
+                            {deptsToRender.length === 0 ? (
+                              <tr className="rcm-dept-row">
+                                <td className="rcm-dept-merged-month font-mono">
+                                  {m.month}
                                 </td>
-                              )
-                            })}
-                            <td className="rcm-text-center font-mono rcm-dept-total-cell">
-                              <div className="rcm-dept-total-num">{deptTotal.toFixed(4)}</div>
-                              {deptStats && deptStats.grandTotal > 0 && (
-                                <div className="rcm-dept-total-breakdown">
-                                  <div className="rcm-dept-pct-label">
-                                    <span>{pctShare.toFixed(1)}%</span>
-                                    <span className="rcm-dept-pct-sub">ของ รพ.</span>
-                                  </div>
-                                  <div className="rcm-dept-bar-track">
-                                    <div
-                                      className="rcm-dept-bar-fill"
-                                      style={{
-                                        width: `${Math.min(100, Math.max(4, pctShare))}%`,
-                                        background: `linear-gradient(90deg, ${dept.color}, #059669)`,
-                                      }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
+                                <td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', padding: '0.75rem' }}>
+                                  (ไม่มียอดผู้ป่วยในเดือนนี้)
+                                </td>
+                              </tr>
+                            ) : (
+                              deptsToRender.map((dept, deptIdx) => {
+                                const dData = m.depts?.[dept.key]
+                                const p = dData?.patients ?? 0
+                                const v = dData?.visits ?? 0
+                                const a = dData?.adjrw ?? Number((m as any)[dept.key] || 0)
+                                const c = dData?.cmi ?? (v > 0 ? Number((a / v).toFixed(4)) : 0)
+
+                                return (
+                                  <tr key={`${m.month}-${dept.key}`} className="rcm-dept-row">
+                                    {deptIdx === 0 && (
+                                      <td
+                                        rowSpan={deptsToRender.length}
+                                        className="rcm-dept-merged-month font-mono"
+                                      >
+                                        {m.month}
+                                      </td>
+                                    )}
+                                    <td style={{ textAlign: 'left', fontWeight: 600, color: '#0f172a' }}>
+                                      {dept.name}
+                                    </td>
+                                    <td className="rcm-text-center font-mono" style={{ color: p > 0 ? '#0f172a' : '#94a3b8' }}>
+                                      {p > 0 ? p.toLocaleString() : '–'}
+                                    </td>
+                                    <td className="rcm-text-center font-mono" style={{ color: v > 0 ? '#0f172a' : '#94a3b8' }}>
+                                      {v > 0 ? v.toLocaleString() : '–'}
+                                    </td>
+                                    <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: a > 0 ? '#0f172a' : '#94a3b8' }}>
+                                      {a > 0 ? a.toFixed(4) : '–'}
+                                    </td>
+                                    <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: c > 0 ? '#0f172a' : '#94a3b8' }}>
+                                      {c > 0 ? c.toFixed(4) : '–'}
+                                    </td>
+                                  </tr>
+                                )
+                              })
+                            )}
+
+                            {/* Monthly subtotal row (ไฮไลท์สีเขียวอ่อน) */}
+                            <tr className="rcm-dept-subtotal-row">
+                              <td colSpan={2} style={{ textAlign: 'left', paddingLeft: '1rem' }}>
+                                ∑ รวมประจำเดือน {m.month}
+                              </td>
+                              <td className="rcm-text-center font-mono">
+                                {m.total_patients > 0 ? m.total_patients.toLocaleString() : '0'}
+                              </td>
+                              <td className="rcm-text-center font-mono">
+                                {m.total_visits > 0 ? m.total_visits.toLocaleString() : '0'}
+                              </td>
+                              <td className="rcm-text-center font-mono">
+                                {(m.adjrw_sum || m.total).toFixed(4)}
+                              </td>
+                              <td className="rcm-text-center font-mono">
+                                {m.cmi.toFixed(4)}
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        )
+                      })}
+
+                      {/* 2. Total Year Summary Block (เมื่อเลือกดูทั้งหมด หรือเลือกดู 'รวม') */}
+                      {(selectedDeptMonth === 'all' || selectedDeptMonth === 'รวม') && deptTotalSummaryRow && (
+                        <>
+                          <tr style={{ backgroundColor: '#f0fdf4', borderTop: '2px solid #86efac', borderBottom: '1px solid #bbf7d0' }}>
+                            <td colSpan={6} style={{ padding: '0.6rem 1rem', fontWeight: 800, color: '#166534', fontSize: '0.88rem' }}>
+                              📊 สรุปรวมทั้งปีงบประมาณ / ตลอดช่วงเวลา (แยกรายแผนก)
                             </td>
                           </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                  {!deptAdjrwLoading && deptAdjrwData.length > 0 && (
-                    <tfoot>
-                      <tr className="rcm-dept-tfoot-row">
-                        <td className="rcm-dept-sticky-col rcm-dept-tfoot-sticky">
-                          <span>รวมทุกแผนก</span>
-                        </td>
-                        {deptMonthRows.map((m) => (
-                          <td
-                            key={m.month}
-                            className="rcm-text-center font-mono rcm-dept-tfoot-month-cell"
-                          >
-                            {m.total.toFixed(4)}
-                          </td>
-                        ))}
-                        <td className="rcm-text-center font-mono rcm-dept-tfoot-grand-cell">
-                          <div className="rcm-grand-total-val">
-                            {(deptTotalSummaryRow
-                              ? deptTotalSummaryRow.total
-                              : deptMonthRows.reduce((acc, m) => acc + m.total, 0)
-                            ).toFixed(4)}
-                          </div>
-                          <div className="rcm-grand-total-sub">
-                            100.0% (Grand Total)
-                          </div>
-                        </td>
-                      </tr>
-                    </tfoot>
+                          {(() => {
+                            const summaryDeptsToRender = IPD_DEPARTMENTS.filter((dept) => {
+                              if (!hideZeroRows) return true
+                              const dData = deptTotalSummaryRow.depts?.[dept.key]
+                              const p = dData?.patients ?? 0
+                              const v = dData?.visits ?? 0
+                              const a = dData?.adjrw ?? Number((deptTotalSummaryRow as any)[dept.key] || 0)
+                              return p > 0 || v > 0 || a > 0
+                            })
+
+                            if (summaryDeptsToRender.length === 0) {
+                              return (
+                                <tr className="rcm-dept-row">
+                                  <td className="rcm-dept-merged-month font-mono">รวม</td>
+                                  <td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', padding: '0.75rem' }}>
+                                    (ไม่มียอดผู้ป่วย)
+                                  </td>
+                                </tr>
+                              )
+                            }
+
+                            return summaryDeptsToRender.map((dept, deptIdx) => {
+                              const dData = deptTotalSummaryRow.depts?.[dept.key]
+                              const p = dData?.patients ?? 0
+                              const v = dData?.visits ?? 0
+                              const a = dData?.adjrw ?? Number((deptTotalSummaryRow as any)[dept.key] || 0)
+                              const c = dData?.cmi ?? (v > 0 ? Number((a / v).toFixed(4)) : 0)
+
+                              return (
+                                <tr key={`total-${dept.key}`} className="rcm-dept-row" style={{ backgroundColor: '#fbfcfd' }}>
+                                  {deptIdx === 0 && (
+                                    <td
+                                      rowSpan={summaryDeptsToRender.length}
+                                      className="rcm-dept-merged-month font-mono"
+                                    >
+                                      รวม
+                                    </td>
+                                  )}
+                                  <td style={{ textAlign: 'left', fontWeight: 700, color: '#0f172a' }}>
+                                    {dept.name}
+                                  </td>
+                                  <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: p > 0 ? '#0f172a' : '#94a3b8' }}>
+                                    {p > 0 ? p.toLocaleString() : '–'}
+                                  </td>
+                                  <td className="rcm-text-center font-mono" style={{ fontWeight: 600, color: v > 0 ? '#0f172a' : '#94a3b8' }}>
+                                    {v > 0 ? v.toLocaleString() : '–'}
+                                  </td>
+                                  <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: a > 0 ? '#0f172a' : '#94a3b8' }}>
+                                    {a > 0 ? a.toFixed(4) : '–'}
+                                  </td>
+                                  <td className="rcm-text-center font-mono" style={{ fontWeight: 700, color: c > 0 ? '#0f172a' : '#94a3b8' }}>
+                                    {c > 0 ? c.toFixed(4) : '–'}
+                                  </td>
+                                </tr>
+                              )
+                            })
+                          })()}
+                        </>
+                      )}
+                    </>
                   )}
-                </table>
-              ) : (
-                /* มุมมองที่ 2: เดือนเป็นแถว (Month as Rows) และ แผนกเป็นคอลัมน์ */
-                <table className="rcm-table">
-                  <thead>
-                    <tr>
-                      <th className="rcm-text-center rcm-month-col-divided" style={{ width: '90px' }}>เดือน</th>
-                      <th className="rcm-text-center">อายุรกรรม</th>
-                      <th className="rcm-text-center">ศัลยกรรม</th>
-                      <th className="rcm-text-center">สูตินารีเวชกรรม</th>
-                      <th className="rcm-text-center">กุมารเวชกรรม</th>
-                      <th className="rcm-text-center">ออร์โธปิติกส์</th>
-                      <th className="rcm-text-center">ENT</th>
-                      <th className="rcm-text-center">จักษุ</th>
-                      <th className="rcm-text-center">อื่นๆ</th>
-                      <th className="rcm-text-center">ทันตกรรม</th>
-                      <th className="rcm-text-center">จิตเวช</th>
-                      <th
-                        className="rcm-text-center"
-                        style={{
-                          minWidth: '110px',
-                          backgroundColor: '#ecfdf5',
-                          color: '#065f46',
-                          fontWeight: 800,
-                          borderLeft: '2px solid #a7f3d0',
-                        }}
-                      >
-                        รวม (SumAdjRW)
-                      </th>
+                </tbody>
+                {!deptAdjrwLoading && deptAdjrwData.length > 0 && (
+                  <tfoot>
+                    <tr className="rcm-dept-grand-total-row total-row">
+                      <td colSpan={2} style={{ textAlign: 'left', paddingLeft: '1rem' }}>
+                        🏆 รวมทั้งโรงพยาบาล (ทุกแผนก)
+                      </td>
+                      <td className="rcm-text-center font-mono">
+                        {(deptTotalSummaryRow?.total_patients ?? deptStats?.grandPatients ?? 0).toLocaleString()}
+                      </td>
+                      <td className="rcm-text-center font-mono">
+                        {(deptTotalSummaryRow?.total_visits ?? deptStats?.grandVisits ?? 0).toLocaleString()}
+                      </td>
+                      <td className="rcm-text-center font-mono">
+                        {(deptTotalSummaryRow ? (deptTotalSummaryRow.adjrw_sum || deptTotalSummaryRow.total) : (deptStats?.grandTotal ?? 0)).toFixed(4)}
+                      </td>
+                      <td className="rcm-text-center font-mono">
+                        {(deptTotalSummaryRow?.cmi ?? deptStats?.grandCmi ?? 0).toFixed(4)}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {deptAdjrwLoading ? (
-                      <tr>
-                        <td colSpan={12} style={{ textAlign: 'center', padding: '3.5rem' }}>
-                          <RefreshCw
-                            size={24}
-                            className="animate-spin"
-                            style={{ margin: '0 auto 0.5rem', color: '#059669' }}
-                          />
-                          <p style={{ color: '#334155', fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>
-                            กำลังดึงข้อมูล SumAdjRW แยกรายแผนกจากฐานข้อมูล HOSxP...
-                          </p>
-                        </td>
-                      </tr>
-                    ) : deptAdjrwError ? (
-                      <tr>
-                        <td colSpan={12} style={{ textAlign: 'center', padding: '2rem', color: '#dc2626', fontWeight: 600 }}>
-                          <AlertCircle size={20} style={{ margin: '0 auto 0.5rem' }} />
-                          <p style={{ margin: 0 }}>{deptAdjrwError}</p>
-                        </td>
-                      </tr>
-                    ) : deptAdjrwData.length === 0 ? (
-                      <tr>
-                        <td colSpan={12} style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontWeight: 600 }}>
-                          ไม่พบข้อมูล SumAdjRW ในช่วงเวลาที่เลือก
-                        </td>
-                      </tr>
-                    ) : (
-                      deptMonthRows.map((row, idx) => (
-                        <tr key={row.month || idx}>
-                          <td
-                            className="rcm-text-center font-mono rcm-month-col-divided"
-                            style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}
-                          >
-                            {row.month}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.medicine > 0 ? 600 : 400,
-                              color: row.medicine > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.medicine > 0 ? row.medicine.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.surgery > 0 ? 600 : 400,
-                              color: row.surgery > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.surgery > 0 ? row.surgery.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.obgyn > 0 ? 600 : 400,
-                              color: row.obgyn > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.obgyn > 0 ? row.obgyn.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.pediatrics > 0 ? 600 : 400,
-                              color: row.pediatrics > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.pediatrics > 0 ? row.pediatrics.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.orthopedics > 0 ? 600 : 400,
-                              color: row.orthopedics > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.orthopedics > 0 ? row.orthopedics.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.ent > 0 ? 600 : 400,
-                              color: row.ent > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.ent > 0 ? row.ent.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.eye > 0 ? 600 : 400,
-                              color: row.eye > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.eye > 0 ? row.eye.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.other > 0 ? 600 : 400,
-                              color: row.other > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.other > 0 ? row.other.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.dental > 0 ? 600 : 400,
-                              color: row.dental > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.dental > 0 ? row.dental.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: row.psychiatry > 0 ? 600 : 400,
-                              color: row.psychiatry > 0 ? '#0f172a' : '#cbd5e1',
-                            }}
-                          >
-                            {row.psychiatry > 0 ? row.psychiatry.toFixed(4) : '-'}
-                          </td>
-                          <td
-                            className="rcm-text-center font-mono"
-                            style={{
-                              fontWeight: 800,
-                              color: '#064e3b',
-                              backgroundColor: '#f0fdf4',
-                              borderLeft: '2px solid #a7f3d0',
-                            }}
-                          >
-                            {row.total.toFixed(4)}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  {deptTotalSummaryRow && (
-                    <tfoot>
-                      <tr
-                        className="total-row"
-                        style={{ backgroundColor: '#f8fafc', borderTop: '2px solid #cbd5e1' }}
-                      >
-                        <td className="rcm-text-center font-mono rcm-month-col-divided" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          <span>รวม</span>
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.medicine.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.surgery.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.obgyn.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.pediatrics.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.orthopedics.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.ent.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.eye.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.other.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.dental.toFixed(4)}
-                        </td>
-                        <td className="rcm-text-center font-mono" style={{ fontWeight: 900, color: '#0f172a' }}>
-                          {deptTotalSummaryRow.psychiatry.toFixed(4)}
-                        </td>
-                        <td
-                          className="rcm-text-center font-mono"
-                          style={{
-                            fontWeight: 900,
-                            color: '#064e3b',
-                            backgroundColor: '#dcfce7',
-                            borderLeft: '2px solid #86efac',
-                            fontSize: '0.92rem',
-                          }}
-                        >
-                          {deptTotalSummaryRow.total.toFixed(4)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              )}
+                  </tfoot>
+                )}
+              </table>
             </div>
           </div>
         </div>
@@ -1879,101 +1696,326 @@ export default function IpdClient() {
 
       {/* ========================================================================= */}
       {/* SUBTAB 4: 📊 กราฟสรุป (Charts)                                            */}
-      {/* 3 กราฟแท่งแนวตั้ง (Horizontal BarCharts) ตามต้นฉบับ                          */}
+      {/* แสดงทั้งกราฟวิเคราะห์แยกรายแผนก (Department) และแยกตามแพทย์ (Physicians)         */}
       {/* ========================================================================= */}
       {subTab === 'overview' && (
-        <div className="rcm-chart-grid-3">
-          {/* Chart 1: Cases by Admit Doctor */}
-          <div className="rcm-chart-card">
-            <div className="rcm-chart-header">
-              <div>
-                <h4 className="rcm-chart-title">
-                  จำนวนผู้ป่วยแยกตามแพทย์ Admit
-                </h4>
-                <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
-                  เรียงตามจำนวนผู้ป่วยที่รับไว้รักษา (ราย)
-                </p>
-              </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Chart Category Filter Controls */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div className="rcm-button-group">
+              <button
+                type="button"
+                onClick={() => setChartCategory('all')}
+                className={`rcm-mode-btn ${chartCategory === 'all' ? 'active' : ''}`}
+              >
+                📊 แสดงกราฟทั้งหมด
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartCategory('department')}
+                className={`rcm-mode-btn ${chartCategory === 'department' ? 'active' : ''}`}
+              >
+                🏢 วิเคราะห์แยกรายแผนก
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartCategory('doctor')}
+                className={`rcm-mode-btn ${chartCategory === 'doctor' ? 'active' : ''}`}
+              >
+                👨‍⚕️ วิเคราะห์ตามแพทย์
+              </button>
             </div>
-            <div style={{ height: '320px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={doctorAdmitSummaryData.slice(0, 10).map((d) => ({ name: d.doctor, cases: d.cases }))}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                >
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(val: any) => [`${val} ราย`, 'ผู้ป่วย Admit']} />
-                  <Bar dataKey="cases" fill="#059669" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
+              {chartCategory === 'department' && 'แสดง 4 กราฟวิเคราะห์ผู้ป่วยในแยกรายแผนก'}
+              {chartCategory === 'doctor' && 'แสดง 3 กราฟวิเคราะห์แยกตามแพทย์ผู้รักษา'}
+              {chartCategory === 'all' && 'แสดงครบทั้ง 7 กราฟวิเคราะห์ (แผนก & แพทย์)'}
+            </span>
           </div>
 
-          {/* Chart 2: SumAdjRW by Admit Doctor */}
-          <div className="rcm-chart-card">
-            <div className="rcm-chart-header">
-              <div>
-                <h4 className="rcm-chart-title">
-                  ผลรวมค่าความยากโรค SumAdjRW แยกตามแพทย์ Admit
-                </h4>
-                <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
-                  ผลรวมค่าน้ำหนักสัมพัทธ์ (SumAdjRW)
-                </p>
+          {/* ===================================================================== */}
+          {/* SECTION 1: 🏢 กราฟวิเคราะห์ผู้ป่วยในแยกรายแผนกการรักษา (Department Charts)  */}
+          {/* ===================================================================== */}
+          {(chartCategory === 'all' || chartCategory === 'department') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="rcm-chart-section-title">
+                <h3>
+                  <Building2 size={20} style={{ color: '#047857' }} />
+                  <span>🏢 กราฟสรุปภาพรวมแยกรายแผนกการรักษา</span>
+                </h3>
+                <span className="rcm-chart-section-badge">
+                  {deptStats?.monthCount ? `${deptStats.monthCount} เดือน` : 'ข้อมูลรายแผนก'}
+                </span>
               </div>
-            </div>
-            <div style={{ height: '320px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={doctorAdmitSummaryData.slice(0, 10).map((d) => ({ name: d.doctor, sumAdjrw: Number(d.sumAdjrw.toFixed(4)) }))}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                >
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(val: any) => [`${val}`, 'SumAdjRW']} />
-                  <Bar dataKey="sumAdjrw" fill="#0d9488" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
 
-          {/* Chart 3: CMI by D/C Doctor */}
-          <div className="rcm-chart-card">
-            <div className="rcm-chart-header">
-              <div>
-                <h4 className="rcm-chart-title">
-                  ผลรวมค่าความยากโรค Cmi แยกตามแพทย์ D/C
-                </h4>
-                <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
-                  ค่าเฉลี่ยความซับซ้อนโรค (CMI = SumAdjRW / Cases)
-                </p>
+              {deptAdjrwLoading ? (
+                <div className="rcm-chart-card" style={{ textAlign: 'center', padding: '3rem' }}>
+                  <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#059669' }} />
+                  <p style={{ color: '#334155', fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>กำลังโหลดข้อมูลกราฟแผนกจากฐานข้อมูล HOSxP...</p>
+                </div>
+              ) : deptChartData.length === 0 ? (
+                <div className="rcm-chart-card" style={{ textAlign: 'center', padding: '2.5rem', color: '#64748b' }}>
+                  ไม่พบข้อมูลรายแผนกสำหรับสร้างกราฟในช่วงเวลานี้
+                </div>
+              ) : (
+                <>
+                  <div className="rcm-chart-grid-3">
+                    {/* Dept Chart 1: SumAdjRW by Department */}
+                    <div className="rcm-chart-card">
+                      <div className="rcm-chart-header">
+                        <div>
+                          <h4 className="rcm-chart-title">
+                            ผลรวม SumAdjRW แยกตามแผนก
+                          </h4>
+                          <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                            เรียงตามผลรวมค่าน้ำหนักสัมพัทธ์ (ความยากโรค)
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ height: '340px', width: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={deptChartSortedByAdjrw}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                          >
+                            <XAxis type="number" tick={{ fontSize: 11 }} />
+                            <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fill: '#0f172a' }} />
+                            <Tooltip
+                              formatter={(val: any) => [
+                                `${Number(val).toFixed(4)} (${deptStats?.grandTotal ? ((Number(val) / deptStats.grandTotal) * 100).toFixed(1) : 0}%)`,
+                                'SumAdjRW',
+                              ]}
+                            />
+                            <Bar dataKey="adjrw" radius={[0, 4, 4, 0]}>
+                              {deptChartSortedByAdjrw.map((entry) => (
+                                <Cell key={`dept-adjrw-${entry.key}`} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Dept Chart 2: Visits by Department */}
+                    <div className="rcm-chart-card">
+                      <div className="rcm-chart-header">
+                        <div>
+                          <h4 className="rcm-chart-title">
+                            จำนวนผู้ป่วยใน (ครั้ง/Admit) แยกตามแผนก
+                          </h4>
+                          <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                            เรียงตามจำนวนครั้งที่รับไว้รักษาในโรงพยาบาล (AN)
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ height: '340px', width: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={deptChartSortedByVisits}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                          >
+                            <XAxis type="number" tick={{ fontSize: 11 }} />
+                            <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fill: '#0f172a' }} />
+                            <Tooltip
+                              formatter={(val: any, name: any, item: any) => [
+                                `${Number(val).toLocaleString()} ครั้ง (คน: ${(item?.payload?.patients ?? 0).toLocaleString()})`,
+                                'จำนวนครั้ง',
+                              ]}
+                            />
+                            <Bar dataKey="visits" radius={[0, 4, 4, 0]}>
+                              {deptChartSortedByVisits.map((entry) => (
+                                <Cell key={`dept-visits-${entry.key}`} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Dept Chart 3: CMI by Department */}
+                    <div className="rcm-chart-card">
+                      <div className="rcm-chart-header">
+                        <div>
+                          <h4 className="rcm-chart-title">
+                            ดัชนีความซับซ้อนโรค CMI เฉลี่ยแยกตามแผนก
+                          </h4>
+                          <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                            ค่าเฉลี่ย CMI = SumAdjRW / ครั้ง (สะท้อนความยากโรค)
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ height: '340px', width: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={deptChartSortedByCmi}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                          >
+                            <XAxis type="number" tick={{ fontSize: 11 }} />
+                            <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fill: '#0f172a' }} />
+                            <Tooltip formatter={(val: any) => [`${Number(val).toFixed(4)}`, 'CMI เฉลี่ย']} />
+                            <Bar dataKey="cmi" radius={[0, 4, 4, 0]}>
+                              {deptChartSortedByCmi.map((entry) => (
+                                <Cell key={`dept-cmi-${entry.key}`} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dept Chart 4: Monthly Trend Timeline */}
+                  {deptMonthlyTrendData.length > 0 && (
+                    <div className="rcm-chart-card">
+                      <div className="rcm-chart-header">
+                        <div>
+                          <h4 className="rcm-chart-title" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <TrendingUp size={16} style={{ color: '#059669' }} />
+                            <span>แนวโน้มผลรวม SumAdjRW รวมรายเดือน</span>
+                          </h4>
+                          <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                            การเปลี่ยนแปลงของ SumAdjRW ตลอด {deptMonthlyTrendData.length} เดือน
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ height: '280px', width: '100%' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={deptMonthlyTrendData}
+                            margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                          >
+                            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#0f172a' }} />
+                            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
+                            <Tooltip
+                              formatter={(val: any, name: any, item: any) => [
+                                `${Number(val).toFixed(4)} (ผู้ป่วย: ${(item?.payload?.visits ?? 0).toLocaleString()} ครั้ง, CMI: ${(item?.payload?.cmi ?? 0).toFixed(4)})`,
+                                'SumAdjRW ประจำเดือน',
+                              ]}
+                            />
+                            <Bar dataKey="adjrw" fill="#059669" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ===================================================================== */}
+          {/* SECTION 2: 👨‍⚕️ กราฟวิเคราะห์ผู้ป่วยในแยกตามแพทย์ผู้รักษา (Physician Charts)    */}
+          {/* ===================================================================== */}
+          {(chartCategory === 'all' || chartCategory === 'doctor') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: chartCategory === 'all' ? '0.5rem' : '0' }}>
+              <div className="rcm-chart-section-title">
+                <h3>
+                  <Stethoscope size={20} style={{ color: '#2563eb' }} />
+                  <span>👨‍⚕️ กราฟสรุปภาพรวมแยกตามแพทย์ผู้ให้การรักษา</span>
+                </h3>
+                <span className="rcm-chart-section-badge" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' }}>
+                  {doctorAdmitSummaryData.length} ท่าน
+                </span>
+              </div>
+
+              <div className="rcm-chart-grid-3">
+                {/* Chart 1: Cases by Admit Doctor */}
+                <div className="rcm-chart-card">
+                  <div className="rcm-chart-header">
+                    <div>
+                      <h4 className="rcm-chart-title">
+                        จำนวนผู้ป่วยแยกตามแพทย์ Admit
+                      </h4>
+                      <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                        เรียงตามจำนวนผู้ป่วยที่รับไว้รักษา (ราย)
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ height: '320px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={doctorAdmitSummaryData.slice(0, 10).map((d) => ({ name: d.doctor, cases: d.cases }))}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                      >
+                        <XAxis type="number" tick={{ fontSize: 11 }} />
+                        <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(val: any) => [`${val} ราย`, 'ผู้ป่วย Admit']} />
+                        <Bar dataKey="cases" fill="#059669" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Chart 2: SumAdjRW by Admit Doctor */}
+                <div className="rcm-chart-card">
+                  <div className="rcm-chart-header">
+                    <div>
+                      <h4 className="rcm-chart-title">
+                        ผลรวมค่าความยากโรค SumAdjRW แยกตามแพทย์ Admit
+                      </h4>
+                      <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                        ผลรวมค่าน้ำหนักสัมพัทธ์ (SumAdjRW)
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ height: '320px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={doctorAdmitSummaryData.slice(0, 10).map((d) => ({ name: d.doctor, sumAdjrw: Number(d.sumAdjrw.toFixed(4)) }))}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                      >
+                        <XAxis type="number" tick={{ fontSize: 11 }} />
+                        <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(val: any) => [`${val}`, 'SumAdjRW']} />
+                        <Bar dataKey="sumAdjrw" fill="#0d9488" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Chart 3: CMI by D/C Doctor */}
+                <div className="rcm-chart-card">
+                  <div className="rcm-chart-header">
+                    <div>
+                      <h4 className="rcm-chart-title">
+                        ผลรวมค่าความยากโรค Cmi แยกตามแพทย์ D/C
+                      </h4>
+                      <p style={{ fontSize: '0.78rem', color: '#475569', margin: '0.2rem 0 0 0', fontWeight: 500 }}>
+                        ค่าเฉลี่ยความซับซ้อนโรค (CMI = SumAdjRW / Cases)
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ height: '320px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={doctorDcSummaryData
+                          .filter((d) => d.cases > 0)
+                          .slice(0, 10)
+                          .map((d) => ({
+                            name: d.doctor,
+                            cmi: Number((d.sumAdjrw / d.cases).toFixed(4)),
+                          }))}
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                      >
+                        <XAxis type="number" tick={{ fontSize: 11 }} />
+                        <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(val: any) => [`${val}`, 'CMI (แพทย์ D/C)']} />
+                        <Bar dataKey="cmi" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             </div>
-            <div style={{ height: '320px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={doctorDcSummaryData
-                    .filter((d) => d.cases > 0)
-                    .slice(0, 10)
-                    .map((d) => ({
-                      name: d.doctor,
-                      cmi: Number((d.sumAdjrw / d.cases).toFixed(4)),
-                    }))}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
-                >
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(val: any) => [`${val}`, 'CMI (แพทย์ D/C)']} />
-                  <Bar dataKey="cmi" fill="#6366f1" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          )}
         </div>
       )}
+
     </div>
   )
 }

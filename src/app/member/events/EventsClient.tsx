@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Calendar,
@@ -14,6 +14,10 @@ import {
   QrCode,
   Sparkles,
   ArrowRight,
+  ArrowLeft,
+  ShieldCheck,
+  UserPlus,
+  CheckCircle2,
 } from 'lucide-react'
 import './events.css'
 
@@ -57,6 +61,8 @@ interface EventItem {
   registrationCount: number
   attendanceCount: number
   isOrganizer: boolean
+  hasRegistered?: boolean
+  hasAttended?: boolean
 }
 
 interface UserStats {
@@ -75,11 +81,14 @@ export default function EventsClient({
   userStats,
   currentUser,
 }: EventsClientProps) {
+  const [allEvents, setAllEvents] = useState<EventItem[]>(initialEvents)
   const [events, setEvents] = useState<EventItem[]>(initialEvents)
-  const [activeTab, setActiveTab] = useState<'all' | 'registered' | 'my_events'>('all')
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'completed' | 'registered'>('upcoming')
   const [searchQuery, setSearchQuery] = useState('')
   const [fiscalYearFilter, setFiscalYearFilter] = useState('ALL')
   const [loading, setLoading] = useState(false)
+  const [registeringId, setRegisteringId] = useState<number | null>(null)
+  const [registeredCount, setRegisteredCount] = useState<number>(userStats.registeredCount)
 
   // Format date in Thai Buddhist Era (พ.ศ.)
   const formatThaiDate = (dateString: string) => {
@@ -124,37 +133,96 @@ export default function EventsClient({
     }
   }
 
-  // Filter events based on tab, search, and fiscal year
-  const filteredEvents = events.filter((ev) => {
-    if (activeTab === 'my_events') {
-      const isMine =
-        ev.headOrganizerId === currentUser.id ||
-        ev.coOrganizers?.some((c) => c.member?.id === currentUser.id)
-      if (!isMine) return false
+  // Counts for each filter tab
+  const counts = useMemo(() => {
+    const nowTime = new Date().getTime()
+    let upcoming = 0
+    let completed = 0
+
+    for (const ev of allEvents) {
+      const endTime = new Date(ev.eventEndDate).getTime()
+      if (endTime >= nowTime) {
+        upcoming++
+      } else {
+        completed++
+      }
     }
 
-    if (fiscalYearFilter !== 'ALL' && ev.fiscalYear !== fiscalYearFilter) {
-      return false
+    return {
+      upcoming,
+      completed,
+      registered: registeredCount,
     }
+  }, [allEvents, registeredCount])
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim()
-      const matchTitle = ev.title.toLowerCase().includes(q)
-      const matchDesc = ev.description?.toLowerCase().includes(q) || false
-      const matchLoc = ev.location?.toLowerCase().includes(q) || false
-      const matchOrg = ev.headOrganizer?.name?.toLowerCase().includes(q) || false
-      if (!matchTitle && !matchDesc && !matchLoc && !matchOrg) return false
-    }
+  // Filter & sort events: Upcoming / Ongoing first (ordered by start date asc), then Completed (ordered by end date desc)
+  const sortedFilteredEvents = useMemo(() => {
+    const nowTime = new Date().getTime()
 
-    return true
-  })
+    const filtered = events.filter((ev) => {
+      // 1. Tab-based filtering
+      if (activeTab === 'upcoming') {
+        const isUpcoming = new Date(ev.eventEndDate).getTime() >= nowTime
+        if (!isUpcoming) return false
+      } else if (activeTab === 'completed') {
+        const isCompleted = new Date(ev.eventEndDate).getTime() < nowTime
+        if (!isCompleted) return false
+      }
+
+      // 2. Fiscal year filtering
+      if (fiscalYearFilter !== 'ALL' && ev.fiscalYear !== fiscalYearFilter) {
+        return false
+      }
+
+      // 3. Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const matchTitle = ev.title.toLowerCase().includes(q)
+        const matchDesc = ev.description?.toLowerCase().includes(q) || false
+        const matchLoc = ev.location?.toLowerCase().includes(q) || false
+        const matchOrg = ev.headOrganizer?.name?.toLowerCase().includes(q) || false
+        if (!matchTitle && !matchDesc && !matchLoc && !matchOrg) return false
+      }
+
+      return true
+    })
+
+    return [...filtered].sort((a, b) => {
+      const aEndTime = new Date(a.eventEndDate).getTime()
+      const bEndTime = new Date(b.eventEndDate).getTime()
+      const aStartTime = new Date(a.eventStartDate).getTime()
+      const bStartTime = new Date(b.eventStartDate).getTime()
+
+      const aIsPast = aEndTime < nowTime
+      const bIsPast = bEndTime < nowTime
+
+      // 1. กิจกรรมที่จะมาถึง (หรือกำลังจัดงาน) แสดงก่อนกิจกรรมที่เสร็จสิ้น (จะมาถึง > เสร็จสิ้น)
+      if (!aIsPast && bIsPast) return -1
+      if (aIsPast && !bIsPast) return 1
+
+      // 2. ถ้าอยู่ในกลุ่ม "จะมาถึง / กำลังจัดงาน": เรียงวันจากใกล้ถึงที่สุด ไปยังวันไกลสุด (Ascending)
+      if (!aIsPast && !bIsPast) {
+        if (aStartTime !== bStartTime) return aStartTime - bStartTime
+        return aEndTime - bEndTime
+      }
+
+      // 3. ถ้าอยู่ในกลุ่ม "เสร็จสิ้น": เรียงวันจากวันที่สิ้นสุดล่าสุดลงไป (Descending)
+      if (bEndTime !== aEndTime) return bEndTime - aEndTime
+      return bStartTime - aStartTime
+    })
+  }, [events, activeTab, fiscalYearFilter, searchQuery])
+
+  const hasUpcomingEvents = useMemo(() => {
+    const nowTime = new Date().getTime()
+    return sortedFilteredEvents.some((e) => new Date(e.eventEndDate).getTime() >= nowTime)
+  }, [sortedFilteredEvents])
 
   // Extract distinct fiscal years
   const availableFiscalYears = Array.from(
-    new Set(events.map((e) => e.fiscalYear).filter(Boolean))
+    new Set(allEvents.map((e) => e.fiscalYear).filter(Boolean))
   ).sort().reverse()
 
-  const handleTabChange = async (tab: 'all' | 'registered' | 'my_events') => {
+  const handleTabChange = async (tab: 'upcoming' | 'completed' | 'registered') => {
     setActiveTab(tab)
     setLoading(true)
     try {
@@ -170,19 +238,82 @@ export default function EventsClient({
     }
   }
 
+  // Handle pre-registration toggle (register or cancel)
+  const handleToggleRegistration = async (e: React.MouseEvent, targetEvent: EventItem) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (registeringId === targetEvent.id) return
+
+    setRegisteringId(targetEvent.id)
+    const isCurrentlyRegistered = Boolean(targetEvent.hasRegistered)
+    const method = isCurrentlyRegistered ? 'DELETE' : 'POST'
+
+    try {
+      const res = await fetch(`/api/member/events/${targetEvent.id}/register`, { method })
+      const json = await res.json()
+
+      if (json.success) {
+        const nextRegistered = !isCurrentlyRegistered
+        const countDelta = nextRegistered ? 1 : -1
+
+        // Update events state
+        setEvents((prev) =>
+          prev.map((item) =>
+            item.id === targetEvent.id
+              ? {
+                  ...item,
+                  hasRegistered: nextRegistered,
+                  registrationCount: Math.max(0, item.registrationCount + countDelta),
+                }
+              : item
+          )
+        )
+
+        // Update allEvents state so counts stay in sync
+        setAllEvents((prev) =>
+          prev.map((item) =>
+            item.id === targetEvent.id
+              ? {
+                  ...item,
+                  hasRegistered: nextRegistered,
+                  registrationCount: Math.max(0, item.registrationCount + countDelta),
+                }
+              : item
+          )
+        )
+
+        // Update user registeredCount stats
+        setRegisteredCount((prev) => Math.max(0, prev + countDelta))
+      } else {
+        alert(json.error || 'เกิดข้อผิดพลาดในการลงทะเบียน')
+      }
+    } catch (err: any) {
+      console.error('Error toggling registration:', err)
+      alert(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ')
+    } finally {
+      setRegisteringId(null)
+    }
+  }
+
   return (
     <div className="eventsPageContainer">
+      {/* Back Navigation */}
+      <Link href="/member" className="eventsBackLink">
+        <ArrowLeft size={16} /> กลับสู่ระบบสมาชิก
+      </Link>
+
       {/* Top Header & Stat Banner */}
-      <div className="eventsHeaderBanner">
+      <header className="eventsHeaderBanner">
         <div className="eventsHeaderRow">
           <div>
             <div className="eventsPillTag">
-              <Sparkles size={13} />
-              <span>Thoen Hospital Event Portal</span>
+              <ShieldCheck size={14} />
+              <span>โรงพยาบาลเถิน จ.ลำปาง • ระบบกิจกรรมและเช็คอิน ThaID</span>
             </div>
-            <h1 className="eventsHeaderTitle">กิจกรรมโรงพยาบาลเถิน</h1>
+            <h1 className="eventsHeaderTitle">กิจกรรมและโครงการโรงพยาบาลเถิน</h1>
             <p className="eventsHeaderSubtitle">
-              เข้าร่วมกิจกรรม สแกนเช็คอินผ่าน ThaID หน้างานเพื่อสะสมคะแนน และติดตามอันดับการมีส่วนร่วมของแผนก
+              เข้าร่วมกิจกรรม สแกนเช็คอินผ่าน ThaID หน้างานเพื่อสะสมคะแนน และติดตามอันดับการมีส่วนร่วมของบุคลากร
             </p>
           </div>
 
@@ -214,7 +345,7 @@ export default function EventsClient({
           <div className="eventsStatCard">
             <div className="eventsStatLabel">กิจกรรมที่ลงทะเบียนไว้</div>
             <div className="eventsStatValue">
-              {userStats.registeredCount}
+              {registeredCount}
               <span className="eventsStatUnit">งาน</span>
             </div>
           </div>
@@ -222,34 +353,40 @@ export default function EventsClient({
           <div className="eventsStatCard">
             <div className="eventsStatLabel">กิจกรรมทั้งหมดในระบบ</div>
             <div className="eventsStatValue">
-              {events.length}
+              {allEvents.length}
               <span className="eventsStatUnit">งาน</span>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Filter & Search Bar */}
       <div className="eventsFilterBar">
         {/* Navigation Tabs */}
-        <div className="eventsTabsGroup">
+        <div className="eventsTabsGroup" role="tablist" aria-label="หมวดหมู่กิจกรรม">
           <button
-            onClick={() => handleTabChange('all')}
-            className={`eventsTabButton ${activeTab === 'all' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === 'upcoming'}
+            onClick={() => handleTabChange('upcoming')}
+            className={`eventsTabButton ${activeTab === 'upcoming' ? 'active' : ''}`}
           >
-            กิจกรรมทั้งหมด ({events.length})
+            กิจกรรม เร็วๆ นี้ ({counts.upcoming})
           </button>
           <button
+            role="tab"
+            aria-selected={activeTab === 'completed'}
+            onClick={() => handleTabChange('completed')}
+            className={`eventsTabButton ${activeTab === 'completed' ? 'active' : ''}`}
+          >
+            กิจกรรมที่เสร็จสิ้น ({counts.completed})
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'registered'}
             onClick={() => handleTabChange('registered')}
             className={`eventsTabButton ${activeTab === 'registered' ? 'active' : ''}`}
           >
-            ที่ฉันลงทะเบียนไว้
-          </button>
-          <button
-            onClick={() => handleTabChange('my_events')}
-            className={`eventsTabButton ${activeTab === 'my_events' ? 'active' : ''}`}
-          >
-            ที่ฉันเป็นผู้จัด
+            ที่ฉันลงทะเบียนไว้ ({counts.registered})
           </button>
         </div>
 
@@ -288,16 +425,20 @@ export default function EventsClient({
         <div className="eventsLoadingSpinner">
           <div className="spinnerCircle" />
         </div>
-      ) : filteredEvents.length === 0 ? (
+      ) : sortedFilteredEvents.length === 0 ? (
         <div className="eventsEmptyState">
           <Calendar size={48} className="eventsEmptyIcon" />
-          <h3 className="eventsEmptyTitle">ไม่พบกิจกรรมที่ค้นหา</h3>
+          <h3 className="eventsEmptyTitle">ไม่พบกิจกรรม</h3>
           <p className="eventsEmptyDesc">
-            {currentUser.isAdmin
-              ? 'ยังไม่มีกิจกรรมที่ตรงกับเงื่อนไขในขณะนี้ คุณสามารถเริ่มต้นสร้างกิจกรรมใหม่ได้ทันที'
-              : 'ยังไม่มีกิจกรรมที่ตรงกับเงื่อนไขในขณะนี้'}
+            {searchQuery.trim()
+              ? 'ไม่พบกิจกรรมที่ตรงกับคำค้นหาในหมวดหมู่นี้'
+              : activeTab === 'upcoming'
+              ? 'ยังไม่มีกิจกรรมที่จะมาถึงในขณะนี้'
+              : activeTab === 'completed'
+              ? 'ยังไม่มีกิจกรรมที่เสร็จสิ้น'
+              : 'คุณยังไม่ได้ลงทะเบียนเข้าร่วมกิจกรรมใดๆ'}
           </p>
-          {currentUser.isAdmin && (
+          {currentUser.isAdmin && activeTab === 'upcoming' && (
             <Link href="/member/events/create" className="btnCreateEvent">
               <PlusCircle size={15} />
               <span>+ สร้างกิจกรรมใหม่</span>
@@ -306,99 +447,153 @@ export default function EventsClient({
         </div>
       ) : (
         <div className="eventStripList">
-          {filteredEvents.map((event) => {
+          {sortedFilteredEvents.map((event, index) => {
             const now = new Date()
             const startDate = new Date(event.eventStartDate)
             const endDate = new Date(event.eventEndDate)
             const isPast = endDate < now
             const isOngoing = now >= startDate && now <= endDate
+            const isFirstCompleted =
+              isPast &&
+              hasUpcomingEvents &&
+              (index === 0 ||
+                new Date(sortedFilteredEvents[index - 1].eventEndDate) >= now)
             const isOrganizer =
               event.headOrganizerId === currentUser.id ||
               event.coOrganizers?.some((c) => c.member?.id === currentUser.id) ||
               currentUser.isAdmin
 
             return (
-              <div key={event.id} className="eventStripRow">
-                {/* 1. วันเวลางาน */}
-                <div className="eventStripDateCol">
-                  <div className="eventStripDateMain">
-                    <Calendar size={15} className="eventStripDateIcon" />
-                    <span className="eventStripDateText">
-                      {formatThaiDateOnly(event.eventStartDate)}
-                    </span>
-                  </div>
-                  <div className="eventStripTimeSub">
-                    <Clock size={12} />
-                    <span>
-                      {formatThaiTimeRange(event.eventStartDate, event.eventEndDate)}
-                    </span>
-                  </div>
-                  <span
-                    className={`eventStripStatusTag ${
-                      isOngoing ? 'ongoing' : isPast ? 'completed' : 'upcoming'
-                    }`}
+              <React.Fragment key={event.id}>
+                {isFirstCompleted && (
+                  <div
+                    className="eventStripSectionDivider"
+                    role="separator"
+                    aria-label="กิจกรรมที่เสร็จสิ้นแล้ว"
                   >
-                    {isOngoing ? 'กำลังจัดงาน' : isPast ? 'เสร็จสิ้น' : 'เร็วๆ นี้'}
-                  </span>
-                </div>
-
-                {/* 2. ชื่อกิจกรรม */}
-                <div className="eventStripTitleCol">
-                  <Link href={`/member/events/${event.id}`} className="eventStripTitleLink">
-                    {event.title}
-                  </Link>
-                  <div className="eventStripMetaRow">
-                    {event.location && (
-                      <span className="eventStripMetaItem">
-                        <MapPin size={12} />
-                        <span>{event.location}</span>
+                    <Clock size={15} />
+                    <span>กิจกรรมที่เสร็จสิ้นแล้ว</span>
+                  </div>
+                )}
+                <div className="eventStripRow">
+                  {/* 1. วันเวลางาน */}
+                  <div className="eventStripDateCol">
+                    <div className="eventStripDateMain">
+                      <Calendar size={15} className="eventStripDateIcon" />
+                      <span className="eventStripDateText">
+                        {formatThaiDateOnly(event.eventStartDate)}
                       </span>
-                    )}
-                    <span className="eventStripMetaItem">
-                      <Users size={12} />
-                      <span>{event.headOrganizer?.name || 'บุคลากรโรงพยาบาล'}</span>
-                    </span>
-                    <span className="eventStripFiscalBadge">
-                      ปีงบ {event.fiscalYear}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 3. จำนวนลงทะเบียน / จำนวนเข้าร่วมงาน */}
-                <div className="eventStripStatsCol">
-                  <div className="eventStripStatBox">
-                    <span className="eventStripStatLabel">ลงทะเบียน</span>
-                    <span className="eventStripStatValue reg">
-                      {event.registrationCount} <small>คน</small>
-                    </span>
-                  </div>
-                  <div className="eventStripStatDivider">/</div>
-                  <div className="eventStripStatBox">
-                    <span className="eventStripStatLabel">เข้าร่วมงาน</span>
-                    <span className="eventStripStatValue att">
-                      {event.attendanceCount} <small>คน</small>
-                    </span>
-                  </div>
-                </div>
-
-                {/* 4. ปุ่มดูรายละเอียด */}
-                <div className="eventStripActionCol">
-                  {isOrganizer && (
-                    <Link
-                      href={`/member/events/${event.id}`}
-                      className="btnStripQr"
-                      title="เปิด QR Code หน้างาน"
+                    </div>
+                    <div className="eventStripTimeSub">
+                      <Clock size={12} />
+                      <span>
+                        {formatThaiTimeRange(event.eventStartDate, event.eventEndDate)}
+                      </span>
+                    </div>
+                    <span
+                      className={`eventStripStatusTag ${
+                        isOngoing ? 'ongoing' : isPast ? 'completed' : 'upcoming'
+                      }`}
                     >
-                      <QrCode size={14} />
-                      <span>QR Code</span>
+                      {isOngoing ? 'กำลังจัดงาน' : isPast ? 'เสร็จสิ้น' : 'เร็วๆ นี้'}
+                    </span>
+                  </div>
+
+                  {/* 2. ชื่อกิจกรรม */}
+                  <div className="eventStripTitleCol">
+                    <Link href={`/member/events/${event.id}`} className="eventStripTitleLink">
+                      {event.title}
                     </Link>
-                  )}
-                  <Link href={`/member/events/${event.id}`} className="btnStripDetail">
-                    <span>ดูรายละเอียด</span>
-                    <ChevronRight size={14} />
-                  </Link>
+                    <div className="eventStripMetaRow">
+                      {event.location && (
+                        <span className="eventStripMetaItem">
+                          <MapPin size={12} />
+                          <span>{event.location}</span>
+                        </span>
+                      )}
+                      <span className="eventStripMetaItem">
+                        <Users size={12} />
+                        <span>{event.headOrganizer?.name || 'บุคลากรโรงพยาบาล'}</span>
+                      </span>
+                      <span className="eventStripFiscalBadge">
+                        ปีงบ {event.fiscalYear}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 3. จำนวนลงทะเบียน / จำนวนเข้าร่วมงาน */}
+                  <div className="eventStripStatsCol">
+                    <div className="eventStripStatBox">
+                      <span className="eventStripStatLabel">ลงทะเบียน</span>
+                      <span className="eventStripStatValue reg">
+                        {event.registrationCount} <small>คน</small>
+                      </span>
+                    </div>
+                    <div className="eventStripStatDivider">/</div>
+                    <div className="eventStripStatBox">
+                      <span className="eventStripStatLabel">เข้าร่วมงาน</span>
+                      <span className="eventStripStatValue att">
+                        {event.attendanceCount} <small>คน</small>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 4. ปุ่มลงทะเบียนล่วงหน้า & ดูรายละเอียด */}
+                  <div className="eventStripActionCol">
+                    {isOrganizer && (
+                      <Link
+                        href={`/member/events/${event.id}`}
+                        className="btnStripQr"
+                        title="เปิด QR Code หน้างาน"
+                      >
+                        <QrCode size={14} />
+                        <span>QR Code</span>
+                      </Link>
+                    )}
+
+                    {event.hasAttended ? (
+                      <div className="stripAttendedPill" title="คุณได้เข้าร่วมงานนี้แล้ว">
+                        <CheckCircle2 size={13} />
+                        <span>เข้าร่วมแล้ว</span>
+                      </div>
+                    ) : !isPast ? (
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleRegistration(e, event)}
+                        disabled={registeringId === event.id}
+                        className={`btnStripRegister ${
+                          event.hasRegistered ? 'registered' : 'unregistered'
+                        }`}
+                        title={
+                          event.hasRegistered
+                            ? 'คุณได้ลงทะเบียนไว้แล้ว (คลิกเพื่อยกเลิกการลงทะเบียน)'
+                            : 'คลิกเพื่อลงทะเบียนล่วงหน้า'
+                        }
+                      >
+                        {registeringId === event.id ? (
+                          <span className="stripBtnSpinner" />
+                        ) : event.hasRegistered ? (
+                          <CheckCircle2 size={14} />
+                        ) : (
+                          <UserPlus size={14} />
+                        )}
+                        <span>
+                          {registeringId === event.id
+                            ? 'กำลังบันทึก...'
+                            : event.hasRegistered
+                            ? 'ลงทะเบียนแล้ว'
+                            : 'ลงทะเบียนล่วงหน้า'}
+                        </span>
+                      </button>
+                    ) : null}
+
+                    <Link href={`/member/events/${event.id}`} className="btnStripDetail">
+                      <span>ดูรายละเอียด</span>
+                      <ChevronRight size={14} />
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              </React.Fragment>
             )
           })}
         </div>

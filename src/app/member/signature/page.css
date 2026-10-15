@@ -1,269 +1,502 @@
+/* ==========================================================================
+   Member Digital Signature Management (Hallmark Clinical Workbench CSS)
+   Thoen Hospital Information Systems
+   ========================================================================== */
+
 .signatureContainer {
-
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 1.5rem 1rem 4rem;
+  font-family: inherit;
+  color: #0f172a;
+  overflow-x: clip;
 }
-.signatureContainer .signatureHeader {
 
-  margin-bottom: 32px;
-}
-.signatureContainer .signatureHeader h1 {
-
-  font-size: 28px;
-  color: #1e293b;
-  margin-bottom: 8px;
-  font-weight: 700;
-}
-.signatureContainer .signatureHeader p {
-
-  color: #64748b;
-  font-size: 15px;
-}
-.signatureContainer .backButton {
-
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #0284c7;
-  font-size: 14px;
-  font-weight: 500;
-  text-decoration: none;
-  margin-bottom: 20px;
-  transition: color 0.2s ease;
-}
-.signatureContainer .backButton:hover {
-
-  color: #0369a1;
-}
-.signatureContainer .signatureGrid {
-
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
 @media (min-width: 768px) {
-.signatureContainer .signatureGrid {
+  .signatureContainer {
+    padding: 2rem 1.5rem 4rem;
+  }
 }
-}
-.signatureContainer .signatureCard {
 
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  border: 1px solid #f1f5f9;
-}
-.signatureContainer .cardTitle {
-
-  font-size: 18px;
-  color: #0f172a;
-  font-weight: 600;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.signatureContainer .currentSignatureWrapper {
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  border-radius: 12px;
-  background-color: #f8fafc;
-  border: 2px dashed #e2e8f0;
-  min-height: 180px;
-}
-.signatureContainer .transparentPattern {
-
-  background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
-                    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
-                    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
-                    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
-  background-color: #fafafa;
-}
-.signatureContainer .signatureImage {
-
-  max-width: 100%;
-  max-height: 120px;
-  object-fit: contain;
-}
-.signatureContainer .noSignatureText {
-
-  color: #94a3b8;
-  font-size: 14px;
-  text-align: center;
-}
-.signatureContainer .tabButtons {
-
-  display: flex;
-  gap: 8px;
-  background-color: #f1f5f9;
-  padding: 4px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-.signatureContainer .tabButton {
-
-  flex: 1;
-  padding: 10px 14px;
-  border: none;
-  background: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.signatureContainer .tabButtonActive {
-
-  background-color: #ffffff;
-  color: #0f172a;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-}
-.signatureContainer .canvasWrapper {
-
-  position: relative;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 16px;
-}
-.signatureContainer .drawingCanvas {
-
-  display: block;
-  width: 100%;
-  height: 250px;
-  cursor: crosshair;
-  touch-action: none;
-}
-.signatureContainer .previewContainer {
-
-  position: relative;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 16px;
-  height: 250px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.signatureContainer .previewImage {
-
-  max-width: 90%;
-  max-height: 80%;
-  object-fit: contain;
-}
-.signatureContainer .canvasToolbar {
-
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-.signatureContainer .button {
-
+/* Back Link */
+.signatureBackLink {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  gap: 0.5rem;
+  color: #15856a;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 1.25rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease;
 }
-.signatureContainer .buttonPrimary {
 
-  background-color: #0284c7;
-  color: #ffffff;
-  border: none;
-}
-.signatureContainer .buttonPrimary:hover:not(:disabled) {
-
-  background-color: #0369a1;
-}
-.signatureContainer .buttonPrimary:disabled {
-
-  background-color: #93c5fd;
-  cursor: not-allowed;
-}
-.signatureContainer .buttonSecondary {
-
-  background-color: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-}
-.signatureContainer .buttonSecondary:hover {
-
-  background-color: #e2e8f0;
-}
-.signatureContainer .uploadInput {
-
-  display: none;
-}
-.signatureContainer .uploadLabel {
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 250px;
-  border: 2px dashed #cbd5e1;
-  border-radius: 12px;
-  cursor: pointer;
-  background-color: #f8fafc;
-  transition: all 0.2s ease;
-}
-.signatureContainer .uploadLabel:hover {
-
-  border-color: #0284c7;
-  background-color: #f0f9ff;
-}
-.signatureContainer .uploadIcon {
-
-  color: #0284c7;
-  margin-bottom: 12px;
-}
-.signatureContainer .uploadText {
-
-  font-size: 14px;
-  color: #475569;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-.signatureContainer .uploadSubtext {
-
-  font-size: 12px;
-  color: #94a3b8;
-}
-.signatureContainer .statusMessage {
-
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.signatureContainer .statusSuccess {
-
+.signatureBackLink:hover {
   background-color: #f0fdf4;
-  color: #166534;
-  border: 1px solid #bbf7d0;
+  color: #094738;
 }
-.signatureContainer .statusError {
 
+.signatureBackLink:focus-visible {
+  outline: 2px solid #15856a;
+  outline-offset: 2px;
+}
+
+/* Executive Header Card */
+.signatureHeaderCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+}
+
+.signatureHospitalBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #094738;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.75rem;
+}
+
+.signatureHeaderTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.3;
+}
+
+@media (min-width: 768px) {
+  .signatureHeaderTitle {
+    font-size: 1.75rem;
+  }
+}
+
+.signatureHeaderDesc {
+  font-size: 0.9375rem;
+  color: #475569;
+  line-height: 1.55;
+  margin: 0;
+  max-width: 720px;
+}
+
+/* Status Notifications */
+.statusMessage {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+  line-height: 1.45;
+}
+
+.statusSuccess {
+  background-color: #f0fdf4;
+  color: #14532d;
+  border: 1px solid #86efac;
+}
+
+.statusError {
   background-color: #fef2f2;
   color: #991b1b;
   border: 1px solid #fecaca;
+}
+
+.statusIcon {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+/* Two-Column Grid */
+.signatureGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .signatureGrid {
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+}
+
+/* Workbench Cards */
+.signatureCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+}
+
+.cardHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cardTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cardTitleIcon {
+  color: #15856a;
+}
+
+/* Status Chips */
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusChipActive {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.statusChipEmpty {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+/* Signature Display Wrapper */
+.currentSignatureWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  min-height: 200px;
+  text-align: center;
+}
+
+.transparentPattern {
+  background-image: 
+    linear-gradient(45deg, #f1f5f9 25%, transparent 25%),
+    linear-gradient(-45deg, #f1f5f9 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f1f5f9 75%),
+    linear-gradient(-45deg, transparent 75%, #f1f5f9 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-color: #ffffff;
+}
+
+.signatureImage {
+  max-width: 100%;
+  max-height: 150px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+}
+
+.noSignatureState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+}
+
+.noSignatureIcon {
+  color: #94a3b8;
+  margin-bottom: 0.25rem;
+}
+
+.noSignatureText {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.noSignatureSubtext {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  max-width: 220px;
+}
+
+.updatedMeta {
+  margin-top: 1rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.policyNotice {
+  margin-top: 1.25rem;
+  padding: 0.875rem 1rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.625rem;
+  font-size: 0.8125rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.policyNotice strong {
+  color: #0f172a;
+}
+
+/* Tabs Navigation */
+.tabButtons {
+  display: flex;
+  gap: 0.5rem;
+  background-color: #f1f5f9;
+  padding: 0.35rem;
+  border-radius: 0.625rem;
+  margin-bottom: 1.25rem;
+}
+
+.tabButton {
+  flex: 1;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tabButton:hover:not(.tabButtonActive) {
+  color: #0f172a;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.tabButton:focus-visible {
+  outline: 2px solid #15856a;
+  outline-offset: 2px;
+}
+
+.tabButtonActive {
+  background-color: #ffffff;
+  color: #094738;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Canvas Area */
+.canvasInstruction {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.625rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.canvasWrapper {
+  position: relative;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+  background-color: #ffffff;
+  touch-action: none;
+}
+
+.canvasWrapper:focus-within {
+  border-color: #15856a;
+  box-shadow: 0 0 0 1px #15856a;
+}
+
+.drawingCanvas {
+  display: block;
+  width: 100%;
+  height: 260px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.previewContainer {
+  position: relative;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-bottom: 1.25rem;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.previewImage {
+  max-width: 90%;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+/* Canvas Toolbar Buttons */
+.canvasToolbar {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.75rem;
+}
+
+@media (min-width: 480px) {
+  .canvasToolbar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.button:focus-visible {
+  outline: 2px solid #15856a;
+  outline-offset: 2px;
+}
+
+.buttonPrimary {
+  background-color: #15856a;
+  color: #ffffff;
+  border-color: #0f766e;
+}
+
+.buttonPrimary:hover:not(:disabled) {
+  background-color: #094738;
+}
+
+.buttonPrimary:disabled {
+  background-color: #94a3b8;
+  border-color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.buttonSecondary {
+  background-color: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.buttonSecondary:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* Upload Zone */
+.uploadInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.uploadLabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 260px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  background-color: #f8fafc;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.uploadLabel:hover {
+  border-color: #15856a;
+  background-color: #f0fdf4;
+}
+
+.uploadLabel:focus-within {
+  border-color: #15856a;
+  outline: 2px solid #15856a;
+  outline-offset: 2px;
+}
+
+.uploadIcon {
+  color: #15856a;
+  margin-bottom: 0.875rem;
+}
+
+.uploadText {
+  font-size: 1rem;
+  color: #0f172a;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.uploadSubtext {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.uploadHint {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #094738;
+  background-color: #dcfce7;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  margin-top: 0.625rem;
+  border: 1px solid #bbf7d0;
 }

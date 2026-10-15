@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Stethoscope, Users, BedDouble } from 'lucide-react'
+import { Stethoscope, Users, BedDouble, Activity } from 'lucide-react'
 
 interface NavTab {
   href: string
@@ -24,6 +24,12 @@ const TABS: NavTab[] = [
     label: 'OPD ตามสิทธิ์',
     badge: '2.1.1.2',
     icon: Users,
+  },
+  {
+    href: '/service/dashboard-rcm/opd',
+    label: 'สรุปผู้ป่วยนอก (OPD)',
+    badge: '2.1.1.3',
+    icon: Activity,
   },
   {
     href: '/service/dashboard-rcm/ipd',

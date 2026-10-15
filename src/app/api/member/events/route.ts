@@ -46,6 +46,8 @@ export async function GET(request: Request) {
       search,
       fiscalYear,
       memberId: auth.member.id,
+      onlyUpcoming: tab === 'upcoming',
+      onlyCompleted: tab === 'completed',
       onlyMyEvents: tab === 'my_events',
       onlyMyRegistrations: tab === 'registered',
       page,

@@ -7,6 +7,7 @@ interface TelegramPromptModalProps {
   isLinked: boolean
   memberId: number
   onOpenConnectModal: () => void
+  onVisibilityChange?: (isVisible: boolean) => void
 }
 
 const HIDE_STORAGE_PREFIX = 'hide_telegram_prompt_'
@@ -15,9 +16,15 @@ export default function TelegramPromptModal({
   isLinked,
   memberId,
   onOpenConnectModal,
+  onVisibilityChange,
 }: TelegramPromptModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [dontShowToday, setDontShowToday] = useState(false)
+
+  // แจ้งสถานะการเปิด/ปิดให้ Parent ทราบ (ป้องกันไม่ให้ Popup อื่นเด้งชนกัน)
+  useEffect(() => {
+    onVisibilityChange?.(isOpen)
+  }, [isOpen, onVisibilityChange])
 
   useEffect(() => {
     // 1. ถ้าเชื่อมต่อแล้ว ไม่ต้องแสดง popup ใด ๆ
@@ -26,7 +33,14 @@ export default function TelegramPromptModal({
       return
     }
 
-    // 2. ตรวจสอบการตั้งค่า "วันนี้ไม่แสดงผลอีก" ใน localStorage
+    // ล้างค่า session_hide เก่าที่อาจค้างอยู่ใน session เพื่อไม่ให้บล็อกการแสดงผลผิดพลาด
+    try {
+      sessionStorage.removeItem(`session_hide_telegram_prompt_${memberId}`)
+    } catch {
+      // Storage access fallback
+    }
+
+    // 2. ตรวจสอบ "วันนี้ไม่แสดงผลอีก" ใน localStorage
     try {
       const storageKey = `${HIDE_STORAGE_PREFIX}${memberId}`
       const hideUntilStr = localStorage.getItem(storageKey)
@@ -38,7 +52,7 @@ export default function TelegramPromptModal({
         }
       }
     } catch {
-      // LocalStorage access fallback (incognito/security)
+      // Storage access fallback (incognito/security)
     }
 
     // หน่วงเวลาเล็กน้อย (800ms) หลังเข้าสู่ระบบ เพื่อให้ UI หน้าเว็บโหลดเสร็จก่อน Pop ขึ้นมาอย่างนุ่มนวล
@@ -49,17 +63,30 @@ export default function TelegramPromptModal({
     return () => clearTimeout(timer)
   }, [isLinked, memberId])
 
+  // ปิดด้วยปุ่ม Escape ตามหลักสากลและการเข้าถึง (a11y)
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
+
   const saveSnoozeIfChecked = () => {
-    if (dontShowToday) {
-      try {
+    try {
+      // บันทึกเฉพาะเมื่อผู้ใช้ติ๊ก "วันนี้ไม่แสดงผลอีก" เท่านั้น
+      if (dontShowToday) {
         const storageKey = `${HIDE_STORAGE_PREFIX}${memberId}`
         // ตั้งเวลาหมดอายุที่สิ้นสุดของวันปัจจุบัน (23:59:59.999)
         const endOfDay = new Date()
         endOfDay.setHours(23, 59, 59, 999)
         localStorage.setItem(storageKey, endOfDay.getTime().toString())
-      } catch {
-        // Silently catch storage errors
       }
+    } catch {
+      // Silently catch storage errors
     }
   }
 
@@ -78,7 +105,13 @@ export default function TelegramPromptModal({
 
   return (
     <div className="telegramPromptOverlay" onClick={handleClose}>
-      <div className="telegramPromptCard" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="telegramPromptCard"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="telegram-prompt-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Decorative Top Accent */}
         <div className="telegramPromptGlowStrip" />
 
@@ -98,7 +131,9 @@ export default function TelegramPromptModal({
             <Send size={24} />
           </div>
 
-          <h3 className="telegramPromptTitle">เชื่อมต่อ Telegram เพื่อรับการแจ้งเตือน</h3>
+          <h3 id="telegram-prompt-title" className="telegramPromptTitle">
+            เชื่อมต่อ Telegram เพื่อรับการแจ้งเตือน
+          </h3>
           <p className="telegramPromptSubtitle">
             รับการแจ้งเตือนงานซ่อมบำรุง เอกสารคำขอ และงานลงนามอนุมัติแบบเรียลไทม์ผ่านแอป Telegram ทันที
           </p>

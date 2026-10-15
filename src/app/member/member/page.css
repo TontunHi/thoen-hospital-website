@@ -1,15 +1,12 @@
 /* ========================================================================
-   MEMBERS DIRECTORY ADMIN DASHBOARD - Zero-Scroll Modern UI
-   Design System: Emerald/Slate Hospital Theme (Clean, Fast, Responsive)
+   MEMBERS DIRECTORY ADMIN DASHBOARD - Hallmark Anti-AI Slop Design
+   Design System: Emerald / Slate Hospital Theme (Clean, Tactile, Responsive)
    ======================================================================== */
 
 .membersDashboardPage {
   min-height: calc(100vh - 60px);
-  padding: 36px 20px 80px;
+  padding: 32px 20px 80px;
   background-color: #f8fafc;
-  background-image: 
-    radial-gradient(ellipse at 15% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 85% 100%, rgba(14, 165, 233, 0.06) 0%, transparent 50%);
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -23,57 +20,22 @@
 .membersDashboardPage .container {
   width: 100%;
   max-width: 1280px;
-  z-index: 10;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 22px;
-}
-
-/* Background Glowing Orbs */
-.membersDashboardPage .glowOrb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.4;
-}
-
-.membersDashboardPage .glowOrb1 {
-  width: 480px;
-  height: 480px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, transparent 70%);
-  top: -100px;
-  right: 5%;
-}
-
-.membersDashboardPage .glowOrb2 {
-  width: 420px;
-  height: 420px;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.12) 0%, transparent 70%);
-  top: 35%;
-  left: -80px;
-}
-
-.membersDashboardPage .glowOrb3 {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
-  bottom: -100px;
-  right: 15%;
+  gap: 20px;
 }
 
 /* ========================================================================
-   Header Section
+   Header Section - Clinical Administrative Hero Banner
    ======================================================================== */
 
 .membersDashboardPage .pageHeader {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 16px;
   padding: 24px 28px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -101,7 +63,7 @@
   border-radius: 8px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.15s ease-in-out;
 }
 
 .membersDashboardPage .backLinkBtn:hover {
@@ -122,22 +84,22 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 18px;
-  background: #ecfdf5;
+  padding: 8px 16px;
+  background: #f0fdf4;
   color: #047857;
-  border: 1px solid #a7f3d0;
+  border: 1px solid #bbf7d0;
   border-radius: 10px;
   font-weight: 600;
   font-size: 0.88rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease-in-out;
   font-family: inherit;
 }
 
 .membersDashboardPage .syncSalaryBtn:hover:not(:disabled) {
-  background: #d1fae5;
-  border-color: #6ee7b7;
-  transform: translateY(-1px);
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #065f46;
 }
 
 .membersDashboardPage .syncSalaryBtn:disabled {
@@ -149,28 +111,29 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 20px;
+  padding: 8px 18px;
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #ffffff;
-  border: none;
+  border: 1px solid #047857;
   border-radius: 10px;
   font-weight: 700;
   font-size: 0.88rem;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
-  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+  transition: all 0.15s ease-in-out;
   font-family: inherit;
 }
 
 .membersDashboardPage .addMemberBtn:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
 }
 
 .membersDashboardPage .headerText {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .membersDashboardPage .titleWithBadge {
@@ -181,11 +144,12 @@
 }
 
 .membersDashboardPage .headerText h1 {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.02em;
   margin: 0;
+  line-height: 1.25;
 }
 
 .membersDashboardPage .totalBadge {
@@ -196,6 +160,7 @@
   border-radius: 9999px;
   font-size: 0.78rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .membersDashboardPage .headerText p {
@@ -206,7 +171,7 @@
 }
 
 /* ========================================================================
-   Stats KPI Cards
+   Stats KPI Cards - Crisp Administrative Metrics
    ======================================================================== */
 
 .membersDashboardPage .statsGrid {
@@ -229,14 +194,14 @@
 
 .membersDashboardPage .statCard {
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: 14px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
-  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  padding: 16px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease-in-out;
   position: relative;
   overflow: hidden;
 }
@@ -250,21 +215,21 @@
   height: 3px;
 }
 
-.membersDashboardPage .statCard.total::before { background: linear-gradient(90deg, #0d9488, #2dd4bf); }
-.membersDashboardPage .statCard.admins::before { background: linear-gradient(90deg, #7c3aed, #a78bfa); }
-.membersDashboardPage .statCard.general::before { background: linear-gradient(90deg, #0284c7, #38bdf8); }
-.membersDashboardPage .statCard.subdistrict::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.membersDashboardPage .statCard.total::before { background: #0d9488; }
+.membersDashboardPage .statCard.admins::before { background: #7c3aed; }
+.membersDashboardPage .statCard.general::before { background: #0284c7; }
+.membersDashboardPage .statCard.subdistrict::before { background: #059669; }
 
 .membersDashboardPage .statCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
   border-color: #cbd5e1;
 }
 
 .membersDashboardPage .statCardInfo {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .membersDashboardPage .statLabel {
@@ -274,16 +239,17 @@
 }
 
 .membersDashboardPage .statValue {
-  font-size: 1.5rem;
+  font-size: 1.45rem;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .membersDashboardPage .statCardIcon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -345,56 +311,59 @@
   cursor: pointer;
   display: flex;
   align-items: center;
+  padding: 4px;
+  border-radius: 4px;
 }
 
 .membersDashboardPage .alertCloseBtn:hover {
   opacity: 1;
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 /* ========================================================================
-   Action & Filter Bar
+   Action & Filter Bar - Semantic Tablist & Search
    ======================================================================== */
 
 .membersDashboardPage .actionPanel {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  padding: 14px 18px;
+  border-radius: 14px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.02);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
 }
 
 .membersDashboardPage .searchWrapper {
   position: relative;
   flex: 1;
-  min-width: 260px;
+  min-width: 280px;
   display: flex;
   align-items: center;
 }
 
 .membersDashboardPage .searchWrapper input {
   width: 100%;
-  height: 42px;
+  height: 40px;
   padding: 8px 36px 8px 38px;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 500;
   color: #0f172a;
   background-color: #f8fafc;
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease-in-out;
   font-family: inherit;
 }
 
 .membersDashboardPage .searchWrapper input:focus {
   border-color: #059669;
   background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
 }
 
 .membersDashboardPage .searchIcon {
@@ -410,8 +379,8 @@
   background: #e2e8f0;
   border: none;
   color: #64748b;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -442,7 +411,7 @@
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease-in-out;
   white-space: nowrap;
   font-family: inherit;
   display: inline-flex;
@@ -458,17 +427,18 @@
 .membersDashboardPage .filterTab.active {
   background-color: #ffffff;
   color: #0f172a;
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 .membersDashboardPage .filterCount {
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 700;
   color: #64748b;
   background: #e2e8f0;
   padding: 1px 6px;
   border-radius: 9999px;
   line-height: 1.3;
+  font-variant-numeric: tabular-nums;
 }
 
 .membersDashboardPage .filterTab.active .filterCount {
@@ -483,8 +453,8 @@
 .membersDashboardPage .tableCard {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   overflow: hidden;
   width: 100%;
 }
@@ -505,8 +475,8 @@
   background-color: #f8fafc;
   color: #475569;
   font-weight: 700;
-  font-size: 0.82rem;
-  padding: 14px 14px;
+  font-size: 0.8rem;
+  padding: 14px 12px;
   border-bottom: 2px solid #e2e8f0;
   user-select: none;
   white-space: nowrap;
@@ -515,9 +485,9 @@
 }
 
 .membersDashboardPage .membersTable td {
-  padding: 12px 14px;
+  padding: 12px 12px;
   border-bottom: 1px solid #f1f5f9;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   color: #334155;
   vertical-align: middle;
   overflow: hidden;
@@ -536,9 +506,13 @@
   background-color: #f8fafc;
 }
 
+.membersDashboardPage .membersTable tr.rowSelf:hover td {
+  background-color: #ecfdf5;
+}
+
 .membersDashboardPage .sortableHeader {
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
 }
 
 .membersDashboardPage .sortableHeader:hover {
@@ -565,40 +539,85 @@
   color: #059669;
 }
 
-/* Desktop Fixed Proportions */
+/* Desktop Proportional Column Widths (Sum = 100%) */
 .membersDashboardPage .col-id {
-  width: 50px;
+  width: 44px;
   text-align: center;
 }
 
 .membersDashboardPage .col-member {
-  width: 28%;
+  width: 27%;
 }
 
 .membersDashboardPage .col-account {
-  width: 26%;
+  width: 22%;
 }
 
 .membersDashboardPage .col-dept {
-  width: 20%;
+  width: 18%;
+}
+
+.membersDashboardPage .col-salary {
+  width: 11%;
+  text-align: center;
 }
 
 .membersDashboardPage .col-role {
-  width: 12%;
+  width: 10%;
   text-align: center;
 }
 
 .membersDashboardPage .col-actions {
-  width: 14%;
+  width: 12%;
   text-align: center;
 }
 
-/* Cells Styling */
+/* Index Badge */
 .membersDashboardPage .indexBadge {
   font-size: 0.78rem;
   font-weight: 700;
   color: #94a3b8;
   font-variant-numeric: tabular-nums;
+}
+
+/* Member Details with Avatar */
+.membersDashboardPage .memberPersonnelCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.membersDashboardPage .tableAvatarWrap {
+  border-radius: 50%;
+  overflow: hidden;
+  background: #f1f5f9;
+  border: 1.5px solid #e2e8f0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.membersDashboardPage .tableAvatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.membersDashboardPage .tableAvatarFallback {
+  border-radius: 50%;
+  background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+  color: #ffffff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+  letter-spacing: -0.02em;
 }
 
 .membersDashboardPage .memberDetails {
@@ -621,6 +640,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 0.88rem;
 }
 
 .membersDashboardPage .selfTag {
@@ -631,6 +651,7 @@
   padding: 1px 6px;
   border-radius: 4px;
   flex-shrink: 0;
+  border: 1px solid #bbf7d0;
 }
 
 .membersDashboardPage .memberPosition {
@@ -642,6 +663,7 @@
   margin-top: 1px;
 }
 
+/* Account Info */
 .membersDashboardPage .accountCell {
   display: flex;
   flex-direction: column;
@@ -686,13 +708,40 @@
   font-weight: 500;
 }
 
+/* Salary Binding Status Badge */
+.membersDashboardPage .salaryBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .salaryBadge.linked {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.membersDashboardPage .salaryBadge.unlinked {
+  background-color: #f8fafc;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+}
+
+/* Role Badges */
 .membersDashboardPage .roleBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px 10px;
+  gap: 4px;
+  padding: 3px 8px;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -715,6 +764,7 @@
   border: 1px solid #a7f3d0;
 }
 
+/* Action Buttons */
 .membersDashboardPage .memberActions {
   display: flex;
   justify-content: center;
@@ -731,7 +781,7 @@
   border-radius: 8px;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease-in-out;
   font-family: inherit;
   font-weight: 600;
   font-size: 0.8rem;
@@ -772,7 +822,7 @@
 }
 
 /* ========================================================================
-   Mobile / Tablet Cards View (Zero Horizontal Scroll Guarantee)
+   Mobile / Tablet Responsive Cards View
    ======================================================================== */
 
 .membersDashboardPage .mobileCardsContainer {
@@ -799,7 +849,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.02);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 .membersDashboardPage .memberCardItem.cardSelf {
@@ -812,6 +862,13 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
+}
+
+.membersDashboardPage .cardProfileWrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
 }
 
 .membersDashboardPage .cardProfileInfo {
@@ -835,6 +892,14 @@
 .membersDashboardPage .cardPositionText {
   font-size: 0.8rem;
   color: #64748b;
+}
+
+.membersDashboardPage .cardBadgesRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .membersDashboardPage .cardDetailsGrid {
@@ -876,7 +941,7 @@
 
 .membersDashboardPage .mobileEditBtn {
   flex: 1;
-  height: 42px;
+  height: 44px; /* Touch target minimum */
   background: #ecfdf5;
   color: #047857;
   border: 1px solid #a7f3d0;
@@ -897,8 +962,8 @@
 }
 
 .membersDashboardPage .mobileDeleteBtn {
-  width: 42px;
-  height: 42px;
+  width: 44px; /* Touch target minimum */
+  height: 44px;
   background: #fff1f2;
   color: #e11d48;
   border: 1px solid #fecdd3;
@@ -940,7 +1005,7 @@
 .membersDashboardPage .emptyState {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 20px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -981,7 +1046,7 @@
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .membersDashboardPage .clearFilterBtn:hover {
@@ -990,15 +1055,15 @@
 }
 
 /* ========================================================================
-   Modern Modal Dialog
+   Modal Dialog - Clean Hospital Clinical Card
    ======================================================================== */
 
 .membersDashboardPage .modalOverlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1009,19 +1074,19 @@
 .membersDashboardPage .premiumModal {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 22px;
+  border-radius: 18px;
   width: 100%;
-  max-width: 740px;
+  max-width: 720px;
   max-height: 94vh;
-  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  animation: modalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes modalScaleIn {
-  from { opacity: 0; transform: scale(0.97) translateY(12px); }
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
@@ -1038,7 +1103,7 @@
 .membersDashboardPage .headerIconContainer {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -1079,7 +1144,7 @@
   cursor: pointer;
   padding: 6px;
   border-radius: 8px;
-  transition: all 0.2s;
+  transition: all 0.15s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1148,7 +1213,7 @@
   color: #0f172a;
   background-color: #f8fafc;
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease-in-out;
   font-family: inherit;
 }
 
@@ -1156,7 +1221,7 @@
 .membersDashboardPage .selectWrapper select:focus {
   border-color: #059669;
   background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
 }
 
 .membersDashboardPage .inputHint {
@@ -1185,7 +1250,7 @@
   font-size: 0.88rem;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .membersDashboardPage .cancelBtn:hover:not(:disabled) {
@@ -1198,7 +1263,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 22px;
+  padding: 8px 20px;
   border-radius: 10px;
   border: none;
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
@@ -1206,14 +1271,15 @@
   font-weight: 700;
   font-size: 0.88rem;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
-  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
+  transition: all 0.15s ease-in-out;
   font-family: inherit;
 }
 
 .membersDashboardPage .saveBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.3);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
 .membersDashboardPage .modalAlert {
@@ -1260,7 +1326,7 @@
   .membersDashboardPage .actionPanel {
     flex-direction: column;
     align-items: stretch;
-    padding: 14px;
+    padding: 12px;
   }
   .membersDashboardPage .searchWrapper {
     width: 100%;

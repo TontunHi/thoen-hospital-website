@@ -9,6 +9,9 @@ import {
   Mail, 
   Shield, 
   User, 
+  Users,
+  UserCheck,
+  CreditCard,
   X, 
   Check, 
   Loader2, 
@@ -24,6 +27,7 @@ import {
 import Link from 'next/link'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
+import { getInitials } from '@/lib/formatters'
 import './page.css'
 
 interface Member {
@@ -38,6 +42,35 @@ interface Member {
   role: 'member' | 'admin' | 'subdistrict'
   created_at: string
   updated_at: string
+}
+
+function MemberAvatar({ id, name, size = 36 }: { id: number; name: string | null; size?: number }) {
+  const [imgError, setImgError] = useState(false)
+  const initials = getInitials(name || '')
+
+  if (imgError || !id) {
+    return (
+      <div 
+        className="tableAvatarFallback" 
+        style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.38)) }}
+        aria-hidden="true"
+      >
+        {initials}
+      </div>
+    )
+  }
+
+  return (
+    <div className="tableAvatarWrap" style={{ width: size, height: size }}>
+      <img
+        src={`/api/member/profile/image?userId=${id}`}
+        alt={name || 'รูปโปรไฟล์'}
+        className="tableAvatarImg"
+        onError={() => setImgError(true)}
+        loading="lazy"
+      />
+    </div>
+  )
 }
 
 export default function MembersAdminClient() {
@@ -329,12 +362,12 @@ export default function MembersAdminClient() {
       <ArrowDown size={13} className="sortIcon sortIconActive" />
   }
 
+  const memberCount = members.filter(m => m.role === 'member').length
+  const subdistrictCount = members.filter(m => m.role === 'subdistrict').length
+  const adminCount = members.filter(m => m.role === 'admin').length
+
   return (
     <div className="membersDashboardPage">
-      <div className="glowOrb glowOrb1"></div>
-      <div className="glowOrb glowOrb2"></div>
-      <div className="glowOrb glowOrb3"></div>
-
       <div className="container">
         {/* Header Bar */}
         <header className="pageHeader">
@@ -370,7 +403,7 @@ export default function MembersAdminClient() {
           <div className="headerText">
             <div className="titleWithBadge">
               <h1>ระบบจัดการสมาชิกและบุคลากร</h1>
-              <span className="totalBadge">{members.length} บัญชี</span>
+              <span className="totalBadge">{members.length} บัญชีผู้ใช้</span>
             </div>
             <p>
               จัดการรายชื่อบุคลากร สิทธิ์การใช้งานระบบ และบัญชีเชื่อมต่อสลิปเงินเดือนโรงพยาบาลเถิน
@@ -386,14 +419,14 @@ export default function MembersAdminClient() {
               <span className="statValue">{members.length} คน</span>
             </div>
             <div className="statCardIcon total">
-              <User size={22} />
+              <Users size={22} />
             </div>
           </div>
 
           <div className="statCard admins">
             <div className="statCardInfo">
               <span className="statLabel">ผู้ดูแลระบบ (Admin)</span>
-              <span className="statValue">{members.filter(m => m.role === 'admin').length} คน</span>
+              <span className="statValue">{adminCount} คน</span>
             </div>
             <div className="statCardIcon admins">
               <Shield size={22} />
@@ -403,17 +436,17 @@ export default function MembersAdminClient() {
           <div className="statCard general">
             <div className="statCardInfo">
               <span className="statLabel">สมาชิกทั่วไป (Member)</span>
-              <span className="statValue">{members.filter(m => m.role === 'member').length} คน</span>
+              <span className="statValue">{memberCount} คน</span>
             </div>
             <div className="statCardIcon general">
-              <User size={22} />
+              <UserCheck size={22} />
             </div>
           </div>
 
           <div className="statCard subdistrict">
             <div className="statCardInfo">
               <span className="statLabel">รพ.สต. ในเครือข่าย</span>
-              <span className="statValue">{members.filter(m => m.role === 'subdistrict').length} คน</span>
+              <span className="statValue">{subdistrictCount} คน</span>
             </div>
             <div className="statCardIcon subdistrict">
               <Building2 size={22} />
@@ -422,17 +455,17 @@ export default function MembersAdminClient() {
         </section>
 
         {error && (
-          <div className="dashboardAlert alertDanger">
+          <div className="dashboardAlert alertDanger" role="alert">
             <AlertCircle size={18} />
             <span>{error}</span>
-            <button type="button" className="alertCloseBtn" onClick={() => setError('')}><X size={14} /></button>
+            <button type="button" className="alertCloseBtn" onClick={() => setError('')} aria-label="ปิดการแจ้งเตือน"><X size={14} /></button>
           </div>
         )}
         {success && (
-          <div className="dashboardAlert alertSuccess">
+          <div className="dashboardAlert alertSuccess" role="status">
             <Check size={18} />
             <span>{success}</span>
-            <button type="button" className="alertCloseBtn" onClick={() => setSuccess('')}><X size={14} /></button>
+            <button type="button" className="alertCloseBtn" onClick={() => setSuccess('')} aria-label="ปิดการแจ้งเตือน"><X size={14} /></button>
           </div>
         )}
 
@@ -442,9 +475,10 @@ export default function MembersAdminClient() {
             <Search size={18} className="searchIcon" />
             <input
               type="text"
-              placeholder="ค้นหาชื่อ-นามสกุล, ชื่อผู้ใช้, อีเมล, แผนก หรือตำแหน่ง..."
+              placeholder="ค้นหาชื่อ-นามสกุล, ชื่อผู้ใช้, อีเมล, กลุ่มงาน หรือตำแหน่ง..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="ค้นหาสมาชิก"
             />
             {searchQuery && (
               <button 
@@ -452,15 +486,18 @@ export default function MembersAdminClient() {
                 className="clearSearchBtn" 
                 onClick={() => setSearchQuery('')}
                 title="ล้างคำค้นหา"
+                aria-label="ล้างคำค้นหา"
               >
                 <X size={14} />
               </button>
             )}
           </div>
 
-          <div className="filterGroup">
+          <div className="filterGroup" role="tablist" aria-label="กรองประเภทสมาชิก">
             <button
               type="button"
+              role="tab"
+              aria-selected={roleFilter === 'all'}
               className={`filterTab ${roleFilter === 'all' ? 'active' : ''}`}
               onClick={() => setRoleFilter('all')}
             >
@@ -468,33 +505,39 @@ export default function MembersAdminClient() {
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={roleFilter === 'member'}
               className={`filterTab ${roleFilter === 'member' ? 'active' : ''}`}
               onClick={() => setRoleFilter('member')}
             >
-              ทั่วไป <span className="filterCount">{members.filter(m => m.role === 'member').length}</span>
+              ทั่วไป <span className="filterCount">{memberCount}</span>
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={roleFilter === 'subdistrict'}
               className={`filterTab ${roleFilter === 'subdistrict' ? 'active' : ''}`}
               onClick={() => setRoleFilter('subdistrict')}
             >
-              รพ.สต. <span className="filterCount">{members.filter(m => m.role === 'subdistrict').length}</span>
+              รพ.สต. <span className="filterCount">{subdistrictCount}</span>
             </button>
             <button
               type="button"
+              role="tab"
+              aria-selected={roleFilter === 'admin'}
               className={`filterTab ${roleFilter === 'admin' ? 'active' : ''}`}
               onClick={() => setRoleFilter('admin')}
             >
-              แอดมิน <span className="filterCount">{members.filter(m => m.role === 'admin').length}</span>
+              แอดมิน <span className="filterCount">{adminCount}</span>
             </button>
           </div>
         </section>
 
-        {/* Main Content Area - Locked Layout (No Horizontal Scroll) */}
+        {/* Main Content Area - Locked Layout (Zero Horizontal Scroll Guarantee) */}
         {loading ? (
           <div className="loadingContainer card">
             <Loader2 size={36} className="spinner" />
-            <p>กำลังโหลดรายชื่อสมาชิก...</p>
+            <p>กำลังโหลดรายชื่อบุคลากร...</p>
           </div>
         ) : sortedMembers.length > 0 ? (
           <div className="tableCard">
@@ -513,8 +556,9 @@ export default function MembersAdminClient() {
                       <div className="headerFlex">บัญชี / อีเมล {renderSortIcon('username')}</div>
                     </th>
                     <th onClick={() => handleSort('department')} className="sortableHeader col-dept">
-                      <div className="headerFlex">กลุ่มงาน / แผนก {renderSortIcon('department')}</div>
+                      <div className="headerFlex">กลุ่มงาน / สังกัด {renderSortIcon('department')}</div>
                     </th>
+                    <th className="col-salary">สลิปเงินเดือน</th>
                     <th onClick={() => handleSort('role')} className="sortableHeader col-role">
                       <div className="headerFlex">สิทธิ์ {renderSortIcon('role')}</div>
                     </th>
@@ -523,7 +567,7 @@ export default function MembersAdminClient() {
                 </thead>
                 <tbody>
                   {sortedMembers.map((member, index) => {
-                    const isSelf = currentUser && member.username === currentUser.username;
+                    const isSelf = currentUser && member.username === currentUser.username
 
                     return (
                       <tr key={member.id} className={isSelf ? 'rowSelf' : ''}>
@@ -532,16 +576,21 @@ export default function MembersAdminClient() {
                           <span className="indexBadge">{index + 1}</span>
                         </td>
 
-                        {/* 2. Staff Name & Position (Text-only display) */}
+                        {/* 2. Staff Avatar, Name & Position */}
                         <td className="col-member">
-                          <div className="memberDetails">
-                            <div className="memberNameRow">
-                              <span className="memberName">{member.name || member.username}</span>
-                              {isSelf && <span className="selfTag">คุณ</span>}
+                          <div className="memberPersonnelCell">
+                            <MemberAvatar id={member.id} name={member.name || member.username} size={36} />
+                            <div className="memberDetails">
+                              <div className="memberNameRow">
+                                <span className="memberName" title={member.name || member.username}>
+                                  {member.name || member.username}
+                                </span>
+                                {isSelf && <span className="selfTag">คุณ</span>}
+                              </div>
+                              <span className="memberPosition" title={member.position || 'บุคลากรทั่วไป'}>
+                                {member.position || 'บุคลากรทั่วไป'}
+                              </span>
                             </div>
-                            <span className="memberPosition">
-                              {member.position || 'บุคลากรทั่วไป'}
-                            </span>
                           </div>
                         </td>
 
@@ -566,14 +615,43 @@ export default function MembersAdminClient() {
                           </span>
                         </td>
 
-                        {/* 5. Role Badge */}
+                        {/* 5. Salary Status Badge */}
+                        <td className="col-salary">
+                          {member.salary_user ? (
+                            <span className="salaryBadge linked" title={`ผูกบัญชีเงินเดือน: ${member.salary_user}`}>
+                              <CreditCard size={12} />
+                              <span>ผูกแล้ว</span>
+                            </span>
+                          ) : (
+                            <span className="salaryBadge unlinked" title="ยังไม่ได้ผูกบัญชีเงินเดือน">
+                              <span>ยังไม่ระบุ</span>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 6. Role Badge */}
                         <td className="col-role">
                           <span className={`roleBadge ${member.role}`}>
-                            {member.role === 'admin' ? 'แอดมิน' : member.role === 'subdistrict' ? 'รพ.สต.' : 'ทั่วไป'}
+                            {member.role === 'admin' ? (
+                              <>
+                                <Shield size={11} />
+                                <span>แอดมิน</span>
+                              </>
+                            ) : member.role === 'subdistrict' ? (
+                              <>
+                                <Building2 size={11} />
+                                <span>รพ.สต.</span>
+                              </>
+                            ) : (
+                              <>
+                                <User size={11} />
+                                <span>ทั่วไป</span>
+                              </>
+                            )}
                           </span>
                         </td>
 
-                        {/* 6. Edit & Delete Action Buttons */}
+                        {/* 7. Edit & Delete Action Buttons */}
                         <td className="col-actions">
                           <div className="memberActions">
                             <button
@@ -581,6 +659,7 @@ export default function MembersAdminClient() {
                               title="แก้ไขข้อมูลสมาชิก"
                               onClick={() => handleEditClick(member)}
                               type="button"
+                              aria-label={`แก้ไขข้อมูล ${member.name || member.username}`}
                             >
                               <Edit3 size={14} />
                               <span className="btnText">แก้ไข</span>
@@ -591,13 +670,14 @@ export default function MembersAdminClient() {
                               disabled={!!isSelf}
                               onClick={() => requestDelete(member)}
                               type="button"
+                              aria-label={`ลบสมาชิก ${member.name || member.username}`}
                             >
                               <Trash2 size={14} />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    );
+                    )
                   })}
                 </tbody>
               </table>
@@ -606,22 +686,37 @@ export default function MembersAdminClient() {
             {/* Mobile / Tablet Responsive Card View - Zero Horizontal Scroll */}
             <div className="mobileCardsContainer">
               {sortedMembers.map((member) => {
-                const isSelf = currentUser && member.username === currentUser.username;
+                const isSelf = currentUser && member.username === currentUser.username
 
                 return (
                   <div key={member.id} className={`memberCardItem ${isSelf ? 'cardSelf' : ''}`}>
                     <div className="cardTopRow">
-                      <div className="cardProfileInfo">
-                        <div className="cardNameRow">
-                          <span className="cardMemberName">{member.name || member.username}</span>
-                          {isSelf && <span className="selfTag">คุณ</span>}
+                      <div className="cardProfileWrap">
+                        <MemberAvatar id={member.id} name={member.name || member.username} size={42} />
+                        <div className="cardProfileInfo">
+                          <div className="cardNameRow">
+                            <span className="cardMemberName">{member.name || member.username}</span>
+                            {isSelf && <span className="selfTag">คุณ</span>}
+                          </div>
+                          <span className="cardPositionText">{member.position || 'บุคลากรทั่วไป'}</span>
                         </div>
-                        <span className="cardPositionText">{member.position || 'บุคลากรทั่วไป'}</span>
                       </div>
 
-                      <span className={`roleBadge ${member.role}`}>
-                        {member.role === 'admin' ? 'แอดมิน' : member.role === 'subdistrict' ? 'รพ.สต.' : 'ทั่วไป'}
-                      </span>
+                      <div className="cardBadgesRow">
+                        <span className={`roleBadge ${member.role}`}>
+                          {member.role === 'admin' ? 'แอดมิน' : member.role === 'subdistrict' ? 'รพ.สต.' : 'ทั่วไป'}
+                        </span>
+                        {member.salary_user ? (
+                          <span className="salaryBadge linked">
+                            <CreditCard size={11} />
+                            <span>ผูกสลิปแล้ว</span>
+                          </span>
+                        ) : (
+                          <span className="salaryBadge unlinked">
+                            <span>ยังไม่ระบุสลิป</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="cardDetailsGrid">
@@ -657,12 +752,13 @@ export default function MembersAdminClient() {
                         onClick={() => requestDelete(member)}
                         type="button"
                         title={isSelf ? "ไม่สามารถลบบัญชีตนเองได้" : "ลบสมาชิก"}
+                        aria-label={`ลบสมาชิก ${member.name || member.username}`}
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
-                );
+                )
               })}
             </div>
           </div>
@@ -688,7 +784,7 @@ export default function MembersAdminClient() {
       {/* Edit/Create Modal Dialog */}
       {isModalOpen && (
         <div className="modalOverlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modalCard premiumModal" onClick={(e) => e.stopPropagation()}>
+          <div className="modalCard premiumModal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="modalHeader">
               <div className="headerIconContainer">
                 {isCreateMode ? <UserPlus size={20} /> : <Edit3 size={20} />}
@@ -710,7 +806,7 @@ export default function MembersAdminClient() {
             </div>
 
             {modalError && (
-              <div className="modalAlert alertDanger flexItems">
+              <div className="modalAlert alertDanger flexItems" role="alert">
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{modalError}</span>
               </div>
@@ -726,9 +822,10 @@ export default function MembersAdminClient() {
                   </div>
 
                   <div className="formGroup">
-                    <label>ชื่อ-นามสกุล *</label>
+                    <label htmlFor="member-fullname">ชื่อ-นามสกุล *</label>
                     <div className="inputWrapper">
                       <input
+                        id="member-fullname"
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -739,9 +836,10 @@ export default function MembersAdminClient() {
                   </div>
 
                   <div className="formGroup">
-                    <label>ตำแหน่งการทำงาน</label>
+                    <label htmlFor="member-position">ตำแหน่งการทำงาน</label>
                     <div className="inputWrapper">
                       <input
+                        id="member-position"
                         type="text"
                         value={position}
                         onChange={(e) => setPosition(e.target.value)}
@@ -751,9 +849,10 @@ export default function MembersAdminClient() {
                   </div>
 
                   <div className="formGroup col-span-2">
-                    <label>กลุ่มงาน / แผนก *</label>
+                    <label htmlFor="member-department">กลุ่มงาน / แผนก *</label>
                     <div className="inputWrapper">
                       <input
+                        id="member-department"
                         type="text"
                         value={department}
                         onChange={(e) => setDepartment(e.target.value)}
@@ -770,9 +869,10 @@ export default function MembersAdminClient() {
                   </div>
 
                   <div className="formGroup">
-                    <label>ชื่อผู้ใช้งาน (Username) *</label>
+                    <label htmlFor="member-username">ชื่อผู้ใช้งาน (Username) *</label>
                     <div className="inputWrapper">
                       <input
+                        id="member-username"
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
@@ -783,9 +883,10 @@ export default function MembersAdminClient() {
                   </div>
 
                   <div className="formGroup">
-                    <label>อีเมลติดต่อ (Email) *</label>
+                    <label htmlFor="member-email">อีเมลติดต่อ (Email) *</label>
                     <div className="inputWrapper">
                       <input
+                        id="member-email"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -796,9 +897,10 @@ export default function MembersAdminClient() {
                   </div>
 
                   <div className="formGroup col-span-2">
-                    <label>สิทธิ์การเข้าใช้งานระบบ (Role)</label>
+                    <label htmlFor="member-role">สิทธิ์การเข้าใช้งานระบบ (Role)</label>
                     <div className="selectWrapper">
                       <select
+                        id="member-role"
                         value={role}
                         onChange={(e) => setRole(e.target.value as 'member' | 'admin' | 'subdistrict')}
                         disabled={!isCreateMode && editingMember?.username === currentUser?.username}
@@ -815,14 +917,15 @@ export default function MembersAdminClient() {
 
                   {/* Salary Credentials Section */}
                   <div className="modalSubSectionHeader col-span-2">
-                    <Shield size={14} />
+                    <CreditCard size={14} />
                     <span>ข้อมูลเข้าสู่ระบบสลิปเงินเดือน (Salary Credentials)</span>
                   </div>
 
                   <div className="formGroup">
-                    <label>รหัสบุคลากรเงินเดือน (Salary User)</label>
+                    <label htmlFor="member-salary-user">รหัสบุคลากรเงินเดือน (Salary User)</label>
                     <div className="inputWrapper">
                       <input
+                        id="member-salary-user"
                         type="text"
                         value={salaryUser}
                         onChange={(e) => setSalaryUser(e.target.value)}
@@ -832,9 +935,10 @@ export default function MembersAdminClient() {
                   </div>
 
                   <div className="formGroup">
-                    <label>รหัสผ่านเงินเดือน (Salary Password)</label>
+                    <label htmlFor="member-salary-pass">รหัสผ่านเงินเดือน (Salary Password)</label>
                     <div className="inputWrapper">
                       <input
+                        id="member-salary-pass"
                         type="password"
                         value={salaryPass}
                         onChange={(e) => setSalaryPass(e.target.value)}
@@ -876,7 +980,7 @@ export default function MembersAdminClient() {
       {/* Confirm Sync Salary Dialog */}
       <ConfirmDialog
         isOpen={confirmSyncOpen}
-        title="ยืนยันการซ敬ค์ข้อมูลสลิปเงินเดือน"
+        title="ยืนยันการซิงค์ข้อมูลสลิปเงินเดือน"
         description="คุณต้องการซิงค์ข้อมูลสลิปเงินเดือนจากฐานข้อมูลภายนอกใช่หรือไม่? ระบบจะทำการจับคู่และอัปเดตข้อมูลบัญชีสลิปเงินเดือนของบุคลากรโรงพยาบาลเถินที่มีชื่อผู้ใช้ตรงกัน"
         confirmText="ซิงค์ข้อมูลทันที"
         cancelText="ยกเลิก"

@@ -33,11 +33,7 @@ export default async function NewRepairPage() {
   )
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f8fafc',
-      padding: '2rem 1rem 5rem',
-    }}>
+    <div className="repairPageWrapper">
       <RepairFormClient 
         currentUser={currentMember}
         initialLocations={initialLocations}

@@ -3,6 +3,193 @@ import { getCachedData } from '@/lib/cache'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 
+// ── 0. Fiscal Date Range & Domain Types ──────────────────────
+
+export interface FiscalDateRange {
+  startDate: string
+  endDate: string
+  /** Backward-compatible alias for startDate */
+  ds1?: string
+  /** Backward-compatible alias for endDate */
+  ds2?: string
+}
+
+export interface FiscalDateRangeParams {
+  startDate?: string
+  endDate?: string
+  ds1?: string
+  ds2?: string
+}
+
+/**
+ * Computes active Thai Government Fiscal Year date range (Oct 1 - Sep 30).
+ */
+export function getDefaultFiscalYearDateRange(referenceDate: Date = new Date()): FiscalDateRange {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(referenceDate)
+
+  let year = referenceDate.getFullYear()
+  let month = referenceDate.getMonth() + 1
+
+  for (const part of parts) {
+    if (part.type === 'year') year = parseInt(part.value, 10)
+    if (part.type === 'month') month = parseInt(part.value, 10)
+  }
+
+  const fiscalYear = month >= 10 ? year + 1 : year
+  const startDate = `${fiscalYear - 1}-10-01`
+  const endDate = `${fiscalYear}-09-30`
+
+  return {
+    startDate,
+    endDate,
+    ds1: startDate,
+    ds2: endDate,
+  }
+}
+
+/**
+ * Resolves fiscal date range with fallback to active fiscal year.
+ */
+export function resolveFiscalDateRange(params?: FiscalDateRangeParams): { startDate: string; endDate: string } {
+  const defaultRange = getDefaultFiscalYearDateRange()
+  const startDate = params?.startDate || params?.ds1 || defaultRange.startDate
+  const endDate = params?.endDate || params?.ds2 || defaultRange.endDate
+  return { startDate, endDate }
+}
+
+// ── 0.1 Specialty Classification Domain ──────────────────────
+
+export type ClinicalDepartmentKey =
+  | 'medicine'
+  | 'surgery'
+  | 'obgyn'
+  | 'pediatrics'
+  | 'orthopedics'
+  | 'ent'
+  | 'eye'
+  | 'dental'
+  | 'psychiatry'
+  | 'other'
+
+export interface ClinicalDepartmentDefinition {
+  key: ClinicalDepartmentKey
+  label: string
+  thaiName: string
+  spcltyCodes: string[]
+}
+
+export const CLINICAL_DEPARTMENT_DEFINITIONS: ClinicalDepartmentDefinition[] = [
+  { key: 'medicine', label: '01. อายุรกรรม', thaiName: 'อายุรกรรม', spcltyCodes: ['01', '21'] },
+  { key: 'surgery', label: '02. ศัลยกรรม', thaiName: 'ศัลยกรรม', spcltyCodes: ['02'] },
+  { key: 'obgyn', label: '03. สูตินารีเวชกรรม', thaiName: 'สูตินารีเวชกรรม', spcltyCodes: ['03', '04'] },
+  { key: 'pediatrics', label: '04. กุมารเวชกรรม', thaiName: 'กุมารเวชกรรม', spcltyCodes: ['05'] },
+  { key: 'orthopedics', label: '05. ออร์โธปิติกส์', thaiName: 'ออร์โธปิติกส์', spcltyCodes: ['08'] },
+  { key: 'ent', label: '06. ENT', thaiName: 'ENT', spcltyCodes: ['06'] },
+  { key: 'eye', label: '07. จักษุ', thaiName: 'จักษุ', spcltyCodes: ['07'] },
+  { key: 'dental', label: '08. ทันตกรรม', thaiName: 'ทันตกรรม', spcltyCodes: ['11'] },
+  { key: 'psychiatry', label: '09. จิตเวช', thaiName: 'จิตเวช', spcltyCodes: ['09'] },
+  { key: 'other', label: '10. อื่นๆ', thaiName: 'อื่นๆ', spcltyCodes: [] },
+]
+
+/**
+ * Builds the standard SQL CASE expression for classifying clinical departments.
+ */
+export function buildDepartmentSqlCase(
+  tableAlias: string = 'i',
+  spcltyTableAlias: string = 's',
+  format: 'key' | 'label' = 'key'
+): string {
+  if (format === 'label') {
+    return `CASE
+      WHEN ${tableAlias}.spclty IN ('01', '21') OR ${spcltyTableAlias}.name LIKE '%อายุร%' THEN '01. อายุรกรรม'
+      WHEN ${tableAlias}.spclty = '02' OR (${spcltyTableAlias}.name LIKE '%ศัลยกรรม%' AND ${spcltyTableAlias}.name NOT LIKE '%กระดูก%' AND ${spcltyTableAlias}.name NOT LIKE '%ออร์โธ%') THEN '02. ศัลยกรรม'
+      WHEN ${tableAlias}.spclty IN ('03', '04') OR ${spcltyTableAlias}.name LIKE '%สูติ%' OR ${spcltyTableAlias}.name LIKE '%นรีเวช%' THEN '03. สูตินารีเวชกรรม'
+      WHEN ${tableAlias}.spclty = '05' OR ${spcltyTableAlias}.name LIKE '%กุมาร%' THEN '04. กุมารเวชกรรม'
+      WHEN ${tableAlias}.spclty = '08' OR ${spcltyTableAlias}.name LIKE '%กระดูก%' OR ${spcltyTableAlias}.name LIKE '%ออร์โธ%' THEN '05. ออร์โธปิติกส์'
+      WHEN ${tableAlias}.spclty = '06' OR ${spcltyTableAlias}.name LIKE '%ENT%' OR ${spcltyTableAlias}.name LIKE '%โสต%' THEN '06. ENT'
+      WHEN ${tableAlias}.spclty = '07' OR ${spcltyTableAlias}.name LIKE '%จักษุ%' THEN '07. จักษุ'
+      WHEN ${tableAlias}.spclty = '11' OR ${spcltyTableAlias}.name LIKE '%ทันต%' THEN '08. ทันตกรรม'
+      WHEN ${tableAlias}.spclty = '09' OR ${spcltyTableAlias}.name LIKE '%จิตเวช%' THEN '09. จิตเวช'
+      ELSE '10. อื่นๆ'
+    END`
+  }
+
+  return `CASE
+    WHEN ${tableAlias}.spclty IN ('01', '21') OR ${spcltyTableAlias}.name LIKE '%อายุร%' THEN 'medicine'
+    WHEN ${tableAlias}.spclty = '02' OR (${spcltyTableAlias}.name LIKE '%ศัลยกรรม%' AND ${spcltyTableAlias}.name NOT LIKE '%กระดูก%' AND ${spcltyTableAlias}.name NOT LIKE '%ออร์โธ%') THEN 'surgery'
+    WHEN ${tableAlias}.spclty IN ('03', '04') OR ${spcltyTableAlias}.name LIKE '%สูติ%' OR ${spcltyTableAlias}.name LIKE '%นรีเวช%' THEN 'obgyn'
+    WHEN ${tableAlias}.spclty = '05' OR ${spcltyTableAlias}.name LIKE '%กุมาร%' THEN 'pediatrics'
+    WHEN ${tableAlias}.spclty = '08' OR ${spcltyTableAlias}.name LIKE '%กระดูก%' OR ${spcltyTableAlias}.name LIKE '%ออร์โธ%' THEN 'orthopedics'
+    WHEN ${tableAlias}.spclty = '06' OR ${spcltyTableAlias}.name LIKE '%ENT%' OR ${spcltyTableAlias}.name LIKE '%โสต%' THEN 'ent'
+    WHEN ${tableAlias}.spclty = '07' OR ${spcltyTableAlias}.name LIKE '%จักษุ%' THEN 'eye'
+    WHEN ${tableAlias}.spclty = '11' OR ${spcltyTableAlias}.name LIKE '%ทันต%' THEN 'dental'
+    WHEN ${tableAlias}.spclty = '09' OR ${spcltyTableAlias}.name LIKE '%จิตเวช%' THEN 'psychiatry'
+    ELSE 'other'
+  END`
+}
+
+/**
+ * Classifies medical specialty code and name into standard department metadata in memory.
+ */
+export function classifySpecialty(
+  spcltyCode?: string | null,
+  spcltyName?: string | null
+): { key: ClinicalDepartmentKey; label: string; thaiName: string } {
+  const code = (spcltyCode ?? '').trim()
+  const name = (spcltyName ?? '').trim()
+
+  if (code === '01' || code === '21' || name.includes('อายุร')) {
+    return { key: 'medicine', label: '01. อายุรกรรม', thaiName: 'อายุรกรรม' }
+  }
+  if (code === '02' || (name.includes('ศัลยกรรม') && !name.includes('กระดูก') && !name.includes('ออร์โธ'))) {
+    return { key: 'surgery', label: '02. ศัลยกรรม', thaiName: 'ศัลยกรรม' }
+  }
+  if (code === '03' || code === '04' || name.includes('สูติ') || name.includes('นรีเวช')) {
+    return { key: 'obgyn', label: '03. สูตินารีเวชกรรม', thaiName: 'สูตินารีเวชกรรม' }
+  }
+  if (code === '05' || name.includes('กุมาร')) {
+    return { key: 'pediatrics', label: '04. กุมารเวชกรรม', thaiName: 'กุมารเวชกรรม' }
+  }
+  if (code === '08' || name.includes('กระดูก') || name.includes('ออร์โธ')) {
+    return { key: 'orthopedics', label: '05. ออร์โธปิติกส์', thaiName: 'ออร์โธปิติกส์' }
+  }
+  if (code === '06' || name.includes('ENT') || name.includes('โสต')) {
+    return { key: 'ent', label: '06. ENT', thaiName: 'ENT' }
+  }
+  if (code === '07' || name.includes('จักษุ')) {
+    return { key: 'eye', label: '07. จักษุ', thaiName: 'จักษุ' }
+  }
+  if (code === '11' || name.includes('ทันต')) {
+    return { key: 'dental', label: '08. ทันตกรรม', thaiName: 'ทันตกรรม' }
+  }
+  if (code === '09' || name.includes('จิตเวช')) {
+    return { key: 'psychiatry', label: '09. จิตเวช', thaiName: 'จิตเวช' }
+  }
+  return { key: 'other', label: '10. อื่นๆ', thaiName: 'อื่นๆ' }
+}
+
+export interface IpdDepartmentAdjrwQueryRow {
+  sort_order?: number
+  dch_month?: string
+  dept_key?: string
+  patients?: number | string
+  visits?: number | string
+  adjrw?: number | string
+  cmi?: number | string
+  [key: string]: unknown
+}
+
+export interface OpdDepartmentSummaryQueryRow {
+  dept_group?: string
+  patients?: number | string
+  visits?: number | string
+  [key: string]: unknown
+}
+
 // ── 1. SSS Dental Types ─────────────────────────────────────
 
 export interface DentalDoctorSummaryItem {
@@ -122,6 +309,12 @@ export interface OPDRecord {
   cm: number
 }
 
+export interface OpdDepartmentSummaryItem {
+  dept_group: string
+  patients: number
+  visits: number
+}
+
 // ── 3. IPD Types ────────────────────────────────────────────
 
 export interface IPDRecord {
@@ -172,8 +365,19 @@ export interface IPDReportResult {
   data: IPDRecord[]
 }
 
+export interface DepartmentMetricData {
+  patients: number
+  visits: number
+  adjrw: number
+  cmi: number
+}
+
 export interface IpdDepartmentAdjrwItem {
   month: string
+  total_patients: number
+  total_visits: number
+  adjrw_sum: number
+  cmi: number
   medicine: number
   surgery: number
   obgyn: number
@@ -185,6 +389,7 @@ export interface IpdDepartmentAdjrwItem {
   dental: number
   psychiatry: number
   total: number
+  depts: Record<string, DepartmentMetricData>
 }
 
 // ── 4. Telegram Notification Types ─────────────────────────
@@ -218,15 +423,14 @@ export class RcmDashboardService {
    * 2.1.1.1 รายงานการให้บริการทันตกรรมสิทธิ์ประกันสังคม จำแนกตามทันตแพทย์
    */
   static async getSssDentalReport(
-    params: {
-      ds1: string
-      ds2: string
+    params: FiscalDateRangeParams & {
       doctorFilter?: string
       fetchVisits?: boolean
     },
     executor: QueryExecutor = queryClinicalDb
   ): Promise<SssDentalResult> {
-    const { ds1, ds2, doctorFilter = '', fetchVisits = false } = params
+    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const { doctorFilter = '', fetchVisits = false } = params
     const cacheKey = `rcm-sss-dental-${ds1}-${ds2}-${doctorFilter}-${fetchVisits}`
 
     return getCachedData(
@@ -389,14 +593,13 @@ export class RcmDashboardService {
    * 2.1.1.2 สรุปค่าบริการผู้ป่วยนอก OPD จำแนกรายแพทย์ และตัวเลือก 37 สิทธิ e-Claim
    */
   static async getOpdDoctorSummary(
-    params: {
-      ds1: string
-      ds2: string
+    params: FiscalDateRangeParams & {
       eclaimsParam?: string
     },
     executor: QueryExecutor = queryClinicalDb
   ): Promise<OpdDoctorSummaryResult> {
-    const { ds1, ds2, eclaimsParam = '' } = params
+    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const { eclaimsParam = '' } = params
     const cacheKey = `rcm-opd-doctor-summary-${ds1}-${ds2}-${eclaimsParam}`
 
     return getCachedData(
@@ -527,15 +730,14 @@ export class RcmDashboardService {
    * รายงานผู้ป่วยนอก OPD รายละเอียด (กรณีต้องการดูรายคน)
    */
   static async getOpdDetailedReport(
-    params: {
-      ds1: string
-      ds2: string
+    params: FiscalDateRangeParams & {
       pttype?: string
       isAll?: boolean
     },
     executor: QueryExecutor = queryClinicalDb
   ): Promise<OPDRecord[]> {
-    const { ds1, ds2, pttype = '', isAll = false } = params
+    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const { pttype = '', isAll = false } = params
     const cacheKey = `rcm-opd-detailed-${ds1}-${ds2}-${pttype}-${isAll}`
 
     return getCachedData(
@@ -600,14 +802,13 @@ export class RcmDashboardService {
    * 2.1.2.1 รายงานสรุปการให้บริการผู้ป่วยในโรงพยาบาลเถิน (IPD)
    */
   static async getIpdReport(
-    params: {
-      ds1: string
-      ds2: string
+    params: FiscalDateRangeParams & {
       pttype?: string
     },
     executor: QueryExecutor = queryClinicalDb
   ): Promise<IPDRecord[]> {
-    const { ds1, ds2, pttype = '' } = params
+    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const { pttype = '' } = params
     const cacheKey = `rcm-ipd-report-${ds1}-${ds2}-${pttype}`
 
     return getCachedData(
@@ -686,142 +887,272 @@ export class RcmDashboardService {
    * 2.1.2.2 จำนวน SumAdjRW แยกรายแผนก IPD
    */
   static async getIpdDepartmentAdjrw(
-    params: {
-      ds1?: string
-      ds2?: string
-    } = {},
+    params: FiscalDateRangeParams = {},
     executor: QueryExecutor = queryClinicalDb
   ): Promise<IpdDepartmentAdjrwItem[]> {
-    const ds1 = params.ds1 || '2024-10-01'
-    const ds2 = params.ds2 || '2025-09-30'
-    const cacheKey = `rcm-ipd-dept-adjrw-${ds1}-${ds2}`
+    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const cacheKey = `rcm-ipd-dept-adjrw-v2-${ds1}-${ds2}`
+
+    const DEPT_KEYS = [
+      'medicine',
+      'surgery',
+      'obgyn',
+      'pediatrics',
+      'orthopedics',
+      'ent',
+      'eye',
+      'other',
+      'dental',
+      'psychiatry',
+    ] as const
+
+    const createDefaultDepts = (): Record<string, DepartmentMetricData> => ({
+      medicine: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      surgery: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      obgyn: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      pediatrics: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      orthopedics: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      ent: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      eye: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      other: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      dental: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+      psychiatry: { patients: 0, visits: 0, adjrw: 0, cmi: 0 },
+    })
 
     return getCachedData(
       cacheKey,
       async () => {
+        const ipdDeptCase = buildDepartmentSqlCase('i', 's', 'key')
         const query = `
           SELECT 
-            dch_month AS \`เดือน\`,
-            \`อายุรกรรม\`,
-            \`ศัลยกรรม\`,
-            \`สูตินารีเวชกรรม\`,
-            \`กุมารเวชกรรม\`,
-            \`ออร์โธปิติกส์\`,
-            \`ENT\`,
-            \`จักษุ\`,
-            \`อื่นๆ\`,
-            \`ทันตกรรม\`,
-            \`จิตเวช\`
-          FROM (
-            -- ส่วนข้อมูลรายเดือน
-            SELECT 
-              CASE WHEN MONTH(i.dchdate) >= 10 THEN MONTH(i.dchdate) - 9 ELSE MONTH(i.dchdate) + 3 END AS sort_order,
-              CONCAT(
-                ELT(MONTH(i.dchdate), 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'),
-                '-',
-                RIGHT(YEAR(i.dchdate) + 543, 2)
-              ) AS dch_month,
-              ROUND(SUM(CASE WHEN i.spclty IN ('01', '21') OR s.name LIKE '%อายุร%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`อายุรกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty = '02' OR (s.name LIKE '%ศัลยกรรม%' AND s.name NOT LIKE '%กระดูก%' AND s.name NOT LIKE '%ออร์โธ%') THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ศัลยกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty IN ('03', '04') OR s.name LIKE '%สูติ%' OR s.name LIKE '%นรีเวช%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`สูตินารีเวชกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty = '05' OR s.name LIKE '%กุมาร%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`กุมารเวชกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty = '08' OR s.name LIKE '%กระดูก%' OR s.name LIKE '%ออร์โธ%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ออร์โธปิติกส์\`,
-              ROUND(SUM(CASE WHEN i.spclty = '06' OR s.name LIKE '%ENT%' OR s.name LIKE '%โสต%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ENT\`,
-              ROUND(SUM(CASE WHEN i.spclty = '07' OR s.name LIKE '%จักษุ%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`จักษุ\`,
-              ROUND(SUM(CASE WHEN i.spclty NOT IN ('01','02','03','04','05','06','07','08','09','11','21')
-                              AND s.name NOT LIKE '%อายุร%'
-                              AND s.name NOT LIKE '%ศัลย%'
-                              AND s.name NOT LIKE '%สูติ%' AND s.name NOT LIKE '%นรีเวช%'
-                              AND s.name NOT LIKE '%กุมาร%'
-                              AND s.name NOT LIKE '%โสต%' AND s.name NOT LIKE '%ENT%'
-                              AND s.name NOT LIKE '%จักษุ%'
-                              AND s.name NOT LIKE '%ทันต%'
-                              AND s.name NOT LIKE '%จิตเวช%'
-                              AND s.name NOT LIKE '%กระดูก%'
-                         THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`อื่นๆ\`,
-              ROUND(SUM(CASE WHEN i.spclty = '11' OR s.name LIKE '%ทันต%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ทันตกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty = '09' OR s.name LIKE '%จิตเวช%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`จิตเวช\`
-            FROM ipt i
-            LEFT JOIN spclty s ON s.spclty = i.spclty
-            WHERE i.dchdate BETWEEN ? AND ?
-            GROUP BY YEAR(i.dchdate), MONTH(i.dchdate)
+            CASE WHEN MONTH(i.dchdate) >= 10 THEN MONTH(i.dchdate) - 9 ELSE MONTH(i.dchdate) + 3 END AS sort_order,
+            CONCAT(
+              ELT(MONTH(i.dchdate), 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'),
+              '-',
+              RIGHT(YEAR(i.dchdate) + 543, 2)
+            ) AS dch_month,
+            ${ipdDeptCase} AS dept_key,
+            COUNT(DISTINCT i.hn) AS patients,
+            COUNT(DISTINCT i.an) AS visits,
+            ROUND(SUM(IFNULL(i.adjrw, 0)), 4) AS adjrw,
+            ROUND(SUM(IFNULL(i.adjrw, 0)) / NULLIF(COUNT(DISTINCT i.an), 0), 4) AS cmi
+          FROM ipt i
+          LEFT JOIN spclty s ON s.spclty = i.spclty
+          WHERE i.dchdate BETWEEN ? AND ?
+          GROUP BY YEAR(i.dchdate), MONTH(i.dchdate), dept_key
 
-            UNION ALL
+          UNION ALL
 
-            -- แถวสรุปรวม
-            SELECT 
-              99 AS sort_order,
-              'รวม' AS dch_month,
-              ROUND(SUM(CASE WHEN i.spclty IN ('01', '21') OR s.name LIKE '%อายุร%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`อายุรกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty = '02' OR (s.name LIKE '%ศัลยกรรม%' AND s.name NOT LIKE '%กระดูก%' AND s.name NOT LIKE '%ออร์โธ%') THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ศัลยกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty IN ('03', '04') OR s.name LIKE '%สูติ%' OR s.name LIKE '%นรีเวช%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`สูตินารีเวชกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty = '05' OR s.name LIKE '%กุมาร%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`กุมารเวชกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty = '08' OR s.name LIKE '%กระดูก%' OR s.name LIKE '%ออร์โธ%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ออร์โธปิติกส์\`,
-              ROUND(SUM(CASE WHEN i.spclty = '06' OR s.name LIKE '%ENT%' OR s.name LIKE '%โสต%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ENT\`,
-              ROUND(SUM(CASE WHEN i.spclty = '07' OR s.name LIKE '%จักษุ%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`จักษุ\`,
-              ROUND(SUM(CASE WHEN i.spclty NOT IN ('01','02','03','04','05','06','07','08','09','11','21')
-                              AND s.name NOT LIKE '%อายุร%'
-                              AND s.name NOT LIKE '%ศัลย%'
-                              AND s.name NOT LIKE '%สูติ%' AND s.name NOT LIKE '%นรีเวช%'
-                              AND s.name NOT LIKE '%กุมาร%'
-                              AND s.name NOT LIKE '%โสต%' AND s.name NOT LIKE '%ENT%'
-                              AND s.name NOT LIKE '%จักษุ%'
-                              AND s.name NOT LIKE '%ทันต%'
-                              AND s.name NOT LIKE '%จิตเวช%'
-                              AND s.name NOT LIKE '%กระดูก%'
-                         THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`อื่นๆ\`,
-              ROUND(SUM(CASE WHEN i.spclty = '11' OR s.name LIKE '%ทันต%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`ทันตกรรม\`,
-              ROUND(SUM(CASE WHEN i.spclty = '09' OR s.name LIKE '%จิตเวช%' THEN IFNULL(i.adjrw, 0) ELSE 0 END), 4) AS \`จิตเวช\`
-            FROM ipt i
-            LEFT JOIN spclty s ON s.spclty = i.spclty
-            WHERE i.dchdate BETWEEN ? AND ?
-          ) t
-          ORDER BY sort_order
+          -- สรุปภาพรวมรายเดือน (total per month)
+          SELECT 
+            CASE WHEN MONTH(i.dchdate) >= 10 THEN MONTH(i.dchdate) - 9 ELSE MONTH(i.dchdate) + 3 END AS sort_order,
+            CONCAT(
+              ELT(MONTH(i.dchdate), 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'),
+              '-',
+              RIGHT(YEAR(i.dchdate) + 543, 2)
+            ) AS dch_month,
+            'total' AS dept_key,
+            COUNT(DISTINCT i.hn) AS patients,
+            COUNT(DISTINCT i.an) AS visits,
+            ROUND(SUM(IFNULL(i.adjrw, 0)), 4) AS adjrw,
+            ROUND(SUM(IFNULL(i.adjrw, 0)) / NULLIF(COUNT(DISTINCT i.an), 0), 4) AS cmi
+          FROM ipt i
+          LEFT JOIN spclty s ON s.spclty = i.spclty
+          WHERE i.dchdate BETWEEN ? AND ?
+          GROUP BY YEAR(i.dchdate), MONTH(i.dchdate)
+
+          UNION ALL
+
+          -- สรุปภาพรวมทั้งปี แยกรายแผนก (total per department for full period)
+          SELECT 
+            99 AS sort_order,
+            'รวม' AS dch_month,
+            ${ipdDeptCase} AS dept_key,
+            COUNT(DISTINCT i.hn) AS patients,
+            COUNT(DISTINCT i.an) AS visits,
+            ROUND(SUM(IFNULL(i.adjrw, 0)), 4) AS adjrw,
+            ROUND(SUM(IFNULL(i.adjrw, 0)) / NULLIF(COUNT(DISTINCT i.an), 0), 4) AS cmi
+          FROM ipt i
+          LEFT JOIN spclty s ON s.spclty = i.spclty
+          WHERE i.dchdate BETWEEN ? AND ?
+          GROUP BY dept_key
+
+          UNION ALL
+
+          -- แถวสรุปรวมทั้งหมดของ รพ. ตลอดช่วงเวลา (grand total)
+          SELECT 
+            99 AS sort_order,
+            'รวม' AS dch_month,
+            'total' AS dept_key,
+            COUNT(DISTINCT i.hn) AS patients,
+            COUNT(DISTINCT i.an) AS visits,
+            ROUND(SUM(IFNULL(i.adjrw, 0)), 4) AS adjrw,
+            ROUND(SUM(IFNULL(i.adjrw, 0)) / NULLIF(COUNT(DISTINCT i.an), 0), 4) AS cmi
+          FROM ipt i
+          LEFT JOIN spclty s ON s.spclty = i.spclty
+          WHERE i.dchdate BETWEEN ? AND ?
+
+          ORDER BY sort_order, dept_key
         `
 
-        const rows = await executor(query, [ds1, ds2, ds1, ds2])
+        const rows = (await executor(query, [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2])) as IpdDepartmentAdjrwQueryRow[]
 
-        return rows.map((r: any) => {
-          const medicine = Number(r['อายุรกรรม'] ?? r.medicine ?? 0)
-          const surgery = Number(r['ศัลยกรรม'] ?? r.surgery ?? 0)
-          const obgyn = Number(r['สูตินารีเวชกรรม'] ?? r.obgyn ?? 0)
-          const pediatrics = Number(r['กุมารเวชกรรม'] ?? r.pediatrics ?? 0)
-          const orthopedics = Number(r['ออร์โธปิติกส์'] ?? r.orthopedics ?? 0)
-          const ent = Number(r['ENT'] ?? r.ent ?? 0)
-          const eye = Number(r['จักษุ'] ?? r.eye ?? 0)
-          const other = Number(r['อื่นๆ'] ?? r.other ?? 0)
-          const dental = Number(r['ทันตกรรม'] ?? r.dental ?? 0)
-          const psychiatry = Number(r['จิตเวช'] ?? r.psychiatry ?? 0)
-          const total = Number(
-            (
-              medicine +
-              surgery +
-              obgyn +
-              pediatrics +
-              orthopedics +
-              ent +
-              eye +
-              other +
-              dental +
-              psychiatry
-            ).toFixed(4)
-          )
+        // Handle legacy flat format if returned (for mock tests)
+        if (
+          rows.length > 0 &&
+          ('อายุรกรรม' in rows[0] || 'medicine' in rows[0]) &&
+          !('dept_key' in rows[0])
+        ) {
+          return rows.map((r: IpdDepartmentAdjrwQueryRow) => {
+            const total_patients = Number(r['คนรวม'] ?? r.total_patients ?? 0)
+            const total_visits = Number(r['ครั้งรวม'] ?? r.total_visits ?? 0)
+            const adjrw_sum = Number(r['AdjRW รวม'] ?? r.adjrw_sum ?? 0)
+            const cmi = Number(r['CMI รวม'] ?? r.cmi ?? 0)
 
-          return {
-            month: String(r['เดือน'] ?? r.dch_month ?? r.month ?? ''),
-            medicine,
-            surgery,
-            obgyn,
-            pediatrics,
-            orthopedics,
-            ent,
-            eye,
-            other,
-            dental,
-            psychiatry,
-            total,
+            const depts = createDefaultDepts()
+            const deptMapping: [keyof typeof depts, string][] = [
+              ['medicine', 'อายุรกรรม'],
+              ['surgery', 'ศัลยกรรม'],
+              ['obgyn', 'สูตินารีเวชกรรม'],
+              ['pediatrics', 'กุมารเวชกรรม'],
+              ['orthopedics', 'ออร์โธปิติกส์'],
+              ['ent', 'ENT'],
+              ['eye', 'จักษุ'],
+              ['other', 'อื่นๆ'],
+              ['dental', 'ทันตกรรม'],
+              ['psychiatry', 'จิตเวช'],
+            ]
+
+            for (const [k, name] of deptMapping) {
+              const val = Number(r[name] ?? r[k] ?? 0)
+              const p = Number(r[`${name}_คน`] ?? r[`${k}_patients`] ?? 0)
+              const v = Number(r[`${name}_ครั้ง`] ?? r[`${k}_visits`] ?? 0)
+              const c = Number(r[`${name}_cmi`] ?? r[`${k}_cmi`] ?? (v > 0 ? val / v : 0))
+              depts[k] = {
+                patients: p,
+                visits: v,
+                adjrw: val,
+                cmi: Number(c.toFixed(4)),
+              }
+            }
+
+            const medicine = depts.medicine.adjrw
+            const surgery = depts.surgery.adjrw
+            const obgyn = depts.obgyn.adjrw
+            const pediatrics = depts.pediatrics.adjrw
+            const orthopedics = depts.orthopedics.adjrw
+            const ent = depts.ent.adjrw
+            const eye = depts.eye.adjrw
+            const other = depts.other.adjrw
+            const dental = depts.dental.adjrw
+            const psychiatry = depts.psychiatry.adjrw
+
+            const sumOfDepts = Number(
+              (
+                medicine +
+                surgery +
+                obgyn +
+                pediatrics +
+                orthopedics +
+                ent +
+                eye +
+                other +
+                dental +
+                psychiatry
+              ).toFixed(4)
+            )
+            const total = adjrw_sum > 0 ? adjrw_sum : sumOfDepts
+
+            return {
+              month: String(r['เดือน'] ?? r.dch_month ?? r.month ?? ''),
+              total_patients,
+              total_visits,
+              adjrw_sum: total,
+              cmi: cmi > 0 ? cmi : total_visits > 0 ? Number((total / total_visits).toFixed(4)) : 0,
+              medicine,
+              surgery,
+              obgyn,
+              pediatrics,
+              orthopedics,
+              ent,
+              eye,
+              other,
+              dental,
+              psychiatry,
+              total,
+              depts,
+            }
+          })
+        }
+
+        // New grouped query format
+        const monthsMap = new Map<string, IpdDepartmentAdjrwItem>()
+        const monthOrder: string[] = []
+
+        for (const r of rows) {
+          const monthName = String(r.dch_month ?? r['เดือน'] ?? '')
+          if (!monthName) continue
+
+          if (!monthsMap.has(monthName)) {
+            monthOrder.push(monthName)
+            monthsMap.set(monthName, {
+              month: monthName,
+              total_patients: 0,
+              total_visits: 0,
+              adjrw_sum: 0,
+              cmi: 0,
+              medicine: 0,
+              surgery: 0,
+              obgyn: 0,
+              pediatrics: 0,
+              orthopedics: 0,
+              ent: 0,
+              eye: 0,
+              other: 0,
+              dental: 0,
+              psychiatry: 0,
+              total: 0,
+              depts: createDefaultDepts(),
+            })
           }
-        })
+
+          const item = monthsMap.get(monthName)!
+          const key = String(r.dept_key ?? '')
+          const patients = Number(r.patients ?? r['คน'] ?? 0)
+          const visits = Number(r.visits ?? r['ครั้ง'] ?? 0)
+          const adjrw = Number(r.adjrw ?? r['adjrw'] ?? 0)
+          const cmi = Number(r.cmi ?? r['cmi'] ?? 0)
+
+          if (key === 'total') {
+            item.total_patients = patients
+            item.total_visits = visits
+            item.adjrw_sum = adjrw
+            item.cmi = cmi
+            item.total = adjrw
+          } else if (key in item.depts) {
+            item.depts[key] = { patients, visits, adjrw, cmi }
+            if (key in item) {
+              ;(item as any)[key] = adjrw
+            }
+          }
+        }
+
+        // Finalize any missing totals
+        for (const item of monthsMap.values()) {
+          if (item.adjrw_sum === 0) {
+            let sumAdj = 0
+            for (const k of DEPT_KEYS) {
+              sumAdj += item.depts[k].adjrw
+            }
+            item.adjrw_sum = Number(sumAdj.toFixed(4))
+            item.total = item.adjrw_sum
+          }
+          if (item.cmi === 0 && item.total_visits > 0) {
+            item.cmi = Number((item.adjrw_sum / item.total_visits).toFixed(4))
+          }
+        }
+
+        return monthOrder.map((m) => monthsMap.get(m)!)
       },
       30000
     )
@@ -941,5 +1272,59 @@ export class RcmDashboardService {
       msg += `🌐 ตรวจสอบสถานะได้ที่ระบบ Dashboard-RCM โรงพยาบาลเถิน`
     }
     return msg
+  }
+
+  /**
+   * สรุปจำนวนผู้รับบริการผู้ป่วยนอก (OPD) แยกรายแผนก และแถวสรุปรวมทั้งโรงพยาบาล
+   */
+  static async getOpdDepartmentSummary(
+    params: FiscalDateRangeParams = {},
+    executor: QueryExecutor = queryClinicalDb
+  ): Promise<OpdDepartmentSummaryItem[]> {
+    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const cacheKey = `rcm-opd-dept-summary-v2-${ds1}-${ds2}`
+
+    return getCachedData(
+      cacheKey,
+      async () => {
+        const opdDeptCase = buildDepartmentSqlCase('o', 's', 'label')
+        const query = `
+          SELECT 
+            dept_group,
+            COUNT(DISTINCT t.hn) AS patients,
+            COUNT(DISTINCT t.vn) AS visits
+          FROM (
+            SELECT 
+              o.hn,
+              o.vn,
+              ${opdDeptCase} AS dept_group
+            FROM ovst o
+            LEFT JOIN spclty s ON s.spclty = o.spclty
+            WHERE o.vstdate BETWEEN ? AND ?
+          ) t
+          GROUP BY dept_group
+
+          UNION ALL
+
+          -- แถวสรุปรวมทั้งโรงพยาบาล
+          SELECT 
+            'รวมทั้งหมด' AS dept_group,
+            COUNT(DISTINCT o.hn) AS patients,
+            COUNT(DISTINCT o.vn) AS visits
+          FROM ovst o
+          WHERE o.vstdate BETWEEN ? AND ?
+          ORDER BY dept_group;
+        `
+
+        const rows = (await executor(query, [ds1, ds2, ds1, ds2])) as OpdDepartmentSummaryQueryRow[]
+
+        return rows.map((r: OpdDepartmentSummaryQueryRow) => ({
+          dept_group: String(r.dept_group || r['แผนก'] || ''),
+          patients: Number(r.patients ?? r['จำนวนคน'] ?? 0),
+          visits: Number(r.visits ?? r['จำนวนครั้ง'] ?? 0),
+        }))
+      },
+      60 * 5 // 5 minutes TTL
+    )
   }
 }

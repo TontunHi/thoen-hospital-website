@@ -2408,3 +2408,80 @@ export async function executeWorkflowAction(
     message: `ดำเนินการ ${action} สำเร็จ`,
   }
 }
+
+// ── Member Work Summary Seam ──────────────────────────────────
+
+export interface MemberWorkSummary {
+  pendingInboxCount: number
+  pendingRegistrationsCount: number
+}
+
+export interface MemberWorkSummaryParams {
+  memberId: number
+  role?: string
+  position?: string | null
+}
+
+export class TaskInboxService {
+  /**
+   * Computes work summary for a member: pending tasks in their inbox and
+   * pending registrations (if admin).
+   */
+  static async getMemberWorkSummary(
+    params: MemberWorkSummaryParams | number,
+    executor: MemberDbExecutor = queryMemberDb
+  ): Promise<MemberWorkSummary> {
+    let memberId: number
+    let role = ''
+    let position = ''
+
+    if (typeof params === 'number') {
+      memberId = params
+      const memberRows = await executor(
+        `SELECT id, role, position FROM members WHERE id = ?`,
+        [memberId]
+      )
+      if (memberRows && memberRows.length > 0) {
+        role = memberRows[0].role || ''
+        position = (memberRows[0].position || '').trim()
+      }
+    } else {
+      memberId = params.memberId
+      role = params.role || ''
+      position = (params.position || '').trim()
+    }
+
+    let pendingInboxCount = 0
+    try {
+      const inboxRows = await executor(
+        `SELECT COUNT(*) as cnt FROM inbox_tasks 
+         WHERE status = 'PENDING' 
+         AND (current_assignee = ? OR (\`current_role\` IS NOT NULL AND (\`current_role\` = ? OR \`current_role\` = ?)))`,
+        [memberId, position, role]
+      )
+      pendingInboxCount = Number(inboxRows[0]?.cnt || 0)
+    } catch (err) {
+      logger.error({ err, memberId }, 'TaskInboxService.getMemberWorkSummary inbox query error')
+    }
+
+    let pendingRegistrationsCount = 0
+    if (role === 'admin') {
+      try {
+        const regRows = await executor(
+          `SELECT COUNT(*) as cnt FROM member_registrations WHERE status = 'pending'`
+        )
+        pendingRegistrationsCount = Number(regRows[0]?.cnt || 0)
+      } catch (err) {
+        logger.error({ err }, 'TaskInboxService.getMemberWorkSummary registrations query error')
+      }
+    }
+
+    return {
+      pendingInboxCount,
+      pendingRegistrationsCount,
+    }
+  }
+}
+
+export const getMemberWorkSummary = TaskInboxService.getMemberWorkSummary
+

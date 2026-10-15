@@ -313,22 +313,22 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
       case 'VERY_URGENT':
         return (
           <span className="urgencyDot dotVeryUrgent">
-            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#dc2626' }}></span>
-            ด่วนที่สุด
+            <span className="urgencyBullet bulletVeryUrgent" aria-hidden="true" />
+            <span>ด่วนที่สุด</span>
           </span>
         )
       case 'URGENT':
         return (
           <span className="urgencyDot dotUrgent">
-            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ea580c' }}></span>
-            ด่วน
+            <span className="urgencyBullet bulletUrgent" aria-hidden="true" />
+            <span>ด่วน</span>
           </span>
         )
       default:
         return (
           <span className="urgencyDot dotNormal">
-            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#94a3b8' }}></span>
-            {taskType === 'MEDIA_REQUEST' ? 'ไม่ด่วน' : 'ปกติ'}
+            <span className="urgencyBullet bulletNormal" aria-hidden="true" />
+            <span>{taskType === 'MEDIA_REQUEST' ? 'ไม่ด่วน' : 'ปกติ'}</span>
           </span>
         )
     }
@@ -629,22 +629,9 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
 
       {/* ── Toast Success Message ── */}
       {toastMessage && (
-        <div style={{
-          backgroundColor: '#f0fdf4',
-          color: '#15803d',
-          border: '1px solid #bbf7d0',
-          padding: '0.85rem 1.25rem',
-          borderRadius: '0.75rem',
-          marginBottom: '1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          fontWeight: 600,
-          boxShadow: '0 4px 6px -1px rgba(22, 163, 74, 0.1)',
-          animation: 'fadeIn 0.2s ease',
-        }}>
-          <CheckCircle size={18} className="text-emerald-600 flex-shrink-0" />
-          <span>{toastMessage}</span>
+        <div className="inboxToastAlert" role="status" aria-live="polite">
+          <CheckCircle size={18} className="inboxToastIcon" />
+          <span className="inboxToastText">{toastMessage}</span>
         </div>
       )}
 
@@ -653,7 +640,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
         {loading ? (
           <div className="inboxEmptyState">
             <div className="emptyIconCircle">
-              <RefreshCw size={32} className="animate-spin text-blue-600" />
+              <RefreshCw size={32} className="animate-spin text-teal-700" />
             </div>
             <h3>กำลังโหลดรายการงาน...</h3>
             <p>กรุณารอสักครู่ ระบบกำลังดึงข้อมูลกล่องงานล่าสุด</p>
@@ -719,21 +706,19 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                           }
                         }}
                       >
-                        <td style={{ whiteSpace: 'nowrap' }}>
+                        <td className="colTaskNo">
                           <span className="taskNoBadge">{task.task_no}</span>
                         </td>
-                        <td style={{ whiteSpace: 'nowrap' }}>{getTypeBadge(task.task_type)}</td>
-                        <td>
-                          <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '0.25rem', lineHeight: 1.45 }}>
-                            {task.title}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748b', flexWrap: 'wrap' }}>
+                        <td className="colType">{getTypeBadge(task.task_type)}</td>
+                        <td className="colTitle">
+                          <div className="taskTitleText">{task.title}</div>
+                          <div className="taskMetaRow">
                             {getUrgencyTag(task.urgency, task.task_type)}
-                            <span>•</span>
-                            <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formatThaiDate(task.created_at)}</span>
+                            <span className="metaSep">•</span>
+                            <span className="metaDate tabularNums">{formatThaiDate(task.created_at)}</span>
                             {task.task_type === 'MEDIA_REQUEST' && task.custom_payload && (
                               <>
-                                <span>•</span>
+                                <span className="metaSep">•</span>
                                 {task.custom_payload.costType === 'HAS_COST' ? (
                                   <span className="costPillHasCost">🔴 มีค่าใช้จ่าย</span>
                                 ) : (
@@ -749,60 +734,31 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                             )}
                           </div>
                         </td>
-                        <td>
-                          <div style={{ fontWeight: 600, color: '#1e293b' }}>{task.requester_name}</div>
+                        <td className="colRequester">
+                          <div className="requesterName">{task.requester_name}</div>
                           {task.requester_dept && (
-                            <div style={{ fontSize: '0.785rem', color: '#64748b', marginTop: '0.15rem', lineHeight: 1.35 }}>
-                              {task.requester_dept}
-                            </div>
+                            <div className="requesterDept">{task.requester_dept}</div>
                           )}
                         </td>
-                        <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              fontSize: '0.725rem',
-                              fontWeight: 700,
-                              color: '#2563eb',
-                              backgroundColor: '#eff6ff',
-                              padding: '0.15rem 0.45rem',
-                              borderRadius: '0.35rem',
-                              border: '1px solid #dbeafe',
-                              whiteSpace: 'nowrap'
-                            }}>
+                        <td className="colStep">
+                          <div className="stepColumn">
+                            <span className="stepBadge tabularNums">
                               ขั้นตอนที่ {task.current_step_no}
                             </span>
-                            <span style={{ fontSize: '0.825rem', color: '#334155', fontWeight: 500, lineHeight: 1.35 }}>
+                            <span className="stepNameText">
                               {task.current_step_name || 'รอดำเนินการ'}
                             </span>
                           </div>
                         </td>
-                        <td style={{ whiteSpace: 'nowrap' }}>{getStatusBadge(task.status)}</td>
-                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                        <td className="colStatus">{getStatusBadge(task.status)}</td>
+                        <td className="colActions">
+                          <div className="tableActionGroup">
                             {canQuickAccept && (
                               <button
                                 type="button"
+                                className="btnQuickAccept"
                                 disabled={acceptingTaskId === task.id || cancelling}
                                 onClick={(e) => handleQuickAccept(e, task.id, task.task_no)}
-                                style={{
-                                  backgroundColor: '#2563eb',
-                                  color: 'white',
-                                  padding: '0.35rem 0.65rem',
-                                  borderRadius: '0.45rem',
-                                  border: 'none',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
-                                  boxShadow: '0 1px 3px rgba(37, 99, 235, 0.2)',
-                                  transition: 'all 0.15s ease',
-                                  whiteSpace: 'nowrap',
-                                }}
                                 title="คลิกเพื่อรับงานซ่อมนี้ทันที"
                               >
                                 {acceptingTaskId === task.id ? (
@@ -816,23 +772,9 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                             {canQuickCancel && (
                               <button
                                 type="button"
+                                className="btnQuickCancel"
                                 disabled={acceptingTaskId === task.id || cancelling}
                                 onClick={(e) => handleOpenCancelModal(e, task)}
-                                style={{
-                                  backgroundColor: '#fef2f2',
-                                  color: '#dc2626',
-                                  border: '1px solid #fecaca',
-                                  padding: '0.35rem 0.65rem',
-                                  borderRadius: '0.45rem',
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
-                                  transition: 'all 0.15s ease',
-                                  whiteSpace: 'nowrap',
-                                }}
                                 title="คลิกเพื่อเปิดหน้าต่างยกเลิก/ปฏิเสธงาน"
                               >
                                 <XCircle size={12} />
@@ -840,7 +782,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                               </button>
                             )}
                             {!canQuickAccept && !canQuickCancel && (
-                              <ChevronRight size={16} className="text-slate-400 mx-auto" />
+                              <ChevronRight size={16} className="tableRowChevron" />
                             )}
                           </div>
                         </td>
@@ -879,7 +821,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                     <div className="taskMobileCardTitle">{task.title}</div>
 
                     {task.task_type === 'MEDIA_REQUEST' && task.custom_payload && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                      <div className="mediaRequestCustomPayload">
                         {task.custom_payload.costType === 'HAS_COST' ? (
                           <span className="costPillHasCost">🔴 มีค่าใช้จ่าย</span>
                         ) : (
@@ -895,54 +837,31 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                     )}
 
                     <div className="taskMobileCardMeta">
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#1e293b', fontWeight: 500 }}>
+                      <span className="mobileMetaRequester">
                         <User size={13} className="text-slate-500" />
                         {task.requester_name} {task.requester_dept ? `(${task.requester_dept})` : ''}
                       </span>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        fontSize: '0.725rem',
-                        fontWeight: 600,
-                        color: '#2563eb',
-                        backgroundColor: '#eff6ff',
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: '0.35rem',
-                        border: '1px solid #dbeafe',
-                      }}>
+                      <span className="stepBadge tabularNums">
                         ขั้นตอนที่ {task.current_step_no}: {task.current_step_name || 'รอดำเนินการ'}
                       </span>
                     </div>
 
                     <div className="taskMobileCardFooter">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div className="mobileFooterLeft">
                         {getUrgencyTag(task.urgency, task.task_type)}
-                        <span style={{ color: '#cbd5e1' }}>|</span>
-                        <span style={{ color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                        <span className="metaSep">|</span>
+                        <span className="metaDate tabularNums">
                           {formatThaiDate(task.created_at)}
                         </span>
                       </div>
                       
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <div className="mobileFooterRight">
                         {canQuickAccept && (
                           <button
                             type="button"
+                            className="btnQuickAccept"
                             disabled={acceptingTaskId === task.id || cancelling}
                             onClick={(e) => handleQuickAccept(e, task.id, task.task_no)}
-                            style={{
-                              backgroundColor: '#2563eb',
-                              color: 'white',
-                              padding: '0.35rem 0.65rem',
-                              borderRadius: '0.45rem',
-                              border: 'none',
-                              fontWeight: 600,
-                              fontSize: '0.775rem',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                            }}
                           >
                             {acceptingTaskId === task.id ? (
                               <RefreshCw size={12} className="animate-spin" />
@@ -955,21 +874,9 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                         {canQuickCancel && (
                           <button
                             type="button"
+                            className="btnQuickCancel"
                             disabled={acceptingTaskId === task.id || cancelling}
                             onClick={(e) => handleOpenCancelModal(e, task)}
-                            style={{
-                              backgroundColor: '#fef2f2',
-                              color: '#dc2626',
-                              border: '1px solid #fecaca',
-                              padding: '0.35rem 0.65rem',
-                              borderRadius: '0.45rem',
-                              fontWeight: 600,
-                              fontSize: '0.775rem',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                            }}
                           >
                             <XCircle size={12} />
                             <span>ยกเลิก</span>
@@ -988,62 +895,64 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
 
       {/* ── Modal: Quick Cancel / Reject Popup ── */}
       {cancelModalTask && (
-        <div className="modalBackdrop" onClick={() => setCancelModalTask(null)}>
-          <div className="modalContent" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #fee2e2', paddingBottom: '0.75rem' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#dc2626', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #fecaca' }}>
-                  <XCircle size={18} className="text-red-600" />
+        <div className="cancelModalBackdrop" onClick={() => setCancelModalTask(null)}>
+          <div
+            className="cancelModalCard"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="cancelModalHeader">
+              <div className="cancelModalTitleRow">
+                <div className="cancelModalIconBox">
+                  <XCircle size={18} />
                 </div>
-                <span>ยืนยันการยกเลิก / ปฏิเสธงาน</span>
-              </h3>
+                <h3 id="cancel-modal-title" className="cancelModalTitle">
+                  ยืนยันการยกเลิก / ปฏิเสธงาน
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setCancelModalTask(null)}
-                style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', padding: '0.25rem' }}
-                title="ปิดหน้าต่าง"
+                className="cancelModalCloseBtn"
+                aria-label="ปิดหน้าต่าง"
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 
-            <div style={{ backgroundColor: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', marginBottom: '1rem' }}>
-              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>รหัสงาน: <strong className="taskNoBadge">{cancelModalTask.taskNo}</strong></div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0f172a', marginTop: '0.25rem' }}>{cancelModalTask.title}</div>
+            <div className="cancelModalSummaryBox">
+              <div className="cancelModalMetaNo">
+                รหัสงาน: <strong className="taskNoBadge">{cancelModalTask.taskNo}</strong>
+              </div>
+              <div className="cancelModalTaskTitle">{cancelModalTask.title}</div>
             </div>
 
-            <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.15rem', lineHeight: 1.5 }}>
-              เมื่อยืนยันยกเลิก สถานะงานจะถูกปรับเป็น <strong style={{ color: '#dc2626' }}>&ldquo;ไม่อนุมัติ / ยกเลิก&rdquo;</strong> และระบบจะส่งการแจ้งเตือนพร้อมเหตุผลไปยังผู้เกี่ยวข้องทันที
+            <p className="cancelModalWarning">
+              เมื่อยืนยันยกเลิก สถานะงานจะถูกปรับเป็น <strong className="cancelModalWarningBold">&ldquo;ไม่อนุมัติ / ยกเลิก&rdquo;</strong> และระบบจะส่งการแจ้งเตือนพร้อมเหตุผลไปยังผู้เกี่ยวข้องทันที
             </p>
 
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
-                ระบุเหตุผลในการยกเลิกหรือปฏิเสธ <span style={{ color: '#dc2626' }}>*</span>
+            <div className="cancelModalField">
+              <label htmlFor="cancel-reason-input" className="cancelModalLabel">
+                ระบุเหตุผลในการยกเลิกหรือปฏิเสธ <span className="cancelModalReqAsterisk">*</span>
               </label>
               <textarea
+                id="cancel-reason-input"
                 rows={3}
                 autoFocus
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="เช่น อุปกรณ์ไม่อยู่ในเงื่อนไขการซ่อม, มอบหมายผิดแผนก, ข้อมูลไม่ครบถ้วน, ผู้ใช้ขอยกเลิกเอง ฯลฯ"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  borderRadius: '0.5rem',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.875rem',
-                  resize: 'vertical',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                }}
+                className="cancelModalTextarea"
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem' }}>
+            <div className="cancelModalActions">
               <button
                 type="button"
                 onClick={() => setCancelModalTask(null)}
-                className="backBtn"
+                className="btnCancelDismiss"
               >
                 ปิดหน้าต่าง
               </button>
@@ -1051,21 +960,7 @@ export default function InboxClient({ sessionUser }: InboxClientProps) {
                 type="button"
                 disabled={cancelling || !cancelReason.trim()}
                 onClick={handleConfirmCancel}
-                style={{
-                  backgroundColor: !cancelReason.trim() ? '#fca5a5' : '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.5rem',
-                  padding: '0.6rem 1.35rem',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  cursor: !cancelReason.trim() ? 'not-allowed' : 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
-                  transition: 'all 0.15s ease',
-                }}
+                className="btnCancelConfirm"
               >
                 {cancelling ? <Clock size={16} className="animate-spin" /> : <XCircle size={16} />}
                 <span>ยืนยันยกเลิกงาน</span>

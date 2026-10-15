@@ -7,11 +7,16 @@ vi.mock('@/lib/audit', () => ({
   logThrottledAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('@/lib/clinical/rcmDashboardService', () => ({
-  RcmDashboardService: {
-    getIpdDepartmentAdjrw: vi.fn(),
-  },
-}))
+vi.mock('@/lib/clinical/rcmDashboardService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/clinical/rcmDashboardService')>()
+  return {
+    ...actual,
+    RcmDashboardService: {
+      ...actual.RcmDashboardService,
+      getIpdDepartmentAdjrw: vi.fn(),
+    },
+  }
+})
 
 describe('GET /api/service/dashboard-rcm/ipd-dept-adjrw', () => {
   beforeEach(() => {
@@ -58,6 +63,10 @@ describe('GET /api/service/dashboard-rcm/ipd-dept-adjrw', () => {
     const mockData = [
       {
         month: 'ต.ค.-67',
+        total_patients: 100,
+        total_visits: 120,
+        adjrw_sum: 238.54,
+        cmi: 1.98,
         medicine: 120.45,
         surgery: 45.12,
         obgyn: 12.3,
@@ -69,6 +78,7 @@ describe('GET /api/service/dashboard-rcm/ipd-dept-adjrw', () => {
         dental: 0.5,
         psychiatry: 2.1,
         total: 238.54,
+        depts: {} as any,
       },
     ]
 

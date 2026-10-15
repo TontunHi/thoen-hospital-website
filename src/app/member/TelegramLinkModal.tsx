@@ -57,6 +57,22 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
     }
   }, [isOpen])
 
+  // ปิดด้วยปุ่ม Escape ตามหลักการเข้าถึง (a11y)
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showConfirmUnlink) {
+          setShowConfirmUnlink(false)
+        } else {
+          onClose()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, showConfirmUnlink, onClose])
+
   const stopPolling = () => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current)
@@ -156,7 +172,13 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
 
   return (
     <div className="telegramModalOverlay" onClick={onClose}>
-      <div className="telegramModalCard compactModal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="telegramModalCard compactModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="telegram-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header - Compact */}
         <div className="telegramModalHeader compactHeader">
           <div className="telegramModalTitle">
@@ -164,7 +186,7 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
               <Send size={18} />
             </div>
             <div>
-              <h3>เชื่อมต่อ Telegram</h3>
+              <h3 id="telegram-modal-title">เชื่อมต่อ Telegram</h3>
             </div>
           </div>
           <button className="telegramCloseBtn compactCloseBtn" onClick={onClose} aria-label="Close modal">
@@ -340,47 +362,55 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
             </div>
           )}
         </div>
+      </div>
 
-        {/* ── Custom In-App Unlink Confirmation Modal (แทน window.confirm) ── */}
-        {showConfirmUnlink && (
-          <div className="customConfirmOverlay" onClick={() => setShowConfirmUnlink(false)}>
-            <div className="customConfirmCard" onClick={(e) => e.stopPropagation()}>
-              <div className="customConfirmIconBox">
-                <ShieldAlert size={28} />
-              </div>
-              <h4 className="customConfirmTitle">ยืนยันยกเลิกการเชื่อมต่อ?</h4>
-              <p className="customConfirmDesc">
-                หากยกเลิก คุณจะไม่ได้รับการแจ้งเตือนงานซ่อมและเอกสารผ่าน Telegram อีกต่อไป จนกว่าจะเชื่อมต่อใหม่
-              </p>
-              <div className="customConfirmActions">
-                <button
-                  type="button"
-                  className="confirmBtnCancel"
-                  onClick={() => setShowConfirmUnlink(false)}
-                  disabled={actionLoading}
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="button"
-                  className="confirmBtnDanger"
-                  onClick={executeUnlink}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span>กำลังยกเลิก...</span>
-                    </>
-                  ) : (
-                    <span>ยืนยันยกเลิก</span>
-                  )}
-                </button>
-              </div>
+      {/* ── Custom In-App Unlink Confirmation Modal (แทน window.confirm) ── */}
+      {showConfirmUnlink && (
+        <div className="customConfirmOverlay" onClick={() => setShowConfirmUnlink(false)}>
+          <div
+            className="customConfirmCard"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-unlink-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="customConfirmIconBox">
+              <ShieldAlert size={28} />
+            </div>
+            <h4 id="confirm-unlink-title" className="customConfirmTitle">
+              ยืนยันยกเลิกการเชื่อมต่อ?
+            </h4>
+            <p className="customConfirmDesc">
+              หากยกเลิก คุณจะไม่ได้รับการแจ้งเตือนงานซ่อมและเอกสารผ่าน Telegram อีกต่อไป จนกว่าจะเชื่อมต่อใหม่
+            </p>
+            <div className="customConfirmActions">
+              <button
+                type="button"
+                className="confirmBtnCancel"
+                onClick={() => setShowConfirmUnlink(false)}
+                disabled={actionLoading}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="confirmBtnDanger"
+                onClick={executeUnlink}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>กำลังยกเลิก...</span>
+                  </>
+                ) : (
+                  <span>ยืนยันยกเลิก</span>
+                )}
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

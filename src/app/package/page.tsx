@@ -33,7 +33,7 @@ export default function PackagePage() {
 
         <div className="packageGrid animate-fadeInUp">
           {/* Card 1: Health Check 1 Day */}
-          <div className="packageCard card-glass">
+          <div className="packageCard">
             <div className="packageCard__image">
               <Image
                 src="/images/package/health-check-1day/health-check.webp"
@@ -62,7 +62,7 @@ export default function PackagePage() {
           </div>
 
           {/* Card 2: Dentistry Services */}
-          <div className="packageCard card-glass">
+          <div className="packageCard">
             <div className="packageCard__image">
               <Image
                 src="/images/package/dentistry/dentistry.webp"
@@ -91,7 +91,7 @@ export default function PackagePage() {
           </div>
 
           {/* Card 3: VIP Room */}
-          <div className="packageCard card-glass">
+          <div className="packageCard">
             <div className="packageCard__image">
               <Image
                 src="/images/package/vip-room/vip_room_1.webp"
@@ -121,7 +121,7 @@ export default function PackagePage() {
           </div>
 
           {/* Card 4: Childbirth Packages */}
-          <div className="packageCard card-glass">
+          <div className="packageCard">
             <div className="packageCard__image">
               <Image
                 src="/images/package/childbirth/childbirth.webp"
@@ -150,7 +150,7 @@ export default function PackagePage() {
           </div>
 
           {/* Card 5: Thai Traditional Medicine */}
-          <div className="packageCard card-glass">
+          <div className="packageCard">
             <div className="packageCard__image">
               <Image
                 src="/images/package/thai-traditional-medicine/thai-traditional-medicine.webp"
@@ -179,7 +179,7 @@ export default function PackagePage() {
           </div>
 
           {/* Card 6: Specialized Clinics */}
-          <div className="packageCard card-glass">
+          <div className="packageCard">
             <div className="packageCard__image">
               <Image
                 src="/images/package/specialized-clinics/specialized-clinics.webp"
