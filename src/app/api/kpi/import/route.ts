@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
@@ -80,17 +80,13 @@ function parseCSV(text: string): string[][] {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await verifyMemberSession()
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'กรุณาเข้าสู่ระบบ' } },
-        { status: 401 }
-      )
-    }
+    const auth = await requireMemberApi()
+    if (auth.error) return auth.error
+    const member = auth.member
 
-    if (session.role !== 'admin' && session.role !== 'superadmin') {
+    if (!member.isAdmin && !member.can('manage_kpi')) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถนำเข้าชุดตัวชี้วัดได้' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถนำเข้าชุดตัวชี้วัดได้' } },
         { status: 403 }
       )
     }
@@ -200,7 +196,7 @@ export async function POST(req: NextRequest) {
         fiscalYear,
         code,
         insertedCount: inserted,
-        by: session.username
+        by: member.name || member.username
       })
     ).catch(() => {})
 

@@ -371,6 +371,26 @@
   cursor: pointer;
 }
 
+.historyAllBtn {
+  background: #334155;
+  color: #ffffff;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.historyAllBtn:hover {
+  background: #1e293b;
+}
+
+.historyAllBtn.active {
+  background: #0f766e;
+}
+
 .backTodayBtn {
   background: transparent;
   border: none;

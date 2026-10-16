@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       ...parsed.data,
       recordedById: member.id,
       recordedByName: member.name || member.username,
-      isAdmin: member.isAdmin,
+      isAdmin: Boolean(member.isAdmin || member.can('manage_kpi')),
     })
 
     return NextResponse.json({

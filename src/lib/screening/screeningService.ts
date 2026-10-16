@@ -17,8 +17,8 @@ export interface ScreeningQueueItem {
   status: string // 'WAITING' | 'VISIT_OPENED' | 'CANCELLED'
   vn: string | null
   recordedBy: number | null
-  createdAt: Date
-  updatedAt: Date
+  createdAt: Date | string
+  updatedAt: Date | string
 }
 
 export interface CreateScreeningQueueInput {
@@ -69,10 +69,51 @@ export function maskCid(cid: string): string {
   return 'x-xxxx-xxxxx-xx-' + trimmed.slice(-4)
 }
 
+export interface BangkokDateRange {
+  start: Date
+  end: Date
+  bangkokDateStr: string
+  startSql: string
+  endSql: string
+}
+
 /**
- * Calculates start and end Date objects in UTC for a given Thailand (Asia/Bangkok) date (YYYY-MM-DD).
+ * Normalizes a Date object or DB date string to Asia/Bangkok (+07:00) ISO string
+ * to prevent client-side double timezone conversion.
  */
-export function getBangkokDateRange(dateStr?: string): { start: Date; end: Date; bangkokDateStr: string } {
+export function formatBangkokIso(date: Date | string | null | undefined): string | null {
+  if (!date) return null
+  if (typeof date === 'string') {
+    const trimmed = date.trim()
+    if (trimmed.endsWith('Z')) {
+      return trimmed.replace(/Z$/, '+07:00')
+    }
+    if (trimmed.includes('+07:00')) {
+      return trimmed
+    }
+    const m = trimmed.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/)
+    if (m) {
+      return `${m[1]}T${m[2]}+07:00`
+    }
+  }
+  if (date instanceof Date) {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const y = date.getUTCFullYear()
+    const mo = pad(date.getUTCMonth() + 1)
+    const d = pad(date.getUTCDate())
+    const h = date.getUTCHours()
+    const mi = pad(date.getUTCMinutes())
+    const s = pad(date.getUTCSeconds())
+    return `${y}-${mo}-${d}T${h}:${mi}:${s}+07:00`
+  }
+  return String(date)
+}
+
+/**
+ * Calculates start and end Date and SQL string bounds for a given Thailand (Asia/Bangkok) date (YYYY-MM-DD).
+ * Hospital MariaDB stores created_at in local Thai time (NOW()), so local day bounds are 00:00:00 to 23:59:59.
+ */
+export function getBangkokDateRange(dateStr?: string): BangkokDateRange {
   let targetDateStr = dateStr?.trim()
   if (!targetDateStr || targetDateStr === 'today') {
     targetDateStr = new Intl.DateTimeFormat('en-CA', {
@@ -88,18 +129,14 @@ export function getBangkokDateRange(dateStr?: string): { start: Date; end: Date;
     throw new Error(`รูปแบบวันที่ไม่ถูกต้อง: ${dateStr} (ต้องเป็น YYYY-MM-DD)`)
   }
 
-  // Bangkok is UTC+7
-  // 00:00:00 Bangkok = UTC -7 hours
-  const start = new Date(Date.UTC(y, m - 1, d, -7, 0, 0, 0))
-  // 23:59:59.999 Bangkok = UTC 16:59:59.999
-  const end = new Date(Date.UTC(y, m - 1, d, 16, 59, 59, 999))
+  const startSql = `${targetDateStr} 00:00:00`
+  const endSql = `${targetDateStr} 23:59:59`
 
-  return { start, end, bangkokDateStr: targetDateStr }
-}
+  // For Prisma or UTC Date operations matching the local calendar day
+  const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0))
+  const end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999))
 
-function formatUtcSql(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
+  return { start, end, bangkokDateStr: targetDateStr, startSql, endSql }
 }
 
 export class ScreeningQueueService {
@@ -112,14 +149,17 @@ export class ScreeningQueueService {
    * Retrieves queue items for a specific date (defaults to Today Bangkok time).
    */
   async getQueues(options: ScreeningQueueQueryOptions = {}) {
-    const { start, end, bangkokDateStr } = getBangkokDateRange(options.date)
+    const isAll = options.date?.trim().toLowerCase() === 'all'
+    const range = isAll ? null : getBangkokDateRange(options.date)
+    const bangkokDateStr = isAll ? 'all' : range!.bangkokDateStr
 
     if (this.db?.screeningQueue) {
-      const where: any = {
-        createdAt: {
-          gte: start,
-          lte: end,
-        },
+      const where: any = {}
+      if (!isAll && range) {
+        where.createdAt = {
+          gte: range.start,
+          lte: range.end,
+        }
       }
 
       if (options.status && options.status !== 'ALL') {
@@ -164,21 +204,30 @@ export class ScreeningQueueService {
         where,
         select,
         orderBy: { createdAt: 'desc' },
+        ...(options.limit ? { take: options.limit } : isAll ? { take: 500 } : {}),
       })
+
+      const mappedItems = items.map((item: any) => ({
+        ...item,
+        createdAt: formatBangkokIso(item.createdAt) || item.createdAt,
+        updatedAt: formatBangkokIso(item.updatedAt) || item.updatedAt,
+      }))
 
       return {
         date: bangkokDateStr,
-        total: items.length,
-        items,
+        total: mappedItems.length,
+        items: mappedItems,
       }
     }
 
     // Zero-DB Gateway Production Implementation
-    const startSql = formatUtcSql(start)
-    const endSql = formatUtcSql(end)
+    const whereClauses: string[] = []
+    const params: any[] = []
 
-    const whereClauses: string[] = ['created_at >= ?', 'created_at <= ?']
-    const params: any[] = [startSql, endSql]
+    if (!isAll && range) {
+      whereClauses.push('created_at >= ?', 'created_at <= ?')
+      params.push(range.startSql, range.endSql)
+    }
 
     if (options.status && options.status !== 'ALL') {
       whereClauses.push('status = ?')
@@ -215,8 +264,20 @@ export class ScreeningQueueService {
       selectFields.push('raw_payload AS rawPayload')
     }
 
-    const sql = `SELECT ${selectFields.join(', ')} FROM screening_queues WHERE ${whereClauses.join(' AND ')} ORDER BY created_at DESC`
-    const items = await this.queryExecutor(sql, params)
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+    const limitClause = options.limit
+      ? `LIMIT ${Number(options.limit)}`
+      : isAll
+      ? 'LIMIT 500'
+      : ''
+    const sql = `SELECT ${selectFields.join(', ')} FROM screening_queues ${whereSql} ORDER BY created_at DESC ${limitClause}`.trim()
+    const rawItems = await this.queryExecutor(sql, params)
+
+    const items = (rawItems || []).map((row: any) => ({
+      ...row,
+      createdAt: formatBangkokIso(row.createdAt || row.created_at) || row.createdAt,
+      updatedAt: formatBangkokIso(row.updatedAt || row.updated_at) || row.updatedAt,
+    }))
 
     return {
       date: bangkokDateStr,
@@ -232,9 +293,15 @@ export class ScreeningQueueService {
     if (!id || isNaN(id)) return null
 
     if (this.db?.screeningQueue) {
-      return this.db.screeningQueue.findUnique({
+      const item = await this.db.screeningQueue.findUnique({
         where: { id },
       })
+      if (!item) return null
+      return {
+        ...item,
+        createdAt: formatBangkokIso(item.createdAt) || item.createdAt,
+        updatedAt: formatBangkokIso(item.updatedAt) || item.updatedAt,
+      }
     }
 
     const rows = await this.queryExecutor(`
@@ -257,7 +324,13 @@ export class ScreeningQueueService {
       LIMIT 1
     `, [id])
 
-    return rows[0] || null
+    const row = rows[0] || null
+    if (!row) return null
+    return {
+      ...row,
+      createdAt: formatBangkokIso(row.createdAt || row.created_at) || row.createdAt,
+      updatedAt: formatBangkokIso(row.updatedAt || row.updated_at) || row.updatedAt,
+    }
   }
 
   /**
@@ -289,7 +362,7 @@ export class ScreeningQueueService {
           : JSON.stringify(input.rawPayload)
     }
 
-    const { start, end } = getBangkokDateRange('today')
+    const { start, end, startSql, endSql } = getBangkokDateRange('today')
 
     if (this.db?.screeningQueue) {
       // Check if the person is already queued today
@@ -364,9 +437,6 @@ export class ScreeningQueueService {
     }
 
     // Zero-DB Gateway Production Implementation
-    const startSql = formatUtcSql(start)
-    const endSql = formatUtcSql(end)
-
     const existingRows = await this.queryExecutor(`
       SELECT id, title, first_name AS firstName, last_name AS lastName, full_name AS fullName,
         gender, birth_date AS birthDate, address, photo_base64 AS photoBase64,
@@ -545,10 +615,9 @@ export class ScreeningQueueService {
       return { count: result.count }
     }
 
-    const cutoffSql = formatUtcSql(cutoffDate)
     const result: any = await this.queryExecutor(
-      'DELETE FROM screening_queues WHERE created_at < ?',
-      [cutoffSql]
+      'DELETE FROM screening_queues WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)',
+      [retentionDays]
     )
     return { count: result?.affectedRows || 0 }
   }

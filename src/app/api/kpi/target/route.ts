@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyMemberSession } from '@/lib/memberAuth'
+import { requireMemberApi } from '@/lib/memberAuth'
 import { KpiService } from '@/lib/kpi/kpiService'
 import { z } from 'zod'
 
@@ -13,15 +13,11 @@ const targetSchema = z.object({
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await verifyMemberSession()
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'กรุณาเข้าสู่ระบบ' } },
-        { status: 401 }
-      )
-    }
+    const auth = await requireMemberApi()
+    if (auth.error) return auth.error
+    const member = auth.member
 
-    if (session.role !== 'admin' && session.role !== 'superadmin') {
+    if (!member.isAdmin && !member.can('manage_kpi')) {
       return NextResponse.json(
         { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถแก้ไขเป้าหมายได้' } },
         { status: 403 }
@@ -41,7 +37,7 @@ export async function PUT(req: NextRequest) {
       ...parsed.data,
       targetOperator: parsed.data.targetOperator ?? null,
       targetValue: parsed.data.targetValue ?? null,
-      updatedByName: session.username,
+      updatedByName: member.name || member.username,
     })
 
     return NextResponse.json({

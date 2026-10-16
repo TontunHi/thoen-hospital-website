@@ -3,6 +3,7 @@ import {
   ScreeningQueueService,
   getBangkokDateRange,
   maskCid,
+  formatBangkokIso,
 } from '../screeningService'
 
 vi.mock('@/lib/audit', () => ({
@@ -46,17 +47,41 @@ describe('ScreeningQueueService and Utilities', () => {
     })
   })
 
+  describe('formatBangkokIso', () => {
+    it('normalizes UTC Z string to Bangkok +07:00 offset', () => {
+      expect(formatBangkokIso('2026-10-16T17:26:41.000Z')).toBe('2026-10-16T17:26:41.000+07:00')
+    })
+
+    it('keeps existing +07:00 string unchanged', () => {
+      expect(formatBangkokIso('2026-10-16T17:26:41+07:00')).toBe('2026-10-16T17:26:41+07:00')
+    })
+
+    it('formats Date object to Bangkok ISO with +07:00', () => {
+      const d = new Date('2026-10-16T17:26:41.000Z')
+      expect(formatBangkokIso(d)).toBe('2026-10-16T17:26:41+07:00')
+    })
+
+    it('returns null for null or undefined', () => {
+      expect(formatBangkokIso(null)).toBeNull()
+      expect(formatBangkokIso(undefined)).toBeNull()
+    })
+  })
+
   describe('getBangkokDateRange', () => {
-    it('calculates start and end Date objects in UTC for a given Bangkok date', () => {
+    it('calculates start and end Date objects and SQL boundaries for a given Bangkok date', () => {
       const range = getBangkokDateRange('2026-10-14')
       expect(range.bangkokDateStr).toBe('2026-10-14')
-      expect(range.start.toISOString()).toBe('2026-10-13T17:00:00.000Z')
-      expect(range.end.toISOString()).toBe('2026-10-14T16:59:59.999Z')
+      expect(range.startSql).toBe('2026-10-14 00:00:00')
+      expect(range.endSql).toBe('2026-10-14 23:59:59')
+      expect(range.start.toISOString()).toBe('2026-10-14T00:00:00.000Z')
+      expect(range.end.toISOString()).toBe('2026-10-14T23:59:59.999Z')
     })
 
     it('defaults to today when date is omitted or "today"', () => {
       const range = getBangkokDateRange('today')
       expect(range.bangkokDateStr).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(range.startSql).toMatch(/^\d{4}-\d{2}-\d{2} 00:00:00$/)
+      expect(range.endSql).toMatch(/^\d{4}-\d{2}-\d{2} 23:59:59$/)
       expect(range.start).toBeInstanceOf(Date)
       expect(range.end).toBeInstanceOf(Date)
     })
@@ -99,6 +124,21 @@ describe('ScreeningQueueService and Utilities', () => {
       const callArgs = mockDb.screeningQueue.findMany.mock.calls[0][0]
       expect(callArgs.where.status).toBe('WAITING')
       expect(callArgs.where.OR).toBeDefined()
+    })
+
+    it('queries all queues without date filter when date is "all"', async () => {
+      mockDb.screeningQueue.findMany.mockResolvedValue([
+        { id: 1, cid: '1111111111111', fullName: 'นาย หนึ่ง', status: 'WAITING', createdAt: '2026-10-14T10:00:00.000Z' },
+        { id: 2, cid: '2222222222222', fullName: 'นาย สอง', status: 'WAITING', createdAt: '2026-10-16T17:00:00.000Z' },
+      ])
+
+      const result = await service.getQueues({ date: 'all' })
+
+      expect(mockDb.screeningQueue.findMany).toHaveBeenCalledTimes(1)
+      const callArgs = mockDb.screeningQueue.findMany.mock.calls[0][0]
+      expect(callArgs.where.createdAt).toBeUndefined()
+      expect(result.items.length).toBe(2)
+      expect(result.date).toBe('all')
     })
   })
 
@@ -214,6 +254,85 @@ describe('ScreeningQueueService and Utilities', () => {
       const res = await service.cleanupOldQueues(30)
       expect(res.count).toBe(12)
       expect(mockDb.screeningQueue.deleteMany).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('ScreeningQueueService (Zero-DB Gateway direct SQL)', () => {
+    let mockQueryExecutor: any
+    let zeroDbService: ScreeningQueueService
+
+    beforeEach(() => {
+      mockQueryExecutor = vi.fn()
+      zeroDbService = new ScreeningQueueService(null, mockQueryExecutor)
+    })
+
+    it('queries queues with Bangkok local 00:00:00 to 23:59:59 SQL bounds', async () => {
+      mockQueryExecutor.mockResolvedValue([
+        {
+          id: 5,
+          cid: '1520100109075',
+          fullName: 'นาย ธนนันท์ กันชาติ',
+          status: 'WAITING',
+          created_at: '2026-10-16T03:34:29.000Z',
+          updated_at: '2026-10-16T03:34:29.000Z',
+        },
+        {
+          id: 6,
+          cid: '1520800055172',
+          fullName: 'น.ส. ชนิกา ปัญญาสิทธิ์',
+          status: 'WAITING',
+          created_at: '2026-10-16T17:25:58.000Z',
+          updated_at: '2026-10-16T17:25:58.000Z',
+        },
+      ])
+
+      const result = await zeroDbService.getQueues({ date: '2026-10-16' })
+
+      expect(mockQueryExecutor).toHaveBeenCalledTimes(1)
+      const [sql, params] = mockQueryExecutor.mock.calls[0]
+      expect(sql).toContain('created_at >= ? AND created_at <= ?')
+      expect(params[0]).toBe('2026-10-16 00:00:00')
+      expect(params[1]).toBe('2026-10-16 23:59:59')
+      expect(result.items.length).toBe(2)
+      expect(result.items[1].createdAt).toBe('2026-10-16T17:25:58.000+07:00')
+    })
+
+    it('queries queues without date filter when date is "all"', async () => {
+      mockQueryExecutor.mockResolvedValue([])
+
+      await zeroDbService.getQueues({ date: 'all' })
+
+      expect(mockQueryExecutor).toHaveBeenCalledTimes(1)
+      const [sql, params] = mockQueryExecutor.mock.calls[0]
+      expect(sql).not.toContain('created_at >=')
+      expect(params.length).toBe(0)
+    })
+
+    it('addToQueue checks existing record within today full Bangkok range', async () => {
+      mockQueryExecutor
+        .mockResolvedValueOnce([]) // existing check
+        .mockResolvedValueOnce({ insertId: 9 }) // insert
+        .mockResolvedValueOnce([ // getQueueById
+          {
+            id: 9,
+            cid: '1520800055172',
+            fullName: 'น.ส. ชนิกา ปัญญาสิทธิ์',
+            status: 'WAITING',
+            created_at: '2026-10-16T17:40:00.000Z',
+          },
+        ])
+        .mockResolvedValueOnce({ affectedRows: 0 }) // cleanup
+
+      const res = await zeroDbService.addToQueue({
+        cid: '1520800055172',
+        fullName: 'น.ส. ชนิกา ปัญญาสิทธิ์',
+      })
+
+      expect(res.id).toBe(9)
+      const [firstSql, firstParams] = mockQueryExecutor.mock.calls[0]
+      expect(firstSql).toContain('WHERE cid = ? AND created_at >= ? AND created_at <= ?')
+      expect(firstParams[1]).toMatch(/^\d{4}-\d{2}-\d{2} 00:00:00$/)
+      expect(firstParams[2]).toMatch(/^\d{4}-\d{2}-\d{2} 23:59:59$/)
     })
   })
 })

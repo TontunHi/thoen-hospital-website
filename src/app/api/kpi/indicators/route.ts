@@ -86,9 +86,9 @@ export async function POST(req: NextRequest) {
     if (auth.error) return auth.error
     const member = auth.member
 
-    if (!member.isAdmin) {
+    if (!member.isAdmin && !member.can('manage_kpi')) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถเพิ่มตัวชี้วัดได้' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถเพิ่มตัวชี้วัดได้' } },
         { status: 403 }
       )
     }
@@ -129,9 +129,9 @@ export async function PUT(req: NextRequest) {
     if (auth.error) return auth.error
     const member = auth.member
 
-    if (!member.isAdmin) {
+    if (!member.isAdmin && !member.can('manage_kpi')) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถแก้ไขข้อมูลตัวชี้วัดได้' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถแก้ไขข้อมูลตัวชี้วัดได้' } },
         { status: 403 }
       )
     }
@@ -177,9 +177,9 @@ export async function DELETE(req: NextRequest) {
     if (auth.error) return auth.error
     const member = auth.member
 
-    if (!member.isAdmin) {
+    if (!member.isAdmin && !member.can('manage_kpi')) {
       return NextResponse.json(
-        { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบตัวชี้วัดได้' } },
+        { success: false, error: { code: 'FORBIDDEN', message: 'เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถลบตัวชี้วัดได้' } },
         { status: 403 }
       )
     }

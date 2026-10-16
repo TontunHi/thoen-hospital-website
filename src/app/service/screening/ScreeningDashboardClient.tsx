@@ -203,10 +203,24 @@ export default function ScreeningDashboardClient({ user }: Props) {
     return { total, waiting, opened, cancelled }
   }, [items])
 
-  // Format Bangkok time (HH:mm:ss น.)
+  // Format Bangkok time (HH:mm:ss น.) or (DD MMM HH:mm:ss น.) if date is 'all'
   const formatTime = (dateIso: string) => {
+    if (!dateIso) return '-'
     try {
-      const d = new Date(dateIso)
+      const normalized = dateIso.endsWith('Z') ? dateIso.replace(/Z$/, '+07:00') : dateIso
+      const d = new Date(normalized)
+      if (selectedDate === 'all') {
+        return (
+          new Intl.DateTimeFormat('th-TH', {
+            timeZone: 'Asia/Bangkok',
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          }).format(d) + ' น.'
+        )
+      }
       return (
         new Intl.DateTimeFormat('th-TH', {
           timeZone: 'Asia/Bangkok',
@@ -284,7 +298,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
             </div>
             <div className="statCardNumber">{stats.total}</div>
             <div className="statCardDesc">
-              {selectedDate === 'today' ? 'วันนี้' : selectedDate}
+              {selectedDate === 'today' ? 'วันนี้' : selectedDate === 'all' ? 'ทั้งหมด (All)' : selectedDate}
             </div>
           </div>
 
@@ -377,7 +391,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
                 className={`historyToggleBtn ${isHistoricalOpen || selectedDate !== 'today' ? 'active' : ''}`}
               >
                 <Calendar size={14} />
-                <span>{selectedDate === 'today' ? 'ดูข้อมูลย้อนหลัง' : `วันที่: ${selectedDate}`}</span>
+                <span>{selectedDate === 'today' ? 'ดูข้อมูลย้อนหลัง' : selectedDate === 'all' ? 'แสดงทั้งหมด (All)' : `วันที่: ${selectedDate}`}</span>
               </button>
             </div>
           </div>
@@ -405,6 +419,16 @@ export default function ScreeningDashboardClient({ user }: Props) {
                   className="historySubmitBtn"
                 >
                   ค้นหาตามวันที่
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDate('all')
+                    setCustomDateInput('')
+                  }}
+                  className={`historyAllBtn ${selectedDate === 'all' ? 'active' : ''}`}
+                >
+                  ดูทั้งหมด (All)
                 </button>
               </div>
 

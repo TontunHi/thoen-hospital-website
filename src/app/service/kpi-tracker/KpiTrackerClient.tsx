@@ -223,10 +223,17 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     )
   }, [currentUser])
 
+  const isKpiManager = useMemo(() => {
+    return Boolean(
+      currentUser.isAdmin || 
+      currentUser.permissions?.includes('manage_kpi')
+    )
+  }, [currentUser])
+
   // Check if current user has permission to answer this indicator
   const canAnswerIndicator = useCallback((ind: KpiIndicatorItem) => {
-    // 1. Admin can always answer
-    if (currentUser.isAdmin) return true
+    // 1. Admin or KPI Manager can always answer
+    if (isKpiManager) return true
 
     // 2. Non-admin must be the responsible person
     if (!isUserResponsible(ind)) return false
@@ -236,17 +243,17 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     const currentPeriod = periods[0]
     const windowLock = checkPeriodStatus(ind.frequency, currentPeriod.key, selectedYear)
     return windowLock.isOpen
-  }, [currentUser, isUserResponsible, selectedYear])
+  }, [isKpiManager, isUserResponsible, selectedYear])
 
-  // Check if current user is allowed to edit indicator definitions (Admin only)
+  // Check if current user is allowed to edit indicator definitions (Admin & Manage KPI)
   const canEditIndicator = useCallback((_ind: KpiIndicatorItem) => {
-    return currentUser.isAdmin
-  }, [currentUser])
+    return isKpiManager
+  }, [isKpiManager])
 
-  // Check if current user is allowed to delete indicator (Admin only)
+  // Check if current user is allowed to delete indicator (Admin & Manage KPI)
   const canDeleteIndicator = useCallback((_ind: KpiIndicatorItem) => {
-    return currentUser.isAdmin
-  }, [currentUser])
+    return isKpiManager
+  }, [isKpiManager])
 
   // Filtered Indicators
   const displayedIndicators = useMemo(() => {
@@ -421,8 +428,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
 
   // Open Create Indicator Modal
   const handleOpenCreateIndicator = () => {
-    if (!currentUser.isAdmin) {
-      alert('เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถเพิ่มตัวชี้วัดได้')
+    if (!isKpiManager) {
+      alert('เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถเพิ่มตัวชี้วัดได้')
       return
     }
     setIsCreatingNew(true)
@@ -447,8 +454,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
 
   // Open Edit Indicator Modal
   const handleOpenEditIndicator = (ind: KpiIndicatorItem) => {
-    if (!currentUser.isAdmin) {
-      alert('เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถแก้ไขข้อมูลตัวชี้วัดได้')
+    if (!isKpiManager) {
+      alert('เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถแก้ไขข้อมูลตัวชี้วัดได้')
       return
     }
     setIsCreatingNew(false)
@@ -538,8 +545,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
 
   // Delete Indicator
   const handleDeleteIndicator = async (ind: KpiIndicatorItem) => {
-    if (!currentUser.isAdmin) {
-      alert('เฉพาะผู้ดูแลระบบเท่านั้นที่สามารถลบตัวชี้วัดได้')
+    if (!isKpiManager) {
+      alert('เฉพาะผู้ดูแลระบบหรือศูนย์คุณภาพเท่านั้นที่สามารถลบตัวชี้วัดได้')
       return
     }
 
@@ -718,8 +725,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const selectedTopic = topics.find(t => t.id === selectedTopicId)
 
   const canExport = Boolean(
-    currentUser.isAdmin ||
-    currentUser.permissions?.includes('manage_kpi') ||
+    isKpiManager ||
     currentUser.permissions?.includes('view_all_kpi')
   )
 
@@ -778,7 +784,10 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
           </Link>
           <div className="kpiUserBadge">
             <User size={14} />
-            <span>ผู้ใช้งาน: <strong>{currentUser.name}</strong> ({currentUser.role})</span>
+            <span>
+              ผู้ใช้งาน: <strong>{currentUser.name}</strong>{' '}
+              ({currentUser.isAdmin ? 'ผู้ดูแลระบบ (Admin)' : isKpiManager ? 'ผู้ดูแลระบบตัวชี้วัด / ศูนย์คุณภาพ' : currentUser.role})
+            </span>
           </div>
         </div>
 
@@ -796,8 +805,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
             </p>
           </div>
           <div className="kpiHeaderActionsGroup">
-            {/* Add Indicator button for Admin only */}
-            {currentUser.isAdmin && (
+            {/* Add Indicator button for Admin / KPI Manager */}
+            {isKpiManager && (
               <button 
                 className="kpiBtn kpiBtnPrimary"
                 onClick={handleOpenCreateIndicator}
@@ -820,7 +829,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
               </button>
             )}
 
-            {currentUser.isAdmin && (
+            {isKpiManager && (
               <button 
                 className="kpiBtn kpiBtnSecondary"
                 onClick={() => setImportModalOpen(true)}
@@ -1058,11 +1067,11 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                 ยังไม่มีชุดตัวชี้วัดในระบบ
               </h3>
               <p style={{ color: 'var(--kpi-neutral-600)', maxWidth: '480px', margin: '0 auto 1.25rem', fontSize: '0.875rem', lineHeight: 1.5 }}>
-                {currentUser.isAdmin 
+                {isKpiManager 
                   ? 'คุณสามารถเริ่มต้นใช้งานโดยการคลิกปุ่ม "นำเข้า Excel / CSV" เพื่ออัปโหลดไฟล์ตัวชี้วัด (.xlsx) หรือคลิก "เพิ่มตัวชี้วัดใหม่"'
-                  : 'ยังไม่มีชุดข้อมูลตัวชี้วัดที่เปิดใช้งานในระบบ กรุณาติดต่อผู้ดูแลระบบ (Admin) เพื่อนำเข้าชุดข้อมูล'}
+                  : 'ยังไม่มีชุดข้อมูลตัวชี้วัดที่เปิดใช้งานในระบบ กรุณาติดต่อผู้ดูแลระบบ (Admin) หรือศูนย์คุณภาพเพื่อนำเข้าชุดข้อมูล'}
               </p>
-              {currentUser.isAdmin && (
+              {isKpiManager && (
                 <button 
                   className="kpiBtn kpiBtnPrimary"
                   onClick={() => setImportModalOpen(true)}
@@ -1101,7 +1110,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     const periods = getPeriodsForFrequency(ind.frequency)
                     const currentPeriod = periods[0]
                     const windowLock = checkPeriodStatus(ind.frequency, currentPeriod.key, selectedYear)
-                    const isLocked = !windowLock.isOpen && !currentUser.isAdmin
+                    const isLocked = !windowLock.isOpen && !isKpiManager
                     const userCanAnswer = canAnswerIndicator(ind)
                     const userCanEdit = canEditIndicator(ind)
                     const userCanDelete = canDeleteIndicator(ind)
