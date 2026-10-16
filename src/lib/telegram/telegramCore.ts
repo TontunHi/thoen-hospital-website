@@ -201,7 +201,7 @@ export async function editTelegramMessageText(
 export async function createTelegramLinkChallenge(
   memberId: number
 ): Promise<{ token: string; botUrl: string; expiresAt: Date }> {
-  const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'ThoenHospitalBot'
+  const botUsername = (process.env.TELEGRAM_BOT_USERNAME || 'theon_website_bot').replace(/['"]/g, '').trim()
   const token = crypto.randomBytes(24).toString('hex')
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
 
@@ -212,8 +212,8 @@ export async function createTelegramLinkChallenge(
   )
 
   await queryMemberDb(
-    'INSERT INTO telegram_link_challenges (member_id, token_hash, expires_at) VALUES (?, ?, ?)',
-    [memberId, token, expiresAt]
+    'INSERT INTO telegram_link_challenges (member_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))',
+    [memberId, token]
   )
 
   const botUrl = `https://t.me/${botUsername}?start=${token}`

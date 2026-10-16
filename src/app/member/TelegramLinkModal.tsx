@@ -127,6 +127,10 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
       const data = await res.json()
       if (data.success) {
         setStatus(data.data)
+        if (!data.data?.isLinked) {
+          // If not linked yet, automatically create challenge & display QR code immediately
+          await handleRequestLink()
+        }
       } else {
         setError(data.error || 'ไม่สามารถดึงข้อมูลสถานะได้')
       }
@@ -144,8 +148,11 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
     try {
       const res = await fetch('/api/member/telegram', { method: 'POST' })
       const json = await res.json()
-      if (json.success) {
+      if (json.success && json.data?.botUrl) {
         setChallengeData(json.data)
+        if (json.data.qrCodeUrl) {
+          setQrCodeDataUrl(json.data.qrCodeUrl)
+        }
         startPolling()
       } else {
         setError(json.error || 'ไม่สามารถสร้างลิงก์เชื่อมต่อได้')
@@ -313,6 +320,10 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
           ) : challengeData ? (
             /* Active Linking Challenge Screen (QR + Deep Link) - Compact */
             <div className="telegramChallengeContent compactChallenge">
+              <p style={{ fontSize: '13px', color: '#475569', margin: '0 0 2px', lineHeight: 1.4, textAlign: 'center' }}>
+                สแกน QR Code ด้วยโทรศัพท์ หรือกดปุ่มเปิด Telegram ทันที
+              </p>
+
               <div className="qrWrapper compactQr">
                 {qrCodeDataUrl ? (
                   <img
@@ -370,16 +381,29 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
                 </button>
               </div>
 
-              <button
-                type="button"
-                className="telegramCancelChallengeBtn"
-                onClick={() => {
-                  stopPolling()
-                  setChallengeData(null)
-                }}
-              >
-                ย้อนกลับ
-              </button>
+              <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  className="telegramCancelChallengeBtn"
+                  onClick={handleRequestLink}
+                  disabled={actionLoading}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RefreshCw size={12} className={actionLoading ? 'animate-spin' : ''} />
+                  <span>{actionLoading ? 'กำลังสร้างรหัสใหม่...' : 'สร้าง QR Code ใหม่'}</span>
+                </button>
+              </div>
+
+              <div className="compactBenefitCard" style={{ marginTop: '2px', textAlign: 'left', width: '100%' }}>
+                <div className="compactBenefitItem">
+                  <span className="benefitBullet">✓</span>
+                  <span>รับแจ้งเตือนงานซ่อมและสถานะปิดงานแบบเรียลไทม์</span>
+                </div>
+                <div className="compactBenefitItem">
+                  <span className="benefitBullet">✓</span>
+                  <span>รับแจ้งเตือนเอกสารคำขอและรายการลงนามอนุมัติ</span>
+                </div>
+              </div>
             </div>
           ) : (
             /* Unlinked Initial Screen - Compact & Informative */

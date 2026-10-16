@@ -28,13 +28,21 @@ describe('TelegramLinkModal Component', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('loads status and renders unlinked view with connect button', async () => {
-    global.fetch = vi.fn().mockImplementation((url) => {
-      if (url === '/api/member/telegram') {
+  it('loads status and renders fallback unlinked view with connect button if auto-challenge fails', async () => {
+    global.fetch = vi.fn().mockImplementation((url, options) => {
+      if (url === '/api/member/telegram' && (!options || options.method === 'GET')) {
         return Promise.resolve({
           json: () => Promise.resolve({
             success: true,
             data: { isLinked: false }
+          })
+        })
+      }
+      if (url === '/api/member/telegram' && options?.method === 'POST') {
+        return Promise.resolve({
+          json: () => Promise.resolve({
+            success: false,
+            error: 'ไม่สามารถสร้างลิงก์เชื่อมต่อได้'
           })
         })
       }
@@ -56,7 +64,7 @@ describe('TelegramLinkModal Component', () => {
     expect(screen.getByText('สิทธิประโยชน์เมื่อเชื่อมต่อระบบ:')).toBeInTheDocument()
   })
 
-  it('generates and displays local QR code when connect button is clicked', async () => {
+  it('automatically generates and displays local QR code when modal opens for unlinked member', async () => {
     global.fetch = vi.fn().mockImplementation((url, options) => {
       if (url === '/api/member/telegram' && (!options || options.method === 'GET')) {
         return Promise.resolve({
@@ -71,7 +79,7 @@ describe('TelegramLinkModal Component', () => {
           json: () => Promise.resolve({
             success: true,
             data: {
-              botUrl: 'https://t.me/ThoenHospitalBot?start=challenge_token_123',
+              botUrl: 'https://t.me/theon_website_bot?start=challenge_token_123',
               qrCodeUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEUAAAD///+l2Z/dAAAA',
               expiresAt: new Date(Date.now() + 600000).toISOString()
             }
@@ -90,13 +98,7 @@ describe('TelegramLinkModal Component', () => {
       />
     )
 
-    await waitFor(() => {
-      expect(screen.getByText('เชื่อมต่อบัญชี Telegram')).toBeInTheDocument()
-    })
-
-    const connectBtn = screen.getByRole('button', { name: /เชื่อมต่อบัญชี Telegram/i })
-    fireEvent.click(connectBtn)
-
+    // Automatically displays QR code without needing user to click connect button!
     await waitFor(() => {
       const qrImg = screen.getByAltText('สแกนเพื่อเชื่อมต่อ Telegram')
       expect(qrImg).toBeInTheDocument()
@@ -105,6 +107,7 @@ describe('TelegramLinkModal Component', () => {
 
     expect(screen.getByText('เปิด Telegram ทันที')).toBeInTheDocument()
     expect(screen.getByText('คัดลอกลิงก์')).toBeInTheDocument()
+    expect(screen.getByText('สร้าง QR Code ใหม่')).toBeInTheDocument()
     expect(screen.getByText(/รอการกด \[START\] ในแอป Telegram/)).toBeInTheDocument()
   })
 
