@@ -110,6 +110,26 @@ export function getNowBangkokForDb(): Date {
 }
 
 /**
+ * Formats a Date or date string to 'YYYY-MM-DD HH:mm:ss' in Bangkok time for direct SQL queries.
+ */
+export function toDbSqlDateTime(input: string | Date | null | undefined): string | null {
+  if (!input) return null
+  const d = toDbThaiDateTime(input)
+  if (!d) return null
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
+}
+
+/**
+ * Returns current Bangkok time as 'YYYY-MM-DD HH:mm:ss' string for direct SQL queries.
+ */
+export function getNowBangkokForDbSql(): string {
+  const d = getNowBangkokForDb()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
+}
+
+/**
  * Converts a Date read from Prisma MySQL DATETIME (where UTC components represent Bangkok time)
  * into an ISO 8601 string with '+07:00' timezone offset.
  * 

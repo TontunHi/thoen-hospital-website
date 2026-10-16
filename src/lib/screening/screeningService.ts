@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -97,8 +97,16 @@ export function getBangkokDateRange(dateStr?: string): { start: Date; end: Date;
   return { start, end, bangkokDateStr: targetDateStr }
 }
 
+function formatUtcSql(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`
+}
+
 export class ScreeningQueueService {
-  constructor(private db: any = prisma) {}
+  constructor(
+    private db: any = null,
+    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb
+  ) {}
 
   /**
    * Retrieves queue items for a specific date (defaults to Today Bangkok time).
@@ -106,56 +114,109 @@ export class ScreeningQueueService {
   async getQueues(options: ScreeningQueueQueryOptions = {}) {
     const { start, end, bangkokDateStr } = getBangkokDateRange(options.date)
 
-    const where: any = {
-      createdAt: {
-        gte: start,
-        lte: end,
-      },
+    if (this.db?.screeningQueue) {
+      const where: any = {
+        createdAt: {
+          gte: start,
+          lte: end,
+        },
+      }
+
+      if (options.status && options.status !== 'ALL') {
+        where.status = options.status
+      }
+
+      if (options.search && options.search.trim()) {
+        const q = options.search.trim()
+        where.OR = [
+          { fullName: { contains: q } },
+          { cid: { contains: q } },
+          { vn: { contains: q } },
+        ]
+      }
+
+      const select: any = {
+        id: true,
+        cid: true,
+        title: true,
+        firstName: true,
+        lastName: true,
+        fullName: true,
+        gender: true,
+        birthDate: true,
+        address: true,
+        status: true,
+        vn: true,
+        recordedBy: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+
+      if (options.includePhoto) {
+        select.photoBase64 = true
+      }
+
+      if (options.includeRawPayload) {
+        select.rawPayload = true
+      }
+
+      const items = await this.db.screeningQueue.findMany({
+        where,
+        select,
+        orderBy: { createdAt: 'desc' },
+      })
+
+      return {
+        date: bangkokDateStr,
+        total: items.length,
+        items,
+      }
     }
 
+    // Zero-DB Gateway Production Implementation
+    const startSql = formatUtcSql(start)
+    const endSql = formatUtcSql(end)
+
+    const whereClauses: string[] = ['created_at >= ?', 'created_at <= ?']
+    const params: any[] = [startSql, endSql]
+
     if (options.status && options.status !== 'ALL') {
-      where.status = options.status
+      whereClauses.push('status = ?')
+      params.push(options.status)
     }
 
     if (options.search && options.search.trim()) {
-      const q = options.search.trim()
-      where.OR = [
-        { fullName: { contains: q } },
-        { cid: { contains: q } },
-        { vn: { contains: q } },
-      ]
+      const q = `%${options.search.trim()}%`
+      whereClauses.push('(full_name LIKE ? OR cid LIKE ? OR vn LIKE ?)')
+      params.push(q, q, q)
     }
 
-    const select: any = {
-      id: true,
-      cid: true,
-      title: true,
-      firstName: true,
-      lastName: true,
-      fullName: true,
-      gender: true,
-      birthDate: true,
-      address: true,
-      status: true,
-      vn: true,
-      recordedBy: true,
-      createdAt: true,
-      updatedAt: true,
-    }
+    const selectFields = [
+      'id',
+      'cid',
+      'title',
+      'first_name AS firstName',
+      'last_name AS lastName',
+      'full_name AS fullName',
+      'gender',
+      'birth_date AS birthDate',
+      'address',
+      'status',
+      'vn',
+      'recorded_by AS recordedBy',
+      'created_at AS createdAt',
+      'updated_at AS updatedAt',
+    ]
 
     if (options.includePhoto) {
-      select.photoBase64 = true
+      selectFields.push('photo_base64 AS photoBase64')
     }
-
     if (options.includeRawPayload) {
-      select.rawPayload = true
+      selectFields.push('raw_payload AS rawPayload')
     }
 
-    const items = await this.db.screeningQueue.findMany({
-      where,
-      select,
-      orderBy: { createdAt: 'desc' },
-    })
+    const sql = `SELECT ${selectFields.join(', ')} FROM screening_queues WHERE ${whereClauses.join(' AND ')} ORDER BY created_at DESC`
+    const items = await this.queryExecutor(sql, params)
 
     return {
       date: bangkokDateStr,
@@ -169,9 +230,34 @@ export class ScreeningQueueService {
    */
   async getQueueById(id: number): Promise<ScreeningQueueItem | null> {
     if (!id || isNaN(id)) return null
-    return this.db.screeningQueue.findUnique({
-      where: { id },
-    })
+
+    if (this.db?.screeningQueue) {
+      return this.db.screeningQueue.findUnique({
+        where: { id },
+      })
+    }
+
+    const rows = await this.queryExecutor(`
+      SELECT 
+        id, cid, title,
+        first_name AS firstName,
+        last_name AS lastName,
+        full_name AS fullName,
+        gender,
+        birth_date AS birthDate,
+        address,
+        photo_base64 AS photoBase64,
+        raw_payload AS rawPayload,
+        status, vn,
+        recorded_by AS recordedBy,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM screening_queues
+      WHERE id = ?
+      LIMIT 1
+    `, [id])
+
+    return rows[0] || null
   }
 
   /**
@@ -205,61 +291,148 @@ export class ScreeningQueueService {
 
     const { start, end } = getBangkokDateRange('today')
 
-    // Check if the person is already queued today
-    const existing = await this.db.screeningQueue.findFirst({
-      where: {
-        cid: rawCid,
-        createdAt: {
-          gte: start,
-          lte: end,
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    let queueRecord: ScreeningQueueItem
-
-    if (existing) {
-      // Update existing record for today with latest read data
-      queueRecord = await this.db.screeningQueue.update({
-        where: { id: existing.id },
-        data: {
-          title: title ?? existing.title,
-          firstName: firstName ?? existing.firstName,
-          lastName: lastName ?? existing.lastName,
-          fullName: fullName ?? existing.fullName,
-          gender: input.gender ?? existing.gender,
-          birthDate: input.birthDate ?? existing.birthDate,
-          address: input.address ?? existing.address,
-          photoBase64: input.photoBase64 ?? existing.photoBase64,
-          rawPayload: rawPayloadString ?? existing.rawPayload,
-          recordedBy: actor?.id ?? existing.recordedBy,
-          // If status was CANCELLED, reset to WAITING upon new scan
-          status: existing.status === 'CANCELLED' ? 'WAITING' : existing.status,
-        },
-      })
-    } else {
-      // Create new queue entry
-      queueRecord = await this.db.screeningQueue.create({
-        data: {
+    if (this.db?.screeningQueue) {
+      // Check if the person is already queued today
+      const existing = await this.db.screeningQueue.findFirst({
+        where: {
           cid: rawCid,
-          title,
-          firstName,
-          lastName,
-          fullName,
-          gender: input.gender?.trim() || null,
-          birthDate: input.birthDate?.trim() || null,
-          address: input.address?.trim() || null,
-          photoBase64: input.photoBase64 || null,
-          rawPayload: rawPayloadString,
-          status: input.status || 'WAITING',
-          vn: input.vn || null,
-          recordedBy: actor?.id ?? input.recordedBy ?? null,
+          createdAt: {
+            gte: start,
+            lte: end,
+          },
         },
+        orderBy: { createdAt: 'desc' },
       })
+
+      let queueRecord: ScreeningQueueItem
+
+      if (existing) {
+        // Update existing record for today with latest read data
+        queueRecord = await this.db.screeningQueue.update({
+          where: { id: existing.id },
+          data: {
+            title: title ?? existing.title,
+            firstName: firstName ?? existing.firstName,
+            lastName: lastName ?? existing.lastName,
+            fullName: fullName ?? existing.fullName,
+            gender: input.gender ?? existing.gender,
+            birthDate: input.birthDate ?? existing.birthDate,
+            address: input.address ?? existing.address,
+            photoBase64: input.photoBase64 ?? existing.photoBase64,
+            rawPayload: rawPayloadString ?? existing.rawPayload,
+            recordedBy: actor?.id ?? existing.recordedBy,
+            status: existing.status === 'CANCELLED' ? 'WAITING' : existing.status,
+          },
+        })
+      } else {
+        // Create new queue entry
+        queueRecord = await this.db.screeningQueue.create({
+          data: {
+            cid: rawCid,
+            title,
+            firstName,
+            lastName,
+            fullName,
+            gender: input.gender?.trim() || null,
+            birthDate: input.birthDate?.trim() || null,
+            address: input.address?.trim() || null,
+            photoBase64: input.photoBase64 || null,
+            rawPayload: rawPayloadString,
+            status: input.status || 'WAITING',
+            vn: input.vn || null,
+            recordedBy: actor?.id ?? input.recordedBy ?? null,
+          },
+        })
+      }
+
+      try {
+        await logAudit(
+          'CREATE',
+          'screening_queues',
+          `บันทึกคิวตรวจนอกพื้นที่ ID: ${queueRecord.id}, CID: ${maskCid(rawCid)}, ชื่อ: ${fullName}`,
+          actor?.username ? { username: actor.username } : null
+        )
+      } catch (auditErr) {
+        logger.error({ err: auditErr }, 'Failed to write audit log for screening queue')
+      }
+
+      this.cleanupOldQueues(30).catch((err) => {
+        logger.error({ err }, 'Background cleanup of old screening queues failed')
+      })
+
+      return queueRecord
     }
 
-    // Tier 1 Audit log
+    // Zero-DB Gateway Production Implementation
+    const startSql = formatUtcSql(start)
+    const endSql = formatUtcSql(end)
+
+    const existingRows = await this.queryExecutor(`
+      SELECT id, title, first_name AS firstName, last_name AS lastName, full_name AS fullName,
+        gender, birth_date AS birthDate, address, photo_base64 AS photoBase64,
+        raw_payload AS rawPayload, status, vn, recorded_by AS recordedBy
+      FROM screening_queues
+      WHERE cid = ? AND created_at >= ? AND created_at <= ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [rawCid, startSql, endSql])
+
+    const existing = existingRows[0]
+    let queueRecord: any
+
+    if (existing) {
+      const nextTitle = title ?? existing.title
+      const nextFirstName = firstName ?? existing.firstName
+      const nextLastName = lastName ?? existing.lastName
+      const nextFullName = fullName ?? existing.fullName
+      const nextGender = input.gender ?? existing.gender
+      const nextBirthDate = input.birthDate ?? existing.birthDate
+      const nextAddress = input.address ?? existing.address
+      const nextPhoto = input.photoBase64 ?? existing.photoBase64
+      const nextRaw = rawPayloadString ?? existing.rawPayload
+      const nextRecordedBy = actor?.id ?? existing.recordedBy
+      const nextStatus = existing.status === 'CANCELLED' ? 'WAITING' : existing.status
+
+      await this.queryExecutor(`
+        UPDATE screening_queues
+        SET title = ?, first_name = ?, last_name = ?, full_name = ?,
+            gender = ?, birth_date = ?, address = ?, photo_base64 = ?,
+            raw_payload = ?, recorded_by = ?, status = ?, updated_at = NOW()
+        WHERE id = ?
+      `, [
+        nextTitle, nextFirstName, nextLastName, nextFullName,
+        nextGender, nextBirthDate, nextAddress, nextPhoto,
+        nextRaw, nextRecordedBy, nextStatus, existing.id
+      ])
+
+      queueRecord = await this.getQueueById(existing.id)
+    } else {
+      const res: any = await this.queryExecutor(`
+        INSERT INTO screening_queues (
+          cid, title, first_name, last_name, full_name,
+          gender, birth_date, address, photo_base64, raw_payload,
+          status, vn, recorded_by, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `, [
+        rawCid,
+        title,
+        firstName,
+        lastName,
+        fullName,
+        input.gender?.trim() || null,
+        input.birthDate?.trim() || null,
+        input.address?.trim() || null,
+        input.photoBase64 || null,
+        rawPayloadString,
+        input.status || 'WAITING',
+        input.vn || null,
+        actor?.id ?? input.recordedBy ?? null,
+      ])
+
+      const newId = res.insertId
+      queueRecord = await this.getQueueById(newId)
+    }
+
     try {
       await logAudit(
         'CREATE',
@@ -271,7 +444,6 @@ export class ScreeningQueueService {
       logger.error({ err: auditErr }, 'Failed to write audit log for screening queue')
     }
 
-    // Auto cleanup old queues (>30 days) asynchronously without blocking response
     this.cleanupOldQueues(30).catch((err) => {
       logger.error({ err }, 'Background cleanup of old screening queues failed')
     })
@@ -296,21 +468,51 @@ export class ScreeningQueueService {
       throw new Error(`สถานะไม่ถูกต้อง: ${input.status}`)
     }
 
-    const existing = await this.db.screeningQueue.findUnique({
-      where: { id },
-    })
+    if (this.db?.screeningQueue) {
+      const existing = await this.db.screeningQueue.findUnique({
+        where: { id },
+      })
 
+      if (!existing) {
+        throw new Error(`ไม่พบคิวที่ต้องการอัปเดต (ID: ${id})`)
+      }
+
+      const updated = await this.db.screeningQueue.update({
+        where: { id },
+        data: {
+          status: input.status,
+          vn: input.vn !== undefined ? input.vn : existing.vn,
+        },
+      })
+
+      try {
+        await logAudit(
+          'UPDATE',
+          'screening_queues',
+          `เปลี่ยนสถานะคิว ID: ${id} เป็น ${input.status}${input.vn ? ` (VN: ${input.vn})` : ''}`,
+          actor?.username ? { username: actor.username } : null
+        )
+      } catch (auditErr) {
+        logger.error({ err: auditErr }, 'Failed to write audit log for queue status update')
+      }
+
+      return updated
+    }
+
+    // Zero-DB Gateway Production Implementation
+    const existing = await this.getQueueById(id)
     if (!existing) {
       throw new Error(`ไม่พบคิวที่ต้องการอัปเดต (ID: ${id})`)
     }
 
-    const updated = await this.db.screeningQueue.update({
-      where: { id },
-      data: {
-        status: input.status,
-        vn: input.vn !== undefined ? input.vn : existing.vn,
-      },
-    })
+    const nextVn = input.vn !== undefined ? input.vn : existing.vn
+    await this.queryExecutor(`
+      UPDATE screening_queues
+      SET status = ?, vn = ?, updated_at = NOW()
+      WHERE id = ?
+    `, [input.status, nextVn, id])
+
+    const updated = await this.getQueueById(id)
 
     try {
       await logAudit(
@@ -323,7 +525,7 @@ export class ScreeningQueueService {
       logger.error({ err: auditErr }, 'Failed to write audit log for queue status update')
     }
 
-    return updated
+    return updated!
   }
 
   /**
@@ -331,14 +533,24 @@ export class ScreeningQueueService {
    */
   async cleanupOldQueues(retentionDays: number = 30): Promise<{ count: number }> {
     const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000)
-    const result = await this.db.screeningQueue.deleteMany({
-      where: {
-        createdAt: {
-          lt: cutoffDate,
+
+    if (this.db?.screeningQueue) {
+      const result = await this.db.screeningQueue.deleteMany({
+        where: {
+          createdAt: {
+            lt: cutoffDate,
+          },
         },
-      },
-    })
-    return { count: result.count }
+      })
+      return { count: result.count }
+    }
+
+    const cutoffSql = formatUtcSql(cutoffDate)
+    const result: any = await this.queryExecutor(
+      'DELETE FROM screening_queues WHERE created_at < ?',
+      [cutoffSql]
+    )
+    return { count: result?.affectedRows || 0 }
   }
 }
 

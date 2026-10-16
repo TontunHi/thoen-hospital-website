@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { calculateCurrentFiscalYear } from './hospitalEventService'
 
 export interface LeaderboardFilterOptions {
@@ -30,31 +30,75 @@ export interface DepartmentRankItem {
 }
 
 export class EventLeaderboardService {
-  constructor(private db: any = prisma) {}
+  constructor(
+    private db: any = null,
+    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb
+  ) {}
 
   async getIndividualLeaderboard(options: LeaderboardFilterOptions = {}): Promise<IndividualRankItem[]> {
     const fiscalYear = options.fiscalYear || calculateCurrentFiscalYear()
-    const where: any = {}
 
-    if (options.timeframe !== 'all' && fiscalYear && fiscalYear !== 'ALL') {
-      where.event = { fiscalYear }
-    }
+    let attendances: any[] = []
 
-    const attendances = await this.db.eventAttendance.findMany({
-      where,
-      include: {
-        member: {
-          select: {
-            id: true,
-            name: true,
-            department: true,
-            position: true,
-            profilePath: true,
+    if (this.db?.eventAttendance) {
+      const where: any = {}
+      if (options.timeframe !== 'all' && fiscalYear && fiscalYear !== 'ALL') {
+        where.event = { fiscalYear }
+      }
+
+      attendances = await this.db.eventAttendance.findMany({
+        where,
+        include: {
+          member: {
+            select: {
+              id: true,
+              name: true,
+              department: true,
+              position: true,
+              profilePath: true,
+            },
           },
         },
-      },
-      orderBy: { checkedInAt: 'desc' },
-    })
+        orderBy: { checkedInAt: 'desc' },
+      })
+    } else {
+      const whereClauses: string[] = []
+      const params: any[] = []
+
+      if (options.timeframe !== 'all' && fiscalYear && fiscalYear !== 'ALL') {
+        whereClauses.push('e.fiscal_year = ?')
+        params.push(fiscalYear)
+      }
+
+      const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+      const rows = await this.queryExecutor(`
+        SELECT 
+          a.id, a.event_id, a.member_id, a.points_awarded AS pointsAwarded, a.checked_in_at AS checkedInAt,
+          m.id AS m_id, m.name AS m_name, m.department AS m_department, m.position AS m_position, m.profile_path AS m_profile_path
+        FROM event_attendances a
+        LEFT JOIN members m ON a.member_id = m.id
+        LEFT JOIN hospital_events e ON a.event_id = e.id
+        ${whereSql}
+        ORDER BY a.checked_in_at DESC
+      `, params)
+
+      attendances = rows.map((r: any) => ({
+        id: r.id,
+        memberId: r.member_id,
+        pointsAwarded: r.pointsAwarded,
+        checkedInAt: r.checkedInAt,
+        member: r.m_id
+          ? {
+              id: r.m_id,
+              name: r.m_name,
+              department: r.m_department,
+              position: r.m_position,
+              profilePath: r.m_profile_path,
+            }
+          : null,
+      }))
+    }
 
     // Group by memberId
     const scoreMap = new Map<number, {
@@ -131,25 +175,62 @@ export class EventLeaderboardService {
 
   async getDepartmentLeaderboard(options: LeaderboardFilterOptions = {}): Promise<DepartmentRankItem[]> {
     const fiscalYear = options.fiscalYear || calculateCurrentFiscalYear()
-    const where: any = {}
 
-    if (options.timeframe !== 'all' && fiscalYear && fiscalYear !== 'ALL') {
-      where.event = { fiscalYear }
-    }
+    let members: any[] = []
+    let attendances: any[] = []
 
-    const [members, attendances] = await Promise.all([
-      this.db.member.findMany({
-        select: { id: true, department: true },
-      }),
-      this.db.eventAttendance.findMany({
-        where,
-        include: {
-          member: {
-            select: { id: true, department: true },
+    if (this.db?.eventAttendance && this.db?.member) {
+      const where: any = {}
+      if (options.timeframe !== 'all' && fiscalYear && fiscalYear !== 'ALL') {
+        where.event = { fiscalYear }
+      }
+
+      const results = await Promise.all([
+        this.db.member.findMany({
+          select: { id: true, department: true },
+        }),
+        this.db.eventAttendance.findMany({
+          where,
+          include: {
+            member: {
+              select: { id: true, department: true },
+            },
           },
-        },
-      }),
-    ])
+        }),
+      ])
+      members = results[0]
+      attendances = results[1]
+    } else {
+      const whereClauses: string[] = []
+      const params: any[] = []
+
+      if (options.timeframe !== 'all' && fiscalYear && fiscalYear !== 'ALL') {
+        whereClauses.push('e.fiscal_year = ?')
+        params.push(fiscalYear)
+      }
+
+      const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+      const [memberRows, attRows] = await Promise.all([
+        this.queryExecutor('SELECT id, department FROM members'),
+        this.queryExecutor(`
+          SELECT 
+            a.id, a.points_awarded AS pointsAwarded,
+            m.id AS m_id, m.department AS m_department
+          FROM event_attendances a
+          LEFT JOIN members m ON a.member_id = m.id
+          LEFT JOIN hospital_events e ON a.event_id = e.id
+          ${whereSql}
+        `, params),
+      ])
+
+      members = memberRows
+      attendances = attRows.map((r: any) => ({
+        id: r.id,
+        pointsAwarded: r.pointsAwarded,
+        member: r.m_id ? { id: r.m_id, department: r.m_department } : null,
+      }))
+    }
 
     // Count members per department
     const deptMemberCountMap = new Map<string, number>()
@@ -207,13 +288,22 @@ export class EventLeaderboardService {
   }
 
   async getDistinctFiscalYears(): Promise<string[]> {
-    const events = await this.db.hospitalEvent.findMany({
-      select: { fiscalYear: true },
-      distinct: ['fiscalYear'],
-      orderBy: { fiscalYear: 'desc' },
-    })
+    if (this.db?.hospitalEvent) {
+      const events = await this.db.hospitalEvent.findMany({
+        select: { fiscalYear: true },
+        distinct: ['fiscalYear'],
+        orderBy: { fiscalYear: 'desc' },
+      })
+      const years = events.map((e: any) => e.fiscalYear).filter(Boolean)
+      const currentYear = calculateCurrentFiscalYear()
+      if (!years.includes(currentYear)) {
+        years.unshift(currentYear)
+      }
+      return years
+    }
 
-    const years = events.map((e: any) => e.fiscalYear).filter(Boolean)
+    const rows = await this.queryExecutor('SELECT DISTINCT fiscal_year AS fiscalYear FROM hospital_events WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year DESC')
+    const years = rows.map((r: any) => r.fiscalYear).filter(Boolean)
     const currentYear = calculateCurrentFiscalYear()
     if (!years.includes(currentYear)) {
       years.unshift(currentYear)
