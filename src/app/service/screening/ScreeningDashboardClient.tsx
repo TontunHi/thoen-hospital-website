@@ -10,11 +10,8 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  FileText,
   CreditCard,
   X,
-  Copy,
-  Check,
   Pause,
   AlertTriangle,
 } from 'lucide-react'
@@ -59,9 +56,6 @@ export default function ScreeningDashboardClient({ user }: Props) {
   const [customDateInput, setCustomDateInput] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [searchTerm, setSearchTerm] = useState<string>('')
-  const [selectedItemForPayload, setSelectedItemForPayload] = useState<any | null>(null)
-  const [payloadModalOpen, setPayloadModalOpen] = useState<boolean>(false)
-  const [copied, setCopied] = useState<boolean>(false)
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -157,34 +151,6 @@ export default function ScreeningDashboardClient({ user }: Props) {
     } finally {
       setActionLoadingId(null)
     }
-  }
-
-  // Open Raw Payload modal by fetching detail
-  const handleOpenRawPayload = async (id: number) => {
-    try {
-      const res = await fetch(`/api/service/screening/${id}`)
-      const json = await res.json()
-      if (res.ok && json.success) {
-        setSelectedItemForPayload(json.data)
-        setPayloadModalOpen(true)
-      } else {
-        alert('ไม่สามารถโหลดข้อมูลดิบได้')
-      }
-    } catch {
-      alert('เกิดข้อผิดพลาดในการเรียกดูข้อมูล')
-    }
-  }
-
-  // Copy raw payload JSON to clipboard
-  const handleCopyPayload = () => {
-    if (!selectedItemForPayload?.rawPayload) return
-    navigator.clipboard.writeText(
-      typeof selectedItemForPayload.rawPayload === 'string'
-        ? selectedItemForPayload.rawPayload
-        : JSON.stringify(selectedItemForPayload.rawPayload, null, 2)
-    )
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
   }
 
   // Filter items by status filter and search query
@@ -672,15 +638,6 @@ export default function ScreeningDashboardClient({ user }: Props) {
                               <XCircle size={14} />
                             </button>
                           )}
-
-                          <button
-                            type="button"
-                            onClick={() => handleOpenRawPayload(item.id)}
-                            className="btnActionIcon rawPayload"
-                            title="ดูข้อมูลดิบจากบัตร (Raw Payload)"
-                          >
-                            <FileText size={14} />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -691,102 +648,6 @@ export default function ScreeningDashboardClient({ user }: Props) {
           </div>
         </div>
       </div>
-
-      {/* Raw Payload Modal */}
-      {payloadModalOpen && selectedItemForPayload && (
-        <div className="rawModalOverlay" onClick={() => setPayloadModalOpen(false)}>
-          <div className="rawModalCard" onClick={(e) => e.stopPropagation()}>
-            <div className="rawModalHeader">
-              <div className="rawModalTitleGroup">
-                <FileText size={20} style={{ color: '#34d399' }} />
-                <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
-                    ข้อมูลดิบจากบัตรประชาชน (Raw Payload)
-                  </h3>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.15rem 0 0 0' }}>
-                    {selectedItemForPayload.fullName} (CID: {selectedItemForPayload.cid})
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPayloadModalOpen(false)}
-                className="rawModalCloseBtn"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="rawModalBody">
-              <div className="rawMetaBox">
-                <div>
-                  <strong style={{ color: '#64748b' }}>ชื่อ-สกุล:</strong>{' '}
-                  <span style={{ fontWeight: 700 }}>{selectedItemForPayload.fullName}</span>
-                </div>
-                <div>
-                  <strong style={{ color: '#64748b' }}>เลขบัตร:</strong>{' '}
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>
-                    {selectedItemForPayload.cid}
-                  </span>
-                </div>
-                <div>
-                  <strong style={{ color: '#64748b' }}>วันเกิด:</strong>{' '}
-                  <span>{selectedItemForPayload.birthDate || '-'}</span>
-                </div>
-                <div>
-                  <strong style={{ color: '#64748b' }}>เพศ:</strong>{' '}
-                  <span>{selectedItemForPayload.gender || '-'}</span>
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <strong style={{ color: '#64748b' }}>ที่อยู่:</strong>{' '}
-                  <span>{selectedItemForPayload.address || '-'}</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="rawJsonToolbar">
-                  <span>โครงสร้าง JSON จากเครื่องอ่าน (rawPayload):</span>
-                  <button
-                    type="button"
-                    onClick={handleCopyPayload}
-                    className="copyJsonBtn"
-                  >
-                    {copied ? (
-                      <>
-                        <Check size={14} style={{ color: '#059669' }} />
-                        <span style={{ color: '#059669' }}>คัดลอกแล้ว</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={14} />
-                        <span>คัดลอก JSON</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <pre className="rawJsonPre">
-                  {selectedItemForPayload.rawPayload
-                    ? typeof selectedItemForPayload.rawPayload === 'string'
-                      ? JSON.stringify(JSON.parse(selectedItemForPayload.rawPayload), null, 2)
-                      : JSON.stringify(selectedItemForPayload.rawPayload, null, 2)
-                    : '// ไม่มีข้อมูลดิบในฟิลด์ rawPayload'}
-                </pre>
-              </div>
-            </div>
-
-            <div className="rawModalFooter">
-              <button
-                type="button"
-                onClick={() => setPayloadModalOpen(false)}
-                className="closeModalBtn"
-              >
-                ปิดหน้าต่าง
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
