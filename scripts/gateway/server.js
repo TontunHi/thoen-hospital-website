@@ -106,7 +106,7 @@ const appPool = mysql.createPool({
 
 // Ensure utf8mb4 on every acquired connection to bypass MariaDB global init_connect='SET NAMES tis620'
 appPool.on('connection', (conn) => {
-  conn.query('SET NAMES utf8mb4').catch(() => {})
+  conn.query('SET NAMES utf8mb4', () => {})
 })
 
 
