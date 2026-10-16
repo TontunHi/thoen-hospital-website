@@ -295,6 +295,17 @@ export class ApiGatewayClient {
       if (endDate) q.set('endDate', endDate)
       const qs = q.toString() ? `?${q.toString()}` : ''
       return this.get<Array<Record<string, unknown>>>(`/api/v1/clinical/rcm/ipd-dept-adjrw${qs}`)
+    },
+
+    verifyScreeningVisits: (cids: string[]) => {
+      return this.post<Array<{
+        cid: string
+        hn?: string
+        vn?: string
+        hasPatientRecord: boolean
+        hasVisitToday: boolean
+        status: 'NO_RECORD' | 'WAITING' | 'VISIT_OPENED'
+      }>>('/api/v1/clinical/screening/verify-visits', { cids })
     }
   }
 

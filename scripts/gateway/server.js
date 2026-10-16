@@ -616,6 +616,124 @@ fastify.post('/api/v1/clinical/query', {
   }
 })
 
+// 1.13 Outreach Screening Visit Verification (Check Medical Record & Today Visit)
+fastify.post('/api/v1/clinical/screening/verify-visits', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ตรวจสอบเวชระเบียนและสถานะการเปิด Visit สำหรับระบบคัดกรองตรวจนอกพื้นที่ (Screening Queue)',
+    description: 'รับรายการเลขประจำตัวประชาชน (CIDs) เพื่อตรวจสอบว่ามีประวัติในเวชระเบียน (patient) หรือไม่ และมีประวัติการเปิด Visit วันนี้ (vn_stat where vstdate = CURRENT_DATE) หรือไม่ พร้อมส่งคืนสถานะ (NO_RECORD, WAITING, VISIT_OPENED), HN, และ VN',
+    body: {
+      type: 'object',
+      required: ['cids'],
+      properties: {
+        cids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'รายการเลขประจำตัวประชาชน 13 หลัก'
+        }
+      }
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          count: { type: 'integer' },
+          data: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                cid: { type: 'string' },
+                hn: { type: 'string' },
+                vn: { type: 'string' },
+                hasPatientRecord: { type: 'boolean' },
+                hasVisitToday: { type: 'boolean' },
+                status: { type: 'string', enum: ['NO_RECORD', 'WAITING', 'VISIT_OPENED'] }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { cids = [] } = req.body || {}
+  if (!Array.isArray(cids)) {
+    reply.code(400); return { success: false, error: 'cids array required' }
+  }
+  const cleanCids = Array.from(new Set(cids.map((c) => String(c || '').trim()).filter(Boolean)))
+  if (cleanCids.length === 0) {
+    return { success: true, count: 0, data: [] }
+  }
+
+  try {
+    const results = []
+    const chunkSize = 50
+    for (let i = 0; i < cleanCids.length; i += chunkSize) {
+      const chunk = cleanCids.slice(i, i + chunkSize)
+      const placeholders = chunk.map(() => '?').join(', ')
+      const sql = `
+        SELECT 
+          p.cid,
+          MAX(p.hn) AS hn,
+          MAX(v.vn) AS vn
+        FROM patient p
+        LEFT JOIN vn_stat v ON v.hn = p.hn AND v.vstdate = CURRENT_DATE()
+        WHERE p.cid IN (${placeholders})
+        GROUP BY p.cid
+      `
+      const [rows] = await hosPool.query(sql, chunk)
+      const rowMap = new Map()
+      for (const row of rows || []) {
+        const rowCid = String(row.cid || '').trim()
+        if (rowCid) {
+          rowMap.set(rowCid, {
+            hn: row.hn ? String(row.hn).trim() : null,
+            vn: row.vn ? String(row.vn).trim() : null
+          })
+        }
+      }
+
+      for (const cid of chunk) {
+        const found = rowMap.get(cid)
+        if (!found) {
+          results.push({
+            cid,
+            hn: undefined,
+            vn: undefined,
+            hasPatientRecord: false,
+            hasVisitToday: false,
+            status: 'NO_RECORD'
+          })
+        } else if (found.vn) {
+          results.push({
+            cid,
+            hn: found.hn,
+            vn: found.vn,
+            hasPatientRecord: true,
+            hasVisitToday: true,
+            status: 'VISIT_OPENED'
+          })
+        } else {
+          results.push({
+            cid,
+            hn: found.hn,
+            vn: undefined,
+            hasPatientRecord: true,
+            hasVisitToday: false,
+            status: 'WAITING'
+          })
+        }
+      }
+    }
+
+    return { success: true, count: results.length, data: results }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
 // ==================================================================
 // SECTION 2: Salary Database Services (192.168.1.4)
 // ==================================================================

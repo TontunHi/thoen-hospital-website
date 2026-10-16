@@ -75,7 +75,40 @@ model ScreeningQueue {
 - ข้อมูลในตาราง `screening_queues` ที่มีอายุมากกว่า 30 วัน จะถูกล้างออกโดยอัตโนมัติผ่าน Service logic เมื่อมีการเรียกใช้งานหน้าคัดกรอง หรือผ่าน Cleanup Job เพื่อรักษาประสิทธิภาพและสุขอนามัยของฐานข้อมูล
 
 ### 5. สถาปัตยกรรมตรวจสอบเวชระเบียนและการเปิด Visit กับ HOSxP (Zero-DB Gateway Verification)
-- **การเชื่อมต่อแบบ Zero-DB:** การตรวจสอบสถานะกับระบบ HOSxP ไม่กระทำผ่าน Direct MySQL socket connection แต่จะเรียกผ่าน `apiGateway.clinical.query` (`queryClinicalDb`) ตามมาตรฐานความมั่นคงปลอดภัยสูงสุดของโรงพยาบาล
+- **การเชื่อมต่อแบบ Zero-DB ผ่าน Unified API Gateway:** การตรวจสอบสถานะกับระบบ HOSxP ไม่กระทำผ่าน Direct MySQL socket connection แต่จะเรียกผ่าน **Thoen Hospital Unified API Gateway** (`http://192.168.1.208:8443`) ตามมาตรฐานความมั่นคงปลอดภัยสูงสุดของโรงพยาบาล
+- **API Endpoint & Documentation (`/docs`):**
+  - **Swagger UI / OpenAPI Document:** เข้าดูได้ที่ [http://192.168.1.208:8443/docs/](http://192.168.1.208:8443/docs/) ภายใต้หมวด `1. Clinical Services (HOSxP)`
+  - **Endpoint:** `POST /api/v1/clinical/screening/verify-visits`
+  - **Header:** `x-api-key: <API_GATEWAY_KEY>`
+  - **Request Payload:**
+    ```json
+    {
+      "cids": ["1529900123456", "3520100789012"]
+    }
+    ```
+  - **Response Payload:**
+    ```json
+    {
+      "success": true,
+      "count": 2,
+      "data": [
+        {
+          "cid": "1529900123456",
+          "hn": "0012345",
+          "vn": "6710160001",
+          "hasPatientRecord": true,
+          "hasVisitToday": true,
+          "status": "VISIT_OPENED"
+        },
+        {
+          "cid": "3520100789012",
+          "hasPatientRecord": false,
+          "hasVisitToday": false,
+          "status": "NO_RECORD"
+        }
+      ]
+    }
+    ```
 - **ลำดับการตรวจสอบสถานะ 2 ขั้นตอน (Two-tier Verification):**
   1. **ตรวจสอบประวัติเวชระเบียน (`patient_status`):**
      - ตรวจสอบ CID กับตาราง `hos.patient`

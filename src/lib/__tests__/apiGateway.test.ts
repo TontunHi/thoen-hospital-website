@@ -180,6 +180,33 @@ describe('ApiGatewayClient (Ticket 01)', () => {
         expect.anything()
       )
     })
+
+    it('clinical.verifyScreeningVisits posts cids to /api/v1/clinical/screening/verify-visits', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          count: 2,
+          data: [
+            { cid: '111', hasPatientRecord: true, hasVisitToday: true, status: 'VISIT_OPENED', vn: '6710160001' },
+            { cid: '222', hasPatientRecord: false, hasVisitToday: false, status: 'NO_RECORD' }
+          ]
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.clinical.verifyScreeningVisits(['111', '222'])
+
+      expect(res).toHaveLength(2)
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/clinical/screening/verify-visits'),
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ cids: ['111', '222'] })
+        })
+      )
+    })
   })
 
   describe('Salary Services Namespace', () => {

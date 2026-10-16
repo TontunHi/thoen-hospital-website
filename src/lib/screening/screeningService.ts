@@ -1,5 +1,6 @@
 import { queryMemberDb } from '@/lib/memberDb'
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -151,12 +152,36 @@ export class ScreeningQueueService {
 
   /**
    * Verifies patient medical records and visit status in HOSxP for a list of CIDs on current date.
-   * Strictly uses clinicalQueryExecutor via API Gateway (Zero-DB Architecture).
+   * Strictly uses API Gateway (Zero-DB Architecture) via dedicated endpoint or clinicalQueryExecutor.
    */
   async verifyHosVisits(cids: string[]): Promise<Map<string, { inPatient: boolean; hn?: string; vn?: string }>> {
     const cleanCids = Array.from(new Set(cids.map((c) => c?.trim()).filter(Boolean)))
     const results = new Map<string, { inPatient: boolean; hn?: string; vn?: string }>()
     if (cleanCids.length === 0) return results
+
+    // In production (using default queryClinicalDb), prefer dedicated API Gateway endpoint:
+    // POST /api/v1/clinical/screening/verify-visits
+    if (this.clinicalQueryExecutor === queryClinicalDb) {
+      try {
+        const gwResults = await apiGateway.clinical.verifyScreeningVisits(cleanCids)
+        if (Array.isArray(gwResults)) {
+          for (const item of gwResults) {
+            const cid = String(item.cid || '').trim()
+            if (cid && item.hasPatientRecord) {
+              results.set(cid, {
+                inPatient: true,
+                hn: item.hn ? String(item.hn).trim() : undefined,
+                vn: item.vn ? String(item.vn).trim() : undefined,
+              })
+            }
+          }
+          return results
+        }
+      } catch (err: any) {
+        // Fall back to parameterized query via Gateway if dedicated route is pending deployment on VM
+        logger.warn({ err: err?.message }, 'Dedicated screening visit endpoint unavailable; falling back to clinical query')
+      }
+    }
 
     const chunkSize = 50
     for (let i = 0; i < cleanCids.length; i += chunkSize) {
