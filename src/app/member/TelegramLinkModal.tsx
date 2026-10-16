@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import QRCode from 'qrcode'
 import {
   Send,
   CheckCircle2,
@@ -22,6 +23,12 @@ interface TelegramStatus {
   telegramChatIdMasked?: string | null
 }
 
+interface ChallengeData {
+  botUrl: string
+  expiresAt: string
+  qrCodeUrl?: string
+}
+
 interface TelegramLinkModalProps {
   isOpen: boolean
   onClose: () => void
@@ -33,7 +40,8 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
   const [status, setStatus] = useState<TelegramStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
-  const [challengeData, setChallengeData] = useState<{ botUrl: string; expiresAt: string } | null>(null)
+  const [challengeData, setChallengeData] = useState<ChallengeData | null>(null)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
   const [justConnected, setJustConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -43,6 +51,36 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Generate or load QR Code Data URL locally whenever challengeData changes
+  useEffect(() => {
+    let isMounted = true
+    if (challengeData?.botUrl) {
+      if (challengeData.qrCodeUrl) {
+        setQrCodeDataUrl(challengeData.qrCodeUrl)
+      } else {
+        QRCode.toDataURL(challengeData.botUrl, {
+          width: 220,
+          margin: 2,
+          color: {
+            dark: '#0f172a',
+            light: '#ffffff',
+          },
+        })
+          .then((url) => {
+            if (isMounted) setQrCodeDataUrl(url)
+          })
+          .catch((err) => {
+            console.error('Failed to generate Telegram QR code:', err)
+          })
+      }
+    } else {
+      setQrCodeDataUrl('')
+    }
+    return () => {
+      isMounted = false
+    }
+  }, [challengeData])
+
   // Fetch status on open
   useEffect(() => {
     if (isOpen) {
@@ -51,6 +89,7 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
     } else {
       stopPolling()
       setChallengeData(null)
+      setQrCodeDataUrl('')
       setJustConnected(false)
       setError(null)
       setShowConfirmUnlink(false)
@@ -166,10 +205,6 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
 
   if (!isOpen) return null
 
-  const qrCodeUrl = challengeData
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(challengeData.botUrl)}`
-    : ''
-
   return (
     <div className="telegramModalOverlay" onClick={onClose}>
       <div
@@ -279,7 +314,32 @@ export default function TelegramLinkModal({ isOpen, onClose, onLinked, onUnlinke
             /* Active Linking Challenge Screen (QR + Deep Link) - Compact */
             <div className="telegramChallengeContent compactChallenge">
               <div className="qrWrapper compactQr">
-                <img src={qrCodeUrl} alt="Telegram QR" className="qrImage compactQrImg" />
+                {qrCodeDataUrl ? (
+                  <img
+                    src={qrCodeDataUrl}
+                    alt="สแกนเพื่อเชื่อมต่อ Telegram"
+                    className="qrImage compactQrImg"
+                    width={160}
+                    height={160}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 160,
+                      height: 160,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#f8fafc',
+                      borderRadius: 8,
+                      gap: 8,
+                    }}
+                  >
+                    <Loader2 size={24} className="animate-spin text-sky-600" />
+                    <span style={{ fontSize: 11, color: '#64748b' }}>กำลังสร้าง QR Code...</span>
+                  </div>
+                )}
                 <div className="qrExpiryHint">
                   <RefreshCw size={12} className="animate-spin" />
                   <span>รอการกด [START] ในแอป Telegram...</span>

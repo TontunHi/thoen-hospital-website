@@ -3,6 +3,7 @@ import { requireMemberApi } from '@/lib/memberAuth'
 import { getMemberTelegramLink, createTelegramLinkChallenge, unlinkMemberTelegram } from '@/lib/telegramService'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
+import QRCode from 'qrcode'
 
 /**
  * GET: Retrieve the member's current Telegram link status
@@ -31,6 +32,20 @@ export async function POST() {
 
     const challenge = await createTelegramLinkChallenge(member.id)
 
+    let qrCodeUrl = ''
+    try {
+      qrCodeUrl = await QRCode.toDataURL(challenge.botUrl, {
+        width: 220,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff',
+        },
+      })
+    } catch (qrErr) {
+      logger.error({ qrErr }, 'Error generating Telegram QR data URL')
+    }
+
     await logAudit(
       'REQUEST',
       'telegram_link_challenges',
@@ -42,6 +57,7 @@ export async function POST() {
       success: true,
       data: {
         botUrl: challenge.botUrl,
+        qrCodeUrl,
         expiresAt: challenge.expiresAt.toISOString(),
       },
     })
