@@ -336,34 +336,32 @@ describe('ScreeningQueueService and Utilities', () => {
     })
   })
 
-  describe('HOSxP Medical Record & Visit Verification (Zero-DB Gateway)', () => {
-    let mockClinicalExecutor: any
+  describe('HOSxP Medical Record & Visit Verification (Dedicated Gateway API)', () => {
+    let mockClinicalVerifier: any
     let mockQueryExecutor: any
     let serviceWithClinical: ScreeningQueueService
 
     beforeEach(() => {
-      mockClinicalExecutor = vi.fn()
+      mockClinicalVerifier = vi.fn()
       mockQueryExecutor = vi.fn()
-      serviceWithClinical = new ScreeningQueueService(null, mockQueryExecutor, mockClinicalExecutor)
+      serviceWithClinical = new ScreeningQueueService(null, mockQueryExecutor, mockClinicalVerifier)
     })
 
-    it('verifyHosVisits chunks CIDs and maps patient records and today visits correctly', async () => {
-      mockClinicalExecutor.mockResolvedValue([
-        { cid: '1111111111111', hn: '0001234', vn: null }, // In patient, no visit today
-        { cid: '2222222222222', hn: '0005678', vn: '6710160001' }, // In patient, has visit today
+    it('verifyHosVisits chunks CIDs and calls dedicated gateway endpoint', async () => {
+      mockClinicalVerifier.mockResolvedValue([
+        { cid: '1111111111111', hn: '0001234', vn: undefined, hasPatientRecord: true, hasVisitToday: false, status: 'WAITING' },
+        { cid: '2222222222222', hn: '0005678', vn: '6710160001', hasPatientRecord: true, hasVisitToday: true, status: 'VISIT_OPENED' },
+        { cid: '3333333333333', hasPatientRecord: false, hasVisitToday: false, status: 'NO_RECORD' },
       ])
 
       const result = await serviceWithClinical.verifyHosVisits([
         '1111111111111',
         '2222222222222',
-        '3333333333333', // Not in patient table
+        '3333333333333',
       ])
 
-      expect(mockClinicalExecutor).toHaveBeenCalledTimes(1)
-      const [sql, params] = mockClinicalExecutor.mock.calls[0]
-      expect(sql).toContain('FROM patient p')
-      expect(sql).toContain('LEFT JOIN vn_stat v ON v.hn = p.hn AND v.vstdate = CURRENT_DATE')
-      expect(params).toEqual(['1111111111111', '2222222222222', '3333333333333'])
+      expect(mockClinicalVerifier).toHaveBeenCalledTimes(1)
+      expect(mockClinicalVerifier).toHaveBeenCalledWith(['1111111111111', '2222222222222', '3333333333333'])
 
       expect(result.get('1111111111111')).toEqual({ inPatient: true, hn: '0001234', vn: undefined })
       expect(result.get('2222222222222')).toEqual({ inPatient: true, hn: '0005678', vn: '6710160001' })
@@ -371,9 +369,10 @@ describe('ScreeningQueueService and Utilities', () => {
     })
 
     it('enrichQueuesWithHosVisits marks NO_RECORD, WAITING, and VISIT_OPENED and persists updates', async () => {
-      mockClinicalExecutor.mockResolvedValue([
-        { cid: '1111111111111', hn: '0001234', vn: null }, // WAITING
-        { cid: '2222222222222', hn: '0005678', vn: '6710160001' }, // VISIT_OPENED
+      mockClinicalVerifier.mockResolvedValue([
+        { cid: '1111111111111', hn: '0001234', hasPatientRecord: true, hasVisitToday: false, status: 'WAITING' },
+        { cid: '2222222222222', hn: '0005678', vn: '6710160001', hasPatientRecord: true, hasVisitToday: true, status: 'VISIT_OPENED' },
+        { cid: '3333333333333', hasPatientRecord: false, hasVisitToday: false, status: 'NO_RECORD' },
       ])
 
       const rawItems: any[] = [
@@ -403,8 +402,8 @@ describe('ScreeningQueueService and Utilities', () => {
       expect(mockQueryExecutor.mock.calls[0][0]).toContain('UPDATE screening_queues SET status = ?, vn = ?')
     })
 
-    it('gracefully degrades and returns original items if HOSxP clinical query fails', async () => {
-      mockClinicalExecutor.mockRejectedValue(new Error('Gateway clinical connection timeout'))
+    it('gracefully degrades and returns original items if Gateway clinical verification fails', async () => {
+      mockClinicalVerifier.mockRejectedValue(new Error('Gateway clinical connection timeout'))
 
       const rawItems: any[] = [
         { id: 1, cid: '1111111111111', status: 'WAITING', vn: null },
@@ -421,9 +420,9 @@ describe('ScreeningQueueService and Utilities', () => {
         { id: 2, cid: '2222222222222', full_name: 'สมหญิง', status: 'WAITING', created_at: new Date() },
       ])
 
-      mockClinicalExecutor.mockResolvedValue([
-        { cid: '1111111111111', hn: '0001234', vn: '6710160002' },
-        // 2222222222222 is not in patient -> NO_RECORD
+      mockClinicalVerifier.mockResolvedValue([
+        { cid: '1111111111111', hn: '0001234', vn: '6710160002', hasPatientRecord: true, hasVisitToday: true, status: 'VISIT_OPENED' },
+        { cid: '2222222222222', hasPatientRecord: false, hasVisitToday: false, status: 'NO_RECORD' },
       ])
 
       const res = await serviceWithClinical.getQueues({ date: 'today' })
@@ -435,3 +434,4 @@ describe('ScreeningQueueService and Utilities', () => {
     })
   })
 })
+

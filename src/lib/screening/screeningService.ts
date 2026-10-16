@@ -1,5 +1,4 @@
 import { queryMemberDb } from '@/lib/memberDb'
-import { queryClinicalDb } from '@/lib/clinicalDb'
 import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
@@ -143,70 +142,47 @@ export function getBangkokDateRange(dateStr?: string): BangkokDateRange {
   return { start, end, bangkokDateStr: targetDateStr, startSql, endSql }
 }
 
+export type ScreeningClinicalVerifier = (cids: string[]) => Promise<Array<{
+  cid: string
+  hn?: string
+  vn?: string
+  hasPatientRecord: boolean
+  hasVisitToday: boolean
+  status: 'NO_RECORD' | 'WAITING' | 'VISIT_OPENED' | string
+}>>
+
 export class ScreeningQueueService {
   constructor(
     private db: any = null,
     private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb,
-    private readonly clinicalQueryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryClinicalDb
+    private readonly clinicalVerifier: ScreeningClinicalVerifier = (cids) =>
+      apiGateway.clinical.verifyScreeningVisits(cids)
   ) {}
 
   /**
    * Verifies patient medical records and visit status in HOSxP for a list of CIDs on current date.
-   * Strictly uses API Gateway (Zero-DB Architecture) via dedicated endpoint or clinicalQueryExecutor.
+   * Exclusively routes through the dedicated Unified API Gateway endpoint:
+   * POST /api/v1/clinical/screening/verify-visits
    */
   async verifyHosVisits(cids: string[]): Promise<Map<string, { inPatient: boolean; hn?: string; vn?: string }>> {
     const cleanCids = Array.from(new Set(cids.map((c) => c?.trim()).filter(Boolean)))
     const results = new Map<string, { inPatient: boolean; hn?: string; vn?: string }>()
     if (cleanCids.length === 0) return results
 
-    // In production (using default queryClinicalDb), prefer dedicated API Gateway endpoint:
-    // POST /api/v1/clinical/screening/verify-visits
-    if (this.clinicalQueryExecutor === queryClinicalDb) {
-      try {
-        const gwResults = await apiGateway.clinical.verifyScreeningVisits(cleanCids)
-        if (Array.isArray(gwResults)) {
-          for (const item of gwResults) {
-            const cid = String(item.cid || '').trim()
-            if (cid && item.hasPatientRecord) {
-              results.set(cid, {
-                inPatient: true,
-                hn: item.hn ? String(item.hn).trim() : undefined,
-                vn: item.vn ? String(item.vn).trim() : undefined,
-              })
-            }
-          }
-          return results
-        }
-      } catch (err: any) {
-        // Fall back to parameterized query via Gateway if dedicated route is pending deployment on VM
-        logger.warn({ err: err?.message }, 'Dedicated screening visit endpoint unavailable; falling back to clinical query')
-      }
-    }
-
     const chunkSize = 50
     for (let i = 0; i < cleanCids.length; i += chunkSize) {
       const chunk = cleanCids.slice(i, i + chunkSize)
-      const placeholders = chunk.map(() => '?').join(', ')
-      const sql = `
-        SELECT 
-          p.cid,
-          MAX(p.hn) AS hn,
-          MAX(v.vn) AS vn
-        FROM patient p
-        LEFT JOIN vn_stat v ON v.hn = p.hn AND v.vstdate = CURRENT_DATE
-        WHERE p.cid IN (${placeholders})
-        GROUP BY p.cid
-      `.trim()
-
-      const rows = await this.clinicalQueryExecutor(sql, chunk)
-      for (const row of rows || []) {
-        const rowCid = String(row.cid || '').trim()
-        if (rowCid) {
-          results.set(rowCid, {
-            inPatient: true,
-            hn: row.hn ? String(row.hn).trim() : undefined,
-            vn: row.vn ? String(row.vn).trim() : undefined,
-          })
+      const gwResults = await this.clinicalVerifier(chunk)
+      if (Array.isArray(gwResults)) {
+        for (const item of gwResults) {
+          const cid = String(item.cid || '').trim()
+          if (cid && item.hasPatientRecord) {
+            results.set(cid, {
+              inPatient: true,
+              hn: item.hn ? String(item.hn).trim() : undefined,
+              vn: item.vn ? String(item.vn).trim() : undefined,
+            })
+          }
         }
       }
     }
