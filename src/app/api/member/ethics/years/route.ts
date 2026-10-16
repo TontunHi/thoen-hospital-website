@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
 import { EthicsDocumentService } from '@/lib/cms/EthicsDocumentService'
@@ -24,7 +24,6 @@ export async function GET() {
       years: safeYears
     })
   } catch (error: any) {
-
     console.error('Member fetch ethics error:', error)
     return NextResponse.json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูล' }, { status: 500 })
   }
@@ -44,20 +43,17 @@ export async function POST(request: Request) {
 
     const { year, displayOrder, isActive } = parsed.data
 
-    const existing = await prisma.ethicsYear.findUnique({
-      where: { year }
-    })
-    if (existing) {
+    const existingRows = await queryMemberDb('SELECT id FROM ethics_years WHERE year = ?', [year])
+    if (existingRows.length > 0) {
       return NextResponse.json({ error: `ปีงบประมาณ ${year} มีอยู่ในระบบแล้ว` }, { status: 400 })
     }
 
-    const created = await prisma.ethicsYear.create({
-      data: {
-        year,
-        displayOrder,
-        isActive
-      }
-    })
+    const res: any = await queryMemberDb(
+      'INSERT INTO ethics_years (year, display_order, is_active, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
+      [year, displayOrder, isActive ? 1 : 0]
+    )
+
+    const createdId = res?.insertId || res?.[0]?.insertId
 
     await logAudit(
       'CREATE',
@@ -68,7 +64,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      year: created,
+      year: {
+        id: createdId,
+        year,
+        displayOrder,
+        isActive
+      },
       message: 'เพิ่มปีงบประมาณสำเร็จ'
     })
   } catch (error: any) {
@@ -97,14 +98,10 @@ export async function PUT(request: Request) {
 
     const { year, displayOrder, isActive } = parsed.data
 
-    const updated = await prisma.ethicsYear.update({
-      where: { id },
-      data: {
-        year,
-        displayOrder,
-        isActive
-      }
-    })
+    await queryMemberDb(
+      'UPDATE ethics_years SET year = ?, display_order = ?, is_active = ?, updated_at = NOW() WHERE id = ?',
+      [year, displayOrder, isActive ? 1 : 0, id]
+    )
 
     await logAudit(
       'UPDATE',
@@ -115,7 +112,12 @@ export async function PUT(request: Request) {
 
     return NextResponse.json({
       success: true,
-      year: updated,
+      year: {
+        id,
+        year,
+        displayOrder,
+        isActive
+      },
       message: 'อัปเดตข้อมูลปีงบประมาณสำเร็จ'
     })
   } catch (error: any) {
@@ -138,16 +140,14 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'รหัสปีงบประมาณไม่ถูกต้อง' }, { status: 400 })
     }
 
-    const existing = await prisma.ethicsYear.findUnique({
-      where: { id }
-    })
+    const existingRows = await queryMemberDb('SELECT id, year FROM ethics_years WHERE id = ?', [id])
+    const existing = existingRows[0]
     if (!existing) {
       return NextResponse.json({ error: 'ไม่พบปีงบประมาณที่ต้องการลบ' }, { status: 404 })
     }
 
-    await prisma.ethicsYear.delete({
-      where: { id }
-    })
+    await queryMemberDb('DELETE FROM ethics_documents WHERE year_id = ?', [id])
+    await queryMemberDb('DELETE FROM ethics_years WHERE id = ?', [id])
 
     await logAudit(
       'DELETE',

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
 import { DocumentStorage, StorageValidationError } from '@/lib/storage/documentStorage'
 import path from 'path'
@@ -83,10 +83,13 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'รหัสเอกสารไม่ถูกต้อง' }, { status: 400 })
     }
 
-    const existing = await prisma.ethicsDocument.findUnique({
-      where: { id },
-      include: { year: true }
-    })
+    const existingRows = await queryMemberDb(`
+      SELECT d.id, d.title, d.file_path AS filePath, d.file_size AS fileSize, d.display_order AS displayOrder, d.is_active AS isActive, y.year
+      FROM ethics_documents d
+      JOIN ethics_years y ON d.year_id = y.id
+      WHERE d.id = ?
+    `, [id])
+    const existing = existingRows[0]
     if (!existing) {
       return NextResponse.json({ error: 'ไม่พบเอกสารที่ต้องการแก้ไข' }, { status: 404 })
     }
@@ -96,7 +99,7 @@ export async function PUT(request: Request) {
 
     if (file && file.size > 0) {
       const saved = await DocumentStorage.replace(existing.filePath, file, {
-        destinationDir: `public/documents/ethics/${existing.year.year}`,
+        destinationDir: `public/documents/ethics/${existing.year}`,
         allowedMimeTypes: ['application/pdf'],
         allowedExtensions: ['.pdf'],
         maxSizeBytes: 25 * 1024 * 1024,
@@ -106,29 +109,32 @@ export async function PUT(request: Request) {
       fileSize = BigInt(saved.fileSize)
     }
 
-    const updated = await prisma.ethicsDocument.update({
-      where: { id },
-      data: {
-        title: title || existing.title,
-        displayOrder: displayOrderStr ? parseInt(displayOrderStr, 10) : existing.displayOrder,
-        isActive: isActiveStr !== undefined ? isActiveStr !== 'false' : existing.isActive,
-        filePath,
-        fileSize,
-      }
-    })
+    const newTitle = title || existing.title
+    const newDisplayOrder = displayOrderStr ? parseInt(displayOrderStr, 10) : existing.displayOrder
+    const newIsActive = isActiveStr !== undefined ? isActiveStr !== 'false' : Boolean(existing.isActive)
+
+    await queryMemberDb(`
+      UPDATE ethics_documents
+      SET title = ?, display_order = ?, is_active = ?, file_path = ?, file_size = ?, updated_at = NOW()
+      WHERE id = ?
+    `, [newTitle, newDisplayOrder, newIsActive ? 1 : 0, filePath, fileSize ? Number(fileSize) : null, id])
 
     await logAudit(
       'UPDATE',
       'ethics_documents',
-      `แก้ไขเอกสารจริยธรรม ID: ${id} ("${updated.title}") โดย ${member.username}`,
+      `แก้ไขเอกสารจริยธรรม ID: ${id} ("${newTitle}") โดย ${member.username}`,
       member.session
     )
 
     return NextResponse.json({
       success: true,
       document: {
-        ...updated,
-        fileSize: updated.fileSize ? updated.fileSize.toString() : null
+        id,
+        title: newTitle,
+        displayOrder: newDisplayOrder,
+        isActive: newIsActive,
+        filePath,
+        fileSize: fileSize ? fileSize.toString() : null
       },
       message: 'อัปเดตข้อมูลสำเร็จ'
     })

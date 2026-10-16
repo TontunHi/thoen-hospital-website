@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
@@ -48,26 +48,25 @@ const documentSchema = z.object({
 
 export class EthicsDocumentService {
   static async getDocumentTree(): Promise<EthicsYearNode[]> {
-    const years = await prisma.ethicsYear.findMany({
-      where: { isActive: true },
-      orderBy: [
-        { year: 'desc' },
-        { displayOrder: 'desc' }
-      ],
-      include: {
-        documents: {
-          where: { isActive: true },
-          orderBy: [
-            { displayOrder: 'asc' },
-            { id: 'asc' }
-          ]
-        }
-      }
-    })
+    const [years, documents] = await Promise.all([
+      queryMemberDb(`
+        SELECT id, year, display_order AS displayOrder, is_active AS isActive
+        FROM ethics_years
+        WHERE is_active = 1
+        ORDER BY year DESC, display_order DESC
+      `),
+      queryMemberDb(`
+        SELECT id, year_id AS yearId, parent_id AS parentId, title, file_path AS filePath, file_size AS fileSize, display_order AS displayOrder, is_active AS isActive
+        FROM ethics_documents
+        WHERE is_active = 1
+        ORDER BY display_order ASC, id ASC
+      `),
+    ])
 
     return years.map((yearItem: any) => {
-      const parentDocs = yearItem.documents.filter((doc: any) => !doc.parentId)
-      const allChildren = yearItem.documents.filter((doc: any) => doc.parentId)
+      const yearDocs = documents.filter((doc: any) => doc.yearId === yearItem.id)
+      const parentDocs = yearDocs.filter((doc: any) => !doc.parentId)
+      const allChildren = yearDocs.filter((doc: any) => doc.parentId)
 
       const structuredDocs = parentDocs.map((parent: any) => {
         const subItems = allChildren
@@ -98,28 +97,29 @@ export class EthicsDocumentService {
   }
 
   static async getYears(): Promise<any[]> {
-    const years = await prisma.ethicsYear.findMany({
-      orderBy: [
-        { displayOrder: 'asc' },
-        { year: 'desc' }
-      ],
-      include: {
-        documents: {
-          orderBy: [
-            { displayOrder: 'asc' },
-            { id: 'asc' }
-          ]
-        }
+    const [years, documents] = await Promise.all([
+      queryMemberDb(`
+        SELECT id, year, display_order AS displayOrder, is_active AS isActive
+        FROM ethics_years
+        ORDER BY display_order ASC, year DESC
+      `),
+      queryMemberDb(`
+        SELECT id, year_id AS yearId, parent_id AS parentId, title, file_path AS filePath, file_size AS fileSize, display_order AS displayOrder, is_active AS isActive
+        FROM ethics_documents
+        ORDER BY display_order ASC, id ASC
+      `),
+    ])
+
+    return years.map((y: any) => {
+      const yearDocs = documents.filter((d: any) => d.yearId === y.id)
+      return {
+        ...y,
+        documents: yearDocs.map((d: any) => ({
+          ...d,
+          fileSize: d.fileSize ? d.fileSize.toString() : null
+        }))
       }
     })
-
-    return years.map((y: any) => ({
-      ...y,
-      documents: y.documents.map((d: any) => ({
-        ...d,
-        fileSize: d.fileSize ? d.fileSize.toString() : null
-      }))
-    }))
   }
 
   static async createDocument(
@@ -140,9 +140,8 @@ export class EthicsDocumentService {
 
     const { yearId, parentId, title, displayOrder, isActive } = parsed.data
 
-    const yearRecord = await prisma.ethicsYear.findUnique({
-      where: { id: yearId }
-    })
+    const yearRows = await queryMemberDb('SELECT id, year FROM ethics_years WHERE id = ?', [yearId])
+    const yearRecord = yearRows[0]
     if (!yearRecord) {
       throw new Error('ไม่พบปีงบประมาณที่ระบุ')
     }
@@ -162,17 +161,12 @@ export class EthicsDocumentService {
       fileSize = BigInt(saved.fileSize)
     }
 
-    const created = await prisma.ethicsDocument.create({
-      data: {
-        yearId,
-        parentId,
-        title,
-        filePath,
-        fileSize,
-        displayOrder,
-        isActive,
-      }
-    })
+    const res: any = await queryMemberDb(`
+      INSERT INTO ethics_documents (year_id, parent_id, title, file_path, file_size, display_order, is_active, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `, [yearId, parentId || null, title, filePath, fileSize ? Number(fileSize) : null, displayOrder, isActive ? 1 : 0])
+
+    const createdId = res?.insertId || res?.[0]?.insertId
 
     await logAudit(
       'CREATE',
@@ -182,8 +176,14 @@ export class EthicsDocumentService {
     )
 
     return {
-      ...created,
-      fileSize: created.fileSize ? created.fileSize.toString() : null
+      id: createdId,
+      yearId,
+      parentId: parentId || null,
+      title,
+      filePath,
+      fileSize: fileSize ? fileSize.toString() : null,
+      displayOrder,
+      isActive,
     }
   }
 
@@ -195,17 +195,16 @@ export class EthicsDocumentService {
     const docId = parseInt(id, 10)
     if (isNaN(docId)) throw new Error('Invalid ID')
 
-    const existing = await prisma.ethicsDocument.findUnique({
-      where: { id: docId },
-      include: { children: true }
-    })
-    
+    const rows = await queryMemberDb('SELECT id, title, file_path AS filePath FROM ethics_documents WHERE id = ?', [docId])
+    const existing = rows[0]
     if (!existing) {
       throw new Error('ไม่พบเอกสารที่ต้องการลบ')
     }
 
+    const children = await queryMemberDb('SELECT id, file_path AS filePath FROM ethics_documents WHERE parent_id = ?', [docId])
+
     // Delete child files
-    for (const child of existing.children) {
+    for (const child of children) {
       if (child.filePath) {
         await DocumentStorage.delete(child.filePath)
       }
@@ -215,9 +214,8 @@ export class EthicsDocumentService {
       await DocumentStorage.delete(existing.filePath)
     }
 
-    await prisma.ethicsDocument.delete({
-      where: { id: docId }
-    })
+    await queryMemberDb('DELETE FROM ethics_documents WHERE parent_id = ?', [docId])
+    await queryMemberDb('DELETE FROM ethics_documents WHERE id = ?', [docId])
 
     await logAudit(
       'DELETE',
