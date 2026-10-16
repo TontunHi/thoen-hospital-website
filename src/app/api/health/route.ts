@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { queryClinicalDb } from '@/lib/clinicalDb'
 import { querySalaryDb } from '@/lib/salaryDb'
 import { checkRateLimit } from '@/lib/rateLimit'
@@ -42,7 +42,7 @@ export async function GET() {
 
     const [primaryDb, hosxpDb, salaryDb] = await Promise.all([
       checkService(async () => {
-        await prisma.$queryRaw`SELECT 1`
+        await queryMemberDb('SELECT 1')
       }),
       checkService(async () => {
         await queryClinicalDb('SELECT 1')
