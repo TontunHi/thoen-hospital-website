@@ -38,8 +38,10 @@ export interface CreateScreeningQueueInput {
   recordedBy?: number | null
 }
 
+export type ScreeningQueueStatus = 'WAITING' | 'VISIT_OPENED' | 'NO_RECORD' | 'CANCELLED'
+
 export interface UpdateScreeningQueueStatusInput {
-  status: 'WAITING' | 'VISIT_OPENED' | 'NO_RECORD' | 'CANCELLED' | string
+  status: ScreeningQueueStatus
   vn?: string | null
 }
 
@@ -163,12 +165,12 @@ export class ScreeningQueueService {
       const sql = `
         SELECT 
           p.cid,
-          p.hn,
+          MAX(p.hn) AS hn,
           MAX(v.vn) AS vn
         FROM patient p
         LEFT JOIN vn_stat v ON v.hn = p.hn AND v.vstdate = CURRENT_DATE
         WHERE p.cid IN (${placeholders})
-        GROUP BY p.cid, p.hn
+        GROUP BY p.cid
       `.trim()
 
       const rows = await this.clinicalQueryExecutor(sql, chunk)
@@ -336,7 +338,7 @@ export class ScreeningQueueService {
       if (isToday) {
         mappedItems = await this.enrichQueuesWithHosVisits(mappedItems)
         if (options.status && options.status !== 'ALL') {
-          mappedItems = mappedItems.filter((i: any) => i.status === options.status)
+          mappedItems = mappedItems.filter((i: ScreeningQueueItem) => i.status === options.status)
         }
       }
 
@@ -409,7 +411,7 @@ export class ScreeningQueueService {
     if (isToday) {
       items = await this.enrichQueuesWithHosVisits(items)
       if (options.status && options.status !== 'ALL') {
-        items = items.filter((i: any) => i.status === options.status)
+        items = items.filter((i: ScreeningQueueItem) => i.status === options.status)
       }
     }
 
@@ -667,8 +669,8 @@ export class ScreeningQueueService {
       throw new Error('รหัสคิวไม่ถูกต้อง')
     }
 
-    const validStatuses = ['WAITING', 'VISIT_OPENED', 'CANCELLED']
-    if (!validStatuses.includes(input.status)) {
+    const validStatuses: ScreeningQueueStatus[] = ['WAITING', 'VISIT_OPENED', 'NO_RECORD', 'CANCELLED']
+    if (!validStatuses.includes(input.status as ScreeningQueueStatus)) {
       throw new Error(`สถานะไม่ถูกต้อง: ${input.status}`)
     }
 

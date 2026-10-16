@@ -85,9 +85,6 @@ export default function ScreeningDashboardClient({ user }: Props) {
       try {
         const queryParams = new URLSearchParams()
         queryParams.set('date', selectedDate)
-        if (statusFilter !== 'ALL') {
-          queryParams.set('status', statusFilter)
-        }
 
         const res = await fetch(`/api/service/screening?${queryParams.toString()}`)
         const json = await res.json()
@@ -104,7 +101,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
         setIsRefreshing(false)
       }
     },
-    [selectedDate, statusFilter]
+    [selectedDate]
   )
 
   // Initial load and 5-second auto-refresh polling (pauses when all visits are opened)
@@ -190,18 +187,21 @@ export default function ScreeningDashboardClient({ user }: Props) {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // Filter items by search query
+  // Filter items by status filter and search query
   const filteredItems = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
-    if (!q) return items
 
     return items.filter((item) => {
+      const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter
+      if (!matchesStatus) return false
+
+      if (!q) return true
       const nameMatch = item.fullName.toLowerCase().includes(q)
       const cidMatch = item.cid.includes(q)
       const vnMatch = item.vn ? item.vn.toLowerCase().includes(q) : false
       return nameMatch || cidMatch || vnMatch
     })
-  }, [items, searchTerm])
+  }, [items, searchTerm, statusFilter])
 
   // Count summaries
   const stats = useMemo(() => {
@@ -636,16 +636,9 @@ export default function ScreeningDashboardClient({ user }: Props) {
                       <td className="tableColCenter">
                         <div className="tableActionRow">
                           {item.status === 'NO_RECORD' ? (
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateStatus(item.id, 'VISIT_OPENED', true)}
-                              disabled={actionLoadingId === item.id}
-                              className="btnActionOpenVisit"
-                              title="เปิดประวัติ / บันทึกเปิด Visit แล้ว"
-                              style={{ background: '#dc2626' }}
-                            >
-                              {actionLoadingId === item.id ? '...' : 'เปิด Visit'}
-                            </button>
+                            <span style={{ fontSize: '0.75rem', color: '#b91c1c', fontWeight: 600, padding: '0.25rem 0.5rem' }}>
+                              รอเปิดเวชระเบียน
+                            </span>
                           ) : item.status === 'WAITING' ? (
                             <button
                               type="button"
