@@ -46,7 +46,7 @@ await fastify.register(fastifySwaggerUi, {
     docExpansion: 'list',
     deepLinking: false
   },
-  staticCSP: true
+  staticCSP: false
 })
 
 // ------------------------------------------------------------------
