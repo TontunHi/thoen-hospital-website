@@ -210,17 +210,6 @@ export default function MemberDashboardClient({
         visible: permissions.isEthicsAuthorized,
       },
       {
-        id: 'kpi_tracker',
-        title: 'ระบบติดตามตัวชี้วัด (KPI Tracking)',
-        shortDesc: 'กำกับและติดตามผลการดำเนินงานตัวชี้วัดคุณภาพ THIP / HA / ยุทธศาสตร์ โรงพยาบาลเถิน',
-        href: '/service/kpi-tracker',
-        icon: 'track_changes',
-        category: 'system',
-        categoryLabel: 'ระบบสารสนเทศและเอกสาร',
-        keywords: ['ตัวชี้วัด', 'kpi', 'thip', 'ha', 'ศูนย์คุณภาพ', 'ยุทธศาสตร์', 'เป้าหมาย'],
-        visible: Boolean(permissions.isKpiAuthorized),
-      },
-      {
         id: 'upload_salary',
         title: 'ระบบนำเข้าข้อมูลการเงิน',
         shortDesc: 'บันทึกงวดนำเข้า และอัปโหลดไฟล์ Excel/CSV ข้อมูลสลิปเงินเดือนและ OT',

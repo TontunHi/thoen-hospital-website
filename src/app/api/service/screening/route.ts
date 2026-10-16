@@ -14,7 +14,7 @@ const createQueueSchema = z.object({
   address: z.string().optional().nullable(),
   photoBase64: z.string().optional().nullable(),
   rawPayload: z.any().optional().nullable(),
-  status: z.enum(['WAITING', 'VISIT_OPENED', 'CANCELLED']).optional(),
+  status: z.enum(['WAITING', 'VISIT_OPENED', 'NO_RECORD', 'CANCELLED']).optional(),
   vn: z.string().optional().nullable(),
 })
 

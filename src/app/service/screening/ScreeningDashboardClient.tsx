@@ -16,6 +16,7 @@ import {
   Copy,
   Check,
   Pause,
+  AlertTriangle,
 } from 'lucide-react'
 import './page.css'
 
@@ -37,7 +38,7 @@ interface ScreeningItem {
   gender: string | null
   birthDate: string | null
   address: string | null
-  status: 'WAITING' | 'VISIT_OPENED' | 'CANCELLED' | string
+  status: 'WAITING' | 'VISIT_OPENED' | 'NO_RECORD' | 'CANCELLED' | string
   vn: string | null
   recordedBy: number | null
   createdAt: string
@@ -63,6 +64,13 @@ export default function ScreeningDashboardClient({ user }: Props) {
   const [copied, setCopied] = useState<boolean>(false)
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Compute if all active items have opened visit today
+  const isAllVisitOpened = useMemo(() => {
+    if (selectedDate !== 'today' || items.length === 0) return false
+    const active = items.filter((i) => i.status !== 'CANCELLED')
+    return active.length > 0 && active.every((i) => i.status === 'VISIT_OPENED')
+  }, [items, selectedDate])
 
   // Fetch queues from API
   const fetchQueues = useCallback(
@@ -99,23 +107,24 @@ export default function ScreeningDashboardClient({ user }: Props) {
     [selectedDate, statusFilter]
   )
 
-  // Initial load and 3-second auto-refresh polling
+  // Initial load and 5-second auto-refresh polling (pauses when all visits are opened)
   useEffect(() => {
     fetchQueues()
 
-    if (!autoRefresh) return
+    // Stop polling if user disabled it, or viewing historical dates, or all items have opened visits
+    if (!autoRefresh || selectedDate !== 'today' || isAllVisitOpened) return
 
     const interval = setInterval(() => {
       fetchQueues(true)
-    }, 3000)
+    }, 5000)
 
     return () => clearInterval(interval)
-  }, [fetchQueues, autoRefresh])
+  }, [fetchQueues, autoRefresh, selectedDate, isAllVisitOpened])
 
   // Change status of a queue item
   const handleUpdateStatus = async (
     id: number,
-    newStatus: 'WAITING' | 'VISIT_OPENED' | 'CANCELLED',
+    newStatus: 'WAITING' | 'VISIT_OPENED' | 'NO_RECORD' | 'CANCELLED' | string,
     vnPrompt = false
   ) => {
     let vn: string | undefined = undefined
@@ -197,10 +206,11 @@ export default function ScreeningDashboardClient({ user }: Props) {
   // Count summaries
   const stats = useMemo(() => {
     const total = items.length
+    const noRecord = items.filter((i) => i.status === 'NO_RECORD').length
     const waiting = items.filter((i) => i.status === 'WAITING').length
     const opened = items.filter((i) => i.status === 'VISIT_OPENED').length
     const cancelled = items.filter((i) => i.status === 'CANCELLED').length
-    return { total, waiting, opened, cancelled }
+    return { total, noRecord, waiting, opened, cancelled }
   }, [items])
 
   // Format Bangkok time (HH:mm:ss น.) or (DD MMM HH:mm:ss น.) if date is 'all'
@@ -302,13 +312,22 @@ export default function ScreeningDashboardClient({ user }: Props) {
             </div>
           </div>
 
+          <div className="screeningStatCard noRecord">
+            <div className="statCardHeader">
+              <span>ไม่มีเวชระเบียน</span>
+              <AlertTriangle size={18} />
+            </div>
+            <div className="statCardNumber">{stats.noRecord}</div>
+            <div className="statCardDesc">ยังไม่มีประวัติใน รพ.</div>
+          </div>
+
           <div className="screeningStatCard waiting">
             <div className="statCardHeader">
               <span>รอเปิด Visit</span>
               <Clock size={18} />
             </div>
             <div className="statCardNumber">{stats.waiting}</div>
-            <div className="statCardDesc">พร้อมส่งห้องบัตร</div>
+            <div className="statCardDesc">มีประวัติ รพ. แล้ว</div>
           </div>
 
           <div className="screeningStatCard opened">
@@ -337,6 +356,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
             <div className="statusFilterTabs">
               {[
                 { id: 'ALL', label: 'ทั้งหมด', count: stats.total },
+                { id: 'NO_RECORD', label: 'ไม่มีเวชระเบียน', count: stats.noRecord },
                 { id: 'WAITING', label: 'รอเปิด Visit', count: stats.waiting },
                 { id: 'VISIT_OPENED', label: 'เปิด Visit แล้ว', count: stats.opened },
                 { id: 'CANCELLED', label: 'ยกเลิก', count: stats.cancelled },
@@ -358,13 +378,26 @@ export default function ScreeningDashboardClient({ user }: Props) {
               <button
                 type="button"
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`autoRefreshToggleBtn ${autoRefresh ? 'active' : ''}`}
-                title={autoRefresh ? 'กำลังอัปเดตสดทุก 3 วินาที' : 'หยุดอัปเดตสด'}
+                className={`autoRefreshToggleBtn ${autoRefresh && !isAllVisitOpened && selectedDate === 'today' ? 'active' : ''}`}
+                title={
+                  isAllVisitOpened
+                    ? 'เปิด Visit ครบทุกรายแล้ว (หยุดรีเฟรชอัตโนมัติ)'
+                    : selectedDate !== 'today'
+                    ? 'ดูข้อมูลย้อนหลัง (ปิดอัปเดตสด)'
+                    : autoRefresh
+                    ? 'กำลังอัปเดตสดทุก 5 วินาที'
+                    : 'หยุดอัปเดตสด'
+                }
               >
-                {autoRefresh ? (
+                {isAllVisitOpened ? (
+                  <>
+                    <CheckCircle size={14} style={{ color: '#10b981' }} />
+                    <span>เสร็จสิ้น (ครบทุกราย)</span>
+                  </>
+                ) : autoRefresh && selectedDate === 'today' ? (
                   <>
                     <RefreshCw size={14} className={isRefreshing ? 'refreshIconSpin' : ''} />
-                    <span>อัปเดตสด (3s)</span>
+                    <span>อัปเดตสด (5s)</span>
                   </>
                 ) : (
                   <>
@@ -477,6 +510,26 @@ export default function ScreeningDashboardClient({ user }: Props) {
           </div>
         )}
 
+        {/* All Completed Banner */}
+        {isAllVisitOpened && (
+          <div className="allCompletedBanner">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <CheckCircle size={20} style={{ color: '#059669', flexShrink: 0 }} />
+              <span>เปิด Visit ครบทุกรายแล้วสำหรับวันนี้ (ระบบหยุดรีเฟรชอัตโนมัติแล้ว)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchQueues(true)}
+              disabled={isRefreshing}
+              className="btnActionOpenVisit"
+              style={{ background: '#047857', padding: '0.4rem 0.85rem' }}
+            >
+              <RefreshCw size={13} className={isRefreshing ? 'refreshIconSpin' : ''} style={{ marginRight: '0.35rem', verticalAlign: 'middle' }} />
+              ตรวจสอบข้อมูลใหม่
+            </button>
+          </div>
+        )}
+
         {/* Queue Items Table */}
         <div className="screeningTableCard">
           <div className="tableResponsive">
@@ -550,6 +603,12 @@ export default function ScreeningDashboardClient({ user }: Props) {
 
                       {/* Status */}
                       <td className="tableColCenter">
+                        {item.status === 'NO_RECORD' && (
+                          <span className="statusBadge noRecord">
+                            <AlertTriangle size={12} />
+                            <span>ไม่มีเวชระเบียน</span>
+                          </span>
+                        )}
                         {item.status === 'WAITING' && (
                           <span className="statusBadge waiting">
                             <Clock size={12} />
@@ -576,7 +635,18 @@ export default function ScreeningDashboardClient({ user }: Props) {
                       {/* Actions */}
                       <td className="tableColCenter">
                         <div className="tableActionRow">
-                          {item.status === 'WAITING' ? (
+                          {item.status === 'NO_RECORD' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateStatus(item.id, 'VISIT_OPENED', true)}
+                              disabled={actionLoadingId === item.id}
+                              className="btnActionOpenVisit"
+                              title="เปิดประวัติ / บันทึกเปิด Visit แล้ว"
+                              style={{ background: '#dc2626' }}
+                            >
+                              {actionLoadingId === item.id ? '...' : 'เปิด Visit'}
+                            </button>
+                          ) : item.status === 'WAITING' ? (
                             <button
                               type="button"
                               onClick={() => handleUpdateStatus(item.id, 'VISIT_OPENED', true)}

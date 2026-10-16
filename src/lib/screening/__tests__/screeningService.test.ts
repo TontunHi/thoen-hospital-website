@@ -273,28 +273,28 @@ describe('ScreeningQueueService and Utilities', () => {
           cid: '1520100109075',
           fullName: 'นาย ธนนันท์ กันชาติ',
           status: 'WAITING',
-          created_at: '2026-10-16T03:34:29.000Z',
-          updated_at: '2026-10-16T03:34:29.000Z',
+          created_at: '2026-10-14T03:34:29.000Z',
+          updated_at: '2026-10-14T03:34:29.000Z',
         },
         {
           id: 6,
           cid: '1520800055172',
           fullName: 'น.ส. ชนิกา ปัญญาสิทธิ์',
           status: 'WAITING',
-          created_at: '2026-10-16T17:25:58.000Z',
-          updated_at: '2026-10-16T17:25:58.000Z',
+          created_at: '2026-10-14T17:25:58.000Z',
+          updated_at: '2026-10-14T17:25:58.000Z',
         },
       ])
 
-      const result = await zeroDbService.getQueues({ date: '2026-10-16' })
+      const result = await zeroDbService.getQueues({ date: '2026-10-14' })
 
       expect(mockQueryExecutor).toHaveBeenCalledTimes(1)
       const [sql, params] = mockQueryExecutor.mock.calls[0]
       expect(sql).toContain('created_at >= ? AND created_at <= ?')
-      expect(params[0]).toBe('2026-10-16 00:00:00')
-      expect(params[1]).toBe('2026-10-16 23:59:59')
+      expect(params[0]).toBe('2026-10-14 00:00:00')
+      expect(params[1]).toBe('2026-10-14 23:59:59')
       expect(result.items.length).toBe(2)
-      expect(result.items[1].createdAt).toBe('2026-10-16T17:25:58.000+07:00')
+      expect(result.items[1].createdAt).toBe('2026-10-14T17:25:58.000+07:00')
     })
 
     it('queries queues without date filter when date is "all"', async () => {
@@ -333,6 +333,105 @@ describe('ScreeningQueueService and Utilities', () => {
       expect(firstSql).toContain('WHERE cid = ? AND created_at >= ? AND created_at <= ?')
       expect(firstParams[1]).toMatch(/^\d{4}-\d{2}-\d{2} 00:00:00$/)
       expect(firstParams[2]).toMatch(/^\d{4}-\d{2}-\d{2} 23:59:59$/)
+    })
+  })
+
+  describe('HOSxP Medical Record & Visit Verification (Zero-DB Gateway)', () => {
+    let mockClinicalExecutor: any
+    let mockQueryExecutor: any
+    let serviceWithClinical: ScreeningQueueService
+
+    beforeEach(() => {
+      mockClinicalExecutor = vi.fn()
+      mockQueryExecutor = vi.fn()
+      serviceWithClinical = new ScreeningQueueService(null, mockQueryExecutor, mockClinicalExecutor)
+    })
+
+    it('verifyHosVisits chunks CIDs and maps patient records and today visits correctly', async () => {
+      mockClinicalExecutor.mockResolvedValue([
+        { cid: '1111111111111', hn: '0001234', vn: null }, // In patient, no visit today
+        { cid: '2222222222222', hn: '0005678', vn: '6710160001' }, // In patient, has visit today
+      ])
+
+      const result = await serviceWithClinical.verifyHosVisits([
+        '1111111111111',
+        '2222222222222',
+        '3333333333333', // Not in patient table
+      ])
+
+      expect(mockClinicalExecutor).toHaveBeenCalledTimes(1)
+      const [sql, params] = mockClinicalExecutor.mock.calls[0]
+      expect(sql).toContain('FROM patient p')
+      expect(sql).toContain('LEFT JOIN vn_stat v ON v.hn = p.hn AND v.vstdate = CURRENT_DATE')
+      expect(params).toEqual(['1111111111111', '2222222222222', '3333333333333'])
+
+      expect(result.get('1111111111111')).toEqual({ inPatient: true, hn: '0001234', vn: undefined })
+      expect(result.get('2222222222222')).toEqual({ inPatient: true, hn: '0005678', vn: '6710160001' })
+      expect(result.get('3333333333333')).toBeUndefined()
+    })
+
+    it('enrichQueuesWithHosVisits marks NO_RECORD, WAITING, and VISIT_OPENED and persists updates', async () => {
+      mockClinicalExecutor.mockResolvedValue([
+        { cid: '1111111111111', hn: '0001234', vn: null }, // WAITING
+        { cid: '2222222222222', hn: '0005678', vn: '6710160001' }, // VISIT_OPENED
+      ])
+
+      const rawItems: any[] = [
+        { id: 1, cid: '1111111111111', status: 'WAITING', vn: null },
+        { id: 2, cid: '2222222222222', status: 'WAITING', vn: null },
+        { id: 3, cid: '3333333333333', status: 'WAITING', vn: null }, // will be NO_RECORD
+        { id: 4, cid: '4444444444444', status: 'CANCELLED', vn: null }, // preserves CANCELLED
+      ]
+
+      mockQueryExecutor.mockResolvedValue({ affectedRows: 1 })
+
+      const enriched = await serviceWithClinical.enrichQueuesWithHosVisits(rawItems)
+
+      expect(enriched[0].status).toBe('WAITING')
+      expect(enriched[0].vn).toBeNull()
+
+      expect(enriched[1].status).toBe('VISIT_OPENED')
+      expect(enriched[1].vn).toBe('6710160001')
+
+      expect(enriched[2].status).toBe('NO_RECORD')
+      expect(enriched[2].vn).toBeNull()
+
+      expect(enriched[3].status).toBe('CANCELLED')
+
+      // Should have persisted updates for items 2 and 3
+      expect(mockQueryExecutor).toHaveBeenCalledTimes(2)
+      expect(mockQueryExecutor.mock.calls[0][0]).toContain('UPDATE screening_queues SET status = ?, vn = ?')
+    })
+
+    it('gracefully degrades and returns original items if HOSxP clinical query fails', async () => {
+      mockClinicalExecutor.mockRejectedValue(new Error('Gateway clinical connection timeout'))
+
+      const rawItems: any[] = [
+        { id: 1, cid: '1111111111111', status: 'WAITING', vn: null },
+      ]
+
+      const enriched = await serviceWithClinical.enrichQueuesWithHosVisits(rawItems)
+      expect(enriched).toEqual(rawItems)
+      expect(enriched[0].status).toBe('WAITING')
+    })
+
+    it('getQueues for today enriches queue items with HOSxP check and filters in memory', async () => {
+      mockQueryExecutor.mockResolvedValue([
+        { id: 1, cid: '1111111111111', full_name: 'สมชาย', status: 'WAITING', created_at: new Date() },
+        { id: 2, cid: '2222222222222', full_name: 'สมหญิง', status: 'WAITING', created_at: new Date() },
+      ])
+
+      mockClinicalExecutor.mockResolvedValue([
+        { cid: '1111111111111', hn: '0001234', vn: '6710160002' },
+        // 2222222222222 is not in patient -> NO_RECORD
+      ])
+
+      const res = await serviceWithClinical.getQueues({ date: 'today' })
+
+      expect(res.items.length).toBe(2)
+      expect(res.items[0].status).toBe('VISIT_OPENED')
+      expect(res.items[0].vn).toBe('6710160002')
+      expect(res.items[1].status).toBe('NO_RECORD')
     })
   })
 })

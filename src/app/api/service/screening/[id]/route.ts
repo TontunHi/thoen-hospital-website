@@ -4,7 +4,7 @@ import { requireMemberApi } from '@/lib/memberAuth'
 import { screeningQueueService } from '@/lib/screening/screeningService'
 
 const updateQueueSchema = z.object({
-  status: z.enum(['WAITING', 'VISIT_OPENED', 'CANCELLED']),
+  status: z.enum(['WAITING', 'VISIT_OPENED', 'NO_RECORD', 'CANCELLED']),
   vn: z.string().optional().nullable(),
 })
 

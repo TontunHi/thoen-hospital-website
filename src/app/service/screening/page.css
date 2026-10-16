@@ -131,18 +131,24 @@
 /* Stats Summary Cards */
 .screeningStatsGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1.25rem;
   margin-bottom: 1.5rem;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .screeningStatsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
   .screeningStatsGrid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 480px) {
   .screeningStatsGrid {
     grid-template-columns: 1fr;
   }
@@ -167,6 +173,14 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: #64748b;
+}
+
+.screeningStatCard.noRecord {
+  border-left: 5px solid #ef4444;
+}
+
+.screeningStatCard.noRecord .statCardHeader {
+  color: #dc2626;
 }
 
 .screeningStatCard.waiting {
@@ -194,6 +208,10 @@
   font-weight: 800;
   color: #0f172a;
   line-height: 1;
+}
+
+.screeningStatCard.noRecord .statCardNumber {
+  color: #dc2626;
 }
 
 .screeningStatCard.waiting .statCardNumber {
@@ -539,6 +557,12 @@
   white-space: nowrap;
 }
 
+.statusBadge.noRecord {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
 .statusBadge.waiting {
   background: #fffbeb;
   color: #b45309;
@@ -555,6 +579,23 @@
   background: #f1f5f9;
   color: #64748b;
   border: 1px solid #e2e8f0;
+}
+
+.allCompletedBanner {
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+  padding: 0.85rem 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.08);
 }
 
 .vnText {

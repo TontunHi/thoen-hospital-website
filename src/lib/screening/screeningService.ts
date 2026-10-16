@@ -1,4 +1,5 @@
 import { queryMemberDb } from '@/lib/memberDb'
+import { queryClinicalDb } from '@/lib/clinicalDb'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -14,7 +15,7 @@ export interface ScreeningQueueItem {
   address: string | null
   photoBase64: string | null
   rawPayload: string | null
-  status: string // 'WAITING' | 'VISIT_OPENED' | 'CANCELLED'
+  status: string // 'WAITING' | 'VISIT_OPENED' | 'NO_RECORD' | 'CANCELLED'
   vn: string | null
   recordedBy: number | null
   createdAt: Date | string
@@ -38,7 +39,7 @@ export interface CreateScreeningQueueInput {
 }
 
 export interface UpdateScreeningQueueStatusInput {
-  status: 'WAITING' | 'VISIT_OPENED' | 'CANCELLED'
+  status: 'WAITING' | 'VISIT_OPENED' | 'NO_RECORD' | 'CANCELLED' | string
   vn?: string | null
 }
 
@@ -142,8 +143,125 @@ export function getBangkokDateRange(dateStr?: string): BangkokDateRange {
 export class ScreeningQueueService {
   constructor(
     private db: any = null,
-    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb
+    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb,
+    private readonly clinicalQueryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryClinicalDb
   ) {}
+
+  /**
+   * Verifies patient medical records and visit status in HOSxP for a list of CIDs on current date.
+   * Strictly uses clinicalQueryExecutor via API Gateway (Zero-DB Architecture).
+   */
+  async verifyHosVisits(cids: string[]): Promise<Map<string, { inPatient: boolean; hn?: string; vn?: string }>> {
+    const cleanCids = Array.from(new Set(cids.map((c) => c?.trim()).filter(Boolean)))
+    const results = new Map<string, { inPatient: boolean; hn?: string; vn?: string }>()
+    if (cleanCids.length === 0) return results
+
+    const chunkSize = 50
+    for (let i = 0; i < cleanCids.length; i += chunkSize) {
+      const chunk = cleanCids.slice(i, i + chunkSize)
+      const placeholders = chunk.map(() => '?').join(', ')
+      const sql = `
+        SELECT 
+          p.cid,
+          p.hn,
+          MAX(v.vn) AS vn
+        FROM patient p
+        LEFT JOIN vn_stat v ON v.hn = p.hn AND v.vstdate = CURRENT_DATE
+        WHERE p.cid IN (${placeholders})
+        GROUP BY p.cid, p.hn
+      `.trim()
+
+      const rows = await this.clinicalQueryExecutor(sql, chunk)
+      for (const row of rows || []) {
+        const rowCid = String(row.cid || '').trim()
+        if (rowCid) {
+          results.set(rowCid, {
+            inPatient: true,
+            hn: row.hn ? String(row.hn).trim() : undefined,
+            vn: row.vn ? String(row.vn).trim() : undefined,
+          })
+        }
+      }
+    }
+
+    return results
+  }
+
+  /**
+   * Enriches queue items with HOSxP patient record & visit verification for today.
+   * Auto-updates database records if status or VN changed.
+   */
+  async enrichQueuesWithHosVisits(items: ScreeningQueueItem[]): Promise<ScreeningQueueItem[]> {
+    if (!items || items.length === 0) return items
+
+    const cids = items.map((item) => item.cid).filter(Boolean)
+    if (cids.length === 0) return items
+
+    let verificationMap: Map<string, { inPatient: boolean; hn?: string; vn?: string }>
+    try {
+      verificationMap = await this.verifyHosVisits(cids)
+    } catch (err) {
+      logger.warn({ err }, 'Failed to verify HOSxP visits via clinical API Gateway; returning queues without enrichment')
+      return items
+    }
+
+    const updatesToPersist: Array<{ id: number; status: string; vn: string | null }> = []
+
+    for (const item of items) {
+      // Preserve manual cancellation
+      if (item.status === 'CANCELLED') continue
+
+      const verified = verificationMap.get(item.cid.trim())
+      let targetStatus: string
+      let targetVn: string | null = null
+
+      if (!verified) {
+        // Not found in patient table -> NO_RECORD ("ไม่มีเวชระเบียน")
+        targetStatus = 'NO_RECORD'
+      } else if (verified.vn) {
+        // Found in patient and has visit today -> VISIT_OPENED ("เปิด visit แล้ว")
+        targetStatus = 'VISIT_OPENED'
+        targetVn = verified.vn
+      } else {
+        // Found in patient but has no visit today -> WAITING ("รอเปิด visit")
+        targetStatus = 'WAITING'
+      }
+
+      if (item.status !== targetStatus || item.vn !== targetVn) {
+        item.status = targetStatus
+        item.vn = targetVn
+        updatesToPersist.push({
+          id: item.id,
+          status: targetStatus,
+          vn: targetVn,
+        })
+      }
+    }
+
+    if (updatesToPersist.length > 0) {
+      try {
+        await Promise.all(
+          updatesToPersist.map(async (u) => {
+            if (this.db?.screeningQueue) {
+              await this.db.screeningQueue.update({
+                where: { id: u.id },
+                data: { status: u.status, vn: u.vn },
+              })
+            } else {
+              await this.queryExecutor(
+                'UPDATE screening_queues SET status = ?, vn = ?, updated_at = NOW() WHERE id = ?',
+                [u.status, u.vn, u.id]
+              )
+            }
+          })
+        )
+      } catch (persistErr) {
+        logger.error({ err: persistErr }, 'Failed to persist auto-verified screening queue statuses')
+      }
+    }
+
+    return items
+  }
 
   /**
    * Retrieves queue items for a specific date (defaults to Today Bangkok time).
@@ -152,6 +270,8 @@ export class ScreeningQueueService {
     const isAll = options.date?.trim().toLowerCase() === 'all'
     const range = isAll ? null : getBangkokDateRange(options.date)
     const bangkokDateStr = isAll ? 'all' : range!.bangkokDateStr
+    const todayStr = getBangkokDateRange('today').bangkokDateStr
+    const isToday = !options.date || options.date === 'today' || options.date === todayStr
 
     if (this.db?.screeningQueue) {
       const where: any = {}
@@ -162,7 +282,7 @@ export class ScreeningQueueService {
         }
       }
 
-      if (options.status && options.status !== 'ALL') {
+      if (!isToday && options.status && options.status !== 'ALL') {
         where.status = options.status
       }
 
@@ -207,11 +327,18 @@ export class ScreeningQueueService {
         ...(options.limit ? { take: options.limit } : isAll ? { take: 500 } : {}),
       })
 
-      const mappedItems = items.map((item: any) => ({
+      let mappedItems = items.map((item: any) => ({
         ...item,
         createdAt: formatBangkokIso(item.createdAt) || item.createdAt,
         updatedAt: formatBangkokIso(item.updatedAt) || item.updatedAt,
       }))
+
+      if (isToday) {
+        mappedItems = await this.enrichQueuesWithHosVisits(mappedItems)
+        if (options.status && options.status !== 'ALL') {
+          mappedItems = mappedItems.filter((i: any) => i.status === options.status)
+        }
+      }
 
       return {
         date: bangkokDateStr,
@@ -229,7 +356,7 @@ export class ScreeningQueueService {
       params.push(range.startSql, range.endSql)
     }
 
-    if (options.status && options.status !== 'ALL') {
+    if (!isToday && options.status && options.status !== 'ALL') {
       whereClauses.push('status = ?')
       params.push(options.status)
     }
@@ -273,11 +400,18 @@ export class ScreeningQueueService {
     const sql = `SELECT ${selectFields.join(', ')} FROM screening_queues ${whereSql} ORDER BY created_at DESC ${limitClause}`.trim()
     const rawItems = await this.queryExecutor(sql, params)
 
-    const items = (rawItems || []).map((row: any) => ({
+    let items = (rawItems || []).map((row: any) => ({
       ...row,
       createdAt: formatBangkokIso(row.createdAt || row.created_at) || row.createdAt,
       updatedAt: formatBangkokIso(row.updatedAt || row.updated_at) || row.updatedAt,
     }))
+
+    if (isToday) {
+      items = await this.enrichQueuesWithHosVisits(items)
+      if (options.status && options.status !== 'ALL') {
+        items = items.filter((i: any) => i.status === options.status)
+      }
+    }
 
     return {
       date: bangkokDateStr,
