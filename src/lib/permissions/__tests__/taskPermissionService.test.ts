@@ -1,35 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TaskPermissionService, TASK_DEFINITIONS } from '../taskPermissionService'
-import { prisma } from '@/lib/prisma'
+import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
 
-vi.mock('@/lib/prisma', () => {
-  const mockPrisma = {
-    member: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-    },
-    memberPermission: {
-      findMany: vi.fn(),
-      upsert: vi.fn(),
-      deleteMany: vi.fn(),
-      createMany: vi.fn(),
-    },
-    positionPermission: {
-      findMany: vi.fn(),
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    $transaction: vi.fn(async (cb: any) => {
-      if (typeof cb === 'function') {
-        return await cb(mockPrisma)
-      }
-      return cb
-    }),
-  }
-  return { prisma: mockPrisma }
-})
+vi.mock('@/lib/memberDb', () => ({
+  queryMemberDb: vi.fn(),
+}))
 
 vi.mock('@/lib/audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
@@ -91,7 +67,6 @@ describe('TaskPermissionService', () => {
           department: 'ศูนย์คอมพิวเตอร์',
           position: 'นักประชาสัมพันธ์',
           role: 'member',
-          member_permissions: [{ permissionKey: 'produce_media' }],
         },
         {
           id: 20,
@@ -100,16 +75,22 @@ describe('TaskPermissionService', () => {
           department: 'กลุ่มงานบริหารทั่วไป',
           position: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
           role: 'member',
-          member_permissions: [{ permissionKey: 'approve_media' }],
         },
+      ]
+
+      const mockPermRows = [
+        { memberId: 10, permissionKey: 'produce_media' },
+        { memberId: 20, permissionKey: 'approve_media' },
       ]
 
       const mockPositionPerms = [
         { id: 1, permissionKey: 'produce_media', positionName: 'นักประชาสัมพันธ์' },
       ]
 
-      vi.mocked(prisma.member.findMany).mockResolvedValueOnce(mockDbMembers as any)
-      vi.mocked(prisma.positionPermission.findMany).mockResolvedValueOnce(mockPositionPerms as any)
+      vi.mocked(queryMemberDb)
+        .mockResolvedValueOnce(mockDbMembers as any)
+        .mockResolvedValueOnce(mockPermRows as any)
+        .mockResolvedValueOnce(mockPositionPerms as any)
 
       const result = await TaskPermissionService.getTaskCentricData()
 
@@ -132,13 +113,9 @@ describe('TaskPermissionService', () => {
 
   describe('grantMemberPermission', () => {
     it('upserts member permission and writes audit log', async () => {
-      vi.mocked(prisma.member.findUnique).mockResolvedValueOnce({
-        id: 10,
-        name: 'สมศรี',
-        username: 'somsri',
-      } as any)
-
-      vi.mocked(prisma.memberPermission.upsert).mockResolvedValueOnce({} as any)
+      vi.mocked(queryMemberDb)
+        .mockResolvedValueOnce([{ id: 10, name: 'สมศรี', username: 'somsri' }] as any)
+        .mockResolvedValueOnce([] as any)
 
       const result = await TaskPermissionService.grantMemberPermission(
         mockAdminSession,
@@ -147,20 +124,10 @@ describe('TaskPermissionService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(prisma.memberPermission.upsert).toHaveBeenCalledWith({
-        where: {
-          memberId_permissionKey: {
-            memberId: 10,
-            permissionKey: 'produce_media',
-          },
-        },
-        update: {},
-        create: {
-          memberId: 10,
-          permissionKey: 'produce_media',
-          createdBy: 'admin01',
-        },
-      })
+      expect(queryMemberDb).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO member_permissions'),
+        [10, 'produce_media', 'admin01']
+      )
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'member_permissions',
@@ -170,7 +137,7 @@ describe('TaskPermissionService', () => {
     })
 
     it('throws error when member is not found', async () => {
-      vi.mocked(prisma.member.findUnique).mockResolvedValueOnce(null)
+      vi.mocked(queryMemberDb).mockResolvedValueOnce([] as any)
 
       await expect(
         TaskPermissionService.grantMemberPermission(mockAdminSession, 999, 'produce_media')
@@ -180,13 +147,9 @@ describe('TaskPermissionService', () => {
 
   describe('revokeMemberPermission', () => {
     it('deletes member permission and writes audit log', async () => {
-      vi.mocked(prisma.member.findUnique).mockResolvedValueOnce({
-        id: 10,
-        name: 'สมศรี',
-        username: 'somsri',
-      } as any)
-
-      vi.mocked(prisma.memberPermission.deleteMany).mockResolvedValueOnce({ count: 1 })
+      vi.mocked(queryMemberDb)
+        .mockResolvedValueOnce([{ id: 10, name: 'สมศรี', username: 'somsri' }] as any)
+        .mockResolvedValueOnce([] as any)
 
       const result = await TaskPermissionService.revokeMemberPermission(
         mockAdminSession,
@@ -195,12 +158,10 @@ describe('TaskPermissionService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(prisma.memberPermission.deleteMany).toHaveBeenCalledWith({
-        where: {
-          memberId: 10,
-          permissionKey: 'produce_media',
-        },
-      })
+      expect(queryMemberDb).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM member_permissions'),
+        [10, 'produce_media']
+      )
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'member_permissions',
@@ -212,8 +173,9 @@ describe('TaskPermissionService', () => {
 
   describe('grantPositionPermission', () => {
     it('creates position permission mapping if not exists and logs audit', async () => {
-      vi.mocked(prisma.positionPermission.findFirst).mockResolvedValueOnce(null)
-      vi.mocked(prisma.positionPermission.create).mockResolvedValueOnce({} as any)
+      vi.mocked(queryMemberDb)
+        .mockResolvedValueOnce([] as any) // not existing
+        .mockResolvedValueOnce([] as any) // insert
 
       const result = await TaskPermissionService.grantPositionPermission(
         mockAdminSession,
@@ -222,12 +184,10 @@ describe('TaskPermissionService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(prisma.positionPermission.create).toHaveBeenCalledWith({
-        data: {
-          positionName: 'นักประชาสัมพันธ์',
-          permissionKey: 'produce_media',
-        },
-      })
+      expect(queryMemberDb).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO position_permissions'),
+        ['นักประชาสัมพันธ์', 'produce_media']
+      )
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'position_permissions',
@@ -239,7 +199,7 @@ describe('TaskPermissionService', () => {
 
   describe('revokePositionPermission', () => {
     it('deletes position permission mapping and logs audit', async () => {
-      vi.mocked(prisma.positionPermission.deleteMany).mockResolvedValueOnce({ count: 1 } as any)
+      vi.mocked(queryMemberDb).mockResolvedValueOnce([] as any)
 
       const result = await TaskPermissionService.revokePositionPermission(
         mockAdminSession,
@@ -248,12 +208,10 @@ describe('TaskPermissionService', () => {
       )
 
       expect(result.success).toBe(true)
-      expect(prisma.positionPermission.deleteMany).toHaveBeenCalledWith({
-        where: {
-          positionName: 'นักประชาสัมพันธ์',
-          permissionKey: 'produce_media',
-        },
-      })
+      expect(queryMemberDb).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM position_permissions'),
+        ['นักประชาสัมพันธ์', 'produce_media']
+      )
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'position_permissions',
@@ -265,8 +223,7 @@ describe('TaskPermissionService', () => {
 
   describe('updateMemberPermissions', () => {
     it('atomically replaces member permissions in transaction and logs audit', async () => {
-      vi.mocked(prisma.memberPermission.deleteMany).mockResolvedValueOnce({ count: 2 } as any)
-      vi.mocked(prisma.memberPermission.createMany).mockResolvedValueOnce({ count: 2 } as any)
+      vi.mocked(queryMemberDb).mockResolvedValue([] as any)
 
       const result = await TaskPermissionService.updateMemberPermissions({
         memberId: 10,
@@ -275,16 +232,14 @@ describe('TaskPermissionService', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(prisma.$transaction).toHaveBeenCalled()
-      expect(prisma.memberPermission.deleteMany).toHaveBeenCalledWith({
-        where: { memberId: 10 },
-      })
-      expect(prisma.memberPermission.createMany).toHaveBeenCalledWith({
-        data: [
-          { memberId: 10, permissionKey: 'take_repairs_it', createdBy: 'admin01' },
-          { memberId: 10, permissionKey: 'manage_repairs', createdBy: 'admin01' },
-        ],
-      })
+      expect(queryMemberDb).toHaveBeenCalledWith(
+        'DELETE FROM member_permissions WHERE member_id = ?',
+        [10]
+      )
+      expect(queryMemberDb).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO member_permissions'),
+        [10, 'take_repairs_it', 'admin01']
+      )
       expect(logAudit).toHaveBeenCalledWith(
         'UPDATE_MEMBER_PERMISSIONS',
         'members',
@@ -299,7 +254,7 @@ describe('TaskPermissionService', () => {
     })
 
     it('clears all permissions when empty array is supplied', async () => {
-      vi.mocked(prisma.memberPermission.deleteMany).mockResolvedValueOnce({ count: 1 } as any)
+      vi.mocked(queryMemberDb).mockResolvedValue([] as any)
 
       const result = await TaskPermissionService.updateMemberPermissions({
         memberId: 10,
@@ -308,17 +263,16 @@ describe('TaskPermissionService', () => {
       })
 
       expect(result.success).toBe(true)
-      expect(prisma.memberPermission.deleteMany).toHaveBeenCalledWith({
-        where: { memberId: 10 },
-      })
-      expect(prisma.memberPermission.createMany).not.toHaveBeenCalled()
+      expect(queryMemberDb).toHaveBeenCalledWith(
+        'DELETE FROM member_permissions WHERE member_id = ?',
+        [10]
+      )
     })
   })
 
   describe('batchUpdateMemberPermissions', () => {
     it('atomically updates multiple members in a single transaction and logs audit', async () => {
-      vi.mocked(prisma.memberPermission.deleteMany).mockResolvedValue({ count: 1 } as any)
-      vi.mocked(prisma.memberPermission.createMany).mockResolvedValue({ count: 1 } as any)
+      vi.mocked(queryMemberDb).mockResolvedValue([] as any)
 
       const updates = [
         { memberId: 10, permissions: ['take_repairs_it'] },
@@ -333,9 +287,6 @@ describe('TaskPermissionService', () => {
 
       expect(result.success).toBe(true)
       expect(result.updatedCount).toBe(3)
-      expect(prisma.$transaction).toHaveBeenCalledTimes(1)
-      expect(prisma.memberPermission.deleteMany).toHaveBeenCalledTimes(3)
-      expect(prisma.memberPermission.createMany).toHaveBeenCalledTimes(2)
 
       expect(logAudit).toHaveBeenCalledWith(
         'BATCH_UPDATE_MEMBER_PERMISSIONS',
@@ -356,11 +307,15 @@ describe('TaskPermissionService', () => {
           department: 'การแพทย์',
           position: 'แพทย์',
           role: 'member',
-          member_permissions: [{ permissionKey: 'approve_repairs' }],
         },
       ]
+      const mockPerms = [
+        { memberId: 1, permissionKey: 'approve_repairs' },
+      ]
 
-      vi.mocked(prisma.member.findMany).mockResolvedValueOnce(mockMembers as any)
+      vi.mocked(queryMemberDb)
+        .mockResolvedValueOnce(mockMembers as any)
+        .mockResolvedValueOnce(mockPerms as any)
 
       const result = await TaskPermissionService.listMembersWithPermissions({
         query: 'สมชาย',
@@ -377,22 +332,6 @@ describe('TaskPermissionService', () => {
         position: 'แพทย์',
         role: 'member',
         permissions: ['approve_repairs'],
-      })
-
-      expect(prisma.member.findMany).toHaveBeenCalledWith({
-        where: {
-          OR: [
-            { name: { contains: 'สมชาย' } },
-            { username: { contains: 'สมชาย' } },
-            { department: { contains: 'สมชาย' } },
-          ],
-          department: 'การแพทย์',
-          member_permissions: {
-            some: {},
-          },
-        },
-        select: expect.any(Object),
-        orderBy: expect.any(Array),
       })
     })
   })

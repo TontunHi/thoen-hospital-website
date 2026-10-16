@@ -1,36 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockVerifyMemberSession = vi.fn()
-const mockMemberPermissionDeleteMany = vi.fn()
-const mockMemberPermissionCreateMany = vi.fn()
-const mockLogAudit = vi.fn().mockResolvedValue(undefined)
+const mockBatchUpdateMemberPermissions = vi.fn()
 
 vi.mock('@/lib/memberAuth', () => ({
   verifyMemberSession: () => mockVerifyMemberSession(),
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    memberPermission: {
-      deleteMany: (...args: any[]) => mockMemberPermissionDeleteMany(...args),
-      createMany: (...args: any[]) => mockMemberPermissionCreateMany(...args),
-    },
-    $transaction: async (cb: any) => {
-      if (typeof cb === 'function') {
-        return await cb({
-          memberPermission: {
-            deleteMany: (...args: any[]) => mockMemberPermissionDeleteMany(...args),
-            createMany: (...args: any[]) => mockMemberPermissionCreateMany(...args),
-          },
-        })
-      }
-      return cb
-    },
+vi.mock('@/lib/permissions/taskPermissionService', () => ({
+  TaskPermissionService: {
+    batchUpdateMemberPermissions: (...args: any[]) => mockBatchUpdateMemberPermissions(...args),
   },
-}))
-
-vi.mock('@/lib/audit', () => ({
-  logAudit: (...args: any[]) => mockLogAudit(...args),
 }))
 
 vi.mock('@/lib/logger', () => ({
@@ -169,15 +149,18 @@ describe('POST /api/member/permissions/batch-update', () => {
       role: 'admin',
     })
 
-    mockMemberPermissionDeleteMany.mockResolvedValue({ count: 2 })
-    mockMemberPermissionCreateMany.mockResolvedValue({ count: 2 })
+    mockBatchUpdateMemberPermissions.mockResolvedValueOnce({
+      success: true,
+      message: 'บันทึกสิทธิ์แบบกลุ่มเรียบร้อยแล้ว',
+      updatedCount: 3,
+    })
 
     const { POST } = await import('../batch-update/route')
     const payload = {
       updates: [
         {
           memberId: 10,
-          permissions: ['take_repairs_it', 'manage_repairs', 'take_repairs_it'], // contains duplicate to test dedup
+          permissions: ['take_repairs_it', 'manage_repairs', 'take_repairs_it'],
         },
         {
           memberId: 20,
@@ -185,7 +168,7 @@ describe('POST /api/member/permissions/batch-update', () => {
         },
         {
           memberId: 30,
-          permissions: [], // empty to test clearing permissions
+          permissions: [],
         },
       ],
     }
@@ -203,35 +186,10 @@ describe('POST /api/member/permissions/batch-update', () => {
     expect(json.success).toBe(true)
     expect(json.updatedCount).toBe(3)
 
-    // Verify deleteMany called for each memberId
-    expect(mockMemberPermissionDeleteMany).toHaveBeenCalledTimes(3)
-    expect(mockMemberPermissionDeleteMany).toHaveBeenNthCalledWith(1, { where: { memberId: 10 } })
-    expect(mockMemberPermissionDeleteMany).toHaveBeenNthCalledWith(2, { where: { memberId: 20 } })
-    expect(mockMemberPermissionDeleteMany).toHaveBeenNthCalledWith(3, { where: { memberId: 30 } })
-
-    // Verify createMany called for members with permissions (not for member 30)
-    expect(mockMemberPermissionCreateMany).toHaveBeenCalledTimes(2)
-    expect(mockMemberPermissionCreateMany).toHaveBeenNthCalledWith(1, {
-      data: [
-        { memberId: 10, permissionKey: 'take_repairs_it', createdBy: 'admin01' },
-        { memberId: 10, permissionKey: 'manage_repairs', createdBy: 'admin01' },
-      ],
+    expect(mockBatchUpdateMemberPermissions).toHaveBeenCalledWith({
+      updates: payload.updates,
+      performedBy: 'admin01',
     })
-    expect(mockMemberPermissionCreateMany).toHaveBeenNthCalledWith(2, {
-      data: [
-        { memberId: 20, permissionKey: 'approve_repairs', createdBy: 'admin01' },
-        { memberId: 20, permissionKey: 'view_all_work', createdBy: 'admin01' },
-      ],
-    })
-
-    // Verify logAudit called
-    expect(mockLogAudit).toHaveBeenCalledTimes(1)
-    expect(mockLogAudit).toHaveBeenCalledWith(
-      'BATCH_UPDATE_MEMBER_PERMISSIONS',
-      'members',
-      JSON.stringify({ updatedCount: 3, memberIds: [10, 20, 30] }),
-      expect.objectContaining({ username: 'admin01' })
-    )
   })
 
   it('returns 500 when transaction encounters a database error', async () => {
@@ -241,7 +199,7 @@ describe('POST /api/member/permissions/batch-update', () => {
       role: 'admin',
     })
 
-    mockMemberPermissionDeleteMany.mockRejectedValueOnce(new Error('Deadlock detected'))
+    mockBatchUpdateMemberPermissions.mockRejectedValueOnce(new Error('Deadlock detected'))
 
     const { POST } = await import('../batch-update/route')
     const payload = {

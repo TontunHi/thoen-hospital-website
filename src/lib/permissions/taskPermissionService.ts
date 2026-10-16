@@ -1,5 +1,4 @@
-import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
 import {
   TASK_DEFINITIONS,
@@ -64,23 +63,30 @@ export class TaskPermissionService {
       positionName: string
     }>
   }> {
-    // 1. Fetch all members with permissions
-    const members = await prisma.member.findMany({
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        department: true,
-        position: true,
-        role: true,
-        member_permissions: {
-          select: {
-            permissionKey: true,
-          },
-        },
-      },
-      orderBy: [{ department: 'asc' }, { name: 'asc' }],
-    })
+    // 1. Fetch all members, member permissions, and position permissions via Gateway
+    const [members, permissionRows, positionPerms] = await Promise.all([
+      queryMemberDb(`
+        SELECT id, username, name, department, position, role
+        FROM members
+        ORDER BY department ASC, name ASC
+      `),
+      queryMemberDb(`
+        SELECT member_id AS memberId, permission_key AS permissionKey
+        FROM member_permissions
+      `),
+      queryMemberDb(`
+        SELECT id, permission_key AS permissionKey, position_name AS positionName
+        FROM position_permissions
+        ORDER BY permission_key ASC, position_name ASC
+      `),
+    ])
+
+    const permsByMemberId = new Map<number, string[]>()
+    for (const p of permissionRows) {
+      const list = permsByMemberId.get(p.memberId) || []
+      list.push(p.permissionKey)
+      permsByMemberId.set(p.memberId, list)
+    }
 
     const formattedMembers = members.map(
       (m: {
@@ -90,7 +96,6 @@ export class TaskPermissionService {
         department: string | null
         position: string | null
         role: string | null
-        member_permissions: Array<{ permissionKey: string }>
       }) => ({
         id: m.id,
         username: m.username,
@@ -98,21 +103,11 @@ export class TaskPermissionService {
         department: m.department ?? '',
         position: m.position ?? '',
         role: m.role ?? 'member',
-        permissions: m.member_permissions.map((p: { permissionKey: string }) => p.permissionKey),
+        permissions: permsByMemberId.get(m.id) || [],
       })
     )
 
-    // 2. Fetch position permissions mappings
-    const positionPerms = await prisma.positionPermission.findMany({
-      select: {
-        id: true,
-        permissionKey: true,
-        positionName: true,
-      },
-      orderBy: [{ permissionKey: 'asc' }, { positionName: 'asc' }],
-    })
-
-    // 3. Fetch unique positions from members
+    // 2. Fetch unique positions from members and mappings
     const uniquePositionsSet = new Set<string>()
     members.forEach((m: { position: string | null }) => {
       if (m.position && m.position.trim()) {
@@ -128,7 +123,7 @@ export class TaskPermissionService {
       a.localeCompare(b, 'th')
     )
 
-    // Build Task Assignments summary
+    // 3. Build Task Assignments summary
     const assignments: TaskAssignmentSummary[] = TASK_DEFINITIONS.map((task: TaskDefinition) => {
       return {
         taskId: task.id,
@@ -196,30 +191,19 @@ export class TaskPermissionService {
       throw new Error('รหัสสิทธิ์ไม่ถูกต้อง')
     }
 
-    const member = await prisma.member.findUnique({
-      where: { id: memberId },
-      select: { id: true, name: true, username: true },
-    })
+    const rows = await queryMemberDb('SELECT id, name, username FROM members WHERE id = ?', [memberId])
+    const member = rows[0]
 
     if (!member) {
       throw new Error('ไม่พบบุคลากรที่ระบุ')
     }
 
     // Upsert member permission
-    await prisma.memberPermission.upsert({
-      where: {
-        memberId_permissionKey: {
-          memberId,
-          permissionKey: cleanKey,
-        },
-      },
-      update: {},
-      create: {
-        memberId,
-        permissionKey: cleanKey,
-        createdBy: session.username || 'admin',
-      },
-    })
+    await queryMemberDb(`
+      INSERT INTO member_permissions (member_id, permission_key, created_by, created_at)
+      VALUES (?, ?, ?, NOW())
+      ON DUPLICATE KEY UPDATE created_by = VALUES(created_by)
+    `, [memberId, cleanKey, session.username || 'admin'])
 
     // Write audit log
     await logAudit(
@@ -255,17 +239,13 @@ export class TaskPermissionService {
       throw new Error('รหัสสิทธิ์ไม่ถูกต้อง')
     }
 
-    const member = await prisma.member.findUnique({
-      where: { id: memberId },
-      select: { id: true, name: true, username: true },
-    })
+    const rows = await queryMemberDb('SELECT id, name, username FROM members WHERE id = ?', [memberId])
+    const member = rows[0]
 
-    await prisma.memberPermission.deleteMany({
-      where: {
-        memberId,
-        permissionKey: cleanKey,
-      },
-    })
+    await queryMemberDb(
+      'DELETE FROM member_permissions WHERE member_id = ? AND permission_key = ?',
+      [memberId, cleanKey]
+    )
 
     // Write audit log
     await logAudit(
@@ -304,20 +284,16 @@ export class TaskPermissionService {
     }
 
     // Check if exists
-    const existing = await prisma.positionPermission.findFirst({
-      where: {
-        positionName: cleanPos,
-        permissionKey: cleanKey,
-      },
-    })
+    const existing = await queryMemberDb(
+      'SELECT id FROM position_permissions WHERE position_name = ? AND permission_key = ?',
+      [cleanPos, cleanKey]
+    )
 
-    if (!existing) {
-      await prisma.positionPermission.create({
-        data: {
-          positionName: cleanPos,
-          permissionKey: cleanKey,
-        },
-      })
+    if (existing.length === 0) {
+      await queryMemberDb(
+        'INSERT INTO position_permissions (position_name, permission_key, created_at) VALUES (?, ?, NOW())',
+        [cleanPos, cleanKey]
+      )
     }
 
     // Write audit log
@@ -356,12 +332,10 @@ export class TaskPermissionService {
       throw new Error('กรุณาระบุชื่อตำแหน่งและรหัสสิทธิ์')
     }
 
-    await prisma.positionPermission.deleteMany({
-      where: {
-        positionName: cleanPos,
-        permissionKey: cleanKey,
-      },
-    })
+    await queryMemberDb(
+      'DELETE FROM position_permissions WHERE position_name = ? AND permission_key = ?',
+      [cleanPos, cleanKey]
+    )
 
     // Write audit log
     await logAudit(
@@ -404,23 +378,16 @@ export class TaskPermissionService {
       new Set(permissions.map((p) => p.trim()).filter(Boolean))
     )
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // 1. Delete all existing permissions for this member
-      await tx.memberPermission.deleteMany({
-        where: { memberId },
-      })
+    // 1. Delete all existing permissions for this member
+    await queryMemberDb('DELETE FROM member_permissions WHERE member_id = ?', [memberId])
 
-      // 2. Insert new permissions if any
-      if (uniquePermissions.length > 0) {
-        await tx.memberPermission.createMany({
-          data: uniquePermissions.map((permissionKey) => ({
-            memberId,
-            permissionKey,
-            createdBy: performedBy,
-          })),
-        })
-      }
-    })
+    // 2. Insert new permissions if any
+    for (const permissionKey of uniquePermissions) {
+      await queryMemberDb(
+        'INSERT INTO member_permissions (member_id, permission_key, created_by, created_at) VALUES (?, ?, ?, NOW())',
+        [memberId, permissionKey, performedBy]
+      )
+    }
 
     // Write audit log
     await logAudit(
@@ -456,29 +423,22 @@ export class TaskPermissionService {
     userAgent?: string
     ipAddress?: string
   }): Promise<{ success: boolean; message: string; updatedCount: number }> {
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      for (const item of updates) {
-        const cleanPerms = Array.from(
-          new Set(item.permissions.map((p) => p.trim()).filter(Boolean))
+    for (const item of updates) {
+      const cleanPerms = Array.from(
+        new Set(item.permissions.map((p) => p.trim()).filter(Boolean))
+      )
+
+      // 1. Delete all existing permissions for this member
+      await queryMemberDb('DELETE FROM member_permissions WHERE member_id = ?', [item.memberId])
+
+      // 2. Insert new cleaned permissions if any
+      for (const permissionKey of cleanPerms) {
+        await queryMemberDb(
+          'INSERT INTO member_permissions (member_id, permission_key, created_by, created_at) VALUES (?, ?, ?, NOW())',
+          [item.memberId, permissionKey, performedBy]
         )
-
-        // 1. Delete all existing permissions for this member
-        await tx.memberPermission.deleteMany({
-          where: { memberId: item.memberId },
-        })
-
-        // 2. Insert new cleaned permissions if any
-        if (cleanPerms.length > 0) {
-          await tx.memberPermission.createMany({
-            data: cleanPerms.map((permissionKey) => ({
-              memberId: item.memberId,
-              permissionKey,
-              createdBy: performedBy,
-            })),
-          })
-        }
       }
-    })
+    }
 
     // Write audit log
     await logAudit(
@@ -520,56 +480,49 @@ export class TaskPermissionService {
       permissions: string[]
     }>
   }> {
-    const where: Prisma.MemberWhereInput = {}
+    const whereClauses: string[] = []
+    const params: any[] = []
 
     if (query && query.trim()) {
-      const q = query.trim()
-      where.OR = [
-        { name: { contains: q } },
-        { username: { contains: q } },
-        { department: { contains: q } },
-      ]
+      const q = `%${query.trim()}%`
+      whereClauses.push('(name LIKE ? OR username LIKE ? OR department LIKE ?)')
+      params.push(q, q, q)
     }
 
     if (department && department.trim()) {
-      where.department = department.trim()
+      whereClauses.push('department = ?')
+      params.push(department.trim())
     }
 
-    if (hasPermissionsOnly) {
-      where.member_permissions = {
-        some: {},
-      }
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    const [members, permissionRows] = await Promise.all([
+      queryMemberDb(`
+        SELECT id, username, name, department, position, role
+        FROM members
+        ${whereSql}
+        ORDER BY department ASC, name ASC
+      `, params),
+      queryMemberDb(`
+        SELECT member_id AS memberId, permission_key AS permissionKey
+        FROM member_permissions
+      `),
+    ])
+
+    const permsByMemberId = new Map<number, string[]>()
+    for (const p of permissionRows) {
+      const list = permsByMemberId.get(p.memberId) || []
+      list.push(p.permissionKey)
+      permsByMemberId.set(p.memberId, list)
     }
 
-    const members = await prisma.member.findMany({
-      where,
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        department: true,
-        position: true,
-        role: true,
-        member_permissions: {
-          select: {
-            permissionKey: true,
-          },
-        },
-      },
-      orderBy: [
-        { department: 'asc' },
-        { name: 'asc' },
-      ],
-    })
-
-    const formattedMembers = members.map((m: {
+    let formattedMembers = members.map((m: {
       id: number
       username: string
       name: string | null
       department: string | null
       position: string | null
       role: string | null
-      member_permissions: Array<{ permissionKey: string }>
     }) => ({
       id: m.id,
       username: m.username,
@@ -577,8 +530,12 @@ export class TaskPermissionService {
       department: m.department ?? '',
       position: m.position ?? '',
       role: m.role ?? 'member',
-      permissions: m.member_permissions.map((p: { permissionKey: string }) => p.permissionKey),
+      permissions: permsByMemberId.get(m.id) || [],
     }))
+
+    if (hasPermissionsOnly) {
+      formattedMembers = formattedMembers.filter((m: { permissions: string[] }) => m.permissions.length > 0)
+    }
 
     return {
       members: formattedMembers,
