@@ -207,7 +207,65 @@ describe('ApiGatewayClient (Ticket 01)', () => {
         })
       )
     })
+
+    it('clinical.getRcmInvoiceSummary calls GET /api/v1/clinical/rcm/invoice-summary', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          count: 1,
+          data: {
+            department: 'OP',
+            ds1: '2026-10-01',
+            ds2: '2026-10-31',
+            items: [
+              { code: 'UCS', name: 'สิทธิบัตรทอง', visit: 10, receipt: 1000, compensated: 900, down: 0, up: -100, debit: 1000 }
+            ],
+            grandTotal: { visit: 10, receipt: 1000, compensated: 900, down: 0, up: -100, debit: 1000 }
+          }
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.clinical.getRcmInvoiceSummary({ department: 'OP', startDate: '2026-10-01', endDate: '2026-10-31' })
+
+      expect(res.department).toBe('OP')
+      expect(res.items).toHaveLength(1)
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/clinical/rcm/invoice-summary?department=OP&startDate=2026-10-01&endDate=2026-10-31'),
+        expect.objectContaining({ method: 'GET' })
+      )
+    })
+
+    it('clinical.getRcmInvoiceDetails calls GET /api/v1/clinical/rcm/invoice-details', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          count: 1,
+          data: {
+            items: [{ no: 1, vnOrAn: '6710160001', ptname: 'นายทดสอบ' }],
+            totalCount: 1,
+            totalPages: 1,
+            page: 1,
+            pageSize: 50
+          }
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.clinical.getRcmInvoiceDetails({ department: 'IP', pttype: 'UCS' })
+
+      expect(res.items).toHaveLength(1)
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/clinical/rcm/invoice-details?department=IP&pttype=UCS'),
+        expect.objectContaining({ method: 'GET' })
+      )
+    })
   })
+
 
   describe('Salary Services Namespace', () => {
     it('salary.verifyLogin authenticates credentials', async () => {

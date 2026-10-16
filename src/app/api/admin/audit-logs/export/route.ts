@@ -77,9 +77,14 @@ export async function GET(request: Request) {
           ? 'Bot / Script' 
           : 'ไม่ระบุ'
 
+        let formattedTs = log.timestamp
+        if (typeof formattedTs === 'string') {
+          formattedTs = formattedTs.replace('T', ' ').replace(/\.000Z$/, '').replace(/Z$/, '').replace(/\+07:00$/, '')
+        }
+
         return [
           escapeCsv(log.id),
-          escapeCsv(log.timestamp),
+          escapeCsv(formattedTs),
           escapeCsv(log.username),
           escapeCsv(log.email),
           escapeCsv(log.action_type),

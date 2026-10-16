@@ -54,7 +54,19 @@ export async function GET(request: Request) {
     const totalRows = await queryMemberDb(countQuery, params)
     const total = totalRows[0]?.total || 0
 
-    const logs = await queryMemberDb(query, queryParams)
+    const rawLogs = await queryMemberDb(query, queryParams)
+    const logs = (rawLogs || []).map((log: any) => {
+      let ts = log.timestamp
+      if (typeof ts === 'string' && ts.endsWith('Z')) {
+        ts = ts.replace(/Z$/, '+07:00')
+      } else if (typeof ts === 'string' && !ts.includes('+') && !ts.includes('Z')) {
+        ts = ts.replace(' ', 'T') + '+07:00'
+      }
+      return {
+        ...log,
+        timestamp: ts
+      }
+    })
 
     return NextResponse.json({
       success: true,

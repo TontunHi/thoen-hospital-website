@@ -32,9 +32,18 @@ export async function GET() {
       LIMIT 1
     `)
 
+    const normalizeTs = (ts: any) => {
+      if (!ts) return null
+      if (typeof ts === 'string') {
+        if (ts.endsWith('Z')) return ts.replace(/Z$/, '+07:00')
+        if (!ts.includes('+') && !ts.includes('Z')) return ts.replace(' ', 'T') + '+07:00'
+      }
+      return ts
+    }
+
     const totalLogs = summaryRows[0]?.total_logs || 0
-    const oldestLog = summaryRows[0]?.oldest_log || null
-    const newestLog = summaryRows[0]?.newest_log || null
+    const oldestLog = normalizeTs(summaryRows[0]?.oldest_log)
+    const newestLog = normalizeTs(summaryRows[0]?.newest_log)
     const loginsToday = todayStatsRows[0]?.logins_today || 0
     const readsToday = todayStatsRows[0]?.reads_today || 0
     const changesToday = todayStatsRows[0]?.changes_today || 0

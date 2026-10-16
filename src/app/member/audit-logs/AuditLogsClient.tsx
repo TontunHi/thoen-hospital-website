@@ -366,10 +366,24 @@ export default function AuditLogsClient() {
     )
   }
 
+  const parseAuditDate = (dateStr: string): Date => {
+    if (!dateStr) return new Date()
+    let clean = dateStr.trim()
+    // Defensively handle timestamps: if it has trailing 'Z', it was serialized as UTC from local Thai DB.
+    // Replace 'Z' with '+07:00' to anchor it to Thailand timezone (UTC+7).
+    if (clean.endsWith('Z')) {
+      clean = clean.replace(/Z$/, '+07:00')
+    } else if (!clean.includes('+') && !clean.includes('Z')) {
+      clean = clean.replace(' ', 'T') + '+07:00'
+    }
+    return new Date(clean)
+  }
+
   const formatDate = (dateStr: string) => {
     try {
-      const date = new Date(dateStr)
+      const date = parseAuditDate(dateStr)
       return date.toLocaleString('th-TH', {
+        timeZone: 'Asia/Bangkok',
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -384,7 +398,7 @@ export default function AuditLogsClient() {
 
   const formatRelativeTime = (dateStr: string) => {
     try {
-      const date = new Date(dateStr)
+      const date = parseAuditDate(dateStr)
       const now = new Date()
       const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000)
 

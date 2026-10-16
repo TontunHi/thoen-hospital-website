@@ -306,8 +306,69 @@ export class ApiGatewayClient {
         hasVisitToday: boolean
         status: 'NO_RECORD' | 'WAITING' | 'VISIT_OPENED'
       }>>('/api/v1/clinical/screening/verify-visits', { cids })
+    },
+
+    getRcmInvoiceSummary: (params?: { department?: 'OP' | 'IP'; startDate?: string; endDate?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.department) q.set('department', params.department)
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.endDate) q.set('endDate', params.endDate)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{
+        department: 'OP' | 'IP'
+        ds1: string
+        ds2: string
+        items: Array<{
+          code: string
+          name: string
+          visit: number
+          receipt: number
+          compensated: number
+          down: number
+          up: number
+          debit: number
+        }>
+        grandTotal: {
+          visit: number
+          receipt: number
+          compensated: number
+          down: number
+          up: number
+          debit: number
+        }
+      }>(`/api/v1/clinical/rcm/invoice-summary${qs}`)
+    },
+
+    getRcmInvoiceDetails: (params?: {
+      department?: 'OP' | 'IP'
+      startDate?: string
+      endDate?: string
+      pttype?: string
+      search?: string
+      page?: number
+      pageSize?: number
+      exportAll?: boolean
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.department) q.set('department', params.department)
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.endDate) q.set('endDate', params.endDate)
+      if (params?.pttype) q.set('pttype', params.pttype)
+      if (params?.search) q.set('search', params.search)
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.pageSize) q.set('pageSize', String(params.pageSize))
+      if (params?.exportAll) q.set('exportAll', 'true')
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{
+        items: Array<any>
+        totalCount: number
+        totalPages: number
+        page: number
+        pageSize: number
+      }>(`/api/v1/clinical/rcm/invoice-details${qs}`)
     }
   }
+
 
   // ================================================================
   // Domain Namespace: Salary Services

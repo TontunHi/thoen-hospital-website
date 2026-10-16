@@ -98,6 +98,8 @@ const appPool = mysql.createPool({
   password: process.env.APP_DB_PASSWORD || 'PRnew11152@',
   database: process.env.APP_DB_NAME || 'thoen_hospital_website',
   charset: 'utf8mb4',
+  timezone: '+07:00',
+  dateStrings: true,
   connectionLimit: 25,
   waitForConnections: true,
   queueLimit: 0,
@@ -733,6 +735,491 @@ fastify.post('/api/v1/clinical/screening/verify-visits', {
     reply.code(500); return { success: false, error: err.message }
   }
 })
+
+// 1.14 RCM Invoice Summary (5.2.2.1 รายงานสรุปรายรับจาก Invoice e-Claim)
+fastify.get('/api/v1/clinical/rcm/invoice-summary', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: '5.2.2.1 รายงานสรุปรายรับจาก Invoice (e-Claim) เปรียบเทียบลูกหนี้และเงินชดเชย',
+    description: 'รายงานเปรียบเทียบลูกหนี้ค่ารักษาพยาบาล HOSxP กับยอดเงินชดเชยที่ สปสช./กองทุน จ่ายจริง จำแนกตามกลุ่มสิทธิ e-Claim (OPD/IPD)',
+    querystring: {
+      type: 'object',
+      properties: {
+        department: { type: 'string', enum: ['OP', 'IP'], default: 'OP', description: 'ประเภทผู้ป่วย OP (ผู้ป่วยนอก) หรือ IP (ผู้ป่วยใน)' },
+        startDate: { type: 'string', description: 'วันที่เริ่มต้นค้นหา Statement (YYYY-MM-DD)' },
+        endDate: { type: 'string', description: 'วันที่สิ้นสุดค้นหา Statement (YYYY-MM-DD)' }
+      }
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          count: { type: 'integer' },
+          data: {
+            type: 'object',
+            properties: {
+              department: { type: 'string' },
+              ds1: { type: 'string' },
+              ds2: { type: 'string' },
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'string' },
+                    name: { type: 'string' },
+                    visit: { type: 'number' },
+                    receipt: { type: 'number' },
+                    compensated: { type: 'number' },
+                    down: { type: 'number' },
+                    up: { type: 'number' },
+                    debit: { type: 'number' }
+                  }
+                }
+              },
+              grandTotal: {
+                type: 'object',
+                properties: {
+                  visit: { type: 'number' },
+                  receipt: { type: 'number' },
+                  compensated: { type: 'number' },
+                  down: { type: 'number' },
+                  up: { type: 'number' },
+                  debit: { type: 'number' }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { department = 'OP', startDate = '', endDate = '' } = req.query || {}
+  const dept = department === 'IP' ? 'IP' : 'OP'
+  const ds1 = startDate || new Date().toISOString().slice(0, 10)
+  const ds2 = endDate || ds1
+
+  try {
+    let query = ''
+    const queryParams = [ds1, ds2]
+
+    if (dept === 'OP') {
+      query = `
+        SELECT 
+          COALESCE(t.pttype_eclaim_id, 'UNKNOWN') as code,
+          COALESCE(a.name, 'ไม่ระบุกลุ่มสิทธิ e-Claim') as name,
+          t.visit,
+          t.receipt,
+          t.compensated,
+          t.down,
+          t.up,
+          t.debit
+        FROM (
+          SELECT 
+            ptt.pttype_eclaim_id,
+            COUNT(t.vn) as visit,
+            ROUND(SUM(t.receipt), 2) as receipt,
+            ROUND(SUM(t.compensated), 2) as compensated,
+            ROUND(SUM(t.down), 2) as down,
+            ROUND(SUM(t.up), 2) as up,
+            ROUND(SUM(t.debit), 2) as debit
+          FROM (
+            SELECT 
+              t.vn,
+              o.pttype,
+              SUM(t.compensated) as compensated,
+              SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)) as receipt,
+              v.income - v.rcpt_money as debit,
+              CASE 
+                WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+                WHEN SUM(t.compensated) - (v.income - v.rcpt_money) > 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+                ELSE 0 
+              END as down,
+              CASE
+                WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+                WHEN SUM(t.compensated) - (v.income - v.rcpt_money) < 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+                ELSE 0 
+              END as up
+            FROM rcmdb.repeclaim t
+            LEFT JOIN hos.ovst o ON o.vn = t.vn
+            LEFT JOIN hos.vn_stat v ON v.vn = o.vn
+            WHERE t.department = 'OP'
+              AND t.bill_date BETWEEN ? AND ?
+            GROUP BY t.vn, o.pttype, v.income, v.rcpt_money
+          ) t
+          LEFT JOIN hos.pttype ptt ON ptt.pttype = t.pttype
+          GROUP BY ptt.pttype_eclaim_id
+        ) t
+        LEFT JOIN hos.pttype_eclaim a ON a.code = t.pttype_eclaim_id
+        WHERE t.visit > 0
+        ORDER BY t.visit DESC, code ASC;
+      `
+    } else {
+      query = `
+        SELECT 
+          COALESCE(t.pttype_eclaim_id, 'UNKNOWN') as code,
+          COALESCE(a.name, 'ไม่ระบุกลุ่มสิทธิ e-Claim') as name,
+          t.visit,
+          t.receipt,
+          t.compensated,
+          t.down,
+          t.up,
+          t.debit
+        FROM (
+          SELECT 
+            ptt.pttype_eclaim_id,
+            COUNT(t.an) as visit,
+            ROUND(SUM(t.receipt), 2) as receipt,
+            ROUND(SUM(t.compensated), 2) as compensated,
+            ROUND(SUM(t.down), 2) as down,
+            ROUND(SUM(t.up), 2) as up,
+            ROUND(SUM(t.debit), 2) as debit
+          FROM (
+            SELECT 
+              t.an,
+              i.pttype,
+              SUM(t.compensated) as compensated,
+              SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)) as receipt,
+              a.income - a.rcpt_money as debit,
+              CASE 
+                WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+                WHEN SUM(t.compensated) - (a.income - a.rcpt_money) > 0 THEN SUM(t.compensated) - (a.income - a.rcpt_money)
+                ELSE 0 
+              END as down,
+              CASE
+                WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+                WHEN SUM(t.compensated) - (a.income - a.rcpt_money) < 0 THEN SUM(t.compensated) - (a.income - a.rcpt_money)
+                ELSE 0 
+              END as up
+            FROM rcmdb.repeclaim t
+            LEFT JOIN hos.ipt i ON i.an = t.an
+            LEFT JOIN hos.an_stat a ON a.an = i.an
+            WHERE t.department = 'IP'
+              AND t.bill_date BETWEEN ? AND ?
+            GROUP BY t.an, i.pttype, a.income, a.rcpt_money
+          ) t
+          LEFT JOIN hos.pttype ptt ON ptt.pttype = t.pttype
+          GROUP BY ptt.pttype_eclaim_id
+        ) t
+        LEFT JOIN hos.pttype_eclaim a ON a.code = t.pttype_eclaim_id
+        WHERE t.visit > 0
+        ORDER BY t.visit DESC, code ASC;
+      `
+    }
+
+    const [rows] = await hosPool.query(query, queryParams)
+
+    let grandVisit = 0
+    let grandReceipt = 0
+    let grandCompensated = 0
+    let grandDown = 0
+    let grandUp = 0
+    let grandDebit = 0
+
+    const items = (rows || []).map((r) => {
+      const visit = Number(r.visit || 0)
+      const receipt = Number(r.receipt || 0)
+      const compensated = Number(r.compensated || 0)
+      const down = Number(r.down || 0)
+      const up = Number(r.up || 0)
+      const debit = Number(r.debit || 0)
+
+      grandVisit += visit
+      grandReceipt += receipt
+      grandCompensated += compensated
+      grandDown += down
+      grandUp += up
+      grandDebit += debit
+
+      return {
+        code: String(r.code || ''),
+        name: String(r.name || ''),
+        visit,
+        receipt: Math.round(receipt * 100) / 100,
+        compensated: Math.round(compensated * 100) / 100,
+        down: Math.round(down * 100) / 100,
+        up: Math.round(up * 100) / 100,
+        debit: Math.round(debit * 100) / 100,
+      }
+    })
+
+    return {
+      success: true,
+      count: items.length,
+      data: {
+        department: dept,
+        ds1,
+        ds2,
+        items,
+        grandTotal: {
+          visit: grandVisit,
+          receipt: Math.round(grandReceipt * 100) / 100,
+          compensated: Math.round(grandCompensated * 100) / 100,
+          down: Math.round(grandDown * 100) / 100,
+          up: Math.round(grandUp * 100) / 100,
+          debit: Math.round(grandDebit * 100) / 100,
+        }
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.15 RCM Invoice Patient Details (5.2.2.1 รายชื่อผู้ป่วยและรายละเอียดการชดเชย Invoice)
+fastify.get('/api/v1/clinical/rcm/invoice-details', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: '5.2.2.1 รายชื่อผู้ป่วยและรายละเอียดการชดเชย Invoice (Drill-down Patient List)',
+    description: 'ดึงรายชื่อผู้ป่วย ข้อมูลการชดเชยราย Visit/Invoice พร้อมหมวดกองทุนย่อยและผลต่างลูกหนี้',
+    querystring: {
+      type: 'object',
+      properties: {
+        department: { type: 'string', enum: ['OP', 'IP'], default: 'OP' },
+        startDate: { type: 'string' },
+        endDate: { type: 'string' },
+        pttype: { type: 'string', description: 'รหัสกลุ่มสิทธิ e-Claim (เช่น UCS, SSS, OFC)' },
+        search: { type: 'string', description: 'คำค้นหา HN, VN, AN, ชื่อ, CID, REP, Bill' },
+        page: { type: 'integer', default: 1 },
+        pageSize: { type: 'integer', default: 50 },
+        exportAll: { type: 'boolean', default: false }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const {
+    department = 'OP',
+    startDate = '',
+    endDate = '',
+    pttype = '',
+    search = '',
+    page = 1,
+    pageSize = 50,
+    exportAll = false
+  } = req.query || {}
+
+  const dept = department === 'IP' ? 'IP' : 'OP'
+  const ds1 = startDate || new Date().toISOString().slice(0, 10)
+  const ds2 = endDate || ds1
+  const cleanPttype = String(pttype || '').trim()
+  const cleanSearch = String(search || '').trim()
+  const pageNum = Math.max(1, Number(page || 1))
+  const limitNum = exportAll ? 10000 : Math.max(1, Math.min(200, Number(pageSize || 50)))
+  const offsetNum = (pageNum - 1) * limitNum
+
+  const pttypeClause = cleanPttype ? 'AND ptt.pttype_eclaim_id = ?' : ''
+  let searchClause = ''
+  const searchParams = []
+
+  if (cleanSearch) {
+    searchClause = `AND (
+      t.hn LIKE ? OR 
+      ${dept === 'OP' ? 't.vn' : 't.an'} LIKE ? OR 
+      t.ptname LIKE ? OR 
+      t.pid LIKE ? OR 
+      t.rep LIKE ? OR 
+      t.bill LIKE ?
+    )`
+    const s = `%${cleanSearch}%`
+    searchParams.push(s, s, s, s, s, s)
+  }
+
+  try {
+    // 1. Count query
+    let countSql = ''
+    const countParams = [ds1, ds2]
+    if (cleanPttype) countParams.push(cleanPttype)
+    if (cleanSearch) countParams.push(...searchParams)
+
+    if (dept === 'OP') {
+      countSql = `
+        SELECT COUNT(DISTINCT t.vn) as total
+        FROM rcmdb.repeclaim t
+        LEFT JOIN hos.ovst o ON o.vn = t.vn
+        LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
+        WHERE t.department = 'OP'
+          AND t.bill_date BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause};
+      `
+    } else {
+      countSql = `
+        SELECT COUNT(DISTINCT t.an) as total
+        FROM rcmdb.repeclaim t
+        LEFT JOIN hos.ipt i ON i.an = t.an
+        LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
+        WHERE t.department = 'IP'
+          AND t.bill_date BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause};
+      `
+    }
+
+    const [countRows] = await hosPool.query(countSql, countParams)
+    const totalCount = Number(countRows?.[0]?.total || 0)
+    const totalPages = Math.ceil(totalCount / limitNum) || 1
+
+    // 2. Data rows query
+    let dataSql = ''
+    const dataParams = [ds1, ds2]
+    if (cleanPttype) dataParams.push(cleanPttype)
+    if (cleanSearch) dataParams.push(...searchParams)
+    dataParams.push(limitNum, offsetNum)
+
+    if (dept === 'OP') {
+      dataSql = `
+        SELECT 
+          t.vn as vnOrAn,
+          t.pid as cid,
+          t.hn,
+          t.ptname,
+          DATE_FORMAT(t.admdate, '%d/%m/%Y') as vstdate,
+          DATE_FORMAT(t.admdate, '%H:%i:%s') as vsttime,
+          o.pttype,
+          ptt.pttype_eclaim_id,
+          ROUND(SUM(t.compensated), 2) as compensated,
+          ROUND(SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)), 2) as fund_money,
+          ROUND(v.income, 2) as income_hosxp,
+          ROUND(v.rcpt_money, 2) as rcpt_money,
+          ROUND(v.income - v.rcpt_money, 2) as debit_hosxp,
+          ROUND(SUM(t.hc), 2) as hc,
+          ROUND(SUM(t.ae), 2) as ae,
+          ROUND(SUM(t.inst), 2) as inst,
+          ROUND(SUM(t.op), 2) as op,
+          ROUND(SUM(t.ip), 2) as ip,
+          ROUND(SUM(t.drug), 2) as drug,
+          ROUND(SUM(t.dmis), 2) as dmis,
+          ROUND(CASE 
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (v.income - v.rcpt_money) > 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+            ELSE 0 
+          END, 2) as down,
+          ROUND(CASE
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (v.income - v.rcpt_money) < 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+            ELSE 0 
+          END, 2) as up,
+          GROUP_CONCAT(DISTINCT t.rep ORDER BY t.rep SEPARATOR ', ') as rep,
+          GROUP_CONCAT(DISTINCT t.bill ORDER BY t.rep SEPARATOR ', ') as bill,
+          GROUP_CONCAT(DISTINCT DATE_FORMAT(t.bill_date, '%d/%m/%Y') ORDER BY t.rep SEPARATOR ', ') as billdate
+        FROM rcmdb.repeclaim t
+        LEFT JOIN hos.ovst o ON o.vn = t.vn
+        LEFT JOIN hos.vn_stat v ON v.vn = o.vn
+        LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
+        WHERE t.department = 'OP'
+          AND t.bill_date BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause}
+        GROUP BY t.vn, t.pid, t.hn, t.ptname, t.admdate, o.pttype, ptt.pttype_eclaim_id, v.income, v.rcpt_money
+        ORDER BY t.hn ASC, t.vn ASC
+        LIMIT ? OFFSET ?;
+      `
+    } else {
+      dataSql = `
+        SELECT 
+          t.an as vnOrAn,
+          t.pid as cid,
+          t.hn,
+          t.ptname,
+          DATE_FORMAT(t.admdate, '%d/%m/%Y') as admdate,
+          DATE_FORMAT(i.dchdate, '%d/%m/%Y') as dchdate,
+          i.pttype,
+          ptt.pttype_eclaim_id,
+          ROUND(SUM(t.compensated), 2) as compensated,
+          ROUND(SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)), 2) as fund_money,
+          ROUND(a.income, 2) as income_hosxp,
+          ROUND(a.rcpt_money, 2) as rcpt_money,
+          ROUND(a.income - a.rcpt_money, 2) as debit_hosxp,
+          ROUND(SUM(t.hc), 2) as hc,
+          ROUND(SUM(t.ae), 2) as ae,
+          ROUND(SUM(t.inst), 2) as inst,
+          ROUND(SUM(t.op), 2) as op,
+          ROUND(SUM(t.ip), 2) as ip,
+          ROUND(SUM(t.drug), 2) as drug,
+          ROUND(SUM(t.dmis), 2) as dmis,
+          ROUND(CASE 
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (a.income - a.rcpt_money) > 0 THEN SUM(t.compensated) - (a.income - a.rcpt_money)
+            ELSE 0 
+          END, 2) as down,
+          ROUND(CASE
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (a.income - a.rcpt_money) < 0 THEN SUM(t.compensated) - (a.income - a.rcpt_money)
+            ELSE 0 
+          END, 2) as up,
+          GROUP_CONCAT(DISTINCT t.rep ORDER BY t.rep SEPARATOR ', ') as rep,
+          GROUP_CONCAT(DISTINCT t.bill ORDER BY t.rep SEPARATOR ', ') as bill,
+          GROUP_CONCAT(DISTINCT DATE_FORMAT(t.bill_date, '%d/%m/%Y') ORDER BY t.rep SEPARATOR ', ') as billdate
+        FROM rcmdb.repeclaim t
+        LEFT JOIN hos.ipt i ON i.an = t.an
+        LEFT JOIN hos.an_stat a ON a.an = i.an
+        LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
+        WHERE t.department = 'IP'
+          AND t.bill_date BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause}
+        GROUP BY t.an, t.pid, t.hn, t.ptname, t.admdate, i.dchdate, i.pttype, ptt.pttype_eclaim_id, a.income, a.rcpt_money
+        ORDER BY t.an ASC
+        LIMIT ? OFFSET ?;
+      `
+    }
+
+    const [rows] = await hosPool.query(dataSql, dataParams)
+
+    const items = (rows || []).map((r, idx) => ({
+      no: offsetNum + idx + 1,
+      vnOrAn: String(r.vnOrAn || ''),
+      cid: String(r.cid || ''),
+      hn: String(r.hn || ''),
+      ptname: String(r.ptname || ''),
+      vstdate: r.vstdate ? String(r.vstdate) : undefined,
+      vsttime: r.vsttime ? String(r.vsttime) : undefined,
+      admdate: r.admdate ? String(r.admdate) : undefined,
+      dchdate: r.dchdate ? String(r.dchdate) : undefined,
+      pttype: String(r.pttype || ''),
+      pttype_eclaim_id: String(r.pttype_eclaim_id || ''),
+      compensated: Number(r.compensated || 0),
+      fund_money: Number(r.fund_money || 0),
+      income_hosxp: Number(r.income_hosxp || 0),
+      rcpt_money: Number(r.rcpt_money || 0),
+      debit_hosxp: Number(r.debit_hosxp || 0),
+      hc: Number(r.hc || 0),
+      ae: Number(r.ae || 0),
+      inst: Number(r.inst || 0),
+      op: Number(r.op || 0),
+      ip: Number(r.ip || 0),
+      drug: Number(r.drug || 0),
+      dmis: Number(r.dmis || 0),
+      down: Number(r.down || 0),
+      up: Number(r.up || 0),
+      rep: String(r.rep || ''),
+      bill: String(r.bill || ''),
+      billdate: String(r.billdate || ''),
+    }))
+
+    return {
+      success: true,
+      count: items.length,
+      totalCount,
+      totalPages,
+      page: pageNum,
+      pageSize: limitNum,
+      data: {
+        items,
+        totalCount,
+        totalPages,
+        page: pageNum,
+        pageSize: limitNum
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+
 
 // ==================================================================
 // SECTION 2: Salary Database Services (192.168.1.4)
