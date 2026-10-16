@@ -35,6 +35,7 @@ export interface MemberDashboardClientProps {
     isRduAuthorized: boolean
     isOutgoingDocAuthorized: boolean
     isEthicsAuthorized: boolean
+    isKpiAuthorized?: boolean
     isFinance: boolean
     isAllSalaryAuthorized: boolean
     isAdmin: boolean
@@ -207,6 +208,17 @@ export default function MemberDashboardClient({
         categoryLabel: 'ระบบสารสนเทศและเอกสาร',
         keywords: ['จริยธรรม', 'ชมรมจริยธรรม', 'คำสั่ง', 'แผนปฏิบัติการ', 'ethics'],
         visible: permissions.isEthicsAuthorized,
+      },
+      {
+        id: 'kpi_tracker',
+        title: 'ระบบติดตามตัวชี้วัด (KPI Tracking)',
+        shortDesc: 'กำกับและติดตามผลการดำเนินงานตัวชี้วัดคุณภาพ THIP / HA / ยุทธศาสตร์ โรงพยาบาลเถิน',
+        href: '/service/kpi-tracker',
+        icon: 'track_changes',
+        category: 'system',
+        categoryLabel: 'ระบบสารสนเทศและเอกสาร',
+        keywords: ['ตัวชี้วัด', 'kpi', 'thip', 'ha', 'ศูนย์คุณภาพ', 'ยุทธศาสตร์', 'เป้าหมาย'],
+        visible: Boolean(permissions.isKpiAuthorized),
       },
       {
         id: 'upload_salary',

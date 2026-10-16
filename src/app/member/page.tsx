@@ -22,6 +22,9 @@ export default async function MemberDashboardPage() {
   const isEthicsAuthorized = member.can('manage_ethics')
   const isLocationsAuthorized = member.can('manage_locations') || member.isAdmin
   const isAssetsAuthorized = member.can('manage_assets') || member.isAdmin
+  const isKpiAuthorized = member.hasAccess('feature_kpi') && (
+    member.isAdmin || member.can('manage_kpi') || member.can('view_all_kpi')
+  )
 
   return (
     <MemberDashboardClient
@@ -45,6 +48,7 @@ export default async function MemberDashboardPage() {
         isRduAuthorized: isRduAuthorized && member.hasAccess('feature_rdu'),
         isOutgoingDocAuthorized: isOutgoingDocAuthorized && member.hasAccess('feature_outgoing_doc'),
         isEthicsAuthorized: isEthicsAuthorized && member.hasAccess('feature_ethics'),
+        isKpiAuthorized,
         isFinance,
         isAllSalaryAuthorized,
         isAdmin: member.role === 'admin',
