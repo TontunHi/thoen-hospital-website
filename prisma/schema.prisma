@@ -674,3 +674,79 @@ model ScreeningQueue {
   @@map("screening_queues")
 }
 
+model KpiTopic {
+  id          Int            @id @default(autoincrement())
+  fiscalYear  String         @map("fiscal_year") @db.VarChar(10)
+  code        String         @db.VarChar(100)
+  title       String         @db.VarChar(255)
+  description String?        @db.Text
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  indicators  KpiIndicator[]
+
+  @@unique([fiscalYear, code], map: "uq_kpi_topic_year_code")
+  @@index([fiscalYear], map: "idx_kpi_topic_year")
+  @@map("kpi_topics")
+}
+
+model KpiIndicator {
+  id              Int        @id @default(autoincrement())
+  topicId         Int        @map("topic_id")
+  sequence        String?    @db.VarChar(50)
+  category        String     @db.VarChar(255)
+  subcategory     String?    @db.VarChar(255)
+  code            String?    @db.VarChar(100)
+  oldCode         String?    @map("old_code") @db.VarChar(100)
+  frequency       String     @db.VarChar(50)
+  title           String     @db.Text
+  numeratorName   String?    @map("numerator_name") @db.Text
+  denominatorName String?    @map("denominator_name") @db.Text
+  targetRaw       String?    @map("target_raw") @db.VarChar(255)
+  targetOperator  String?    @map("target_operator") @db.VarChar(10)
+  targetValue     Decimal?   @map("target_value") @db.Decimal(14, 4)
+  targetUnit      String?    @map("target_unit") @db.VarChar(50)
+  responsibleName String?    @map("responsible_name") @db.VarChar(255)
+  indicatorType   String?    @map("indicator_type") @db.VarChar(100)
+  displayOrder    Int        @default(0) @map("display_order")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  topic           KpiTopic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  entries         KpiEntry[]
+
+  @@index([topicId], map: "idx_kpi_ind_topic")
+  @@index([category], map: "idx_kpi_ind_cat")
+  @@index([frequency], map: "idx_kpi_ind_freq")
+  @@index([responsibleName], map: "idx_kpi_ind_resp")
+  @@map("kpi_indicators")
+}
+
+model KpiEntry {
+  id               Int          @id @default(autoincrement())
+  indicatorId      Int          @map("indicator_id")
+  fiscalYear       String       @map("fiscal_year") @db.VarChar(10)
+  periodKey        String       @map("period_key") @db.VarChar(50)
+  periodLabel      String       @map("period_label") @db.VarChar(100)
+  numeratorValue   Decimal?     @map("numerator_value") @db.Decimal(14, 4)
+  denominatorValue Decimal?     @map("denominator_value") @db.Decimal(14, 4)
+  resultValue      Decimal?     @map("result_value") @db.Decimal(14, 4)
+  resultText       String?      @map("result_text") @db.Text
+  status           String       @default("PENDING") @db.VarChar(30)
+  note             String?      @db.Text
+  recordedById     Int?         @map("recorded_by_id")
+  recordedByName   String?      @map("recorded_by_name") @db.VarChar(255)
+  recordedAt       DateTime?    @map("recorded_at") @db.DateTime(0)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt        DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  indicator        KpiIndicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+
+  @@unique([indicatorId, periodKey], map: "uq_kpi_entry_ind_period")
+  @@index([fiscalYear, periodKey], map: "idx_kpi_entry_year_period")
+  @@index([status], map: "idx_kpi_entry_status")
+  @@map("kpi_entries")
+}
+
+

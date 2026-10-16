@@ -193,6 +193,11 @@ describe('SystemModulesView Component', () => {
           feature_rdu: '0',
           feature_repair: '1',
           feature_media_request: '1',
+          feature_kpi: '1',
+          feature_equipment_borrow: '1',
+          feature_events: '1',
+          feature_ethics: '1',
+          feature_outgoing_doc: '1',
         }}
         addToast={addToast}
         onDirtyChange={onDirtyChange}
@@ -201,5 +206,8 @@ describe('SystemModulesView Component', () => {
 
     expect(screen.getByText('สวิตช์ควบคุมการเปิด/ปิดโมดูลระบบบริการ')).toBeDefined()
     expect(screen.getByText('กล่องงานและระบบสายการอนุมัติ (Task Inbox)')).toBeDefined()
+    expect(screen.getByText('ระบบติดตามตัวชี้วัด (KPI Tracker)')).toBeDefined()
+    expect(screen.getByText('ระบบยืม-คืนอุปกรณ์และพัสดุ (Equipment Borrow)')).toBeDefined()
+    expect(screen.getByText('ระบบกิจกรรมและสะสมคะแนน (Events & ThaID QR)')).toBeDefined()
   })
 })

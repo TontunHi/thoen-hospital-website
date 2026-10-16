@@ -11,6 +11,11 @@ import {
   Pill,
   Save,
   RefreshCw,
+  Target,
+  ClipboardList,
+  Calendar,
+  Scale,
+  FileSpreadsheet,
 } from 'lucide-react'
 
 export interface SystemModulesViewProps {
@@ -38,6 +43,15 @@ export default function SystemModulesView({
   const [featureMediaRequest, setFeatureMediaRequest] = useState(
     initialSettings['feature_media_request'] !== '0'
   )
+  const [featureKpi, setFeatureKpi] = useState(initialSettings['feature_kpi'] !== '0')
+  const [featureEquipmentBorrow, setFeatureEquipmentBorrow] = useState(
+    initialSettings['feature_equipment_borrow'] !== '0'
+  )
+  const [featureEvents, setFeatureEvents] = useState(initialSettings['feature_events'] !== '0')
+  const [featureEthics, setFeatureEthics] = useState(initialSettings['feature_ethics'] !== '0')
+  const [featureOutgoingDoc, setFeatureOutgoingDoc] = useState(
+    initialSettings['feature_outgoing_doc'] !== '0'
+  )
 
   const [initialFeatureState, setInitialFeatureState] = useState({
     featureInbox: initialSettings['feature_inbox'] !== '0',
@@ -47,6 +61,11 @@ export default function SystemModulesView({
     featureRdu: initialSettings['feature_rdu'] !== '0',
     featureRepair: initialSettings['feature_repair'] !== '0',
     featureMediaRequest: initialSettings['feature_media_request'] !== '0',
+    featureKpi: initialSettings['feature_kpi'] !== '0',
+    featureEquipmentBorrow: initialSettings['feature_equipment_borrow'] !== '0',
+    featureEvents: initialSettings['feature_events'] !== '0',
+    featureEthics: initialSettings['feature_ethics'] !== '0',
+    featureOutgoingDoc: initialSettings['feature_outgoing_doc'] !== '0',
   })
 
   const [isSavingSettings, setIsSavingSettings] = useState(false)
@@ -59,7 +78,12 @@ export default function SystemModulesView({
       featureIta !== initialFeatureState.featureIta ||
       featureRdu !== initialFeatureState.featureRdu ||
       featureRepair !== initialFeatureState.featureRepair ||
-      featureMediaRequest !== initialFeatureState.featureMediaRequest
+      featureMediaRequest !== initialFeatureState.featureMediaRequest ||
+      featureKpi !== initialFeatureState.featureKpi ||
+      featureEquipmentBorrow !== initialFeatureState.featureEquipmentBorrow ||
+      featureEvents !== initialFeatureState.featureEvents ||
+      featureEthics !== initialFeatureState.featureEthics ||
+      featureOutgoingDoc !== initialFeatureState.featureOutgoingDoc
     )
   }, [
     featureInbox,
@@ -69,6 +93,11 @@ export default function SystemModulesView({
     featureRdu,
     featureRepair,
     featureMediaRequest,
+    featureKpi,
+    featureEquipmentBorrow,
+    featureEvents,
+    featureEthics,
+    featureOutgoingDoc,
     initialFeatureState,
   ])
 
@@ -89,6 +118,11 @@ export default function SystemModulesView({
         feature_rdu: featureRdu ? '1' : '0',
         feature_repair: featureRepair ? '1' : '0',
         feature_media_request: featureMediaRequest ? '1' : '0',
+        feature_kpi: featureKpi ? '1' : '0',
+        feature_equipment_borrow: featureEquipmentBorrow ? '1' : '0',
+        feature_events: featureEvents ? '1' : '0',
+        feature_ethics: featureEthics ? '1' : '0',
+        feature_outgoing_doc: featureOutgoingDoc ? '1' : '0',
       }
       const res = await fetch('/api/member/settings', {
         method: 'POST',
@@ -106,6 +140,11 @@ export default function SystemModulesView({
         featureRdu,
         featureRepair,
         featureMediaRequest,
+        featureKpi,
+        featureEquipmentBorrow,
+        featureEvents,
+        featureEthics,
+        featureOutgoingDoc,
       })
       addToast('บันทึกการตั้งค่าเปิด/ปิดโมดูลระบบเรียบร้อยแล้ว', 'success')
       onSaveSuccess?.()
@@ -144,6 +183,75 @@ export default function SystemModulesView({
       </div>
 
       <div className="featureCardsGrid">
+        {/* KPI Tracker */}
+        <div className={`featureCard ${featureKpi ? 'active' : ''}`}>
+          <div className="featureCardIconBox iconCyan">
+            <Target size={24} />
+          </div>
+          <div className="featureCardContent">
+            <div className="featureCardTitleRow">
+              <h3>ระบบติดตามตัวชี้วัด (KPI Tracker)</h3>
+              <label className="switchToggle">
+                <input
+                  type="checkbox"
+                  checked={featureKpi}
+                  onChange={(e) => setFeatureKpi(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+            <p>
+              ระบบติดตามและบันทึกผลการดำเนินงานตัวชี้วัด THIP และตัวชี้วัดโรงพยาบาลเถิน
+            </p>
+          </div>
+        </div>
+
+        {/* Equipment Borrow */}
+        <div className={`featureCard ${featureEquipmentBorrow ? 'active' : ''}`}>
+          <div className="featureCardIconBox iconEmerald">
+            <ClipboardList size={24} />
+          </div>
+          <div className="featureCardContent">
+            <div className="featureCardTitleRow">
+              <h3>ระบบยืม-คืนอุปกรณ์และพัสดุ (Equipment Borrow)</h3>
+              <label className="switchToggle">
+                <input
+                  type="checkbox"
+                  checked={featureEquipmentBorrow}
+                  onChange={(e) => setFeatureEquipmentBorrow(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+            <p>
+              ระบบยืม-คืนครุภัณฑ์ อุปกรณ์ และเบิกจ่ายวัสดุสำหรับกิจกรรมและการปฏิบัติงาน
+            </p>
+          </div>
+        </div>
+
+        {/* Hospital Events */}
+        <div className={`featureCard ${featureEvents ? 'active' : ''}`}>
+          <div className="featureCardIconBox iconPurple">
+            <Calendar size={24} />
+          </div>
+          <div className="featureCardContent">
+            <div className="featureCardTitleRow">
+              <h3>ระบบกิจกรรมและสะสมคะแนน (Events & ThaID QR)</h3>
+              <label className="switchToggle">
+                <input
+                  type="checkbox"
+                  checked={featureEvents}
+                  onChange={(e) => setFeatureEvents(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+            <p>
+              ระบบลงทะเบียนเข้าร่วมกิจกรรม สแกนเช็คอินผ่าน ThaID QR Code และกระดานผู้นำ
+            </p>
+          </div>
+        </div>
+
         {/* Inbox */}
         <div className={`featureCard ${featureInbox ? 'active' : ''}`}>
           <div className="featureCardIconBox iconTeal">
@@ -255,6 +363,48 @@ export default function SystemModulesView({
               </label>
             </div>
             <p>ระบบค้นหา ตรวจสอบ และดาวน์โหลดสลิปเงินเดือนสำหรับเจ้าหน้าที่ รพ.เถิน</p>
+          </div>
+        </div>
+
+        {/* Ethics */}
+        <div className={`featureCard ${featureEthics ? 'active' : ''}`}>
+          <div className="featureCardIconBox iconIndigo">
+            <Scale size={24} />
+          </div>
+          <div className="featureCardContent">
+            <div className="featureCardTitleRow">
+              <h3>ระบบชมรมจริยธรรม (Ethics Portal)</h3>
+              <label className="switchToggle">
+                <input
+                  type="checkbox"
+                  checked={featureEthics}
+                  onChange={(e) => setFeatureEthics(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+            <p>ระบบจัดเก็บเอกสาร แผนปฏิบัติการ คำสั่งแต่งตั้ง และรายงานผลชมรมจริยธรรม</p>
+          </div>
+        </div>
+
+        {/* Outgoing Document */}
+        <div className={`featureCard ${featureOutgoingDoc ? 'active' : ''}`}>
+          <div className="featureCardIconBox iconTeal">
+            <FileSpreadsheet size={24} />
+          </div>
+          <div className="featureCardContent">
+            <div className="featureCardTitleRow">
+              <h3>ระบบหนังสือส่งออก Online (Outgoing Doc)</h3>
+              <label className="switchToggle">
+                <input
+                  type="checkbox"
+                  checked={featureOutgoingDoc}
+                  onChange={(e) => setFeatureOutgoingDoc(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+            </div>
+            <p>ระบบจัดการลิงก์ทะเบียนหนังสือส่งออกทางราชการเชื่อมโยง Google Sheets รายปี</p>
           </div>
         </div>
 

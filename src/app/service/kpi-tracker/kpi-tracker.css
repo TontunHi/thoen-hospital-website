@@ -1,0 +1,967 @@
+/* ==========================================================================
+   Hallmark & Superfuture Design System for KPI Tracker
+   Hospital Clinical Workbench — High Contrast, Tactile, Anti-AI-Slop
+   ========================================================================== */
+
+:root {
+  --kpi-bg: #f8fafc;
+  --kpi-surface: #ffffff;
+  --kpi-surface-subtle: #f1f5f9;
+  --kpi-border: #e2e8f0;
+  --kpi-border-strong: #cbd5e1;
+  --kpi-text-primary: #0f172a;
+  --kpi-text-secondary: #475569;
+  --kpi-text-muted: #64748b;
+  --kpi-teal-600: #0d9488;
+  --kpi-teal-700: #0f766e;
+  --kpi-teal-800: #115e59;
+  --kpi-teal-50: #f0fdfa;
+  --kpi-teal-100: #ccfbf1;
+  --kpi-green-600: #16a34a;
+  --kpi-green-50: #f0fdf4;
+  --kpi-green-100: #dcfce7;
+  --kpi-rose-600: #e11d48;
+  --kpi-rose-50: #fff1f2;
+  --kpi-rose-100: #fee2e2;
+  --kpi-amber-600: #d97706;
+  --kpi-amber-50: #fffbeb;
+  --kpi-amber-100: #fef3c7;
+  --kpi-blue-600: #2563eb;
+  --kpi-blue-50: #eff6ff;
+  --kpi-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --kpi-shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --kpi-shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.03);
+  --kpi-radius-sm: 0.375rem;
+  --kpi-radius-md: 0.5rem;
+  --kpi-radius-lg: 0.75rem;
+  --kpi-radius-full: 9999px;
+  --kpi-focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #0d9488;
+}
+
+.kpiPage {
+  min-height: 100vh;
+  background-color: var(--kpi-bg);
+  color: var(--kpi-text-primary);
+  padding: 1.5rem 1rem 4rem 1rem;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+}
+
+.kpiWrapper {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* ── Top Navigation Bar ── */
+.kpiNavRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.kpiBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--kpi-teal-700);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--kpi-radius-sm);
+  transition: all 0.15s ease;
+}
+
+.kpiBackLink:hover {
+  background: var(--kpi-teal-50);
+  color: var(--kpi-teal-800);
+}
+
+.kpiBackLink:focus-visible {
+  outline: none;
+  box-shadow: var(--kpi-focus-ring);
+}
+
+.kpiUserBadge {
+  background: var(--kpi-surface);
+  padding: 0.4rem 0.875rem;
+  border-radius: var(--kpi-radius-full);
+  border: 1px solid var(--kpi-border);
+  color: var(--kpi-text-secondary);
+  font-size: 0.8125rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: var(--kpi-shadow-sm);
+}
+
+/* ── Redesigned Executive Workbench Header ── */
+/* Replaces washed-out green banner with high-contrast, structured card */
+.kpiHeaderCard {
+  background: var(--kpi-surface);
+  border: 1px solid var(--kpi-border);
+  border-radius: var(--kpi-radius-lg);
+  padding: 2rem 2.25rem;
+  margin-bottom: 1.75rem;
+  box-shadow: var(--kpi-shadow-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpiHeaderCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--kpi-teal-600) 0%, #0284c7 100%);
+}
+
+.kpiHeaderContent {
+  max-width: 800px;
+}
+
+.kpiKickerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--kpi-teal-50);
+  color: var(--kpi-teal-700);
+  border: 1px solid var(--kpi-teal-100);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--kpi-radius-full);
+  margin-bottom: 0.75rem;
+}
+
+.kpiHeaderCard h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--kpi-text-primary);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.kpiHeaderCard p {
+  font-size: 0.95rem;
+  color: var(--kpi-text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.kpiHeaderActionsGroup {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Hallmark Tactile Buttons ── */
+.kpiBtn {
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--kpi-radius-md);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.kpiBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--kpi-focus-ring);
+}
+
+.kpiBtnPrimary {
+  background: var(--kpi-teal-700);
+  color: #ffffff;
+  border: 1px solid var(--kpi-teal-800);
+  box-shadow: 0 1px 2px rgba(15, 118, 110, 0.2);
+}
+
+.kpiBtnPrimary:hover:not(:disabled) {
+  background: var(--kpi-teal-800);
+  transform: translateY(-1px);
+}
+
+.kpiBtnPrimary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.kpiBtnSecondary {
+  background: var(--kpi-surface);
+  color: var(--kpi-text-primary);
+  border: 1px solid var(--kpi-border-strong);
+  box-shadow: var(--kpi-shadow-sm);
+}
+
+.kpiBtnSecondary:hover:not(:disabled) {
+  background: var(--kpi-surface-subtle);
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.kpiBtnSecondary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.kpiBtnExcel {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+  box-shadow: var(--kpi-shadow-sm);
+}
+
+.kpiBtnExcel:hover:not(:disabled) {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #4ade80;
+  transform: translateY(-1px);
+}
+
+.kpiBtnExcel:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.kpiBtnOutlineTeal {
+  background: var(--kpi-teal-50);
+  color: var(--kpi-teal-700);
+  border: 1px solid var(--kpi-teal-100);
+}
+
+.kpiBtnOutlineTeal:hover:not(:disabled) {
+  background: var(--kpi-teal-100);
+  color: var(--kpi-teal-800);
+}
+
+.kpiBtnDanger {
+  background: var(--kpi-rose-50);
+  color: var(--kpi-rose-600);
+  border: 1px solid var(--kpi-rose-100);
+}
+
+.kpiBtnDanger:hover:not(:disabled) {
+  background: var(--kpi-rose-100);
+}
+
+.kpiBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ── Stats Summary Grid ── */
+.kpiStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.kpiStatCard {
+  background: var(--kpi-surface);
+  border: 1px solid var(--kpi-border);
+  border-radius: var(--kpi-radius-lg);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: var(--kpi-shadow-sm);
+  transition: border-color 0.15s ease;
+}
+
+.kpiStatCard:hover {
+  border-color: var(--kpi-border-strong);
+}
+
+.kpiStatIconBox {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--kpi-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpiStatIconBox.blue { background: var(--kpi-blue-50); color: var(--kpi-blue-600); border: 1px solid #bfdbfe; }
+.kpiStatIconBox.green { background: var(--kpi-green-50); color: var(--kpi-green-600); border: 1px solid #bbf7d0; }
+.kpiStatIconBox.amber { background: var(--kpi-amber-50); color: var(--kpi-amber-600); border: 1px solid #fde68a; }
+.kpiStatIconBox.rose { background: var(--kpi-rose-50); color: var(--kpi-rose-600); border: 1px solid #fecdd3; }
+
+.kpiStatInfo {
+  flex: 1;
+}
+
+.kpiStatLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--kpi-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.kpiStatValue {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--kpi-text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiStatSub {
+  font-size: 0.75rem;
+  color: var(--kpi-text-muted);
+  margin-top: 0.35rem;
+}
+
+/* ── Filter & Search Control Panel ── */
+.kpiControlsCard {
+  background: var(--kpi-surface);
+  border: 1px solid var(--kpi-border);
+  border-radius: var(--kpi-radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--kpi-shadow-sm);
+}
+
+.kpiSelectorsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.kpiSelectGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.kpiSelectGroup label {
+  font-weight: 600;
+  color: var(--kpi-text-secondary);
+  white-space: nowrap;
+}
+
+.kpiSelectInput {
+  background: var(--kpi-surface);
+  border: 1px solid var(--kpi-border-strong);
+  border-radius: var(--kpi-radius-sm);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--kpi-text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpiSelectInput:focus {
+  border-color: var(--kpi-teal-600);
+  box-shadow: var(--kpi-focus-ring);
+}
+
+.kpiSearchWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
+}
+
+.kpiSearchIcon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--kpi-text-muted);
+  pointer-events: none;
+}
+
+.kpiSearchInput {
+  background: var(--kpi-surface);
+  border: 1px solid var(--kpi-border-strong);
+  border-radius: var(--kpi-radius-sm);
+  padding: 0.45rem 0.75rem 0.45rem 2.25rem;
+  font-size: 0.875rem;
+  color: var(--kpi-text-primary);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpiSearchInput:focus {
+  border-color: var(--kpi-teal-600);
+  box-shadow: var(--kpi-focus-ring);
+}
+
+/* ── Tabs: All vs My Indicators ── */
+.kpiTabsRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--kpi-border);
+  padding-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.kpiTabsGroup {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.kpiTabBtn {
+  background: var(--kpi-surface-subtle);
+  border: 1px solid transparent;
+  color: var(--kpi-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.45rem 1rem;
+  border-radius: var(--kpi-radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kpiTabBtn:hover {
+  background: #e2e8f0;
+  color: var(--kpi-text-primary);
+}
+
+.kpiTabBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--kpi-focus-ring);
+}
+
+.kpiTabBtn.active {
+  background: var(--kpi-teal-700);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.kpiTotalBadge {
+  font-size: 0.8125rem;
+  color: var(--kpi-text-muted);
+}
+
+/* ── Indicators Table (Full Data Presentation) ── */
+.kpiListCard {
+  background: var(--kpi-surface);
+  border: 1px solid var(--kpi-border);
+  border-radius: var(--kpi-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--kpi-shadow-sm);
+}
+
+.kpiTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.kpiTable th {
+  background: var(--kpi-surface-subtle);
+  color: var(--kpi-text-secondary);
+  font-weight: 600;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--kpi-border);
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
+
+.kpiTable td {
+  padding: 1.1rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+  line-height: 1.5;
+}
+
+.kpiTable tr:hover td {
+  background: #fafcfd;
+}
+
+.kpiTable tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Item Details Styling ── */
+.kpiSequenceText {
+  font-weight: 700;
+  color: var(--kpi-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiCodeBadge {
+  display: inline-block;
+  background: var(--kpi-surface-subtle);
+  color: var(--kpi-text-primary);
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--kpi-radius-sm);
+  border: 1px solid var(--kpi-border);
+  margin-bottom: 0.35rem;
+}
+
+.kpiOldCodeText {
+  font-size: 0.75rem;
+  color: var(--kpi-text-muted);
+}
+
+.kpiCategoryTag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--kpi-teal-700);
+  margin-bottom: 0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.kpiSubcatBadge {
+  background: var(--kpi-surface-subtle);
+  color: var(--kpi-text-secondary);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--kpi-radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.kpiTitle {
+  font-weight: 600;
+  color: var(--kpi-text-primary);
+  line-height: 1.45;
+  margin-bottom: 0.5rem;
+  font-size: 0.925rem;
+}
+
+.kpiSubquestions {
+  background: #f8fafc;
+  border: 1px solid var(--kpi-border);
+  border-left: 3px solid var(--kpi-teal-600);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0 var(--kpi-radius-sm) var(--kpi-radius-sm) 0;
+  font-size: 0.8125rem;
+  margin-top: 0.5rem;
+  color: var(--kpi-text-secondary);
+}
+
+.kpiSubquestions div {
+  margin-bottom: 0.35rem;
+}
+
+.kpiSubquestions div:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Badges ── */
+.kpiFreqBadge {
+  display: inline-block;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--kpi-radius-full);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.kpiTypeTag {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: #475569;
+  background: var(--kpi-surface-subtle);
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--kpi-radius-sm);
+  margin-top: 0.25rem;
+}
+
+.kpiStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--kpi-radius-full);
+  white-space: nowrap;
+}
+
+.kpiStatusBadge.pass {
+  background: var(--kpi-green-100);
+  color: #14532d;
+  border: 1px solid #86efac;
+}
+
+.kpiStatusBadge.fail {
+  background: var(--kpi-rose-100);
+  color: #9f1239;
+  border: 1px solid #fca5a5;
+}
+
+.kpiStatusBadge.pending {
+  background: var(--kpi-amber-100);
+  color: #78350f;
+  border: 1px solid #fde68a;
+}
+
+.kpiStatusBadge.waiting {
+  background: var(--kpi-surface-subtle);
+  color: var(--kpi-text-secondary);
+  border: 1px solid var(--kpi-border);
+}
+
+.kpiStatusBadge.locked {
+  background: var(--kpi-surface-subtle);
+  color: var(--kpi-text-muted);
+  border: 1px dashed var(--kpi-border-strong);
+}
+
+/* ── Target Display ── */
+.kpiTargetBox {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: var(--kpi-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Action Buttons Cell ── */
+.kpiActionsCell {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.kpiBtnIconOnly {
+  background: transparent;
+  border: 1px solid var(--kpi-border);
+  color: var(--kpi-text-secondary);
+  padding: 0.35rem;
+  border-radius: var(--kpi-radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.kpiBtnIconOnly:hover {
+  background: var(--kpi-surface-subtle);
+  color: var(--kpi-text-primary);
+  border-color: var(--kpi-border-strong);
+}
+
+.kpiBtnIconOnly.danger:hover {
+  background: var(--kpi-rose-50);
+  color: var(--kpi-rose-600);
+  border-color: #fca5a5;
+}
+
+.kpiBtnIconOnly:focus-visible {
+  outline: none;
+  box-shadow: var(--kpi-focus-ring);
+}
+
+/* ── Modals ── */
+.kpiModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 1rem;
+}
+
+.kpiModalCard {
+  background: var(--kpi-surface);
+  border-radius: var(--kpi-radius-lg);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--kpi-shadow-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.kpiModalHeader {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid var(--kpi-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kpiModalHeader h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--kpi-text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.kpiModalClose {
+  background: none;
+  border: none;
+  color: var(--kpi-text-muted);
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: var(--kpi-radius-sm);
+  display: flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.kpiModalClose:hover {
+  background: var(--kpi-surface-subtle);
+  color: var(--kpi-text-primary);
+}
+
+.kpiModalBody {
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.kpiModalFooter {
+  padding: 1rem 1.75rem;
+  border-top: 1px solid var(--kpi-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  background: var(--kpi-surface-subtle);
+  border-radius: 0 0 var(--kpi-radius-lg) var(--kpi-radius-lg);
+}
+
+/* ── Form Inputs ── */
+.kpiFormGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kpiFormGroup label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--kpi-text-secondary);
+}
+
+.kpiFormGroup .kpiHelpText {
+  font-size: 0.8125rem;
+  color: var(--kpi-text-muted);
+  margin-top: 0.15rem;
+}
+
+.kpiTextInput {
+  border: 1px solid var(--kpi-border-strong);
+  border-radius: var(--kpi-radius-sm);
+  padding: 0.6rem 0.875rem;
+  font-size: 0.9rem;
+  color: var(--kpi-text-primary);
+  background: var(--kpi-surface);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+
+.kpiTextInput:focus {
+  border-color: var(--kpi-teal-600);
+  box-shadow: var(--kpi-focus-ring);
+}
+
+.kpiTextarea {
+  border: 1px solid var(--kpi-border-strong);
+  border-radius: var(--kpi-radius-sm);
+  padding: 0.6rem 0.875rem;
+  font-size: 0.9rem;
+  color: var(--kpi-text-primary);
+  background: var(--kpi-surface);
+  outline: none;
+  min-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpiTextarea:focus {
+  border-color: var(--kpi-teal-600);
+  box-shadow: var(--kpi-focus-ring);
+}
+
+.kpiCalcPreview {
+  background: var(--kpi-teal-50);
+  border: 1px solid var(--kpi-teal-100);
+  border-radius: var(--kpi-radius-md);
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--kpi-teal-800);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.kpiEmptyState {
+  padding: 3.5rem 1rem;
+  text-align: center;
+  color: var(--kpi-text-muted);
+}
+
+.kpiEmptyState svg {
+  margin: 0 auto 0.75rem auto;
+  color: var(--kpi-border-strong);
+}
+
+/* ── Responsive adjustments ── */
+@media (max-width: 768px) {
+  .kpiHeaderCard {
+    padding: 1.5rem;
+  }
+
+  .kpiHeaderCard h1 {
+    font-size: 1.5rem;
+  }
+
+  .kpiSearchWrapper {
+    width: 100%;
+  }
+
+  .kpiSelectorsRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .kpiSelectGroup {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .kpiSelectInput {
+    width: 100%;
+  }
+}
+
+/* ── Excel / CSV File Dropzone ── */
+.kpiDropzone {
+  border: 2px dashed var(--kpi-border-strong);
+  border-radius: var(--kpi-radius-md);
+  padding: 1.75rem 1rem;
+  text-align: center;
+  background: var(--kpi-surface-subtle);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.kpiDropzone:hover, .kpiDropzone.dragActive {
+  border-color: var(--kpi-teal-600);
+  background: var(--kpi-teal-50);
+}
+
+.kpiDropzoneIcon {
+  color: var(--kpi-teal-600);
+  background: #ffffff;
+  padding: 0.75rem;
+  border-radius: var(--kpi-radius-full);
+  box-shadow: var(--kpi-shadow-sm);
+  display: inline-flex;
+}
+
+.kpiDropzoneTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--kpi-text-primary);
+}
+
+.kpiDropzoneSub {
+  font-size: 0.8125rem;
+  color: var(--kpi-text-muted);
+}
+
+/* ── Import Preview Table ── */
+.kpiImportPreviewContainer {
+  border: 1px solid var(--kpi-border);
+  border-radius: var(--kpi-radius-md);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.kpiImportPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  background: var(--kpi-teal-50);
+  border-bottom: 1px solid var(--kpi-teal-100);
+  font-size: 0.8125rem;
+  color: var(--kpi-teal-800);
+  font-weight: 600;
+}
+
+.kpiImportTableWrap {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.kpiImportTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.775rem;
+}
+
+.kpiImportTable th {
+  position: sticky;
+  top: 0;
+  background: var(--kpi-surface-subtle);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid var(--kpi-border);
+  color: var(--kpi-text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.kpiImportTable td {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--kpi-border);
+  color: var(--kpi-text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 220px;
+}
+

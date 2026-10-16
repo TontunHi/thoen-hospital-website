@@ -13,7 +13,12 @@ export async function queryMemberDb(sql: string, params: any[] = []): Promise<an
   if (isSelect) {
     results = await apiGateway.app.query(sql, params)
   } else {
-    results = await apiGateway.app.execute(sql, params)
+    // Pin SET NAMES utf8mb4 via atomic transaction to prevent MariaDB init_connect tis620 mojibake
+    const tx = await apiGateway.app.transaction([
+      { sql: 'SET NAMES utf8mb4' },
+      { sql, params }
+    ])
+    results = tx.results?.[1] || { affectedRows: 0, insertId: null }
   }
 
   // Capture DB modification queries for audit logs

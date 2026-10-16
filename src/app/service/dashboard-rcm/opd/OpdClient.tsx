@@ -346,7 +346,7 @@ export default function OpdClient() {
               >
                 {availableYears.map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y + 543} (1 ต.ค. {y + 542} - 30 ก.ย. {y + 543})
+                    ปีงบประมาณ {y + 543}
                   </option>
                 ))}
               </select>

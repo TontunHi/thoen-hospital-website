@@ -1,0 +1,350 @@
+import ExcelJS from 'exceljs'
+import { queryMemberDb } from '@/lib/memberDb'
+import { KpiService, KpiIndicatorItem, QueryExecutor } from './kpiService'
+
+export interface KpiExportOptions {
+  topicId: number
+  fiscalYear: string
+  periodKey?: string
+}
+
+export interface KpiExportResult {
+  buffer: Buffer
+  filename: string
+  topicTitle: string
+  totalCount: number
+  passCount: number
+  failCount: number
+}
+
+function formatThaiDateFull(date: Date): string {
+  try {
+    return date.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Bangkok',
+    }) + ' น.'
+  } catch {
+    return date.toISOString()
+  }
+}
+
+function formatThaiDateShort(dateStr?: string | null): string {
+  if (!dateStr) return '-'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return '-'
+    return d.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'Asia/Bangkok',
+    })
+  } catch {
+    return '-'
+  }
+}
+
+export class KpiExportService {
+  /**
+   * Generate an official formatted Excel workbook (.xlsx) for a KPI topic
+   */
+  static async exportToExcel(
+    options: KpiExportOptions,
+    executor: QueryExecutor = queryMemberDb
+  ): Promise<KpiExportResult> {
+    const { topicId, fiscalYear, periodKey } = options
+
+    // 1. Fetch Topic Info
+    const topicRows = await executor(
+      'SELECT id, fiscal_year AS fiscalYear, code, title, description FROM kpi_topics WHERE id = ?',
+      [topicId]
+    )
+    const topic = topicRows[0] || {
+      id: topicId,
+      fiscalYear,
+      code: 'THIP',
+      title: 'ตัวชี้วัดโรงพยาบาลเถิน',
+    }
+
+    // 2. Fetch all indicators with latest entry for the topic and fiscal year
+    const indicators: KpiIndicatorItem[] = await KpiService.getIndicators(
+      {
+        topicId,
+        fiscalYear,
+        periodKey: periodKey === 'ALL' ? undefined : periodKey,
+      },
+      executor
+    )
+
+    // 3. Calculate summary statistics
+    const totalCount = indicators.length
+    let recordedCount = 0
+    let passCount = 0
+    let failCount = 0
+    let waitingCount = 0
+
+    indicators.forEach(ind => {
+      const status = ind.currentEntry?.status
+      if (status && status !== 'PENDING') {
+        recordedCount++
+        if (status === 'PASS') passCount++
+        else if (status === 'FAIL') failCount++
+        else if (status === 'WAITING_TARGET') waitingCount++
+      }
+    })
+
+    const recordedPct = totalCount > 0 ? ((recordedCount / totalCount) * 100).toFixed(1) : '0.0'
+    const passPct = recordedCount > 0 ? ((passCount / recordedCount) * 100).toFixed(1) : '0.0'
+    const failPct = recordedCount > 0 ? ((failCount / recordedCount) * 100).toFixed(1) : '0.0'
+
+    // 4. Create ExcelJS Workbook
+    const workbook = new ExcelJS.Workbook()
+    workbook.creator = 'Thoen Hospital Information System'
+    workbook.lastModifiedBy = 'Thoen Hospital'
+    workbook.created = new Date()
+    workbook.modified = new Date()
+
+    const worksheet = workbook.addWorksheet('รายงานตัวชี้วัด', {
+      views: [{ state: 'frozen', xSplit: 0, ySplit: 6 }],
+      pageSetup: {
+        paperSize: 9, // A4
+        orientation: 'landscape',
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+      },
+    })
+
+    // Setup Columns definitions & widths
+    worksheet.columns = [
+      { key: 'seq', width: 9 },         // Col 1: ลำดับ
+      { key: 'category', width: 28 },    // Col 2: หมวดหมู่
+      { key: 'subcategory', width: 24 }, // Col 3: หมวดหมู่ย่อย
+      { key: 'code', width: 14 },        // Col 4: รหัสตัวชี้วัด
+      { key: 'oldCode', width: 12 },     // Col 5: รหัสเดิม
+      { key: 'frequency', width: 15 },   // Col 6: ความถี่
+      { key: 'title', width: 50 },       // Col 7: ชื่อตัวชี้วัด
+      { key: 'target', width: 16 },      // Col 8: เกณฑ์เป้าหมาย
+      { key: 'result', width: 14 },      // Col 9: ผลการดำเนินงาน
+      { key: 'numerator', width: 16 },   // Col 10: ตัวตั้ง
+      { key: 'denominator', width: 16 }, // Col 11: ตัวหาร
+      { key: 'status', width: 18 },      // Col 12: สถานะประเมินผล
+      { key: 'responsible', width: 26 }, // Col 13: ผู้รับผิดชอบ
+      { key: 'recorder', width: 30 },    // Col 14: ผู้บันทึก / วันที่บันทึก
+    ]
+
+    // ------------------------------------------------------------------------
+    // Row 1: Hospital Name Title Banner (Merged A1:N1)
+    // ------------------------------------------------------------------------
+    worksheet.mergeCells('A1:N1')
+    const row1 = worksheet.getCell('A1')
+    row1.value = 'โรงพยาบาลเถิน จังหวัดลำปาง (Thoen Hospital, Lampang)'
+    row1.font = { name: 'Sarabun', size: 16, bold: true, color: { argb: 'FFFFFFFF' } }
+    row1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } } // Teal 700
+    row1.alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getRow(1).height = 36
+
+    // ------------------------------------------------------------------------
+    // Row 2: Topic Title & Code Banner (Merged A2:N2)
+    // ------------------------------------------------------------------------
+    worksheet.mergeCells('A2:N2')
+    const row2 = worksheet.getCell('A2')
+    row2.value = `รายงานผลการดำเนินงานตามตัวชี้วัด: ${topic.title} (${topic.code})`
+    row2.font = { name: 'Sarabun', size: 12, bold: true, color: { argb: 'FF0F172A' } }
+    row2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDFA' } } // Teal 50
+    row2.alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getRow(2).height = 28
+
+    // ------------------------------------------------------------------------
+    // Row 3: Metadata Info (Merged A3:N3)
+    // ------------------------------------------------------------------------
+    worksheet.mergeCells('A3:N3')
+    const row3 = worksheet.getCell('A3')
+    row3.value = `ปีงบประมาณ: พ.ศ. ${fiscalYear}  |  ข้อมูล ณ วันที่ส่งออกรายงาน: ${formatThaiDateFull(new Date())}`
+    row3.font = { name: 'Sarabun', size: 10, italic: true, color: { argb: 'FF475569' } }
+    row3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
+    row3.alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getRow(3).height = 22
+
+    // ------------------------------------------------------------------------
+    // Row 4: Summary Statistics Bar (Merged A4:N4)
+    // ------------------------------------------------------------------------
+    worksheet.mergeCells('A4:N4')
+    const row4 = worksheet.getCell('A4')
+    row4.value = `📊 สรุปผลภาพรวม: ตัวชี้วัดทั้งหมด ${totalCount} รายการ  |  บันทึกผลแล้ว ${recordedCount} (${recordedPct}%)  |  ผ่านเกณฑ์: ${passCount} (${passPct}%)  |  ไม่ผ่านเกณฑ์: ${failCount} (${failPct}%)  |  รอผลประเมิน: ${waitingCount}`
+    row4.font = { name: 'Sarabun', size: 10.5, bold: true, color: { argb: 'FF134E4A' } }
+    row4.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCFBF1' } } // Teal 100
+    row4.alignment = { horizontal: 'center', vertical: 'middle' }
+    worksheet.getRow(4).height = 26
+
+    // ------------------------------------------------------------------------
+    // Row 5: Empty Spacer Row
+    // ------------------------------------------------------------------------
+    worksheet.getRow(5).height = 8
+
+    // ------------------------------------------------------------------------
+    // Row 6: Table Header Columns
+    // ------------------------------------------------------------------------
+    const headerRow = worksheet.getRow(6)
+    headerRow.height = 32
+    headerRow.values = [
+      'ลำดับ',
+      'หมวดหมู่',
+      'หมวดหมู่ย่อย',
+      'รหัสตัวชี้วัด',
+      'รหัสเดิม',
+      'ความถี่',
+      'ชื่อตัวชี้วัด / คำถามหลัก',
+      'เกณฑ์เป้าหมาย',
+      'ผลงาน (%)',
+      'ตัวตั้ง (Numerator)',
+      'ตัวหาร (Denominator)',
+      'สถานะประเมินผล',
+      'ผู้รับผิดชอบ',
+      'ผู้บันทึก / วันที่บันทึก',
+    ]
+
+    headerRow.eachCell((cell) => {
+      cell.font = { name: 'Sarabun', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D9488' } } // Teal 600
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF0F766E' } },
+        left: { style: 'thin', color: { argb: 'FF0F766E' } },
+        bottom: { style: 'medium', color: { argb: 'FF0F766E' } },
+        right: { style: 'thin', color: { argb: 'FF0F766E' } },
+      }
+    })
+
+    // ------------------------------------------------------------------------
+    // Row 7+: Data Rows
+    // ------------------------------------------------------------------------
+    const thinBorder: Partial<ExcelJS.Borders> = {
+      top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    }
+
+    indicators.forEach((ind, index) => {
+      const entry = ind.currentEntry
+      const rowNumber = 7 + index
+      const dataRow = worksheet.getRow(rowNumber)
+      dataRow.height = 26
+
+      const targetText = ind.targetRaw || (
+        ind.targetOperator && ind.targetValue !== null
+          ? `${ind.targetOperator} ${ind.targetValue}${ind.targetUnit || ''}`
+          : '-'
+      )
+
+      let resultDisplay: string | number = '-'
+      if (entry?.resultValue !== null && entry?.resultValue !== undefined) {
+        resultDisplay = entry.resultValue
+      } else if (entry?.resultText) {
+        resultDisplay = entry.resultText
+      }
+
+      const numeratorDisplay = entry?.numeratorValue !== null && entry?.numeratorValue !== undefined
+        ? entry.numeratorValue
+        : '-'
+
+      const denominatorDisplay = entry?.denominatorValue !== null && entry?.denominatorValue !== undefined
+        ? entry.denominatorValue
+        : '-'
+
+      let statusLabel = 'ยังไม่บันทึกผล'
+      let statusBg = 'FFF1F5F9' // Slate 100
+      let statusTextColor = 'FF64748B' // Slate 500
+
+      if (entry?.status === 'PASS') {
+        statusLabel = 'ผ่านเกณฑ์'
+        statusBg = 'FFDCFCE7' // Green 100
+        statusTextColor = 'FF15803D' // Green 700
+      } else if (entry?.status === 'FAIL') {
+        statusLabel = 'ไม่ผ่านเกณฑ์'
+        statusBg = 'FFFEE2E2' // Red 100
+        statusTextColor = 'FFB91C1C' // Red 700
+      } else if (entry?.status === 'WAITING_TARGET') {
+        statusLabel = 'รอผลประเมิน'
+        statusBg = 'FFFEF3C7' // Amber 100
+        statusTextColor = 'FFB45309' // Amber 700
+      }
+
+      let recordedInfo = '-'
+      if (entry?.recordedByName) {
+        recordedInfo = entry.recordedByName
+        if (entry.recordedAt) {
+          recordedInfo += ` (${formatThaiDateShort(entry.recordedAt)})`
+        }
+      }
+
+      dataRow.values = [
+        ind.sequence || (index + 1),
+        ind.category || '-',
+        ind.subcategory || '-',
+        ind.code || '-',
+        ind.oldCode || '-',
+        ind.frequency || '-',
+        ind.title,
+        targetText,
+        resultDisplay,
+        numeratorDisplay,
+        denominatorDisplay,
+        statusLabel,
+        ind.responsibleName || '-',
+        recordedInfo,
+      ]
+
+      const isEvenRow = index % 2 === 1
+      const defaultRowBg = isEvenRow ? 'FFF8FAFC' : 'FFFFFFFF'
+
+      dataRow.eachCell((cell, colNumber) => {
+        cell.font = { name: 'Sarabun', size: 9.5, color: { argb: 'FF1E293B' } }
+        cell.border = thinBorder
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: defaultRowBg } }
+
+        // Alignments per column
+        if (colNumber === 1 || colNumber === 4 || colNumber === 5 || colNumber === 6 || colNumber === 8) {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        } else if (colNumber === 9 || colNumber === 10 || colNumber === 11) {
+          // Numbers or dashes
+          if (typeof cell.value === 'number') {
+            cell.alignment = { horizontal: 'right', vertical: 'middle' }
+            cell.numFmt = '#,##0.00'
+          } else {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' }
+          }
+        } else if (colNumber === 12) {
+          // Status column styling
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusBg } }
+          cell.font = { name: 'Sarabun', size: 9.5, bold: true, color: { argb: statusTextColor } }
+        } else {
+          // Text columns: Category, Title, Responsible, Recorder
+          cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
+        }
+      })
+    })
+
+    // 5. Generate Buffer
+    const arrayBuffer = await workbook.xlsx.writeBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    const sanitizedTopicCode = topic.code.replace(/[^a-zA-Z0-9_-]/g, '_')
+    const filename = `KPI_Report_${fiscalYear}_${sanitizedTopicCode}.xlsx`
+
+    return {
+      buffer,
+      filename,
+      topicTitle: topic.title,
+      totalCount,
+      passCount,
+      failCount,
+    }
+  }
+}

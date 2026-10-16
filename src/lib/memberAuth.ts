@@ -48,6 +48,10 @@ export type MemberPermission =
   | 'view_media_requests'
   | 'view_department_tasks'
   | 'view_all_work'
+  | 'manage_kpi'
+  | 'view_all_kpi'
+  | 'manage_events'
+  | 'view_events'
 
 export interface MemberDto {
   id: number

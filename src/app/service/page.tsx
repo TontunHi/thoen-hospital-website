@@ -15,7 +15,8 @@ import {
   Share2, 
   Database,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Target
 } from 'lucide-react'
 import './page.css'
 
@@ -104,6 +105,14 @@ export default async function ServicePage() {
 
     // Administrative & Management
     {
+      title: 'ติดตามตัวชี้วัด (KPI Tracking)',
+      desc: 'ระบบกำกับและติดตามผลการดำเนินงานตัวชี้วัดโรงพยาบาลเถิน (THIP / HA / ยุทธศาสตร์) แยกตามปีงบประมาณและรอบเวลา',
+      link: '/service/kpi-tracker',
+      btnText: 'เข้าสู่ระบบติดตามตัวชี้วัด',
+      category: 'admin',
+      icon: Target,
+    },
+    {
       title: 'ระบบหนังสือส่งออก Online',
       desc: 'ระบบสืบค้นและลงทะเบียนหนังสือส่งออกทางราชการของโรงพยาบาลเถิน แยกตามปีงบประมาณ',
       link: '/service/outgoing-document',
@@ -174,9 +183,6 @@ export default async function ServicePage() {
             <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
             <span>กลับสู่หน้าหลักบุคลากร (Member Hub)</span>
           </Link>
-          <span className="serviceUserBadge">
-            เข้าใช้งานในฐานะ: <strong>{session.username}</strong>
-          </span>
         </div>
 
         {/* Header */}

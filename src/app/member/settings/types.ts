@@ -15,6 +15,9 @@ import {
   Scale,
   Pill,
   Newspaper,
+  Target,
+  Calendar,
+  ClipboardList,
 } from 'lucide-react'
 import { PermRoleType, TaskRoleConfig, TaskDefinition } from '@/lib/permissions/taskDefinitions'
 
@@ -47,6 +50,9 @@ export const ICON_MAP: Record<string, React.ComponentType<{ size?: number; class
   BookOpen: Layers,
   Pill,
   Newspaper,
+  Target,
+  Calendar,
+  ClipboardList,
 }
 
 export const ROLE_TYPE_CONFIG: Record<

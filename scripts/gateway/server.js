@@ -104,6 +104,12 @@ const appPool = mysql.createPool({
   connectTimeout: 5000
 })
 
+// Ensure utf8mb4 on every acquired connection to bypass MariaDB global init_connect='SET NAMES tis620'
+appPool.on('connection', (conn) => {
+  conn.query('SET NAMES utf8mb4').catch(() => {})
+})
+
+
 // In-Memory Short-Lived Caching
 const cache = new Map()
 function getCached(key, ttlMs, fetcher) {

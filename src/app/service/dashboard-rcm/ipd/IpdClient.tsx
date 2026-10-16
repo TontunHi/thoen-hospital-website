@@ -12,7 +12,6 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle,
-  Send,
   Stethoscope,
   Clock,
   RotateCcw,
@@ -229,9 +228,6 @@ export default function IpdClient() {
     }))
   }, [deptMonthRows])
 
-  // Telegram test trigger state
-  const [telegramLoading, setTelegramLoading] = useState<boolean>(false)
-
   const availableYears = useMemo(() => {
     const list = []
     for (let y = defaultFiscalYear; y >= defaultFiscalYear - 6; y--) {
@@ -296,27 +292,6 @@ export default function IpdClient() {
     fetchData(ds1, ds2)
     fetchDeptAdjrwData(ds1, ds2)
   }, [ds1, ds2, fetchData, fetchDeptAdjrwData])
-
-  // Telegram Notification Trigger
-  const handleSendTelegramTest = async () => {
-    if (!confirm('ต้องการส่งข้อความสรุปชาร์ตค้าง IPD เข้ากลุ่ม Telegram โรงพยาบาลตอนนี้เลยใช่หรือไม่?')) {
-      return
-    }
-    setTelegramLoading(true)
-    try {
-      const res = await fetch('/api/service/dashboard-rcm/telegram-notify', { method: 'POST' })
-      const json = await res.json()
-      if (json.success) {
-        alert('✅ ' + json.message)
-      } else {
-        alert('❌ เกิดข้อผิดพลาด: ' + (json.error || 'ไม่สามารถส่งข้อความได้'))
-      }
-    } catch (err: any) {
-      alert('❌ ไม่สามารถเชื่อมต่อ API ได้: ' + err.message)
-    } finally {
-      setTelegramLoading(false)
-    }
-  }
 
   // Wards and Doctors options
   const wardOptions = useMemo(() => {
@@ -506,16 +481,6 @@ export default function IpdClient() {
         <div className="rcm-actions-row">
           <button
             type="button"
-            onClick={handleSendTelegramTest}
-            disabled={telegramLoading}
-            className="rcm-btn rcm-btn-secondary"
-            title="ส่งสรุปชาร์ตค้างรายแพทย์เข้า Telegram โรงพยาบาล"
-          >
-            <Send size={14} className={telegramLoading ? 'animate-spin' : ''} style={{ color: '#0284c7' }} />
-            <span>ส่งแจ้งเตือน Telegram</span>
-          </button>
-          <button
-            type="button"
             onClick={() => {
               fetchData()
               fetchDeptAdjrwData()
@@ -647,7 +612,7 @@ export default function IpdClient() {
               >
                 {availableYears.map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ {y + 543} (1 ต.ค. {y + 542} - 30 ก.ย. {y + 543})
+                    ปีงบประมาณ {y + 543}
                   </option>
                 ))}
               </select>

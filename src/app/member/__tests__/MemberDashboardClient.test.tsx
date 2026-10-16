@@ -75,7 +75,7 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
     expect(screen.getByRole('button', { name: /ออกจากระบบ/i })).toBeInTheDocument()
   })
 
-  it('renders daily services: featured card and 6 secondary cards', () => {
+  it('renders daily services: featured card and secondary cards', () => {
     render(<MemberDashboardClient {...defaultProps} />)
 
     // Section title
@@ -86,7 +86,7 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
     expect(screen.getByText('3 งานรอคุณ')).toBeInTheDocument()
     expect(screen.getByText('เปิดกล่องงาน')).toBeInTheDocument()
 
-    // 6 Secondary cards
+    // Secondary cards
     expect(screen.getByText('แจ้งซ่อมบำรุงและอุปกรณ์')).toBeInTheDocument()
     expect(screen.getByText('ระบบขอสื่อประชาสัมพันธ์')).toBeInTheDocument()
     expect(screen.getByText('ระบบสลิปเงินเดือนออนไลน์')).toBeInTheDocument()
