@@ -1,4 +1,5 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
+import { getSwrCachedData } from '@/lib/cache'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 
@@ -388,6 +389,19 @@ export const IpdWardService = {
    */
   async getBedOccupancyReport(
     executor: QueryExecutor = queryClinicalDb
+  ): Promise<BedOccupancyData> {
+    if (executor === queryClinicalDb) {
+      return getSwrCachedData(
+        'clinical:bed-occupancy-report',
+        () => this._fetchBedOccupancyReport(executor),
+        { staleTtlMs: 8_000, maxTtlMs: 30_000 }
+      )
+    }
+    return this._fetchBedOccupancyReport(executor)
+  },
+
+  async _fetchBedOccupancyReport(
+    executor: QueryExecutor
   ): Promise<BedOccupancyData> {
     const [
       opdResult,

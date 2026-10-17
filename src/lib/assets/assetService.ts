@@ -6,6 +6,7 @@ import {
   GtwSyncSummary, 
 } from './gtwAssetSyncAdapter'
 import { QueryExecutor, queryGtwDb } from '@/lib/gtwDb'
+import { getSwrCachedData, invalidateCacheKey } from '@/lib/cache'
 
 export interface AssetFilterOptions {
   search?: string
@@ -372,71 +373,77 @@ export class HospitalAssetService {
    * Calculate summary statistics for dashboard cards
    */
   async getAssetStats(): Promise<AssetStats> {
-    if (this.db?.hospitalAsset) {
-      const now = new Date()
-      const [
-        totalAssets,
-        itCount,
-        medicalCount,
-        generalCount,
-        inRepairCount,
-        activeWarrantyCount,
-      ] = await Promise.all([
-        this.db.hospitalAsset.count(),
-        this.db.hospitalAsset.count({ where: { category: 'IT' } }),
-        this.db.hospitalAsset.count({ where: { category: 'MEDICAL' } }),
-        this.db.hospitalAsset.count({ where: { category: 'GENERAL' } }),
-        this.db.hospitalAsset.count({ where: { status: 'IN_REPAIR' } }),
-        this.db.hospitalAsset.count({
-          where: {
-            OR: [
-              { warrantyEndDate: { gte: now } },
-              {
-                AND: [
-                  { warrantyEndDate: null },
-                  { expireDate: { gte: now } },
+    return getSwrCachedData(
+      'asset:stats',
+      async () => {
+        if (this.db?.hospitalAsset) {
+          const now = new Date()
+          const [
+            totalAssets,
+            itCount,
+            medicalCount,
+            generalCount,
+            inRepairCount,
+            activeWarrantyCount,
+          ] = await Promise.all([
+            this.db.hospitalAsset.count(),
+            this.db.hospitalAsset.count({ where: { category: 'IT' } }),
+            this.db.hospitalAsset.count({ where: { category: 'MEDICAL' } }),
+            this.db.hospitalAsset.count({ where: { category: 'GENERAL' } }),
+            this.db.hospitalAsset.count({ where: { status: 'IN_REPAIR' } }),
+            this.db.hospitalAsset.count({
+              where: {
+                OR: [
+                  { warrantyEndDate: { gte: now } },
+                  {
+                    AND: [
+                      { warrantyEndDate: null },
+                      { expireDate: { gte: now } },
+                    ],
+                  },
                 ],
               },
-            ],
-          },
-        }),
-      ])
+            }),
+          ])
 
-      return {
-        totalAssets,
-        activeWarrantyCount,
-        expiredWarrantyCount: Math.max(0, totalAssets - activeWarrantyCount),
-        itCount,
-        medicalCount,
-        generalCount,
-        inRepairCount,
-      }
-    }
+          return {
+            totalAssets,
+            activeWarrantyCount,
+            expiredWarrantyCount: Math.max(0, totalAssets - activeWarrantyCount),
+            itCount,
+            medicalCount,
+            generalCount,
+            inRepairCount,
+          }
+        }
 
-    const rows = await this.queryExecutor(`
-      SELECT 
-        COUNT(*) AS totalAssets,
-        COALESCE(SUM(CASE WHEN category = 'IT' THEN 1 ELSE 0 END), 0) AS itCount,
-        COALESCE(SUM(CASE WHEN category = 'MEDICAL' THEN 1 ELSE 0 END), 0) AS medicalCount,
-        COALESCE(SUM(CASE WHEN category = 'GENERAL' THEN 1 ELSE 0 END), 0) AS generalCount,
-        COALESCE(SUM(CASE WHEN status = 'IN_REPAIR' THEN 1 ELSE 0 END), 0) AS inRepairCount,
-        COALESCE(SUM(CASE WHEN warranty_end_date >= NOW() OR (warranty_end_date IS NULL AND expire_date >= NOW()) THEN 1 ELSE 0 END), 0) AS activeWarrantyCount
-      FROM hospital_assets
-    `)
+        const rows = await this.queryExecutor(`
+          SELECT 
+            COUNT(*) AS totalAssets,
+            COALESCE(SUM(CASE WHEN category = 'IT' THEN 1 ELSE 0 END), 0) AS itCount,
+            COALESCE(SUM(CASE WHEN category = 'MEDICAL' THEN 1 ELSE 0 END), 0) AS medicalCount,
+            COALESCE(SUM(CASE WHEN category = 'GENERAL' THEN 1 ELSE 0 END), 0) AS generalCount,
+            COALESCE(SUM(CASE WHEN status = 'IN_REPAIR' THEN 1 ELSE 0 END), 0) AS inRepairCount,
+            COALESCE(SUM(CASE WHEN warranty_end_date >= NOW() OR (warranty_end_date IS NULL AND expire_date >= NOW()) THEN 1 ELSE 0 END), 0) AS activeWarrantyCount
+          FROM hospital_assets
+        `)
 
-    const r = rows[0] || {}
-    const totalAssets = Number(r.totalAssets || 0)
-    const activeWarrantyCount = Number(r.activeWarrantyCount || 0)
+        const r = rows[0] || {}
+        const totalAssets = Number(r.totalAssets || 0)
+        const activeWarrantyCount = Number(r.activeWarrantyCount || 0)
 
-    return {
-      totalAssets,
-      activeWarrantyCount,
-      expiredWarrantyCount: Math.max(0, totalAssets - activeWarrantyCount),
-      itCount: Number(r.itCount || 0),
-      medicalCount: Number(r.medicalCount || 0),
-      generalCount: Number(r.generalCount || 0),
-      inRepairCount: Number(r.inRepairCount || 0),
-    }
+        return {
+          totalAssets,
+          activeWarrantyCount,
+          expiredWarrantyCount: Math.max(0, totalAssets - activeWarrantyCount),
+          itCount: Number(r.itCount || 0),
+          medicalCount: Number(r.medicalCount || 0),
+          generalCount: Number(r.generalCount || 0),
+          inRepairCount: Number(r.inRepairCount || 0),
+        }
+      },
+      { staleTtlMs: 30_000, maxTtlMs: 120_000 }
+    )
   }
 
   /**
@@ -447,7 +454,7 @@ export class HospitalAssetService {
     const category = data.category || inferAssetCategory(data.fsnNum || null, data.name)
 
     if (this.db?.hospitalAsset) {
-      return this.db.hospitalAsset.create({
+      const created = await this.db.hospitalAsset.create({
         data: {
           articleNum: cleanArticleNum,
           fsnNum: data.fsnNum?.trim() || null,
@@ -473,6 +480,8 @@ export class HospitalAssetService {
           notes: data.notes?.trim() || null,
         },
       })
+      invalidateCacheKey('asset:stats')
+      return created
     }
 
     const res: any = await this.queryExecutor(`
@@ -514,6 +523,7 @@ export class HospitalAssetService {
       data.notes?.trim() || null,
     ])
 
+    invalidateCacheKey('asset:stats')
     return this.getAssetById(res.insertId)
   }
 
@@ -546,10 +556,12 @@ export class HospitalAssetService {
       if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl ? data.imageUrl.trim() : null
       if (data.notes !== undefined) updateData.notes = data.notes ? data.notes.trim() : null
 
-      return this.db.hospitalAsset.update({
+      const updated = await this.db.hospitalAsset.update({
         where: { id },
         data: updateData,
       })
+      invalidateCacheKey('asset:stats')
+      return updated
     }
 
     const fields: string[] = []
@@ -584,6 +596,7 @@ export class HospitalAssetService {
       await this.queryExecutor(`UPDATE hospital_assets SET ${fields.join(', ')} WHERE id = ?`, params)
     }
 
+    invalidateCacheKey('asset:stats')
     return this.getAssetById(id)
   }
 
@@ -591,6 +604,7 @@ export class HospitalAssetService {
    * Delete an asset
    */
   async deleteAsset(id: number) {
+    invalidateCacheKey('asset:stats')
     if (this.db?.hospitalAsset) {
       return this.db.hospitalAsset.delete({ where: { id } })
     }
@@ -677,6 +691,7 @@ export class HospitalAssetService {
       }
     }
 
+    invalidateCacheKey('asset:stats')
     return summary
   }
 }

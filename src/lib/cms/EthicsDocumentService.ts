@@ -1,6 +1,7 @@
 import { queryMemberDb } from '@/lib/memberDb'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
+import { getSwrCachedData, invalidateCacheKey } from '@/lib/cache'
 import { z } from 'zod'
 
 export interface EthicsDocumentNode {
@@ -48,52 +49,58 @@ const documentSchema = z.object({
 
 export class EthicsDocumentService {
   static async getDocumentTree(): Promise<EthicsYearNode[]> {
-    const [years, documents] = await Promise.all([
-      queryMemberDb(`
-        SELECT id, year, display_order AS displayOrder, is_active AS isActive
-        FROM ethics_years
-        WHERE is_active = 1
-        ORDER BY year DESC, display_order DESC
-      `),
-      queryMemberDb(`
-        SELECT id, year_id AS yearId, parent_id AS parentId, title, file_path AS filePath, file_size AS fileSize, display_order AS displayOrder, is_active AS isActive
-        FROM ethics_documents
-        WHERE is_active = 1
-        ORDER BY display_order ASC, id ASC
-      `),
-    ])
+    return getSwrCachedData(
+      'ethics:tree',
+      async () => {
+        const [years, documents] = await Promise.all([
+          queryMemberDb(`
+            SELECT id, year, display_order AS displayOrder, is_active AS isActive
+            FROM ethics_years
+            WHERE is_active = 1
+            ORDER BY year DESC, display_order DESC
+          `),
+          queryMemberDb(`
+            SELECT id, year_id AS yearId, parent_id AS parentId, title, file_path AS filePath, file_size AS fileSize, display_order AS displayOrder, is_active AS isActive
+            FROM ethics_documents
+            WHERE is_active = 1
+            ORDER BY display_order ASC, id ASC
+          `),
+        ])
 
-    return years.map((yearItem: any) => {
-      const yearDocs = documents.filter((doc: any) => doc.yearId === yearItem.id)
-      const parentDocs = yearDocs.filter((doc: any) => !doc.parentId)
-      const allChildren = yearDocs.filter((doc: any) => doc.parentId)
+        return years.map((yearItem: any) => {
+          const yearDocs = documents.filter((doc: any) => doc.yearId === yearItem.id)
+          const parentDocs = yearDocs.filter((doc: any) => !doc.parentId)
+          const allChildren = yearDocs.filter((doc: any) => doc.parentId)
 
-      const structuredDocs = parentDocs.map((parent: any) => {
-        const subItems = allChildren
-          .filter((child: any) => child.parentId === parent.id)
-          .map((child: any) => ({
-            id: child.id,
-            title: child.title,
-            fileUrl: child.filePath || '',
-            displayOrder: child.displayOrder
-          }))
+          const structuredDocs = parentDocs.map((parent: any) => {
+            const subItems = allChildren
+              .filter((child: any) => child.parentId === parent.id)
+              .map((child: any) => ({
+                id: child.id,
+                title: child.title,
+                fileUrl: child.filePath || '',
+                displayOrder: child.displayOrder
+              }))
 
-        return {
-          id: parent.id,
-          title: parent.title,
-          fileUrl: parent.filePath || undefined,
-          displayOrder: parent.displayOrder,
-          subItems: subItems.length > 0 ? subItems : undefined
-        }
-      })
+            return {
+              id: parent.id,
+              title: parent.title,
+              fileUrl: parent.filePath || undefined,
+              displayOrder: parent.displayOrder,
+              subItems: subItems.length > 0 ? subItems : undefined
+            }
+          })
 
-      return {
-        id: yearItem.id,
-        year: yearItem.year,
-        displayOrder: yearItem.displayOrder,
-        documents: structuredDocs
-      }
-    })
+          return {
+            id: yearItem.id,
+            year: yearItem.year,
+            displayOrder: yearItem.displayOrder,
+            documents: structuredDocs
+          }
+        })
+      },
+      { staleTtlMs: 60_000, maxTtlMs: 300_000 }
+    )
   }
 
   static async getYears(): Promise<any[]> {
@@ -175,6 +182,8 @@ export class EthicsDocumentService {
       actor.session
     )
 
+    invalidateCacheKey('ethics:tree')
+
     return {
       id: createdId,
       yearId,
@@ -223,5 +232,7 @@ export class EthicsDocumentService {
       `ลบเอกสารจริยธรรม "${existing.title}" (ID: ${docId}) พร้อมเอกสารย่อย โดย ${actorId}`,
       actorSession
     )
+
+    invalidateCacheKey('ethics:tree')
   }
 }

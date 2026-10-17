@@ -3,6 +3,7 @@ import { EthicsDocumentService } from '../EthicsDocumentService'
 import { queryMemberDb } from '@/lib/memberDb'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
+import { clearMemoryCache } from '@/lib/cache'
 
 vi.mock('@/lib/memberDb', () => ({
   queryMemberDb: vi.fn(),
@@ -23,6 +24,7 @@ vi.mock('@/lib/audit', () => ({
 describe('EthicsDocumentService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   describe('getDocumentTree', () => {

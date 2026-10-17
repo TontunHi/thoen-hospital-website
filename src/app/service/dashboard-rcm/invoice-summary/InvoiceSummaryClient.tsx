@@ -24,7 +24,6 @@ import {
   Check,
   X,
 } from 'lucide-react'
-import ExcelJS from 'exceljs'
 import {
   InvoiceSummaryItem,
   InvoiceSummaryResult,
@@ -228,6 +227,7 @@ export default function InvoiceSummaryClient() {
       const allDetails: InvoiceDetailItem[] = json.data?.items || []
 
       // 2. Build workbook
+      const ExcelJS = (await import('exceljs')).default
       const workbook = new ExcelJS.Workbook()
       workbook.creator = 'Thoen Hospital RCM System'
       workbook.created = new Date()

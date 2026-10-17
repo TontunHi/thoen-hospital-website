@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'recharts'],
+  },
   allowedDevOrigins: [
     '172.16.0.13', '172.16.0.13:3000',
     '172.16.0.32', '172.16.0.32:3000',
