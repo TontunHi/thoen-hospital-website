@@ -36,11 +36,13 @@ export async function GET(req: NextRequest) {
 
     const topicId = parseInt(topicIdStr, 10)
     const periodKey = searchParams.get('periodKey') || undefined
+    const category = searchParams.get('category') || undefined
 
     const exportResult = await KpiExportService.exportToExcel({
       topicId,
       fiscalYear,
       periodKey,
+      category,
     })
 
     // Log export audit

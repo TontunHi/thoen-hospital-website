@@ -24,7 +24,11 @@ import {
   ShieldCheck,
   ChevronDown,
   UploadCloud,
-  AlertCircle
+  AlertCircle,
+  Hash,
+  Layers,
+  FileText,
+  Check
 } from 'lucide-react'
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
@@ -72,7 +76,15 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const [selectedPeriodKey, setSelectedPeriodKey] = useState<string>('ALL')
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL')
   const [searchTerm, setSearchTerm] = useState<string>('')
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'ALL' | 'MY'>('ALL')
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm)
+    }, 250)
+    return () => clearTimeout(handler)
+  }, [searchTerm])
 
   // Stats & State
   const [stats, setStats] = useState<KpiDashboardStats | null>(null)
@@ -255,6 +267,31 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     return isKpiManager
   }, [isKpiManager])
 
+  // Stats Summary per design.md (ทั้งหมด / ไม่มีรายงาน / ยังไม่ระบุสถานะ)
+  const statsSummary = useMemo(() => {
+    let total = indicators.length
+    let noReport = 0
+    let unspecified = 0
+
+    indicators.forEach(ind => {
+      const entry = ind.currentEntry
+      const status = entry?.status || 'PENDING'
+      const hasResult = Boolean(entry && (entry.resultValue !== null || (entry.resultText && entry.resultText.trim() !== '')))
+
+      if (!entry || !hasResult || entry.resultText === 'ไม่มีรายงาน' || status === 'PENDING') {
+        noReport++
+      } else if (status === 'WAITING_TARGET' || ind.targetValue === null || ind.targetValue === undefined) {
+        unspecified++
+      }
+    })
+
+    return {
+      total: total || (stats?.totalIndicators ?? 0),
+      noReport: total > 0 ? noReport : (stats?.totalPending ?? 0),
+      unspecified: total > 0 ? unspecified : (stats?.totalWaitingTarget ?? 0),
+    }
+  }, [indicators, stats])
+
   // Filtered Indicators
   const displayedIndicators = useMemo(() => {
     return indicators.filter(ind => {
@@ -279,8 +316,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
           return false
         }
       }
-      if (searchTerm.trim()) {
-        const term = searchTerm.toLowerCase()
+      if (debouncedSearch.trim()) {
+        const term = debouncedSearch.toLowerCase()
         const matchesTitle = ind.title.toLowerCase().includes(term)
         const matchesCode = (ind.code || '').toLowerCase().includes(term)
         const matchesSubcat = (ind.subcategory || '').toLowerCase().includes(term)
@@ -291,7 +328,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       }
       return true
     })
-  }, [indicators, selectedCategory, selectedFrequency, activeTab, selectedStatus, searchTerm, currentUser])
+  }, [indicators, selectedCategory, selectedFrequency, activeTab, selectedStatus, debouncedSearch, currentUser])
 
   // Calculation for Answer Modal (if numerator and denominator exist)
   const computedPercentage = useMemo(() => {
@@ -737,7 +774,14 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
 
     try {
       setExporting(true)
-      const url = `/api/kpi/export?topicId=${selectedTopicId}&fiscalYear=${selectedYear}`
+      const exportParams = new URLSearchParams({
+        topicId: String(selectedTopicId),
+        fiscalYear: selectedYear,
+      })
+      if (selectedCategory && selectedCategory !== 'ALL') {
+        exportParams.set('category', selectedCategory)
+      }
+      const url = `/api/kpi/export?${exportParams.toString()}`
       const res = await fetch(url)
 
       if (!res.ok) {
@@ -773,15 +817,60 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     }
   }
 
+  // Helper to render clinical status badge per design.md
+  const renderStatusBadge = (ind: KpiIndicatorItem, entry: any, isLocked: boolean, windowLock: any) => {
+    if (isLocked) {
+      return (
+        <span className="kpiStatusPill locked" title={windowLock?.message || 'ยังไม่ถึงรอบรายงาน'}>
+          <Lock size={12} /> ยังไม่ถึงรอบ
+        </span>
+      )
+    }
+
+    if (!entry || (entry.resultValue === null && !entry.resultText) || entry.resultText === 'ไม่มีรายงาน' || entry.status === 'PENDING') {
+      return (
+        <span className="kpiStatusPill noReport">
+          ไม่มีรายงาน
+        </span>
+      )
+    }
+
+    if (entry.status === 'PASS') {
+      return (
+        <span className="kpiStatusPill pass">
+          <CheckCircle2 size={12} /> ผ่านเกณฑ์
+        </span>
+      )
+    }
+
+    if (entry.status === 'FAIL') {
+      return (
+        <span className="kpiStatusPill fail">
+          <XCircle size={12} /> ไม่ผ่านเกณฑ์
+        </span>
+      )
+    }
+
+    return (
+      <span className="kpiStatusPill unspecified">
+        ยังไม่ระบุสถานะ
+      </span>
+    )
+  }
+
   return (
     <div className="kpiPage">
       <div className="kpiWrapper">
         {/* Navigation Breadcrumb */}
-        <div className="kpiNavRow">
-          <Link href="/service" className="kpiBackLink">
-            <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
-            <span>กลับสู่ระบบงานสารสนเทศภายใน</span>
-          </Link>
+        <div className="kpiTopBar">
+          <nav className="kpiBreadcrumb" aria-label="Breadcrumb">
+            <Link href="/service">
+              <ChevronRight size={15} style={{ transform: 'rotate(180deg)' }} />
+              <span>ระบบงานสารสนเทศภายใน</span>
+            </Link>
+            <span className="kpiBreadcrumbSeparator">/</span>
+            <span className="kpiBreadcrumbCurrent">ติดตามตัวชี้วัด</span>
+          </nav>
           <div className="kpiUserBadge">
             <User size={14} />
             <span>
@@ -791,236 +880,134 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
           </div>
         </div>
 
-        {/* Hallmark Executive Workbench Header */}
-        <header className="kpiHeaderCard">
-          <div className="kpiHeaderContent">
-            <div className="kpiKickerBadge">
-              <Building2 size={13} />
-              <span>โรงพยาบาลเถิน • บริหารจัดการและพัฒนาคุณภาพ</span>
+        {/* 1. Header per design.md */}
+        <header className="kpiHeader">
+          <div className="kpiHeaderTitleBlock">
+            <h1>ติดตามตัวชี้วัด ปี {selectedYear || '2570'}</h1>
+            <div className="kpiHeaderSubtitle">
+              <span>กำกับและติดตามตัวชี้วัดคุณภาพ THIP / HA / ยุทธศาสตร์ โรงพยาบาลเถิน</span>
             </div>
-            <h1>ระบบติดตามตัวชี้วัดโรงพยาบาลเถิน</h1>
-            <p>
-              กำกับและติดตามผลการดำเนินงานตัวชี้วัดคุณภาพ THIP / HA / ยุทธศาสตร์ โรงพยาบาลเถิน
-              เปรียบเทียบผลลัพธ์กับเป้าหมายตามปีงบประมาณและรอบเวลาการประเมิน
-            </p>
           </div>
-          <div className="kpiHeaderActionsGroup">
-            {/* Add Indicator button for Admin / KPI Manager */}
+          <div className="kpiHeaderActions">
+            {/* Export Excel Button per design.md */}
+            <button 
+              type="button"
+              className="kpiBtn kpiBtnSecondary"
+              onClick={handleExportExcel}
+              disabled={exporting || loading || !selectedTopicId}
+              title="ส่งออกรายงานตัวชี้วัดเป็นไฟล์ Excel (.xlsx)"
+            >
+              <FileSpreadsheet size={16} />
+              <span>{exporting ? 'กำลังส่งออก Excel...' : 'ส่งออก Excel'}</span>
+            </button>
+
+            {/* Add Indicator Button per design.md */}
             {isKpiManager && (
               <button 
+                type="button"
                 className="kpiBtn kpiBtnPrimary"
                 onClick={handleOpenCreateIndicator}
               >
                 <Plus size={16} />
-                <span>เพิ่มตัวชี้วัดใหม่</span>
+                <span>+ เพิ่มตัวชี้วัด</span>
               </button>
             )}
 
-            {/* Export Excel Report (.xlsx) */}
-            {canExport && (
-              <button 
-                className="kpiBtn kpiBtnExcel"
-                onClick={handleExportExcel}
-                disabled={exporting || loading || !selectedTopicId}
-                title="ส่งออกรายงานตัวชี้วัดทั้งหมดเป็นไฟล์ Excel (.xlsx)"
-              >
-                <FileSpreadsheet size={16} />
-                <span>{exporting ? 'กำลังส่งออก Excel...' : 'ส่งออก Excel (.xlsx)'}</span>
-              </button>
-            )}
-
+            {/* Admin Import tool */}
             {isKpiManager && (
               <button 
+                type="button"
                 className="kpiBtn kpiBtnSecondary"
                 onClick={() => setImportModalOpen(true)}
+                title="นำเข้าตัวชี้วัดจากไฟล์ Excel"
               >
-                <FileSpreadsheet size={16} />
-                <span>นำเข้า Excel / CSV</span>
+                <UploadCloud size={16} />
+                <span>นำเข้า Excel</span>
               </button>
             )}
 
+            {/* Refresh Button */}
             <button 
-              className="kpiBtn kpiBtnSecondary"
+              type="button"
+              className="kpiIconBtn"
               onClick={() => fetchIndicatorsAndStats()}
               disabled={loading}
               title="รีเฟรชข้อมูล"
             >
               <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-              <span>รีเฟรช</span>
             </button>
           </div>
         </header>
 
-        {/* Stats Summary Cards */}
-        <div className="kpiStatsGrid">
+        {/* 2. Stat Cards (3 ใบ per design.md: ทั้งหมด / ไม่มีรายงาน / ยังไม่ระบุสถานะ) */}
+        <section className="kpiStatCardsRow" aria-label="สรุปสถิติตัวชี้วัด">
           <div className="kpiStatCard">
-            <div className="kpiStatIconBox blue">
-              <Target size={22} />
-            </div>
-            <div className="kpiStatInfo">
-              <div className="kpiStatLabel">ตัวชี้วัดทั้งหมด</div>
-              <div className="kpiStatValue">{stats?.totalIndicators ?? indicators.length}</div>
-              <div className="kpiStatSub">
-                {selectedTopic 
-                  ? `ชุด ${selectedTopic.code}` 
-                  : (topics.length > 0 ? 'กรุณาเลือกชุดตัวชี้วัด' : 'ยังไม่มีชุดข้อมูลในระบบ')}
-              </div>
-            </div>
+            <div className="kpiStatCardLabel">ทั้งหมด</div>
+            <div className="kpiStatCardValue">{statsSummary.total}</div>
+            <div className="kpiStatCardFoot">ตัวชี้วัดที่ติดตามในปีนี้</div>
           </div>
-
           <div className="kpiStatCard">
-            <div className="kpiStatIconBox amber">
-              <Clock size={22} />
-            </div>
-            <div className="kpiStatInfo">
-              <div className="kpiStatLabel">บันทึกข้อมูลแล้ว</div>
-              <div className="kpiStatValue">
-                {stats?.totalAnswered ?? 0}
-                <span style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--kpi-text-muted)' }}>
-                  /{stats?.totalIndicators ?? indicators.length}
-                </span>
-              </div>
-              <div className="kpiStatSub">
-                {selectedTopic ? `รอการบันทึก ${stats?.totalPending ?? 0} ข้อ` : 'ไม่มีรายการ'}
-              </div>
-            </div>
+            <div className="kpiStatCardLabel">ไม่มีรายงาน</div>
+            <div className="kpiStatCardValue warn">{statsSummary.noReport}</div>
+            <div className="kpiStatCardFoot">รอผู้รับผิดชอบรายงานผล</div>
           </div>
-
           <div className="kpiStatCard">
-            <div className="kpiStatIconBox green">
-              <CheckCircle2 size={22} />
-            </div>
-            <div className="kpiStatInfo">
-              <div className="kpiStatLabel">ผ่านเกณฑ์เป้าหมาย</div>
-              <div className="kpiStatValue">{stats?.totalPass ?? 0}</div>
-              <div className="kpiStatSub">
-                {selectedTopic ? `สำเร็จ ${stats?.passRatePercentage ?? 0}% ของข้อที่ตอบแล้ว` : 'ไม่มีรายการ'}
-              </div>
-            </div>
+            <div className="kpiStatCardLabel">ยังไม่ระบุสถานะ</div>
+            <div className="kpiStatCardValue">{statsSummary.unspecified}</div>
+            <div className="kpiStatCardFoot">รอตั้งเป้าหมาย / เกณฑ์ประเมิน</div>
           </div>
+        </section>
 
-          <div className="kpiStatCard">
-            <div className="kpiStatIconBox rose">
-              <XCircle size={22} />
-            </div>
-            <div className="kpiStatInfo">
-              <div className="kpiStatLabel">ไม่ผ่านเกณฑ์ / รอเป้าหมาย</div>
-              <div className="kpiStatValue">
-                {stats?.totalFail ?? 0}
-                <span style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--kpi-text-muted)' }}>
-                  {' '}+ {stats?.totalWaitingTarget ?? 0}
-                </span>
+        {/* 3. Toolbar (ปุ่มกรองตามหมวด + ช่องค้นหา) per design.md */}
+        <section className="kpiToolbar" aria-label="แถบตัวกรองและค้นหา">
+          <div className="kpiToolbarPrimary">
+            <div className="kpiCategoryDropdownField">
+              <label htmlFor="kpi-category-select" className="kpiCategoryLabel">
+                หมวดหมู่ / ยุทธศาสตร์:
+              </label>
+              <div className="kpiSelectWrapper">
+                <select
+                  id="kpi-category-select"
+                  className="kpiCategorySelect"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="ALL">ทั้งหมด (ทุกหมวดและทุกยุทธศาสตร์)</option>
+                  <optgroup label="ยุทธศาสตร์">
+                    <option value="ยุทธศาสตร์ที่1">ยุทธศาสตร์ที่1</option>
+                    <option value="ยุทธศาสตร์ที่2">ยุทธศาสตร์ที่2</option>
+                    <option value="ยุทธศาสตร์ที่3">ยุทธศาสตร์ที่3</option>
+                    <option value="ยุทธศาสตร์ที่4">ยุทธศาสตร์ที่4</option>
+                    <option value="ยุทธศาสตร์ที่5">ยุทธศาสตร์ที่5</option>
+                  </optgroup>
+                  <optgroup label="หมวดหมู่คุณภาพ HA">
+                    <option value="หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)">หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)</option>
+                    <option value="หมวดที่ 2: IV-2 ด้านการมุ่งเน้นผู้ป่วยและผู้รับผลงาน">หมวดที่ 2: IV-2 ด้านการมุ่งเน้นผู้ป่วยและผู้รับผลงาน</option>
+                    <option value="หมวดที่ 3: IV-3 ด้านบุคลากร">หมวดที่ 3: IV-3 ด้านบุคลากร</option>
+                    <option value="หมวดที่ 4: IV-4 ด้านการนำและการกำกับดูแล">หมวดที่ 4: IV-4 ด้านการนำและการกำกับดูแล</option>
+                    <option value="หมวดที่ 5: IV-5 ด้านระบบงานสำคัญ">หมวดที่ 5: IV-5 ด้านระบบงานสำคัญ</option>
+                    <option value="หมวดที่ 6: IV-6 ด้านการเงิน">หมวดที่ 6: IV-6 ด้านการเงิน</option>
+                  </optgroup>
+                  {/* แสดงหมวดหมู่อื่นๆ จากฐานข้อมูลหากมีเพิ่มเติม */}
+                  {categories
+                    .filter(c => !c.startsWith('ยุทธศาสตร์ที่') && !c.startsWith('หมวดที่'))
+                    .map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                </select>
+                <ChevronDown size={16} className="kpiSelectArrow" />
               </div>
-              <div className="kpiStatSub">
-                {selectedTopic 
-                  ? `ไม่ผ่าน ${stats?.totalFail ?? 0} | รอตั้งเป้า ${stats?.totalWaitingTarget ?? 0}` 
-                  : 'ไม่มีรายการ'}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filter Control Bar */}
-        <div className="kpiControlsCard">
-          <div className="kpiSelectorsRow">
-            {/* Year Selector */}
-            <div className="kpiSelectGroup">
-              <label>ปีงบประมาณ:</label>
-              <select 
-                className="kpiSelectInput"
-                value={selectedYear}
-                onChange={(e) => {
-                  setSelectedYear(e.target.value)
-                  const t = topics.find(item => item.fiscalYear === e.target.value)
-                  if (t) setSelectedTopicId(t.id)
-                  else setSelectedTopicId(null)
-                }}
-                disabled={fiscalYears.length === 0}
-              >
-                {fiscalYears.length === 0 ? (
-                  <option value="">ไม่มีข้อมูลปี</option>
-                ) : (
-                  fiscalYears.map(yr => (
-                    <option key={yr} value={yr}>ปี {yr}</option>
-                  ))
-                )}
-              </select>
             </div>
 
-            {/* Topic Selector */}
-            <div className="kpiSelectGroup">
-              <label>ชุดตัวชี้วัด:</label>
-              <select 
-                className="kpiSelectInput"
-                value={selectedTopicId || ''}
-                onChange={(e) => setSelectedTopicId(Number(e.target.value))}
-                disabled={topics.length === 0}
-              >
-                {topics.length === 0 ? (
-                  <option value="">ไม่มีชุดตัวชี้วัด</option>
-                ) : (
-                  topics
-                    .filter(t => !selectedYear || t.fiscalYear === selectedYear)
-                    .map(t => (
-                      <option key={t.id} value={t.id}>{t.code}</option>
-                    ))
-                )}
-              </select>
-            </div>
-
-            {/* Category Filter */}
-            <div className="kpiSelectGroup">
-              <label>หมวด:</label>
-              <select 
-                className="kpiSelectInput"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                <option value="ALL">ทุกหมวด ({categories.length})</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Frequency Filter */}
-            <div className="kpiSelectGroup">
-              <label>ความถี่:</label>
-              <select 
-                className="kpiSelectInput"
-                value={selectedFrequency}
-                onChange={(e) => setSelectedFrequency(e.target.value)}
-              >
-                <option value="ALL">ทุกความถี่</option>
-                <option value="ราย 6 เดือน">ราย 6 เดือน</option>
-                <option value="รายไตรมาส">รายไตรมาส</option>
-                <option value="รายเดือน">รายเดือน</option>
-                <option value="รายปี">รายปี</option>
-              </select>
-            </div>
-
-            {/* Status Filter */}
-            <div className="kpiSelectGroup">
-              <label>สถานะ:</label>
-              <select 
-                className="kpiSelectInput"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <option value="ALL">ทุกสถานะ</option>
-                <option value="PASS">ผ่านเกณฑ์</option>
-                <option value="FAIL">ไม่ผ่านเกณฑ์</option>
-                <option value="PENDING">รอการบันทึก</option>
-                <option value="WAITING_TARGET">รอระบุเป้าหมาย</option>
-              </select>
-            </div>
-
-            {/* Search Box */}
-            <div className="kpiSearchWrapper">
+            <div className="kpiSearchField">
+              <label htmlFor="kpi-search-input" className="sr-only">
+                ค้นหาชื่อตัวชี้วัด
+              </label>
               <Search size={16} className="kpiSearchIcon" />
-              <input 
+              <input
+                id="kpi-search-input"
                 type="text"
-                placeholder="ค้นหาชื่อตัวชี้วัด, รหัส, ผู้รับผิดชอบ..."
+                placeholder="ค้นหาชื่อตัวชี้วัด..."
                 className="kpiSearchInput"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -1028,56 +1015,122 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
             </div>
           </div>
 
-          {/* Tabs: All Indicators vs My Indicators */}
-          <div className="kpiTabsRow">
-            <div className="kpiTabsGroup">
-              <button 
-                className={`kpiTabBtn ${activeTab === 'ALL' ? 'active' : ''}`}
+          {/* Secondary Filter Row */}
+          <div className="kpiToolbarSecondary">
+            <div className="kpiSecondaryFilters">
+              {fiscalYears.length > 0 && (
+                <div className="kpiInlineFilter">
+                  <span>ปีงบประมาณ:</span>
+                  <select
+                    className="kpiMiniSelect"
+                    value={selectedYear}
+                    onChange={(e) => {
+                      setSelectedYear(e.target.value)
+                      const t = topics.find(item => item.fiscalYear === e.target.value)
+                      if (t) setSelectedTopicId(t.id)
+                      else setSelectedTopicId(null)
+                    }}
+                  >
+                    {fiscalYears.map(yr => (
+                      <option key={yr} value={yr}>ปี {yr}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {topics.length > 1 && (
+                <div className="kpiInlineFilter">
+                  <span>ชุด:</span>
+                  <select
+                    className="kpiMiniSelect"
+                    value={selectedTopicId || ''}
+                    onChange={(e) => setSelectedTopicId(Number(e.target.value))}
+                  >
+                    {topics
+                      .filter(t => !selectedYear || t.fiscalYear === selectedYear)
+                      .map(t => (
+                        <option key={t.id} value={t.id}>{t.code}</option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="kpiInlineFilter">
+                <span>ความถี่:</span>
+                <select
+                  className="kpiMiniSelect"
+                  value={selectedFrequency}
+                  onChange={(e) => setSelectedFrequency(e.target.value)}
+                >
+                  <option value="ALL">ทุกความถี่</option>
+                  <option value="รายเดือน">รายเดือน</option>
+                  <option value="รายไตรมาส">รายไตรมาส</option>
+                  <option value="ราย 6 เดือน">ราย 6 เดือน</option>
+                  <option value="รายปี">รายปี</option>
+                </select>
+              </div>
+
+              <div className="kpiInlineFilter">
+                <span>สถานะ:</span>
+                <select
+                  className="kpiMiniSelect"
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                >
+                  <option value="ALL">ทุกสถานะ</option>
+                  <option value="PASS">ผ่านเกณฑ์</option>
+                  <option value="FAIL">ไม่ผ่านเกณฑ์</option>
+                  <option value="PENDING">ไม่มีรายงาน</option>
+                  <option value="WAITING_TARGET">ยังไม่ระบุสถานะ</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="kpiTabPills">
+              <button
+                type="button"
+                className={`kpiTabPill ${activeTab === 'ALL' ? 'active' : ''}`}
                 onClick={() => setActiveTab('ALL')}
               >
                 ตัวชี้วัดทั้งหมด ({indicators.length})
               </button>
-              <button 
-                className={`kpiTabBtn ${activeTab === 'MY' ? 'active' : ''}`}
+              <button
+                type="button"
+                className={`kpiTabPill ${activeTab === 'MY' ? 'active' : ''}`}
                 onClick={() => setActiveTab('MY')}
               >
-                ตัวชี้วัดที่ฉันรับผิดชอบ
+                ที่ฉันรับผิดชอบ
               </button>
             </div>
-            <div className="kpiTotalBadge">
-              แสดงข้อมูลครบถ้วน {displayedIndicators.length} จากทั้งหมด {indicators.length} ข้อ
-            </div>
           </div>
-        </div>
+        </section>
 
         {/* Error Alert */}
         {errorMsg && (
-          <div style={{ background: '#fee2e2', color: '#b91c1c', padding: '0.875rem 1.25rem', borderRadius: '0.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid #fca5a5' }}>
+          <div style={{ background: 'var(--fail-bg)', color: 'var(--fail-ink)', padding: '12px 16px', borderRadius: 'var(--radius-btn)', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #fca5a5' }}>
             <AlertTriangle size={18} />
             <span>{errorMsg}</span>
           </div>
         )}
 
-        {/* Indicators Table (Full Data Presentation Columns A - N) */}
-        <div className="kpiListCard">
+        {/* 4 & 5. ตาราง (CSS Grid 1040px) & Mobile Card (< 768px) per design.md */}
+        <div className="kpiTableCard">
           {topics.length === 0 ? (
-            <div className="kpiEmptyState" style={{ padding: '3.5rem 1.5rem', textAlign: 'center' }}>
-              <FileSpreadsheet size={48} style={{ color: 'var(--kpi-teal-600)', marginBottom: '0.75rem', opacity: 0.8 }} />
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--kpi-neutral-800)', marginBottom: '0.5rem' }}>
-                ยังไม่มีชุดตัวชี้วัดในระบบ
-              </h3>
-              <p style={{ color: 'var(--kpi-neutral-600)', maxWidth: '480px', margin: '0 auto 1.25rem', fontSize: '0.875rem', lineHeight: 1.5 }}>
+            <div className="kpiEmptyState">
+              <FileSpreadsheet size={48} />
+              <h3>ยังไม่มีชุดตัวชี้วัดในระบบ</h3>
+              <p>
                 {isKpiManager 
-                  ? 'คุณสามารถเริ่มต้นใช้งานโดยการคลิกปุ่ม "นำเข้า Excel / CSV" เพื่ออัปโหลดไฟล์ตัวชี้วัด (.xlsx) หรือคลิก "เพิ่มตัวชี้วัดใหม่"'
-                  : 'ยังไม่มีชุดข้อมูลตัวชี้วัดที่เปิดใช้งานในระบบ กรุณาติดต่อผู้ดูแลระบบ (Admin) หรือศูนย์คุณภาพเพื่อนำเข้าชุดข้อมูล'}
+                  ? 'คุณสามารถเริ่มต้นใช้งานโดยคลิกปุ่ม "นำเข้า Excel" เพื่ออัปโหลดไฟล์ตัวชี้วัด (.xlsx) หรือคลิก "+ เพิ่มตัวชี้วัด"'
+                  : 'ยังไม่มีชุดข้อมูลตัวชี้วัดที่เปิดใช้งานในระบบ กรุณาติดต่อผู้ดูแลระบบ (Admin) หรือศูนย์คุณภาพ'}
               </p>
               {isKpiManager && (
                 <button 
+                  type="button"
                   className="kpiBtn kpiBtnPrimary"
                   onClick={() => setImportModalOpen(true)}
-                  style={{ margin: '0 auto' }}
                 >
-                  <FileSpreadsheet size={16} />
+                  <UploadCloud size={16} />
                   <span>นำเข้าชุดตัวชี้วัดจากไฟล์ Excel</span>
                 </button>
               )}
@@ -1088,225 +1141,168 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
               <p>ไม่พบรายการตัวชี้วัดตามเงื่อนไขที่เลือก</p>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="kpiTable">
-                <thead>
-                  <tr>
-                    <th style={{ width: '50px' }}>ลำดับ</th>
-                    <th style={{ width: '130px' }}>รหัส / ประเภท</th>
-                    <th>ตัวชี้วัด (คำถามหลัก) & คำถามรอง (ตัวตั้ง / ตัวหาร)</th>
-                    <th style={{ width: '120px' }}>ความถี่</th>
-                    <th style={{ width: '130px' }}>เป้าหมาย</th>
-                    <th style={{ width: '140px' }}>ผู้รับผิดชอบ</th>
-                    <th style={{ width: '130px' }}>ผลดำเนินการ</th>
-                    <th style={{ width: '100px' }}>สถานะ</th>
-                    <th style={{ width: '110px' }}>วันที่อัปเดต</th>
-                    <th style={{ width: '140px', textAlign: 'center' }}>การจัดการ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedIndicators.map((ind, idx) => {
-                    const entry = ind.currentEntry
-                    const periods = getPeriodsForFrequency(ind.frequency)
-                    const currentPeriod = periods[0]
-                    const windowLock = checkPeriodStatus(ind.frequency, currentPeriod.key, selectedYear)
-                    const isLocked = !windowLock.isOpen && !isKpiManager
-                    const userCanAnswer = canAnswerIndicator(ind)
-                    const userCanEdit = canEditIndicator(ind)
-                    const userCanDelete = canDeleteIndicator(ind)
+            <div className="kpiTableScroller">
+              <div className="kpiGridTable" role="table" aria-label="ตารางติดตามตัวชี้วัด">
+                {/* Header row per design.md Section 5 */}
+                <div className="kpiGridHead" role="row">
+                  <div role="columnheader">ลำดับ</div>
+                  <div role="columnheader">ตัวชี้วัด</div>
+                  <div role="columnheader">ความถี่</div>
+                  <div role="columnheader">เป้าหมาย</div>
+                  <div role="columnheader">ผู้รับผิดชอบ</div>
+                  <div role="columnheader">สถานะ</div>
+                  <div role="columnheader">ประเภท</div>
+                  <div role="columnheader" style={{ textAlign: 'right' }}>จัดการ</div>
+                </div>
 
-                    return (
-                      <tr key={ind.id}>
-                        {/* Col A: Sequence */}
-                        <td>
-                          <span className="kpiSequenceText">
-                            {ind.sequence || idx + 1}
-                          </span>
-                        </td>
+                {/* Data rows per design.md Section 5 */}
+                {displayedIndicators.map((ind, idx) => {
+                  const entry = ind.currentEntry
+                  const periods = getPeriodsForFrequency(ind.frequency)
+                  const currentPeriod = periods[0]
+                  const windowLock = checkPeriodStatus(ind.frequency, currentPeriod?.key || '', selectedYear)
+                  const isLocked = !windowLock.isOpen && !isKpiManager
+                  const userCanAnswer = canAnswerIndicator(ind)
+                  const userCanEdit = canEditIndicator(ind)
+                  const userCanDelete = canDeleteIndicator(ind)
 
-                        {/* Col D & E & N: Code, Old Code, Type */}
-                        <td>
-                          {ind.code ? (
-                            <div className="kpiCodeBadge">{ind.code}</div>
-                          ) : (
-                            <div className="kpiCodeBadge" style={{ color: 'var(--kpi-text-muted)' }}>-</div>
-                          )}
-                          {ind.oldCode && (
-                            <div className="kpiOldCodeText">เดิม: {ind.oldCode}</div>
-                          )}
-                          {ind.indicatorType && (
-                            <span className="kpiTypeTag">{ind.indicatorType}</span>
-                          )}
-                        </td>
+                  const targetText = ind.targetValue !== null && ind.targetValue !== undefined
+                    ? `${ind.targetOperator || '>='} ${ind.targetValue}${ind.targetUnit || '%'}`
+                    : (ind.targetRaw || '-')
 
-                        {/* Col B, C, G, H, I: Category, Subcategory, Title, Numerator, Denominator */}
-                        <td>
-                          <div className="kpiCategoryTag">
-                            <span>{ind.category}</span>
-                            {ind.subcategory && (
-                              <span className="kpiSubcatBadge">{ind.subcategory}</span>
-                            )}
+                  return (
+                    <div className="kpiGridRow" key={ind.id} role="row">
+                      {/* Mobile Card Header (< 768px) */}
+                      <div className="kpiMobileCardHeader mobileOnly">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="kpiColSeq">#{ind.sequence || idx + 1}</span>
+                          <span className="kpiTypeBadge">{ind.indicatorType || 'HA'}</span>
+                        </div>
+                        <div>{renderStatusBadge(ind, entry, isLocked, windowLock)}</div>
+                      </div>
+
+                      {/* Col 1: ลำดับ (56px) */}
+                      <div className="kpiColSeq desktopOnly" role="cell">
+                        {ind.sequence || idx + 1}
+                      </div>
+
+                      {/* Col 2: ตัวชี้วัด (minmax(280px, 1fr)) */}
+                      <div className="kpiColTitle" role="cell">
+                        <div className="kpiIndicatorTitle">{ind.title}</div>
+                        <div className="kpiIndicatorMeta">
+                          <span>{ind.category}</span>
+                          {ind.subcategory && <span>› {ind.subcategory}</span>}
+                          {ind.code && <span style={{ opacity: 0.75 }}>({ind.code})</span>}
+                        </div>
+                        {(ind.numeratorName || ind.denominatorName) && (
+                          <div className="kpiSubquestionsBox">
+                            {ind.numeratorName && <div><strong>ตัวตั้ง:</strong> {ind.numeratorName}</div>}
+                            {ind.denominatorName && <div><strong>ตัวหาร:</strong> {ind.denominatorName}</div>}
                           </div>
-                          
-                          {/* Main Question (Title) */}
-                          <div className="kpiTitle">{ind.title}</div>
+                        )}
+                      </div>
 
-                          {/* Subquestions (Numerator & Denominator) */}
-                          {(ind.numeratorName || ind.denominatorName) && (
-                            <div className="kpiSubquestions">
-                              {ind.numeratorName && (
-                                <div>
-                                  <strong style={{ color: 'var(--kpi-teal-700)' }}>ตัวตั้ง:</strong> {ind.numeratorName}
-                                </div>
-                              )}
-                              {ind.denominatorName && (
-                                <div>
-                                  <strong style={{ color: 'var(--kpi-teal-700)' }}>ตัวหาร:</strong> {ind.denominatorName}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </td>
+                      {/* Mobile Meta Grid (< 768px) */}
+                      <div className="kpiMobileMetaGrid mobileOnly">
+                        <div className="kpiMobileMetaItem">
+                          <label>ความถี่</label>
+                          <span>{ind.frequency}</span>
+                        </div>
+                        <div className="kpiMobileMetaItem">
+                          <label>เป้าหมาย</label>
+                          <span>{targetText}</span>
+                        </div>
+                        <div className="kpiMobileMetaItem" style={{ gridColumn: 'span 2' }}>
+                          <label>ผู้รับผิดชอบ</label>
+                          <span>{ind.responsibleName || '-'}</span>
+                        </div>
+                      </div>
 
-                        {/* Col F: Frequency */}
-                        <td>
-                          <span className="kpiFreqBadge">{ind.frequency}</span>
-                        </td>
+                      {/* Col 3: ความถี่ (110px) */}
+                      <div className="kpiColFreq desktopOnly" role="cell">
+                        {ind.frequency}
+                      </div>
 
-                        {/* Col J: Target */}
-                        <td>
-                          <div className="kpiTargetBox">
-                            <span>
-                              {ind.targetValue !== null 
-                                ? `${ind.targetOperator || '>='} ${ind.targetValue}${ind.targetUnit || '%'}`
-                                : ind.targetRaw || 'รอระบุ'}
-                            </span>
-                          </div>
-                        </td>
+                      {/* Col 4: เป้าหมาย (110px) */}
+                      <div className="kpiColTarget desktopOnly" role="cell">
+                        {targetText}
+                      </div>
 
-                        {/* Col K: Responsible Name */}
-                        <td>
-                          <span style={{ fontWeight: 600, color: 'var(--kpi-text-primary)' }}>
-                            {ind.responsibleName || 'ไม่ระบุ'}
-                          </span>
-                        </td>
+                      {/* Col 5: ผู้รับผิดชอบ (130px) */}
+                      <div className="kpiColResp desktopOnly" role="cell">
+                        {ind.responsibleName || '-'}
+                      </div>
 
-                        {/* Col L: Result Value */}
-                        <td>
-                          {entry && entry.resultValue !== null ? (
-                            <div>
-                              <strong style={{ fontSize: '1.05rem', color: 'var(--kpi-text-primary)' }}>
-                                {entry.resultValue}%
-                              </strong>
-                              {entry.numeratorValue !== null && entry.denominatorValue !== null && (
-                                <div style={{ fontSize: '0.75rem', color: 'var(--kpi-text-muted)' }}>
-                                  ({entry.numeratorValue}/{entry.denominatorValue})
-                                </div>
-                              )}
-                            </div>
-                          ) : entry?.resultText ? (
-                            <span style={{ fontSize: '0.875rem', color: 'var(--kpi-text-primary)', fontWeight: 500 }}>
-                              {entry.resultText}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--kpi-text-muted)', fontSize: '0.8125rem' }}>- ยังไม่มีข้อมูล -</span>
-                          )}
-                        </td>
+                      {/* Col 6: สถานะ (130px) */}
+                      <div className="kpiColStatus desktopOnly" role="cell">
+                        {renderStatusBadge(ind, entry, isLocked, windowLock)}
+                      </div>
 
-                        {/* Status Badge */}
-                        <td>
-                          {entry?.status === 'PASS' ? (
-                            <span className="kpiStatusBadge pass">
-                              <CheckCircle2 size={12} /> ผ่าน
-                            </span>
-                          ) : entry?.status === 'FAIL' ? (
-                            <span className="kpiStatusBadge fail">
-                              <XCircle size={12} /> ไม่ผ่าน
-                            </span>
-                          ) : entry?.status === 'WAITING_TARGET' ? (
-                            <span className="kpiStatusBadge waiting">
-                              รอเป้าหมาย
-                            </span>
-                          ) : isLocked ? (
-                            <span className="kpiStatusBadge locked" title={windowLock.message}>
-                              <Lock size={12} /> ยังไม่ถึงรอบ
-                            </span>
-                          ) : (
-                            <span className="kpiStatusBadge pending">
-                              <Clock size={12} /> รอผล
-                            </span>
-                          )}
-                        </td>
+                      {/* Col 7: ประเภท (90px) */}
+                      <div className="kpiColType desktopOnly" role="cell">
+                        <span className="kpiTypeBadge">{ind.indicatorType || 'HA'}</span>
+                      </div>
 
-                        {/* Col M: Updated Date & Author */}
-                        <td style={{ fontSize: '0.8125rem', color: 'var(--kpi-text-muted)' }}>
-                          {entry?.recordedAt ? (
-                            <div>
-                              <div style={{ fontWeight: 600, color: 'var(--kpi-text-secondary)', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
-                                {formatThaiDate(entry.recordedAt)}
-                              </div>
-                              {entry.recordedByName && (
-                                <div style={{ fontSize: '0.725rem', color: 'var(--kpi-text-muted)', marginTop: '0.15rem', lineHeight: 1.25 }}>
-                                  {entry.recordedByName}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span style={{ color: 'var(--kpi-text-muted)' }}>-</span>
-                          )}
-                        </td>
+                      {/* Col 8: ปุ่ม (96px) */}
+                      <div className="kpiColAction" role="cell">
+                        {userCanAnswer ? (
+                          <button
+                            type="button"
+                            className="kpiRowBtn"
+                            onClick={() => handleOpenAnswer(ind)}
+                            title={entry ? 'แก้ไขผลการดำเนินงาน' : 'บันทึกผลการดำเนินงาน'}
+                          >
+                            <span>บันทึก</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="kpiRowBtn"
+                            onClick={() => handleOpenAnswer(ind)}
+                            style={{ opacity: 0.65 }}
+                            title="ดูรายละเอียดการประเมิน"
+                          >
+                            <span>ดูผล</span>
+                          </button>
+                        )}
 
-                        {/* Actions: Answer, Edit, Delete */}
-                        <td style={{ textAlign: 'center' }}>
-                          <div className="kpiActionsCell">
-                            {/* Answer Button: Only shown when user has permission to answer */}
-                            {userCanAnswer && (
-                              <button 
-                                className="kpiBtn kpiBtnPrimary"
-                                style={{ padding: '0.35rem 0.65rem', fontSize: '0.775rem' }}
-                                title={entry ? 'แก้ไขผลการดำเนินงาน' : 'กรอกผลการดำเนินงาน'}
-                                onClick={() => handleOpenAnswer(ind)}
-                              >
-                                <Calculator size={12} />
-                                <span>{entry ? 'แก้ไขผล' : 'ตอบ'}</span>
-                              </button>
-                            )}
-
-                            {/* Edit Indicator Definition Button: Admin only */}
-                            {userCanEdit && (
-                              <button 
-                                className="kpiBtnIconOnly"
-                                title="แก้ไขข้อมูลตัวชี้วัด (คำถามหลัก/ตัวตั้ง/ตัวหาร/เป้าหมาย)"
-                                onClick={() => handleOpenEditIndicator(ind)}
-                              >
-                                <Edit size={14} />
-                              </button>
-                            )}
-
-                            {/* Delete Indicator Button: Admin only */}
-                            {userCanDelete && (
-                              <button 
-                                className="kpiBtnIconOnly danger"
-                                title="ลบตัวชี้วัดนี้"
-                                onClick={() => handleDeleteIndicator(ind)}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-
-                            {/* Show dash if user has no action permissions on this indicator */}
-                            {!userCanAnswer && !userCanEdit && !userCanDelete && (
-                              <span style={{ color: 'var(--kpi-text-muted)', fontSize: '0.8125rem' }}>-</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                        {userCanEdit && (
+                          <button
+                            type="button"
+                            className="kpiIconBtn"
+                            title="แก้ไขตัวชี้วัด"
+                            onClick={() => handleOpenEditIndicator(ind)}
+                          >
+                            <Edit size={14} />
+                          </button>
+                        )}
+                        {userCanDelete && (
+                          <button
+                            type="button"
+                            className="kpiIconBtn danger"
+                            title="ลบตัวชี้วัด"
+                            onClick={() => handleDeleteIndicator(ind)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
+
+          {/* 5. Footer ตาราง per design.md */}
+          <footer className="kpiTableFooter">
+            <div className="kpiTableNote">
+              หมายเหตุ: ข้อมูลตัวชี้วัดปีงบประมาณ {selectedYear || '2570'} การบันทึกผลดำเนินการต้องอยู่ในรอบเวลาที่กำหนด
+            </div>
+            <div className="kpiTableCount">
+              แสดง {displayedIndicators.length} จาก {indicators.length} รายการ
+            </div>
+          </footer>
         </div>
 
         {/* ── MODAL 1: ANSWER ENTRY (Simplified per user request) ── */}
@@ -1315,58 +1311,64 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
             <div className="kpiModalCard" onClick={(e) => e.stopPropagation()}>
               <div className="kpiModalHeader">
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--kpi-teal-700)', fontWeight: 600 }}>
+                  <div className="kpiModalSubBadge">
                     {activeIndicator.code ? `${activeIndicator.code} • ` : ''}{activeIndicator.frequency}
-                  </span>
+                  </div>
                   <h2>ตอบผลการดำเนินงานตัวชี้วัด</h2>
                 </div>
-                <button className="kpiModalClose" onClick={() => setAnswerModalOpen(false)}>
+                <button className="kpiModalClose" onClick={() => setAnswerModalOpen(false)} aria-label="ปิดหน้าต่าง">
                   <X size={20} />
                 </button>
               </div>
 
               <div className="kpiModalBody">
-                <div style={{ background: 'var(--kpi-surface-subtle)', padding: '0.875rem 1rem', borderRadius: 'var(--kpi-radius-md)', border: '1px solid var(--kpi-border)' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--kpi-text-muted)', marginBottom: '0.25rem' }}>
+                <div className="kpiIndicatorSummaryBox">
+                  <div className="kpiSummaryCategory">
                     {activeIndicator.category} {activeIndicator.subcategory ? `› ${activeIndicator.subcategory}` : ''}
                   </div>
                   {(activeIndicator.numeratorName || activeIndicator.denominatorName) && (
-                    <div style={{ fontWeight: 600, color: 'var(--kpi-text-primary)', lineHeight: 1.45, marginBottom: '0.4rem', fontSize: '0.95rem' }}>
+                    <div className="kpiSummaryTitle">
                       {activeIndicator.title}
                     </div>
                   )}
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--kpi-text-secondary)' }}>
-                    <strong>เป้าหมาย:</strong>{' '}
-                    {activeIndicator.targetValue !== null 
-                      ? `${activeIndicator.targetOperator || '>='} ${activeIndicator.targetValue}${activeIndicator.targetUnit || '%'}`
-                      : activeIndicator.targetRaw || 'รอระบุเป้าหมาย'}
-                    {' '}• <strong>ผู้รับผิดชอบ:</strong> {activeIndicator.responsibleName || 'ไม่ระบุ'}
+                  <div className="kpiSummaryMeta">
+                    <span>
+                      <strong>เป้าหมาย:</strong>{' '}
+                      {activeIndicator.targetValue !== null 
+                        ? `${activeIndicator.targetOperator || '>='} ${activeIndicator.targetValue}${activeIndicator.targetUnit || '%'}`
+                        : activeIndicator.targetRaw || 'รอระบุเป้าหมาย'}
+                    </span>
+                    <span className="kpiSummaryMetaDivider">•</span>
+                    <span><strong>ผู้รับผิดชอบ:</strong> {activeIndicator.responsibleName || 'ไม่ระบุ'}</span>
                   </div>
                 </div>
 
                 {/* Period Selector */}
                 <div className="kpiFormGroup">
-                  <label style={{ fontWeight: 600 }}>รอบการประเมิน (ตามความถี่ {activeIndicator.frequency}):</label>
-                  <select 
-                    className="kpiTextInput"
-                    value={formPeriodKey}
-                    onChange={(e) => handleModalPeriodChange(e.target.value)}
-                  >
-                    {getPeriodsForFrequency(activeIndicator.frequency).map(p => (
-                      <option key={p.key} value={p.key}>{p.label} - {p.description}</option>
-                    ))}
-                  </select>
+                  <label className="kpiFormLabel">
+                    <span>รอบการประเมิน (ตามความถี่ {activeIndicator.frequency}):</span>
+                  </label>
+                  <div className="kpiSelectWrapper">
+                    <select 
+                      className="kpiSelectInput"
+                      value={formPeriodKey}
+                      onChange={(e) => handleModalPeriodChange(e.target.value)}
+                    >
+                      {getPeriodsForFrequency(activeIndicator.frequency).map(p => (
+                        <option key={p.key} value={p.key}>{p.label} - {p.description}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} className="kpiSelectArrow" />
+                  </div>
                 </div>
 
                 {/* If Indicator HAS Numerator and Denominator */}
                 {activeIndicator.numeratorName || activeIndicator.denominatorName ? (
                   <>
                     <div className="kpiFormGroup">
-                      <label style={{ display: 'block', marginBottom: '0.45rem' }}>
-                        <span style={{ display: 'inline-block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--kpi-teal-700)', background: 'var(--kpi-teal-50)', padding: '0.15rem 0.5rem', borderRadius: '4px', marginBottom: '0.3rem' }}>
-                          คำถามตัวตั้ง (คำถามรอง 1)
-                        </span>
-                        <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, color: 'var(--kpi-text-primary)', lineHeight: 1.5 }}>
+                      <label className="kpiQuestionCardLabel">
+                        <span className="kpiFieldBadge">คำถามตัวตั้ง (คำถามรอง 1)</span>
+                        <span className="kpiQuestionText">
                           {activeIndicator.numeratorName || 'ระบุค่าตัวตั้ง'}
                         </span>
                       </label>
@@ -1382,11 +1384,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     </div>
 
                     <div className="kpiFormGroup">
-                      <label style={{ display: 'block', marginBottom: '0.45rem' }}>
-                        <span style={{ display: 'inline-block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--kpi-teal-700)', background: 'var(--kpi-teal-50)', padding: '0.15rem 0.5rem', borderRadius: '4px', marginBottom: '0.3rem' }}>
-                          คำถามตัวหาร (คำถามรอง 2)
-                        </span>
-                        <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, color: 'var(--kpi-text-primary)', lineHeight: 1.5 }}>
+                      <label className="kpiQuestionCardLabel">
+                        <span className="kpiFieldBadge">คำถามตัวหาร (คำถามรอง 2)</span>
+                        <span className="kpiQuestionText">
                           {activeIndicator.denominatorName || 'ระบุค่าตัวหาร'}
                         </span>
                       </label>
@@ -1404,7 +1404,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     <div className="kpiCalcPreview">
                       <div>
                         <strong style={{ display: 'block', marginBottom: '0.2rem' }}>ผลการคำนวณอัตโนมัติ:</strong>
-                        <div>
+                        <div style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {computedPercentage !== null 
                             ? `${formNumerator} ÷ ${formDenominator} × 100 = ${computedPercentage}%`
                             : 'กรอกตัวตั้งและตัวหารเพื่อคำนวณร้อยละ'}
@@ -1426,11 +1426,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                 ) : (
                   /* Single Input Field if NO Numerator/Denominator (per user request) */
                   <div className="kpiFormGroup">
-                    <label style={{ display: 'block', marginBottom: '0.45rem' }}>
-                      <span style={{ display: 'inline-block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--kpi-teal-700)', background: 'var(--kpi-teal-50)', padding: '0.15rem 0.5rem', borderRadius: '4px', marginBottom: '0.3rem' }}>
-                        คำถามตัวชี้วัด (คำถามหลัก)
-                      </span>
-                      <span style={{ display: 'block', fontSize: '1rem', fontWeight: 600, color: 'var(--kpi-text-primary)', lineHeight: 1.5 }}>
+                    <label className="kpiQuestionCardLabel">
+                      <span className="kpiFieldBadge">คำถามตัวชี้วัด (คำถามหลัก)</span>
+                      <span className="kpiQuestionText">
                         {activeIndicator.title}
                       </span>
                     </label>
@@ -1451,6 +1449,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   className="kpiBtn kpiBtnSecondary" 
                   onClick={() => setAnswerModalOpen(false)}
                 >
+                  <X size={16} />
                   ยกเลิก
                 </button>
                 <button 
@@ -1458,6 +1457,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   onClick={handleSaveAnswer}
                   disabled={saving}
                 >
+                  <Check size={16} />
                   {saving ? 'กำลังบันทึก...' : 'บันทึกผลการดำเนินงาน'}
                 </button>
               </div>
@@ -1468,189 +1468,274 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         {/* ── MODAL 2: EDIT / CREATE INDICATOR (Columns A - N) ── */}
         {editIndicatorModalOpen && (
           <div className="kpiModalOverlay" onClick={() => setEditIndicatorModalOpen(false)}>
-            <div className="kpiModalCard" style={{ maxWidth: '760px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="kpiModalCard kpiModalCardWide" onClick={(e) => e.stopPropagation()}>
               <div className="kpiModalHeader">
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--kpi-teal-700)', fontWeight: 600 }}>
-                    {isCreatingNew ? 'สร้างตัวชี้วัดใหม่' : 'แก้ไขข้อมูลตัวชี้วัด (A - N)'}
-                  </span>
+                  <div className="kpiModalSubBadge">
+                    {isCreatingNew ? 'สร้างตัวชี้วัดใหม่' : 'แก้ไขโครงสร้างตัวชี้วัด (Columns A — N)'}
+                  </div>
                   <h2>{isCreatingNew ? 'เพิ่มตัวชี้วัดลงในชุดข้อมูล' : 'แก้ไขข้อมูลตัวชี้วัด'}</h2>
                 </div>
-                <button className="kpiModalClose" onClick={() => setEditIndicatorModalOpen(false)}>
+                <button className="kpiModalClose" onClick={() => setEditIndicatorModalOpen(false)} aria-label="ปิดหน้าต่าง">
                   <X size={20} />
                 </button>
               </div>
 
               <div className="kpiModalBody">
-                {/* Row 1: Sequence & Code & OldCode */}
-                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr', gap: '0.75rem' }}>
-                  <div className="kpiFormGroup">
-                    <label>ลำดับ (A):</label>
-                    <input 
-                      type="text"
-                      placeholder="เช่น 1, 32"
-                      className="kpiTextInput"
-                      value={indFormSequence}
-                      onChange={(e) => setIndFormSequence(e.target.value)}
-                    />
+                {/* Section 1: ข้อมูลลำดับและรหัสอ้างอิง */}
+                <div className="kpiFormSection">
+                  <div className="kpiSectionHeader">
+                    <Hash size={16} />
+                    <span>ข้อมูลลำดับและรหัสอ้างอิง</span>
                   </div>
-                  <div className="kpiFormGroup">
-                    <label>รหัส (D):</label>
-                    <input 
-                      type="text"
-                      placeholder="เช่น HR-GID-0201"
-                      className="kpiTextInput"
-                      value={indFormCode}
-                      onChange={(e) => setIndFormCode(e.target.value)}
-                    />
-                  </div>
-                  <div className="kpiFormGroup">
-                    <label>รหัสเดิม (E):</label>
-                    <input 
-                      type="text"
-                      placeholder="เช่น DG0201"
-                      className="kpiTextInput"
-                      value={indFormOldCode}
-                      onChange={(e) => setIndFormOldCode(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Row 2: Category & Subcategory */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.75rem' }}>
-                  <div className="kpiFormGroup">
-                    <label>หมวดตัวชี้วัด (B):</label>
-                    <input 
-                      type="text"
-                      placeholder="เช่น หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ..."
-                      className="kpiTextInput"
-                      value={indFormCategory}
-                      onChange={(e) => setIndFormCategory(e.target.value)}
-                    />
-                  </div>
-                  <div className="kpiFormGroup">
-                    <label>ประเด็น / กลุ่มโรค (C):</label>
-                    <input 
-                      type="text"
-                      placeholder="เช่น โรคเรื้อรัง, Fast Track..."
-                      className="kpiTextInput"
-                      value={indFormSubcategory}
-                      onChange={(e) => setIndFormSubcategory(e.target.value)}
-                    />
+                  <div className="kpiFormGridCustom1">
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>ลำดับ</span>
+                        <span className="kpiColBadge">A</span>
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="เช่น 1, 32"
+                        className="kpiTextInput"
+                        value={indFormSequence}
+                        onChange={(e) => setIndFormSequence(e.target.value)}
+                      />
+                    </div>
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>รหัสตัวชี้วัด</span>
+                        <span className="kpiColBadge">D</span>
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="เช่น HR-GID-0201"
+                        className="kpiTextInput"
+                        value={indFormCode}
+                        onChange={(e) => setIndFormCode(e.target.value)}
+                      />
+                    </div>
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>รหัสเดิม</span>
+                        <span className="kpiColBadge">E</span>
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="เช่น DG0201 (ถ้ามี)"
+                        className="kpiTextInput"
+                        value={indFormOldCode}
+                        onChange={(e) => setIndFormOldCode(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Row 3: Frequency & Type & Responsible */}
-                <div style={{ display: 'grid', gridTemplateColumns: '140px 140px 1fr', gap: '0.75rem' }}>
-                  <div className="kpiFormGroup">
-                    <label>ความถี่ (F):</label>
-                    <select 
-                      className="kpiTextInput"
-                      value={indFormFrequency}
-                      onChange={(e) => setIndFormFrequency(e.target.value)}
-                    >
-                      <option value="ราย 6 เดือน">ราย 6 เดือน</option>
-                      <option value="รายไตรมาส">รายไตรมาส</option>
-                      <option value="รายเดือน">รายเดือน</option>
-                      <option value="รายปี">รายปี</option>
-                    </select>
+                {/* Section 2: หมวดหมู่และการจัดกลุ่มข้อมูล */}
+                <div className="kpiFormSection">
+                  <div className="kpiSectionHeader">
+                    <Layers size={16} />
+                    <span>หมวดหมู่และการจัดกลุ่มข้อมูล</span>
                   </div>
-                  <div className="kpiFormGroup">
-                    <label>ประเภท (N):</label>
-                    <input 
-                      type="text"
-                      placeholder="เช่น HA, Zone"
-                      className="kpiTextInput"
-                      value={indFormType}
-                      onChange={(e) => setIndFormType(e.target.value)}
-                    />
+                  <div className="kpiFormGrid2">
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>หมวดตัวชี้วัด</span>
+                        <span className="kpiColBadge">B</span>
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="เช่น หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ หรือ ยุทธศาสตร์ที่1"
+                        className="kpiTextInput"
+                        value={indFormCategory}
+                        onChange={(e) => setIndFormCategory(e.target.value)}
+                      />
+                    </div>
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>ประเด็น / กลุ่มโรค</span>
+                        <span className="kpiColBadge">C</span>
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="เช่น โรคเรื้อรัง, Fast Track..."
+                        className="kpiTextInput"
+                        value={indFormSubcategory}
+                        onChange={(e) => setIndFormSubcategory(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="kpiFormGroup">
-                    <label>ผู้รับผิดชอบ (K):</label>
-                    <input 
-                      type="text"
-                      placeholder="ระบุชื่อบุคลากรหรือทีมงาน..."
-                      className="kpiTextInput"
-                      value={indFormResponsible}
-                      onChange={(e) => setIndFormResponsible(e.target.value)}
-                    />
+
+                  <div className="kpiFormGridCustom2">
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>ความถี่การรายงาน</span>
+                        <span className="kpiColBadge">F</span>
+                      </label>
+                      <div className="kpiSelectWrapper">
+                        <select 
+                          className="kpiSelectInput"
+                          value={indFormFrequency}
+                          onChange={(e) => setIndFormFrequency(e.target.value)}
+                        >
+                          <option value="ราย 6 เดือน">ราย 6 เดือน</option>
+                          <option value="รายไตรมาส">รายไตรมาส</option>
+                          <option value="รายเดือน">รายเดือน</option>
+                          <option value="รายปี">รายปี</option>
+                        </select>
+                        <ChevronDown size={16} className="kpiSelectArrow" />
+                      </div>
+                    </div>
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>ประเภท</span>
+                        <span className="kpiColBadge">N</span>
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="เช่น HA, Zone"
+                        className="kpiTextInput"
+                        value={indFormType}
+                        onChange={(e) => setIndFormType(e.target.value)}
+                      />
+                    </div>
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>ผู้รับผิดชอบ</span>
+                        <span className="kpiColBadge">K</span>
+                      </label>
+                      <input 
+                        type="text"
+                        placeholder="ระบุชื่อบุคลากรหรือทีมงาน..."
+                        className="kpiTextInput"
+                        value={indFormResponsible}
+                        onChange={(e) => setIndFormResponsible(e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Row 4: Title / Main Question (G) */}
-                <div className="kpiFormGroup">
-                  <label>ตัวชี้วัด / คำถามหลัก (G): *</label>
-                  <textarea 
-                    placeholder="กรอกชื่อตัวชี้วัดหรือคำถามหลัก..."
-                    className="kpiTextarea"
-                    value={indFormTitle}
-                    onChange={(e) => setIndFormTitle(e.target.value)}
-                    required
-                  />
-                </div>
+                {/* Section 3: นิยามและคำถามตัวชี้วัด */}
+                <div className="kpiFormSection">
+                  <div className="kpiSectionHeader">
+                    <FileText size={16} />
+                    <span>นิยามและคำถามตัวชี้วัด</span>
+                  </div>
 
-                {/* Row 5: Numerator & Denominator (H & I) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div className="kpiFormGroup">
-                    <label>ตัวตั้ง / คำถามรอง 1 (H):</label>
+                    <label className="kpiFormLabel">
+                      <span>ตัวชี้วัด / คำถามหลัก <span className="kpiRequired">*</span></span>
+                      <span className="kpiColBadge primary">G</span>
+                    </label>
                     <textarea 
-                      placeholder="คำอธิบายตัวตั้ง (ถ้ามี)..."
+                      placeholder="กรอกชื่อตัวชี้วัดหรือคำถามหลักที่ต้องการจัดเก็บผลการดำเนินงาน..."
                       className="kpiTextarea"
-                      value={indFormNumeratorName}
-                      onChange={(e) => setIndFormNumeratorName(e.target.value)}
+                      rows={3}
+                      value={indFormTitle}
+                      onChange={(e) => setIndFormTitle(e.target.value)}
+                      required
                     />
                   </div>
-                  <div className="kpiFormGroup">
-                    <label>ตัวหาร / คำถามรอง 2 (I):</label>
-                    <textarea 
-                      placeholder="คำอธิบายตัวหาร (ถ้ามี)..."
-                      className="kpiTextarea"
-                      value={indFormDenominatorName}
-                      onChange={(e) => setIndFormDenominatorName(e.target.value)}
-                    />
+
+                  <div className="kpiFormGrid2">
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>ตัวตั้ง / คำถามรอง 1</span>
+                        <span className="kpiColBadge">H</span>
+                      </label>
+                      <textarea 
+                        placeholder="คำอธิบายตัวตั้ง (ถ้ามี)..."
+                        className="kpiTextarea"
+                        rows={2}
+                        value={indFormNumeratorName}
+                        onChange={(e) => setIndFormNumeratorName(e.target.value)}
+                      />
+                    </div>
+                    <div className="kpiFormGroup">
+                      <label className="kpiFormLabel">
+                        <span>ตัวหาร / คำถามรอง 2</span>
+                        <span className="kpiColBadge">I</span>
+                      </label>
+                      <textarea 
+                        placeholder="คำอธิบายตัวหาร (ถ้ามี)..."
+                        className="kpiTextarea"
+                        rows={2}
+                        value={indFormDenominatorName}
+                        onChange={(e) => setIndFormDenominatorName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="kpiFormHint">
+                    💡 หากระบุทั้งตัวตั้ง (H) และตัวหาร (I) ระบบจะเปิดโหมดคำนวณร้อยละอัตโนมัติ (ตัวตั้ง ÷ ตัวหาร × 100)
                   </div>
                 </div>
 
-                {/* Row 6: Target Setting (J) */}
-                <div style={{ background: 'var(--kpi-surface-subtle)', padding: '1rem', borderRadius: 'var(--kpi-radius-md)', border: '1px solid var(--kpi-border)' }}>
-                  <label style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem', display: 'block' }}>
-                    เกณฑ์เป้าหมาย (J):
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 80px 1.2fr', gap: '0.5rem' }}>
-                    <select 
-                      className="kpiTextInput"
-                      value={indFormTargetOp}
-                      onChange={(e) => setIndFormTargetOp(e.target.value)}
-                    >
-                      <option value=">=">&gt;= (มากกว่าเท่ากับ)</option>
-                      <option value="<=">&lt;= (น้อยกว่าเท่ากับ)</option>
-                      <option value=">">&gt; (มากกว่า)</option>
-                      <option value="<">&lt; (น้อยกว่า)</option>
-                      <option value="=">= (เท่ากับ)</option>
-                      <option value="MIN">น้อยที่สุด (MIN)</option>
-                    </select>
-                    <input 
-                      type="number"
-                      step="any"
-                      placeholder="ตัวเลข เช่น 40, 0"
-                      className="kpiTextInput"
-                      value={indFormTargetVal}
-                      onChange={(e) => setIndFormTargetVal(e.target.value)}
-                    />
-                    <input 
-                      type="text"
-                      placeholder="%"
-                      className="kpiTextInput"
-                      value={indFormTargetUnit}
-                      onChange={(e) => setIndFormTargetUnit(e.target.value)}
-                    />
-                    <input 
-                      type="text"
-                      placeholder="ข้อความ เช่น ≥ 40%"
-                      className="kpiTextInput"
-                      value={indFormTargetRaw}
-                      onChange={(e) => setIndFormTargetRaw(e.target.value)}
-                    />
+                {/* Section 4: เกณฑ์เป้าหมาย (J) */}
+                <div className="kpiTargetBox">
+                  <div className="kpiSectionHeader">
+                    <Target size={16} />
+                    <span>เกณฑ์เป้าหมายและการประเมิน (J)</span>
+                  </div>
+
+                  <div className="kpiTargetGrid">
+                    <div className="kpiTargetField">
+                      <label className="kpiMiniLabel">เครื่องหมาย</label>
+                      <div className="kpiSelectWrapper">
+                        <select 
+                          className="kpiSelectInput"
+                          value={indFormTargetOp}
+                          onChange={(e) => setIndFormTargetOp(e.target.value)}
+                        >
+                          <option value=">=">&gt;= (มากกว่าเท่ากับ)</option>
+                          <option value="<=">&lt;= (น้อยกว่าเท่ากับ)</option>
+                          <option value=">">&gt; (มากกว่า)</option>
+                          <option value="<">&lt; (น้อยกว่า)</option>
+                          <option value="=">= (เท่ากับ)</option>
+                          <option value="MIN">น้อยที่สุด (MIN)</option>
+                        </select>
+                        <ChevronDown size={16} className="kpiSelectArrow" />
+                      </div>
+                    </div>
+                    <div className="kpiTargetField">
+                      <label className="kpiMiniLabel">ค่าเป้าหมาย (ตัวเลข)</label>
+                      <input 
+                        type="number"
+                        step="any"
+                        placeholder="เช่น 40, 0"
+                        className="kpiTextInput"
+                        value={indFormTargetVal}
+                        onChange={(e) => setIndFormTargetVal(e.target.value)}
+                      />
+                    </div>
+                    <div className="kpiTargetField">
+                      <label className="kpiMiniLabel">หน่วย</label>
+                      <input 
+                        type="text"
+                        placeholder="เช่น %"
+                        className="kpiTextInput"
+                        value={indFormTargetUnit}
+                        onChange={(e) => setIndFormTargetUnit(e.target.value)}
+                      />
+                    </div>
+                    <div className="kpiTargetField">
+                      <label className="kpiMiniLabel">ข้อความกำกับเต็ม (Raw)</label>
+                      <input 
+                        type="text"
+                        placeholder="ข้อความ เช่น ≥ 40%"
+                        className="kpiTextInput"
+                        value={indFormTargetRaw}
+                        onChange={(e) => setIndFormTargetRaw(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Target Live Preview */}
+                  <div className="kpiTargetPreview">
+                    <span>ตัวอย่างผลลัพธ์เกณฑ์เป้าหมาย:</span>
+                    <span className="kpiTargetPreviewBadge">
+                      {indFormTargetOp} {indFormTargetVal || '0'}{indFormTargetUnit || '%'}
+                      {indFormTargetRaw ? ` (${indFormTargetRaw})` : ''}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1660,6 +1745,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   className="kpiBtn kpiBtnSecondary" 
                   onClick={() => setEditIndicatorModalOpen(false)}
                 >
+                  <X size={16} />
                   ยกเลิก
                 </button>
                 <button 
@@ -1667,6 +1753,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   onClick={handleSaveIndicator}
                   disabled={saving}
                 >
+                  <Check size={16} />
                   {saving ? 'กำลังบันทึก...' : (isCreatingNew ? 'เพิ่มตัวชี้วัด' : 'บันทึกการแก้ไข')}
                 </button>
               </div>
@@ -1680,20 +1767,20 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
             <div className="kpiModalCard" style={{ maxWidth: '840px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
               <div className="kpiModalHeader">
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--kpi-teal-700)', fontWeight: 600 }}>
+                  <div className="kpiModalSubBadge">
                     ผู้ดูแลระบบ (Admin)
-                  </span>
+                  </div>
                   <h2>นำเข้าชุดตัวชี้วัด (Excel .xlsx / CSV)</h2>
                 </div>
-                <button className="kpiModalClose" onClick={() => setImportModalOpen(false)}>
+                <button className="kpiModalClose" onClick={() => setImportModalOpen(false)} aria-label="ปิดหน้าต่าง">
                   <X size={20} />
                 </button>
               </div>
 
               <div className="kpiModalBody">
-                <div style={{ display: 'grid', gridTemplateColumns: '140px 180px 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div className="kpiFormGridCustom2" style={{ marginBottom: '0.5rem' }}>
                   <div className="kpiFormGroup">
-                    <label>ปีงบประมาณ:</label>
+                    <label className="kpiFormLabel"><span>ปีงบประมาณ</span></label>
                     <input 
                       type="text"
                       className="kpiTextInput"
@@ -1703,7 +1790,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     />
                   </div>
                   <div className="kpiFormGroup">
-                    <label>รหัสชุดตัวชี้วัด:</label>
+                    <label className="kpiFormLabel"><span>รหัสชุดตัวชี้วัด</span></label>
                     <input 
                       type="text"
                       className="kpiTextInput"
@@ -1713,7 +1800,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     />
                   </div>
                   <div className="kpiFormGroup">
-                    <label>ชื่อชุดตัวชี้วัด:</label>
+                    <label className="kpiFormLabel"><span>ชื่อชุดตัวชี้วัด</span></label>
                     <input 
                       type="text"
                       className="kpiTextInput"
@@ -1899,6 +1986,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     setImportError(null)
                   }}
                 >
+                  <X size={16} />
                   ยกเลิก
                 </button>
                 <button 
@@ -1906,6 +1994,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   onClick={handleExecuteImport}
                   disabled={saving || importIndicators.length === 0}
                 >
+                  <UploadCloud size={16} />
                   {saving 
                     ? 'กำลังนำเข้าสู่ระบบ...' 
                     : importIndicators.length > 0 
