@@ -479,16 +479,51 @@ export class ScreeningQueueService {
       throw new Error('เลขประจำตัวประชาชนต้องเป็นตัวเลข 13 หลัก')
     }
 
-    const title = input.title?.trim() || null
-    const firstName = input.firstName?.trim() || null
-    const lastName = input.lastName?.trim() || null
+    let title = input.title?.trim() || null
+    let firstName = input.firstName?.trim() || null
+    let lastName = input.lastName?.trim() || null
     let fullName = input.fullName?.trim() || ''
+
+    const commonTitles = ['นางสาว', 'นาย', 'นาง', 'เด็กชาย', 'เด็กหญิง', 'ด.ช.', 'ด.ญ.', 'พระภิกษุ', 'พระ']
+
+    // Detect title from fullName if not explicitly provided
+    if (!title && fullName) {
+      for (const t of commonTitles) {
+        if (fullName.startsWith(t)) {
+          title = t
+          break
+        }
+      }
+    }
+
+    // Ensure title and firstName in fullName have a separating space (matching smart card output)
+    if (title && fullName) {
+      if (fullName.startsWith(title + ' ')) {
+        // already properly separated
+      } else if (fullName.startsWith(title)) {
+        fullName = `${title} ${fullName.slice(title.length).trim()}`
+      }
+    }
 
     if (!fullName) {
       fullName = [title, firstName, lastName].filter(Boolean).join(' ').trim()
     }
     if (!fullName) {
       fullName = `ผู้รับบริการ (${rawCid})`
+    }
+
+    // Populate missing firstName/lastName from fullName
+    if (!firstName && fullName) {
+      const withoutTitle = title && fullName.startsWith(title)
+        ? fullName.slice(title.length).trim()
+        : fullName
+      const parts = withoutTitle.split(/\s+/).filter(Boolean)
+      if (parts.length > 0) {
+        firstName = parts[0]
+        if (!lastName && parts.length > 1) {
+          lastName = parts.slice(1).join(' ')
+        }
+      }
     }
 
     let rawPayloadString: string | null = null

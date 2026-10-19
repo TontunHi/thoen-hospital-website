@@ -30,6 +30,7 @@ import {
   FolderOpen,
   Eye,
 } from 'lucide-react'
+import { getInitials } from '@/lib/formatters'
 import './equipment-borrow.css'
 
 interface BorrowDashboardStats {
@@ -254,7 +255,7 @@ export default function EquipmentBorrowClient({
   const fetchMyRequests = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/member/equipment-borrow/requests?mode=my')
+      const res = await fetch('/api/member/equipment-borrow/my-requests')
       const json = await res.json()
       if (json.success) {
         setMyRequests(json.items || [])
@@ -271,9 +272,10 @@ export default function EquipmentBorrowClient({
     if (!currentUser.canManageBorrow) return
     setLoading(true)
     try {
-      const params = new URLSearchParams({ mode: 'pending' })
+      const params = new URLSearchParams()
       if (approvalSearch.trim()) params.append('search', approvalSearch.trim())
-      const res = await fetch(`/api/member/equipment-borrow/requests?${params.toString()}`)
+      const queryString = params.toString() ? `?${params.toString()}` : ''
+      const res = await fetch(`/api/member/equipment-borrow/pending-requests${queryString}`)
       const json = await res.json()
       if (json.success) {
         setPendingRequests(json.items || [])
@@ -290,9 +292,10 @@ export default function EquipmentBorrowClient({
     if (!currentUser.canManageBorrow) return
     setLoading(true)
     try {
-      const params = new URLSearchParams({ mode: 'active' })
+      const params = new URLSearchParams()
       if (approvalSearch.trim()) params.append('search', approvalSearch.trim())
-      const res = await fetch(`/api/member/equipment-borrow/requests?${params.toString()}`)
+      const queryString = params.toString() ? `?${params.toString()}` : ''
+      const res = await fetch(`/api/member/equipment-borrow/active-loans${queryString}`)
       const json = await res.json()
       if (json.success) {
         setActiveLoans(json.items || [])
@@ -309,10 +312,11 @@ export default function EquipmentBorrowClient({
     if (!currentUser.canManageBorrow) return
     setLoading(true)
     try {
-      const params = new URLSearchParams({ mode: 'all' })
+      const params = new URLSearchParams()
       if (approvalSearch.trim()) params.append('search', approvalSearch.trim())
       if (allRequestsStatusFilter !== 'ALL') params.append('status', allRequestsStatusFilter)
-      const res = await fetch(`/api/member/equipment-borrow/requests?${params.toString()}`)
+      const queryString = params.toString() ? `?${params.toString()}` : ''
+      const res = await fetch(`/api/member/equipment-borrow/history${queryString}`)
       const json = await res.json()
       if (json.success) {
         setAllRequests(json.items || [])
@@ -424,6 +428,18 @@ export default function EquipmentBorrowClient({
     }
     if (!borrowForm.purpose.trim()) {
       setErrorMsg('กรุณาระบุวัตถุประสงค์ในการยืม')
+      return
+    }
+    if (!borrowForm.borrowDate) {
+      setErrorMsg('กรุณาระบุวันที่เริ่มยืม')
+      return
+    }
+    if (!borrowForm.expectedReturnDate) {
+      setErrorMsg('กรุณาระบุวันที่คาดว่าจะส่งคืน')
+      return
+    }
+    if (borrowForm.borrowDate && borrowForm.expectedReturnDate && borrowForm.expectedReturnDate < borrowForm.borrowDate) {
+      setErrorMsg('วันที่คาดว่าจะส่งคืนต้องไม่ก่อนวันที่เริ่มยืม')
       return
     }
 
@@ -566,7 +582,11 @@ export default function EquipmentBorrowClient({
         notes: val.notes || null,
       }))
 
-    if (returnsPayload.length === 0) {
+    const allItemsAlreadyReturned = inspectModalData.items.every(
+      (it) => it.returnedQty >= it.quantity || it.status === 'CONSUMED'
+    )
+
+    if (returnsPayload.length === 0 && !allItemsAlreadyReturned) {
       setErrorMsg('กรุณาระบุจำนวนที่ส่งคืนอย่างน้อย 1 รายการ')
       setLoading(false)
       return
@@ -700,6 +720,56 @@ export default function EquipmentBorrowClient({
       default:
         return <span className="statusBadge">{status}</span>
     }
+  }
+
+  // Item Status Badge Helper
+  const renderItemStatusBadge = (itemStatus: string, requestStatus?: string) => {
+    if (requestStatus === 'REJECTED' || itemStatus === 'REJECTED') {
+      return (
+        <span className="statusBadge statusRejected" style={{ fontSize: '0.8125rem', padding: '0.2rem 0.5rem' }}>
+          ❌ ไม่อนุมัติ
+        </span>
+      )
+    }
+    if (requestStatus === 'PENDING' || itemStatus === 'PENDING') {
+      return (
+        <span className="statusBadge statusPending" style={{ fontSize: '0.8125rem', padding: '0.2rem 0.5rem' }}>
+          ⏳ รออนุมัติ
+        </span>
+      )
+    }
+    if (itemStatus === 'RETURNED') {
+      return (
+        <span className="statusBadge statusReturned" style={{ fontSize: '0.8125rem', padding: '0.2rem 0.5rem' }}>
+          ✅ คืนแล้ว
+        </span>
+      )
+    }
+    if (itemStatus === 'CONSUMED') {
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            fontSize: '0.8125rem',
+            fontWeight: 600,
+            padding: '0.2rem 0.5rem',
+            borderRadius: '9999px',
+            background: '#eff6ff',
+            color: '#1e40af',
+            border: '1px solid #bfdbfe',
+          }}
+        >
+          📦 เบิกจ่ายแล้ว
+        </span>
+      )
+    }
+    return (
+      <span className="statusBadge statusApproved" style={{ fontSize: '0.8125rem', padding: '0.2rem 0.5rem' }}>
+        📦 กำลังยืม
+      </span>
+    )
   }
 
   return (
@@ -923,8 +993,8 @@ export default function EquipmentBorrowClient({
                       >
                         {item.subType || (item.itemType === 'ASSET' ? 'ครุภัณฑ์' : 'วัสดุ')}
                       </span>
-                      <span className="stockBadge stockAvail">
-                        พร้อมยืม: {item.availableQty} {item.unit}
+                      <span className={`stockBadge ${item.availableQty > 0 ? 'stockAvail' : 'stockZero'}`}>
+                        {item.availableQty > 0 ? `พร้อมยืม: ${item.availableQty} ${item.unit}` : '📦 กำลังถูกยืม'}
                       </span>
                     </div>
 
@@ -951,7 +1021,7 @@ export default function EquipmentBorrowClient({
                     disabled={item.availableQty <= 0}
                   >
                     <Plus size={16} />
-                    หยิบใส่รายการขอยืม
+                    {item.availableQty > 0 ? 'หยิบใส่รายการขอยืม' : 'อยู่ระหว่างถูกยืม'}
                   </button>
                 </div>
               ))}
@@ -1608,9 +1678,11 @@ export default function EquipmentBorrowClient({
                   </div>
 
                   <div className="formGroup">
-                    <label>วันที่คาดว่าจะส่งคืน</label>
+                    <label>วันที่คาดว่าจะส่งคืน <span style={{ color: '#dc2626' }}>*</span></label>
                     <input
                       type="date"
+                      required
+                      min={borrowForm.borrowDate || undefined}
                       className="formControl"
                       value={borrowForm.expectedReturnDate}
                       onChange={(e) => setBorrowForm({ ...borrowForm, expectedReturnDate: e.target.value })}
@@ -1713,6 +1785,12 @@ export default function EquipmentBorrowClient({
                 <div><strong>วัตถุประสงค์:</strong> {inspectModalData.purpose}</div>
               </div>
 
+              {inspectModalData.items.every((it) => it.returnedQty >= it.quantity || it.status === 'CONSUMED') && (
+                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', borderRadius: '0.75rem', fontSize: '0.875rem' }}>
+                  ℹ️ รายการอุปกรณ์ทั้งหมดในคำขอนี้ได้รับการตรวจรับคืนครบแล้ว ท่านสามารถกดยืนยันเพื่อปิดคำขอและปรับสถานะเป็น &quot;ส่งคืนครบแล้ว&quot; ได้ทันที
+                </div>
+              )}
+
               <div className="formGroup">
                 <label>บันทึกสภาพและการรับคืนทีละรายการ</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -1721,11 +1799,11 @@ export default function EquipmentBorrowClient({
                     const remaining = item.quantity - item.returnedQty
 
                     return (
-                      <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem', background: 'white' }}>
+                      <div key={item.id} style={{ border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem', background: remaining <= 0 ? '#f8fafc' : 'white' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                           <span style={{ fontWeight: 600 }}>{item.itemName}</span>
-                          <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                            ยืมไป: {item.quantity} | คืนแล้ว: {item.returnedQty} | ค้างคืน: {remaining}
+                          <span style={{ fontSize: '0.85rem', color: remaining <= 0 ? '#16a34a' : '#64748b', fontWeight: remaining <= 0 ? 600 : 'normal' }}>
+                            {remaining <= 0 ? '✅ คืนครบแล้ว' : `ยืมไป: ${item.quantity} | คืนแล้ว: ${item.returnedQty} | ค้างคืน: ${remaining}`}
                           </span>
                         </div>
 
@@ -1735,7 +1813,8 @@ export default function EquipmentBorrowClient({
                             <input
                               type="number"
                               min={0}
-                              max={remaining}
+                              max={Math.max(0, remaining)}
+                              disabled={remaining <= 0}
                               className="formControl"
                               value={inputState.returnedQty}
                               onChange={(e) => {
@@ -1753,6 +1832,7 @@ export default function EquipmentBorrowClient({
                             <select
                               className="formControl"
                               value={inputState.condition}
+                              disabled={remaining <= 0}
                               onChange={(e) => {
                                 setReturnItemsInput({
                                   ...returnItemsInput,
@@ -1773,6 +1853,7 @@ export default function EquipmentBorrowClient({
                               className="formControl"
                               placeholder="เช่น สายมีรอยถลอก, สภาพสมบูรณ์..."
                               value={inputState.notes}
+                              disabled={remaining <= 0}
                               onChange={(e) => {
                                 setReturnItemsInput({
                                   ...returnItemsInput,
@@ -1794,7 +1875,9 @@ export default function EquipmentBorrowClient({
                 ยกเลิก
               </button>
               <button onClick={handleConfirmReturn} className="primaryButton">
-                บันทึกการตรวจรับคืน
+                {inspectModalData.items.every((it) => it.returnedQty >= it.quantity || it.status === 'CONSUMED')
+                  ? 'ยืนยันปิดคำขอ (คืนครบแล้ว)'
+                  : 'บันทึกการตรวจรับคืน'}
               </button>
             </div>
           </div>
@@ -1916,128 +1999,241 @@ export default function EquipmentBorrowClient({
         </div>
       )}
 
-      {/* ── MODAL 5: View Request Details ── */}
+      {/* ── MODAL 5: View Request Details (Hallmark Clinical Workbench) ── */}
       {viewDetailModalData && (
         <div className="modalBackdrop" onClick={() => setViewDetailModalData(null)}>
-          <div className="modalCard" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modalContent"
+            style={{ maxWidth: '780px' }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="detail-modal-title"
+          >
             <div className="modalHeader">
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>
-                  รายละเอียดคำขอยืม: {viewDetailModalData.requestNo}
-                </h3>
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  ยื่นคำขอเมื่อ {new Date(viewDetailModalData.createdAt).toLocaleString('th-TH')}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: '0.625rem',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    color: '#15856a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <FileText size={22} />
+                </div>
+                <div>
+                  <h3 id="detail-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
+                    รายละเอียดคำขอยืม: <span style={{ color: '#15856a' }}>{viewDetailModalData.requestNo}</span>
+                  </h3>
+                  <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                    ยื่นคำขอเมื่อ {new Date(viewDetailModalData.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} เวลา {new Date(viewDetailModalData.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setViewDetailModalData(null)}
-                className="iconButton"
-                aria-label="ปิด"
+                className="modalCloseBtn"
+                aria-label="ปิดหน้าต่าง"
               >
                 <X size={20} />
               </button>
             </div>
 
             <div className="modalBody">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '1.05rem', color: '#1e293b' }}>
-                    {viewDetailModalData.requesterName}
+              {/* Requester & Status Banner */}
+              <div className="detailRequesterBanner">
+                <div className="detailRequesterInfo">
+                  <div className="detailRequesterAvatar">
+                    {getInitials(viewDetailModalData.requesterName)}
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                    {viewDetailModalData.requesterDept || 'ไม่ระบุแผนก'}
-                    {viewDetailModalData.phone && ` • โทร. ${viewDetailModalData.phone}`}
+                  <div>
+                    <div className="detailRequesterName">
+                      {viewDetailModalData.requesterName}
+                    </div>
+                    <div className="detailRequesterMeta">
+                      <span>🏢 {viewDetailModalData.requesterDept || 'ไม่ระบุแผนก'}</span>
+                      {viewDetailModalData.phone && (
+                        <span>
+                          📞 <a href={`tel:${viewDetailModalData.phone}`} style={{ color: '#15856a', textDecoration: 'none' }}>
+                            {viewDetailModalData.phone}
+                          </a>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div>{renderStatusBadge(viewDetailModalData.status)}</div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem', background: '#f8fafc', padding: '0.85rem 1rem', borderRadius: 8 }}>
-                <div>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>วัตถุประสงค์:</span>
-                  <div style={{ fontWeight: 500 }}>{viewDetailModalData.purpose}</div>
+              {/* Borrow & Schedule Metadata Grid */}
+              <div className="detailMetaGrid">
+                <div className="detailMetaItem" style={{ gridColumn: '1 / -1' }}>
+                  <span className="detailMetaLabel"><FileText size={14} /> วัตถุประสงค์การยืม</span>
+                  <div className="detailMetaValue">{viewDetailModalData.purpose}</div>
                 </div>
+
                 {viewDetailModalData.location && (
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>สถานที่ใช้งาน:</span>
-                    <div style={{ fontWeight: 500 }}>📍 {viewDetailModalData.location}</div>
+                  <div className="detailMetaItem">
+                    <span className="detailMetaLabel"><MapPin size={14} /> สถานที่ใช้งาน</span>
+                    <div className="detailMetaValue">{viewDetailModalData.location}</div>
                   </div>
                 )}
-                <div>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>วันที่ยืม:</span>
-                  <div style={{ fontWeight: 500 }}>{new Date(viewDetailModalData.borrowDate).toLocaleDateString('th-TH')}</div>
+
+                <div className="detailMetaItem">
+                  <span className="detailMetaLabel"><Calendar size={14} /> วันที่เริ่มยืม</span>
+                  <div className="detailMetaValue">
+                    {new Date(viewDetailModalData.borrowDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
                 </div>
-                <div>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>กำหนดส่งคืน:</span>
-                  <div style={{ fontWeight: 500 }}>{viewDetailModalData.expectedReturnDate ? new Date(viewDetailModalData.expectedReturnDate).toLocaleDateString('th-TH') : '-'}</div>
+
+                <div className="detailMetaItem">
+                  <span className="detailMetaLabel"><Clock size={14} /> กำหนดส่งคืน</span>
+                  <div
+                    className={`detailMetaValue ${
+                      viewDetailModalData.expectedReturnDate &&
+                      new Date(viewDetailModalData.expectedReturnDate) < new Date() &&
+                      viewDetailModalData.status !== 'RETURNED'
+                        ? 'detailMetaValueDanger'
+                        : ''
+                    }`}
+                  >
+                    {viewDetailModalData.expectedReturnDate
+                      ? new Date(viewDetailModalData.expectedReturnDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : '-'}
+                  </div>
                 </div>
+
                 {viewDetailModalData.actualReturnDate && (
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>วันที่ส่งคืนจริง:</span>
-                    <div style={{ fontWeight: 500, color: '#059669' }}>✅ {new Date(viewDetailModalData.actualReturnDate).toLocaleDateString('th-TH')}</div>
+                  <div className="detailMetaItem">
+                    <span className="detailMetaLabel"><CheckCircle2 size={14} color="#16a34a" /> วันที่ส่งคืนจริง</span>
+                    <div className="detailMetaValue detailMetaValueSuccess">
+                      {new Date(viewDetailModalData.actualReturnDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
                   </div>
                 )}
+
                 {viewDetailModalData.approvedByName && (
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>ผู้อนุมัติ:</span>
-                    <div style={{ fontWeight: 500 }}>{viewDetailModalData.approvedByName}</div>
-                  </div>
-                )}
-                {viewDetailModalData.rejectReason && (
-                  <div style={{ gridColumn: '1 / -1', color: '#dc2626' }}>
-                    <span style={{ fontSize: '0.8rem' }}>เหตุผลที่ไม่อนุมัติ:</span>
-                    <div style={{ fontWeight: 500 }}>{viewDetailModalData.rejectReason}</div>
+                  <div className="detailMetaItem">
+                    <span className="detailMetaLabel"><ShieldCheck size={14} color="#15856a" /> ผู้อนุมัติคำขอ</span>
+                    <div className="detailMetaValue">{viewDetailModalData.approvedByName}</div>
                   </div>
                 )}
               </div>
 
-              <h4 style={{ margin: '1rem 0 0.5rem', fontSize: '0.95rem', color: '#334155' }}>
-                รายการอุปกรณ์ที่ยืม ({viewDetailModalData.items.length} รายการ)
-              </h4>
-              <table className="styledTable" style={{ fontSize: '0.875rem' }}>
-                <thead>
-                  <tr>
-                    <th>รายการ</th>
-                    <th style={{ textAlign: 'center' }}>ขอยืม</th>
-                    <th style={{ textAlign: 'center' }}>คืนแล้ว</th>
-                    <th>สถานะของ</th>
-                    <th>สภาพตอนส่งคืน</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewDetailModalData.items.map((it) => (
-                    <tr key={it.id}>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{it.itemName}</div>
-                        {it.itemCode && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>รหัส: {it.itemCode}</div>}
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{it.quantity}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 600, color: it.returnedQty >= it.quantity ? '#059669' : '#d97706' }}>
-                        {it.returnedQty}
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '0.8rem' }}>
-                          {it.status === 'RETURNED' ? '✅ คืนแล้ว' : it.status === 'CONSUMED' ? '📦 เบิกจ่ายแล้ว' : '⏳ กำลังยืม'}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '0.8rem' }}>
-                          {it.returnCondition === 'NORMAL' ? 'ปกติ' : it.returnCondition === 'DAMAGED' ? '⚠️ ชำรุด' : it.returnCondition === 'LOST' ? '❌ สูญหาย' : '-'}
-                        </span>
-                        {it.returnNotes && <div style={{ fontSize: '0.75rem', color: '#64748b' }}>หมายเหตุ: {it.returnNotes}</div>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {/* Reject Reason Alert */}
+              {viewDetailModalData.rejectReason && (
+                <div className="detailAlertBox detailAlertBoxReject">
+                  <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <strong style={{ display: 'block', marginBottom: '0.2rem' }}>เหตุผลที่ไม่อนุมัติ:</strong>
+                    <span>{viewDetailModalData.rejectReason}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Items Section */}
+              <div>
+                <div className="detailItemsHeading">
+                  <span>รายการอุปกรณ์และพัสดุที่ยืม</span>
+                  <span className="detailItemBadgeCount">{viewDetailModalData.items.length} รายการ</span>
+                </div>
+
+                <div className="tableContainer" style={{ marginTop: '0.75rem' }}>
+                  <table className="styledTable" style={{ fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr>
+                        <th>รายการ</th>
+                        <th style={{ textAlign: 'center', width: '80px' }}>ขอยืม</th>
+                        <th style={{ textAlign: 'center', width: '80px' }}>คืนแล้ว</th>
+                        <th style={{ width: '130px' }}>สถานะของ</th>
+                        <th>สภาพตอนส่งคืน</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewDetailModalData.items.map((it) => (
+                        <tr key={it.id}>
+                          <td>
+                            <div style={{ fontWeight: 600, color: '#0f172a' }}>{it.itemName}</div>
+                            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.2rem', alignItems: 'center' }}>
+                              {it.itemCode && (
+                                <span style={{ fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', padding: '0.1rem 0.4rem', borderRadius: 4 }}>
+                                  รหัส: {it.itemCode}
+                                </span>
+                              )}
+                              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                                ({it.itemType === 'ASSET' ? 'ครุภัณฑ์' : 'วัสดุ'})
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '0.9375rem' }}>
+                            {it.quantity}
+                          </td>
+                          <td
+                            style={{
+                              textAlign: 'center',
+                              fontWeight: 700,
+                              fontSize: '0.9375rem',
+                              color: it.returnedQty >= it.quantity ? '#16a34a' : it.returnedQty > 0 ? '#d97706' : '#64748b',
+                            }}
+                          >
+                            {it.returnedQty}
+                          </td>
+                          <td>
+                            {renderItemStatusBadge(it.status, viewDetailModalData.status)}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 500 }}>
+                              {it.returnCondition === 'NORMAL'
+                                ? '✨ สภาพปกติ'
+                                : it.returnCondition === 'DAMAGED'
+                                ? '⚠️ ชำรุด'
+                                : it.returnCondition === 'LOST'
+                                ? '❌ สูญหาย'
+                                : '-'}
+                            </div>
+                            {it.returnNotes && (
+                              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.15rem' }}>
+                                หมายเหตุ: {it.returnNotes}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
 
             <div className="modalFooter">
+              {currentUser.canManageBorrow &&
+                (viewDetailModalData.status === 'APPROVED' || viewDetailModalData.status === 'PARTIAL_RETURNED') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const req = viewDetailModalData
+                      setViewDetailModalData(null)
+                      openReturnInspectionModal(req)
+                    }}
+                    className="primaryButton"
+                    style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                  >
+                    <RotateCcw size={16} /> ดำเนินการตรวจรับคืนของ
+                  </button>
+                )}
               <button
                 type="button"
                 onClick={() => setViewDetailModalData(null)}
                 className="secondaryButton"
+                style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}
               >
                 ปิดหน้าต่าง
               </button>

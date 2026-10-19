@@ -5,13 +5,13 @@ import { z } from 'zod'
 
 const ReturnItemSchema = z.object({
   itemId: z.number().int().positive(),
-  returnedQty: z.number().int().positive('จำนวนที่ส่งคืนต้องมากกว่า 0'),
-  condition: z.enum(['NORMAL', 'DAMAGED', 'LOST']),
+  returnedQty: z.number().int().min(0, 'จำนวนที่ส่งคืนต้องไม่ติดลบ'),
+  condition: z.enum(['NORMAL', 'DAMAGED', 'LOST']).default('NORMAL'),
   notes: z.string().nullable().optional(),
 })
 
 const ProcessReturnSchema = z.object({
-  returns: z.array(ReturnItemSchema).min(1, 'ต้องระบุรายการที่ต้องการตรวจรับคืน'),
+  returns: z.array(ReturnItemSchema).default([]),
 })
 
 export async function POST(

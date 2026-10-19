@@ -214,6 +214,29 @@ describe('ScreeningQueueService and Utilities', () => {
       expect(mockDb.screeningQueue.create).not.toHaveBeenCalled()
       expect(item.status).toBe('WAITING')
     })
+
+    it('separates title and first name with space and auto-extracts firstName and lastName', async () => {
+      mockDb.screeningQueue.findFirst.mockResolvedValue(null)
+      mockDb.screeningQueue.create.mockImplementation((args: any) => Promise.resolve({
+        id: 99,
+        ...args.data,
+      }))
+      mockDb.screeningQueue.deleteMany.mockResolvedValue({ count: 0 })
+
+      const item = await service.addToQueue({
+        cid: '1529900998877',
+        title: 'นาย',
+        fullName: 'นายพิสุทธิ์ ยิ้มกุศล',
+      })
+
+      expect(mockDb.screeningQueue.create).toHaveBeenCalledTimes(1)
+      const createdData = mockDb.screeningQueue.create.mock.calls[0][0].data
+      expect(createdData.title).toBe('นาย')
+      expect(createdData.firstName).toBe('พิสุทธิ์')
+      expect(createdData.lastName).toBe('ยิ้มกุศล')
+      expect(createdData.fullName).toBe('นาย พิสุทธิ์ ยิ้มกุศล')
+      expect(item.fullName).toBe('นาย พิสุทธิ์ ยิ้มกุศล')
+    })
   })
 
   describe('updateQueueStatus', () => {

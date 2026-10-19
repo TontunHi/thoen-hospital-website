@@ -15,68 +15,17 @@ const BasketItemSchema = z.object({
 const CreateBorrowRequestSchema = z.object({
   purpose: z.string().min(1, 'กรุณาระบุวัตถุประสงค์ในการยืม'),
   location: z.string().nullable().optional(),
-  borrowDate: z.string().min(1, 'กรุณาระบุวันที่เริ่มยืม'),
-  expectedReturnDate: z.string().nullable().optional(),
+  borrowDate: z.string({ message: 'กรุณาระบุวันที่เริ่มยืม' }).min(1, 'กรุณาระบุวันที่เริ่มยืม'),
+  expectedReturnDate: z.string({ message: 'กรุณาระบุวันที่คาดว่าจะส่งคืน' }).min(1, 'กรุณาระบุวันที่คาดว่าจะส่งคืน'),
   phone: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   items: z.array(BasketItemSchema).min(1, 'กรุณาเลือกอุปกรณ์อย่างน้อย 1 รายการ'),
 })
 
-export async function GET(request: Request) {
-  const auth = await requireMemberApi()
-  if (auth.error) return auth.error
-
-  try {
-    const { searchParams } = new URL(request.url)
-    const mode = searchParams.get('mode') || 'my' // 'my' | 'pending' | 'active'
-    const status = searchParams.get('status') || undefined
-    const search = searchParams.get('search') || undefined
-    const overdueOnly = searchParams.get('overdue') === 'true'
-    const page = parseInt(searchParams.get('page') || '1', 10)
-    const limit = parseInt(searchParams.get('limit') || '20', 10)
-
-    const canManage = auth.member.isAdmin || auth.member.can('manage_borrow')
-
-    if (mode === 'pending') {
-      if (!canManage) {
-        return NextResponse.json({ success: false, error: 'คุณไม่มีสิทธิ์เข้าถึงรายการรออนุมัติ' }, { status: 403 })
-      }
-      const result = await equipmentBorrowService.getPendingRequests({ search, page, limit })
-      return NextResponse.json({ success: true, ...result })
-    }
-
-    if (mode === 'active') {
-      if (!canManage) {
-        return NextResponse.json({ success: false, error: 'คุณไม่มีสิทธิ์เข้าถึงรายการกำลังยืม' }, { status: 403 })
-      }
-      const result = await equipmentBorrowService.getActiveLoans({ search, overdueOnly, page, limit })
-      return NextResponse.json({ success: true, ...result })
-    }
-
-    if (mode === 'all') {
-      if (!canManage) {
-        return NextResponse.json({ success: false, error: 'คุณไม่มีสิทธิ์เข้าถึงประวัติคำขอทั้งหมด' }, { status: 403 })
-      }
-      const result = await equipmentBorrowService.getAllBorrowRequests({ status, search, page, limit })
-      return NextResponse.json({ success: true, ...result })
-    }
-
-    // Default: My requests
-    const result = await equipmentBorrowService.getMyBorrowRequests(auth.member.id, {
-      status,
-      page,
-      limit,
-    })
-
-    return NextResponse.json({ success: true, ...result })
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || 'เกิดข้อผิดพลาดในการโหลดคำขอยืม' },
-      { status: 500 }
-    )
-  }
-}
-
+/**
+ * Task-based Route: Create New Equipment / Material Borrow Request
+ * Access: Any authenticated hospital member
+ */
 export async function POST(request: Request) {
   const auth = await requireMemberApi()
   if (auth.error) return auth.error

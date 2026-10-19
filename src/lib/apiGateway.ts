@@ -596,15 +596,7 @@ export class ApiGatewayClient {
       return this.get<Array<Record<string, unknown>>>(`/api/v1/app/tasks${qs}`)
     },
 
-    // ── Contact Messages & Registrations ──
-    getContactMessages: () => {
-      return this.get<Array<Record<string, unknown>>>('/api/v1/app/contact-messages')
-    },
-
-    sendContactMessage: (msg: { name: string; email: string; message: string; phone?: string }) => {
-      return this.post<{ messageId: number }>('/api/v1/app/contact-messages', msg)
-    },
-
+    // ── Member Registrations ──
     getRegistrations: () => {
       return this.get<Array<Record<string, unknown>>>('/api/v1/app/registrations')
     }

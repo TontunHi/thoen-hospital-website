@@ -94,6 +94,23 @@ describe('EquipmentBorrowService', () => {
       })
       expect(result.isLoanable).toBe(true)
     })
+
+    it('marks actively borrowed assets as availableQty: 0 in catalog', async () => {
+      mockDb.equipmentBorrowItem.findMany.mockResolvedValueOnce([
+        { assetId: 101, quantity: 1, returnedQty: 0 },
+      ])
+      mockDb.hospitalAsset.findMany.mockResolvedValueOnce([
+        { id: 101, name: 'Projector', articleNum: 'PRJ-01', category: 'IT', locationFullName: 'IT Room', brand: 'Epson' },
+        { id: 102, name: 'Microphone', articleNum: 'MIC-01', category: 'IT', locationFullName: 'IT Room', brand: 'Shure' },
+      ])
+
+      const items = await service.getAvailableCatalog({ type: 'ASSET' })
+      const borrowed = items.find((i) => i.id === 101)
+      const available = items.find((i) => i.id === 102)
+
+      expect(borrowed?.availableQty).toBe(0)
+      expect(available?.availableQty).toBe(1)
+    })
   })
 
   describe('Borrow Requests & Multi-Item Basket', () => {
@@ -138,7 +155,20 @@ describe('EquipmentBorrowService', () => {
       const result = await service.createBorrowRequest(requestInput, requester)
 
       expect(result.id).toBe(50)
-      expect(mockDb.equipmentBorrowRequest.create).toHaveBeenCalled()
+      expect(mockDb.equipmentBorrowRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: 'PENDING',
+            items: {
+              create: expect.arrayContaining([
+                expect.objectContaining({
+                  status: 'PENDING',
+                }),
+              ]),
+            },
+          }),
+        })
+      )
     })
 
     it('throws error if material quantity exceeds available stock', async () => {
@@ -184,6 +214,7 @@ describe('EquipmentBorrowService', () => {
       mockDb.equipmentBorrowRequest.findUnique.mockResolvedValue(mockRequest)
       mockDb.hospitalMaterial.findUnique.mockResolvedValue({ id: 1, availableQty: 5 })
       mockDb.hospitalMaterial.update.mockResolvedValue({ id: 1, availableQty: 3 })
+      mockDb.equipmentBorrowItem.update = vi.fn().mockResolvedValue({ id: 201, status: 'BORROWED' })
       mockDb.equipmentBorrowRequest.update.mockResolvedValue({
         ...mockRequest,
         status: 'APPROVED',
@@ -196,7 +227,30 @@ describe('EquipmentBorrowService', () => {
         where: { id: 1 },
         data: { availableQty: { decrement: 2 } },
       })
+      expect(mockDb.equipmentBorrowItem.update).toHaveBeenCalledWith({
+        where: { id: 201 },
+        data: { status: 'BORROWED' },
+      })
       expect(result.status).toBe('APPROVED')
+    })
+
+    it('rejects request and updates items status to REJECTED', async () => {
+      mockDb.equipmentBorrowRequest.findUnique.mockResolvedValue({ id: 50, status: 'PENDING', requestNo: 'BR-001' })
+      mockDb.equipmentBorrowRequest.update.mockResolvedValue({ id: 50, status: 'REJECTED' })
+      mockDb.equipmentBorrowItem.updateMany = vi.fn().mockResolvedValue({ count: 1 })
+
+      await service.rejectBorrowRequest(50, 'อุปกรณ์ไม่พร้อม', actor)
+
+      expect(mockDb.equipmentBorrowRequest.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 50 },
+          data: expect.objectContaining({ status: 'REJECTED', rejectReason: 'อุปกรณ์ไม่พร้อม' }),
+        })
+      )
+      expect(mockDb.equipmentBorrowItem.updateMany).toHaveBeenCalledWith({
+        where: { requestId: 50 },
+        data: { status: 'REJECTED' },
+      })
     })
   })
 
@@ -241,6 +295,78 @@ describe('EquipmentBorrowService', () => {
         where: { id: 1 },
         data: { availableQty: { increment: 2 } },
       })
+      expect(result.status).toBe('RETURNED')
+    })
+
+    it('processes return inspection via queryExecutor without passing raw Date objects', async () => {
+      const mockQueryExecutor = vi.fn()
+      const sqlService = new EquipmentBorrowService(null, mockQueryExecutor)
+
+      const mockReq = {
+        id: 1,
+        request_no: 'BR-202610-0001',
+        status: 'APPROVED',
+        requester_id: 10,
+        requester_name: 'นนธภพ',
+      }
+
+      const mockItems = [
+        {
+          id: 101,
+          request_id: 1,
+          item_type: 'MATERIAL',
+          material_id: 3,
+          item_name: 'ถุงมือสีขาว',
+          quantity: 2,
+          returned_qty: 0,
+          status: 'BORROWED',
+          mat_name: 'ถุงมือสีขาว',
+          mat_unit: 'คู่',
+          mat_type: 'REUSABLE',
+        },
+      ]
+
+      mockQueryExecutor
+        // 1. getBorrowRequestById initial
+        .mockResolvedValueOnce([mockReq])
+        .mockResolvedValueOnce(mockItems)
+        // 2. update item
+        .mockResolvedValueOnce({ affectedRows: 1 })
+        // 3. update material stock
+        .mockResolvedValueOnce({ affectedRows: 1 })
+        // 4. select updated items for allDone check
+        .mockResolvedValueOnce([{ quantity: 2, returned_qty: 2, status: 'RETURNED' }])
+        // 5. update request status
+        .mockResolvedValueOnce({ affectedRows: 1 })
+        // 6. getBorrowRequestById final
+        .mockResolvedValueOnce([{ ...mockReq, status: 'RETURNED' }])
+        .mockResolvedValueOnce([{ ...mockItems[0], returned_qty: 2, status: 'RETURNED' }])
+
+      const returnData = [
+        {
+          itemId: 101,
+          returnedQty: 2,
+          condition: 'NORMAL' as const,
+          notes: 'ok',
+        },
+      ]
+
+      const result = await sqlService.processItemReturn(1, returnData, actor)
+
+      const updateReqCall = mockQueryExecutor.mock.calls.find(([sql]) =>
+        sql.includes('UPDATE equipment_borrow_requests')
+      )
+      expect(updateReqCall).toBeDefined()
+      expect(updateReqCall![0]).toContain("actual_return_date = CASE WHEN ? = 'RETURNED' THEN NOW() ELSE NULL END")
+      expect(updateReqCall![1]).toEqual(['RETURNED', 'RETURNED', 1])
+
+      for (const call of mockQueryExecutor.mock.calls) {
+        const params = call[1] || []
+        for (const p of params) {
+          expect(p instanceof Date).toBe(false)
+        }
+      }
+
       expect(result.status).toBe('RETURNED')
     })
   })
@@ -316,6 +442,190 @@ describe('EquipmentBorrowService', () => {
       expect(result.items).toEqual(mockItems)
       expect(result.total).toBe(1)
       expect(result.totalPages).toBe(1)
+    })
+  })
+
+  describe('Overdue Notification Dispatcher (15:00 Daily Cron)', () => {
+    let mockTelegramSender: any
+
+    beforeEach(() => {
+      mockTelegramSender = vi.fn().mockResolvedValue({ ok: true })
+      mockDb.memberTelegramLink = {
+        findFirst: vi.fn(),
+      }
+    })
+
+    it('sends Telegram message to overdue borrowers with remaining items only', async () => {
+      const pastDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
+
+      mockDb.equipmentBorrowRequest.findMany.mockResolvedValueOnce([
+        {
+          id: 10,
+          requestNo: 'BR-202610-0010',
+          requesterId: 101,
+          requesterName: 'นพ.สมชาย ใจดี',
+          requesterDept: 'OPD',
+          purpose: 'ออกหน่วยแพทย์',
+          expectedReturnDate: pastDate,
+          items: [
+            {
+              id: 1,
+              itemName: 'เครื่องวัดความดัน',
+              itemCode: '6515-001-0001',
+              quantity: 2,
+              returnedQty: 1, // Still 1 remaining
+              status: 'BORROWED',
+            },
+            {
+              id: 2,
+              itemName: 'หูฟัง Stethoscope',
+              itemCode: '6515-001-0002',
+              quantity: 1,
+              returnedQty: 1, // Fully returned -> should NOT appear in message
+              status: 'RETURNED',
+            },
+          ],
+        },
+      ])
+
+      mockDb.memberTelegramLink.findFirst.mockResolvedValueOnce({
+        telegramChatId: '987654321',
+      })
+
+      const customService = new EquipmentBorrowService(mockDb, vi.fn(), mockTelegramSender)
+      const res = await customService.dispatchOverdueNotifications({ siteUrl: 'https://thlp.moph.go.th' })
+
+      expect(res.success).toBe(true)
+      expect(res.totalOverdue).toBe(1)
+      expect(res.sentCount).toBe(1)
+      expect(res.skippedNoTelegramCount).toBe(0)
+
+      expect(mockTelegramSender).toHaveBeenCalledTimes(1)
+      expect(mockTelegramSender).toHaveBeenCalledWith(
+        '987654321',
+        expect.stringContaining('เครื่องวัดความดัน'),
+        expect.objectContaining({ parseMode: 'HTML' })
+      )
+      // Fully returned items must NOT be included in remaining items list
+      expect(mockTelegramSender).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringContaining('หูฟัง Stethoscope'),
+        expect.anything()
+      )
+    })
+
+    it('skips sending and records SKIPPED_NO_TELEGRAM if borrower has not linked Telegram', async () => {
+      const pastDate = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+
+      mockDb.equipmentBorrowRequest.findMany.mockResolvedValueOnce([
+        {
+          id: 11,
+          requestNo: 'BR-202610-0011',
+          requesterId: 102,
+          requesterName: 'พว.สุดา สวยงาม',
+          requesterDept: 'ER',
+          purpose: 'ตรวจเวรดึก',
+          expectedReturnDate: pastDate,
+          items: [
+            {
+              id: 3,
+              itemName: 'ไฟฉายส่องตรวจ',
+              quantity: 1,
+              returnedQty: 0,
+              status: 'BORROWED',
+            },
+          ],
+        },
+      ])
+
+      // No telegram link found
+      mockDb.memberTelegramLink.findFirst.mockResolvedValueOnce(null)
+
+      const customService = new EquipmentBorrowService(mockDb, vi.fn(), mockTelegramSender)
+      const res = await customService.dispatchOverdueNotifications()
+
+      expect(res.totalOverdue).toBe(1)
+      expect(res.sentCount).toBe(0)
+      expect(res.skippedNoTelegramCount).toBe(1)
+      expect(res.details[0].status).toBe('SKIPPED_NO_TELEGRAM')
+      expect(mockTelegramSender).not.toHaveBeenCalled()
+    })
+
+    it('handles Telegram sending failure and records FAILED status without crashing', async () => {
+      const pastDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+
+      mockDb.equipmentBorrowRequest.findMany.mockResolvedValueOnce([
+        {
+          id: 12,
+          requestNo: 'BR-202610-0012',
+          requesterId: 103,
+          requesterName: 'นายสมบัติ พนักงานขับรถ',
+          expectedReturnDate: pastDate,
+          items: [{ id: 4, itemName: 'วิทยุสื่อสาร', quantity: 1, returnedQty: 0, status: 'BORROWED' }],
+        },
+      ])
+
+      mockDb.memberTelegramLink.findFirst.mockResolvedValueOnce({
+        telegramChatId: '11223344',
+      })
+
+      mockTelegramSender.mockRejectedValueOnce(new Error('Telegram API Bot Blocked'))
+
+      const customService = new EquipmentBorrowService(mockDb, vi.fn(), mockTelegramSender)
+      const res = await customService.dispatchOverdueNotifications()
+
+      expect(res.totalOverdue).toBe(1)
+      expect(res.sentCount).toBe(0)
+      expect(res.failedCount).toBe(1)
+      expect(res.details[0].status).toBe('FAILED')
+      expect(res.details[0].error).toContain('Telegram API Bot Blocked')
+    })
+
+    it('works with Zero-DB queryExecutor for production environment', async () => {
+      const mockQueryExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
+        if (sql.includes('FROM equipment_borrow_requests r')) {
+          return Promise.resolve([
+            {
+              id: 20,
+              request_no: 'BR-202610-0020',
+              requester_id: 200,
+              requester_name: 'ผู้ยืมระบบเกตเวย์',
+              requester_dept: 'IT',
+              purpose: 'ทดสอบระบบ',
+              expected_return_date: '2026-10-18',
+              overdue_days: 1,
+            },
+          ])
+        }
+        if (sql.includes('FROM equipment_borrow_items')) {
+          return Promise.resolve([
+            {
+              id: 50,
+              item_name: 'จอภาพ Dell 24 นิ้ว',
+              item_code: '7440-002-0050',
+              quantity: 1,
+              returned_qty: 0,
+              status: 'BORROWED',
+            },
+          ])
+        }
+        if (sql.includes('FROM member_telegram_links')) {
+          return Promise.resolve([{ telegram_chat_id: '55667788' }])
+        }
+        return Promise.resolve([])
+      })
+
+      const customService = new EquipmentBorrowService(null, mockQueryExecutor, mockTelegramSender)
+      const res = await customService.dispatchOverdueNotifications()
+
+      expect(res.totalOverdue).toBe(1)
+      expect(res.sentCount).toBe(1)
+      expect(res.details[0].requestNo).toBe('BR-202610-0020')
+      expect(mockTelegramSender).toHaveBeenCalledWith(
+        '55667788',
+        expect.stringContaining('จอภาพ Dell 24 นิ้ว'),
+        expect.objectContaining({ parseMode: 'HTML' })
+      )
     })
   })
 })

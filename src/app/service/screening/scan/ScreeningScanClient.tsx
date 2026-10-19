@@ -17,6 +17,9 @@ import {
   Info,
   Download,
   Zap,
+  Edit3,
+  UserPlus,
+  X,
 } from 'lucide-react'
 import {
   SmartCardData,
@@ -40,6 +43,7 @@ interface RecentSavedItem {
   cid: string
   fullName: string
   savedAt: string
+  isManual?: boolean
 }
 
 export default function ScreeningScanClient({ operator }: Props) {
@@ -60,6 +64,18 @@ export default function ScreeningScanClient({ operator }: Props) {
   const [cardPresent, setCardPresent] = useState<boolean>(false)
   const [lastReadCid, setLastReadCid] = useState<string>('')
   const [lastSavedCid, setLastSavedCid] = useState<string>('')
+
+  // Manual Entry States (กรณีคนไข้ลืมบัตรประชาชน)
+  const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false)
+  const [manualCid, setManualCid] = useState<string>('')
+  const [manualTitle, setManualTitle] = useState<string>('นาย')
+  const [manualFullName, setManualFullName] = useState<string>('')
+  const [manualGender, setManualGender] = useState<string>('ชาย')
+  const [manualAge, setManualAge] = useState<string>('')
+  const [manualAddress, setManualAddress] = useState<string>('')
+  const [manualError, setManualError] = useState<string | null>(null)
+  const [isManualSaving, setIsManualSaving] = useState<boolean>(false)
+  const manualCidInputRef = useRef<HTMLInputElement>(null)
 
   // Refs for tracking state inside stable SSE handlers without teardown
   const currentCardRef = useRef<SmartCardData | null>(null)
@@ -420,9 +436,215 @@ export default function ScreeningScanClient({ operator }: Props) {
     }
   }
 
-  // Keyboard shortcut listener for Enter, Escape, and F2
+  // Manual Entry Form Helpers
+  const currentThaiYear = new Date().getFullYear() + 543
+  const ageNum = parseInt(manualAge.trim(), 10)
+  const calculatedBirthYear = !isNaN(ageNum) && ageNum > 0 && ageNum <= 130
+    ? currentThaiYear - ageNum
+    : null
+
+  /**
+   * Normalizes Thai name with title separation.
+   * Ensures title prefix is separated from first name by a space,
+   * matching physical Smart Card chip output (e.g. "นาย พิสุทธิ์ ยิ้มกุศล").
+   */
+  const formatThaiNameWithTitle = useCallback((titleInput: string, rawNameInput: string) => {
+    const commonTitles = ['นางสาว', 'นาย', 'นาง', 'เด็กชาย', 'เด็กหญิง', 'ด.ช.', 'ด.ญ.', 'พระภิกษุ', 'พระ']
+    let title = (titleInput || '').trim()
+    let name = (rawNameInput || '').trim()
+
+    // Detect title from rawName if title dropdown not specified
+    if (!title) {
+      for (const t of commonTitles) {
+        if (name.startsWith(t)) {
+          title = t
+          break
+        }
+      }
+    }
+
+    // Strip duplicate title from name if user typed it in the text box as well
+    if (title) {
+      if (name.startsWith(title + ' ')) {
+        name = name.slice((title + ' ').length).trim()
+      } else if (name.startsWith(title)) {
+        name = name.slice(title.length).trim()
+      }
+    }
+
+    // Split remainder into firstName and lastName
+    const parts = name.split(/\s+/).filter(Boolean)
+    const firstName = parts[0] || ''
+    const lastName = parts.slice(1).join(' ') || ''
+
+    // Always separate title and first name with a space (matches physical smart card reader output)
+    const fullName = [title, firstName, lastName].filter(Boolean).join(' ').trim()
+
+    return { title, firstName, lastName, fullName }
+  }, [])
+
+  const parsedName = formatThaiNameWithTitle(manualTitle, manualFullName)
+
+  const handleOpenManualModal = useCallback(() => {
+    setManualError(null)
+    setIsManualModalOpen(true)
+    setTimeout(() => {
+      manualCidInputRef.current?.focus()
+    }, 100)
+  }, [])
+
+  const handleCloseManualModal = useCallback(() => {
+    if (isManualSaving) return
+    setIsManualModalOpen(false)
+    setManualError(null)
+  }, [isManualSaving])
+
+  const handleTitleChange = (newTitle: string) => {
+    setManualTitle(newTitle)
+    if (['นาย', 'ด.ช.', 'พระ'].includes(newTitle)) {
+      setManualGender('ชาย')
+    } else if (['นาง', 'นางสาว', 'ด.ญ.'].includes(newTitle)) {
+      setManualGender('หญิง')
+    }
+  }
+
+  const handleManualCidChange = (val: string) => {
+    const digitsOnly = val.replace(/[^0-9]/g, '').slice(0, 13)
+    setManualCid(digitsOnly)
+    if (manualError && digitsOnly.length === 13) {
+      setManualError(null)
+    }
+  }
+
+  const handleSaveManualEntry = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (isManualSaving) return
+
+    setManualError(null)
+
+    // 1. Validate CID (Mandatory 13 digits)
+    const cleanCid = manualCid.replace(/[^0-9]/g, '')
+    if (cleanCid.length !== 13) {
+      setManualError('กรุณากรอกเลขประจำตัวประชาชนให้ครบ 13 หลัก')
+      manualCidInputRef.current?.focus()
+      playBeep(330, 'sawtooth', 0.25)
+      return
+    }
+
+    // 2. Validate Full Name (Mandatory)
+    const parsed = formatThaiNameWithTitle(manualTitle, manualFullName)
+    if (!parsed.firstName) {
+      setManualError('กรุณากรอกชื่อ - สกุล ของผู้รับบริการ')
+      playBeep(330, 'sawtooth', 0.25)
+      return
+    }
+
+    // 3. Validate Gender (Mandatory)
+    if (!manualGender) {
+      setManualError('กรุณาระบุเพศของผู้รับบริการ')
+      playBeep(330, 'sawtooth', 0.25)
+      return
+    }
+
+    // 4. Validate Age (Mandatory 1-130)
+    const validAge = parseInt(manualAge.trim(), 10)
+    if (isNaN(validAge) || validAge <= 0 || validAge > 130) {
+      setManualError('กรุณากรอกอายุที่ถูกต้อง (1 - 130 ปี)')
+      playBeep(330, 'sawtooth', 0.25)
+      return
+    }
+
+    // Estimated birth date in Buddhist calendar year (YYYY-01-01)
+    const birthYear = currentThaiYear - validAge
+    const birthDateStr = `${birthYear}-01-01`
+
+    setIsManualSaving(true)
+
+    try {
+      const res = await fetch('/api/service/screening', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cid: cleanCid,
+          title: parsed.title || null,
+          firstName: parsed.firstName || null,
+          lastName: parsed.lastName || null,
+          fullName: parsed.fullName,
+          gender: manualGender,
+          birthDate: birthDateStr,
+          address: manualAddress.trim() || null,
+          rawPayload: { isManualEntry: true, manualAge: validAge },
+          status: 'WAITING',
+        }),
+      })
+
+      const contentType = res.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        const text = await res.text()
+        throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status}): ${text.slice(0, 80)}`)
+      }
+
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || json.error || 'บันทึกข้อมูลไม่สำเร็จ')
+      }
+
+      const savedData = json.data
+      playBeep(1318, 'triangle', 0.2)
+
+      setSuccessBanner(`บันทึก ${savedData.fullName} (กรอกเอง) เข้าระบบคิวเรียบร้อยแล้ว`)
+      setSessionCount((prev) => prev + 1)
+
+      const timeStr = new Intl.DateTimeFormat('th-TH', {
+        timeZone: 'Asia/Bangkok',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }).format(new Date())
+
+      setRecentSaved((prev) => [
+        {
+          id: savedData.id,
+          cid: savedData.cid,
+          fullName: savedData.fullName,
+          savedAt: timeStr,
+          isManual: true,
+        },
+        ...prev.slice(0, 9),
+      ])
+
+      // Close modal and reset fields
+      setIsManualModalOpen(false)
+      setManualCid('')
+      setManualFullName('')
+      setManualAge('')
+      setManualAddress('')
+      setManualError(null)
+
+      setTimeout(() => {
+        setSuccessBanner((cur) =>
+          cur === `บันทึก ${savedData.fullName} (กรอกเอง) เข้าระบบคิวเรียบร้อยแล้ว` ? null : cur
+        )
+      }, 4000)
+    } catch (err: any) {
+      setManualError(err.message || 'เกิดข้อผิดพลาดในการบันทึก')
+      playBeep(330, 'sawtooth', 0.25)
+    } finally {
+      setIsManualSaving(false)
+    }
+  }
+
+  // Keyboard shortcut listener for Enter, Escape, F2, and F4
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isManualModalOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          handleCloseManualModal()
+        }
+        return
+      }
+
       if (e.key === 'Enter' && currentCard && !isSaving) {
         e.preventDefault()
         handleSaveQueue()
@@ -432,11 +654,14 @@ export default function ScreeningScanClient({ operator }: Props) {
       } else if (e.key === 'F2') {
         e.preventDefault()
         readCardFromBridge(true)
+      } else if (e.key === 'F4') {
+        e.preventDefault()
+        handleOpenManualModal()
       }
     }
 
     const handleWindowFocus = () => {
-      if (!currentCardRef.current && !isReadingRef.current) {
+      if (!currentCardRef.current && !isReadingRef.current && !isManualModalOpen) {
         readCardFromBridge(false)
       }
     }
@@ -447,7 +672,14 @@ export default function ScreeningScanClient({ operator }: Props) {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('focus', handleWindowFocus)
     }
-  }, [currentCard, isSaving, readCardFromBridge])
+  }, [
+    currentCard,
+    isSaving,
+    readCardFromBridge,
+    isManualModalOpen,
+    handleCloseManualModal,
+    handleOpenManualModal,
+  ])
 
   return (
     <div className="scanPage">
@@ -470,6 +702,15 @@ export default function ScreeningScanClient({ operator }: Props) {
           </div>
 
           <div className="scanNavControls">
+            <button
+              type="button"
+              onClick={handleOpenManualModal}
+              className="btnHeaderManualEntry"
+              title="เปิดฟอร์มกรอกข้อมูลด้วยตัวเอง กรณีผู้รับบริการไม่มีบัตรประชาชน หรือลืมบัตร (กดแป้น F4)"
+            >
+              <UserPlus size={16} />
+              <span>กรอกข้อมูลเอง (F4)</span>
+            </button>
             <Link
               href="/service/screening"
               target="_blank"
@@ -662,6 +903,16 @@ export default function ScreeningScanClient({ operator }: Props) {
                     <span>{isReading ? 'กำลังดึงข้อมูล...' : 'อ่านข้อมูลจากบัตรประชาชน (F2)'}</span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={handleOpenManualModal}
+                    className="btnManualEntrySlot"
+                    title="เปิดฟอร์มกรอกข้อมูลด้วยตัวเอง กรณีผู้รับบริการไม่มีบัตรประชาชน หรือลืมบัตร (กดแป้น F4)"
+                  >
+                    <Edit3 size={17} />
+                    <span>กรอกข้อมูลด้วยตัวเอง (ลืมบัตร/F4)</span>
+                  </button>
+
                   <a
                     href="/downloads/thoen-smartcard-bridge.exe"
                     download="thoen-smartcard-bridge.exe"
@@ -839,7 +1090,14 @@ export default function ScreeningScanClient({ operator }: Props) {
                   {recentSaved.map((item, idx) => (
                     <div key={item.id || idx} className="recentScanItem">
                       <div>
-                        <div className="recentItemName">{item.fullName}</div>
+                        <div className="recentItemName">
+                          <span>{item.fullName}</span>
+                          {item.isManual && (
+                            <span className="badgeManualScan" title="บันทึกด้วยการกรอกข้อมูลเอง">
+                              กรอกเอง
+                            </span>
+                          )}
+                        </div>
                         <div className="recentItemCid">
                           {item.cid.replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5')}
                         </div>
@@ -859,6 +1117,7 @@ export default function ScreeningScanClient({ operator }: Props) {
               <ul className="guideList">
                 <li>เปิดโปรแกรม <strong>thoen-smartcard-bridge.exe</strong> ทิ้งไว้ที่เครื่อง</li>
                 <li>เมื่อเสียบบัตรประชาชน ระบบจะดึงข้อมูลพรีวิวขึ้นหน้าจออัตโนมัติทันที</li>
+                <li>กรณีผู้รับบริการไม่มีบัตร/ลืมบัตร กดปุ่ม <strong>กรอกข้อมูลเอง (F4)</strong> เพื่อบันทึกเข้าคิวได้</li>
                 <li>กดปุ่ม <strong>Enter</strong> บนคีย์บอร์ดเพื่อบันทึกเข้าคิว</li>
                 <li>เมื่อบันทึกเสร็จ หน้าจอจะล้างและค้างไว้เพื่อพร้อมรับคนถัดไปทันที</li>
                 <li>จุดคัดกรองหรือห้องบัตรสามารถเปิดดูรายชื่อสดได้ที่หน้า <Link href="/service/screening" target="_blank" style={{ color: '#047857', fontWeight: 700, textDecoration: 'underline' }}>แดชบอร์ดคิว</Link></li>
@@ -867,6 +1126,232 @@ export default function ScreeningScanClient({ operator }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Manual Entry Modal Dialog (กรณีไม่มีบัตรประชาชน) */}
+      {isManualModalOpen && (
+        <div
+          className="manualModalOverlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isManualSaving) {
+              handleCloseManualModal()
+            }
+          }}
+        >
+          <div className="manualModalCard" role="dialog" aria-modal="true" aria-labelledby="manualModalTitle">
+            {/* Modal Header */}
+            <div className="manualModalHeader">
+              <div className="manualModalTitleGroup">
+                <div className="manualModalIconBadge">
+                  <UserPlus size={22} />
+                </div>
+                <div>
+                  <h3 id="manualModalTitle">
+                    <span>กรอกข้อมูลผู้รับบริการด้วยตัวเอง</span>
+                    <span className="manualModalBadgeNoCard">กรณีไม่มีบัตร</span>
+                  </h3>
+                  <p>บันทึกเข้าคิวตรวจสำหรับผู้รับบริการที่ไม่ได้นำบัตรประชาชนมา</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseManualModal}
+                disabled={isManualSaving}
+                className="manualModalCloseBtn"
+                title="ปิดหน้าต่าง (Esc)"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body Form */}
+            <form onSubmit={handleSaveManualEntry} style={{ display: 'contents' }}>
+              <div className="manualModalBody">
+                {manualError && (
+                  <div className="manualErrorBox">
+                    <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                    <span>{manualError}</span>
+                  </div>
+                )}
+
+                {/* 1. Citizen ID (Mandatory 13 digits) */}
+                <div className="manualFormGroup">
+                  <label className="manualFormLabel" htmlFor="manualCid">
+                    <span className="manualLabelLeft">
+                      <span>เลขประจำตัวประชาชน (13 หลัก)</span>
+                      <span className="manualRequiredStar">*</span>
+                    </span>
+                    <span className={`manualCidCounter ${manualCid.length === 13 ? 'complete' : ''}`}>
+                      {manualCid.length}/13
+                    </span>
+                  </label>
+                  <input
+                    ref={manualCidInputRef}
+                    id="manualCid"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={13}
+                    placeholder="กรอกตัวเลข 13 หลัก (เช่น 1529900000000)"
+                    value={manualCid}
+                    onChange={(e) => handleManualCidChange(e.target.value)}
+                    className="manualInput manualInputCid"
+                    required
+                  />
+                </div>
+
+                {/* 2. Full Name & Title (Mandatory) */}
+                <div className="manualFormGroup">
+                  <label className="manualFormLabel" htmlFor="manualFullName">
+                    <span className="manualLabelLeft">
+                      <User size={15} style={{ color: '#64748b' }} />
+                      <span>คำนำหน้า และ ชื่อ - สกุล</span>
+                      <span className="manualRequiredStar">*</span>
+                    </span>
+                  </label>
+                  <div className="manualNameRow">
+                    <select
+                      value={manualTitle}
+                      onChange={(e) => handleTitleChange(e.target.value)}
+                      className="manualInput"
+                      title="เลือกคำนำหน้าชื่อ"
+                    >
+                      <option value="นาย">นาย</option>
+                      <option value="นาง">นาง</option>
+                      <option value="นางสาว">นางสาว</option>
+                      <option value="ด.ช.">ด.ช.</option>
+                      <option value="ด.ญ.">ด.ญ.</option>
+                      <option value="พระ">พระภิกษุ/สามเณร</option>
+                      <option value="">อื่นๆ / ไม่ระบุ</option>
+                    </select>
+                    <input
+                      id="manualFullName"
+                      type="text"
+                      placeholder="เช่น พิสุทธิ์ ยิ้มกุศล"
+                      value={manualFullName}
+                      onChange={(e) => setManualFullName(e.target.value)}
+                      className="manualInput"
+                      required
+                    />
+                  </div>
+                  {parsedName.fullName && (
+                    <div style={{ fontSize: '0.8rem', color: '#047857', marginTop: '0.35rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span>รูปแบบชื่อ:</span>
+                      <strong style={{ background: '#ecfdf5', color: '#065f46', padding: '0.15rem 0.55rem', borderRadius: '6px', border: '1px solid #a7f3d0' }}>
+                        {parsedName.fullName}
+                      </strong>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Gender & Age Row (Both Mandatory) */}
+                <div className="manualGenderAgeRow">
+                  {/* Gender */}
+                  <div className="manualFormGroup">
+                    <label className="manualFormLabel">
+                      <span className="manualLabelLeft">
+                        <span>เพศ</span>
+                        <span className="manualRequiredStar">*</span>
+                      </span>
+                    </label>
+                    <div className="manualGenderControl">
+                      <button
+                        type="button"
+                        onClick={() => setManualGender('ชาย')}
+                        className={`manualGenderBtn ${manualGender === 'ชาย' ? 'activeMale' : ''}`}
+                      >
+                        <span>👨 ชาย</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setManualGender('หญิง')}
+                        className={`manualGenderBtn ${manualGender === 'หญิง' ? 'activeFemale' : ''}`}
+                      >
+                        <span>👩 หญิง</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Age */}
+                  <div className="manualFormGroup">
+                    <label className="manualFormLabel" htmlFor="manualAge">
+                      <span className="manualLabelLeft">
+                        <Calendar size={15} style={{ color: '#64748b' }} />
+                        <span>อายุ (ปี)</span>
+                        <span className="manualRequiredStar">*</span>
+                      </span>
+                    </label>
+                    <input
+                      id="manualAge"
+                      type="number"
+                      min={1}
+                      max={130}
+                      placeholder="เช่น 45"
+                      value={manualAge}
+                      onChange={(e) => setManualAge(e.target.value)}
+                      className="manualInput"
+                      required
+                    />
+                    {calculatedBirthYear && (
+                      <div className="manualAgeHint">
+                        <Calendar size={12} />
+                        <span>เกิดประมาณ พ.ศ. {calculatedBirthYear}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Address (Optional) */}
+                <div className="manualFormGroup">
+                  <label className="manualFormLabel" htmlFor="manualAddress">
+                    <span className="manualLabelLeft">
+                      <MapPin size={15} style={{ color: '#64748b' }} />
+                      <span>ที่อยู่ปัจจุบัน</span>
+                    </span>
+                    <span className="manualOptionalHint">(ไม่บังคับ)</span>
+                  </label>
+                  <textarea
+                    id="manualAddress"
+                    rows={2}
+                    placeholder="บ้านเลขที่ หมู่ที่ ตำบล อำเภอ จังหวัด (ถ้ามี)"
+                    value={manualAddress}
+                    onChange={(e) => setManualAddress(e.target.value)}
+                    className="manualTextarea"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="manualModalFooter">
+                <button
+                  type="button"
+                  onClick={handleCloseManualModal}
+                  disabled={isManualSaving}
+                  className="btnModalCancel"
+                >
+                  ยกเลิก (Esc)
+                </button>
+                <button
+                  type="submit"
+                  disabled={isManualSaving}
+                  className="btnModalSubmit"
+                >
+                  {isManualSaving ? (
+                    <>
+                      <RefreshCw size={18} className="refreshIconSpin" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={18} style={{ strokeWidth: 2.5 }} />
+                      <span>บันทึกเข้าระบบคิว</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
