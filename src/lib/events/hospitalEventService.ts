@@ -143,7 +143,7 @@ export class HospitalEventService {
                   itemName: item.itemName,
                   itemCode: item.itemCode || null,
                   quantity: item.quantity || 1,
-                  status: 'BORROWED',
+                  status: 'PENDING',
                 })),
               },
             },
@@ -228,7 +228,7 @@ export class HospitalEventService {
             request_id, item_type, asset_id, material_id,
             item_name, item_code, quantity, status, returned_qty,
             created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'BORROWED', 0, NOW(), NOW())
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, NOW(), NOW())
         `, [
           borrowRequestId,
           item.itemType,

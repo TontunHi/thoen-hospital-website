@@ -329,11 +329,22 @@ export class EquipmentBorrowService {
       if (input.isActive !== undefined) data.isActive = input.isActive
 
       if (input.totalQty !== undefined) {
-        const delta = input.totalQty - existing.totalQty
         data.totalQty = Math.max(0, input.totalQty)
-        data.availableQty = Math.max(0, existing.availableQty + delta)
-      }
-      if (input.availableQty !== undefined) {
+        if (input.availableQty !== undefined) {
+          data.availableQty = Math.max(0, input.availableQty)
+        } else {
+          const activeBorrowed = await this.db.equipmentBorrowItem.aggregate({
+            where: {
+              materialId: id,
+              status: 'BORROWED',
+              request: { status: { in: ['APPROVED', 'PARTIAL_RETURNED'] } },
+            },
+            _sum: { quantity: true },
+          })
+          const currentlyBorrowed = Number(activeBorrowed?._sum?.quantity || 0)
+          data.availableQty = Math.max(0, data.totalQty - currentlyBorrowed)
+        }
+      } else if (input.availableQty !== undefined) {
         data.availableQty = Math.max(0, input.availableQty)
       }
 
@@ -371,11 +382,26 @@ export class EquipmentBorrowService {
     if (input.isActive !== undefined) { fields.push('is_active = ?'); params.push(input.isActive ? 1 : 0) }
 
     if (input.totalQty !== undefined) {
-      const delta = input.totalQty - existing.total_qty
+      const newTotalQty = Math.max(0, input.totalQty)
       fields.push('total_qty = ?')
-      params.push(Math.max(0, input.totalQty))
-      fields.push('available_qty = ?')
-      params.push(Math.max(0, existing.available_qty + delta))
+      params.push(newTotalQty)
+
+      if (input.availableQty !== undefined) {
+        fields.push('available_qty = ?')
+        params.push(Math.max(0, input.availableQty))
+      } else {
+        const borrowedRows = await this.queryExecutor(`
+          SELECT COALESCE(SUM(i.quantity - i.returned_qty), 0) AS borrowed
+          FROM equipment_borrow_items i
+          JOIN equipment_borrow_requests r ON i.request_id = r.id
+          WHERE r.status IN ('APPROVED', 'PARTIAL_RETURNED')
+            AND i.status = 'BORROWED'
+            AND i.material_id = ?
+        `, [id])
+        const currentlyBorrowed = Number(borrowedRows[0]?.borrowed || 0)
+        fields.push('available_qty = ?')
+        params.push(Math.max(0, newTotalQty - currentlyBorrowed))
+      }
     } else if (input.availableQty !== undefined) {
       fields.push('available_qty = ?')
       params.push(Math.max(0, input.availableQty))
@@ -1169,18 +1195,35 @@ export class EquipmentBorrowService {
       if (request.status !== 'PENDING') throw new Error(`คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ (สถานะปัจจุบัน: ${request.status})`)
 
       return await this.db.$transaction(async (tx: any) => {
+        // 1. Pre-validate stock availability for all materials
+        const requiredQuantities = new Map<number, number>()
         for (const item of request.items) {
           if (item.itemType === 'MATERIAL' && item.materialId) {
-            const mat = await tx.hospitalMaterial.findUnique({ where: { id: item.materialId } })
-            if (!mat || mat.availableQty < item.quantity) {
-              throw new Error(`ยอดคงเหลือไม่เพียงพอสำหรับ ${item.itemName} (ต้องการ ${item.quantity}, คงเหลือ ${mat?.availableQty || 0})`)
-            }
+            const currentReq = requiredQuantities.get(item.materialId) || 0
+            requiredQuantities.set(item.materialId, currentReq + item.quantity)
+          }
+        }
+
+        const materialCache = new Map<number, any>()
+        for (const [matId, totalNeeded] of requiredQuantities.entries()) {
+          const mat = await tx.hospitalMaterial.findUnique({ where: { id: matId } })
+          if (!mat || mat.availableQty < totalNeeded) {
+            const item = request.items.find((i: any) => i.materialId === matId)
+            throw new Error(`ยอดคงเหลือไม่เพียงพอสำหรับ ${mat?.name || item?.itemName || 'วัสดุ'} (ต้องการ ${totalNeeded}, คงเหลือ ${mat?.availableQty || 0})`)
+          }
+          materialCache.set(matId, mat)
+        }
+
+        // 2. Perform updates
+        for (const item of request.items) {
+          if (item.itemType === 'MATERIAL' && item.materialId) {
+            const mat = materialCache.get(item.materialId)
             await tx.hospitalMaterial.update({
               where: { id: item.materialId },
               data: { availableQty: { decrement: item.quantity } },
             })
 
-            if (item.material?.materialType === 'CONSUMABLE') {
+            if (item.material?.materialType === 'CONSUMABLE' || mat?.materialType === 'CONSUMABLE') {
               await tx.equipmentBorrowItem.update({
                 where: { id: item.id },
                 data: { status: 'CONSUMED', returnedQty: item.quantity, returnedAt: new Date() },
@@ -1231,17 +1274,33 @@ export class EquipmentBorrowService {
     if (!request) throw new Error(`ไม่พบคำขอยืมรหัส ${id}`)
     if (request.status !== 'PENDING') throw new Error(`คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ (สถานะปัจจุบัน: ${request.status})`)
 
-    // Deduct stock for each item and set status to BORROWED or CONSUMED
+    // 1. Pre-validate stock availability for all materials before making any mutations
+    const requiredQuantities = new Map<number, number>()
     for (const item of request.items) {
       if (item.itemType === 'MATERIAL' && item.materialId) {
-        const matRows = await this.queryExecutor('SELECT id, available_qty, unit, material_type FROM hospital_materials WHERE id = ?', [item.materialId])
-        const mat = matRows[0]
-        if (!mat || mat.available_qty < item.quantity) {
-          throw new Error(`ยอดคงเหลือไม่เพียงพอสำหรับ ${item.itemName} (ต้องการ ${item.quantity}, คงเหลือ ${mat?.available_qty || 0})`)
-        }
+        const currentReq = requiredQuantities.get(item.materialId) || 0
+        requiredQuantities.set(item.materialId, currentReq + item.quantity)
+      }
+    }
+
+    const materialCache = new Map<number, any>()
+    for (const [matId, totalNeeded] of requiredQuantities.entries()) {
+      const matRows = await this.queryExecutor('SELECT id, name, available_qty, unit, material_type FROM hospital_materials WHERE id = ?', [matId])
+      const mat = matRows[0]
+      if (!mat || mat.available_qty < totalNeeded) {
+        const item = request.items.find((i: any) => i.materialId === matId)
+        throw new Error(`ยอดคงเหลือไม่เพียงพอสำหรับ ${mat?.name || item?.itemName || 'วัสดุ'} (ต้องการ ${totalNeeded}, คงเหลือ ${mat?.available_qty || 0})`)
+      }
+      materialCache.set(matId, mat)
+    }
+
+    // 2. Deduct stock for each item and set status to BORROWED or CONSUMED
+    for (const item of request.items) {
+      if (item.itemType === 'MATERIAL' && item.materialId) {
+        const mat = materialCache.get(item.materialId)
         await this.queryExecutor('UPDATE hospital_materials SET available_qty = available_qty - ?, updated_at = NOW() WHERE id = ?', [item.quantity, item.materialId])
 
-        if (mat.material_type === 'CONSUMABLE') {
+        if (mat?.material_type === 'CONSUMABLE') {
           await this.queryExecutor("UPDATE equipment_borrow_items SET status = 'CONSUMED', returned_qty = ?, returned_at = NOW(), updated_at = NOW() WHERE id = ?", [item.quantity, item.id])
         } else {
           await this.queryExecutor("UPDATE equipment_borrow_items SET status = 'BORROWED', updated_at = NOW() WHERE id = ?", [item.id])

@@ -628,4 +628,74 @@ describe('EquipmentBorrowService', () => {
       )
     })
   })
+
+  describe('Inventory Reconciliation and Pre-validation', () => {
+    it('reconciles availableQty against currently borrowed items when totalQty is updated in Zero-DB', async () => {
+      const mockQueryExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
+        if (sql.includes('SELECT * FROM hospital_materials WHERE id = ?')) {
+          return Promise.resolve([
+            { id: 2, name: 'พวงมาลาสีชมพู', total_qty: 1, available_qty: 0, is_active: 1 },
+          ])
+        }
+        if (sql.includes('SELECT COALESCE(SUM(i.quantity - i.returned_qty)')) {
+          // 0 currently borrowed
+          return Promise.resolve([{ borrowed: 0 }])
+        }
+        if (sql.includes('UPDATE hospital_materials SET')) {
+          return Promise.resolve({ affectedRows: 1 })
+        }
+        return Promise.resolve([])
+      })
+
+      const customService = new EquipmentBorrowService(null, mockQueryExecutor)
+      await customService.updateMaterial(2, { totalQty: 1 }, actor)
+
+      const updateCall = mockQueryExecutor.mock.calls.find(([sql]) =>
+        sql.includes('UPDATE hospital_materials SET')
+      )
+      expect(updateCall).toBeDefined()
+      // total_qty = 1, available_qty = 1 (1 - 0 borrowed)
+      expect(updateCall![0]).toContain('available_qty = ?')
+      expect(updateCall![1]).toContain(1)
+    })
+
+    it('pre-validates all material stock before executing any updates during approval in Zero-DB', async () => {
+      const mockQueryExecutor = vi.fn().mockImplementation((sql: string, params?: any[]) => {
+        if (sql.includes('FROM equipment_borrow_requests WHERE id = ?')) {
+          return Promise.resolve([
+            { id: 2, request_no: 'BR-202610-4958', status: 'PENDING', requester_id: 121 },
+          ])
+        }
+        if (sql.includes('FROM equipment_borrow_items i') && sql.includes('WHERE i.request_id = ?')) {
+          return Promise.resolve([
+            { id: 10, request_id: 2, item_type: 'MATERIAL', material_id: 2, item_name: 'พวงมาลาสีชมพู', quantity: 1, returned_qty: 0, status: 'PENDING' },
+            { id: 11, request_id: 2, item_type: 'MATERIAL', material_id: 3, item_name: 'ถุงมือสีขาว', quantity: 2, returned_qty: 0, status: 'PENDING' },
+          ])
+        }
+        if (sql.includes('SELECT id, name, available_qty, unit, material_type FROM hospital_materials WHERE id = ?')) {
+          const matId = params?.[0]
+          if (matId === 2) {
+            return Promise.resolve([{ id: 2, name: 'พวงมาลาสีชมพู', available_qty: 1, unit: 'ชิ้น', material_type: 'REUSABLE' }])
+          }
+          if (matId === 3) {
+            // Insufficient stock for material 3!
+            return Promise.resolve([{ id: 3, name: 'ถุงมือสีขาว', available_qty: 0, unit: 'คู่', material_type: 'REUSABLE' }])
+          }
+        }
+        return Promise.resolve([])
+      })
+
+      const customService = new EquipmentBorrowService(null, mockQueryExecutor)
+
+      await expect(customService.approveAndDispenseRequest(2, actor)).rejects.toThrow(
+        /ยอดคงเหลือไม่เพียงพอสำหรับ ถุงมือสีขาว/
+      )
+
+      // Ensure that hospital_materials update was NEVER called for item 1
+      const updateCalls = mockQueryExecutor.mock.calls.filter(([sql]) =>
+        sql.includes('UPDATE hospital_materials SET')
+      )
+      expect(updateCalls.length).toBe(0)
+    })
+  })
 })
