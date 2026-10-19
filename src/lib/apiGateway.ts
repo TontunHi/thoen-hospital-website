@@ -308,16 +308,18 @@ export class ApiGatewayClient {
       }>>('/api/v1/clinical/screening/verify-visits', { cids })
     },
 
-    getRcmInvoiceSummary: (params?: { department?: 'OP' | 'IP'; startDate?: string; endDate?: string }) => {
+    getRcmInvoiceSummary: (params?: { department?: 'OP' | 'IP'; startDate?: string; endDate?: string; dateType?: 'bill_date' | 'admdate' }) => {
       const q = new URLSearchParams()
       if (params?.department) q.set('department', params.department)
       if (params?.startDate) q.set('startDate', params.startDate)
       if (params?.endDate) q.set('endDate', params.endDate)
+      if (params?.dateType) q.set('dateType', params.dateType)
       const qs = q.toString() ? `?${q.toString()}` : ''
       return this.get<{
         department: 'OP' | 'IP'
         ds1: string
         ds2: string
+        dateType?: 'bill_date' | 'admdate'
         items: Array<{
           code: string
           name: string
@@ -348,6 +350,7 @@ export class ApiGatewayClient {
       page?: number
       pageSize?: number
       exportAll?: boolean
+      dateType?: 'bill_date' | 'admdate'
     }) => {
       const q = new URLSearchParams()
       if (params?.department) q.set('department', params.department)
@@ -358,6 +361,7 @@ export class ApiGatewayClient {
       if (params?.page) q.set('page', String(params.page))
       if (params?.pageSize) q.set('pageSize', String(params.pageSize))
       if (params?.exportAll) q.set('exportAll', 'true')
+      if (params?.dateType) q.set('dateType', params.dateType)
       const qs = q.toString() ? `?${q.toString()}` : ''
       return this.get<{
         items: Array<any>
@@ -365,6 +369,7 @@ export class ApiGatewayClient {
         totalPages: number
         page: number
         pageSize: number
+        dateType?: 'bill_date' | 'admdate'
       }>(`/api/v1/clinical/rcm/invoice-details${qs}`)
     }
   }

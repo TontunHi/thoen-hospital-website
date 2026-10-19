@@ -747,7 +747,8 @@ fastify.get('/api/v1/clinical/rcm/invoice-summary', {
       properties: {
         department: { type: 'string', enum: ['OP', 'IP'], default: 'OP', description: 'ประเภทผู้ป่วย OP (ผู้ป่วยนอก) หรือ IP (ผู้ป่วยใน)' },
         startDate: { type: 'string', description: 'วันที่เริ่มต้นค้นหา Statement (YYYY-MM-DD)' },
-        endDate: { type: 'string', description: 'วันที่สิ้นสุดค้นหา Statement (YYYY-MM-DD)' }
+        endDate: { type: 'string', description: 'วันที่สิ้นสุดค้นหา Statement (YYYY-MM-DD)' },
+        dateType: { type: 'string', enum: ['bill_date', 'admdate'], default: 'bill_date', description: 'กรองตามวันที่ bill_date (วันที่ออก Invoice) หรือ admdate (วันที่รับบริการ)' }
       }
     },
     response: {
@@ -762,6 +763,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-summary', {
               department: { type: 'string' },
               ds1: { type: 'string' },
               ds2: { type: 'string' },
+              dateType: { type: 'string' },
               items: {
                 type: 'array',
                 items: {
@@ -796,14 +798,17 @@ fastify.get('/api/v1/clinical/rcm/invoice-summary', {
     }
   }
 }, async (req, reply) => {
-  const { department = 'OP', startDate = '', endDate = '' } = req.query || {}
+  const { department = 'OP', startDate = '', endDate = '', dateType = 'bill_date' } = req.query || {}
   const dept = department === 'IP' ? 'IP' : 'OP'
+  const dateCol = dateType === 'admdate' ? 'admdate' : 'bill_date'
   const ds1 = startDate || new Date().toISOString().slice(0, 10)
   const ds2 = endDate || ds1
+  const filterStart = dateType === 'admdate' ? `${ds1} 00:00:00` : ds1
+  const filterEnd = dateType === 'admdate' ? `${ds2} 23:59:59` : ds2
 
   try {
     let query = ''
-    const queryParams = [ds1, ds2]
+    const queryParams = [filterStart, filterEnd]
 
     if (dept === 'OP') {
       query = `
@@ -846,7 +851,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-summary', {
             LEFT JOIN hos.ovst o ON o.vn = t.vn
             LEFT JOIN hos.vn_stat v ON v.vn = o.vn
             WHERE t.department = 'OP'
-              AND t.bill_date BETWEEN ? AND ?
+              AND t.${dateCol} BETWEEN ? AND ?
             GROUP BY t.vn, o.pttype, v.income, v.rcpt_money
           ) t
           LEFT JOIN hos.pttype ptt ON ptt.pttype = t.pttype
@@ -897,7 +902,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-summary', {
             LEFT JOIN hos.ipt i ON i.an = t.an
             LEFT JOIN hos.an_stat a ON a.an = i.an
             WHERE t.department = 'IP'
-              AND t.bill_date BETWEEN ? AND ?
+              AND t.${dateCol} BETWEEN ? AND ?
             GROUP BY t.an, i.pttype, a.income, a.rcpt_money
           ) t
           LEFT JOIN hos.pttype ptt ON ptt.pttype = t.pttype
@@ -952,6 +957,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-summary', {
         department: dept,
         ds1,
         ds2,
+        dateType,
         items,
         grandTotal: {
           visit: grandVisit,
@@ -984,7 +990,8 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
         search: { type: 'string', description: 'คำค้นหา HN, VN, AN, ชื่อ, CID, REP, Bill' },
         page: { type: 'integer', default: 1 },
         pageSize: { type: 'integer', default: 50 },
-        exportAll: { type: 'boolean', default: false }
+        exportAll: { type: 'boolean', default: false },
+        dateType: { type: 'string', enum: ['bill_date', 'admdate'], default: 'bill_date', description: 'กรองตามวันที่ bill_date หรือ admdate' }
       }
     }
   }
@@ -997,12 +1004,16 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
     search = '',
     page = 1,
     pageSize = 50,
-    exportAll = false
+    exportAll = false,
+    dateType = 'bill_date'
   } = req.query || {}
 
   const dept = department === 'IP' ? 'IP' : 'OP'
+  const dateCol = dateType === 'admdate' ? 'admdate' : 'bill_date'
   const ds1 = startDate || new Date().toISOString().slice(0, 10)
   const ds2 = endDate || ds1
+  const filterStart = dateType === 'admdate' ? `${ds1} 00:00:00` : ds1
+  const filterEnd = dateType === 'admdate' ? `${ds2} 23:59:59` : ds2
   const cleanPttype = String(pttype || '').trim()
   const cleanSearch = String(search || '').trim()
   const pageNum = Math.max(1, Number(page || 1))
@@ -1029,29 +1040,29 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
   try {
     // 1. Count query
     let countSql = ''
-    const countParams = [ds1, ds2]
+    const countParams = [filterStart, filterEnd]
     if (cleanPttype) countParams.push(cleanPttype)
     if (cleanSearch) countParams.push(...searchParams)
 
     if (dept === 'OP') {
       countSql = `
-        SELECT COUNT(DISTINCT t.vn) as total
+        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.vn) as total
         FROM rcmdb.repeclaim t
         LEFT JOIN hos.ovst o ON o.vn = t.vn
         LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
         WHERE t.department = 'OP'
-          AND t.bill_date BETWEEN ? AND ?
+          AND t.${dateCol} BETWEEN ? AND ?
           ${pttypeClause}
           ${searchClause};
       `
     } else {
       countSql = `
-        SELECT COUNT(DISTINCT t.an) as total
+        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.an) as total
         FROM rcmdb.repeclaim t
         LEFT JOIN hos.ipt i ON i.an = t.an
         LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
         WHERE t.department = 'IP'
-          AND t.bill_date BETWEEN ? AND ?
+          AND t.${dateCol} BETWEEN ? AND ?
           ${pttypeClause}
           ${searchClause};
       `
@@ -1063,14 +1074,14 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
 
     // 2. Data rows query
     let dataSql = ''
-    const dataParams = [ds1, ds2]
+    const dataParams = [filterStart, filterEnd]
     if (cleanPttype) dataParams.push(cleanPttype)
     if (cleanSearch) dataParams.push(...searchParams)
     dataParams.push(limitNum, offsetNum)
 
     if (dept === 'OP') {
       dataSql = `
-        SELECT 
+        SELECT STRAIGHT_JOIN 
           t.vn as vnOrAn,
           t.pid as cid,
           t.hn,
@@ -1109,7 +1120,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
         LEFT JOIN hos.vn_stat v ON v.vn = o.vn
         LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
         WHERE t.department = 'OP'
-          AND t.bill_date BETWEEN ? AND ?
+          AND t.${dateCol} BETWEEN ? AND ?
           ${pttypeClause}
           ${searchClause}
         GROUP BY t.vn, t.pid, t.hn, t.ptname, t.admdate, o.pttype, ptt.pttype_eclaim_id, v.income, v.rcpt_money
@@ -1118,7 +1129,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
       `
     } else {
       dataSql = `
-        SELECT 
+        SELECT STRAIGHT_JOIN 
           t.an as vnOrAn,
           t.pid as cid,
           t.hn,
@@ -1157,7 +1168,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
         LEFT JOIN hos.an_stat a ON a.an = i.an
         LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
         WHERE t.department = 'IP'
-          AND t.bill_date BETWEEN ? AND ?
+          AND t.${dateCol} BETWEEN ? AND ?
           ${pttypeClause}
           ${searchClause}
         GROUP BY t.an, t.pid, t.hn, t.ptname, t.admdate, i.dchdate, i.pttype, ptt.pttype_eclaim_id, a.income, a.rcpt_money
@@ -1206,12 +1217,14 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
       totalPages,
       page: pageNum,
       pageSize: limitNum,
+      dateType,
       data: {
         items,
         totalCount,
         totalPages,
         page: pageNum,
-        pageSize: limitNum
+        pageSize: limitNum,
+        dateType
       }
     }
   } catch (err) {

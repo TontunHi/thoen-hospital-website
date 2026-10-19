@@ -444,6 +444,7 @@ export interface InvoiceSummaryResult {
   department: 'OP' | 'IP'
   ds1: string
   ds2: string
+  dateType?: 'bill_date' | 'admdate'
   items: InvoiceSummaryItem[]
   grandTotal: InvoiceSummaryGrandTotal
 }
@@ -476,12 +477,14 @@ export interface InvoiceDetailItem {
   bill: string
   billdate: string
   pttype_eclaim_id?: string
+  pttype?: string
 }
 
 export interface InvoiceDetailResult {
   department: 'OP' | 'IP'
   ds1: string
   ds2: string
+  dateType?: 'bill_date' | 'admdate'
   pttype?: string
   pttypeName?: string
   totalCount: number
@@ -1436,12 +1439,17 @@ export class RcmDashboardService {
       department?: 'OP' | 'IP'
       ds1?: string
       ds2?: string
+      dateType?: 'bill_date' | 'admdate'
     } = {},
     executor: QueryExecutor = queryClinicalDb
   ): Promise<InvoiceSummaryResult> {
     const department = params.department === 'IP' ? 'IP' : 'OP'
+    const dateType = params.dateType === 'admdate' ? 'admdate' : 'bill_date'
+    const dateCol = dateType === 'admdate' ? 'admdate' : 'bill_date'
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
-    const cacheKey = `rcm-invoice-summary-${department}-${ds1}-${ds2}`
+    const filterStart = dateType === 'admdate' ? `${ds1} 00:00:00` : ds1
+    const filterEnd = dateType === 'admdate' ? `${ds2} 23:59:59` : ds2
+    const cacheKey = `rcm-invoice-summary-${department}-${dateType}-${ds1}-${ds2}`
 
     return getCachedData(
       cacheKey,
@@ -1453,12 +1461,14 @@ export class RcmDashboardService {
               department,
               startDate: ds1,
               endDate: ds2,
+              dateType,
             })
             if (gwRes && gwRes.items) {
               return {
                 department,
                 ds1,
                 ds2,
+                dateType,
                 items: gwRes.items.filter((r) => Number(r.visit || 0) > 0),
                 grandTotal: gwRes.grandTotal,
               }
@@ -1468,7 +1478,7 @@ export class RcmDashboardService {
           }
         }
 
-        const queryParams: any[] = [ds1, ds2]
+        const queryParams: any[] = [filterStart, filterEnd]
         let query = ''
 
         if (department === 'OP') {
@@ -1512,7 +1522,7 @@ export class RcmDashboardService {
                 LEFT JOIN hos.ovst o ON o.vn = t.vn
                 LEFT JOIN hos.vn_stat v ON v.vn = o.vn
                 WHERE t.department = 'OP'
-                  AND t.bill_date BETWEEN ? AND ?
+                  AND t.${dateCol} BETWEEN ? AND ?
                 GROUP BY t.vn, o.pttype, v.income, v.rcpt_money
               ) t
               LEFT JOIN hos.pttype ptt ON ptt.pttype = t.pttype
@@ -1563,7 +1573,7 @@ export class RcmDashboardService {
                 LEFT JOIN hos.ipt i ON i.an = t.an
                 LEFT JOIN hos.an_stat a ON a.an = i.an
                 WHERE t.department = 'IP'
-                  AND t.bill_date BETWEEN ? AND ?
+                  AND t.${dateCol} BETWEEN ? AND ?
                 GROUP BY t.an, i.pttype, a.income, a.rcpt_money
               ) t
               LEFT JOIN hos.pttype ptt ON ptt.pttype = t.pttype
@@ -1645,11 +1655,16 @@ export class RcmDashboardService {
       page?: number
       pageSize?: number
       exportAll?: boolean
+      dateType?: 'bill_date' | 'admdate'
     } = {},
     executor: QueryExecutor = queryClinicalDb
   ): Promise<InvoiceDetailResult> {
     const department = params.department === 'IP' ? 'IP' : 'OP'
+    const dateType = params.dateType === 'admdate' ? 'admdate' : 'bill_date'
+    const dateCol = dateType === 'admdate' ? 'admdate' : 'bill_date'
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const filterStart = dateType === 'admdate' ? `${ds1} 00:00:00` : ds1
+    const filterEnd = dateType === 'admdate' ? `${ds2} 23:59:59` : ds2
     const pttype = (params.pttype || '').trim()
     const search = (params.search || '').trim()
     const page = Math.max(1, Number(params.page || 1))
@@ -1668,12 +1683,14 @@ export class RcmDashboardService {
           page,
           pageSize,
           exportAll: params.exportAll,
+          dateType,
         })
         if (gwRes && Array.isArray(gwRes.items)) {
           return {
             department,
             ds1,
             ds2,
+            dateType,
             items: gwRes.items as InvoiceDetailItem[],
             totalCount: Number(gwRes.totalCount || 0),
             totalPages: Number(gwRes.totalPages || 1),
@@ -1706,29 +1723,29 @@ export class RcmDashboardService {
 
     // 1. Count query
     let countSql = ''
-    const countParams: any[] = [ds1, ds2]
+    const countParams: any[] = [filterStart, filterEnd]
     if (pttype) countParams.push(pttype)
     if (search) countParams.push(...searchParams)
 
     if (department === 'OP') {
       countSql = `
-        SELECT COUNT(DISTINCT t.vn) as total
+        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.vn) as total
         FROM rcmdb.repeclaim t
         LEFT JOIN hos.ovst o ON o.vn = t.vn
         LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
         WHERE t.department = 'OP'
-          AND t.bill_date BETWEEN ? AND ?
+          AND t.${dateCol} BETWEEN ? AND ?
           ${pttypeClause}
           ${searchClause};
       `
     } else {
       countSql = `
-        SELECT COUNT(DISTINCT t.an) as total
+        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.an) as total
         FROM rcmdb.repeclaim t
         LEFT JOIN hos.ipt i ON i.an = t.an
         LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
         WHERE t.department = 'IP'
-          AND t.bill_date BETWEEN ? AND ?
+          AND t.${dateCol} BETWEEN ? AND ?
           ${pttypeClause}
           ${searchClause};
       `
@@ -1740,14 +1757,14 @@ export class RcmDashboardService {
 
     // 2. Fetch data query
     let dataSql = ''
-    const dataParams: any[] = [ds1, ds2]
+    const dataParams: any[] = [filterStart, filterEnd]
     if (pttype) dataParams.push(pttype)
     if (search) dataParams.push(...searchParams)
     dataParams.push(pageSize, offset)
 
     if (department === 'OP') {
       dataSql = `
-        SELECT 
+        SELECT STRAIGHT_JOIN 
           t.vn as vnOrAn,
           t.pid as cid,
           t.hn,
@@ -1779,22 +1796,23 @@ export class RcmDashboardService {
           GROUP_CONCAT(DISTINCT t.rep ORDER BY t.rep) as rep,
           GROUP_CONCAT(DISTINCT t.bill ORDER BY t.rep) as bill,
           GROUP_CONCAT(DISTINCT DATE_FORMAT(t.bill_date, '%Y-%m-%d') ORDER BY t.rep) as billdate,
-          ptt.pttype_eclaim_id
+          ptt.pttype_eclaim_id,
+          o.pttype
         FROM rcmdb.repeclaim t
         LEFT JOIN hos.ovst o ON o.vn = t.vn
         LEFT JOIN hos.vn_stat v ON v.vn = o.vn
         LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
         WHERE t.department = 'OP'
-          AND t.bill_date BETWEEN ? AND ?
+          AND t.${dateCol} BETWEEN ? AND ?
           ${pttypeClause}
           ${searchClause}
-        GROUP BY t.vn, t.pid, t.hn, t.ptname, t.admdate, v.income, v.rcpt_money, ptt.pttype_eclaim_id
+        GROUP BY t.vn, t.pid, t.hn, t.ptname, t.admdate, v.income, v.rcpt_money, ptt.pttype_eclaim_id, o.pttype
         ORDER BY t.admdate DESC, t.vn DESC
         LIMIT ? OFFSET ?;
       `
     } else {
       dataSql = `
-        SELECT 
+        SELECT STRAIGHT_JOIN 
           t.an as vnOrAn,
           t.pid as cid,
           t.hn,
@@ -1826,16 +1844,17 @@ export class RcmDashboardService {
           GROUP_CONCAT(DISTINCT t.rep ORDER BY t.rep) as rep,
           GROUP_CONCAT(DISTINCT t.bill ORDER BY t.rep) as bill,
           GROUP_CONCAT(DISTINCT DATE_FORMAT(t.bill_date, '%Y-%m-%d') ORDER BY t.rep) as billdate,
-          ptt.pttype_eclaim_id
+          ptt.pttype_eclaim_id,
+          i.pttype
         FROM rcmdb.repeclaim t
         LEFT JOIN hos.ipt i ON i.an = t.an
         LEFT JOIN hos.an_stat a ON a.an = i.an
         LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
         WHERE t.department = 'IP'
-          AND t.bill_date BETWEEN ? AND ?
+          AND t.${dateCol} BETWEEN ? AND ?
           ${pttypeClause}
           ${searchClause}
-        GROUP BY t.an, t.pid, t.hn, t.ptname, t.admdate, t.dchdate, a.income, a.rcpt_money, ptt.pttype_eclaim_id
+        GROUP BY t.an, t.pid, t.hn, t.ptname, t.admdate, t.dchdate, a.income, a.rcpt_money, ptt.pttype_eclaim_id, i.pttype
         ORDER BY t.admdate DESC, t.an DESC
         LIMIT ? OFFSET ?;
       `
@@ -1871,12 +1890,14 @@ export class RcmDashboardService {
       bill: String(r.bill || ''),
       billdate: String(r.billdate || ''),
       pttype_eclaim_id: r.pttype_eclaim_id ? String(r.pttype_eclaim_id) : undefined,
+      pttype: r.pttype ? String(r.pttype) : undefined,
     }))
 
     return {
       department,
       ds1,
       ds2,
+      dateType,
       pttype: pttype || undefined,
       totalCount,
       page,

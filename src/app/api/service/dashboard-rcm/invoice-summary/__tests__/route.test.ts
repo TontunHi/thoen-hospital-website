@@ -100,6 +100,7 @@ describe('GET /api/service/dashboard-rcm/invoice-summary', () => {
       department: 'OP',
       ds1: '2026-08-01',
       ds2: '2026-08-31',
+      dateType: 'bill_date',
     })
   })
 
@@ -166,6 +167,7 @@ describe('GET /api/service/dashboard-rcm/invoice-summary', () => {
       department: 'OP',
       ds1: '2026-08-01',
       ds2: '2026-08-31',
+      dateType: 'bill_date',
       pttype: '01',
       search: undefined,
       page: 1,

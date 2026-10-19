@@ -899,10 +899,9 @@
 .invoice-detail-table th.col-sticky-2,
 .invoice-detail-table td.col-sticky-2 {
   position: sticky;
-  left: 45px;
+  left: 50px;
   z-index: 5;
   background-color: #ffffff;
-  border-right: 2px solid var(--rcm-slate-300);
 }
 
 .invoice-detail-table th.col-sticky-2 {
@@ -910,8 +909,23 @@
   background-color: var(--rcm-slate-100);
 }
 
+.invoice-detail-table th.col-sticky-3,
+.invoice-detail-table td.col-sticky-3 {
+  position: sticky;
+  left: 115px;
+  z-index: 5;
+  background-color: #ffffff;
+  border-right: 2px solid var(--rcm-slate-300);
+}
+
+.invoice-detail-table th.col-sticky-3 {
+  z-index: 15;
+  background-color: var(--rcm-slate-100);
+}
+
 .invoice-detail-row:hover td.col-sticky-1,
-.invoice-detail-row:hover td.col-sticky-2 {
+.invoice-detail-row:hover td.col-sticky-2,
+.invoice-detail-row:hover td.col-sticky-3 {
   background-color: var(--rcm-slate-50);
 }
 

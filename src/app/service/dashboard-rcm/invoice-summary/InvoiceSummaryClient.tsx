@@ -61,6 +61,7 @@ export default function InvoiceSummaryClient() {
   const [selectedYear, setSelectedYear] = useState<number>(currentCalYear)
   const [ds1, setDs1] = useState<string>(defaultDs1)
   const [ds2, setDs2] = useState<string>(defaultDs2)
+  const [dateType, setDateType] = useState<'bill_date' | 'admdate'>('bill_date')
   const [selectedPttype, setSelectedPttype] = useState<string>('')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -157,7 +158,7 @@ export default function InvoiceSummaryClient() {
     setSummaryError(null)
     try {
       const res = await fetch(
-        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&mode=summary`
+        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=summary`
       )
       const json = await res.json()
       if (!res.ok || json.success === false) {
@@ -169,7 +170,7 @@ export default function InvoiceSummaryClient() {
     } finally {
       setSummaryLoading(false)
     }
-  }, [department, ds1, ds2])
+  }, [department, ds1, ds2, dateType])
 
   // ── Fetch Detail Data ──────────────────────────────────────
   const fetchDetails = useCallback(async () => {
@@ -179,7 +180,7 @@ export default function InvoiceSummaryClient() {
       const pttypeParam = selectedPttype ? `&pttype=${encodeURIComponent(selectedPttype)}` : ''
       const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''
       const res = await fetch(
-        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&mode=detail&page=${page}&pageSize=${pageSize}${pttypeParam}${searchParam}`
+        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=detail&page=${page}&pageSize=${pageSize}${pttypeParam}${searchParam}`
       )
       const json = await res.json()
       if (!res.ok || json.success === false) {
@@ -191,7 +192,7 @@ export default function InvoiceSummaryClient() {
     } finally {
       setDetailLoading(false)
     }
-  }, [department, ds1, ds2, selectedPttype, debouncedSearch, page, pageSize])
+  }, [department, ds1, ds2, dateType, selectedPttype, debouncedSearch, page, pageSize])
 
   // Trigger data fetches on filter changes
   useEffect(() => {
@@ -221,7 +222,7 @@ export default function InvoiceSummaryClient() {
       const pttypeParam = selectedPttype ? `&pttype=${encodeURIComponent(selectedPttype)}` : ''
       const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''
       const res = await fetch(
-        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&mode=detail&exportAll=true${pttypeParam}${searchParam}`
+        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=detail&exportAll=true${pttypeParam}${searchParam}`
       )
       const json = await res.json()
       const allDetails: InvoiceDetailItem[] = json.data?.items || []
@@ -301,7 +302,7 @@ export default function InvoiceSummaryClient() {
       const sheetDetail = workbook.addWorksheet(`รายการผู้ป่วย (${department})`)
       sheetDetail.views = [{ showGridLines: true }]
 
-      sheetDetail.mergeCells('A1:U1')
+      sheetDetail.mergeCells('A1:Y1')
       const detailTitleCell = sheetDetail.getCell('A1')
       detailTitleCell.value = `รายชื่อผู้ป่วย รายรับ ${department} วันที่ ${ds1} ถึง ${ds2} ${selectedPttype ? `(สิทธิ: ${selectedPttype})` : '(ทุกสิทธิ)'}`
       detailTitleCell.font = { name: 'Sarabun', size: 14, bold: true, color: { argb: 'FF0F172A' } }
@@ -309,6 +310,7 @@ export default function InvoiceSummaryClient() {
       sheetDetail.addRow([])
       sheetDetail.addRow([
         'ลำดับ',
+        'รหัสสิทธิ e-Claim',
         department === 'OP' ? 'VN' : 'AN',
         'เลขบัตรประชาชน (CID)',
         'HN',
@@ -346,6 +348,7 @@ export default function InvoiceSummaryClient() {
       allDetails.forEach((row, i) => {
         sheetDetail.addRow([
           i + 1,
+          row.pttype_eclaim_id || '',
           row.vnOrAn,
           row.cid,
           row.hn,
@@ -373,15 +376,19 @@ export default function InvoiceSummaryClient() {
       })
 
       sheetDetail.columns.forEach((col, idx) => {
-        if (idx >= 7 && idx <= 20) {
+        if (idx >= 8 && idx <= 21) {
           col.numFmt = '#,##0.00'
           col.width = 14
         } else {
           col.width = 16
         }
       })
-      sheetDetail.getColumn(3).width = 20
-      sheetDetail.getColumn(5).width = 24
+      sheetDetail.getColumn(1).width = 8   // ลำดับ
+      sheetDetail.getColumn(2).width = 16  // รหัสสิทธิ
+      sheetDetail.getColumn(3).width = 16  // VN/AN
+      sheetDetail.getColumn(4).width = 20  // CID
+      sheetDetail.getColumn(5).width = 12  // HN
+      sheetDetail.getColumn(6).width = 24  // ชื่อ-สกุล
 
       // 3. Download file
       const buffer = await workbook.xlsx.writeBuffer()
@@ -412,6 +419,19 @@ export default function InvoiceSummaryClient() {
     const match = summaryData.items.find((i) => i.code === selectedPttype)
     return match ? `${match.code} - ${match.name}` : selectedPttype
   }, [selectedPttype, summaryData])
+
+  // Fast lookup mapping of e-Claim code to descriptive name
+  const pttypeNameMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    if (summaryData?.items) {
+      for (const item of summaryData.items) {
+        if (item.code) {
+          map[item.code] = item.name
+        }
+      }
+    }
+    return map
+  }, [summaryData])
 
   // Calculation for net surplus/deficit
   const netDifference = useMemo(() => {
@@ -535,6 +555,32 @@ export default function InvoiceSummaryClient() {
               className={`invoice-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
             >
               กำหนดเอง (Custom)
+            </button>
+          </div>
+
+          {/* Date Type Selector (Bill Date vs AdmDate) */}
+          <div className="invoice-date-mode-group">
+            <button
+              type="button"
+              onClick={() => {
+                setDateType('bill_date')
+                setPage(1)
+              }}
+              className={`invoice-mode-btn ${dateType === 'bill_date' ? 'active' : ''}`}
+              title="ค้นหาตามวันที่ออก Invoice / Statement ของ e-Claim (Bill Date)"
+            >
+              📄 วันที่ออก Invoice
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDateType('admdate')
+                setPage(1)
+              }}
+              className={`invoice-mode-btn ${dateType === 'admdate' ? 'active' : ''}`}
+              title="ค้นหาตามวันที่ผู้ป่วยมารับบริการ (Visit Date / AdmDate)"
+            >
+              🏥 วันที่รับบริการ
             </button>
           </div>
         </div>
@@ -994,7 +1040,7 @@ export default function InvoiceSummaryClient() {
             <thead>
               {/* Grouped Header row */}
               <tr className="invoice-header-grouped">
-                <th colSpan={7} className="group-left">ข้อมูลผู้ป่วยและการรับบริการ</th>
+                <th colSpan={8} className="group-left">ข้อมูลผู้ป่วยและการรับบริการ</th>
                 <th colSpan={5} className="group-finance">เปรียบเทียบการเงิน & ลูกหนี้ HOSxP</th>
                 <th colSpan={7} className="group-subfunds">หมวดกองทุนย่อย (Sub-funds 7 หมวด)</th>
                 <th colSpan={2} className="group-diff">ผลต่าง (กระทบยอด)</th>
@@ -1002,7 +1048,8 @@ export default function InvoiceSummaryClient() {
               </tr>
               <tr>
                 <th style={{ width: '50px' }} className="sub-th col-sticky-1 text-center">No.</th>
-                <th style={{ width: '115px' }} className="sub-th col-sticky-2">{department === 'OP' ? 'VN' : 'AN'}</th>
+                <th style={{ width: '65px' }} className="sub-th col-sticky-2 text-center">รหัส</th>
+                <th style={{ width: '115px' }} className="sub-th col-sticky-3">{department === 'OP' ? 'VN' : 'AN'}</th>
                 <th style={{ width: '135px' }} className="sub-th">เลขบัตร ปชช.</th>
                 <th style={{ width: '80px' }} className="sub-th">HN</th>
                 <th style={{ width: '170px', textAlign: 'left' }} className="sub-th">ชื่อ-สกุล</th>
@@ -1030,15 +1077,22 @@ export default function InvoiceSummaryClient() {
             <tbody>
               {detailLoading ? (
                 <tr>
-                  <td colSpan={24} className="invoice-table-loading">
+                  <td colSpan={25} className="invoice-table-loading">
                     <RefreshCw size={26} className="animate-spin text-emerald-600" />
                     <span>กำลังโหลดรายการผู้ป่วยและยอดชดเชยจากฐานข้อมูล...</span>
                   </td>
                 </tr>
               ) : !detailData || detailData.items.length === 0 ? (
                 <tr>
-                  <td colSpan={24} className="invoice-table-empty">
-                    ไม่พบรายการผู้ป่วยตามเงื่อนไขที่เลือก
+                  <td colSpan={25} className="invoice-table-empty">
+                    <div style={{ padding: '24px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <p style={{ fontWeight: 600, color: '#475569' }}>ไม่พบรายการผู้ป่วยตามเงื่อนไขที่เลือก</p>
+                      {dateType === 'bill_date' && (
+                        <p style={{ fontSize: '13px', color: '#92400e', background: '#fef3c7', padding: '8px 16px', borderRadius: '6px', border: '1px solid #fde68a' }}>
+                          💡 <b>หมายเหตุ:</b> ปัจจุบันเลือกกรองตาม <b>วันที่ออก Invoice (Bill Date)</b> หากต้องการค้นหาผู้ป่วยที่มารับบริการในเดือนนี้ที่ สปสช. ยังไม่ออกบิล Statement สามารถสลับตัวเลือกด้านบนเป็น <b>วันที่รับบริการ</b>
+                        </p>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -1046,7 +1100,28 @@ export default function InvoiceSummaryClient() {
                   return (
                     <tr key={`${row.vnOrAn}-${row.no}`} className="invoice-detail-row">
                       <td className="col-sticky-1 text-center font-mono text-slate-500">{row.no}</td>
-                      <td className="col-sticky-2 font-mono font-bold text-slate-800">{row.vnOrAn}</td>
+                      <td className="col-sticky-2 text-center">
+                        {row.pttype_eclaim_id ? (
+                          <span
+                            className="invoice-pttype-code-badge"
+                            style={{ cursor: 'pointer' }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handlePttypeClick(row.pttype_eclaim_id!)
+                            }}
+                            title={
+                              pttypeNameMap[row.pttype_eclaim_id]
+                                ? `${row.pttype_eclaim_id} - ${pttypeNameMap[row.pttype_eclaim_id]} (คลิกเพื่อกรอง)`
+                                : `รหัส: ${row.pttype_eclaim_id} (คลิกเพื่อกรอง)`
+                            }
+                          >
+                            {row.pttype_eclaim_id}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-mono text-xs">–</span>
+                        )}
+                      </td>
+                      <td className="col-sticky-3 font-mono font-bold text-slate-800">{row.vnOrAn}</td>
                       <td className="font-mono text-slate-600 font-semibold">{row.cid || '–'}</td>
                       <td className="font-mono text-slate-600">{row.hn}</td>
                       <td className="text-left font-medium text-slate-900">{row.ptname}</td>

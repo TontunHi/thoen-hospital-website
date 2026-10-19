@@ -28,11 +28,12 @@ export async function GET(request: Request) {
     const defaultRange = getDefaultFiscalYearDateRange()
     const ds1 = searchParams.get('ds1') || defaultRange.startDate
     const ds2 = searchParams.get('ds2') || defaultRange.endDate
+    const dateType = searchParams.get('dateType') === 'admdate' ? 'admdate' : 'bill_date'
 
     logThrottledAudit(
       'READ',
       'rcm_invoice_summary',
-      `Viewed RCM invoice summary ${department} (${mode}, date: ${ds1} to ${ds2})`,
+      `Viewed RCM invoice summary ${department} (${mode}, dateType: ${dateType}, date: ${ds1} to ${ds2})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'RCM invoice summary audit log failed'))
 
@@ -47,6 +48,7 @@ export async function GET(request: Request) {
         department,
         ds1,
         ds2,
+        dateType,
         pttype,
         search,
         page,
@@ -64,6 +66,7 @@ export async function GET(request: Request) {
       department,
       ds1,
       ds2,
+      dateType,
     })
 
     return NextResponse.json({
