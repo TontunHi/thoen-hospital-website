@@ -5,7 +5,7 @@ import { executeWorkflowAction } from '@/lib/taskInboxService'
 import { z } from 'zod'
 
 const actionSchema = z.object({
-  action: z.enum(['APPROVE', 'REJECT', 'SEND_BACK', 'HOLD', 'RESUME']),
+  action: z.enum(['APPROVE', 'REJECT', 'SEND_BACK', 'HOLD', 'RESUME', 'COMPLETE']),
   comment: z.string().optional(),
   nextAssigneeId: z.number().nullable().optional(),
   partialEdits: z.any().optional(),

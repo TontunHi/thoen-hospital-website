@@ -1356,6 +1356,41 @@
   outline-offset: 2px;
 }
 
+.btnCompleteTaskAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  background-color: #0d9488;
+  color: #ffffff;
+  border: 1px solid #0f766e;
+  border-radius: 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.btnCompleteTaskAction:hover {
+  background-color: #0f766e;
+  color: #ffffff;
+  border-color: #115e59;
+  transform: translateY(-1px);
+}
+
+.btnCompleteTaskAction:active {
+  transform: scale(0.98);
+}
+
+.btnCompleteTaskAction:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}
+
 .btnEditTaskAction {
   background-color: #0f766e;
   color: #ffffff;
@@ -1827,6 +1862,44 @@
 .btnHoldJob:focus-visible {
   outline: 2px solid #d97706;
   outline-offset: 2px;
+}
+
+.btnCompleteImmediate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background-color: #0d9488;
+  color: #ffffff;
+  border: 1px solid #0f766e;
+  border-radius: var(--inbox-radius-md);
+  padding: 0.65rem 1.25rem;
+  min-height: 44px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+
+.btnCompleteImmediate:hover:not(:disabled) {
+  background-color: #0f766e;
+  border-color: #115e59;
+  transform: translateY(-1px);
+}
+
+.btnCompleteImmediate:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btnCompleteImmediate:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}
+
+.btnCompleteImmediate:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .btnSendBack {

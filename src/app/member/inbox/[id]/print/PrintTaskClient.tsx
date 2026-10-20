@@ -35,17 +35,31 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
   const formatThaiDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
     try {
+      const parts = dateStr.includes('T') ? dateStr.split('T')[0].split('-') : dateStr.split('-')
+      if (parts.length === 3) {
+        let y = parseInt(parts[0], 10)
+        if (y > 2400) y -= 543
+        const m = parseInt(parts[1], 10) - 1
+        const d = parseInt(parts[2], 10)
+        return new Intl.DateTimeFormat('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        }).format(new Date(y, m, d))
+      }
       const cleanStr = dateStr.includes('T') ? dateStr : `${dateStr.replace(/-/g, '/')} 00:00:00`
       const d = new Date(cleanStr)
       if (isNaN(d.getTime())) {
         const fallbackD = new Date(dateStr)
         if (isNaN(fallbackD.getTime())) return dateStr
+        if (fallbackD.getFullYear() > 2400) fallbackD.setFullYear(fallbackD.getFullYear() - 543)
         return new Intl.DateTimeFormat('th-TH', {
           year: 'numeric',
           month: 'short',
           day: 'numeric',
         }).format(fallbackD)
       }
+      if (d.getFullYear() > 2400) d.setFullYear(d.getFullYear() - 543)
       return new Intl.DateTimeFormat('th-TH', {
         year: 'numeric',
         month: 'short',
@@ -448,9 +462,7 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
                             [ลงนามอิเล็กทรอนิกส์แล้ว]
                           </div>
                         ) : (
-                          <div style={{ color: '#94a3b8', borderBottom: '1px dotted #cbd5e1', width: '80%', margin: '0 auto' }}>
-                            (รอดำเนินการลงนาม)
-                          </div>
+                          <div style={{ minHeight: '18px' }} />
                         )}
                       </div>
 
@@ -461,7 +473,7 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
                       <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.1rem' }}>
                         {st.assigned_role || st.assigned_to_position || '-'}
                       </div>
-                      {st.action_at && (
+                      {st.action_at && !isMediaRequest && (
                         <div style={{ color: '#0d9488', fontSize: '0.725rem', marginTop: '0.1rem', fontWeight: 500 }}>
                           ลงนาม: {formatThaiDateTime(st.action_at)}
                         </div>
@@ -507,9 +519,7 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
                             [ลงนามอิเล็กทรอนิกส์แล้ว]
                           </div>
                         ) : (
-                          <div style={{ color: '#94a3b8', borderBottom: '1px dotted #cbd5e1', width: '80%', margin: '0 auto' }}>
-                            (รอดำเนินการลงนาม)
-                          </div>
+                          <div style={{ minHeight: '18px' }} />
                         )}
                       </div>
 
@@ -520,7 +530,7 @@ export default function PrintTaskClient({ taskId }: { taskId: string }) {
                       <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '0.1rem' }}>
                         {st.assigned_role || st.assigned_to_position || '-'}
                       </div>
-                      {st.action_at && (
+                      {st.action_at && !isMediaRequest && (
                         <div style={{ color: '#0d9488', fontSize: '0.725rem', marginTop: '0.1rem', fontWeight: 500 }}>
                           ลงนาม: {formatThaiDateTime(st.action_at)}
                         </div>

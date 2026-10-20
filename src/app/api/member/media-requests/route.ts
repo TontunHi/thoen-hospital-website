@@ -166,6 +166,16 @@ export async function POST(request: Request) {
     const hasCost = data.costType === 'HAS_COST'
     const workflowSteps = getMediaRequestWorkflowSteps(hasCost)
 
+    let normalizedDeliveryDate = data.deliveryDate
+    if (normalizedDeliveryDate) {
+      const parts = normalizedDeliveryDate.split('-')
+      if (parts.length === 3) {
+        let y = parseInt(parts[0], 10)
+        if (y > 2400) y -= 543
+        normalizedDeliveryDate = `${y}-${parts[1]}-${parts[2]}`
+      }
+    }
+
     const taskId = crypto.randomUUID()
     const taskNo = await generateTaskNo('MEDIA_REQUEST')
 
@@ -174,7 +184,7 @@ export async function POST(request: Request) {
 
     const customPayload = {
       requestDate: new Date().toISOString(),
-      deliveryDate: data.deliveryDate,
+      deliveryDate: normalizedDeliveryDate,
       costType: data.costType,
       workTypes: data.workTypes,
       channels: data.channels,

@@ -283,6 +283,7 @@ import {
   notifyMediaRequestCreatedRequesterOnTelegram,
   notifyMediaRequestStepApprovedOnTelegram,
   notifyMediaRequestRejectedOrSentBackOnTelegram,
+  notifyMediaRequestCompletedImmediatelyOnTelegram,
   notifyTaskHoldOnTelegram,
   notifyTaskResumeOnTelegram,
   formatUrgency,
@@ -299,6 +300,7 @@ export {
   notifyMediaRequestCreatedRequesterOnTelegram,
   notifyMediaRequestStepApprovedOnTelegram,
   notifyMediaRequestRejectedOrSentBackOnTelegram,
+  notifyMediaRequestCompletedImmediatelyOnTelegram,
   notifyTaskHoldOnTelegram,
   notifyTaskResumeOnTelegram,
   formatUrgency,
@@ -851,8 +853,17 @@ export async function updateTaskByManager(
       customPayload.estimatedBudget = updates.estimatedBudget
     }
     if (updates.deliveryDate !== undefined && updates.deliveryDate !== (customPayload.deliveryDate ?? '')) {
-      diff.deliveryDate = { from: customPayload.deliveryDate, to: updates.deliveryDate }
-      customPayload.deliveryDate = updates.deliveryDate
+      let normDelivery = updates.deliveryDate
+      if (normDelivery) {
+        const parts = normDelivery.split('-')
+        if (parts.length === 3) {
+          let y = parseInt(parts[0], 10)
+          if (y > 2400) y -= 543
+          normDelivery = `${y}-${parts[1]}-${parts[2]}`
+        }
+      }
+      diff.deliveryDate = { from: customPayload.deliveryDate, to: normDelivery }
+      customPayload.deliveryDate = normDelivery
     }
     if (updates.workTypesSummary !== undefined && updates.workTypesSummary !== (customPayload.workTypesSummary ?? '')) {
       diff.workTypesSummary = { from: customPayload.workTypesSummary, to: updates.workTypesSummary }
@@ -1028,7 +1039,7 @@ export interface WorkflowActionInput {
   actorName?: string | null
   actorPosition?: string | null
   actorRole?: string | null
-  action: 'APPROVE' | 'REJECT' | 'SEND_BACK' | 'HOLD' | 'RESUME'
+  action: 'APPROVE' | 'REJECT' | 'SEND_BACK' | 'HOLD' | 'RESUME' | 'COMPLETE'
   comment?: string
   signaturePath?: string | null
   nextAssigneeId?: number | null
@@ -1066,6 +1077,13 @@ export async function executeWorkflowAction(
     if (task.status !== 'PENDING' && task.status !== 'IN_PROGRESS') {
       throw new Error('งานนี้ไม่อยู่ในสถานะที่สามารถพักงานได้')
     }
+  } else if (action === 'COMPLETE') {
+    if (task.status !== 'PENDING' && task.status !== 'IN_PROGRESS' && task.status !== 'ON_HOLD') {
+      throw new Error('งานนี้ไม่อยู่ในสถานะที่สามารถปิดงานเสร็จสิ้นได้')
+    }
+    if (task.task_type !== 'MEDIA_REQUEST') {
+      throw new Error('ฟังก์ชันเสร็จสิ้นทันทีรองรับเฉพาะงานสื่อประชาสัมพันธ์เท่านั้น')
+    }
   } else {
     if (task.status !== 'PENDING' && task.status !== 'IN_PROGRESS') {
       throw new Error('งานนี้ไม่อยู่ในสถานะที่สามารถดำเนินการได้')
@@ -1096,6 +1114,10 @@ export async function executeWorkflowAction(
   } else if (action === 'RESUME') {
     if (!perms.canResume && !perms.isAdmin && !perms.isCurrentAssignee) {
       throw new Error('คุณไม่มีสิทธิ์ปลดพักงานนี้')
+    }
+  } else if (action === 'COMPLETE') {
+    if (!perms.isPrStaff && !perms.isAdmin) {
+      throw new Error('คุณไม่มีสิทธิ์ปิดงานสื่อประชาสัมพันธ์นี้ (เฉพาะเจ้าหน้าที่ประชาสัมพันธ์หรือผู้ดูแลระบบ)')
     }
   } else {
     if (!perms.canApprove && !perms.isAdmin && !perms.isCurrentAssignee) {
@@ -1475,6 +1497,50 @@ export async function executeWorkflowAction(
         stepName: `ส่งกลับแก้ไขโดย ${actorName || actorUsername} (เหตุผล: ${comment || '-'})`,
       }).catch(() => {})
     }
+  } else if (action === 'COMPLETE') {
+    const finalComment = comment?.trim() || 'ดำเนินการเสร็จสิ้นเรียบร้อย'
+
+    // Do NOT update or stamp inbox_task_steps so that the document steps remain
+    // untouched at their exact current state, ready for external manual paper signatures.
+
+    let existingPayload: Record<string, any> = {}
+    try {
+      existingPayload = task.custom_payload ? JSON.parse(task.custom_payload) : {}
+    } catch {}
+
+    const updatedPayload = {
+      ...existingPayload,
+      completedImmediately: true,
+      completedAt: new Date().toISOString(),
+      completedBy: {
+        id: actorMemberId,
+        username: actorUsername,
+        name: actorName || actorUsername,
+        position: actorPosition || null,
+      },
+      completedComment: finalComment,
+    }
+
+    // Update task to APPROVED, keeping current_step_no as is
+    await executor(
+      `UPDATE inbox_tasks 
+       SET status = 'APPROVED', current_assignee = NULL, \`current_role\` = NULL, custom_payload = ?, updated_at = NOW() 
+       WHERE id = ?`,
+      [JSON.stringify(updatedPayload), taskId]
+    )
+
+    // Send Telegram Notification (Media Group + Requester)
+    notifyMediaRequestCompletedImmediatelyOnTelegram({
+      taskId,
+      taskNo: task.task_no,
+      title: task.title,
+      requesterId: task.requester_id,
+      requesterName: task.requester_name,
+      requesterDept: task.requester_dept,
+      actorName: actorName || actorUsername,
+      actorPosition,
+      comment: finalComment,
+    }).catch((e) => logger.error({ error: e }, 'Telegram media completion notify error'))
   }
 
   const auditActionId = crypto.randomUUID()

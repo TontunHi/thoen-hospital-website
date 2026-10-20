@@ -105,7 +105,7 @@ export function resolveTaskPermissions(
   // Role heuristics derived strictly from permissions and admin status
   const isITStaff = Boolean(hasPerm('take_repairs_it') || hasPerm('manage_repairs') || isAdmin)
   const isTechStaff = Boolean(hasPerm('take_repairs_general') || hasPerm('take_repairs_medical') || hasPerm('manage_repairs') || isAdmin)
-  const isPrStaff = Boolean(hasPerm('produce_media') || hasPerm('manage_media_requests') || isAdmin)
+  const isPrStaff = Boolean(hasPerm('produce_media') || hasPerm('manage_media_requests') || userPos.includes('ประชาสัมพันธ์') || isAdmin)
 
   const isRequester = Boolean(userId && task.requester_id === userId)
   const isDirectAssignee = Boolean(userId && task.current_assignee === userId)

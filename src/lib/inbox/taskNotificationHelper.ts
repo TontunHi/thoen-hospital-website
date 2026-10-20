@@ -717,6 +717,92 @@ export async function notifyMediaRequestStepApprovedOnTelegram(params: {
 }
 
 /**
+ * Dispatch Telegram Alert when Media Request is Completed Immediately
+ * (Sends to Media PR Telegram Group and Requester)
+ */
+export async function notifyMediaRequestCompletedImmediatelyOnTelegram(params: {
+  taskId: string
+  taskNo: string
+  title: string
+  requesterId?: number | null
+  requesterName: string
+  requesterDept?: string | null
+  actorName: string
+  actorPosition?: string | null
+  comment?: string | null
+}) {
+  try {
+    const targetChatIds: string[] = []
+
+    // 1. Group Telegram Chat ID
+    const mediaGroupChatId = process.env.TELEGRAM_GROUP_MEDIA_REQUEST || process.env.TELEGRAM_GROUP_PR || '-5235759439'
+    if (mediaGroupChatId) {
+      targetChatIds.push(mediaGroupChatId)
+    }
+
+    // 2. Requester Private Chat ID
+    if (params.requesterId) {
+      const links = await queryMemberDb(
+        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+        [params.requesterId]
+      )
+      if (links && links.length > 0) {
+        const reqChatId = links[0].telegram_chat_id
+        if (!targetChatIds.includes(reqChatId)) {
+          targetChatIds.push(reqChatId)
+        }
+      }
+    }
+
+    if (targetChatIds.length === 0) return
+
+    const domainUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://thlp.moph.go.th'
+    const taskLink = `${domainUrl}/member/inbox/${params.taskId}`
+
+    const thaiDate = new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date())
+
+    const lines: string[] = [
+      '🎉 <b>คำขอจัดทำสื่อประชาสัมพันธ์ ดำเนินการเสร็จสิ้นแล้ว</b>',
+      `🏷️ <b>เลขคำร้อง :</b> <code>${params.taskNo}</code>`,
+      `📋 <b>หัวข้อ :</b> <b>${escapeHtml(params.title)}</b>`,
+      `👤 <b>ผู้ร้องขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`,
+      `🧑‍💻 <b>ผู้ดำเนินการ :</b> <b>${escapeHtml(params.actorName)}</b>${params.actorPosition ? ` (${escapeHtml(params.actorPosition)})` : ''}`,
+      `📍 <b>สถานะ :</b> ✅ เสร็จสิ้นเรียบร้อย (จบกระบวนการ)`,
+    ]
+
+    if (params.comment && params.comment.trim()) {
+      lines.push(`💬 <b>หมายเหตุ / ส่งมอบงาน :</b> ${escapeHtml(params.comment.trim())}`)
+    }
+
+    lines.push(`⏰ <b>เวลาที่เสร็จสิ้น :</b> ${thaiDate} น.`)
+
+    const message = `${lines.join('\n\n')}\n\n────────────────────────\n✨ <i>งานจัดทำสื่อประชาสัมพันธ์ดำเนินการเสร็จสิ้นเรียบร้อยแล้ว</i>`
+
+    for (const chatId of targetChatIds) {
+      await sendTelegramMessage(chatId, message, {
+        parseMode: 'HTML',
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '📄 ดูรายละเอียดคำขอ ↗',
+                url: taskLink,
+              },
+            ],
+          ],
+        },
+      }).catch((err) => logger.error({ error: err, chatId }, 'Failed sending media completion notification to chatId'))
+    }
+  } catch (error) {
+    logger.error({ error, taskId: params.taskId }, 'Failed to send Telegram media completion notification')
+  }
+}
+
+/**
  * Dispatch Telegram Alert on Reject / Send Back (Sends to Requester and Media PR Telegram Group)
  */
 export async function notifyMediaRequestRejectedOrSentBackOnTelegram(params: {

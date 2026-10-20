@@ -132,7 +132,8 @@ function formatThaiDeliveryPreview(dateStr: string): string | null {
   try {
     const parts = dateStr.split('-')
     if (parts.length !== 3) return null
-    const year = parseInt(parts[0], 10)
+    let year = parseInt(parts[0], 10)
+    if (year > 2400) year -= 543
     const month = parseInt(parts[1], 10) - 1
     const day = parseInt(parts[2], 10)
     const d = new Date(year, month, day)
@@ -558,10 +559,20 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
       return
     }
 
+    let normalizedDeliveryDate = deliveryDate
+    if (normalizedDeliveryDate) {
+      const parts = normalizedDeliveryDate.split('-')
+      if (parts.length === 3) {
+        let y = parseInt(parts[0], 10)
+        if (y > 2400) y -= 543
+        normalizedDeliveryDate = `${y}-${parts[1]}-${parts[2]}`
+      }
+    }
+
     const payload = {
       title: title.trim(),
       urgency,
-      deliveryDate,
+      deliveryDate: normalizedDeliveryDate,
       costType,
       workTypes: activeWorkTypes,
       channels: activeChannels,

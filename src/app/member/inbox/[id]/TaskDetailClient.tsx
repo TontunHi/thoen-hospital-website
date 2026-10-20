@@ -52,6 +52,10 @@ const TaskHoldModal = dynamic(() => import('./components/TaskHoldModal'), {
   ssr: false,
 })
 
+const MediaRequestCompleteModal = dynamic(() => import('./components/MediaRequestCompleteModal'), {
+  ssr: false,
+})
+
 const TaskRepairModals = dynamic(() => import('./components/TaskRepairModals'), {
   ssr: false,
 })
@@ -215,6 +219,10 @@ export default function TaskDetailClient({
   const [holdReason, setHoldReason] = useState<string>('รอการจัดสรรงบ')
   const [holdCustomReason, setHoldCustomReason] = useState<string>('')
   const [holdDetails, setHoldDetails] = useState<string>('')
+
+  // Media Request Immediate Complete Modal State
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState<boolean>(false)
+  const [completeComment, setCompleteComment] = useState<string>('')
 
   // Manager Edit Task Modal State
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState<boolean>(false)
@@ -677,6 +685,36 @@ export default function TaskDetailClient({
     }
   }
 
+  // ── Media Request Immediate Complete Handler ──
+  const handleCompleteMediaRequest = async () => {
+    setActionLoading(true)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      const res = await fetch(`/api/member/inbox/${taskId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'COMPLETE',
+          comment: completeComment.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSuccessMsg('ดำเนินการเสร็จสิ้นคำขอสื่อประชาสัมพันธ์เรียบร้อยแล้ว')
+        setIsCompleteModalOpen(false)
+        setCompleteComment('')
+        await loadData()
+      } else {
+        setError(data.error || 'เกิดข้อผิดพลาดในการประมวลผล')
+      }
+    } catch {
+      setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   // ── Repair Action Handlers ──
   const handleAcceptJob = async () => {
     setActionLoading(true)
@@ -871,7 +909,8 @@ export default function TaskDetailClient({
     try {
       const parts = dateStr.split('T')[0].split('-')
       if (parts.length === 3) {
-        const y = parseInt(parts[0], 10)
+        let y = parseInt(parts[0], 10)
+        if (y > 2400) y -= 543
         const m = parseInt(parts[1], 10) - 1
         const d = parseInt(parts[2], 10)
         const dateObj = new Date(y, m, d)
@@ -882,6 +921,9 @@ export default function TaskDetailClient({
         }).format(dateObj)
       }
       const d = new Date(dateStr)
+      if (d.getFullYear() > 2400) {
+        d.setFullYear(d.getFullYear() - 543)
+      }
       return new Intl.DateTimeFormat('th-TH', {
         day: 'numeric',
         month: 'short',
@@ -1054,6 +1096,20 @@ export default function TaskDetailClient({
             <Printer size={16} />
             <span>พิมพ์ใบงาน (A4)</span>
           </Link>
+          {task.task_type === 'MEDIA_REQUEST' && 
+           (taskPermissions.isPrStaff || taskPermissions.isAdmin) && 
+           task.status !== 'APPROVED' && 
+           task.status !== 'REJECTED' && (
+            <button
+              type="button"
+              onClick={() => setIsCompleteModalOpen(true)}
+              className="btnCompleteTaskAction"
+              title="ดำเนินการเสร็จสิ้นและปิดงานทันที"
+            >
+              <CheckCircle2 size={16} />
+              <span>เสร็จสิ้น (ปิดงานทันที)</span>
+            </button>
+          )}
           {canEdit && (
             <button
               type="button"
@@ -1845,6 +1901,19 @@ export default function TaskDetailClient({
                       : 'ลงนามอนุมัติ (Approve)'}
                   </span>
                 </button>
+
+                {task.task_type === 'MEDIA_REQUEST' && (taskPermissions.isPrStaff || taskPermissions.isAdmin) && (
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => setIsCompleteModalOpen(true)}
+                    className="btnCompleteImmediate"
+                    title="จบขั้นตอนทันทีและส่งแจ้งเตือนเข้ากลุ่มสื่อประชาสัมพันธ์"
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>เสร็จสิ้น (จบขั้นตอนทันที)</span>
+                  </button>
+                )}
 
                 {taskPermissions.canHold && (
                   <button
@@ -2935,6 +3004,17 @@ export default function TaskDetailClient({
         setHoldDetails={setHoldDetails}
         actionLoading={actionLoading}
         handleHoldTask={handleHoldTask}
+      />
+
+      <MediaRequestCompleteModal
+        isOpen={isCompleteModalOpen}
+        onClose={() => setIsCompleteModalOpen(false)}
+        taskNo={task.task_no}
+        taskTitle={task.title}
+        completeComment={completeComment}
+        setCompleteComment={setCompleteComment}
+        actionLoading={actionLoading}
+        handleCompleteMediaRequest={handleCompleteMediaRequest}
       />
     </div>
   )

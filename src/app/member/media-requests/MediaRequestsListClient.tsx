@@ -103,7 +103,22 @@ export default function MediaRequestsListClient({
   const formatThaiDate = (dateStr: string | null) => {
     if (!dateStr) return '-'
     try {
+      const parts = dateStr.includes('T') ? dateStr.split('T')[0].split('-') : dateStr.split('-')
+      if (parts.length === 3) {
+        let y = parseInt(parts[0], 10)
+        if (y > 2400) y -= 543
+        const m = parseInt(parts[1], 10) - 1
+        const d = parseInt(parts[2], 10)
+        return new Intl.DateTimeFormat('th-TH', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        }).format(new Date(y, m, d))
+      }
       const d = new Date(dateStr)
+      if (d.getFullYear() > 2400) {
+        d.setFullYear(d.getFullYear() - 543)
+      }
       return new Intl.DateTimeFormat('th-TH', {
         year: 'numeric',
         month: 'short',
@@ -426,7 +441,15 @@ export default function MediaRequestsListClient({
                         {payload.deliveryDate && (
                           <span className="mediaDeliveryDate">
                             <Calendar aria-hidden="true" className="w-3.5 h-3.5 mediaDateIcon" />
-                            <span>กำหนดรับงาน: <strong>{payload.deliveryDate}</strong></span>
+                            <span>กำหนดรับงาน: <strong>{(() => {
+                              const parts = String(payload.deliveryDate).split('-')
+                              if (parts.length === 3) {
+                                let y = parseInt(parts[0], 10)
+                                if (y > 2400) y -= 543
+                                return `${y}-${parts[1]}-${parts[2]}`
+                              }
+                              return payload.deliveryDate
+                            })()}</strong></span>
                           </span>
                         )}
 

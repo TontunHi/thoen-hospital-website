@@ -389,4 +389,91 @@ describe('executeWorkflowAction', () => {
       expect.arrayContaining(['t-1', 2, 'User Two'])
     )
   })
+
+  it('should immediately complete media request when executed by PR staff', async () => {
+    const mediaTask = {
+      id: 'mr-1',
+      task_no: 'PR-2570-10-0001',
+      task_type: 'MEDIA_REQUEST',
+      title: 'ป้ายไวนิลกิจกรรมรณรงค์',
+      requester_id: 10,
+      requester_name: 'ผู้ร้องขอ ทดสอบ',
+      requester_dept: 'งานเวชปฏิบัติทั่วไป',
+      current_assignee: 5,
+      current_step_no: 2,
+      status: 'IN_PROGRESS',
+      custom_payload: JSON.stringify({
+        deliveryDate: '2026-10-25',
+      }),
+    }
+    const mediaSteps = [
+      { id: 'ms-1', task_id: 'mr-1', step_no: 1, step_name: 'รับเรื่อง', status: 'COMPLETED', assigned_to_id: 5 },
+      { id: 'ms-2', task_id: 'mr-1', step_no: 2, step_name: 'พิจารณาอนุมัติ', status: 'PENDING', assigned_to_id: 6 },
+      { id: 'ms-3', task_id: 'mr-1', step_no: 3, step_name: 'ผลิตสื่อ', status: 'WAITING', assigned_to_id: 5 },
+      { id: 'ms-4', task_id: 'mr-1', step_no: 4, step_name: 'ส่งมอบงาน', status: 'WAITING', assigned_to_id: 5 },
+    ]
+
+    const executor = createExecutor([mediaTask], mediaSteps, {
+      telegramLinks: [{ telegram_chat_id: '999888777' }],
+    })
+
+    const result = await executeWorkflowAction(
+      {
+        taskId: 'mr-1',
+        actorMemberId: 5,
+        actorUsername: 'pr_officer',
+        actorName: 'เจ้าหน้าที่ ประชาสัมพันธ์',
+        actorPosition: 'นักประชาสัมพันธ์',
+        actorRole: 'member',
+        action: 'COMPLETE',
+        comment: 'จัดทำป้ายไวนิลและส่งมอบเรียบร้อยแล้ว',
+      },
+      executor
+    )
+
+    expect(result.success).toBe(true)
+
+    // Updates task status to APPROVED while keeping steps untouched for external manual paper signatures
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_tasks \n       SET status = 'APPROVED'"),
+      expect.arrayContaining(['mr-1'])
+    )
+
+    // Does NOT update inbox_task_steps
+    expect(executor).not.toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_task_steps"),
+      expect.anything()
+    )
+
+    // Writes audit log
+    expect(audit.logAudit).toHaveBeenCalledWith(
+      'UPDATE',
+      'inbox_tasks',
+      'COMPLETE task mr-1 (Step 2)',
+      { username: 'pr_officer', email: '' }
+    )
+  })
+
+  it('should disallow COMPLETE action for non-media request task', async () => {
+    const itRepairTask = {
+      ...mockTask,
+      task_type: 'IT_REPAIR',
+    }
+    const executor = createExecutor([itRepairTask])
+
+    await expect(
+      executeWorkflowAction(
+        {
+          taskId: 't-1',
+          actorMemberId: 2,
+          actorUsername: 'admin',
+          actorName: 'Admin',
+          actorPosition: 'Admin',
+          actorRole: 'admin',
+          action: 'COMPLETE',
+        },
+        executor
+      )
+    ).rejects.toThrow('ฟังก์ชันเสร็จสิ้นทันทีรองรับเฉพาะงานสื่อประชาสัมพันธ์เท่านั้น')
+  })
 })
