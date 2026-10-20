@@ -4,6 +4,7 @@ import { requireNewsPermission } from '@/lib/memberAuth'
 import { heroSlideSchema } from '@/lib/schemas/heroSlide'
 import { DocumentStorage } from '@/lib/storage/documentStorage'
 import { logAudit } from '@/lib/audit'
+import { toDbSqlDateTime } from '@/lib/events/eventTimeUtils'
 
 interface RouteProps {
   params: Promise<{ id: string }>
@@ -89,8 +90,8 @@ export async function PUT(request: Request, props: RouteProps) {
 
     const { imagePath, title, linkUrl, startDate, endDate, displayOrder, duration } = parsed.data
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const dbStart = toDbSqlDateTime(startDate)
+    const dbEnd = toDbSqlDateTime(endDate)
 
     // Check if slide exists
     const existingRows = await queryMemberDb('SELECT id, image_path AS imagePath FROM hero_slides WHERE id = ? LIMIT 1', [id])
@@ -109,15 +110,15 @@ export async function PUT(request: Request, props: RouteProps) {
       UPDATE hero_slides
       SET image_path = ?, title = ?, link_url = ?, start_date = ?, end_date = ?, display_order = ?, duration = ?, updated_at = NOW()
       WHERE id = ?
-    `, [imagePath, title || null, linkUrl || null, start, end, displayOrder || 0, duration || 6, id])
+    `, [imagePath, title || null, linkUrl || null, dbStart, dbEnd, displayOrder || 0, duration || 6, id])
 
     const slide = {
       id,
       imagePath,
       title: title || null,
       linkUrl: linkUrl || null,
-      startDate: start,
-      endDate: end,
+      startDate: dbStart,
+      endDate: dbEnd,
       displayOrder: displayOrder || 0,
       duration: duration || 6,
     }

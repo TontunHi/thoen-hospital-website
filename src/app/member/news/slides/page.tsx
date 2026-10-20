@@ -59,17 +59,36 @@ const formatDuration = (seconds: number) => {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
-const formatToDatetimeLocal = (isoString?: string | null) => {
-  if (!isoString) return ''
-  const d = new Date(isoString)
+const formatToDatetimeLocal = (input?: string | null) => {
+  if (!input) return ''
+  const str = String(input)
+  const match = str.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/)
+  if (match && !str.includes('Z') && !str.includes('+')) {
+    return `${match[1]}T${match[2]}`
+  }
+  const d = new Date(input)
   if (isNaN(d.getTime())) return ''
   const tzoffset = d.getTimezoneOffset() * 60000
   return new Date(d.getTime() - tzoffset).toISOString().slice(0, 16)
 }
 
-const formatThaiDateTime = (isoString?: string | null) => {
-  if (!isoString) return '-'
-  const d = new Date(isoString)
+const formatThaiDateTime = (input?: string | null) => {
+  if (!input) return '-'
+  const str = String(input)
+  let d: Date
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/)
+  if (match && !str.includes('Z') && !str.includes('+')) {
+    d = new Date(
+      parseInt(match[1], 10),
+      parseInt(match[2], 10) - 1,
+      parseInt(match[3], 10),
+      parseInt(match[4], 10),
+      parseInt(match[5], 10),
+      match[6] ? parseInt(match[6], 10) : 0
+    )
+  } else {
+    d = new Date(input)
+  }
   if (isNaN(d.getTime())) return '-'
   return (
     d.toLocaleDateString('th-TH', {

@@ -1,4 +1,13 @@
 import { apiGateway } from '@/lib/apiGateway'
+import { toDbSqlDateTime } from '@/lib/events/eventTimeUtils'
+
+function normalizeDbParam(p: any): any {
+  if (p instanceof Date) {
+    if (isNaN(p.getTime())) return null
+    return toDbSqlDateTime(p)
+  }
+  return p
+}
 
 /**
  * Execute Member & Website CMS queries via the Thoen Unified API Gateway.
@@ -6,17 +15,18 @@ import { apiGateway } from '@/lib/apiGateway'
  * Strict fail-closed: Throws GatewayUnavailableError if the Gateway is down.
  */
 export async function queryMemberDb(sql: string, params: any[] = []): Promise<any[]> {
+  const safeParams = Array.isArray(params) ? params.map(normalizeDbParam) : []
   const trimmedSql = sql.trim().toUpperCase()
   const isSelect = trimmedSql.startsWith('SELECT') || trimmedSql.startsWith('EXPLAIN') || trimmedSql.startsWith('SHOW')
 
   let results: any
   if (isSelect) {
-    results = await apiGateway.app.query(sql, params)
+    results = await apiGateway.app.query(sql, safeParams)
   } else {
     // Pin SET NAMES utf8mb4 via atomic transaction to prevent MariaDB init_connect tis620 mojibake
     const tx = await apiGateway.app.transaction([
       { sql: 'SET NAMES utf8mb4' },
-      { sql, params }
+      { sql, params: safeParams }
     ])
     results = tx.results?.[1] || { affectedRows: 0, insertId: null }
   }

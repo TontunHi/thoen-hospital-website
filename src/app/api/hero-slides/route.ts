@@ -3,6 +3,7 @@ import { queryMemberDb } from '@/lib/memberDb'
 import { requireNewsPermission } from '@/lib/memberAuth'
 import { heroSlideSchema } from '@/lib/schemas/heroSlide'
 import { logAudit } from '@/lib/audit'
+import { toDbSqlDateTime } from '@/lib/events/eventTimeUtils'
 
 export async function GET(request: Request) {
   try {
@@ -128,8 +129,8 @@ export async function POST(request: Request) {
 
     const { imagePath, title, linkUrl, startDate, endDate, displayOrder, duration } = parsed.data
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const dbStart = toDbSqlDateTime(startDate)
+    const dbEnd = toDbSqlDateTime(endDate)
 
     let finalOrder = displayOrder
     if (!finalOrder || finalOrder <= 0) {
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
     const insertRes = await queryMemberDb(`
       INSERT INTO hero_slides (image_path, title, link_url, start_date, end_date, display_order, duration, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-    `, [imagePath, title || null, linkUrl || null, start, end, finalOrder, duration || 6])
+    `, [imagePath, title || null, linkUrl || null, dbStart, dbEnd, finalOrder, duration || 6])
 
     const insertId = (insertRes as any)?.insertId || (insertRes as any)?.[0]?.insertId
 
@@ -150,8 +151,8 @@ export async function POST(request: Request) {
       imagePath,
       title: title || null,
       linkUrl: linkUrl || null,
-      startDate: start,
-      endDate: end,
+      startDate: dbStart,
+      endDate: dbEnd,
       displayOrder: finalOrder,
       duration: duration || 6,
     }
