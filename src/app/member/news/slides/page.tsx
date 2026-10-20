@@ -95,6 +95,7 @@ export default function AdminSlidesPage() {
   // Form State
   const [imagePath, setImagePath] = useState('')
   const [localPreviewUrl, setLocalPreviewUrl] = useState('')
+  const [uploadedFileName, setUploadedFileName] = useState('')
   const [isVideoPreview, setIsVideoPreview] = useState(false)
   const [title, setTitle] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
@@ -147,9 +148,10 @@ export default function AdminSlidesPage() {
   const handleEdit = (slide: SlideItem) => {
     setEditingId(slide.id)
     setImagePath(slide.imagePath)
-    setLocalPreviewUrl(slide.imagePath)
     const isVid = isVideoFile(slide.imagePath)
     setIsVideoPreview(isVid)
+    setLocalPreviewUrl(isVid ? slide.imagePath : '')
+    setUploadedFileName(slide.imagePath ? slide.imagePath.split('/').pop() || '' : '')
     setTitle(slide.title || '')
     setLinkUrl(slide.linkUrl || '')
     setStartDate(formatToDatetimeLocal(slide.startDate))
@@ -166,6 +168,7 @@ export default function AdminSlidesPage() {
     setEditingId(null)
     setImagePath('')
     setLocalPreviewUrl('')
+    setUploadedFileName('')
     setIsVideoPreview(false)
     setTitle('')
     setLinkUrl('')
@@ -194,19 +197,29 @@ export default function AdminSlidesPage() {
       }
     }
 
-    const isVideo = file.type.includes('mp4') || file.type.includes('video') || file.name.toLowerCase().endsWith('.mp4')
+    const isVideo =
+      file.type.startsWith('video/') ||
+      /\.(mp4|mov|m4v|webm)$/i.test(file.name)
     setIsVideoPreview(isVideo)
-    if (file.size > (isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024)) {
-      setError(`ไฟล์มีขนาดใหญ่เกินกำหนด (รูปภาพไม่เกิน 10MB, วิดีโอ MP4 ไม่เกิน 100MB)`)
+    setUploadedFileName(file.name)
+
+    const maxSize = isVideo ? 100 * 1024 * 1024 : 20 * 1024 * 1024
+    if (file.size > maxSize) {
+      setError(`ไฟล์มีขนาดใหญ่เกินกำหนด (${isVideo ? 'วิดีโอ MP4 ไม่เกิน 100MB' : 'รูปภาพไม่เกิน 20MB'})`)
       setIsVideoPreview(false)
+      setUploadedFileName('')
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
 
-    const localUrl = URL.createObjectURL(file)
-    setLocalPreviewUrl(localUrl)
-    setIsVideoPlaying(true)
-    setIsVideoMuted(true)
+    if (isVideo) {
+      const localUrl = URL.createObjectURL(file)
+      setLocalPreviewUrl(localUrl)
+      setIsVideoPlaying(true)
+      setIsVideoMuted(true)
+    } else {
+      setLocalPreviewUrl('')
+    }
 
     setUploading(true)
     setError('')
@@ -240,12 +253,16 @@ export default function AdminSlidesPage() {
       } else {
         setError(data.error || 'อัปโหลดไฟล์ไม่สำเร็จ')
         setLocalPreviewUrl('')
+        setImagePath('')
+        setUploadedFileName('')
         setIsVideoPreview(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
     } catch {
       setError('เกิดข้อผิดพลาดในการอัปโหลด')
       setLocalPreviewUrl('')
+      setImagePath('')
+      setUploadedFileName('')
       setIsVideoPreview(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     } finally {
@@ -257,6 +274,7 @@ export default function AdminSlidesPage() {
     const pathToClean = imagePath
     setImagePath('')
     setLocalPreviewUrl('')
+    setUploadedFileName('')
     setIsVideoPreview(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
@@ -602,16 +620,16 @@ export default function AdminSlidesPage() {
                 ref={fileInputRef}
                 type="file"
                 className="formInput"
-                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4"
+                accept="image/*,video/mp4,video/*"
                 onChange={handleImageUpload}
-                required={!localPreviewUrl && !imagePath}
+                required={!imagePath && !localPreviewUrl}
               />
               {uploading && <div className="uploadProgress">⏳ กำลังอัปโหลดและประมวลผลไฟล์...</div>}
               
-              {/* Form Live Media Preview */}
-              {(localPreviewUrl || imagePath) && (
-                <div className={`previewUploadedSlide ${isCurrentVideo ? 'videoPreviewBox' : ''}`}>
-                  {isCurrentVideo ? (
+              {/* Form Live Media Preview (Only for Video as requested - No Preview for Images) */}
+              {isCurrentVideo ? (
+                (localPreviewUrl || imagePath) && (
+                  <div className="previewUploadedSlide videoPreviewBox">
                     <div className="customVideoPlayerContainer">
                       <video
                         ref={previewVideoRef}
@@ -694,16 +712,34 @@ export default function AdminSlidesPage() {
                         </button>
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={localPreviewUrl || imagePath} alt="Uploaded preview" />
-                      <button type="button" className="removeImgBtn" onClick={handleRemoveSelectedImage}>
-                        ✕ เปลี่ยนไฟล์
-                      </button>
-                    </>
-                  )}
-                </div>
+                  </div>
+                )
+              ) : (
+                imagePath && (
+                  <div className="uploadedImageStatusBox">
+                    <div className="uploadedImageStatusLeft">
+                      <div className="uploadedImageIconWrap">
+                        <ImageIcon size={20} />
+                      </div>
+                      <div className="uploadedImageInfo">
+                        <div className="uploadedImageTitle">
+                          {uploadedFileName || imagePath.split('/').pop() || 'ไฟล์รูปภาพ'}
+                        </div>
+                        <div className="uploadedImageBadge">
+                          <span className="dotIndicator"></span>
+                          <span>แนบไฟล์รูปภาพแล้ว (พร้อมเปิดใช้งาน)</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="changeUploadedFileBtn"
+                      onClick={handleRemoveSelectedImage}
+                    >
+                      ✕ เปลี่ยนไฟล์
+                    </button>
+                  </div>
+                )
               )}
             </div>
 

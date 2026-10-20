@@ -81,6 +81,7 @@ export function sanitizeName(name: string): string {
   return name
     .replace(/[\\/:*?"<>|\r\n\t]/g, '_')
     .replace(/\.{2,}/g, '_')
+    .replace(/[. ]+$/g, '')
     .trim()
 }
 
@@ -151,9 +152,13 @@ export const DocumentStorage = {
     }
 
     // Extension & MIME validation
-    const candidateName = options.baseName || originalName
-    const rawExt = path.extname(candidateName).toLowerCase() || path.extname(originalName).toLowerCase()
-    const ext = rawExt || (mimeType === 'application/pdf' ? '.pdf' : '.jpg')
+    const origExt = path.extname(originalName).toLowerCase()
+    const baseExt = options.baseName ? path.extname(options.baseName).toLowerCase() : ''
+    
+    // If baseName has an explicitly recognized extension, respect it; otherwise use original file's extension
+    const ext = (baseExt && allowedExts.includes(baseExt))
+      ? baseExt
+      : (origExt || (mimeType === 'application/pdf' ? '.pdf' : mimeType === 'video/mp4' ? '.mp4' : '.jpg'))
     
     if (!allowedExts.includes(ext)) {
       throw new StorageValidationError(`ไม่อนุญาตไฟล์นามสกุล ${ext}`, 'INVALID_EXTENSION')
@@ -165,10 +170,10 @@ export const DocumentStorage = {
       }
     }
 
-    // Clean base name (strip extension if present in candidate baseName)
+    // Clean base name: only strip extension if candidate actually had that recognized extension
     const rawBase = options.baseName
-      ? path.basename(options.baseName, path.extname(options.baseName))
-      : path.basename(originalName, rawExt)
+      ? (baseExt && allowedExts.includes(baseExt) ? path.basename(options.baseName, baseExt) : options.baseName)
+      : path.basename(originalName, origExt)
     const safeBase = sanitizeName(rawBase) || 'file'
 
     // Build directory on disk
@@ -298,12 +303,14 @@ export const DocumentStorage = {
 
     const cleanSubDir = subDir.replace(/^\/+|\/+$/g, '')
 
+    let datePart = `${day}-${month}-${year}`
     if (mode === 'monthly') {
-      return `${cleanSubDir}/${year}/${month}`
+      datePart = `${year}/${month}`
     } else if (mode === 'yearly') {
-      return `${cleanSubDir}/${year}`
+      datePart = `${year}`
     }
-    return `${cleanSubDir}/${day}-${month}-${year}`
+
+    return cleanSubDir ? `${cleanSubDir}/${datePart}` : datePart
   },
 
   /**

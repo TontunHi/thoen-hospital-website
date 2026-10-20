@@ -21,20 +21,58 @@ export async function POST(request: Request) {
     const title = (formData.get('title') as string) || ''
     const publishedAt = (formData.get('publishedAt') as string) || ''
 
-    const dateStr = DocumentStorage.formatDateDirectory('', publishedAt, 'daily')
+    const destinationDir = DocumentStorage.formatDateDirectory('public/uploads', publishedAt, 'daily')
 
-    const cleanTitle = sanitizeName(title) || 'untitled'
-    const isPdf = file.type === 'application/pdf'
-    const isVideo = file.type === 'video/mp4' || file.name.toLowerCase().endsWith('.mp4')
-    const maxSizeBytes = isVideo 
-      ? 100 * 1024 * 1024 
-      : (isPdf ? 25 * 1024 * 1024 : 10 * 1024 * 1024)
+    const cleanTitle = sanitizeName(title) || 'slide'
+    const isVideo =
+      (Boolean(file.type) && file.type.startsWith('video/')) ||
+      /\.(mp4|mov|m4v|webm)$/i.test(file.name)
+    const isPdf =
+      file.type === 'application/pdf' ||
+      file.name.toLowerCase().endsWith('.pdf')
+    const maxSizeBytes = isVideo
+      ? 100 * 1024 * 1024
+      : (isPdf ? 25 * 1024 * 1024 : 20 * 1024 * 1024)
 
     const saved = await DocumentStorage.save(file, {
-      destinationDir: `public/uploads/${dateStr}/${cleanTitle}`,
+      destinationDir,
       baseName: cleanTitle,
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'video/mp4'],
-      allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.mp4'],
+      allowedMimeTypes: [
+        'image/jpeg',
+        'image/jpg',
+        'image/pjpeg',
+        'image/jfif',
+        'image/png',
+        'image/x-png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml',
+        'image/avif',
+        'image/heic',
+        'image/heif',
+        'application/pdf',
+        'video/mp4',
+        'video/quicktime',
+        'video/webm',
+        'video/x-m4v',
+      ],
+      allowedExtensions: [
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.gif',
+        '.webp',
+        '.svg',
+        '.jfif',
+        '.avif',
+        '.heic',
+        '.heif',
+        '.pdf',
+        '.mp4',
+        '.mov',
+        '.m4v',
+        '.webm',
+      ],
       maxSizeBytes,
       collisionStrategy: 'timestamp',
     })
