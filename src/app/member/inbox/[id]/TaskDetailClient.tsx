@@ -1096,20 +1096,6 @@ export default function TaskDetailClient({
             <Printer size={16} />
             <span>พิมพ์ใบงาน (A4)</span>
           </Link>
-          {task.task_type === 'MEDIA_REQUEST' && 
-           (taskPermissions.isPrStaff || taskPermissions.isAdmin) && 
-           task.status !== 'APPROVED' && 
-           task.status !== 'REJECTED' && (
-            <button
-              type="button"
-              onClick={() => setIsCompleteModalOpen(true)}
-              className="btnCompleteTaskAction"
-              title="ดำเนินการเสร็จสิ้นและปิดงานทันที"
-            >
-              <CheckCircle2 size={16} />
-              <span>เสร็จสิ้น (ปิดงานทันที)</span>
-            </button>
-          )}
           {canEdit && (
             <button
               type="button"
@@ -1911,7 +1897,7 @@ export default function TaskDetailClient({
                     title="จบขั้นตอนทันทีและส่งแจ้งเตือนเข้ากลุ่มสื่อประชาสัมพันธ์"
                   >
                     <CheckCircle2 size={16} />
-                    <span>เสร็จสิ้น (จบขั้นตอนทันที)</span>
+                    <span>เสร็จสิ้น (ปิดงานทันที)</span>
                   </button>
                 )}
 
@@ -1949,6 +1935,31 @@ export default function TaskDetailClient({
               </div>
             </div>
           ) : null}
+
+          {/* Action Box for PR Staff / Admin when not direct signer turn */}
+          {!isMyTurn && task.task_type === 'MEDIA_REQUEST' && (taskPermissions.isPrStaff || taskPermissions.isAdmin) && task.status !== 'APPROVED' && task.status !== 'REJECTED' && (
+            <div className="approvalCard" style={{ borderColor: '#a7f3d0', backgroundColor: '#f0fdf4' }}>
+              <div className="approvalHeader">
+                <CheckCircle2 size={22} className="text-emerald-700" />
+                <h3 style={{ color: '#166534' }}>การจัดการสำหรับเจ้าหน้าที่ประชาสัมพันธ์</h3>
+              </div>
+              <p style={{ fontSize: '0.875rem', color: '#166534', margin: '0 0 1rem 0', lineHeight: 1.5 }}>
+                ปัจจุบันงานอยู่ในขั้นตอนที่ {task.current_step_no} ({currentStep?.step_name || 'รอดำเนินการ'}) ท่านสามารถกดปิดงานเสร็จสิ้นได้ทันทีหากการจัดทำสื่อเสร็จสมบูรณ์แล้ว
+              </p>
+              <div className="actionButtonRow">
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => setIsCompleteModalOpen(true)}
+                  className="btnCompleteImmediate"
+                  title="จบขั้นตอนทันทีและส่งแจ้งเตือนเข้ากลุ่มสื่อประชาสัมพันธ์"
+                >
+                  <CheckCircle2 size={16} />
+                  <span>เสร็จสิ้น (ปิดงานทันที)</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Request Info, Workflow Timeline & Audit Logs */}
