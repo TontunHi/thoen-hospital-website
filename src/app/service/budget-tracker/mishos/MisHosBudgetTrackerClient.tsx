@@ -368,10 +368,10 @@ export default function MisHosBudgetTrackerClient({
     }
   }
 
-  // Active sub-reports list
+  // Active sub-reports list (MIS HOS Module 381: "" !== e.ssid && "Y" === e.flag_data)
   const activeSubReports = useMemo(() => {
     if (!template?.subReports) return []
-    return template.subReports.filter(s => s.flag_data !== 'N')
+    return template.subReports.filter(s => s.flag_data === 'Y' && Boolean(s.ssid))
   }, [template])
 
   // Total records count across all sub-reports

@@ -271,7 +271,11 @@ export class MisHosService {
       if (first.ST_CONFIG) {
         try {
           const decodedStr = Buffer.from(first.ST_CONFIG, 'base64').toString('utf8')
-          subReports = JSON.parse(decodedStr)
+          const parsed = JSON.parse(decodedStr)
+          // MIS HOS Module 381 only renders sub-reports where "" !== e.ssid && "Y" === e.flag_data
+          subReports = Array.isArray(parsed)
+            ? parsed.filter((s: MisHosSubReport) => s.flag_data === 'Y' && Boolean(s.ssid))
+            : []
         } catch {
           subReports = []
         }
