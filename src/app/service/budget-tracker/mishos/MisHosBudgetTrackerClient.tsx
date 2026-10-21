@@ -73,7 +73,7 @@ export default function MisHosBudgetTrackerClient({
   initialTableData,
   initialHospital,
   defaultHcode = THOEN_HOSPITAL_CODE,
-  defaultYear = '2568',
+  defaultYear = '2569',
 }: MisHosBudgetTrackerClientProps) {
   // Hospital & Year controls
   const [hcode, setHcode] = useState<string>(defaultHcode)

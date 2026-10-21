@@ -53,11 +53,18 @@ export interface MisHosHospitalInfo {
 export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
   {
     id: '0',
-    title: '0. การโอนเงิน & Statement',
+    title: 'การโอนเงิน (Budget Transfer)',
     submenus: [
       { id: '0.1', name: '0.1 รายการรับเงิน (ทุกกองทุน / รายเดือน)', stId: '1843', defaultSsid: '1825' },
       { id: '0.2', name: '0.2 Statement-UC (84 กองทุนย่อย / พึงรับ)', stId: '1823', defaultSsid: '1824' },
-      { id: '0.3', name: '0.3 ข้อมูลส่งเบิก E-Claim UC', stId: '1803', defaultSsid: '1803' },
+    ],
+  },
+  {
+    id: '0-eclaim',
+    title: '0-Eclaim Data (ข้อมูลส่งเบิก)',
+    submenus: [
+      { id: '0-ec-1', name: 'สิทธิ UC (พึงรับชดเชย E-Claim รายเดือน)', stId: '1803', defaultSsid: '1803' },
+      { id: '0-ec-2', name: 'สิทธิอื่น ๆ (เบิกจ่ายตรง/อปท.)', stId: '1804', defaultSsid: '1804' },
     ],
   },
   {

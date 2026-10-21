@@ -12,12 +12,16 @@ describe('MisHosService', () => {
   })
 
   it('defines all 10 menu categories with valid submenus and template IDs', () => {
-    expect(MIS_HOS_MENU_CATEGORIES.length).toBe(9) // 0, 1, 2, 3, 4, 5, 7, 8, 9
+    expect(MIS_HOS_MENU_CATEGORIES.length).toBe(10) // 0, 0-eclaim, 1, 2, 3, 4, 5, 7, 8, 9
     const cat0 = MIS_HOS_MENU_CATEGORIES.find(c => c.id === '0')
     expect(cat0).toBeDefined()
     expect(cat0?.title).toContain('การโอนเงิน')
     expect(cat0?.submenus.some(s => s.id === '0.1' && s.stId === '1843')).toBe(true)
     expect(cat0?.submenus.some(s => s.id === '0.2' && s.stId === '1823')).toBe(true)
+
+    const catEclaim = MIS_HOS_MENU_CATEGORIES.find(c => c.id === '0-eclaim')
+    expect(catEclaim).toBeDefined()
+    expect(catEclaim?.title).toContain('Eclaim')
   })
 
   it('fetches and decodes template configuration for a given st_id', async () => {

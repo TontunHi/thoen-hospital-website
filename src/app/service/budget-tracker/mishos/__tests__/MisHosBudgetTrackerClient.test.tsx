@@ -80,7 +80,8 @@ describe('MisHosBudgetTrackerClient Component', () => {
     )
 
     expect(screen.getByText('เมนูรายงาน MIS HOS')).toBeDefined()
-    expect(screen.getByText('0. การโอนเงิน & Statement')).toBeDefined()
+    expect(screen.getByText('การโอนเงิน (Budget Transfer)')).toBeDefined()
+    expect(screen.getByText('0-Eclaim Data (ข้อมูลส่งเบิก)')).toBeDefined()
     expect(screen.getByText('1. บริการผู้ป่วยนอก (OP)')).toBeDefined()
     expect(screen.getByText('2. บริการผู้ป่วยใน (IP)')).toBeDefined()
     expect(screen.getByText('4. บริการค่าใช้จ่ายสูง (High Cost)')).toBeDefined()
