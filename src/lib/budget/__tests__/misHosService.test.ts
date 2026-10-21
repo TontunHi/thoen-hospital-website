@@ -189,7 +189,7 @@ describe('MisHosService', () => {
   })
 
   it('synthesizes sub-reports for High Cost modules and fetches from custom endpoints', async () => {
-    // 1. Template config for STEMI (1468)
+    // 1. Template config for STEMI (1468) matching MIS HOS Chunk 34 (4 sub-reports)
     const mockEmptyTemplate = [{ ST_ID: '1468', ST_TEMPLATENAME: 'STEMI', ST_CONFIG: '' }]
     const mockTplFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -202,12 +202,21 @@ describe('MisHosService', () => {
     })
 
     expect(tplConfig).toBeDefined()
-    expect(tplConfig?.subReports.length).toBe(2)
-    expect(tplConfig?.subReports[0].ssid).toBe('custom:m0401_stemi_year')
+    expect(tplConfig?.subReports.length).toBe(4)
+    expect(tplConfig?.subReports[0].ssid).toBe('custom:m0401_stemi_year_chart')
+    expect(tplConfig?.subReports[0].report_name).toBe('บริการกรณี ยาละลายลิ่มเลือด แยกรายปี')
+    expect(tplConfig?.subReports[0].report_width).toBe('5')
+    expect(tplConfig?.subReports[1].ssid).toBe('custom:m0401_stemi_month_chart')
+    expect(tplConfig?.subReports[1].report_width).toBe('7')
+    expect(tplConfig?.subReports[2].ssid).toBe('custom:m0401_stemi_year_table')
+    expect(tplConfig?.subReports[2].report_name).toBe('บริการกรณี ยาละลายลิ่มเลือด แยกรายปีงบประมาณ')
+    expect(tplConfig?.subReports[2].report_width).toBe('6')
+    expect(tplConfig?.subReports[3].ssid).toBe('custom:m0401_stemi_month_table')
+    expect(tplConfig?.subReports[3].report_width).toBe('6')
 
-    // 2. Custom Table Data Fetch
+    // 2. Custom Table Data Fetch with computed TOTAL_AMT
     const mockCustomRecords = [
-      { YEAR: '2568', NUMPT_STEMI: 14, ACTAMT_STEMI: 140000 },
+      { YEAR: '2568', NUMPT_STROKE: 15, ACTAMT_STROKE: 735000, NUMPT_STEMI: 14, ACTAMT_STEMI: 140000 },
     ]
     const mockDataFetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -215,7 +224,7 @@ describe('MisHosService', () => {
       text: vi.fn().mockResolvedValue(JSON.stringify(mockCustomRecords)),
     })
 
-    const dataResult = await MisHosService.getTableData('custom:m0401_stemi_year', {
+    const dataResult = await MisHosService.getTableData('custom:m0401_stemi_year_table', {
       hcode: THOEN_HOSPITAL_CODE,
       year: '2569',
       fetchImpl: mockDataFetch as unknown as typeof fetch,
@@ -223,8 +232,10 @@ describe('MisHosService', () => {
 
     expect(dataResult.records.length).toBe(1)
     expect(dataResult.records[0].NUMPT_STEMI).toBe(14)
+    expect(dataResult.records[0].TOTAL_AMT).toBe(875000)
     expect(dataResult.chartConfig?.yaxis).toBe('บาท')
-    // Verify custom URL was called
+    expect(dataResult.chartConfig?.table_header).toContain('รวม (บาท),0')
+    // Verify custom URL was called with stripped endpoint name
     expect(mockDataFetch).toHaveBeenCalledWith(
       expect.stringContaining('m0401_stemi_year.php'),
       expect.objectContaining({

@@ -271,10 +271,11 @@ export default function MisHosChart({
   if (isMultiSeriesYear) {
     const xNameKey = 'YEAR' in first ? 'YEAR' : 'MONTH'
     const isStemi = 'ACTAMT_STEMI' in first || 'ACTAMT_STROKE' in first
-    const series1Key = isStemi ? 'ACTAMT_STEMI' : 'ACT_AMT_OP'
-    const series1Name = isStemi ? 'STEMI (บาท)' : 'ผู้ป่วยนอก OP (บาท)'
-    const series2Key = isStemi ? 'ACTAMT_STROKE' : 'ACT_AMT_IP'
-    const series2Name = isStemi ? 'Stroke (บาท)' : 'ผู้ป่วยใน IP (บาท)'
+    const series1Key = isStemi ? 'ACTAMT_STROKE' : 'ACT_AMT_OP'
+    const series1Name = isStemi ? 'STROKE (บาท)' : 'ผู้ป่วยนอก OP (บาท)'
+    const series2Key = isStemi ? 'ACTAMT_STEMI' : 'ACT_AMT_IP'
+    const series2Name = isStemi ? 'STEMI (บาท)' : 'ผู้ป่วยใน IP (บาท)'
+    const isStacked = isStemi && xNameKey === 'MONTH'
 
     const chartData = records.map(r => ({
       name: xNameKey === 'YEAR' ? `ปี ${r.YEAR}` : String(r.MONTH),
@@ -313,8 +314,20 @@ export default function MisHosChart({
                 }}
               />
               <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '0.5rem' }} />
-              <Bar dataKey="series1" name={series1Name} fill={palette[0] || '#0284c7'} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="series2" name={series2Name} fill={palette[1] || '#0f766e'} radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="series1"
+                name={series1Name}
+                fill={palette[0] || '#bf9930'}
+                radius={isStacked ? [0, 0, 0, 0] : [4, 4, 0, 0]}
+                stackId={isStacked ? 'stemiStack' : undefined}
+              />
+              <Bar
+                dataKey="series2"
+                name={series2Name}
+                fill={palette[1] || '#f2de7e'}
+                radius={[4, 4, 0, 0]}
+                stackId={isStacked ? 'stemiStack' : undefined}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>

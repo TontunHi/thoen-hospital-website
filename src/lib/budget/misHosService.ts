@@ -142,7 +142,7 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
     id: '4',
     title: '4. บริการค่าใช้จ่ายสูง (High Cost)',
     submenus: [
-      { id: '4.1', name: '4.1 ยาละลายลิ่มเลือด (STEMI/Stroke)', stId: '1468' },
+      { id: '4.1', name: '4.1 ยาละลายลิ่มเลือด (STEMI/Stroke)', stId: '1468', defaultSsid: 'custom:m0401_stemi_year_chart' },
       { id: '4.2', name: '4.2 เคมีบำบัด มะเร็ง', stId: '1469' },
       { id: '4.3', name: '4.3 ผ่าตัดต้อกระจก (Cataract)', stId: '1470' },
       { id: '4.4', name: '4.4 อวัยวะเทียมและอุปกรณ์', stId: '1084', secondaryStId: '1471', defaultSsid: '1107' },
@@ -285,8 +285,10 @@ export class MisHosService {
       if (subReports.length === 0) {
         if (stId === '1468') {
           subReports = [
-            { ssid: 'custom:m0401_stemi_year', report_name: 'บริการกรณี ยาละลายลิ่มเลือด (STEMI/Stroke) แยกรายปี', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
-            { ssid: 'custom:m0401_stemi_month', report_name: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายเดือน', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0401_stemi_year_chart', report_name: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายปี', chart_type: 'bar', report_width: '5', flag_data: 'Y' },
+            { ssid: 'custom:m0401_stemi_month_chart', report_name: 'บริการ ยาละลายลิ่มเลือด แยกรายเดือน ปีงบประมาณ', chart_type: 'bar', report_width: '7', flag_data: 'Y' },
+            { ssid: 'custom:m0401_stemi_year_table', report_name: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายปีงบประมาณ', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0401_stemi_month_table', report_name: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายเดือน ปีงบประมาณ', chart_type: 'table', report_width: '6', flag_data: 'Y' },
           ]
         } else if (stId === '1469') {
           subReports = [
@@ -351,19 +353,53 @@ export class MisHosService {
   ): Promise<MisHosChartConfig | null> {
     if (ssid.startsWith('custom:')) {
       const customConfigs: Record<string, MisHosChartConfig> = {
-        'custom:m0401_stemi_year': {
+        'custom:m0401_stemi_year_chart': {
           ssid,
-          reportName: 'บริการกรณี ยาละลายลิ่มเลือด (STEMI/Stroke) แยกรายปี',
+          reportName: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายปี',
           chartType: 'bar',
           yaxis: 'บาท',
-          table_header: ['ปีงบประมาณ', 'ผู้ป่วย Stroke (ราย),0', 'ชดเชย Stroke (บาท),2', 'ผู้ป่วย STEMI (ราย),0', 'ชดเชย STEMI (บาท),2'],
+          color: ['#bf9930', '#f2de7e'],
+          table_header: ['ปีงบประมาณ', 'STROKE จำนวน (ครั้ง),0', 'STROKE ชดเชย (บาท),0', 'STEMI จำนวน (ครั้ง),0', 'STEMI ชดเชย (บาท),0', 'รวม (บาท),0'],
+        },
+        'custom:m0401_stemi_month_chart': {
+          ssid,
+          reportName: 'บริการ ยาละลายลิ่มเลือด แยกรายเดือน ปีงบประมาณ',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          color: ['#bf9930', '#f2de7e'],
+          table_header: ['เดือน', 'STROKE จำนวน (ครั้ง),0', 'STROKE ชดเชย (บาท),0', 'STEMI จำนวน (ครั้ง),0', 'STEMI ชดเชย (บาท),0', 'รวม (บาท),0'],
+        },
+        'custom:m0401_stemi_year_table': {
+          ssid,
+          reportName: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายปีงบประมาณ',
+          chartType: 'table',
+          yaxis: 'บาท',
+          color: ['#bf9930', '#f2de7e'],
+          table_header: ['ปีงบประมาณ', 'STROKE จำนวน (ครั้ง),0', 'STROKE ชดเชย (บาท),0', 'STEMI จำนวน (ครั้ง),0', 'STEMI ชดเชย (บาท),0', 'รวม (บาท),0'],
+        },
+        'custom:m0401_stemi_month_table': {
+          ssid,
+          reportName: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายเดือน ปีงบประมาณ',
+          chartType: 'table',
+          yaxis: 'บาท',
+          color: ['#bf9930', '#f2de7e'],
+          table_header: ['เดือน', 'STROKE จำนวน (ครั้ง),0', 'STROKE ชดเชย (บาท),0', 'STEMI จำนวน (ครั้ง),0', 'STEMI ชดเชย (บาท),0', 'รวม (บาท),0'],
+        },
+        'custom:m0401_stemi_year': {
+          ssid,
+          reportName: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายปี',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          color: ['#bf9930', '#f2de7e'],
+          table_header: ['ปีงบประมาณ', 'STROKE จำนวน (ครั้ง),0', 'STROKE ชดเชย (บาท),0', 'STEMI จำนวน (ครั้ง),0', 'STEMI ชดเชย (บาท),0', 'รวม (บาท),0'],
         },
         'custom:m0401_stemi_month': {
           ssid,
-          reportName: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายเดือน',
+          reportName: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายเดือน ปีงบประมาณ',
           chartType: 'table',
           yaxis: 'บาท',
-          table_header: ['เดือน', 'ผู้ป่วย Stroke (ราย),0', 'ชดเชย Stroke (บาท),2', 'ผู้ป่วย STEMI (ราย),0', 'ชดเชย STEMI (บาท),2'],
+          color: ['#bf9930', '#f2de7e'],
+          table_header: ['เดือน', 'STROKE จำนวน (ครั้ง),0', 'STROKE ชดเชย (บาท),0', 'STEMI จำนวน (ครั้ง),0', 'STEMI ชดเชย (บาท),0', 'รวม (บาท),0'],
         },
         'custom:m0402_cancer_year': {
           ssid,
@@ -530,7 +566,7 @@ export class MisHosService {
 
       // Dedicated hospital endpoints for High Cost modules (4.x) bypassing SimpleStudio
       if (ssid.startsWith('custom:')) {
-        const endpoint = ssid.replace('custom:', '')
+        const endpoint = ssid.replace('custom:', '').replace(/_chart|_table$/, '')
         const customUrl = `${this.BASE_URL}${endpoint}.php`
         let records = await this.executeTableQuery(
           customUrl,
@@ -544,6 +580,14 @@ export class MisHosService {
             { data1: hcode, year: fallbackYear },
             fetchFn
           )
+        }
+
+        // Add computed totals for STEMI/Stroke matching Chunk 34
+        if (ssid.includes('m0401_stemi')) {
+          records = records.map(r => ({
+            ...r,
+            TOTAL_AMT: Number(r.ACTAMT_STROKE || 0) + Number(r.ACTAMT_STEMI || 0),
+          }))
         }
 
         const chartConfig = await this.getChartConfig(ssid, { fetchImpl: fetchFn })
