@@ -636,7 +636,9 @@ export class MisHosService {
         table_header: Array.isArray(configObj.table_header) ? configObj.table_header : [],
         color: Array.isArray(configObj.color) ? configObj.color : [],
         digit: configObj.digit ?? '2',
-        height: typeof configObj.height === 'number' ? configObj.height : 260,
+        height: !isNaN(parseInt(String(configObj.height), 10)) && parseInt(String(configObj.height), 10) > 0
+          ? parseInt(String(configObj.height), 10)
+          : 260,
       }
 
       this.cache.set(cacheKey, { data: result, cachedAt: Date.now() })

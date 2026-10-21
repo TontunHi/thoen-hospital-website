@@ -49,6 +49,13 @@ export default function MisHosChart({
 }: MisHosChartProps) {
   if (!records || records.length === 0) return null
 
+  // Priority for effective height:
+  // 1. chartConfig.height if defined & > 0
+  // 2. dynamic height for horizontal bar charts based on row count
+  // 3. passed height prop (default 260)
+  const configHeight = chartConfig?.height && Number(chartConfig.height) > 0 ? Number(chartConfig.height) : undefined
+  const effectiveHeight = configHeight || (chartType === 'barhorizontal' ? Math.max(380, records.length * 30 + 50) : height)
+
   const palette = chartConfig?.color && chartConfig.color.length > 0
     ? chartConfig.color
     : DEFAULT_PALETTE
@@ -146,7 +153,7 @@ export default function MisHosChart({
               <span className="bt-mishos-chart-unit">{unitLabel}</span>
             </div>
           )}
-          <div style={{ width: '100%', height }}>
+          <div style={{ width: '100%', height: effectiveHeight }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                 <Pie
@@ -155,8 +162,8 @@ export default function MisHosChart({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={Math.min(height / 4 - 5, 45)}
-                  outerRadius={Math.min(height / 2 - 25, 90)}
+                  innerRadius={Math.min(effectiveHeight / 4 - 5, 45)}
+                  outerRadius={Math.min(effectiveHeight / 2 - 25, 90)}
                   paddingAngle={pieData.length > 1 ? 3 : 0}
                   label={({ name, percent }: any) =>
                     `${name} (${((percent || 0) * 100).toFixed(1)}%)`
@@ -457,14 +464,45 @@ export default function MisHosChart({
     )
   }
 
-  // Case 3: Categorical / Fund breakdown
-  const nameKey = 'DESCRIPTION' in first ? 'DESCRIPTION' : ('M_FUND_DESC' in first ? 'M_FUND_DESC' : ('S_FUND_DESC' in first ? 'S_FUND_DESC' : ('PROVINCE_NAME' in first ? 'PROVINCE_NAME' : null)))
-  const numKey = 'ACT_AMT' in first ? 'ACT_AMT' : ('BUDGET' in first ? 'BUDGET' : ('ACT_AMT_STM' in first ? 'ACT_AMT_STM' : ('SUM_AMT' in first ? 'SUM_AMT' : null)))
+  // Case 3: Categorical / Fund / Hospital breakdown
+  const nameKey =
+    'DESCRIPTION' in first
+      ? 'DESCRIPTION'
+      : 'M_FUND_DESC' in first
+        ? 'M_FUND_DESC'
+        : 'S_FUND_DESC' in first
+          ? 'S_FUND_DESC'
+          : 'HNAME' in first
+            ? 'HNAME'
+            : 'HOSPITAL_NAME' in first
+              ? 'HOSPITAL_NAME'
+              : 'HOSNAME' in first
+                ? 'HOSNAME'
+                : 'PROVINCE_NAME' in first
+                  ? 'PROVINCE_NAME'
+                  : null
+
+  const numKey =
+    'ACT_AMT' in first
+      ? 'ACT_AMT'
+      : 'ACT_AMT_ALL' in first
+        ? 'ACT_AMT_ALL'
+        : 'BUDGET' in first
+          ? 'BUDGET'
+          : 'ACT_AMT_STM' in first
+            ? 'ACT_AMT_STM'
+            : 'SUM_AMT' in first
+              ? 'SUM_AMT'
+              : 'TOTAL_AMT' in first
+                ? 'TOTAL_AMT'
+                : null
 
   if (nameKey && numKey) {
+    const isHorizontal = chartType === 'barhorizontal' || records.length > 5
+    const limit = chartType === 'barhorizontal' ? 35 : 10
     const sorted = [...records]
       .sort((a, b) => (parseFloat(b[numKey]) || 0) - (parseFloat(a[numKey]) || 0))
-      .slice(0, 10)
+      .slice(0, limit)
 
     const chartData = sorted.map(r => ({
       name: String(r[nameKey]).length > 25 ? String(r[nameKey]).substring(0, 25) + '...' : String(r[nameKey]),
@@ -472,7 +510,7 @@ export default function MisHosChart({
       value: parseFloat(r[numKey]) || 0,
     }))
 
-    const isHorizontal = chartType === 'barhorizontal' || records.length > 5
+    const containerHeight = isHorizontal ? Math.max(effectiveHeight, chartData.length * 30 + 50) : effectiveHeight
 
     return (
       <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
@@ -480,18 +518,27 @@ export default function MisHosChart({
           <div className="bt-mishos-chart-header">
             <h3 className="bt-mishos-chart-title">
               <Layers size={16} style={{ color: palette[2] || '#0369a1' }} />
-              <span>10 อันดับงบประมาณสูงสุด: {reportTitle}</span>
+              <span>{chartType === 'barhorizontal' ? reportTitle : `10 อันดับงบประมาณสูงสุด: ${reportTitle}`}</span>
             </h3>
             <span className="bt-mishos-chart-unit">{unitLabel}</span>
           </div>
         )}
-        <div style={{ width: '100%', height }}>
+        <div style={{ width: '100%', height: containerHeight }}>
           <ResponsiveContainer width="100%" height="100%">
             {isHorizontal ? (
-              <BarChart layout="vertical" data={chartData} margin={{ top: 10, right: 30, left: 100, bottom: 10 }}>
+              <BarChart layout="vertical" data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                <XAxis type="number" tick={{ fontSize: 10, fill: '#475569' }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#1e293b' }} width={95} />
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 10, fill: '#475569' }}
+                  tickFormatter={(val: number) => Number(val).toLocaleString('th-TH')}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  tick={{ fontSize: 11, fill: '#1e293b' }}
+                  width={125}
+                />
                 <Tooltip
                   formatter={(val: any) => [
                     `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
@@ -559,10 +606,12 @@ export default function MisHosChart({
     })
 
     if (labelKey && numericKeys.length > 0) {
-      const chartData = records.slice(0, 15).map(r => {
+      const isHorizontal = chartType === 'barhorizontal'
+      const limit = isHorizontal ? 35 : 15
+      const chartData = records.slice(0, limit).map(r => {
         const item: Record<string, any> = {
-          name: String(r[labelKey] || '').length > 20
-            ? String(r[labelKey]).substring(0, 20) + '...'
+          name: String(r[labelKey] || '').length > 25
+            ? String(r[labelKey]).substring(0, 25) + '...'
             : String(r[labelKey] || ''),
           fullName: String(r[labelKey] || ''),
         }
@@ -573,6 +622,7 @@ export default function MisHosChart({
       })
 
       const displayKeys = numericKeys.slice(0, 3) // show top 3 series max to keep chart clean
+      const containerHeight = isHorizontal ? Math.max(effectiveHeight, chartData.length * 30 + 50) : effectiveHeight
 
       return (
         <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
@@ -585,7 +635,7 @@ export default function MisHosChart({
               <span className="bt-mishos-chart-unit">{unitLabel}</span>
             </div>
           )}
-          <div style={{ width: '100%', height }}>
+          <div style={{ width: '100%', height: containerHeight }}>
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'line' ? (
                 <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
@@ -618,6 +668,44 @@ export default function MisHosChart({
                     />
                   ))}
                 </LineChart>
+              ) : chartType === 'barhorizontal' ? (
+                <BarChart layout="vertical" data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 10, fill: '#475569' }}
+                    tickFormatter={(val: number) => Number(val).toLocaleString('th-TH')}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{ fontSize: 11, fill: '#1e293b' }}
+                    width={125}
+                  />
+                  <Tooltip
+                    formatter={(val: any, name: any) => [
+                      `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
+                      name,
+                    ]}
+                    labelFormatter={(_, arr) => arr[0]?.payload?.fullName || ''}
+                    contentStyle={{
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.8125rem',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    }}
+                  />
+                  {displayKeys.length > 1 && <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '0.25rem' }} />}
+                  {displayKeys.map((nk, idx) => (
+                    <Bar
+                      key={nk}
+                      dataKey={nk}
+                      name={nk}
+                      fill={palette[idx % palette.length]}
+                      radius={[0, 4, 4, 0]}
+                    />
+                  ))}
+                </BarChart>
               ) : (
                 <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />

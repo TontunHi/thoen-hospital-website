@@ -40,7 +40,10 @@ export default function MisHosSubReportCard({
   const [currentPage, setCurrentPage] = useState<number>(1)
   const pageSize = 15
 
-  const chartType = subReport.chart_type || chartConfig?.chartType || 'table'
+  const chartType =
+    (chartConfig?.chartType === 'barhorizontal' || chartConfig?.chartType === 'pie')
+      ? chartConfig.chartType
+      : (subReport.chart_type || chartConfig?.chartType || 'table')
   const isTable = chartType === 'table'
 
   // Determine width class matching CoreUI/Bootstrap grid in Module 381
@@ -343,7 +346,7 @@ export default function MisHosSubReportCard({
                 reportTitle={subReport.report_name}
                 chartType={chartType}
                 chartConfig={chartConfig}
-                height={260}
+                height={chartConfig?.height || (chartType === 'barhorizontal' ? Math.max(380, records.length * 30 + 50) : 260)}
                 hideHeader={true}
               />
             </div>
