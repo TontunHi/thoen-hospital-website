@@ -29,6 +29,8 @@ import {
   MisHosHospitalInfo,
   MIS_HOS_MENU_CATEGORIES,
   THOEN_HOSPITAL_CODE,
+  calculateThaiFiscalYear,
+  getAvailableMisHosFiscalYears,
 } from '@/lib/budget/misHosService'
 import MisHosChart from './components/MisHosChart'
 import { exportMisHosRecordsToExcel } from './utils/exportExcel'
@@ -49,18 +51,7 @@ export const THOEN_NETWORK_PRESETS = [
   { code: '01150', name: 'รพ.สต.บ้านห้วยเกตุ' },
 ]
 
-export const AVAILABLE_YEARS = [
-  '2569',
-  '2568',
-  '2567',
-  '2566',
-  '2565',
-  '2564',
-  '2563',
-  '2562',
-  '2561',
-  '2560',
-]
+export const AVAILABLE_YEARS = getAvailableMisHosFiscalYears(11)
 
 interface MisHosBudgetTrackerClientProps {
   initialTemplate: MisHosTemplateConfig | null
@@ -75,13 +66,15 @@ export default function MisHosBudgetTrackerClient({
   initialTableData,
   initialHospital,
   defaultHcode = THOEN_HOSPITAL_CODE,
-  defaultYear = '2569',
+  defaultYear,
 }: MisHosBudgetTrackerClientProps) {
+  const currentFiscalYear = defaultYear || AVAILABLE_YEARS[0] || calculateThaiFiscalYear()
+
   // Hospital & Year controls
   const [hcode, setHcode] = useState<string>(defaultHcode)
   const [customHcode, setCustomHcode] = useState<string>('')
   const [isCustomHcode, setIsCustomHcode] = useState<boolean>(false)
-  const [selectedYear, setSelectedYear] = useState<string>(defaultYear)
+  const [selectedYear, setSelectedYear] = useState<string>(currentFiscalYear)
   const [hospitalInfo, setHospitalInfo] = useState<MisHosHospitalInfo | null>(initialHospital)
 
   // Navigation Accordion State
@@ -434,7 +427,7 @@ export default function MisHosBudgetTrackerClient({
             >
               {AVAILABLE_YEARS.map(yr => (
                 <option key={yr} value={yr}>
-                  พ.ศ. {yr}
+                  พ.ศ. {yr} {yr === AVAILABLE_YEARS[0] ? '(ปีงบล่าสุด)' : ''}
                 </option>
               ))}
             </select>

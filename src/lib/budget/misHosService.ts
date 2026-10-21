@@ -1,4 +1,20 @@
 import https from 'https'
+import { calculateThaiFiscalYear } from '@/lib/events/eventUtils'
+
+export { calculateThaiFiscalYear }
+
+/**
+ * คำนวณรายการปีงบประมาณย้อนหลัง โดยเริ่มต้นจากปีงบประมาณปัจจุบัน (ตามปฏิทินราชการไทย เดือนตุลาคมเป็นต้นไป)
+ * เช่น เดือนตุลาคม 2026 = ปีงบประมาณ 2570
+ */
+export function getAvailableMisHosFiscalYears(count: number = 11): string[] {
+  const currentFiscalYear = parseInt(calculateThaiFiscalYear(), 10)
+  const years: string[] = []
+  for (let i = 0; i < count; i++) {
+    years.push(String(currentFiscalYear - i))
+  }
+  return years
+}
 
 export const THOEN_HOSPITAL_CODE = '11152'
 export const DEFAULT_PROVINCE_CODE = '52'
@@ -180,7 +196,7 @@ export class MisHosService {
       fetchImpl?: typeof fetch
     }
   ): Promise<MisHosTemplateConfig | null> {
-    const year = options?.year || '2568'
+    const year = options?.year || calculateThaiFiscalYear()
     const hcode = options?.hcode || THOEN_HOSPITAL_CODE
     const subfund = options?.subfund || ''
     const fetchFn = options?.fetchImpl || fetch
@@ -251,7 +267,7 @@ export class MisHosService {
     }
   ): Promise<MisHosTableDataResult> {
     const hcode = options?.hcode || THOEN_HOSPITAL_CODE
-    const year = options?.year || '2568'
+    const year = options?.year || calculateThaiFiscalYear()
     const province = options?.province || DEFAULT_PROVINCE_CODE
     const provinceName = options?.provinceName || DEFAULT_PROVINCE_NAME
     const subfund = options?.subfund || ''

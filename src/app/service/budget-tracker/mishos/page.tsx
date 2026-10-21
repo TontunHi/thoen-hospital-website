@@ -1,7 +1,11 @@
 import React from 'react'
 import { redirect } from 'next/navigation'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { MisHosService, THOEN_HOSPITAL_CODE } from '@/lib/budget/misHosService'
+import {
+  MisHosService,
+  THOEN_HOSPITAL_CODE,
+  calculateThaiFiscalYear,
+} from '@/lib/budget/misHosService'
 import MisHosBudgetTrackerClient from './MisHosBudgetTrackerClient'
 
 export const metadata = {
@@ -15,15 +19,18 @@ export default async function MisHosBudgetTrackerPage() {
     redirect('/member/login')
   }
 
+  // คำนวณปีงบประมาณไทยปัจจุบัน (เช่น เดือนตุลาคม 2026 = ปีงบ 2570)
+  const currentFiscalYear = calculateThaiFiscalYear()
+
   // Pre-fetch initial template 0.1 (stId: 1843) and initial sub-report 1825
   const [initialTemplate, initialTableData, initialHospital] = await Promise.all([
     MisHosService.getTemplateConfig('1843', {
-      year: '2569',
+      year: currentFiscalYear,
       hcode: THOEN_HOSPITAL_CODE,
     }),
     MisHosService.getTableData('1825', {
       hcode: THOEN_HOSPITAL_CODE,
-      year: '2569',
+      year: currentFiscalYear,
       province: '52',
     }),
     MisHosService.getHospitalInfo(THOEN_HOSPITAL_CODE),
@@ -35,7 +42,7 @@ export default async function MisHosBudgetTrackerPage() {
       initialTableData={initialTableData}
       initialHospital={initialHospital}
       defaultHcode={THOEN_HOSPITAL_CODE}
-      defaultYear="2569"
+      defaultYear={currentFiscalYear}
     />
   )
 }

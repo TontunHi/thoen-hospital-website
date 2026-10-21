@@ -3,12 +3,27 @@ import {
   MisHosService,
   MIS_HOS_MENU_CATEGORIES,
   THOEN_HOSPITAL_CODE,
+  calculateThaiFiscalYear,
+  getAvailableMisHosFiscalYears,
 } from '../misHosService'
 
 describe('MisHosService', () => {
   beforeEach(() => {
     MisHosService.clearCache()
     vi.restoreAllMocks()
+  })
+
+  it('calculates current Thai fiscal year dynamically and lists available fiscal years', () => {
+    const currentFY = calculateThaiFiscalYear()
+    expect(currentFY).toBeDefined()
+    expect(Number(currentFY)).toBeGreaterThanOrEqual(2569)
+
+    const years = getAvailableMisHosFiscalYears(11)
+    expect(years.length).toBe(11)
+    expect(years[0]).toBe(currentFY)
+    expect(Number(years[0])).toBeGreaterThan(Number(years[1]))
+    expect(years).toContain('2569')
+    expect(years).toContain('2568')
   })
 
   it('defines all 10 menu categories with valid submenus and template IDs', () => {
