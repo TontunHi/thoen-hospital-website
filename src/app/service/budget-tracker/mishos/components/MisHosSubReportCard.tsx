@@ -46,9 +46,11 @@ export default function MisHosSubReportCard({
   // Determine width class matching CoreUI/Bootstrap grid in Module 381
   const widthClass = useMemo(() => {
     const w = String(subReport.report_width).trim()
+    if (w === '4') return 'bt-mishos-col-4'
     if (w === '5') return 'bt-mishos-col-5'
     if (w === '6') return 'bt-mishos-col-6'
     if (w === '7') return 'bt-mishos-col-7'
+    if (w === '8') return 'bt-mishos-col-8'
     return 'bt-mishos-col-12'
   }, [subReport.report_width])
 
