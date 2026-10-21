@@ -1297,49 +1297,6 @@ table.bt-mx td.c.z {
   cursor: not-allowed;
 }
 
-/* --- Cache & Source Status Bar --- */
-.bt-mishos-status-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: #64748b;
-  padding: 0 0.15rem;
-}
-
-.bt-mishos-status-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.bt-mishos-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.bt-mishos-status-dot.cache {
-  background-color: #059669;
-  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
-}
-
-.bt-mishos-status-dot.upstream {
-  background-color: #0284c7;
-  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
-}
-
-.bt-mishos-status-right {
-  font-variant-numeric: tabular-nums;
-}
-
-.bt-mishos-status-right b {
-  color: #0f172a;
-}
-
 /* --- Error Alert Banner --- */
 .bt-mishos-alert {
   background-color: #fff1f2;

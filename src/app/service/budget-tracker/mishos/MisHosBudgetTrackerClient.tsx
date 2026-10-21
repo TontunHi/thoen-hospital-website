@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Search,
   Download,
-  Database,
   ChevronRight,
   Folder,
   Layers,
@@ -111,18 +110,9 @@ export default function MisHosBudgetTrackerClient({
     return map
   })
 
-  const [dataSource, setDataSource] = useState<string>(initialTableData?.source || 'upstream')
-  const [lastUpdated, setLastUpdated] = useState<string>('')
   const [globalLoading, setGlobalLoading] = useState<boolean>(false)
   const [isTemplateLoading, setIsTemplateLoading] = useState<boolean>(false)
   const [errorMsg, setErrorMsg] = useState<string>('')
-
-  // Format lastUpdated on client mount to avoid SSR hydration mismatch
-  useEffect(() => {
-    if (initialTableData?.fetchedAt) {
-      setLastUpdated(new Date(initialTableData.fetchedAt).toLocaleTimeString('th-TH'))
-    }
-  }, [initialTableData?.fetchedAt])
 
   // Hospital Name helper
   const currentHospitalName = useMemo(() => {
@@ -195,8 +185,6 @@ export default function MisHosBudgetTrackerClient({
         const json = await res.json()
         if (json.success && Array.isArray(json.data)) {
           const newMap: Record<string, SubReportState> = {}
-          let sourceVal = 'upstream'
-          let fetchedAtVal = ''
 
           json.data.forEach((item: MisHosTableDataResult) => {
             newMap[item.ssid] = {
@@ -204,15 +192,9 @@ export default function MisHosBudgetTrackerClient({
               chartConfig: item.chartConfig,
               loading: false,
             }
-            if (item.source) sourceVal = item.source
-            if (item.fetchedAt) fetchedAtVal = item.fetchedAt
           })
 
           setSubReportsData(prev => ({ ...prev, ...newMap }))
-          setDataSource(sourceVal)
-          if (fetchedAtVal) {
-            setLastUpdated(new Date(fetchedAtVal).toLocaleTimeString('th-TH'))
-          }
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลตาราง'
@@ -371,15 +353,6 @@ export default function MisHosBudgetTrackerClient({
     return template.subReports.filter(s => s.flag_data === 'Y' && Boolean(s.ssid))
   }, [template])
 
-  // Total records count across all sub-reports
-  const totalRecordsCount = useMemo(() => {
-    let count = 0
-    Object.values(subReportsData).forEach(s => {
-      count += s.records?.length || 0
-    })
-    return count
-  }, [subReportsData])
-
   // For testing compatibility: first table sub-report records
   const primaryTableRecords = useMemo(() => {
     const tableSub = activeSubReports.find(s => s.chart_type === 'table') || activeSubReports[0]
@@ -486,32 +459,6 @@ export default function MisHosBudgetTrackerClient({
             <RefreshCw size={13} className={globalLoading ? 'bt-spin' : ''} />
             <span>{globalLoading ? 'กำลังโหลด...' : 'ดึงข้อมูลสด'}</span>
           </button>
-        </div>
-      </div>
-
-      {/* Cache Status Bar */}
-      <div className="bt-mishos-status-bar">
-        <div className="bt-mishos-status-left">
-          <span
-            className={`bt-mishos-status-dot ${dataSource === 'cache' ? 'cache' : 'upstream'}`}
-            aria-hidden="true"
-          />
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-            <Database size={13} />
-            แหล่งข้อมูล:{' '}
-            <b style={{ color: dataSource === 'cache' ? '#059669' : '#0284c7' }}>
-              {dataSource === 'cache'
-                ? 'แคชในหน่วยความจำ (TTL 10 นาที)'
-                : 'เชื่อมตรง Upstream สปสช.'}
-            </b>
-          </span>
-          {lastUpdated && (
-            <span suppressHydrationWarning>· อัปเดตล่าสุด: {lastUpdated}</span>
-          )}
-        </div>
-        <div className="bt-mishos-status-right">
-          พร้อมแสดงผล <b>{activeSubReports.length}</b> รายงานย่อย (รวม{' '}
-          <b>{totalRecordsCount.toLocaleString('th-TH')}</b> แถว)
         </div>
       </div>
 

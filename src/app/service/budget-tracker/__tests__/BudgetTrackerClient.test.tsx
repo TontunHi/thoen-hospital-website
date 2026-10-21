@@ -5,22 +5,20 @@ import BudgetTrackerNav from '../BudgetTrackerNav'
 import { Rh1BudgetService, THOEN_HOSPITAL_CODE } from '@/lib/budget/rh1BudgetService'
 
 describe('BudgetTrackerNav Component', () => {
-  it('renders navigation tabs for MIS HOS เขต 1, SMT Dashboard, MIS HOS สปสช., and Planfin', () => {
+  it('renders navigation tabs for MIS HOS เขต 1, SMT Dashboard, and MIS HOS สปสช.', () => {
     render(<BudgetTrackerNav />)
 
     const rh1Tab = screen.getByRole('tab', { name: /ผลงานชดเชย เขต 1 \(MIS HOS เขต 1\)/ })
     const smtTab = screen.getByRole('tab', { name: /ติดตามงบ สปสช\. \(SMT Dashboard\)/ })
     const misHosTab = screen.getByRole('tab', { name: /MIS HOS สปสช\. \(ส่วนกลาง\)/ })
-    const planfinTab = screen.getByRole('tab', { name: /แหล่งงบประมาณอื่น \(Planfin \/ งบลงทุน\)/ })
 
     expect(rh1Tab).toBeDefined()
     expect(smtTab).toBeDefined()
     expect(misHosTab).toBeDefined()
-    expect(planfinTab).toBeDefined()
+    expect(screen.queryByRole('tab', { name: /Planfin/ })).toBeNull()
     expect(rh1Tab.getAttribute('href')).toBe('/service/budget-tracker/rh1')
     expect(smtTab.getAttribute('href')).toBe('/service/budget-tracker/smt')
     expect(misHosTab.getAttribute('href')).toBe('/service/budget-tracker/mishos')
-    expect(planfinTab.getAttribute('href')).toBe('/service/budget-tracker/planfin')
   })
 })
 
