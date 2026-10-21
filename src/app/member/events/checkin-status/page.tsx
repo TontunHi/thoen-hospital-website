@@ -25,17 +25,28 @@ function CheckinStatusContent() {
   const openTime = searchParams.get('openTime') || ''
   const closeTime = searchParams.get('closeTime') || ''
 
-  const formatThaiTime = (isoString?: string) => {
-    if (!isoString) return ''
+  const formatThaiTime = (input?: string) => {
+    if (!input) return ''
     try {
-      const match = String(isoString).match(/[T ](\d{2}:\d{2})/)
-      if (match) {
+      const trimmed = String(input).trim()
+      // If time only (e.g. '11:42' or '11:42:00')
+      const timeOnly = trimmed.match(/^(\d{2}:\d{2})(?::\d{2})?$/)
+      if (timeOnly) {
+        return `${timeOnly[1]} น.`
+      }
+      // If Bangkok ISO or local datetime string without Z (e.g. '2026-10-21T11:42:56+07:00' or '2026-10-21 11:42:56')
+      const match = trimmed.match(/[T ](\d{2}:\d{2})/)
+      if (match && !trimmed.endsWith('Z')) {
         return `${match[1]} น.`
       }
-      const d = new Date(isoString)
-      return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }) + ' น.'
+      // If UTC ISO (e.g. '2026-10-21T04:42:56.000Z'), convert to Asia/Bangkok
+      const d = new Date(trimmed)
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok', hour12: false }) + ' น.'
+      }
+      return match ? `${match[1]} น.` : trimmed
     } catch {
-      return isoString
+      return input
     }
   }
 

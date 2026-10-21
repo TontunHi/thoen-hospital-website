@@ -1076,7 +1076,8 @@ export class HospitalEventService {
         where: { eventId_memberId: { eventId: event.id, memberId: member.id } },
       })
       if (existingAttendance) {
-        const checkedTime = new Date(existingAttendance.checkedInAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+        const timeMatch = String(existingAttendance.checkedInAt).match(/[T ](\d{2}:\d{2})/)
+        const checkedTime = timeMatch ? timeMatch[1] : new Date(existingAttendance.checkedInAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok', hour12: false })
         throw new Error(`ท่านได้เช็คอินเข้าร่วมกิจกรรมนี้ไปแล้วเมื่อเวลา ${checkedTime} น.`)
       }
 
@@ -1110,7 +1111,7 @@ export class HospitalEventService {
         success: true,
         event: { id: event.id, title: event.title, location: event.location },
         member: { id: member.id, name: member.name, department: member.department, position: member.position },
-        checkedInAt: attendance.checkedInAt,
+        checkedInAt: toBangkokIsoString(attendance.checkedInAt) || attendance.checkedInAt,
         pointsAwarded: 1,
       }
     }
@@ -1129,11 +1130,13 @@ export class HospitalEventService {
 
     const attRows = await this.queryExecutor('SELECT id, checked_in_at FROM event_attendances WHERE event_id = ? AND member_id = ?', [event.id, member.id])
     if (attRows.length > 0) {
-      const checkedTime = new Date(attRows[0].checked_in_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      const timeMatch = String(attRows[0].checked_in_at).match(/[T ](\d{2}:\d{2})/)
+      const checkedTime = timeMatch ? timeMatch[1] : new Date(attRows[0].checked_in_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok', hour12: false })
       throw new Error(`ท่านได้เช็คอินเข้าร่วมกิจกรรมนี้ไปแล้วเมื่อเวลา ${checkedTime} น.`)
     }
 
-    const checkedInAt = toDbSqlDateTime(now) || getNowBangkokForDbSql()
+    const dbThaiNow = toDbThaiDateTime(now)
+    const checkedInAt = dbThaiNow ? toDbSqlDateTime(dbThaiNow)! : getNowBangkokForDbSql()
     await this.queryExecutor(`
       INSERT INTO event_attendances (event_id, member_id, citizen_id, points_awarded, checked_in_at)
       VALUES (?, ?, ?, 1, ?)
@@ -1242,7 +1245,9 @@ export class HospitalEventService {
     const attRows = await this.queryExecutor('SELECT id FROM event_attendances WHERE event_id = ? AND member_id = ?', [eventId, member.id])
     if (attRows.length > 0) throw new Error(`${member.name || 'บุคลากรท่านนี้'} มีรายชื่อเข้าร่วมกิจกรรมนี้แล้ว`)
 
-    const checkedInAt = data.checkedInAt ? toDbSqlDateTime(data.checkedInAt)! : getNowBangkokForDbSql()
+    const checkedInAt = data.checkedInAt
+      ? (toDbSqlDateTime(toDbThaiDateTime(data.checkedInAt)) || getNowBangkokForDbSql())
+      : getNowBangkokForDbSql()
     const pointsAwarded = data.pointsAwarded !== undefined ? data.pointsAwarded : 1
 
     const res: any = await this.queryExecutor(`
@@ -1267,7 +1272,7 @@ export class HospitalEventService {
       memberId: member.id,
       citizenId: member.username,
       pointsAwarded,
-      checkedInAt,
+      checkedInAt: toBangkokIsoString(checkedInAt) || checkedInAt,
       member: { id: member.id, name: member.name, department: member.department, position: member.position, profilePath: member.profilePath },
     }
   }
@@ -1357,7 +1362,7 @@ export class HospitalEventService {
     }
     if (data.checkedInAt) {
       fields.push('checked_in_at = ?')
-      params.push(toDbSqlDateTime(data.checkedInAt)!)
+      params.push(toDbSqlDateTime(toDbThaiDateTime(data.checkedInAt))!)
     }
 
     if (fields.length > 0) {

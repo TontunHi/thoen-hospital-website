@@ -1,10 +1,10 @@
 import { apiGateway } from '@/lib/apiGateway'
-import { toDbSqlDateTime } from '@/lib/events/eventTimeUtils'
+import { toDbSqlDateTime, toDbThaiDateTime } from '@/lib/events/eventTimeUtils'
 
 function normalizeDbParam(p: any): any {
   if (p instanceof Date) {
     if (isNaN(p.getTime())) return null
-    return toDbSqlDateTime(p)
+    return toDbSqlDateTime(toDbThaiDateTime(p))
   }
   return p
 }

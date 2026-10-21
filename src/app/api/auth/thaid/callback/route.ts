@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { getThaidConfig, verifyOAuthState, verifyEventOAuthState, exchangeThaidAuthorizationCode } from '@/lib/thaidAuth'
 import { HospitalEventService } from '@/lib/events/hospitalEventService'
+import { toBangkokIsoString } from '@/lib/events/eventTimeUtils'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,7 +105,7 @@ export async function GET(request: Request) {
       target.searchParams.set('dept', result.member.department || 'ไม่ระบุแผนก')
       target.searchParams.set('event', result.event.title || '')
       target.searchParams.set('points', String(result.pointsAwarded))
-      target.searchParams.set('time', new Date(result.checkedInAt).toISOString())
+      target.searchParams.set('time', toBangkokIsoString(result.checkedInAt) || String(result.checkedInAt))
 
       return NextResponse.redirect(target)
     } catch (err: any) {
