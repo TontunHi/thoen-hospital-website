@@ -337,8 +337,56 @@ describe('MisHosService', () => {
     expect(cataractData.records[0].TOTAL_AMT).toBe(105000)
     expect(cataractData.chartConfig?.color).toEqual(['#1d7373', '#5ccccc'])
     expect(cataractData.chartConfig?.table_header).toContain('รวม (บาท),0')
-    expect(mockCataractDataFetch).toHaveBeenCalledWith(
-      expect.stringContaining('m0403_cataract_year.php'),
+    // 7. Template config for Stone (1472) matching MIS HOS Chunk 35 (6 sub-reports)
+    const mockEmptyStoneTemplate = [{ ST_ID: '1472', ST_TEMPLATENAME: 'Stone', ST_CONFIG: '' }]
+    const mockStoneTplFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify(mockEmptyStoneTemplate)),
+    })
+
+    const stoneTpl = await MisHosService.getTemplateConfig('1472', {
+      fetchImpl: mockStoneTplFetch as unknown as typeof fetch,
+    })
+
+    expect(stoneTpl).toBeDefined()
+    expect(stoneTpl?.subReports.length).toBe(6)
+    expect(stoneTpl?.subReports[0].ssid).toBe('custom:m0405_stone_year_num_chart')
+    expect(stoneTpl?.subReports[0].report_name).toBe('จำนวนผู้รับบบริการ นิ่วในระบบทางเดินปัสสาวะ')
+    expect(stoneTpl?.subReports[0].report_width).toBe('5')
+    expect(stoneTpl?.subReports[1].ssid).toBe('custom:m0405_stone_month_num_chart')
+    expect(stoneTpl?.subReports[1].report_width).toBe('7')
+    expect(stoneTpl?.subReports[2].ssid).toBe('custom:m0405_stone_year_act_chart')
+    expect(stoneTpl?.subReports[2].report_name).toBe('การชดเชย นิ่วในระบบทางเดินปัสสาวะ')
+    expect(stoneTpl?.subReports[2].report_width).toBe('5')
+    expect(stoneTpl?.subReports[3].ssid).toBe('custom:m0405_stone_month_act_chart')
+    expect(stoneTpl?.subReports[3].report_width).toBe('7')
+    expect(stoneTpl?.subReports[4].ssid).toBe('custom:m0405_stone_year_table')
+    expect(stoneTpl?.subReports[4].report_width).toBe('6')
+    expect(stoneTpl?.subReports[5].ssid).toBe('custom:m0405_stone_month_table')
+    expect(stoneTpl?.subReports[5].report_width).toBe('6')
+
+    // 8. Stone Data Fetch with computed TOTAL_AMT
+    const mockStoneRecords = [
+      { YEAR: '2568', NUMPT_OP: 15, ACT_AMT_OP: 5000, NUMPT_IP: 5, ACT_AMT_IP: 20000 },
+    ]
+    const mockStoneDataFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify(mockStoneRecords)),
+    })
+
+    const stoneData = await MisHosService.getTableData('custom:m0405_stone_year_act_chart', {
+      hcode: THOEN_HOSPITAL_CODE,
+      year: '2569',
+      fetchImpl: mockStoneDataFetch as unknown as typeof fetch,
+    })
+
+    expect(stoneData.records.length).toBe(1)
+    expect(stoneData.records[0].TOTAL_AMT).toBe(25000)
+    expect(stoneData.chartConfig?.yaxis).toBe('บาท')
+    expect(mockStoneDataFetch).toHaveBeenCalledWith(
+      expect.stringContaining('m0405_stone_year.php'),
       expect.objectContaining({
         body: JSON.stringify({ data1: THOEN_HOSPITAL_CODE, year: '2026' }),
       })

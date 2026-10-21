@@ -273,14 +273,62 @@ export default function MisHosChart({
     const xNameKey = 'YEAR' in first ? 'YEAR' : 'MONTH'
     const isStemi = 'ACTAMT_STEMI' in first || 'ACTAMT_STROKE' in first
     const isCataract = 'ACTAMT_IN' in first || 'ACTAMT_OUT' in first
-    const series1Key = isStemi ? 'ACTAMT_STROKE' : (isCataract ? 'ACTAMT_IN' : 'ACT_AMT_OP')
-    const series1Name = isStemi ? 'STROKE (บาท)' : (isCataract ? 'ในเครือข่าย (บาท)' : 'ผู้ป่วยนอก OP (บาท)')
-    const series2Key = isStemi ? 'ACTAMT_STEMI' : (isCataract ? 'ACTAMT_OUT' : 'ACT_AMT_IP')
-    const series2Name = isStemi ? 'STEMI (บาท)' : (isCataract ? 'นอกเครือข่าย (บาท)' : 'ผู้ป่วยใน IP (บาท)')
-    const isStacked = (isStemi || isCataract) ? xNameKey === 'MONTH' : true
+    const isStone = Boolean(
+      chartConfig?.ssid?.includes('m0405_stone') ||
+      reportTitle.includes('นิ่วในระบบทางเดินปัสสาวะ')
+    )
+    const isStoneNum = Boolean(
+      isStone &&
+      (chartConfig?.ssid?.includes('_num') ||
+        chartConfig?.yaxis === 'จำนวนราย' ||
+        reportTitle.startsWith('จำนวนผู้รับ'))
+    )
 
-    const defaultColor1 = isStemi ? '#bf9930' : (isCataract ? '#1d7373' : '#e0e065')
-    const defaultColor2 = isStemi ? '#f2de7e' : (isCataract ? '#5ccccc' : '#d6ba87')
+    let series1Key = 'ACT_AMT_OP'
+    let series1Name = 'ผู้ป่วยนอก OP (บาท)'
+    let series2Key = 'ACT_AMT_IP'
+    let series2Name = 'ผู้ป่วยใน IP (บาท)'
+    let isStacked = true
+    let defaultColor1 = '#e0e065'
+    let defaultColor2 = '#d6ba87'
+    let unitSuffix = 'บาท'
+
+    if (isStemi) {
+      series1Key = 'ACTAMT_STROKE'
+      series1Name = 'STROKE (บาท)'
+      series2Key = 'ACTAMT_STEMI'
+      series2Name = 'STEMI (บาท)'
+      isStacked = xNameKey === 'MONTH'
+      defaultColor1 = '#bf9930'
+      defaultColor2 = '#f2de7e'
+    } else if (isCataract) {
+      series1Key = 'ACTAMT_IN'
+      series1Name = 'ในเครือข่าย (บาท)'
+      series2Key = 'ACTAMT_OUT'
+      series2Name = 'นอกเครือข่าย (บาท)'
+      isStacked = xNameKey === 'MONTH'
+      defaultColor1 = '#1d7373'
+      defaultColor2 = '#5ccccc'
+    } else if (isStone) {
+      isStacked = false // Chunk 35 uses side-by-side grouped bars for stone
+      if (isStoneNum) {
+        series1Key = 'NUMPT_OP'
+        series1Name = 'ผู้ป่วยนอก (ราย)'
+        series2Key = 'NUMPT_IP'
+        series2Name = 'ผู้ป่วยใน (ราย)'
+        defaultColor1 = '#8699a3'
+        defaultColor2 = xNameKey === 'YEAR' ? '#9dbdf2' : '#aac4f0'
+        unitSuffix = 'ราย'
+      } else {
+        series1Key = 'ACT_AMT_OP'
+        series1Name = 'ผู้ป่วยนอก (บาท)'
+        series2Key = 'ACT_AMT_IP'
+        series2Name = 'ผู้ป่วยใน (บาท)'
+        defaultColor1 = '#8699a3'
+        defaultColor2 = xNameKey === 'YEAR' ? '#a9dbf5' : '#8997ad'
+        unitSuffix = 'บาท'
+      }
+    }
 
     const chartData = records.map(r => ({
       name: xNameKey === 'YEAR' ? `ปี ${r.YEAR}` : String(r.MONTH),
@@ -293,8 +341,8 @@ export default function MisHosChart({
         {!hideHeader && (
           <div className="bt-mishos-chart-header">
             <h3 className="bt-mishos-chart-title">
-              <TrendingUp size={16} style={{ color: palette[0] || '#0284c7' }} />
-              <span>เปรียบเทียบชดเชยค่าบริการ: {reportTitle}</span>
+              <TrendingUp size={16} style={{ color: palette[0] || defaultColor1 }} />
+              <span>{isStone ? reportTitle : `เปรียบเทียบชดเชยค่าบริการ: ${reportTitle}`}</span>
             </h3>
             <span className="bt-mishos-chart-unit">{unitLabel}</span>
           </div>
@@ -307,7 +355,7 @@ export default function MisHosChart({
               <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
               <Tooltip
                 formatter={(val: any, name: any) => [
-                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
+                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: isStoneNum ? 0 : 2 })} ${unitSuffix}`,
                   name,
                 ]}
                 contentStyle={{

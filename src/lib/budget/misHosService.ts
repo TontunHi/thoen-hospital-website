@@ -146,7 +146,7 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
       { id: '4.2', name: '4.2 เคมีบำบัด มะเร็ง', stId: '1469', defaultSsid: 'custom:m0402_cancer_year_chart' },
       { id: '4.3', name: '4.3 ผ่าตัดต้อกระจก (Cataract)', stId: '1470', defaultSsid: 'custom:m0403_cataract_year_chart' },
       { id: '4.4', name: '4.4 อวัยวะเทียมและอุปกรณ์', stId: '1084', secondaryStId: '1471', defaultSsid: '1107' },
-      { id: '4.5', name: '4.5 นิ่วในระบบทางเดินปัสสาวะ', stId: '1472' },
+      { id: '4.5', name: '4.5 นิ่วในระบบทางเดินปัสสาวะ', stId: '1472', defaultSsid: 'custom:m0405_stone_year_num_chart' },
       { id: '4.6', name: '4.6 บริการประคับประคอง (Palliative Care)', stId: '1062', secondaryStId: '1484', defaultSsid: '1082' },
     ],
   },
@@ -311,8 +311,12 @@ export class MisHosService {
           ]
         } else if (stId === '1472') {
           subReports = [
-            { ssid: 'custom:m0405_stone_year', report_name: 'บริการสลายนิ่วในระบบทางเดินปัสสาวะ แยกรายปี', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
-            { ssid: 'custom:m0405_stone_month', report_name: 'บริการสลายนิ่วในระบบทางเดินปัสสาวะ แยกรายเดือน', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0405_stone_year_num_chart', report_name: 'จำนวนผู้รับบบริการ นิ่วในระบบทางเดินปัสสาวะ', chart_type: 'bar', report_width: '5', flag_data: 'Y' },
+            { ssid: 'custom:m0405_stone_month_num_chart', report_name: 'จำนวนผู้รับบริการ นิ่วในระบบทางเดินปัสสาวะ ปีงบประมาณ', chart_type: 'bar', report_width: '7', flag_data: 'Y' },
+            { ssid: 'custom:m0405_stone_year_act_chart', report_name: 'การชดเชย นิ่วในระบบทางเดินปัสสาวะ', chart_type: 'bar', report_width: '5', flag_data: 'Y' },
+            { ssid: 'custom:m0405_stone_month_act_chart', report_name: 'การชดเชย นิ่วในระบบทางเดินปัสสาวะ ปีงบประมาณ', chart_type: 'bar', report_width: '7', flag_data: 'Y' },
+            { ssid: 'custom:m0405_stone_year_table', report_name: 'จำนวนผู้รับบริการ นิ่วในระบบทางเดินปัสสาวะ แยกรายปีงบประมาณ', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0405_stone_month_table', report_name: 'จำนวนผู้รับบริการ นิ่วในระบบทางเดินปัสสาวะ แยกรายเดือน ปีงบประมาณ', chart_type: 'table', report_width: '6', flag_data: 'Y' },
           ]
         }
       }
@@ -515,19 +519,69 @@ export class MisHosService {
           yaxis: 'บาท',
           table_header: ['เดือน', 'ชดเชย OP (ครั้ง),0', 'ชดเชย OP (บาท),2', 'ชดเชย IP (ครั้ง),0', 'ชดเชย IP (บาท),2'],
         },
-        'custom:m0405_stone_year': {
+        'custom:m0405_stone_year_num_chart': {
           ssid,
-          reportName: 'บริการสลายนิ่วในระบบทางเดินปัสสาวะ แยกรายปี',
+          reportName: 'จำนวนผู้รับบบริการ นิ่วในระบบทางเดินปัสสาวะ',
+          chartType: 'bar',
+          yaxis: 'จำนวนราย',
+          color: ['#8699a3', '#9dbdf2'],
+          table_header: ['ปีงบประมาณ', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
+        },
+        'custom:m0405_stone_month_num_chart': {
+          ssid,
+          reportName: 'จำนวนผู้รับบริการ นิ่วในระบบทางเดินปัสสาวะ ปีงบประมาณ',
+          chartType: 'bar',
+          yaxis: 'จำนวนราย',
+          color: ['#8699a3', '#aac4f0'],
+          table_header: ['เดือน', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
+        },
+        'custom:m0405_stone_year_act_chart': {
+          ssid,
+          reportName: 'การชดเชย นิ่วในระบบทางเดินปัสสาวะ',
           chartType: 'bar',
           yaxis: 'บาท',
-          table_header: ['ปีงบประมาณ', 'ผู้ป่วย (ราย),0', 'ชดเชย (บาท),2'],
+          color: ['#8699a3', '#a9dbf5'],
+          table_header: ['ปีงบประมาณ', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
+        },
+        'custom:m0405_stone_month_act_chart': {
+          ssid,
+          reportName: 'การชดเชย นิ่วในระบบทางเดินปัสสาวะ ปีงบประมาณ',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          color: ['#8699a3', '#8997ad'],
+          table_header: ['เดือน', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
+        },
+        'custom:m0405_stone_year_table': {
+          ssid,
+          reportName: 'จำนวนผู้รับบริการ นิ่วในระบบทางเดินปัสสาวะ แยกรายปีงบประมาณ',
+          chartType: 'table',
+          yaxis: 'บาท',
+          color: ['#8699a3', '#a9dbf5'],
+          table_header: ['ปีงบประมาณ', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
+        },
+        'custom:m0405_stone_month_table': {
+          ssid,
+          reportName: 'จำนวนผู้รับบริการ นิ่วในระบบทางเดินปัสสาวะ แยกรายเดือน ปีงบประมาณ',
+          chartType: 'table',
+          yaxis: 'บาท',
+          color: ['#8699a3', '#8997ad'],
+          table_header: ['เดือน', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
+        },
+        'custom:m0405_stone_year': {
+          ssid,
+          reportName: 'การชดเชย นิ่วในระบบทางเดินปัสสาวะ',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          color: ['#8699a3', '#a9dbf5'],
+          table_header: ['ปีงบประมาณ', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
         },
         'custom:m0405_stone_month': {
           ssid,
-          reportName: 'บริการสลายนิ่วในระบบทางเดินปัสสาวะ แยกรายเดือน',
+          reportName: 'จำนวนผู้รับบริการ นิ่วในระบบทางเดินปัสสาวะ แยกรายเดือน ปีงบประมาณ',
           chartType: 'table',
           yaxis: 'บาท',
-          table_header: ['เดือน', 'ผู้ป่วย (ราย),0', 'ชดเชย (บาท),2'],
+          color: ['#8699a3', '#8997ad'],
+          table_header: ['เดือน', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
         },
       }
       return customConfigs[ssid] || null
@@ -638,7 +692,10 @@ export class MisHosService {
 
       // Dedicated hospital endpoints for High Cost modules (4.x) bypassing SimpleStudio
       if (ssid.startsWith('custom:')) {
-        const endpoint = ssid.replace('custom:', '').replace(/_chart|_table$/, '')
+        const endpoint = ssid
+          .replace('custom:', '')
+          .replace(/_num|_act/, '')
+          .replace(/_chart|_table$/, '')
         const customUrl = `${this.BASE_URL}${endpoint}.php`
         let records = await this.executeTableQuery(
           customUrl,
@@ -654,7 +711,7 @@ export class MisHosService {
           )
         }
 
-        // Add computed totals for STEMI/Stroke, Cancer, and Cataract matching Chunks 34, 27, and 29
+        // Add computed totals for STEMI/Stroke, Cancer, Cataract, and Stone matching Chunks 34, 27, 29, and 35
         if (ssid.includes('m0401_stemi')) {
           records = records.map(r => ({
             ...r,
@@ -669,6 +726,11 @@ export class MisHosService {
           records = records.map(r => ({
             ...r,
             TOTAL_AMT: Number(r.ACTAMT_IN || 0) + Number(r.ACTAMT_OUT || 0),
+          }))
+        } else if (ssid.includes('m0405_stone')) {
+          records = records.map(r => ({
+            ...r,
+            TOTAL_AMT: Number(r.ACT_AMT_OP || 0) + Number(r.ACT_AMT_IP || 0),
           }))
         }
 
