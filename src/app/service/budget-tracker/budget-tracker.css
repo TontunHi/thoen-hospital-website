@@ -1,0 +1,1047 @@
+/* ==========================================================================
+   Budget Tracker Full Stylesheet (100% Pure Standalone CSS)
+   Faithful recreation of mishos-rh1 with Thoen Hospital Design Standards
+   ========================================================================== */
+
+.bt-page-container {
+  min-height: calc(100vh - var(--navbar-height, 80px));
+  background-color: #f1f5f9;
+  color: #0f172a;
+  padding: 1.5rem 1rem 4rem 1rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.bt-wrap {
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* --- Top Bar & Breadcrumb --- */
+.bt-top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.bt-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.825rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.bt-breadcrumb a {
+  color: #64748b;
+  text-decoration: none;
+}
+
+.bt-breadcrumb a:hover {
+  color: #0284c7;
+}
+
+.bt-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.bt-title-icon {
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+.bt-subtitle {
+  font-size: 0.875rem;
+  color: #475569;
+  margin: 0.35rem 0 0 0;
+}
+
+/* --- Fiscal Year Selector Control --- */
+.bt-year-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 0.35rem 0.65rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.bt-year-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.bt-year-buttons {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.bt-year-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background-color: transparent;
+  color: #475569;
+  transition: all 0.15s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.bt-year-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.bt-year-btn.active {
+  background-color: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(2, 132, 199, 0.25);
+}
+
+.bt-year-pill-new {
+  font-size: 0.65rem;
+  background-color: rgba(255, 255, 255, 0.25);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+/* --- Top-Level Source Tabs --- */
+.bt-main-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-bottom: 2px solid #cbd5e1;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.bt-main-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.925rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  background-color: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.bt-main-tab-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.bt-main-tab-btn.active {
+  background-color: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  box-shadow: 0 2px 5px rgba(2, 132, 199, 0.2);
+}
+
+.bt-tab-tag {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.bt-tab-tag-active {
+  background-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.bt-tab-tag-idle {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+/* --- Focus Hospital Banner (Compact, White with Hospital Green Accents) --- */
+.bt-focus-banner {
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+  color: #0f172a;
+  border: 1px solid #bbf7d0;
+  border-left: 4px solid #059669;
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  margin-bottom: 0.85rem;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.05);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.bt-focus-info {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.bt-focus-top-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.bt-focus-pill {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  font-size: 0.675rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.bt-focus-code {
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.bt-focus-asof {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.bt-focus-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #065f46;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.bt-focus-level {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #475569;
+}
+
+.bt-focus-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.775rem;
+  color: #475569;
+}
+
+.bt-focus-meta-val {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.bt-focus-meta-highlight {
+  color: #059669;
+  font-weight: 700;
+}
+
+.bt-focus-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.bt-focus-reset-btn {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.bt-focus-reset-btn:hover {
+  background-color: #d1fae5;
+  border-color: #6ee7b7;
+  color: #065f46;
+}
+
+/* ==========================================================================
+   ORIGINAL-STYLE COMPREHENSIVE FILTER BAR
+   ========================================================================== */
+.bt-bar {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.bt-ctls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.15rem;
+  align-items: flex-end;
+}
+
+.bt-ctl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.bt-ctl label,
+.bt-ctl .bt-ctl-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 0.01em;
+}
+
+.bt-select {
+  font: inherit;
+  font-size: 0.85rem;
+  color: #0f172a;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.45rem 0.65rem;
+  min-height: 36px;
+  outline: none;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.bt-select:focus {
+  border-color: #0284c7;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.bt-select optgroup {
+  font-weight: 700;
+  color: #0369a1;
+}
+
+/* Segmented button groups */
+.bt-seg {
+  display: inline-flex;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #f8fafc;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.bt-seg button {
+  font: inherit;
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #475569;
+  background: transparent;
+  border: 0;
+  padding: 0.45rem 0.85rem;
+  cursor: pointer;
+  border-right: 1px solid #cbd5e1;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.bt-seg button:last-child {
+  border-right: 0;
+}
+
+.bt-seg button:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.bt-seg button[aria-pressed="true"],
+.bt-seg button.active {
+  background-color: #0284c7;
+  color: #ffffff;
+}
+
+/* Chips for Custom Hospital Mode */
+.bt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.bt-chip {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.775rem;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  padding: 0.2rem 0.4rem 0.2rem 0.75rem;
+}
+
+.bt-chip-code {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-chip-del {
+  border: 0;
+  background: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+}
+
+.bt-chip-del:hover {
+  color: #ef4444;
+}
+
+/* --- Context Summary Bar --- */
+.bt-ctx {
+  margin: 0.75rem 0 0 0;
+  color: #475569;
+  font-size: 0.825rem;
+}
+
+.bt-ctx b {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.bt-ctx-sub {
+  display: block;
+  color: #64748b;
+  font-size: 0.775rem;
+  margin-top: 0.15rem;
+}
+
+/* --- KPI Stats Grid --- */
+.bt-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .bt-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .bt-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bt-stat-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.bt-stat-card-sky { border-left: 4px solid #0284c7; }
+.bt-stat-card-emerald { border-left: 4px solid #10b981; }
+.bt-stat-card-indigo { border-left: 4px solid #6366f1; }
+.bt-stat-card-amber { border-left: 4px solid #f59e0b; background-color: #fffdf7; }
+
+.bt-stat-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.bt-stat-label-amber {
+  color: #92400e;
+}
+
+.bt-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0.35rem 0;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-stat-value-amber {
+  color: #b45309;
+}
+
+.bt-stat-unit {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #64748b;
+  margin-left: 0.25rem;
+}
+
+.bt-stat-footer {
+  font-size: 0.775rem;
+  color: #64748b;
+}
+
+.bt-stat-footer-amber {
+  color: #92400e;
+}
+
+.bt-stat-strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* --- Panel & Card Containers --- */
+.bt-panel {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.bt-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.85rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.bt-panel-title-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bt-panel-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bt-panel-icon-emerald { background-color: #ecfdf5; color: #047857; }
+.bt-panel-icon-amber { background-color: #fffbeb; color: #b45309; }
+.bt-panel-icon-rose { background-color: #fff1f2; color: #be123c; }
+
+.bt-panel-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.bt-panel-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0.15rem 0 0 0;
+}
+
+/* --- Badges --- */
+.bt-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.725rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.bt-badge-emerald { background-color: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.bt-badge-amber { background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.bt-badge-rose { background-color: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+.bt-badge-blue { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.bt-badge-slate { background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+/* --- Table Wrapper & Styles --- */
+.bt-table-wrapper {
+  overflow-x: auto;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bt-table-wrapper-max {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.bt-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.825rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-table th,
+.bt-table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.bt-table th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  border-bottom: 1px solid #cbd5e1;
+  line-height: 1.3;
+}
+
+.bt-table th.t,
+.bt-table td.t {
+  text-align: left;
+}
+
+.bt-table tbody tr:hover td:not([data-hc]) {
+  background-color: #f8fafc;
+}
+
+/* Focused hospital in tables: clean light green border highlight */
+.bt-table tr.focus td {
+  font-weight: 600;
+  border-top: 1.5px solid #86efac !important;
+  border-bottom: 1.5px solid #86efac !important;
+}
+
+.bt-table tr.focus td:first-child {
+  border-left: 3.5px solid #10b981 !important;
+}
+
+.bt-table tr.focus td:last-child {
+  border-right: 1.5px solid #86efac !important;
+}
+
+/* Totals Row */
+.bt-table tr.tot td {
+  font-weight: 700;
+  background-color: #f8fafc;
+  border-top: 2px solid #cbd5e1;
+  border-bottom: 2px solid #cbd5e1;
+}
+
+/* Ranking Table Elements */
+.rk-val {
+  font-weight: 700;
+}
+
+.rk-total {
+  font-weight: 400;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  margin-left: 0.15rem;
+}
+
+/* Specific styling for Ranking table to prevent horizontal scroll */
+.bt-table-ranking {
+  width: 100%;
+  table-layout: auto;
+}
+
+.bt-table-ranking th,
+.bt-table-ranking td {
+  padding: 0.45rem 0.55rem;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.bt-table-ranking th {
+  white-space: normal;
+  vertical-align: bottom;
+  padding-bottom: 0.45rem;
+}
+
+/* Strip Dot Plot */
+.track {
+  position: relative;
+  height: 20px;
+  min-width: 80px;
+  max-width: 125px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.track:before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background-color: #cbd5e1;
+}
+
+.dot {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background-color: #0284c7;
+  opacity: 0.72;
+  box-shadow: 0 0 0 1.5px #ffffff;
+  cursor: default;
+  transition: transform 0.12s ease;
+}
+
+.dot:hover {
+  opacity: 1;
+  transform: scale(1.35);
+  z-index: 4;
+}
+
+.dot.sel {
+  background-color: #ea580c;
+  opacity: 1;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  z-index: 3;
+}
+
+.med {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  margin-left: -1px;
+  background-color: #0f172a;
+  border-radius: 1px;
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* Matrix Table Sticky Headers & Columns */
+table.bt-mx th.f,
+table.bt-mx td.f {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background-color: #ffffff;
+  text-align: left;
+  white-space: normal;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+  border-right: 1px solid #cbd5e1;
+}
+
+table.bt-mx th.f {
+  z-index: 14;
+  background-color: #f1f5f9;
+}
+
+table.bt-mx th.fc,
+table.bt-mx td.fc {
+  position: sticky;
+  left: 240px;
+  z-index: 3;
+  border-left: 2px solid #86efac;
+  border-right: 2px solid #86efac;
+  background-color: #ffffff;
+}
+
+table.bt-mx th.fc {
+  z-index: 13;
+  border-top: 2px solid #86efac;
+  background-color: #f8fafc;
+  color: #065f46;
+  font-weight: 700;
+}
+
+table.bt-mx tr:last-child td.fc {
+  border-bottom: 2px solid #86efac;
+}
+
+table.bt-mx td.c {
+  text-align: center;
+  padding: 0.45rem 0.65rem;
+  min-width: 120px;
+}
+
+table.bt-mx td.c b {
+  font-weight: 600;
+  font-size: 0.825rem;
+  display: block;
+  line-height: 1.25;
+}
+
+table.bt-mx td.c i {
+  font-style: normal;
+  font-size: 0.725rem;
+  color: #475569;
+}
+
+table.bt-mx td.c.z {
+  color: #94a3b8;
+  background-color: #f8fafc;
+}
+
+/* Gradient Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+  font-size: 0.775rem;
+  color: #475569;
+  margin-bottom: 0.75rem;
+}
+
+.grad {
+  display: inline-block;
+  width: 120px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgb(217, 83, 79), rgb(242, 201, 76), rgb(58, 167, 109));
+  vertical-align: middle;
+  margin: 0 0.35rem;
+}
+
+.sw {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 0.35rem;
+}
+
+.sw.d {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #0284c7;
+}
+
+.sw.m {
+  width: 2px;
+  height: 12px;
+  background-color: #0f172a;
+}
+
+.sw.s {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #ea580c;
+}
+
+.bt-empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* --- 10-Tab Navigation Grid (5 items per row, 2 rows, No horizontal scroll) --- */
+.bt-tabs-nav {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.bt-tab-nav-btn {
+  font: inherit;
+  text-align: left;
+  background-color: #ffffff;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.3;
+  transition: all 0.15s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.bt-tab-nav-btn:hover {
+  border-color: #0284c7;
+  background-color: #f8fafc;
+}
+
+.bt-tab-nav-btn.active {
+  background-color: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+}
+
+.bt-tab-nav-btn b {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.bt-tab-nav-btn small {
+  display: block;
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-top: 0.25rem;
+  white-space: normal;
+  word-break: break-all;
+}
+
+.bt-tab-nav-btn.active small {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+@media (max-width: 1024px) {
+  .bt-tabs-nav {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+  .bt-tab-nav-btn {
+    padding: 0.5rem 0.5rem;
+  }
+  .bt-tab-nav-btn b {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .bt-tabs-nav {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.bt-tab-nav-btn.active small {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+/* Position Track Bar (HP Summary) */
+.bt-ptrack {
+  position: relative;
+  width: 110px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.bt-ptrack::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background-color: #cbd5e1;
+  border-radius: 1px;
+}
+
+.bt-ptrack::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  bottom: 3px;
+  width: 1.5px;
+  background-color: #64748b;
+}
+
+.bt-ptrack i {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background-color: #ea580c;
+  box-shadow: 0 0 0 1.5px #ffffff;
+}
+
+/* Animations */
+@keyframes bt-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bt-spin {
+  animation: bt-spin 1s linear infinite;
+}

@@ -16,7 +16,8 @@ import {
   Database,
   ExternalLink,
   ChevronRight,
-  Target
+  Target,
+  Coins
 } from 'lucide-react'
 import './page.css'
 
@@ -104,6 +105,14 @@ export default async function ServicePage() {
     },
 
     // Administrative & Management
+    {
+      title: 'ติดตามงบประมาณประจำปี',
+      desc: 'ระบบกำกับและติดตามงบประมาณรายกองทุน โรงพยาบาลเถิน เปรียบเทียบมาตรฐานเขตสุขภาพที่ 1 (MIS HOS เขต 1)',
+      link: '/service/budget-tracker',
+      btnText: 'เข้าสู่ระบบติดตามงบประมาณ',
+      category: 'admin',
+      icon: Coins,
+    },
     {
       title: 'ติดตามตัวชี้วัด (KPI Tracking)',
       desc: 'ระบบกำกับและติดตามผลการดำเนินงานตัวชี้วัดโรงพยาบาลเถิน (THIP / HA / ยุทธศาสตร์) แยกตามปีงบประมาณและรอบเวลา',
