@@ -106,8 +106,8 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
     id: '0-eclaim',
     title: '0-Eclaim Data (ข้อมูลส่งเบิก)',
     submenus: [
-      { id: '0-ec-1', name: 'สิทธิ UC (พึงรับชดเชย E-Claim รายเดือน)', stId: '945', defaultSsid: '1462' },
-      { id: '0-ec-2', name: 'สิทธิอื่น ๆ (เบิกจ่ายตรง/อปท.)', stId: '948', defaultSsid: '1534' },
+      { id: '0-ec-1', name: 'สิทธิ UC (พึงรับชดเชย E-Claim รายเดือน)', stId: '404', secondaryStId: '945', defaultSsid: '430' },
+      { id: '0-ec-2', name: 'สิทธิอื่น ๆ (เบิกจ่ายตรง/อปท.)', stId: '424', secondaryStId: '948', defaultSsid: '428' },
     ],
   },
   {
@@ -116,16 +116,16 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
     submenus: [
       { id: '1.1', name: '1.1 ผู้ป่วยนอกฉุกเฉิน (OPAE)', stId: '1464', defaultSsid: '1507' },
       { id: '1.2', name: '1.2 OP-Refer (ผู้ป่วยนอกข้ามจังหวัด)', stId: '1482', defaultSsid: '1566' },
-      { id: '1.3', name: '1.3 ค่าพาหนะส่งต่อ', stId: '1483', secondaryStId: '1631', defaultSsid: '1632' },
-      { id: '1.4', name: '1.4 OP Walk-in ทุกที่', stId: '1465', defaultSsid: '2065' },
-      { id: '1.5', name: '1.5 ชดเชย On-Top', stId: '1466', secondaryStId: '1202', defaultSsid: '1203' },
+      { id: '1.3', name: '1.3 ค่าพาหนะส่งต่อ', stId: '1631', secondaryStId: '1483', defaultSsid: '1632' },
+      { id: '1.4', name: '1.4 OP Walk-in ทุกที่', stId: '503', secondaryStId: '1465', defaultSsid: '504' },
+      { id: '1.5', name: '1.5 ชดเชย On-Top', stId: '1202', secondaryStId: '1466', defaultSsid: '1203' },
     ],
   },
   {
     id: '2',
     title: '2. บริการผู้ป่วยใน (IP)',
     submenus: [
-      { id: '2.1', name: '2.1 บริการผู้ป่วยใน (IP & AdjRW)', stId: '1467', defaultSsid: '2068' },
+      { id: '2.1', name: '2.1 บริการผู้ป่วยใน (IP & AdjRW)', stId: '453', secondaryStId: '1467', defaultSsid: '455' },
       { id: '2.2', name: '2.2 ส่งข้อมูลผู้ป่วยใน / Error ติด C ติด Deny', stId: '1224', secondaryStId: '1225', defaultSsid: '2083' },
     ],
   },
@@ -135,7 +135,7 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
     submenus: [
       { id: '3.1', name: '3.1 ฉุกเฉินนอกเขต (OPAE)', stId: '1464', defaultSsid: '1507' },
       { id: '3.2', name: '3.2 OP-Refer นอกเขต', stId: '1482', defaultSsid: '1566' },
-      { id: '3.3', name: '3.3 ค่าพาหนะส่งต่อนอกเขต', stId: '1483', secondaryStId: '1631', defaultSsid: '1632' },
+      { id: '3.3', name: '3.3 ค่าพาหนะส่งต่อนอกเขต', stId: '1631', secondaryStId: '1483', defaultSsid: '1632' },
     ],
   },
   {
@@ -147,27 +147,27 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
       { id: '4.3', name: '4.3 ผ่าตัดต้อกระจก (Cataract)', stId: '1470' },
       { id: '4.4', name: '4.4 อวัยวะเทียมและอุปกรณ์', stId: '1471' },
       { id: '4.5', name: '4.5 นิ่วในระบบทางเดินปัสสาวะ', stId: '1472' },
-      { id: '4.6', name: '4.6 บริการประคับประคอง (Palliative Care)', stId: '1484', secondaryStId: '1062', defaultSsid: '1082' },
+      { id: '4.6', name: '4.6 บริการประคับประคอง (Palliative Care)', stId: '1062', secondaryStId: '1484', defaultSsid: '1082' },
     ],
   },
   {
     id: '5',
     title: '5. ส่งเสริมป้องกันโรค (PP)',
     submenus: [
-      { id: '5.1', name: '5.1 บริการหญิงตั้งครรภ์ (ANC)', stId: '1485', secondaryStId: '742', defaultSsid: '1047' },
-      { id: '5.2', name: '5.2 ตรวจคัดกรองมะเร็ง (PAP & Fit test)', stId: '1522', defaultSsid: '2085' },
-      { id: '5.3', name: '5.3 ประเมินปัจจัยเสี่ยงสุขภาพ', stId: '1523', secondaryStId: '1104', defaultSsid: '1106' },
+      { id: '5.1', name: '5.1 บริการหญิงตั้งครรภ์ (ANC)', stId: '742', secondaryStId: '1485', defaultSsid: '1047' },
+      { id: '5.2', name: '5.2 ตรวจคัดกรองมะเร็ง (PAP & Fit test)', stId: '727', secondaryStId: '1522', defaultSsid: '728' },
+      { id: '5.3', name: '5.3 ประเมินปัจจัยเสี่ยงสุขภาพ', stId: '1104', secondaryStId: '1523', defaultSsid: '1106' },
     ],
   },
   {
     id: '7',
     title: '7. นโยบายสำคัญ',
     submenus: [
-      { id: '7.1', name: '7.1 Cancer Anywhere (มะเร็งรักษาทุกที่)', stId: '1524', secondaryStId: '865', defaultSsid: '870' },
-      { id: '7.2', name: '7.2 Covid-19 (พึงรับชดเชย)', stId: '1503', secondaryStId: '444', defaultSsid: '445' },
+      { id: '7.1', name: '7.1 Cancer Anywhere (มะเร็งรักษาทุกที่)', stId: '865', secondaryStId: '1524', defaultSsid: '870' },
+      { id: '7.2', name: '7.2 Covid-19 (พึงรับชดเชย)', stId: '444', secondaryStId: '1503', defaultSsid: '445' },
       { id: '7.3', name: '7.3 เปลี่ยนสิทธิทันที', stId: '844', defaultSsid: '867' },
-      { id: '7.4', name: '7.4 รักษาทุกที่ (Walk-in)', stId: '1465', defaultSsid: '2065' },
-      { id: '7.5', name: '7.5 การแพทย์ทางไกล (Telemedicine)', stId: '1525', secondaryStId: '1164', defaultSsid: '1162' },
+      { id: '7.4', name: '7.4 รักษาทุกที่ (Walk-in)', stId: '503', secondaryStId: '1465', defaultSsid: '504' },
+      { id: '7.5', name: '7.5 การแพทย์ทางไกล (Telemedicine)', stId: '1164', secondaryStId: '1525', defaultSsid: '1162' },
       { id: '7.6', name: '7.6 บัตรประชาชนใบเดียวรักษาทุกที่ (ONE-ID)', stId: '2207', defaultSsid: '2283' },
     ],
   },
@@ -184,8 +184,8 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
     id: '9',
     title: '9. บริการสิทธิอื่น',
     submenus: [
-      { id: '9.1', name: '9.1 สิทธิข้าราชการ (CSMBS)', stId: '1527', secondaryStId: '1526', defaultSsid: '2107' },
-      { id: '9.2', name: '9.2 สิทธิ อปท. (LGO)', stId: '1528', secondaryStId: '1504', defaultSsid: '2108' },
+      { id: '9.1', name: '9.1 สิทธิข้าราชการ (CSMBS)', stId: '1526', secondaryStId: '1527', defaultSsid: '1530' },
+      { id: '9.2', name: '9.2 สิทธิ อปท. (LGO)', stId: '1504', secondaryStId: '1528', defaultSsid: '1531' },
     ],
   },
 ]

@@ -45,16 +45,19 @@ describe('MisHosService', () => {
     const catEclaim = MIS_HOS_MENU_CATEGORIES.find(c => c.id === '0-eclaim')
     expect(catEclaim).toBeDefined()
     expect(catEclaim?.title).toContain('Eclaim')
+    expect(catEclaim?.submenus.some(s => s.id === '0-ec-1' && s.stId === '404' && s.secondaryStId === '945')).toBe(true)
+    expect(catEclaim?.submenus.some(s => s.id === '0-ec-2' && s.stId === '424' && s.secondaryStId === '948')).toBe(true)
 
     const cat7 = MIS_HOS_MENU_CATEGORIES.find(c => c.id === '7')
     expect(cat7).toBeDefined()
     expect(cat7?.submenus.length).toBe(6) // 7.1 to 7.6
-    expect(cat7?.submenus.some(s => s.id === '7.4' && s.stId === '1465')).toBe(true)
-    expect(cat7?.submenus.some(s => s.id === '7.5' && s.stId === '1525' && s.secondaryStId === '1164')).toBe(true)
+    expect(cat7?.submenus.some(s => s.id === '7.4' && s.stId === '503' && s.secondaryStId === '1465')).toBe(true)
+    expect(cat7?.submenus.some(s => s.id === '7.5' && s.stId === '1164' && s.secondaryStId === '1525')).toBe(true)
     expect(cat7?.submenus.some(s => s.id === '7.6' && s.stId === '2207')).toBe(true)
 
     const cat1_3 = MIS_HOS_MENU_CATEGORIES.find(c => c.id === '1')?.submenus.find(s => s.id === '1.3')
-    expect(cat1_3?.secondaryStId).toBe('1631')
+    expect(cat1_3?.stId).toBe('1631')
+    expect(cat1_3?.secondaryStId).toBe('1483')
   })
 
   it('fetches and decodes template configuration for a given st_id', async () => {
