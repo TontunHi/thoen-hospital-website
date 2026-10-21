@@ -57,6 +57,143 @@ export default function MisHosChart({
 
   const first = records[0]
 
+  // Case 0: Pie / Donut Chart (สัดส่วน เช่น ผ่าน / ไม่ผ่าน หรือ สัดส่วนกองทุน)
+  if (chartType === 'pie') {
+    let pieData: { name: string; fullName: string; value: number }[] = []
+
+    // Pattern A: Single record with category keys e.g. { 'ผ่าน': '3848', 'ไม่ผ่าน': '19' }
+    // Matching MIS HOS Module 381: if ("pie" === r && 1 === data.length) Object.keys(data[0]).forEach(...)
+    if (records.length === 1) {
+      const row = records[0]
+      pieData = Object.keys(row)
+        .filter(k => !k.toUpperCase().includes('ID') && String(row[k]).trim() !== '')
+        .map(k => ({
+          name: k,
+          fullName: k,
+          value: parseFloat(row[k]) || 0,
+        }))
+        .filter(d => !isNaN(d.value) && d.value >= 0)
+    } else {
+      // Pattern B: Multiple records with categorical name and numeric value
+      const nameKey =
+        'DESCRIPTION' in first
+          ? 'DESCRIPTION'
+          : 'M_FUND_DESC' in first
+            ? 'M_FUND_DESC'
+            : 'S_FUND_DESC' in first
+              ? 'S_FUND_DESC'
+              : 'PROVINCE_NAME' in first
+                ? 'PROVINCE_NAME'
+                : null
+      const numKey =
+        'ACT_AMT' in first
+          ? 'ACT_AMT'
+          : 'BUDGET' in first
+            ? 'BUDGET'
+            : 'ACT_AMT_STM' in first
+              ? 'ACT_AMT_STM'
+              : 'SUM_AMT' in first
+                ? 'SUM_AMT'
+                : null
+
+      if (nameKey && numKey) {
+        pieData = records
+          .slice(0, 10)
+          .map(r => ({
+            name: String(r[nameKey]).length > 25 ? String(r[nameKey]).substring(0, 25) + '...' : String(r[nameKey]),
+            fullName: String(r[nameKey]),
+            value: parseFloat(r[numKey]) || 0,
+          }))
+          .filter(d => !isNaN(d.value) && d.value > 0)
+      } else {
+        const keys = Object.keys(first)
+        const labelKey =
+          keys.find(k => typeof first[k] === 'string' && isNaN(Number(first[k])) && !k.toUpperCase().includes('ID')) ||
+          keys[0]
+        const valKey = keys.find(k => k !== labelKey && !isNaN(Number(first[k])))
+        if (valKey) {
+          pieData = records
+            .slice(0, 10)
+            .map(r => ({
+              name: String(r[labelKey]).length > 25 ? String(r[labelKey]).substring(0, 25) + '...' : String(r[labelKey]),
+              fullName: String(r[labelKey]),
+              value: parseFloat(r[valKey]) || 0,
+            }))
+            .filter(d => !isNaN(d.value) && d.value > 0)
+        }
+      }
+    }
+
+    if (pieData.length > 0) {
+      const total = pieData.reduce((acc, d) => acc + d.value, 0)
+      const isPassFail = pieData.some(d => d.name.includes('ผ่าน'))
+
+      // Specific semantic palette for pass/fail vs general palette
+      const getSliceColor = (name: string, idx: number) => {
+        if (name === 'ผ่าน' || name.startsWith('ผ่าน')) return '#10b981' // emerald-500
+        if (name === 'ไม่ผ่าน' || name.includes('ไม่ผ่าน')) return '#ef4444' // red-500
+        return palette[idx % palette.length]
+      }
+
+      return (
+        <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
+          {!hideHeader && (
+            <div className="bt-mishos-chart-header">
+              <h3 className="bt-mishos-chart-title">
+                <PieIcon size={16} style={{ color: palette[0] || '#0369a1' }} />
+                <span>สัดส่วน: {reportTitle}</span>
+              </h3>
+              <span className="bt-mishos-chart-unit">{unitLabel}</span>
+            </div>
+          )}
+          <div style={{ width: '100%', height }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={Math.min(height / 4 - 5, 45)}
+                  outerRadius={Math.min(height / 2 - 25, 90)}
+                  paddingAngle={pieData.length > 1 ? 3 : 0}
+                  label={({ name, percent }: any) =>
+                    `${name} (${((percent || 0) * 100).toFixed(1)}%)`
+                  }
+                  labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
+                >
+                  {pieData.map((d, idx) => (
+                    <Cell key={`pie-cell-${idx}`} fill={getSliceColor(d.name, idx)} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(val: any, name: any) => {
+                    const num = Number(val ?? 0)
+                    const pct = total > 0 ? ((num / total) * 100).toFixed(1) : '0'
+                    const unitSuffix = isPassFail ? 'รายการ' : (chartConfig?.yaxis || 'บาท')
+                    return [`${num.toLocaleString('th-TH')} ${unitSuffix} (${pct}%)`, name]
+                  }}
+                  contentStyle={{
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8125rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={32}
+                  wrapperStyle={{ fontSize: '0.8125rem', paddingTop: '4px' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )
+    }
+  }
+
   // Case 1: Multi-year trend (e.g. YEAR & BUDGET_UC or BUDGET)
   if ('YEAR' in first && ('BUDGET_UC' in first || 'BUDGET' in first)) {
     const valKey = 'BUDGET_UC' in first ? 'BUDGET_UC' : 'BUDGET'
@@ -268,53 +405,6 @@ export default function MisHosChart({
       fullName: String(r[nameKey]),
       value: parseFloat(r[numKey]) || 0,
     }))
-
-    if (chartType === 'pie') {
-      return (
-        <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
-          {!hideHeader && (
-            <div className="bt-mishos-chart-header">
-              <h3 className="bt-mishos-chart-title">
-                <PieIcon size={16} style={{ color: palette[0] || '#0369a1' }} />
-                <span>สัดส่วนงบประมาณ: {reportTitle}</span>
-              </h3>
-              <span className="bt-mishos-chart-unit">{unitLabel}</span>
-            </div>
-          )}
-          <div style={{ width: '100%', height }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={Math.min(height / 2 - 20, 90)}
-                  label={({ name, percent }: any) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
-                >
-                  {chartData.map((_, idx) => (
-                    <Cell key={`pie-cell-${idx}`} fill={palette[idx % palette.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(val: any) => [
-                    `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
-                    'ยอดเงิน',
-                  ]}
-                  contentStyle={{
-                    borderRadius: 6,
-                    border: '1px solid #cbd5e1',
-                    fontSize: '0.8125rem',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )
-    }
 
     const isHorizontal = chartType === 'barhorizontal' || records.length > 5
 
