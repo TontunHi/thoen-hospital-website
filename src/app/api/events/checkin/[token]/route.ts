@@ -26,11 +26,7 @@ export async function GET(
     LIMIT 1
   `, [token])
 
-  const event = eventRows.length > 0 ? {
-    ...eventRows[0],
-    checkinOpenTime: eventRows[0].checkinOpenTime ? new Date(eventRows[0].checkinOpenTime) : null,
-    checkinCloseTime: eventRows[0].checkinCloseTime ? new Date(eventRows[0].checkinCloseTime) : null,
-  } : null
+  const event = eventRows.length > 0 ? eventRows[0] : null
 
   if (!event) {
     const errUrl = new URL('/member/events/checkin-status', baseUrl)
@@ -48,7 +44,7 @@ export async function GET(
     errUrl.searchParams.set('status', 'time_error')
     errUrl.searchParams.set('type', 'early')
     errUrl.searchParams.set('event', event.title)
-    errUrl.searchParams.set('openTime', toBangkokIsoString(event.checkinOpenTime) || event.checkinOpenTime.toISOString())
+    errUrl.searchParams.set('openTime', toBangkokIsoString(event.checkinOpenTime) || String(event.checkinOpenTime))
     return NextResponse.redirect(errUrl)
   }
 
@@ -57,7 +53,7 @@ export async function GET(
     errUrl.searchParams.set('status', 'time_error')
     errUrl.searchParams.set('type', 'late')
     errUrl.searchParams.set('event', event.title)
-    errUrl.searchParams.set('closeTime', toBangkokIsoString(event.checkinCloseTime) || event.checkinCloseTime.toISOString())
+    errUrl.searchParams.set('closeTime', toBangkokIsoString(event.checkinCloseTime) || String(event.checkinCloseTime))
     return NextResponse.redirect(errUrl)
   }
 

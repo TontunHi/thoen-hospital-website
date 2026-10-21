@@ -25,6 +25,12 @@ import {
   X,
   AlertTriangle,
   Loader2,
+  Image as ImageIcon,
+  FileText,
+  Paperclip,
+  MessageSquare,
+  ExternalLink,
+  Eye,
 } from 'lucide-react'
 import '../events.css'
 
@@ -64,7 +70,18 @@ export default function EventDetailClient({
   const [qrDataUrl, setQrDataUrl] = useState<string>('')
   const [copied, setCopied] = useState(false)
   const [registering, setRegistering] = useState(false)
-  const [activeTab, setActiveTab] = useState<'attendances' | 'registrations'>('attendances')
+  const [activeTab, setActiveTab] = useState<'attendances' | 'registrations' | 'attachments'>('attendances')
+  const [attachments, setAttachments] = useState<any[]>(initialEvent.attachments || [])
+  const [attachmentFilter, setAttachmentFilter] = useState<'ALL' | 'IMAGE' | 'DOCUMENT' | 'NOTE'>('ALL')
+  const [isAddAttachModalOpen, setIsAddAttachModalOpen] = useState(false)
+  const [attachType, setAttachType] = useState<'IMAGE' | 'DOCUMENT' | 'NOTE'>('IMAGE')
+  const [attachTitle, setAttachTitle] = useState('')
+  const [attachTextContent, setAttachTextContent] = useState('')
+  const [attachFiles, setAttachFiles] = useState<File[]>([])
+  const [attachLoading, setAttachLoading] = useState(false)
+  const [attachError, setAttachError] = useState<string | null>(null)
+  const [lightboxUrl, setLightboxUrl] = useState<{ url: string; title: string } | null>(null)
+  const [deletingAttachId, setDeletingAttachId] = useState<number | null>(null)
 
   const canManage = Boolean(event.canManage || currentUser.isAdmin)
 
@@ -116,6 +133,113 @@ export default function EventDetailClient({
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
     } catch {
       return ''
+    }
+  }
+
+  function formatFileSize(bytes?: number | null) {
+    if (!bytes || bytes === 0) return ''
+    const k = 1024
+    if (bytes < k) return `${bytes} B`
+    if (bytes < k * k) return `${(bytes / k).toFixed(1)} KB`
+    return `${(bytes / (k * k)).toFixed(1)} MB`
+  }
+
+  const filteredAttachments = React.useMemo(() => {
+    if (attachmentFilter === 'ALL') return attachments
+    return attachments.filter((a) => a.attachmentType === attachmentFilter)
+  }, [attachments, attachmentFilter])
+
+  const imageCount = React.useMemo(() => attachments.filter((a) => a.attachmentType === 'IMAGE').length, [attachments])
+  const docCount = React.useMemo(() => attachments.filter((a) => a.attachmentType === 'DOCUMENT').length, [attachments])
+  const noteCount = React.useMemo(() => attachments.filter((a) => a.attachmentType === 'NOTE').length, [attachments])
+
+  const handleOpenAddAttachModal = (type: 'IMAGE' | 'DOCUMENT' | 'NOTE' = 'IMAGE') => {
+    setAttachType(type)
+    setAttachTitle('')
+    setAttachTextContent('')
+    setAttachFiles([])
+    setAttachError(null)
+    setIsAddAttachModalOpen(true)
+  }
+
+  const handleSaveAttachmentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAttachError(null)
+
+    if (attachType === 'NOTE') {
+      if (!attachTitle.trim()) {
+        setAttachError('กรุณาระบุหัวข้อบันทึก')
+        return
+      }
+      if (!attachTextContent.trim()) {
+        setAttachError('กรุณาระบุเนื้อหาข้อความสรุป')
+        return
+      }
+    } else {
+      if (attachFiles.length === 0) {
+        setAttachError('กรุณาเลือกไฟล์ที่ต้องการอัปโหลด')
+        return
+      }
+    }
+
+    setAttachLoading(true)
+    try {
+      if (attachType === 'NOTE') {
+        const res = await fetch(`/api/member/events/${event.id}/attachments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            attachmentType: 'NOTE',
+            title: attachTitle.trim(),
+            textContent: attachTextContent.trim(),
+          }),
+        })
+        const json = await res.json()
+        if (!res.ok || !json.success) throw new Error(json.error || 'บันทึกข้อความไม่สำเร็จ')
+        setAttachments((prev) => [json.data, ...prev])
+      } else {
+        const formData = new FormData()
+        formData.append('attachmentType', attachType)
+        if (attachTitle.trim()) {
+          formData.append('title', attachTitle.trim())
+        }
+        for (const f of attachFiles) {
+          formData.append('files', f)
+        }
+
+        const res = await fetch(`/api/member/events/${event.id}/attachments`, {
+          method: 'POST',
+          body: formData,
+        })
+        const json = await res.json()
+        if (!res.ok || !json.success) throw new Error(json.error || 'อัปโหลดไฟล์ไม่สำเร็จ')
+        const newItems = Array.isArray(json.data) ? json.data : [json.data]
+        setAttachments((prev) => [...newItems, ...prev])
+      }
+
+      setIsAddAttachModalOpen(false)
+    } catch (err: any) {
+      setAttachError(err.message || 'เกิดข้อผิดพลาดในการแนบข้อมูล')
+    } finally {
+      setAttachLoading(false)
+    }
+  }
+
+  const handleDeleteAttachment = async (attachmentId: number, title: string) => {
+    if (!confirm(`คุณต้องการลบ "${title}" ใช่หรือไม่?`)) return
+
+    setDeletingAttachId(attachmentId)
+    try {
+      const res = await fetch(`/api/member/events/${event.id}/attachments/${attachmentId}`, {
+        method: 'DELETE',
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || 'ลบข้อมูลไม่สำเร็จ')
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId))
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการลบ')
+    } finally {
+      setDeletingAttachId(null)
     }
   }
 
@@ -218,30 +342,68 @@ export default function EventDetailClient({
     }
   }, [checkinUrl])
 
-  const formatThaiDateTime = (dateString: string) => {
+  const formatThaiDateOnly = (dateString?: string | null) => {
+    if (!dateString) return ''
     try {
-      const d = new Date(dateString)
+      const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})/)
       const thaiMonths = [
         'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
         'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
       ]
+      if (match) {
+        const year = parseInt(match[1], 10) + 543
+        const month = thaiMonths[parseInt(match[2], 10) - 1]
+        const day = parseInt(match[3], 10)
+        return `${day} ${month} ${year}`
+      }
+      const d = new Date(dateString)
+      return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`
+    } catch {
+      return dateString
+    }
+  }
+
+  const formatThaiDateTime = (dateString: string) => {
+    try {
+      const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}:\d{2})/)
+      const thaiMonths = [
+        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+      ]
+      if (match) {
+        const year = parseInt(match[1], 10) + 543
+        const month = thaiMonths[parseInt(match[2], 10) - 1]
+        const day = parseInt(match[3], 10)
+        return `${day} ${month} ${year} เวลา ${match[4]} น.`
+      }
+      const d = new Date(dateString)
       const day = d.getDate()
       const month = thaiMonths[d.getMonth()]
       const year = d.getFullYear() + 543
-      const time = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      const time = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })
       return `${day} ${month} ${year} เวลา ${time} น.`
     } catch {
       return dateString
     }
   }
 
+  function parseDateSafe(val?: string | null): Date | null {
+    if (!val) return null
+    const match = String(val).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/)
+    if (match) {
+      return new Date(`${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5] || '00'}+07:00`)
+    }
+    const d = new Date(val)
+    return isNaN(d.getTime()) ? null : d
+  }
+
   // Determine check-in window status
   const now = new Date()
-  const openTime = new Date(event.checkinOpenTime)
-  const closeTime = new Date(event.checkinCloseTime)
-  const isEarly = now < openTime
-  const isLate = now > closeTime
-  const isOpen = !isEarly && !isLate
+  const openTime = parseDateSafe(event.checkinOpenTime)
+  const closeTime = parseDateSafe(event.checkinCloseTime)
+  const isEarly = openTime ? now < openTime : false
+  const isLate = closeTime ? now > closeTime : false
+  const isOpen = Boolean(openTime && closeTime && !isEarly && !isLate)
 
   // Pre-registration toggle handler
   const handleToggleRegistration = async () => {
@@ -380,9 +542,7 @@ export default function EventDetailClient({
   const handleOpenEditModal = (att: any) => {
     setEditingAttendance(att)
     setEditPoints(att.pointsAwarded ?? 1)
-    const d = new Date(att.checkedInAt)
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-    setEditTime(d.toISOString().slice(0, 16))
+    setEditTime(toDatetimeLocal(att.checkedInAt))
     setActionError(null)
   }
 
@@ -454,6 +614,20 @@ export default function EventDetailClient({
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {canManage && (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('attachments')
+                handleOpenAddAttachModal('IMAGE')
+              }}
+              className="btnAttachmentAddTop"
+            >
+              <Paperclip size={14} />
+              <span>แนบไฟล์ / ภาพกิจกรรม</span>
+            </button>
+          )}
+
           {canManage && (
             <button
               type="button"
@@ -766,9 +940,311 @@ export default function EventDetailClient({
           >
             ผู้ลงทะเบียนล่วงหน้า ({registrations.length})
           </button>
+          <button
+            onClick={() => setActiveTab('attachments')}
+            className={`eventsTabButton ${activeTab === 'attachments' ? 'active' : ''}`}
+          >
+            เอกสารและภาพกิจกรรม ({attachments.length})
+          </button>
         </div>
 
-        {activeTab === 'attendances' ? (
+        {activeTab === 'attachments' ? (
+          <div>
+            {/* Attachment Action Header & Filters */}
+            <div className="attachmentSectionHeader">
+              <div className="attachmentFilterTabs">
+                <button
+                  type="button"
+                  onClick={() => setAttachmentFilter('ALL')}
+                  className={`attachmentFilterBtn ${attachmentFilter === 'ALL' ? 'active' : ''}`}
+                >
+                  ทั้งหมด ({attachments.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttachmentFilter('IMAGE')}
+                  className={`attachmentFilterBtn ${attachmentFilter === 'IMAGE' ? 'active' : ''}`}
+                >
+                  📸 ภาพกิจกรรม ({imageCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttachmentFilter('DOCUMENT')}
+                  className={`attachmentFilterBtn ${attachmentFilter === 'DOCUMENT' ? 'active' : ''}`}
+                >
+                  📄 เอกสาร ({docCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttachmentFilter('NOTE')}
+                  className={`attachmentFilterBtn ${attachmentFilter === 'NOTE' ? 'active' : ''}`}
+                >
+                  📝 บันทึกสรุป ({noteCount})
+                </button>
+              </div>
+
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenAddAttachModal('IMAGE')}
+                  className="btnAttachmentAdd"
+                >
+                  <Plus size={15} />
+                  <span>แนบไฟล์ / เอกสาร / ภาพ</span>
+                </button>
+              )}
+            </div>
+
+            {filteredAttachments.length === 0 ? (
+              <div style={{ padding: '3.5rem 1.5rem', textAlign: 'center', color: '#94a3b8' }}>
+                <Paperclip size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.4 }} />
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
+                  ยังไม่มีเอกสาร รูปภาพ หรือข้อความบันทึกในหมวดนี้
+                </p>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAddAttachModal('IMAGE')}
+                    className="btnAttachmentAdd"
+                    style={{ marginTop: '1.25rem' }}
+                  >
+                    <Plus size={15} />
+                    <span>แนบไฟล์หรือข้อความแรก</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ padding: '0.5rem 0' }}>
+                {/* 1. Photo Grid (IMAGE) */}
+                {(attachmentFilter === 'ALL' || attachmentFilter === 'IMAGE') && imageCount > 0 && (
+                  <div>
+                    {attachmentFilter === 'ALL' && (
+                      <div style={{ padding: '0.75rem 1.25rem 0.25rem', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <ImageIcon size={15} color="#094738" />
+                        <span>ภาพบรรยากาศกิจกรรม ({imageCount})</span>
+                      </div>
+                    )}
+                    <div className="attachmentGrid">
+                      {filteredAttachments
+                        .filter((a) => a.attachmentType === 'IMAGE')
+                        .map((img) => (
+                          <div key={img.id} className="attachmentPhotoCard">
+                            <img
+                              src={img.filePath}
+                              alt={img.title}
+                              className="attachmentPhotoImg"
+                              onClick={() => setLightboxUrl({ url: img.filePath, title: img.title })}
+                            />
+                            <div className="attachmentPhotoActions">
+                              <button
+                                type="button"
+                                className="attachmentActionBtn"
+                                onClick={() => setLightboxUrl({ url: img.filePath, title: img.title })}
+                                title="ดูภาพขยายใหญ่"
+                              >
+                                <Eye size={13} />
+                              </button>
+                              <a
+                                href={img.filePath}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="attachmentActionBtn"
+                                title="เปิดดูรูปภาพในแท็บใหม่"
+                              >
+                                <ExternalLink size={13} />
+                              </a>
+                              <a
+                                href={img.filePath}
+                                download={img.title}
+                                className="attachmentActionBtn"
+                                title="ดาวน์โหลดรูปภาพ"
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <Download size={13} />
+                              </a>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  disabled={deletingAttachId === img.id}
+                                  onClick={() => handleDeleteAttachment(img.id, img.title)}
+                                  className="attachmentActionBtn danger"
+                                  title="ลบรูปภาพ"
+                                >
+                                  {deletingAttachId === img.id ? <Loader2 size={13} className="modalBtnSpinner" /> : <Trash2 size={13} />}
+                                </button>
+                              )}
+                            </div>
+                            <div
+                              className="attachmentPhotoOverlay"
+                              onClick={() => setLightboxUrl({ url: img.filePath, title: img.title })}
+                              title="คลิกเพื่อดูภาพขยายใหญ่"
+                            >
+                              <span style={{ fontSize: '0.82rem', fontWeight: 600, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                {img.title}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>
+                                {img.uploadedBy?.name || 'เจ้าหน้าที่'} • {formatThaiDateOnly(img.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Document List (DOCUMENT) */}
+                {(attachmentFilter === 'ALL' || attachmentFilter === 'DOCUMENT') && docCount > 0 && (
+                  <div>
+                    {attachmentFilter === 'ALL' && (
+                      <div style={{ padding: '0.75rem 1.25rem 0.25rem', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <FileText size={15} color="#0284c7" />
+                        <span>เอกสารราชการและไฟล์แนบ ({docCount})</span>
+                      </div>
+                    )}
+                    <div className="attachmentDocList">
+                      {filteredAttachments
+                        .filter((a) => a.attachmentType === 'DOCUMENT')
+                        .map((doc) => {
+                          const isPdf = doc.fileType?.includes('pdf') || doc.filePath?.endsWith('.pdf')
+                          const isExcel = doc.fileType?.includes('sheet') || doc.filePath?.endsWith('.xls') || doc.filePath?.endsWith('.xlsx')
+                          const isWord = doc.fileType?.includes('word') || doc.filePath?.endsWith('.doc') || doc.filePath?.endsWith('.docx')
+
+                          return (
+                            <div key={doc.id} className="attachmentDocRow">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
+                                <a
+                                  href={doc.filePath}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="attachmentDocIconLink"
+                                  title={isPdf ? 'คลิกเพื่อเปิดดูเอกสาร PDF ในแท็บใหม่' : 'คลิกเพื่อเปิดดูเอกสาร'}
+                                  style={{
+                                    width: 38,
+                                    height: 38,
+                                    borderRadius: '0.5rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    background: isPdf ? '#fee2e2' : isExcel ? '#dcfce7' : isWord ? '#e0f2fe' : '#f1f5f9',
+                                    color: isPdf ? '#dc2626' : isExcel ? '#16a34a' : isWord ? '#0284c7' : '#64748b',
+                                    textDecoration: 'none',
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  <FileText size={19} />
+                                </a>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div>
+                                    <a
+                                      href={doc.filePath}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="attachmentDocTitleLink"
+                                      title={isPdf ? 'คลิกเพื่อเปิดดู PDF ในแท็บใหม่' : 'คลิกเพื่อเปิดดูเอกสารในแท็บใหม่'}
+                                    >
+                                      <span className="attachmentDocTitleText">{doc.title}</span>
+                                      {isPdf && <span className="attachmentPdfBadge">PDF</span>}
+                                    </a>
+                                  </div>
+                                  <div style={{ fontSize: '0.74rem', color: '#64748b', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
+                                    {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
+                                    {doc.fileSize && <span>•</span>}
+                                    <span>อัปโหลดโดย {doc.uploadedBy?.name || 'เจ้าหน้าที่'}</span>
+                                    <span>•</span>
+                                    <span>{formatThaiDateTime(doc.createdAt)}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0 }}>
+                                <a
+                                  href={doc.filePath}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btnTableAction view"
+                                  title={isPdf ? 'เปิดดูเอกสาร PDF ในแท็บใหม่' : 'เปิดดูเอกสารในแท็บใหม่'}
+                                >
+                                  <ExternalLink size={13} />
+                                  <span>เปิดดู</span>
+                                </a>
+                                <a
+                                  href={doc.filePath}
+                                  download={doc.title}
+                                  className="btnTableAction download"
+                                  title="ดาวน์โหลดไฟล์ลงเครื่อง"
+                                >
+                                  <Download size={13} />
+                                  <span>ดาวน์โหลด</span>
+                                </a>
+                                {canManage && (
+                                  <button
+                                    type="button"
+                                    disabled={deletingAttachId === doc.id}
+                                    onClick={() => handleDeleteAttachment(doc.id, doc.title)}
+                                    className="btnTableAction delete"
+                                    title="ลบเอกสาร"
+                                  >
+                                    {deletingAttachId === doc.id ? <Loader2 size={13} className="modalBtnSpinner" /> : <Trash2 size={13} />}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Note Board (NOTE) */}
+                {(attachmentFilter === 'ALL' || attachmentFilter === 'NOTE') && noteCount > 0 && (
+                  <div>
+                    {attachmentFilter === 'ALL' && (
+                      <div style={{ padding: '0.75rem 1.25rem 0.25rem', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <MessageSquare size={15} color="#d97706" />
+                        <span>บันทึกและข้อความสรุป ({noteCount})</span>
+                      </div>
+                    )}
+                    <div className="attachmentNoteList">
+                      {filteredAttachments
+                        .filter((a) => a.attachmentType === 'NOTE')
+                        .map((note) => (
+                          <div key={note.id} className="attachmentNoteCard">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <MessageSquare size={15} color="#d97706" />
+                                <strong style={{ fontSize: '0.9rem', color: '#0f172a' }}>{note.title}</strong>
+                              </div>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  disabled={deletingAttachId === note.id}
+                                  onClick={() => handleDeleteAttachment(note.id, note.title)}
+                                  className="btnTableAction delete"
+                                  style={{ padding: '0.2rem', minWidth: 'auto', border: 'none', background: 'transparent' }}
+                                  title="ลบบันทึก"
+                                >
+                                  {deletingAttachId === note.id ? <Loader2 size={13} className="modalBtnSpinner" /> : <Trash2 size={13} />}
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#334155', whiteSpace: 'pre-wrap', lineHeight: 1.5, background: '#f8fafc', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid #f1f5f9' }}>
+                              {note.textContent}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>โดย {note.uploadedBy?.name || 'เจ้าหน้าที่'}</span>
+                              <span>{formatThaiDateTime(note.createdAt)}</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'attendances' ? (
           <div>
             {/* Attendee Action Header */}
             <div className="attendeeSectionHeader">
@@ -1452,6 +1928,210 @@ export default function EventDetailClient({
           </div>
         </div>
       </div>
+      {/* ─────────────────────────────────────────────────────────────
+          Modal: แนบไฟล์ / เอกสาร / ข้อความ (Add Attachment Modal)
+          ───────────────────────────────────────────────────────────── */}
+      {isAddAttachModalOpen && (
+        <div className="attendeeModalOverlay">
+          <div className="attendeeModalCard" style={{ maxWidth: 560 }}>
+            <div className="attendeeModalHeader">
+              <h3>แนบไฟล์ / เอกสาร / ข้อความประกอบกิจกรรม</h3>
+              <button
+                type="button"
+                onClick={() => setIsAddAttachModalOpen(false)}
+                className="attendeeModalCloseBtn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAttachmentSubmit}>
+              <div className="attendeeModalBody">
+                {attachError && (
+                  <div className="formErrorBanner">
+                    <AlertTriangle size={16} />
+                    <span>{attachError}</span>
+                  </div>
+                )}
+
+                {/* Type Selection */}
+                <div>
+                  <label className="formFieldLabel">เลือกประเภทสิ่งที่แนบ</label>
+                  <div className="attachmentTypeGrid">
+                    <button
+                      type="button"
+                      onClick={() => setAttachType('IMAGE')}
+                      className={`attachmentTypeOption ${attachType === 'IMAGE' ? 'activeImage' : ''}`}
+                    >
+                      <ImageIcon size={20} />
+                      <span>📸 ภาพกิจกรรม</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAttachType('DOCUMENT')}
+                      className={`attachmentTypeOption ${attachType === 'DOCUMENT' ? 'activeDoc' : ''}`}
+                    >
+                      <FileText size={20} />
+                      <span>📄 เอกสาร/PDF</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAttachType('NOTE')}
+                      className={`attachmentTypeOption ${attachType === 'NOTE' ? 'activeNote' : ''}`}
+                    >
+                      <MessageSquare size={20} />
+                      <span>📝 ข้อความบันทึก</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Common Title */}
+                <div>
+                  <label className="formFieldLabel">
+                    {attachType === 'NOTE' ? 'หัวข้อบันทึก / ประกาศ *' : 'ชื่อหัวข้อ / คำอธิบาย (ระบุหรือไม่ก็ได้)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={attachTitle}
+                    onChange={(e) => setAttachTitle(e.target.value)}
+                    placeholder={
+                      attachType === 'NOTE'
+                        ? 'เช่น สรุปผลการจัดงาน, ประกาศแจ้งผู้เข้าร่วม'
+                        : 'เช่น ภาพบรรยากาศพิธีเปิด, กำหนดการงาน (เว้นว่างเพื่อใช้ชื่อไฟล์เดิม)'
+                    }
+                    className="modalInput"
+                  />
+                </div>
+
+                {/* File picker for IMAGE or DOCUMENT */}
+                {attachType !== 'NOTE' && (
+                  <div>
+                    <label className="formFieldLabel">
+                      {attachType === 'IMAGE'
+                        ? 'เลือกไฟล์รูปภาพ (เลือกได้หลายไฟล์พร้อมกัน - ไม่เกิน 10MB/รูป) *'
+                        : 'เลือกไฟล์เอกสาร (PDF, Word, Excel - ไม่เกิน 25MB) *'}
+                    </label>
+                    <input
+                      type="file"
+                      multiple={attachType === 'IMAGE'}
+                      accept={
+                        attachType === 'IMAGE'
+                          ? '.jpg,.jpeg,.png,.webp,.gif,.jfif,.avif,.svg,.heic,.heif,image/*'
+                          : '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,application/pdf'
+                      }
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          setAttachFiles(Array.from(e.target.files))
+                        }
+                      }}
+                      className="modalInput"
+                      style={{ padding: '0.55rem', cursor: 'pointer' }}
+                    />
+                    {attachFiles.length > 0 && (
+                      <div style={{ marginTop: '0.4rem', fontSize: '0.78rem', color: '#059669', fontWeight: 600 }}>
+                        ✓ เลือกแล้ว {attachFiles.length} ไฟล์ ({attachFiles.map((f) => f.name).join(', ')})
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Textarea for NOTE */}
+                {attachType === 'NOTE' && (
+                  <div>
+                    <label className="formFieldLabel">เนื้อหาข้อความ / มติ / รายละเอียดสรุป *</label>
+                    <textarea
+                      rows={5}
+                      value={attachTextContent}
+                      onChange={(e) => setAttachTextContent(e.target.value)}
+                      placeholder="พิมพ์ข้อความสรุปผล ข้อสั่งการ หรือประกาศกิจกรรมที่นี่..."
+                      className="modalTextarea"
+                      style={{ width: '100%', resize: 'vertical' }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="attendeeModalFooter">
+                <button
+                  type="button"
+                  disabled={attachLoading}
+                  onClick={() => setIsAddAttachModalOpen(false)}
+                  className="modalBtnCancel"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={attachLoading}
+                  className="modalBtnSubmit"
+                >
+                  {attachLoading ? (
+                    <>
+                      <Loader2 size={14} className="modalBtnSpinner" />
+                      <span>กำลังบันทึก...</span>
+                    </>
+                  ) : (
+                    <span>บันทึกสิ่งที่แนบ</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          Lightbox Preview Modal
+          ───────────────────────────────────────────────────────────── */}
+      {lightboxUrl && (
+        <div className="lightboxOverlay" onClick={() => setLightboxUrl(null)}>
+          <div className="lightboxContainer" onClick={(e) => e.stopPropagation()}>
+            <img src={lightboxUrl.url} alt={lightboxUrl.title} className="lightboxImg" />
+            <div
+              style={{
+                marginTop: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                color: '#fff',
+                padding: '0 0.5rem',
+              }}
+            >
+              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{lightboxUrl.title}</span>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <a
+                  href={lightboxUrl.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="attachmentActionBtn"
+                  title="เปิดดูรูปภาพในแท็บใหม่"
+                >
+                  <ExternalLink size={14} />
+                </a>
+                <a
+                  href={lightboxUrl.url}
+                  download={lightboxUrl.title}
+                  className="attachmentActionBtn"
+                  title="ดาวน์โหลดรูปภาพ"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Download size={14} />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(null)}
+                  className="attachmentActionBtn"
+                  title="ปิด"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

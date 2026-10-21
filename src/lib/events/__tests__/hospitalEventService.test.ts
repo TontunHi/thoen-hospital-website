@@ -5,6 +5,12 @@ vi.mock('@/lib/audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock('@/lib/storage/documentStorage', () => ({
+  DocumentStorage: {
+    delete: vi.fn().mockResolvedValue(true),
+  },
+}))
+
 describe('HospitalEventService', () => {
   let mockDb: any
   let service: HospitalEventService
@@ -37,6 +43,12 @@ describe('HospitalEventService', () => {
         findMany: vi.fn(),
         count: vi.fn(),
         update: vi.fn(),
+        delete: vi.fn(),
+      },
+      eventAttachment: {
+        create: vi.fn(),
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
         delete: vi.fn(),
       },
       equipmentBorrowRequest: {
@@ -466,6 +478,250 @@ describe('HospitalEventService', () => {
       const event = await service.getEventById(100)
       expect(event?.status).toBe('CANCELLED')
       expect(mockDb.hospitalEvent.update).not.toHaveBeenCalled()
+    })
+  })
+  describe('Event & Attendance time editing accuracy', () => {
+    it('updateEvent preserves selected Thai local datetime without timezone drift in queryExecutor path', async () => {
+      const executedSqls: { sql: string; params?: any[] }[] = []
+      const mockQueryExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
+        executedSqls.push({ sql, params })
+        if (sql.includes('SELECT id, title, head_organizer_id FROM hospital_events')) {
+          return [{ id: 14, title: 'กิจกรรมตัวอย่าง', head_organizer_id: 10 }]
+        }
+        if (sql.includes('SELECT member_id FROM event_organizers WHERE event_id = ?')) {
+          return []
+        }
+        if (sql.includes('UPDATE hospital_events SET')) {
+          return { affectedRows: 1 }
+        }
+        if (sql.includes('SELECT') && sql.includes('FROM hospital_events e')) {
+          return [{
+            id: 14,
+            title: 'กิจกรรมตัวอย่าง',
+            description: null,
+            location: 'ห้องประชุม',
+            bannerUrl: null,
+            eventStartDate: '2026-10-25 13:30:00', // MySQL DATETIME string
+            eventEndDate: '2026-10-25 16:30:00',
+            checkinOpenTime: '2026-10-25 13:00:00',
+            checkinCloseTime: '2026-10-25 16:30:00',
+            headOrganizerId: 10,
+            borrowRequestId: null,
+            qrToken: 'test-token',
+            fiscalYear: '2570',
+            status: 'UPCOMING',
+            createdAt: '2026-10-21 08:00:00',
+            updatedAt: '2026-10-21 09:00:00',
+            head_id: 10,
+            head_name: 'นพ.สมชาย',
+            head_dept: 'IT',
+            head_profile: null,
+            head_pos: 'แพทย์',
+          }]
+        }
+        if (sql.includes('FROM event_organizers')) return []
+        if (sql.includes('FROM event_registrations')) return []
+        if (sql.includes('FROM event_attendances')) return []
+        return []
+      })
+
+      const rawService = new HospitalEventService(null, mockQueryExecutor)
+      const actor = { id: 10, name: 'นพ.สมชาย', username: '1234567890123', role: 'admin' }
+
+      const updated = await rawService.updateEvent(14, {
+        eventStartDate: '2026-10-25T13:30',
+        eventEndDate: '2026-10-25T16:30',
+        checkinOpenTime: '2026-10-25T13:00',
+        checkinCloseTime: '2026-10-25T16:30',
+      }, actor)
+
+      // Ensure SQL UPDATE wrote the exact local time string
+      const updateCall = executedSqls.find((item) => item.sql.includes('UPDATE hospital_events SET'))
+      expect(updateCall).toBeDefined()
+      expect(updateCall?.params).toContain('2026-10-25 13:30:00')
+      expect(updateCall?.params).toContain('2026-10-25 16:30:00')
+      expect(updateCall?.params).toContain('2026-10-25 13:00:00')
+
+      // Ensure returned ISO string matches the selected 13:30 and 16:30 (+07:00) without subtracting 7 hours
+      expect(updated.eventStartDate).toBe('2026-10-25T13:30:00+07:00')
+      expect(updated.eventEndDate).toBe('2026-10-25T16:30:00+07:00')
+      expect(updated.checkinOpenTime).toBe('2026-10-25T13:00:00+07:00')
+      expect(updated.checkinCloseTime).toBe('2026-10-25T16:30:00+07:00')
+    })
+
+    it('updateAttendance in queryExecutor path returns camelCase checkedInAt formatted in Bangkok time', async () => {
+      const mockQueryExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
+        if (sql.includes('SELECT id, title, head_organizer_id FROM hospital_events')) {
+          return [{ id: 14, title: 'กิจกรรมตัวอย่าง', head_organizer_id: 10 }]
+        }
+        if (sql.includes('SELECT member_id FROM event_organizers')) return []
+        if (sql.includes('SELECT a.*, m.name')) {
+          return [{ id: 50, event_id: 14, member_id: 25, name: 'สมศรี' }]
+        }
+        if (sql.includes('UPDATE event_attendances SET')) return { affectedRows: 1 }
+        if (sql.includes('a.event_id AS eventId')) {
+          return [{
+            id: 50,
+            eventId: 14,
+            memberId: 25,
+            citizenId: '1234567890123',
+            pointsAwarded: 2,
+            checkedInAt: '2026-10-25 14:00:00', // MySQL DATETIME string
+            createdAt: '2026-10-25 13:00:00',
+            updatedAt: '2026-10-25 14:00:00',
+            m_id: 25,
+            name: 'สมศรี',
+            department: 'พยาบาล',
+            position: 'พยาบาล',
+            profilePath: null,
+          }]
+        }
+        return []
+      })
+
+      const rawService = new HospitalEventService(null, mockQueryExecutor)
+      const actor = { id: 10, name: 'นพ.สมชาย', username: '1234567890123', role: 'admin' }
+
+      const updated = await rawService.updateAttendance(14, 50, {
+        pointsAwarded: 2,
+        checkedInAt: '2026-10-25T14:00',
+      }, actor)
+
+      expect(updated.checkedInAt).toBe('2026-10-25T14:00:00+07:00')
+      expect(updated.pointsAwarded).toBe(2)
+      expect(updated.member.name).toBe('สมศรี')
+    })
+  })
+
+  describe('event attachments', () => {
+    const adminActor = { id: 1, name: 'Admin User', username: 'admin1', role: 'admin' }
+    const headActor = { id: 10, name: 'นพ.สมชาย', username: 'head1', role: 'member' }
+    const nonOrganizerActor = { id: 99, name: 'นายคนอื่น', username: 'other1', role: 'member' }
+
+    it('getAttachments returns mapped attachments', async () => {
+      mockDb.eventAttachment.findMany.mockResolvedValue([
+        {
+          id: 1,
+          eventId: 14,
+          attachmentType: 'IMAGE',
+          title: 'ภาพกิจกรรม 1',
+          filePath: '/uploads/events/14/img1.jpg',
+          fileType: 'image/jpeg',
+          fileSize: BigInt(2048),
+          textContent: null,
+          uploadedByMemberId: 10,
+          displayOrder: 0,
+          createdAt: new Date('2026-10-25T14:00:00Z'),
+          updatedAt: new Date('2026-10-25T14:00:00Z'),
+          uploadedBy: { id: 10, name: 'นพ.สมชาย', department: 'องค์กรแพทย์', profilePath: null },
+        },
+      ])
+
+      const attachments = await service.getAttachments(14)
+      expect(mockDb.eventAttachment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { eventId: 14 } })
+      )
+      expect(attachments).toHaveLength(1)
+      expect(attachments[0].title).toBe('ภาพกิจกรรม 1')
+      expect(attachments[0].fileSize).toBe(2048)
+      expect(attachments[0].uploadedBy?.name).toBe('นพ.สมชาย')
+    })
+
+    it('addAttachment succeeds for head organizer', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue({
+        id: 14,
+        title: 'กิจกรรมสุขภาพ',
+        headOrganizerId: 10,
+        coOrganizers: [],
+      })
+
+      mockDb.eventAttachment.create.mockResolvedValue({
+        id: 5,
+        eventId: 14,
+        attachmentType: 'NOTE',
+        title: 'สรุปการประชุม',
+        filePath: null,
+        fileType: null,
+        fileSize: null,
+        textContent: 'เนื้อหาบันทึก',
+        uploadedByMemberId: 10,
+        displayOrder: 0,
+        createdAt: new Date('2026-10-25T14:00:00Z'),
+        updatedAt: new Date('2026-10-25T14:00:00Z'),
+        uploadedBy: { id: 10, name: 'นพ.สมชาย', department: 'องค์กรแพทย์', profilePath: null },
+      })
+
+      const created = await service.addAttachment(
+        14,
+        {
+          attachmentType: 'NOTE',
+          title: 'สรุปการประชุม',
+          textContent: 'เนื้อหาบันทึก',
+        },
+        headActor
+      )
+
+      expect(created.id).toBe(5)
+      expect(created.title).toBe('สรุปการประชุม')
+      expect(mockDb.eventAttachment.create).toHaveBeenCalled()
+    })
+
+    it('addAttachment rejects unauthorized member', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue({
+        id: 14,
+        title: 'กิจกรรมสุขภาพ',
+        headOrganizerId: 10,
+        coOrganizers: [],
+      })
+
+      await expect(
+        service.addAttachment(
+          14,
+          {
+            attachmentType: 'NOTE',
+            title: 'พยายามแทรก',
+            textContent: 'hack',
+          },
+          nonOrganizerActor
+        )
+      ).rejects.toThrow('คุณไม่มีสิทธิ์แนบเอกสารหรือรูปภาพในกิจกรรมนี้')
+    })
+
+    it('deleteAttachment removes DB record and deletes physical file via DocumentStorage', async () => {
+      const { DocumentStorage } = await import('@/lib/storage/documentStorage')
+
+      mockDb.hospitalEvent.findUnique.mockResolvedValue({
+        id: 14,
+        title: 'กิจกรรมสุขภาพ',
+        headOrganizerId: 10,
+        coOrganizers: [],
+      })
+
+      mockDb.eventAttachment.findUnique.mockResolvedValue({
+        id: 5,
+        eventId: 14,
+        filePath: '/uploads/events/14/file.pdf',
+      })
+      mockDb.eventAttachment.delete.mockResolvedValue({ id: 5 })
+
+      const res = await service.deleteAttachment(14, 5, adminActor)
+
+      expect(res.success).toBe(true)
+      expect(mockDb.eventAttachment.delete).toHaveBeenCalledWith({ where: { id: 5 } })
+      expect(DocumentStorage.delete).toHaveBeenCalledWith('/uploads/events/14/file.pdf')
+    })
+
+    it('deleteAttachment rejects unauthorized member', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue({
+        id: 14,
+        title: 'กิจกรรมสุขภาพ',
+        headOrganizerId: 10,
+        coOrganizers: [],
+      })
+
+      await expect(
+        service.deleteAttachment(14, 5, nonOrganizerActor)
+      ).rejects.toThrow('คุณไม่มีสิทธิ์ลบเอกสารหรือรูปภาพในกิจกรรมนี้')
     })
   })
 })

@@ -120,7 +120,10 @@ export const DocumentStorage = {
     const allowedRoots = options.allowedRootPrefixes || DEFAULT_ALLOWED_ROOT_PREFIXES
     const safeDestDir = assertSafePath(options.destinationDir, allowedRoots)
     const allowedMimes = options.allowedMimeTypes || DEFAULT_ALLOWED_MIME_TYPES
-    const allowedExts = (options.allowedExtensions || DEFAULT_ALLOWED_EXTENSIONS).map(e => e.toLowerCase())
+    const allowedExts = (options.allowedExtensions || DEFAULT_ALLOWED_EXTENSIONS).map(e => {
+      const lower = e.toLowerCase().trim()
+      return lower.startsWith('.') ? lower : `.${lower}`
+    })
     const maxSize = options.maxSizeBytes || DEFAULT_MAX_SIZE
     const strategy = options.collisionStrategy || 'timestamp'
 
@@ -387,7 +390,13 @@ export const DocumentStorage = {
     else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg'
     else if (ext === '.webp') contentType = 'image/webp'
     else if (ext === '.gif') contentType = 'image/gif'
+    else if (ext === '.svg') contentType = 'image/svg+xml'
     else if (ext === '.pdf') contentType = 'application/pdf'
+    else if (ext === '.doc') contentType = 'application/msword'
+    else if (ext === '.docx') contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    else if (ext === '.xls') contentType = 'application/vnd.ms-excel'
+    else if (ext === '.xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    else if (ext === '.txt') contentType = 'text/plain; charset=utf-8'
 
     const rangeHeader = req.headers.get('range')
 

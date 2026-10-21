@@ -114,6 +114,14 @@ export function getNowBangkokForDb(): Date {
  */
 export function toDbSqlDateTime(input: string | Date | null | undefined): string | null {
   if (!input) return null
+
+  // If already a Date object, its UTC components literally represent Bangkok time
+  if (input instanceof Date) {
+    if (isNaN(input.getTime())) return null
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${input.getUTCFullYear()}-${pad(input.getUTCMonth() + 1)}-${pad(input.getUTCDate())} ${pad(input.getUTCHours())}:${pad(input.getUTCMinutes())}:${pad(input.getUTCSeconds())}`
+  }
+
   const d = toDbThaiDateTime(input)
   if (!d) return null
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -131,37 +139,89 @@ export function getNowBangkokForDbSql(): string {
 
 /**
  * Converts a Date read from Prisma MySQL DATETIME (where UTC components represent Bangkok time)
- * into an ISO 8601 string with '+07:00' timezone offset.
+ * or a DATETIME string read from MySQL into an ISO 8601 string with '+07:00' timezone offset.
  * 
  * Example: '2026-10-13T08:00:00+07:00'
  */
 export function toBangkokIsoString(date: Date | string | null | undefined): string | null {
   if (!date) return null
-  const d = typeof date === 'string' ? new Date(date) : date
-  if (isNaN(d.getTime())) return null
 
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const y = pad(d.getUTCFullYear())
-  const m = pad(d.getUTCMonth() + 1)
-  const day = pad(d.getUTCDate())
-  const h = pad(d.getUTCHours())
-  const min = pad(d.getUTCMinutes())
-  const s = pad(d.getUTCSeconds())
+  if (typeof date === 'string') {
+    const trimmed = date.trim()
+    if (!trimmed) return null
 
-  return `${y}-${m}-${day}T${h}:${min}:${s}+07:00`
+    // 1. Literal MySQL DATETIME string without timezone (e.g. '2026-10-13 08:00:00' or '2026-10-13T08:00' or '2026-10-13 08:00')
+    const localMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/)
+    if (localMatch) {
+      const [, y, m, d, hh, mm, ss] = localMatch
+      return `${y}-${m}-${d}T${hh}:${mm}:${ss || '00'}+07:00`
+    }
+
+    // 2. String already with Bangkok timezone offset (+07:00 or +0700)
+    const bkkOffsetMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\+07:?00$/)
+    if (bkkOffsetMatch) {
+      const [, y, m, d, hh, mm, ss] = bkkOffsetMatch
+      return `${y}-${m}-${d}T${hh}:${mm}:${ss || '00'}+07:00`
+    }
+
+    // 3. String with other timezone (e.g. UTC ISO '2026-10-13T01:00:00.000Z')
+    const dObj = new Date(trimmed)
+    if (isNaN(dObj.getTime())) return null
+    const bkk = getBangkokDateParts(dObj)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${bkk.year}-${pad(bkk.month)}-${pad(bkk.day)}T${pad(bkk.hours)}:${pad(bkk.minutes)}:${pad(bkk.seconds)}+07:00`
+  }
+
+  if (date instanceof Date) {
+    if (isNaN(date.getTime())) return null
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const y = pad(date.getUTCFullYear())
+    const m = pad(date.getUTCMonth() + 1)
+    const day = pad(date.getUTCDate())
+    const h = pad(date.getUTCHours())
+    const min = pad(date.getUTCMinutes())
+    const s = pad(date.getUTCSeconds())
+    return `${y}-${m}-${day}T${h}:${min}:${s}+07:00`
+  }
+
+  return null
 }
 
 /**
- * Converts a Date read from MySQL DATETIME into the true UTC instant.
- * Since the DB stores Thai time in UTC parts (e.g. 08:00 UTC parts = 08:00 Bangkok time),
+ * Converts a Date or string read from MySQL DATETIME into the true UTC instant.
+ * Since the DB stores Thai time literally (or in UTC parts where UTC hours = Bangkok hours),
  * Bangkok is UTC+7, so true UTC is 7 hours earlier.
  */
 export function parseDbThaiTimeToUtc(date: Date | string): Date {
-  const d = typeof date === 'string' ? new Date(date) : date
-  if (isNaN(d.getTime())) {
-    throw new Error('Invalid date for parseDbThaiTimeToUtc')
+  if (typeof date === 'string') {
+    const trimmed = date.trim()
+    const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/)
+    if (match) {
+      const [, y, m, d, hh, mm, ss] = match
+      return new Date(`${y}-${m}-${d}T${hh}:${mm}:${ss || '00'}+07:00`)
+    }
+    const dObj = new Date(trimmed)
+    if (isNaN(dObj.getTime())) {
+      throw new Error('Invalid date for parseDbThaiTimeToUtc')
+    }
+    return dObj
   }
-  return new Date(d.getTime() - 7 * 60 * 60 * 1000)
+
+  if (date instanceof Date) {
+    if (isNaN(date.getTime())) {
+      throw new Error('Invalid date for parseDbThaiTimeToUtc')
+    }
+    return new Date(Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      date.getUTCHours() - 7,
+      date.getUTCMinutes(),
+      date.getUTCSeconds()
+    ))
+  }
+
+  throw new Error('Invalid date for parseDbThaiTimeToUtc')
 }
 
 /**
@@ -187,13 +247,13 @@ export function validateCheckinWindow(
   const isLate = now > closeUtc
   const isOpen = !isEarly && !isLate
 
-  // Format Thai time string (HH:mm น.)
+  // Format Thai time string (HH:mm น.) in Bangkok local time
+  const bkkOpen = getBangkokDateParts(openUtc)
+  const bkkClose = getBangkokDateParts(closeUtc)
   const pad = (n: number) => String(n).padStart(2, '0')
-  const openD = typeof checkinOpenTime === 'string' ? new Date(checkinOpenTime) : checkinOpenTime
-  const closeD = typeof checkinCloseTime === 'string' ? new Date(checkinCloseTime) : checkinCloseTime
-  
-  const openTimeStr = `${pad(openD.getUTCHours())}:${pad(openD.getUTCMinutes())} น.`
-  const closeTimeStr = `${pad(closeD.getUTCHours())}:${pad(closeD.getUTCMinutes())} น.`
+
+  const openTimeStr = `${pad(bkkOpen.hours)}:${pad(bkkOpen.minutes)} น.`
+  const closeTimeStr = `${pad(bkkClose.hours)}:${pad(bkkClose.minutes)} น.`
 
   return {
     isOpen,

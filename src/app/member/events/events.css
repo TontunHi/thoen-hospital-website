@@ -2932,6 +2932,36 @@
   color: #ffffff;
 }
 
+.btnTableAction.view {
+  color: #065f46;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 0.35rem 0.65rem;
+}
+
+.btnTableAction.view:hover {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+}
+
+.btnTableAction.download {
+  color: #334155;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 0.35rem 0.65rem;
+}
+
+.btnTableAction.download:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
 /* Modals */
 .attendeeModalOverlay {
   position: fixed;
@@ -3251,3 +3281,399 @@
 
 
 
+
+/* Event Attachments Tab Styling */
+.attachmentSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.attachmentFilterTabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.attachmentFilterBtn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 500;
+}
+
+.attachmentFilterBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.attachmentFilterBtn.active {
+  background: #094738;
+  color: #ffffff;
+  border-color: #094738;
+}
+
+/* Attachment Action Buttons */
+.btnAttachmentAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1.15rem;
+  background: linear-gradient(135deg, #094738 0%, #065f46 100%);
+  color: #ffffff;
+  border: 1px solid #064e3b;
+  border-radius: 0.65rem;
+  font-size: 0.825rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(9, 71, 56, 0.25);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.btnAttachmentAdd:hover {
+  background: linear-gradient(135deg, #064e3b 0%, #04362a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(9, 71, 56, 0.35);
+}
+
+.btnAttachmentAdd:active {
+  transform: translateY(0);
+}
+
+.btnAttachmentAddTop {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #094738 0%, #065f46 100%);
+  border: 1px solid #064e3b;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(9, 71, 56, 0.2);
+  transition: all 0.15s ease;
+}
+
+.btnAttachmentAddTop:hover {
+  background: linear-gradient(135deg, #064e3b 0%, #04362a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(9, 71, 56, 0.3);
+}
+
+/* Modal Form Styles for Attachments */
+.formFieldLabel {
+  display: block;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.35rem;
+}
+
+.modalInput,
+.modalTextarea {
+  width: 100%;
+  padding: 0.65rem 0.95rem;
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 0.875rem;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.modalInput:focus,
+.modalTextarea:focus {
+  border-color: #094738;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(9, 71, 56, 0.15);
+}
+
+/* Type Selection in Modal */
+.attachmentTypeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .attachmentTypeGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.attachmentTypeOption {
+  padding: 0.75rem 0.5rem;
+  border-radius: 0.75rem;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.825rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.attachmentTypeOption:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.attachmentTypeOption.activeImage {
+  border-color: #094738;
+  background: #ecfdf5;
+  color: #064e3b;
+  box-shadow: 0 2px 6px rgba(9, 71, 56, 0.15);
+}
+
+.attachmentTypeOption.activeDoc {
+  border-color: #0284c7;
+  background: #f0f9ff;
+  color: #0369a1;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.15);
+}
+
+.attachmentTypeOption.activeNote {
+  border-color: #d97706;
+  background: #fffbeb;
+  color: #b45309;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.15);
+}
+
+.attachmentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.attachmentPhotoCard {
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #0f172a;
+  aspect-ratio: 4 / 3;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.attachmentPhotoCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.attachmentPhotoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.attachmentPhotoCard:hover .attachmentPhotoImg {
+  transform: scale(1.04);
+}
+
+.attachmentPhotoOverlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.88) 0%, rgba(15, 23, 42, 0.4) 70%, transparent 100%);
+  padding: 0.65rem 0.75rem;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.attachmentPhotoActions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.35rem;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+
+.attachmentPhotoCard:hover .attachmentPhotoActions {
+  opacity: 1;
+}
+
+.attachmentActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.attachmentActionBtn:hover {
+  background: #094738;
+  border-color: #094738;
+  transform: scale(1.08);
+}
+
+.attachmentActionBtn.danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.attachmentDocList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1.25rem;
+}
+
+.attachmentDocRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.65rem;
+  transition: all 0.15s ease;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.attachmentDocRow:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+}
+
+.attachmentDocIconLink {
+  transition: transform 0.15s ease, filter 0.15s ease;
+  display: inline-flex;
+}
+
+.attachmentDocIconLink:hover {
+  transform: scale(1.08);
+  filter: brightness(0.95);
+}
+
+.attachmentDocTitleLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #0f172a;
+  text-decoration: none;
+  transition: color 0.15s ease;
+  max-width: 100%;
+}
+
+.attachmentDocTitleLink:hover {
+  color: #059669;
+  text-decoration: underline;
+}
+
+.attachmentDocTitleText {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.attachmentPdfBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #dc2626;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  padding: 0.18rem 0.38rem;
+  border-radius: 0.35rem;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.attachmentNoteList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.attachmentNoteCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: border-color 0.15s ease;
+}
+
+.attachmentNoteCard:hover {
+  border-color: #cbd5e1;
+}
+
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 26, 0.9);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lightboxContainer {
+  position: relative;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lightboxImg {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 0.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}

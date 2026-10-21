@@ -28,8 +28,12 @@ function CheckinStatusContent() {
   const formatThaiTime = (isoString?: string) => {
     if (!isoString) return ''
     try {
+      const match = String(isoString).match(/[T ](\d{2}:\d{2})/)
+      if (match) {
+        return `${match[1]} น.`
+      }
       const d = new Date(isoString)
-      return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.'
+      return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' }) + ' น.'
     } catch {
       return isoString
     }

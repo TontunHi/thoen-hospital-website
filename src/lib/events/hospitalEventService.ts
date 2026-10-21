@@ -34,6 +34,16 @@ export interface CreateEventInput {
   borrowItems?: BorrowItemInput[]
 }
 
+export interface AddEventAttachmentInput {
+  attachmentType: 'IMAGE' | 'DOCUMENT' | 'NOTE'
+  title: string
+  filePath?: string | null
+  fileType?: string | null
+  fileSize?: number | bigint | null
+  textContent?: string | null
+  displayOrder?: number
+}
+
 export interface UpdateEventInput {
   title?: string
   description?: string | null
@@ -82,7 +92,11 @@ export class HospitalEventService {
   constructor(
     private db: any = null,
     private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb
-  ) {}
+  ) {
+    this.addAttachment = this.addAttachment.bind(this)
+    this.getAttachments = this.getAttachments.bind(this)
+    this.deleteAttachment = this.deleteAttachment.bind(this)
+  }
 
   async createEvent(input: CreateEventInput, actor: Actor) {
     if (!actor.id) {
@@ -607,6 +621,14 @@ export class HospitalEventService {
           borrowRequest: {
             include: { items: true },
           },
+          attachments: {
+            include: {
+              uploadedBy: {
+                select: { id: true, name: true, department: true, profilePath: true },
+              },
+            },
+            orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+          },
         },
       })
 
@@ -649,6 +671,12 @@ export class HospitalEventService {
           ...reg,
           registeredAt: toBangkokIsoString(reg.registeredAt) || reg.registeredAt,
         })),
+        attachments: (event.attachments || []).map((att: any) => ({
+          ...att,
+          fileSize: att.fileSize ? Number(att.fileSize) : null,
+          createdAt: toBangkokIsoString(att.createdAt) || att.createdAt,
+          updatedAt: toBangkokIsoString(att.updatedAt) || att.updatedAt,
+        })),
         registrationCount: event.registrations?.length || 0,
         attendanceCount: event.attendances?.length || 0,
         canManage: isHeadOrganizer || isCoOrganizer,
@@ -688,7 +716,7 @@ export class HospitalEventService {
       }
     }
 
-    const [coRows, regRows, attRows, borrowRows] = await Promise.all([
+    const [coRows, regRows, attRows, borrowRows, attachRows] = await Promise.all([
       this.queryExecutor(`
         SELECT o.member_id, o.role_title, m.id, m.name, m.department, m.profile_path AS profilePath, m.position
         FROM event_organizers o
@@ -714,6 +742,18 @@ export class HospitalEventService {
       event.borrowRequestId
         ? this.queryExecutor('SELECT * FROM equipment_borrow_requests WHERE id = ?', [event.borrowRequestId])
         : Promise.resolve([]),
+      this.queryExecutor(`
+        SELECT a.id, a.event_id AS eventId, a.attachment_type AS attachmentType,
+               a.title, a.file_path AS filePath, a.file_type AS fileType,
+               a.file_size AS fileSize, a.text_content AS textContent,
+               a.uploaded_by_member_id AS uploadedByMemberId, a.display_order AS displayOrder,
+               a.created_at AS createdAt, a.updated_at AS updatedAt,
+               m.id AS uploader_id, m.name AS uploader_name, m.department AS uploader_dept, m.profile_path AS uploader_profile
+        FROM event_attachments a
+        LEFT JOIN members m ON a.uploaded_by_member_id = m.id
+        WHERE a.event_id = ?
+        ORDER BY a.display_order ASC, a.created_at DESC
+      `, [id]),
     ])
 
     const isHeadOrganizer = memberId ? event.headOrganizerId === memberId : false
@@ -748,6 +788,26 @@ export class HospitalEventService {
         pointsAwarded: a.pointsAwarded,
         checkedInAt: toBangkokIsoString(a.checkedInAt) || a.checkedInAt,
         member: { id: a.m_id, name: a.m_name, department: a.m_department, profilePath: a.m_profile_path },
+      })),
+      attachments: (attachRows || []).map((r: any) => ({
+        id: r.id,
+        eventId: r.eventId,
+        attachmentType: r.attachmentType,
+        title: r.title,
+        filePath: r.filePath,
+        fileType: r.fileType,
+        fileSize: r.fileSize ? Number(r.fileSize) : null,
+        textContent: r.textContent,
+        uploadedByMemberId: r.uploadedByMemberId,
+        displayOrder: r.displayOrder,
+        createdAt: toBangkokIsoString(r.createdAt) || r.createdAt,
+        updatedAt: toBangkokIsoString(r.updatedAt) || r.updatedAt,
+        uploadedBy: r.uploader_id ? {
+          id: r.uploader_id,
+          name: r.uploader_name,
+          department: r.uploader_dept,
+          profilePath: r.uploader_profile,
+        } : null,
       })),
       borrowRequest: borrowRows[0] || null,
       registrationCount: regRows.length,
@@ -1099,7 +1159,7 @@ export class HospitalEventService {
       success: true,
       event: { id: event.id, title: event.title, location: event.location },
       member: { id: member.id, name: member.name, department: member.department, position: member.position },
-      checkedInAt,
+      checkedInAt: toBangkokIsoString(checkedInAt) || checkedInAt,
       pointsAwarded: 1,
     }
   }
@@ -1157,7 +1217,10 @@ export class HospitalEventService {
         logger.error({ err }, 'Failed to log manual attendance audit')
       }
 
-      return attendance
+      return {
+        ...attendance,
+        checkedInAt: toBangkokIsoString(attendance.checkedInAt) || attendance.checkedInAt,
+      }
     }
 
     const eventRows = await this.queryExecutor('SELECT id, title, head_organizer_id FROM hospital_events WHERE id = ?', [eventId])
@@ -1256,7 +1319,10 @@ export class HospitalEventService {
         logger.error({ err }, 'Failed to log attendance update audit')
       }
 
-      return updated
+      return {
+        ...updated,
+        checkedInAt: toBangkokIsoString(updated.checkedInAt) || updated.checkedInAt,
+      }
     }
 
     const eventRows = await this.queryExecutor('SELECT id, title, head_organizer_id FROM hospital_events WHERE id = ?', [eventId])
@@ -1311,15 +1377,33 @@ export class HospitalEventService {
     }
 
     const updatedRows = await this.queryExecutor(`
-      SELECT a.*, m.id AS m_id, m.name, m.department, m.position, m.profile_path AS profilePath
+      SELECT 
+        a.id, a.event_id AS eventId, a.member_id AS memberId, a.citizen_id AS citizenId,
+        a.points_awarded AS pointsAwarded, a.checked_in_at AS checkedInAt,
+        a.created_at AS createdAt, a.updated_at AS updatedAt,
+        m.id AS m_id, m.name, m.department, m.position, m.profile_path AS profilePath
       FROM event_attendances a
       JOIN members m ON a.member_id = m.id
       WHERE a.id = ?
     `, [attendanceId])
 
+    const row = updatedRows[0]
     return {
-      ...updatedRows[0],
-      member: { id: updatedRows[0].m_id, name: updatedRows[0].name, department: updatedRows[0].department, position: updatedRows[0].position, profilePath: updatedRows[0].profilePath },
+      id: row.id,
+      eventId: row.eventId,
+      memberId: row.memberId,
+      citizenId: row.citizenId,
+      pointsAwarded: row.pointsAwarded,
+      checkedInAt: toBangkokIsoString(row.checkedInAt) || row.checkedInAt,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      member: {
+        id: row.m_id,
+        name: row.name,
+        department: row.department,
+        position: row.position,
+        profilePath: row.profilePath,
+      },
     }
   }
 
@@ -1396,5 +1480,171 @@ export class HospitalEventService {
     }
 
     return { success: true, message: 'ลบรายชื่อผู้เข้าร่วมเรียบร้อยแล้ว' }
+  }
+
+  async getAttachments(eventId: number) {
+    if (this.db?.eventAttachment) {
+      const list = await this.db.eventAttachment.findMany({
+        where: { eventId },
+        include: {
+          uploadedBy: {
+            select: { id: true, name: true, department: true, profilePath: true },
+          },
+        },
+        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+      })
+      return list.map((item: any) => ({
+        ...item,
+        fileSize: item.fileSize ? Number(item.fileSize) : null,
+        createdAt: toBangkokIsoString(item.createdAt) || item.createdAt,
+        updatedAt: toBangkokIsoString(item.updatedAt) || item.updatedAt,
+      }))
+    }
+
+    const rows = await this.queryExecutor(`
+      SELECT a.id, a.event_id AS eventId, a.attachment_type AS attachmentType,
+             a.title, a.file_path AS filePath, a.file_type AS fileType,
+             a.file_size AS fileSize, a.text_content AS textContent,
+             a.uploaded_by_member_id AS uploadedByMemberId, a.display_order AS displayOrder,
+             a.created_at AS createdAt, a.updated_at AS updatedAt,
+             m.id AS uploader_id, m.name AS uploader_name, m.department AS uploader_dept, m.profile_path AS uploader_profile
+      FROM event_attachments a
+      LEFT JOIN members m ON a.uploaded_by_member_id = m.id
+      WHERE a.event_id = ?
+      ORDER BY a.display_order ASC, a.created_at DESC
+    `, [eventId])
+
+    return (rows || []).map((r: any) => ({
+      id: r.id,
+      eventId: r.eventId,
+      attachmentType: r.attachmentType,
+      title: r.title,
+      filePath: r.filePath,
+      fileType: r.fileType,
+      fileSize: r.fileSize ? Number(r.fileSize) : null,
+      textContent: r.textContent,
+      uploadedByMemberId: r.uploadedByMemberId,
+      displayOrder: r.displayOrder,
+      createdAt: toBangkokIsoString(r.createdAt) || r.createdAt,
+      updatedAt: toBangkokIsoString(r.updatedAt) || r.updatedAt,
+      uploadedBy: r.uploader_id ? {
+        id: r.uploader_id,
+        name: r.uploader_name,
+        department: r.uploader_dept,
+        profilePath: r.uploader_profile,
+      } : null,
+    }))
+  }
+
+  async addAttachment(eventId: number, input: AddEventAttachmentInput, actor: Actor) {
+    const event = await this.getEventById(eventId)
+    if (!event) throw new Error('ไม่พบข้อมูลกิจกรรม')
+
+    const isAuthorized =
+      actor.role === 'admin' ||
+      event.headOrganizerId === actor.id ||
+      event.coOrganizers?.some((c: any) => c.member?.id === actor.id || c.memberId === actor.id)
+
+    if (!isAuthorized) {
+      throw new Error('คุณไม่มีสิทธิ์แนบเอกสารหรือรูปภาพในกิจกรรมนี้')
+    }
+
+    if (!input.title || !input.title.trim()) {
+      throw new Error('กรุณาระบุชื่อไฟล์หรือหัวข้อบันทึก')
+    }
+
+    if (this.db?.eventAttachment) {
+      const created = await this.db.eventAttachment.create({
+        data: {
+          eventId,
+          attachmentType: input.attachmentType,
+          title: input.title.trim(),
+          filePath: input.filePath || null,
+          fileType: input.fileType || null,
+          fileSize: input.fileSize ? BigInt(input.fileSize) : null,
+          textContent: input.textContent?.trim() || null,
+          uploadedByMemberId: actor.id,
+          displayOrder: input.displayOrder ?? 0,
+        },
+        include: {
+          uploadedBy: {
+            select: { id: true, name: true, department: true, profilePath: true },
+          },
+        },
+      })
+
+      return {
+        ...created,
+        fileSize: created.fileSize ? Number(created.fileSize) : null,
+        createdAt: toBangkokIsoString(created.createdAt) || created.createdAt,
+        updatedAt: toBangkokIsoString(created.updatedAt) || created.updatedAt,
+      }
+    }
+
+    const res: any = await this.queryExecutor(`
+      INSERT INTO event_attachments (
+        event_id, attachment_type, title, file_path, file_type, file_size, text_content, uploaded_by_member_id, display_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `, [
+      eventId,
+      input.attachmentType,
+      input.title.trim(),
+      input.filePath || null,
+      input.fileType || null,
+      input.fileSize || null,
+      input.textContent?.trim() || null,
+      actor.id,
+      input.displayOrder ?? 0,
+    ])
+
+    const insertId = res?.insertId || res?.[0]?.insertId
+    const list = await this.getAttachments(eventId)
+    return list.find((a: any) => a.id === insertId) || list[0]
+  }
+
+  async deleteAttachment(eventId: number, attachmentId: number, actor: Actor) {
+    const event = await this.getEventById(eventId)
+    if (!event) throw new Error('ไม่พบข้อมูลกิจกรรม')
+
+    const isAuthorized =
+      actor.role === 'admin' ||
+      event.headOrganizerId === actor.id ||
+      event.coOrganizers?.some((c: any) => c.member?.id === actor.id || c.memberId === actor.id)
+
+    if (!isAuthorized) {
+      throw new Error('คุณไม่มีสิทธิ์ลบเอกสารหรือรูปภาพในกิจกรรมนี้')
+    }
+
+    let filePathToDelete: string | null = null
+
+    if (this.db?.eventAttachment) {
+      const existing = await this.db.eventAttachment.findUnique({
+        where: { id: attachmentId },
+      })
+      if (!existing || existing.eventId !== eventId) {
+        throw new Error('ไม่พบข้อมูลเอกสารหรือไฟล์แนบที่ต้องการลบ')
+      }
+      filePathToDelete = existing.filePath
+      await this.db.eventAttachment.delete({ where: { id: attachmentId } })
+    } else {
+      const rows = await this.queryExecutor('SELECT id, event_id, file_path FROM event_attachments WHERE id = ?', [attachmentId])
+      const existing = rows?.[0]
+      if (!existing || existing.event_id !== eventId) {
+        throw new Error('ไม่พบข้อมูลเอกสารหรือไฟล์แนบที่ต้องการลบ')
+      }
+      filePathToDelete = existing.file_path
+      await this.queryExecutor('DELETE FROM event_attachments WHERE id = ?', [attachmentId])
+    }
+
+    if (filePathToDelete) {
+      try {
+        const { DocumentStorage } = await import('@/lib/storage/documentStorage')
+        await DocumentStorage.delete(filePathToDelete)
+      } catch (err) {
+        logger.warn({ err, filePath: filePathToDelete }, 'Failed to delete attachment physical file')
+      }
+    }
+
+    return { success: true, message: 'ลบเอกสารหรือไฟล์แนบเรียบร้อยแล้ว' }
   }
 }

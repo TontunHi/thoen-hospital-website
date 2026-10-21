@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   toDbThaiDateTime,
+  toDbSqlDateTime,
   toBangkokIsoString,
   parseDbThaiTimeToUtc,
   validateCheckinWindow,
@@ -50,12 +51,40 @@ describe('eventTimeUtils', () => {
     })
   })
 
+  describe('toDbSqlDateTime', () => {
+    it('formats datetime-local string to SQL YYYY-MM-DD HH:mm:ss', () => {
+      expect(toDbSqlDateTime('2026-10-25T13:30')).toBe('2026-10-25 13:30:00')
+    })
+
+    it('formats existing Date object idempotently without double-shifting', () => {
+      const d = toDbThaiDateTime('2026-10-25T13:30')
+      expect(toDbSqlDateTime(d)).toBe('2026-10-25 13:30:00')
+      // Repeated conversions should not change the time
+      expect(toDbSqlDateTime(toDbThaiDateTime(toDbSqlDateTime(d)))).toBe('2026-10-25 13:30:00')
+    })
+  })
+
   describe('toBangkokIsoString', () => {
     it('formats DB Date into ISO string with +07:00 timezone offset', () => {
       // Date stored with UTC hours = 8 (meaning 08:00 Bangkok)
       const dbDate = new Date(Date.UTC(2026, 9, 13, 8, 0, 0))
       const iso = toBangkokIsoString(dbDate)
       expect(iso).toBe('2026-10-13T08:00:00+07:00')
+    })
+
+    it('formats literal MySQL DATETIME string without shifting', () => {
+      expect(toBangkokIsoString('2026-10-25 13:30:00')).toBe('2026-10-25T13:30:00+07:00')
+      expect(toBangkokIsoString('2026-10-25 08:00:00')).toBe('2026-10-25T08:00:00+07:00')
+      expect(toBangkokIsoString('2026-10-25T13:30')).toBe('2026-10-25T13:30:00+07:00')
+    })
+
+    it('keeps string already having +07:00 offset intact', () => {
+      expect(toBangkokIsoString('2026-10-25T13:30:00+07:00')).toBe('2026-10-25T13:30:00+07:00')
+    })
+
+    it('converts UTC ISO string to Bangkok local ISO string', () => {
+      // 06:30 UTC is 13:30 in Bangkok
+      expect(toBangkokIsoString('2026-10-25T06:30:00.000Z')).toBe('2026-10-25T13:30:00+07:00')
     })
 
     it('handles null gracefully', () => {
@@ -70,6 +99,11 @@ describe('eventTimeUtils', () => {
       const dbDate = new Date(Date.UTC(2026, 9, 13, 8, 0, 0))
       const trueUtc = parseDbThaiTimeToUtc(dbDate)
       // True UTC is 01:00:00Z
+      expect(trueUtc.toISOString()).toBe('2026-10-13T01:00:00.000Z')
+    })
+
+    it('parses literal MySQL DATETIME string into true UTC instant', () => {
+      const trueUtc = parseDbThaiTimeToUtc('2026-10-13 08:00:00')
       expect(trueUtc.toISOString()).toBe('2026-10-13T01:00:00.000Z')
     })
   })
@@ -105,6 +139,14 @@ describe('eventTimeUtils', () => {
       expect(result.isLate).toBe(true)
       expect(result.isOpen).toBe(false)
       expect(result.isEarly).toBe(false)
+      expect(result.closeTimeStr).toBe('10:00 น.')
+    })
+
+    it('works correctly with MySQL string timestamps', () => {
+      const now = new Date('2026-10-13T00:45:00.000Z')
+      const result = validateCheckinWindow('2026-10-13 08:00:00', '2026-10-13 10:00:00', now)
+      expect(result.isEarly).toBe(true)
+      expect(result.openTimeStr).toBe('08:00 น.')
       expect(result.closeTimeStr).toBe('10:00 น.')
     })
   })

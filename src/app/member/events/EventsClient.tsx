@@ -91,17 +91,25 @@ export default function EventsClient({
   const [registeredCount, setRegisteredCount] = useState<number>(userStats.registeredCount)
 
   // Format date in Thai Buddhist Era (พ.ศ.)
+  const thaiMonths = [
+    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+  ]
+
   const formatThaiDate = (dateString: string) => {
     try {
+      const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}:\d{2})/)
+      if (match) {
+        const year = parseInt(match[1], 10) + 543
+        const month = thaiMonths[parseInt(match[2], 10) - 1]
+        const day = parseInt(match[3], 10)
+        return `${day} ${month} ${year} เวลา ${match[4]} น.`
+      }
       const d = new Date(dateString)
-      const thaiMonths = [
-        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
-      ]
       const day = d.getDate()
       const month = thaiMonths[d.getMonth()]
       const year = d.getFullYear() + 543
-      const time = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      const time = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })
       return `${day} ${month} ${year} เวลา ${time} น.`
     } catch {
       return dateString
@@ -110,11 +118,14 @@ export default function EventsClient({
 
   const formatThaiDateOnly = (dateString: string) => {
     try {
+      const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})/)
+      if (match) {
+        const year = parseInt(match[1], 10) + 543
+        const month = thaiMonths[parseInt(match[2], 10) - 1]
+        const day = parseInt(match[3], 10)
+        return `${day} ${month} ${year}`
+      }
       const d = new Date(dateString)
-      const thaiMonths = [
-        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
-      ]
       return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`
     } catch {
       return dateString
@@ -123,10 +134,15 @@ export default function EventsClient({
 
   const formatThaiTimeRange = (startStr: string, endStr: string) => {
     try {
+      const ms = String(startStr).match(/[T ](\d{2}:\d{2})/)
+      const me = String(endStr).match(/[T ](\d{2}:\d{2})/)
+      if (ms && me) {
+        return `${ms[1]} - ${me[1]} น.`
+      }
       const s = new Date(startStr)
       const e = new Date(endStr)
-      const sTime = s.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-      const eTime = e.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      const sTime = s.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })
+      const eTime = e.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })
       return `${sTime} - ${eTime} น.`
     } catch {
       return ''

@@ -39,6 +39,17 @@ describe('DocumentStorage Module', () => {
     ).rejects.toThrow(StorageValidationError)
   })
 
+  it('normalizes allowedExtensions without leading dot (e.g. ["jpg", "png"]) and accepts .jpg file', async () => {
+    const dummyBuffer = Buffer.from('test jpg')
+    const result = await DocumentStorage.save(dummyBuffer, {
+      destinationDir: 'public/uploads/test-dotless',
+      baseName: 'photo.jpg',
+      allowedExtensions: ['jpg', 'png'],
+    })
+    testFilesToClean.push(result.publicUrl)
+    expect(result.fileName.endsWith('.jpg')).toBe(true)
+  })
+
   it('rejects files exceeding max size', async () => {
     const bigBuffer = Buffer.alloc(10 * 1024 * 1024) // 10MB
     await expect(

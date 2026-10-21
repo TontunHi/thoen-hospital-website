@@ -108,6 +108,7 @@ model Member {
   eventOrganizers          EventOrganizer[]
   eventRegistrations       EventRegistration[]
   eventAttendances         EventAttendance[]
+  eventAttachments         EventAttachment[]
 
   @@map("members")
 }
@@ -597,6 +598,7 @@ model HospitalEvent {
   coOrganizers     EventOrganizer[]
   registrations    EventRegistration[]
   attendances      EventAttendance[]
+  attachments      EventAttachment[]
 
   @@index([fiscalYear, status], map: "idx_event_year_status")
   @@index([eventStartDate], map: "idx_event_start_date")
@@ -648,6 +650,29 @@ model EventAttendance {
   @@index([checkedInAt], map: "idx_attendance_time")
   @@index([memberId], map: "idx_attendance_member")
   @@map("event_attendances")
+}
+
+model EventAttachment {
+  id                 Int           @id @default(autoincrement())
+  eventId            Int           @map("event_id")
+  attachmentType     String        @map("attachment_type") @db.VarChar(20)
+  title              String        @db.VarChar(255)
+  filePath           String?       @map("file_path") @db.VarChar(1000)
+  fileType           String?       @map("file_type") @db.VarChar(100)
+  fileSize           BigInt?       @map("file_size")
+  textContent        String?       @map("text_content") @db.Text
+  uploadedByMemberId Int?          @map("uploaded_by_member_id")
+  displayOrder       Int           @default(0) @map("display_order")
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  event              HospitalEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  uploadedBy         Member?       @relation(fields: [uploadedByMemberId], references: [id], onDelete: SetNull)
+
+  @@index([eventId], map: "idx_event_attachment_event")
+  @@index([attachmentType], map: "idx_event_attachment_type")
+  @@index([uploadedByMemberId], map: "idx_event_attachment_uploader")
+  @@map("event_attachments")
 }
 
 model ScreeningQueue {
