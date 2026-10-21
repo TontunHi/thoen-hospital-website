@@ -11,10 +11,7 @@ import {
   ChevronRight,
   Folder,
   Layers,
-  FileSpreadsheet,
   AlertCircle,
-  Receipt,
-  TrendingUp,
   BarChart3,
   Loader2,
 } from 'lucide-react'
@@ -383,39 +380,6 @@ export default function MisHosBudgetTrackerClient({
     return count
   }, [subReportsData])
 
-  // Overall KPI Calculations across all sub-reports
-  const kpiData = useMemo(() => {
-    let totalMoney = 0
-    let totalVisits = 0
-    let topFundName = '-'
-    let topFundValue = 0
-
-    // Iterate through all records
-    Object.values(subReportsData).forEach(s => {
-      s.records.forEach(r => {
-        const moneyVal =
-          parseFloat(r.BUDGET) ||
-          parseFloat(r.ACT_AMT) ||
-          parseFloat(r.BUDGET_UC) ||
-          parseFloat(r.SUM_AMT) ||
-          parseFloat(r.ACT_AMT_STM) ||
-          0
-        totalMoney += moneyVal
-
-        const visitVal = parseInt(r.NUM_VISIT || r.VISIT || r.COUNT || 0, 10)
-        totalVisits += isNaN(visitVal) ? 0 : visitVal
-
-        const itemName = r.DESCRIPTION || r.M_FUND_DESC || r.S_FUND_DESC || r.YEAR || r.MONTH_SEND
-        if (itemName && moneyVal > topFundValue) {
-          topFundValue = moneyVal
-          topFundName = String(itemName)
-        }
-      })
-    })
-
-    return { totalMoney, totalVisits, topFundName, topFundValue }
-  }, [subReportsData])
-
   // For testing compatibility: first table sub-report records
   const primaryTableRecords = useMemo(() => {
     const tableSub = activeSubReports.find(s => s.chart_type === 'table') || activeSubReports[0]
@@ -649,112 +613,6 @@ export default function MisHosBudgetTrackerClient({
               <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '0.25rem' }}>
                 หน่วยบริการ: {hcode} {currentHospitalName} จ.{hospitalInfo?.provinceName || 'ลำปาง'}
                 {hospitalInfo?.nhsoZone ? ` (เขต ${hospitalInfo.nhsoZone})` : ''}
-              </div>
-            </div>
-          </div>
-
-          {/* ========================================================== */}
-          {/* 4 SUMMARY KPI CARDS (Restrained Hospital Palette)           */}
-          {/* ========================================================== */}
-          <div className="bt-mishos-kpi-grid">
-            {/* Card 1: Total Money */}
-            <div className="bt-mishos-kpi-card bt-mishos-kpi-card-blue">
-              <div className="bt-mishos-kpi-top">
-                <div>
-                  <div className="bt-mishos-kpi-label">ยอดเงินรวมตามรายงาน</div>
-                  <div className="bt-mishos-kpi-value bt-mishos-kpi-value-blue">
-                    {kpiData.totalMoney > 0
-                      ? kpiData.totalMoney.toLocaleString('th-TH', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })
-                      : '-'}
-                  </div>
-                </div>
-                <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-blue">
-                  <Receipt size={17} />
-                </div>
-              </div>
-              <div className="bt-mishos-kpi-footer">
-                <span>
-                  {kpiData.totalMoney > 1000000
-                    ? `~${(kpiData.totalMoney / 1000000).toFixed(2)} ล้านบาท`
-                    : 'ตามสกุลเงินบาท'}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 2: Transactions / Records count */}
-            <div className="bt-mishos-kpi-card bt-mishos-kpi-card-slate">
-              <div className="bt-mishos-kpi-top">
-                <div>
-                  <div className="bt-mishos-kpi-label">จำนวนแถวข้อมูล</div>
-                  <div className="bt-mishos-kpi-value">
-                    {totalRecordsCount.toLocaleString('th-TH')}
-                  </div>
-                </div>
-                <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-slate">
-                  <FileSpreadsheet size={17} />
-                </div>
-              </div>
-              <div className="bt-mishos-kpi-footer">
-                <span>
-                  {kpiData.totalVisits > 0
-                    ? `รับบริการ ${kpiData.totalVisits.toLocaleString('th-TH')} ครั้ง`
-                    : `${activeSubReports.length} รายงานย่อยพร้อมแสดงผล`}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 3: Top Item / Category */}
-            <div className="bt-mishos-kpi-card bt-mishos-kpi-card-emerald">
-              <div className="bt-mishos-kpi-top">
-                <div>
-                  <div className="bt-mishos-kpi-label">รายการ/กองทุนสูงสุด</div>
-                  <div
-                    className="bt-mishos-kpi-value bt-mishos-kpi-value-emerald"
-                    style={{
-                      fontSize: '0.95rem',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '180px',
-                    }}
-                    title={kpiData.topFundName}
-                  >
-                    {kpiData.topFundName}
-                  </div>
-                </div>
-                <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-emerald">
-                  <TrendingUp size={17} />
-                </div>
-              </div>
-              <div className="bt-mishos-kpi-footer">
-                <span>
-                  {kpiData.topFundValue > 0
-                    ? `${kpiData.topFundValue.toLocaleString('th-TH', {
-                        minimumFractionDigits: 2,
-                      })} บาท`
-                    : 'สัดส่วนงบประมาณ'}
-                </span>
-              </div>
-            </div>
-
-            {/* Card 4: Report ID & Engine Status */}
-            <div className="bt-mishos-kpi-card bt-mishos-kpi-card-navy">
-              <div className="bt-mishos-kpi-top">
-                <div>
-                  <div className="bt-mishos-kpi-label">รหัสรายงาน (SSID)</div>
-                  <div className="bt-mishos-kpi-value">
-                    #{template?.subReports[0]?.ssid || activeSubmenu.defaultSsid || activeSubmenu.stId}
-                  </div>
-                </div>
-                <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-navy">
-                  <Database size={17} />
-                </div>
-              </div>
-              <div className="bt-mishos-kpi-footer">
-                <span>ปีงบ {selectedYear} · SimpleStudio Engine</span>
               </div>
             </div>
           </div>

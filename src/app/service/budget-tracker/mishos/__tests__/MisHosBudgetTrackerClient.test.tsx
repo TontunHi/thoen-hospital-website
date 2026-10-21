@@ -72,7 +72,7 @@ describe('MisHosBudgetTrackerClient Component', () => {
     nhsoZone: '01',
   }
 
-  it('renders hospital name, zone badge, year selector, and 4 KPI cards', () => {
+  it('renders hospital name, zone badge, year selector, and template title', () => {
     render(
       <MisHosBudgetTrackerClient
         initialTemplate={mockTemplate}
@@ -84,9 +84,8 @@ describe('MisHosBudgetTrackerClient Component', () => {
     expect(screen.getAllByText(/รพ.เถิน/).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/สปสช. เขต 01/)).toBeDefined()
     expect(screen.getByText('ปีงบประมาณ:')).toBeDefined()
-    expect(screen.getByText('ยอดเงินรวมตามรายงาน')).toBeDefined()
-    expect(screen.getByText('จำนวนแถวข้อมูล')).toBeDefined()
-    expect(screen.getByText('รหัสรายงาน (SSID)')).toBeDefined()
+    expect(screen.getByText('การโอนเงินชดเชยค่าบริการ')).toBeDefined()
+    expect(screen.queryByText('ยอดเงินรวมตามรายงาน')).toBeNull()
   })
 
   it('renders sidebar categories and submenus', () => {
