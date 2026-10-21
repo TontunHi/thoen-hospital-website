@@ -3,15 +3,16 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname, useSelectedLayoutSegment } from 'next/navigation'
-import { Building2, BarChart3, Layers } from 'lucide-react'
+import { Building2, BarChart3, Activity, Layers } from 'lucide-react'
 
 export default function BudgetTrackerNav() {
   const segment = useSelectedLayoutSegment()
   const pathname = usePathname()
 
   const isSmt = segment === 'smt' || pathname?.startsWith('/service/budget-tracker/smt') || false
+  const isMisHos = segment === 'mishos' || pathname?.startsWith('/service/budget-tracker/mishos') || false
   const isPlanfin = segment === 'planfin' || pathname?.startsWith('/service/budget-tracker/planfin') || false
-  const isRh1 = segment === 'rh1' || (!isSmt && !isPlanfin)
+  const isRh1 = segment === 'rh1' || (!isSmt && !isMisHos && !isPlanfin)
 
   return (
     <div className="bt-main-tabs" role="tablist" aria-label="หมวดหมู่ระบบติดตามงบประมาณ">
@@ -35,6 +36,17 @@ export default function BudgetTrackerNav() {
       >
         <BarChart3 size={18} />
         <span>ติดตามงบ สปสช. (SMT Dashboard)</span>
+      </Link>
+
+      <Link
+        href="/service/budget-tracker/mishos"
+        role="tab"
+        aria-selected={isMisHos}
+        className={`bt-main-tab-btn ${isMisHos ? 'active' : ''}`}
+        suppressHydrationWarning
+      >
+        <Activity size={18} />
+        <span>MIS HOS สปสช. (ส่วนกลาง)</span>
       </Link>
 
       <Link
