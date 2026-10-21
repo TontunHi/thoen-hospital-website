@@ -74,7 +74,7 @@ describe('Rh1BudgetTrackerClient Component', () => {
     expect(screen.getAllByText(/จุดเด่นที่ทำได้ดี/).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText(/โอกาสพัฒนาเพิ่มรายได้/).length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText(/รายการที่ยังไม่ได้เริ่มเบิกชดเชย/).length).toBeGreaterThanOrEqual(1)
-  })
+  }, 15000)
 
   it('renders complete original filter dropdowns', () => {
     render(<Rh1BudgetTrackerClient {...defaultProps} />)

@@ -16,7 +16,9 @@ import {
   FileSpreadsheet,
   AlertCircle,
   Clock,
-  Sparkles,
+  TrendingUp,
+  Receipt,
+  Hash,
 } from 'lucide-react'
 import {
   MisHosCategory,
@@ -356,52 +358,37 @@ export default function MisHosBudgetTrackerClient({
       {/* ============================================================ */}
       {/* TOP FOCUS BANNER: Hospital Selector, Year Switcher & Refresh */}
       {/* ============================================================ */}
-      <div className="bt-focus-banner" style={{ marginBottom: '1.25rem' }}>
-        <div className="bt-focus-info">
+      <div className="bt-mishos-focus-banner">
+        <div className="bt-mishos-banner-left">
           {/* Hospital Top Badges */}
-          <div className="bt-focus-top-badges">
-            <span
-              className="bt-focus-pill"
-              style={{
-                backgroundColor: '#f0fdf4',
-                color: '#15803d',
-                borderColor: '#86efac',
-              }}
-            >
+          <div className="bt-mishos-badge-row">
+            <span className="bt-mishos-pill-source">
               MIS HOS สปสช. (ส่วนกลาง)
             </span>
-            <span className="bt-focus-name" style={{ color: '#0369a1' }}>
+            <span className="bt-mishos-hosp-name">
               {currentHospitalName}
             </span>
-            <span className="bt-focus-code">
+            <span className="bt-mishos-hosp-code">
               รหัส: {isCustomHcode ? customHcode : hcode}
             </span>
             {hospitalInfo?.provinceName && (
-              <span className="bt-focus-group">จ.{hospitalInfo.provinceName}</span>
+              <span className="bt-mishos-hosp-meta">จ.{hospitalInfo.provinceName}</span>
             )}
             {hospitalInfo?.nhsoZone && (
-              <span className="bt-focus-group">เขต {hospitalInfo.nhsoZone}</span>
+              <span className="bt-mishos-hosp-meta">เขต {hospitalInfo.nhsoZone}</span>
             )}
           </div>
 
           {/* Preset Buttons for CUP Thoen & Input Toggle */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: '0.4rem',
-              marginTop: '0.35rem',
-            }}
-          >
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>
+          <div className="bt-mishos-selector-row">
+            <label htmlFor="mishos-hosp-select" className="bt-mishos-selector-label">
               เลือกหน่วยบริการ:
-            </span>
+            </label>
             <select
+              id="mishos-hosp-select"
               value={isCustomHcode ? 'CUSTOM' : hcode}
               onChange={e => handleHospitalPresetChange(e.target.value)}
-              className="bt-select"
-              style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem', minWidth: '220px' }}
+              className="bt-mishos-select"
             >
               {THOEN_NETWORK_PRESETS.map(p => (
                 <option key={p.code} value={p.code}>
@@ -412,21 +399,19 @@ export default function MisHosBudgetTrackerClient({
             </select>
 
             {isCustomHcode && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+              <div className="bt-mishos-custom-box">
                 <input
                   type="text"
                   maxLength={5}
                   placeholder="รหัส 5 หลัก"
                   value={customHcode}
                   onChange={e => setCustomHcode(e.target.value.replace(/\D/g, ''))}
-                  className="bt-input"
-                  style={{ width: '100px', fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                  className="bt-mishos-input-code"
                 />
                 <button
                   type="button"
                   onClick={handleApplyCustomHcode}
-                  className="bt-btn-primary"
-                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                  className="bt-mishos-btn-search"
                 >
                   ค้นหา
                 </button>
@@ -436,35 +421,16 @@ export default function MisHosBudgetTrackerClient({
         </div>
 
         {/* Right Action: Fiscal Year & Force Refresh */}
-        <div className="bt-focus-actions">
+        <div className="bt-mishos-banner-right">
           {/* Year Switcher */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              background: '#ffffff',
-              padding: '0.2rem 0.5rem',
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
-            }}
-          >
+          <div className="bt-mishos-year-badge">
             <Calendar size={13} style={{ color: '#0284c7' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>
-              ปีงบประมาณ:
-            </span>
+            <span className="bt-mishos-year-label">ปีงบประมาณ:</span>
             <select
               value={selectedYear}
               onChange={e => handleYearChange(e.target.value)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                fontSize: '0.8rem',
-                color: '#0f172a',
-                fontWeight: 700,
-                outline: 'none',
-                cursor: 'pointer',
-              }}
+              className="bt-mishos-year-select"
+              aria-label="เลือกปีงบประมาณ"
             >
               {AVAILABLE_YEARS.map(yr => (
                 <option key={yr} value={yr}>
@@ -479,8 +445,7 @@ export default function MisHosBudgetTrackerClient({
             type="button"
             onClick={handleForceRefresh}
             disabled={loading}
-            className="bt-focus-reset-btn"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            className="bt-mishos-refresh-btn"
             title="ข้ามแคชเพื่อดึงข้อมูลสดจาก MIS HOS สปสช."
           >
             <RefreshCw size={13} className={loading ? 'bt-spin' : ''} />
@@ -490,18 +455,12 @@ export default function MisHosBudgetTrackerClient({
       </div>
 
       {/* Cache Status Bar */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.75rem',
-          color: '#64748b',
-          marginBottom: '1rem',
-          padding: '0 0.25rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div className="bt-mishos-status-bar">
+        <div className="bt-mishos-status-left">
+          <span
+            className={`bt-mishos-status-dot ${dataSource === 'cache' ? 'cache' : 'upstream'}`}
+            aria-hidden="true"
+          />
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
             <Database size={13} />
             แหล่งข้อมูล:{' '}
@@ -515,29 +474,14 @@ export default function MisHosBudgetTrackerClient({
             <span suppressHydrationWarning>· อัปเดตล่าสุด: {lastUpdated}</span>
           )}
         </div>
-        <div>
-          <span>
-            พบข้อมูลทั้งหมด <b>{filteredRecords.length}</b> แถว
-          </span>
+        <div className="bt-mishos-status-right">
+          พบข้อมูลทั้งหมด <b>{filteredRecords.length.toLocaleString('th-TH')}</b> แถว
         </div>
       </div>
 
       {/* Error Message */}
       {errorMsg && (
-        <div
-          style={{
-            backgroundColor: '#fff1f2',
-            border: '1px solid #fecdd3',
-            color: '#be123c',
-            padding: '0.75rem 1rem',
-            borderRadius: '8px',
-            marginBottom: '1rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            fontSize: '0.85rem',
-          }}
-        >
+        <div className="bt-mishos-alert" role="alert">
           <AlertCircle size={16} />
           <span>{errorMsg}</span>
         </div>
@@ -556,18 +500,7 @@ export default function MisHosBudgetTrackerClient({
               <Folder size={15} style={{ color: '#0284c7' }} />
               <span>เมนูรายงาน MIS HOS</span>
             </h2>
-            <span
-              style={{
-                fontSize: '0.7rem',
-                backgroundColor: '#e2e8f0',
-                color: '#475569',
-                padding: '0.1rem 0.4rem',
-                borderRadius: '10px',
-                fontWeight: 600,
-              }}
-            >
-              10 หมวด
-            </span>
+            <span className="bt-mishos-sidebar-count">10 หมวด</span>
           </div>
 
           <div className="bt-mishos-sidebar-scroll">
@@ -586,11 +519,14 @@ export default function MisHosBudgetTrackerClient({
                     className={`bt-mishos-cat-btn ${isCatActive ? 'active-cat' : ''}`}
                     aria-expanded={isOpen}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Layers size={13} style={{ color: isCatActive ? '#0284c7' : '#64748b' }} />
-                      <span>{category.title}</span>
+                    <span className="bt-mishos-cat-btn-inner">
+                      <Layers size={13} style={{ color: isCatActive ? '#0284c7' : '#64748b', flexShrink: 0 }} />
+                      <span className="bt-mishos-cat-title-text">{category.title}</span>
                     </span>
-                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <ChevronRight
+                      size={14}
+                      className={`bt-mishos-chevron ${isOpen ? 'expanded' : ''}`}
+                    />
                   </button>
 
                   {isOpen && (
@@ -607,13 +543,7 @@ export default function MisHosBudgetTrackerClient({
                             className={`bt-mishos-sub-btn ${isSelected ? 'active' : ''}`}
                           >
                             <span>{sub.name}</span>
-                            <span
-                              style={{
-                                fontSize: '0.65rem',
-                                color: isSelected ? '#0284c7' : '#94a3b8',
-                                padding: '0 0.25rem',
-                              }}
-                            >
+                            <span className="bt-mishos-sub-btn-id">
                               #{sub.stId}
                             </span>
                           </button>
@@ -632,44 +562,14 @@ export default function MisHosBudgetTrackerClient({
         {/* ------------------------------------------------------------ */}
         <main className="bt-mishos-main-panel">
           {/* Active Submenu Header Card */}
-          <div
-            className="bt-card"
-            style={{
-              padding: '1rem 1.25rem',
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '0.75rem',
-              borderLeft: '4px solid #0284c7',
-            }}
-          >
+          <div className="bt-mishos-header-card">
             <div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.15rem' }}>
+              <div className="bt-mishos-header-category">
                 หมวดหมู่: {MIS_HOS_MENU_CATEGORIES.find(c => c.id === activeCategory)?.title}
               </div>
-              <h2
-                style={{
-                  fontSize: '1.15rem',
-                  fontWeight: 700,
-                  color: '#0f172a',
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
+              <h2 className="bt-mishos-header-title">
                 <span>{activeSubmenu.name}</span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    backgroundColor: '#e0f2fe',
-                    color: '#0369a1',
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '6px',
-                  }}
-                >
+                <span className="bt-mishos-header-stid">
                   ST-ID: {activeSubmenu.stId}
                 </span>
               </h2>
@@ -677,34 +577,20 @@ export default function MisHosBudgetTrackerClient({
 
             {/* Sub-report selector tabs if template has multiple sub-reports */}
             {template && template.subReports.length > 1 && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '0.35rem',
-                }}
-              >
+              <div className="bt-mishos-subreport-tabs" role="tablist" aria-label="รายงานย่อย">
                 {template.subReports.map(sub => {
                   const isSubActive = sub.ssid === activeSsid
                   return (
                     <button
                       key={sub.ssid}
                       type="button"
+                      role="tab"
+                      aria-selected={isSubActive}
                       onClick={() => handleSelectSubReport(sub)}
-                      style={{
-                        padding: '0.35rem 0.65rem',
-                        fontSize: '0.775rem',
-                        fontWeight: isSubActive ? 700 : 500,
-                        backgroundColor: isSubActive ? '#0284c7' : '#f1f5f9',
-                        color: isSubActive ? '#ffffff' : '#334155',
-                        border: isSubActive ? '1px solid #0284c7' : '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
+                      className={`bt-mishos-subreport-tab ${isSubActive ? 'active' : ''}`}
                     >
                       <span>{sub.report_name}</span>
-                      <small style={{ opacity: 0.8, marginLeft: '0.3rem' }}>#{sub.ssid}</small>
+                      <span className="bt-mishos-subreport-tab-ssid">#{sub.ssid}</span>
                     </button>
                   )
                 })}
@@ -713,15 +599,15 @@ export default function MisHosBudgetTrackerClient({
           </div>
 
           {/* ========================================================== */}
-          {/* 4 SUMMARY KPI CARDS                                        */}
+          {/* 4 SUMMARY KPI CARDS (Restrained Hospital Palette)           */}
           {/* ========================================================== */}
-          <div className="bt-summary-cards" style={{ margin: 0 }}>
+          <div className="bt-mishos-kpi-grid">
             {/* Card 1: Total Money */}
-            <div className="bt-summary-card">
-              <div className="bt-summary-card-inner">
+            <div className="bt-mishos-kpi-card bt-mishos-kpi-card-blue">
+              <div className="bt-mishos-kpi-top">
                 <div>
-                  <div className="bt-summary-card-title">ยอดเงินรวมตามรายงาน</div>
-                  <div className="bt-summary-card-value" style={{ color: '#0369a1' }}>
+                  <div className="bt-mishos-kpi-label">ยอดเงินรวมตามรายงาน</div>
+                  <div className="bt-mishos-kpi-value bt-mishos-kpi-value-blue">
                     {kpiData.totalMoney > 0
                       ? kpiData.totalMoney.toLocaleString('th-TH', {
                           minimumFractionDigits: 2,
@@ -730,14 +616,11 @@ export default function MisHosBudgetTrackerClient({
                       : '-'}
                   </div>
                 </div>
-                <div
-                  className="bt-summary-card-icon"
-                  style={{ backgroundColor: '#e0f2fe', color: '#0284c7' }}
-                >
-                  ฿
+                <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-blue">
+                  <Receipt size={17} />
                 </div>
               </div>
-              <div className="bt-summary-card-footer">
+              <div className="bt-mishos-kpi-footer">
                 <span>
                   {kpiData.totalMoney > 1000000
                     ? `~${(kpiData.totalMoney / 1000000).toFixed(2)} ล้านบาท`
@@ -747,40 +630,36 @@ export default function MisHosBudgetTrackerClient({
             </div>
 
             {/* Card 2: Transactions / Records count */}
-            <div className="bt-summary-card">
-              <div className="bt-summary-card-inner">
+            <div className="bt-mishos-kpi-card bt-mishos-kpi-card-slate">
+              <div className="bt-mishos-kpi-top">
                 <div>
-                  <div className="bt-summary-card-title">จำนวนแถวข้อมูล</div>
-                  <div className="bt-summary-card-value" style={{ color: '#0f172a' }}>
+                  <div className="bt-mishos-kpi-label">จำนวนแถวข้อมูล</div>
+                  <div className="bt-mishos-kpi-value">
                     {filteredRecords.length.toLocaleString('th-TH')}
                   </div>
                 </div>
-                <div
-                  className="bt-summary-card-icon"
-                  style={{ backgroundColor: '#f1f5f9', color: '#475569' }}
-                >
-                  <FileSpreadsheet size={18} />
+                <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-slate">
+                  <FileSpreadsheet size={17} />
                 </div>
               </div>
-              <div className="bt-summary-card-footer">
+              <div className="bt-mishos-kpi-footer">
                 <span>
                   {kpiData.totalVisits > 0
-                    ? `จำนวนครั้งรับบริการ: ${kpiData.totalVisits.toLocaleString('th-TH')} ครั้ง`
-                    : 'รายการข้อมูลผลงาน'}
+                    ? `รับบริการ ${kpiData.totalVisits.toLocaleString('th-TH')} ครั้ง`
+                    : 'รายการผลงานทั้งหมด'}
                 </span>
               </div>
             </div>
 
             {/* Card 3: Top Item / Category */}
-            <div className="bt-summary-card">
-              <div className="bt-summary-card-inner">
+            <div className="bt-mishos-kpi-card bt-mishos-kpi-card-emerald">
+              <div className="bt-mishos-kpi-top">
                 <div>
-                  <div className="bt-summary-card-title">รายการ/กองทุนสูงสุด</div>
+                  <div className="bt-mishos-kpi-label">รายการ/กองทุนสูงสุด</div>
                   <div
-                    className="bt-summary-card-value"
+                    className="bt-mishos-kpi-value bt-mishos-kpi-value-emerald"
                     style={{
-                      fontSize: '1rem',
-                      color: '#059669',
+                      fontSize: '0.95rem',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -791,14 +670,11 @@ export default function MisHosBudgetTrackerClient({
                     {kpiData.topFundName}
                   </div>
                 </div>
-                <div
-                  className="bt-summary-card-icon"
-                  style={{ backgroundColor: '#ecfdf5', color: '#059669' }}
-                >
-                  <Sparkles size={18} />
+                <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-emerald">
+                  <TrendingUp size={17} />
                 </div>
               </div>
-              <div className="bt-summary-card-footer">
+              <div className="bt-mishos-kpi-footer">
                 <span>
                   {kpiData.topFundValue > 0
                     ? `${kpiData.topFundValue.toLocaleString('th-TH', {
@@ -810,22 +686,19 @@ export default function MisHosBudgetTrackerClient({
             </div>
 
             {/* Card 4: Report ID & Engine Status */}
-            <div className="bt-summary-card">
-              <div className="bt-summary-card-inner">
+            <div className="bt-mishos-kpi-card bt-mishos-kpi-card-navy">
+              <div className="bt-mishos-kpi-top">
                 <div>
-                  <div className="bt-summary-card-title">รหัสรายงาน (SSID)</div>
-                  <div className="bt-summary-card-value" style={{ color: '#7c3aed' }}>
+                  <div className="bt-mishos-kpi-label">รหัสรายงาน (SSID)</div>
+                  <div className="bt-mishos-kpi-value">
                     #{activeSsid}
                   </div>
                 </div>
-                <div
-                  className="bt-summary-card-icon"
-                  style={{ backgroundColor: '#f5f3ff', color: '#7c3aed' }}
-                >
-                  <Database size={18} />
+                <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-navy">
+                  <Database size={17} />
                 </div>
               </div>
-              <div className="bt-summary-card-footer">
+              <div className="bt-mishos-kpi-footer">
                 <span>ปีงบ {selectedYear} · SimpleStudio Engine</span>
               </div>
             </div>
@@ -843,29 +716,10 @@ export default function MisHosBudgetTrackerClient({
           {/* ========================================================== */}
           {/* SEARCH, FILTER & EXCEL EXPORT BAR                          */}
           {/* ========================================================== */}
-          <div
-            className="bt-card"
-            style={{
-              padding: '0.85rem 1rem',
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}
-          >
+          <div className="bt-mishos-toolbar">
             {/* Search Input */}
-            <div style={{ position: 'relative', minWidth: '260px', flex: '1 1 260px' }}>
-              <Search
-                size={14}
-                style={{
-                  position: 'absolute',
-                  left: '0.65rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#94a3b8',
-                }}
-              />
+            <div className="bt-mishos-search-box">
+              <Search size={14} className="bt-mishos-search-icon" />
               <input
                 type="text"
                 value={searchTerm}
@@ -875,8 +729,8 @@ export default function MisHosBudgetTrackerClient({
                   setPageInput('1')
                 }}
                 placeholder="ค้นหาข้อมูลในตาราง..."
-                className="bt-input"
-                style={{ width: '100%', paddingLeft: '2rem', fontSize: '0.825rem' }}
+                className="bt-mishos-search-input"
+                aria-label="ค้นหาข้อมูลในตาราง"
               />
             </div>
 
@@ -885,15 +739,7 @@ export default function MisHosBudgetTrackerClient({
               type="button"
               onClick={handleExportExcel}
               disabled={filteredRecords.length === 0}
-              className="bt-btn-primary"
-              style={{
-                backgroundColor: '#059669',
-                borderColor: '#047857',
-                fontSize: '0.825rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
+              className="bt-mishos-btn-excel"
             >
               <Download size={14} />
               <span>ส่งออก Excel (.xlsx)</span>
@@ -901,16 +747,16 @@ export default function MisHosBudgetTrackerClient({
           </div>
 
           {/* ========================================================== */}
-          {/* DYNAMIC DATA TABLE & PAGINATION                            */}
+          {/* DYNAMIC DATA TABLE & PAGINATION (No Overflow Bugs!)        */}
           {/* ========================================================== */}
-          <div className="bt-card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div className="bt-table-container" style={{ margin: 0, border: 'none' }}>
-              <table className="bt-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="bt-mishos-table-card">
+            <div className="bt-mishos-table-scroll">
+              <table className="bt-mishos-table">
                 <thead>
                   <tr>
                     <th style={{ width: '50px', textAlign: 'center' }}>ลำดับ</th>
                     {tableColumns.map(col => (
-                      <th key={col} style={{ whiteSpace: 'nowrap' }}>
+                      <th key={col}>
                         {col}
                       </th>
                     ))}
@@ -921,7 +767,7 @@ export default function MisHosBudgetTrackerClient({
                     <tr>
                       <td
                         colSpan={tableColumns.length + 1 || 1}
-                        style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}
+                        className="bt-mishos-empty-row"
                       >
                         {loading ? 'กำลังดึงข้อมูลจากระบบ MIS HOS...' : 'ไม่พบรายการข้อมูล'}
                       </td>
@@ -931,7 +777,7 @@ export default function MisHosBudgetTrackerClient({
                       const rowNum = (currentPage - 1) * pageSize + idx + 1
                       return (
                         <tr key={idx}>
-                          <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.75rem' }}>
+                          <td className="bt-mishos-col-seq">
                             {rowNum}
                           </td>
                           {tableColumns.map(col => {
@@ -954,16 +800,14 @@ export default function MisHosBudgetTrackerClient({
                               !val.startsWith('0') &&
                               val.length < 15
 
+                            const cellClass = isNumeric
+                              ? 'bt-mishos-col-num'
+                              : isCodeOrYear
+                              ? 'bt-mishos-col-code'
+                              : 'bt-mishos-col-text'
+
                             return (
-                              <td
-                                key={col}
-                                style={{
-                                  textAlign: isNumeric ? 'right' : (isCodeOrYear ? 'center' : 'left'),
-                                  whiteSpace: 'nowrap',
-                                  fontSize: '0.825rem',
-                                  fontFamily: isNumeric || isCodeOrYear ? 'monospace' : 'inherit',
-                                }}
-                              >
+                              <td key={col} className={cellClass}>
                                 {isNumeric
                                   ? num.toLocaleString('th-TH', {
                                       minimumFractionDigits: val.includes('.') ? 2 : 0,
@@ -983,13 +827,13 @@ export default function MisHosBudgetTrackerClient({
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="bt-pagination" style={{ borderTop: '1px solid #e2e8f0' }}>
-                <span className="bt-pagination-info">
+              <div className="bt-mishos-pagination">
+                <span className="bt-mishos-page-info">
                   หน้า <b>{currentPage}</b> จาก <b>{totalPages}</b> (รวม{' '}
                   <b>{filteredRecords.length}</b> รายการ)
                 </span>
 
-                <div className="bt-pagination-controls">
+                <div className="bt-mishos-page-controls">
                   <button
                     type="button"
                     onClick={() => {
@@ -998,12 +842,12 @@ export default function MisHosBudgetTrackerClient({
                       setPageInput(String(p))
                     }}
                     disabled={currentPage === 1}
-                    className="bt-page-btn"
+                    className="bt-mishos-btn-page"
                   >
                     ก่อนหน้า
                   </button>
 
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <div className="bt-mishos-page-input-box">
                     <input
                       type="number"
                       min={1}
@@ -1020,13 +864,8 @@ export default function MisHosBudgetTrackerClient({
                           }
                         }
                       }}
-                      className="bt-input"
-                      style={{
-                        width: '50px',
-                        padding: '0.2rem 0.4rem',
-                        fontSize: '0.8rem',
-                        textAlign: 'center',
-                      }}
+                      className="bt-mishos-input-page"
+                      aria-label="เปลี่ยนหมายเลขหน้า"
                     />
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>/ {totalPages}</span>
                   </div>
@@ -1039,7 +878,7 @@ export default function MisHosBudgetTrackerClient({
                       setPageInput(String(p))
                     }}
                     disabled={currentPage === totalPages}
-                    className="bt-page-btn"
+                    className="bt-mishos-btn-page"
                   >
                     ถัดไป
                   </button>

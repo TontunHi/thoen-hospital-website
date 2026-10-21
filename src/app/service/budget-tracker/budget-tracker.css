@@ -1047,75 +1047,412 @@ table.bt-mx td.c.z {
 }
 
 /* ==========================================================================
-   MIS HOS สปสช. (ส่วนกลาง) Responsive Sidebar & Layout Styles
+   Hallmark Design System · MIS HOS สปสช. (ส่วนกลาง) Workstation
+   Genre: Utilitarian Hospital Clinical & Financial Workstation
+   Theme: Hospital-Slate-Teal · Macrostructure: Workbench
+   Anti-AI: Tabular-nums, crisp hairlines, 8-state interactions, no AI slop
    ========================================================================== */
 
+.bt-mishos-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* --- Focus Hospital & Control Banner --- */
+.bt-mishos-focus-banner {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #0284c7;
+  border-radius: 8px;
+  padding: 0.85rem 1.15rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.bt-mishos-banner-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.bt-mishos-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bt-mishos-pill-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.725rem;
+  font-weight: 700;
+  color: #0369a1;
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  letter-spacing: 0.02em;
+}
+
+.bt-mishos-hosp-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.bt-mishos-hosp-code {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-mishos-hosp-meta {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+}
+
+.bt-mishos-selector-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bt-mishos-selector-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.bt-mishos-select {
+  font-size: 0.8125rem;
+  font-family: inherit;
+  color: #0f172a;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  min-width: 230px;
+}
+
+.bt-mishos-select:hover {
+  border-color: #94a3b8;
+}
+
+.bt-mishos-select:focus-visible {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+.bt-mishos-custom-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bt-mishos-input-code {
+  width: 90px;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bt-mishos-input-code:focus-visible {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+.bt-mishos-btn-search {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #ffffff;
+  background-color: #0284c7;
+  border: 1px solid #0284c7;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.bt-mishos-btn-search:hover {
+  background-color: #0369a1;
+}
+
+.bt-mishos-btn-search:active {
+  background-color: #075985;
+}
+
+.bt-mishos-btn-search:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+
+.bt-mishos-banner-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.bt-mishos-year-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.775rem;
+}
+
+.bt-mishos-year-label {
+  font-weight: 600;
+  color: #475569;
+}
+
+.bt-mishos-year-select {
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+}
+
+.bt-mishos-year-select:focus-visible {
+  outline: 2px solid #0284c7;
+  border-radius: 4px;
+}
+
+.bt-mishos-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.775rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #334155;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bt-mishos-refresh-btn:hover:not(:disabled) {
+  background-color: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.bt-mishos-refresh-btn:active:not(:disabled) {
+  background-color: #f1f5f9;
+}
+
+.bt-mishos-refresh-btn:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+
+.bt-mishos-refresh-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* --- Cache & Source Status Bar --- */
+.bt-mishos-status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  padding: 0 0.15rem;
+}
+
+.bt-mishos-status-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bt-mishos-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.bt-mishos-status-dot.cache {
+  background-color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2);
+}
+
+.bt-mishos-status-dot.upstream {
+  background-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+.bt-mishos-status-right {
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-mishos-status-right b {
+  color: #0f172a;
+}
+
+/* --- Error Alert Banner --- */
+.bt-mishos-alert {
+  background-color: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-left: 4px solid #e11d48;
+  color: #9f1239;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.8125rem;
+}
+
+/* --- Two-Column Workbench Layout --- */
 .bt-mishos-layout {
   display: grid;
-  grid-template-columns: 290px 1fr;
+  grid-template-columns: 290px minmax(0, 1fr);
   gap: 1.25rem;
-  align-items: flex-start;
-  margin-top: 1rem;
+  align-items: start;
+  width: 100%;
 }
 
 @media (max-width: 960px) {
   .bt-mishos-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 100%;
   }
 }
 
+/* --- Left Accordion Sidebar --- */
 .bt-mishos-sidebar {
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   position: sticky;
-  top: calc(var(--navbar-height, 80px) + 1rem);
-  max-height: calc(100vh - var(--navbar-height, 80px) - 2rem);
+  top: 1rem;
+  max-height: calc(100vh - 2rem);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+@media (max-width: 960px) {
+  .bt-mishos-sidebar {
+    position: static;
+    max-height: none;
+  }
 }
 
 .bt-mishos-sidebar-header {
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 0.85rem;
   background-color: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .bt-mishos-sidebar-title {
-  font-size: 0.85rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: #1e293b;
   text-transform: uppercase;
-  letter-spacing: 0.025em;
+  letter-spacing: 0.03em;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin: 0;
+}
+
+.bt-mishos-sidebar-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background-color: #e2e8f0;
+  color: #475569;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 .bt-mishos-sidebar-scroll {
   overflow-y: auto;
-  padding: 0.5rem;
+  overscroll-behavior-y: contain;
+  padding: 0.45rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.bt-mishos-sidebar-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.bt-mishos-sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
 }
 
 .bt-mishos-cat-group {
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
-  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
   background-color: #ffffff;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease;
+  overflow: hidden;
 }
 
 .bt-mishos-cat-group.open {
-  border-color: #e2e8f0;
+  border-color: #cbd5e1;
   background-color: #fafbfc;
 }
 
@@ -1124,15 +1461,16 @@ table.bt-mx td.c.z {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.55rem 0.75rem;
+  padding: 0.5rem 0.65rem;
   background: transparent;
   border: none;
-  font-size: 0.825rem;
+  font-size: 0.8125rem;
   font-weight: 600;
+  font-family: inherit;
   color: #334155;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .bt-mishos-cat-btn:hover {
@@ -1140,16 +1478,44 @@ table.bt-mx td.c.z {
   color: #0284c7;
 }
 
+.bt-mishos-cat-btn:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: -2px;
+}
+
 .bt-mishos-cat-btn.active-cat {
   color: #0284c7;
   font-weight: 700;
 }
 
+.bt-mishos-cat-btn-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.bt-mishos-cat-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bt-mishos-chevron {
+  color: #94a3b8;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.bt-mishos-chevron.expanded {
+  transform: rotate(90deg);
+}
+
 .bt-mishos-submenu-list {
   display: flex;
   flex-direction: column;
-  padding: 0.25rem 0.5rem 0.5rem 0.75rem;
-  gap: 0.2rem;
+  padding: 0.25rem 0.4rem 0.45rem 0.65rem;
+  gap: 0.15rem;
   background-color: #ffffff;
   border-top: 1px dashed #e2e8f0;
 }
@@ -1158,11 +1524,14 @@ table.bt-mx td.c.z {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.45rem 0.65rem;
-  border-radius: 6px;
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 4px;
   background: transparent;
   border: none;
+  border-left: 3px solid transparent;
   font-size: 0.775rem;
+  font-family: inherit;
   color: #475569;
   text-align: left;
   cursor: pointer;
@@ -1170,20 +1539,525 @@ table.bt-mx td.c.z {
 }
 
 .bt-mishos-sub-btn:hover {
-  background-color: #f0fdf4;
-  color: #059669;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.bt-mishos-sub-btn:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: -1px;
 }
 
 .bt-mishos-sub-btn.active {
-  background-color: #e0f2fe;
+  background-color: #f0f9ff;
+  border-left-color: #0284c7;
   color: #0369a1;
   font-weight: 600;
-  box-shadow: inset 0 0 0 1px #7dd3fc;
 }
 
+.bt-mishos-sub-btn-id {
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+  padding: 0 0.2rem;
+  flex-shrink: 0;
+}
+
+.bt-mishos-sub-btn.active .bt-mishos-sub-btn-id {
+  color: #0284c7;
+  font-weight: 700;
+}
+
+/* --- Right Main Panel --- */
 .bt-mishos-main-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.15rem;
   min-width: 0;
+  width: 100%;
+}
+
+/* --- Active Submenu Header Card --- */
+.bt-mishos-header-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #0284c7;
+  border-radius: 8px;
+  padding: 0.85rem 1.15rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.bt-mishos-header-category {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.15rem;
+}
+
+.bt-mishos-header-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bt-mishos-header-stid {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background-color: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-mishos-subreport-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.bt-mishos-subreport-tab {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.775rem;
+  font-family: inherit;
+  font-weight: 500;
+  background-color: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bt-mishos-subreport-tab:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.bt-mishos-subreport-tab:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 1px;
+}
+
+.bt-mishos-subreport-tab.active {
+  background-color: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(2, 132, 199, 0.25);
+}
+
+.bt-mishos-subreport-tab-ssid {
+  font-size: 0.65rem;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- 4 KPI Summary Cards (Utilitarian Hospital Tone) --- */
+.bt-mishos-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 1024px) {
+  .bt-mishos-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .bt-mishos-kpi-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.bt-mishos-kpi-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bt-mishos-kpi-card-blue { border-left: 3px solid #0284c7; }
+.bt-mishos-kpi-card-slate { border-left: 3px solid #64748b; }
+.bt-mishos-kpi-card-emerald { border-left: 3px solid #059669; }
+.bt-mishos-kpi-card-navy { border-left: 3px solid #334155; }
+
+.bt-mishos-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bt-mishos-kpi-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.bt-mishos-kpi-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.bt-mishos-kpi-value-blue { color: #0369a1; }
+.bt-mishos-kpi-value-emerald { color: #047857; }
+
+.bt-mishos-kpi-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bt-mishos-kpi-icon-blue { background-color: #f0f9ff; color: #0284c7; }
+.bt-mishos-kpi-icon-slate { background-color: #f1f5f9; color: #475569; }
+.bt-mishos-kpi-icon-emerald { background-color: #ecfdf5; color: #059669; }
+.bt-mishos-kpi-icon-navy { background-color: #f1f5f9; color: #334155; }
+
+.bt-mishos-kpi-footer {
+  font-size: 0.725rem;
+  color: #64748b;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Search & Actions Toolbar --- */
+.bt-mishos-toolbar {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.bt-mishos-search-box {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.bt-mishos-search-icon {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.bt-mishos-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  color: #0f172a;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.35rem 0.65rem 0.35rem 2rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bt-mishos-search-input:focus-visible {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+.bt-mishos-btn-excel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #ffffff;
+  background-color: #059669;
+  border: 1px solid #047857;
+  border-radius: 6px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.bt-mishos-btn-excel:hover:not(:disabled) {
+  background-color: #047857;
+}
+
+.bt-mishos-btn-excel:active:not(:disabled) {
+  background-color: #065f46;
+}
+
+.bt-mishos-btn-excel:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+
+.bt-mishos-btn-excel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Table Card & Horizontal Scroll Container --- */
+.bt-mishos-table-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.bt-mishos-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  max-height: 65vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  box-sizing: border-box;
+}
+
+.bt-mishos-table-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.bt-mishos-table-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+.bt-mishos-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 100%;
+}
+
+.bt-mishos-table th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.025em;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 2px solid #cbd5e1;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.bt-mishos-table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  white-space: nowrap;
+  vertical-align: middle;
+  line-height: 1.35;
+}
+
+.bt-mishos-table tbody tr:nth-child(even) {
+  background-color: #fafbfc;
+}
+
+.bt-mishos-table tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+.bt-mishos-col-seq {
+  width: 45px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-mishos-col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.bt-mishos-col-code {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: #334155;
+}
+
+.bt-mishos-col-text {
+  text-align: left;
+  color: #0f172a;
+}
+
+.bt-mishos-empty-row {
+  text-align: center;
+  padding: 3rem 1rem !important;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* --- Pagination Controls --- */
+.bt-mishos-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.775rem;
+  color: #475569;
+}
+
+.bt-mishos-page-info {
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-mishos-page-info b {
+  color: #0f172a;
+}
+
+.bt-mishos-page-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bt-mishos-btn-page {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #334155;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 0.25rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bt-mishos-btn-page:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.bt-mishos-btn-page:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 1px;
+}
+
+.bt-mishos-btn-page:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bt-mishos-page-input-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bt-mishos-input-page {
+  width: 44px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 0.2rem 0.35rem;
+  outline: none;
+}
+
+.bt-mishos-input-page:focus-visible {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 1px #0284c7;
+}
+
+/* --- MisHos Chart Card --- */
+.bt-mishos-chart-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.bt-mishos-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.5rem;
+}
+
+.bt-mishos-chart-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bt-mishos-chart-unit {
+  font-size: 0.725rem;
+  color: #64748b;
+  font-weight: 500;
 }
