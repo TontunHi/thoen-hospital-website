@@ -46,8 +46,12 @@ export default function MisHosChart({ records, reportTitle }: MisHosChartProps) 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} />
               <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
+              {/* Recharts polymorphic ValueType tooltip formatter */}
               <Tooltip
-                formatter={(val: any) => [`${Number(val).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ล้านบาท`, 'ยอดเงิน']}
+                formatter={(val: any) => [
+                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ล้านบาท`,
+                  'ยอดเงิน',
+                ]}
                 contentStyle={{ borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
               />
               <Bar dataKey="value" name="งบประมาณ (ล้านบาท)" fill="#0284c7" radius={[4, 4, 0, 0]} />
@@ -78,9 +82,10 @@ export default function MisHosChart({ records, reportTitle }: MisHosChartProps) 
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fontSize: 10, fill: '#475569' }} />
               <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
+              {/* Recharts polymorphic ValueType tooltip formatter */}
               <Tooltip
                 formatter={(val: any) => [
-                  `${Number(val).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ${isMillion ? 'ล้านบาท' : 'บาท'}`,
+                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ${isMillion ? 'ล้านบาท' : 'บาท'}`,
                   'ยอดเงิน'
                 ]}
                 contentStyle={{ borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
@@ -119,8 +124,12 @@ export default function MisHosChart({ records, reportTitle }: MisHosChartProps) 
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
               <XAxis type="number" tick={{ fontSize: 10, fill: '#475569' }} />
               <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#1e293b' }} width={95} />
+              {/* Recharts polymorphic ValueType tooltip formatter */}
               <Tooltip
-                formatter={(val: any) => [`${Number(val).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`, 'ยอดเงิน']}
+                formatter={(val: any) => [
+                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
+                  'ยอดเงิน',
+                ]}
                 labelFormatter={(_, arr) => arr[0]?.payload?.fullName || ''}
                 contentStyle={{ borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
               />

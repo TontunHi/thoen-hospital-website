@@ -186,8 +186,9 @@ export default function MisHosBudgetTrackerClient({
 
       // 3. Fetch table data for initial ssid
       await loadTableData(targetSsid, false)
-    } catch (err: any) {
-      setErrorMsg(err.message || 'ไม่สามารถโหลดข้อมูลรายงานได้')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลรายงานได้'
+      setErrorMsg(msg)
     } finally {
       setLoading(false)
     }
@@ -224,8 +225,9 @@ export default function MisHosBudgetTrackerClient({
           setErrorMsg(json.error.message)
         }
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลตาราง')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลตาราง'
+      setErrorMsg(msg)
       setRecords([])
     } finally {
       setLoading(false)

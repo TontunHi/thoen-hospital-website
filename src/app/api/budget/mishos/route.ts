@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { logAudit } from '@/lib/audit'
 import {
@@ -6,6 +7,17 @@ import {
   MIS_HOS_MENU_CATEGORIES,
   THOEN_HOSPITAL_CODE,
 } from '@/lib/budget/misHosService'
+
+const MisHosRequestSchema = z.object({
+  action: z.enum(['getCategories', 'getHospitalInfo', 'getTemplate', 'getTableData']).default('getTableData'),
+  ssid: z.string().optional(),
+  stId: z.string().optional(),
+  hcode: z.string().optional(),
+  year: z.string().optional(),
+  province: z.string().optional(),
+  subfund: z.string().optional(),
+  forceRefresh: z.boolean().optional(),
+})
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,8 +29,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const body = await req.json().catch(() => ({}))
-    const { action, ssid, stId, hcode, year, province, subfund, forceRefresh } = body
+    const rawBody = await req.json().catch(() => ({}))
+    const parsed = MisHosRequestSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'พารามิเตอร์ไม่ถูกต้อง' } },
+        { status: 400 }
+      )
+    }
+
+    const { action, ssid, stId, hcode, year, province, subfund, forceRefresh } = parsed.data
 
     if (action === 'getCategories') {
       return NextResponse.json({ success: true, data: MIS_HOS_MENU_CATEGORIES })
@@ -36,10 +56,10 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
-      const template = await MisHosService.getTemplateConfig(String(stId), {
-        year: year ? String(year) : undefined,
-        hcode: hcode ? String(hcode) : undefined,
-        subfund: subfund ? String(subfund) : undefined,
+      const template = await MisHosService.getTemplateConfig(stId, {
+        year,
+        hcode,
+        subfund,
       })
       return NextResponse.json({ success: true, data: template })
     }
@@ -52,11 +72,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const result = await MisHosService.getTableData(String(ssid), {
-      hcode: hcode ? String(hcode) : THOEN_HOSPITAL_CODE,
-      year: year ? String(year) : undefined,
-      province: province ? String(province) : undefined,
-      subfund: subfund ? String(subfund) : undefined,
+    const result = await MisHosService.getTableData(ssid, {
+      hcode: hcode || THOEN_HOSPITAL_CODE,
+      year,
+      province,
+      subfund,
       forceRefresh: Boolean(forceRefresh),
     })
 
@@ -68,11 +88,12 @@ export async function POST(req: NextRequest) {
     )
 
     return NextResponse.json({ success: true, data: result })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการดึงข้อมูล'
     return NextResponse.json(
       {
         success: false,
-        error: { code: 'INTERNAL_ERROR', message: error.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล' },
+        error: { code: 'INTERNAL_ERROR', message },
       },
       { status: 500 }
     )

@@ -35,6 +35,7 @@ export interface MisHosTemplateConfig {
 
 export interface MisHosTableDataResult {
   ssid: string
+  // Upstream NHSO SimpleStudio SQL statements return dynamic, heterogeneous columns per SSID
   records: Record<string, any>[]
   source: 'upstream' | 'cache'
   fetchedAt: string
