@@ -63,6 +63,7 @@ export async function exportMisHosRecordsToExcel(
       ...columns.map(col => {
         const val = rec[col]
         if (val === undefined || val === null) return '-'
+        if (typeof val === 'number') return val
         const num = Number(val)
         if (!isNaN(num) && typeof val === 'string' && val.trim() !== '' && !val.startsWith('0') && val.length < 15) {
           return num

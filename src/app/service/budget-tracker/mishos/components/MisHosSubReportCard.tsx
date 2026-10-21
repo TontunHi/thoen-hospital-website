@@ -87,20 +87,31 @@ export default function MisHosSubReportCard({
         upper.includes('ID') ||
         upper.includes('DATE') ||
         upper.includes('MONTH')
-      const firstVal = records[0]?.[colKey]
-      const numVal = Number(firstVal)
+
+      const sampleVal = records.find(
+        r => r[colKey] !== null && r[colKey] !== undefined && r[colKey] !== ''
+      )?.[colKey]
+      const strVal = String(sampleVal ?? '')
+      const numVal = Number(sampleVal)
       const isNum =
         !isCodeOrDate &&
+        sampleVal !== null &&
+        sampleVal !== undefined &&
+        strVal.trim() !== '' &&
         !isNaN(numVal) &&
-        typeof firstVal === 'string' &&
-        firstVal.trim() !== '' &&
-        !firstVal.startsWith('0') &&
-        firstVal.length < 15
+        (typeof sampleVal === 'number' || (!strVal.startsWith('0') || strVal === '0')) &&
+        strVal.length < 15
+
+      const hasDecimals = records.some(r => {
+        const v = r[colKey]
+        return v !== null && v !== undefined && String(v).includes('.')
+      })
+
       return {
         key: colKey,
         title: colKey,
         isNumeric: isNum,
-        decimals: firstVal?.includes('.') ? 2 : 0,
+        decimals: hasDecimals ? 2 : 0,
       }
     })
   }, [rawColumns, chartConfig?.table_header, records])
