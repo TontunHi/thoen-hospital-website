@@ -275,7 +275,7 @@ export default function MisHosChart({
     const series1Name = isStemi ? 'STROKE (บาท)' : 'ผู้ป่วยนอก OP (บาท)'
     const series2Key = isStemi ? 'ACTAMT_STEMI' : 'ACT_AMT_IP'
     const series2Name = isStemi ? 'STEMI (บาท)' : 'ผู้ป่วยใน IP (บาท)'
-    const isStacked = isStemi && xNameKey === 'MONTH'
+    const isStacked = isStemi ? xNameKey === 'MONTH' : true
 
     const chartData = records.map(r => ({
       name: xNameKey === 'YEAR' ? `ปี ${r.YEAR}` : String(r.MONTH),
@@ -317,16 +317,16 @@ export default function MisHosChart({
               <Bar
                 dataKey="series1"
                 name={series1Name}
-                fill={palette[0] || '#bf9930'}
+                fill={palette[0] || (isStemi ? '#bf9930' : '#e0e065')}
                 radius={isStacked ? [0, 0, 0, 0] : [4, 4, 0, 0]}
-                stackId={isStacked ? 'stemiStack' : undefined}
+                stackId={isStacked ? 'multiSeriesStack' : undefined}
               />
               <Bar
                 dataKey="series2"
                 name={series2Name}
-                fill={palette[1] || '#f2de7e'}
+                fill={palette[1] || (isStemi ? '#f2de7e' : '#d6ba87')}
                 radius={[4, 4, 0, 0]}
-                stackId={isStacked ? 'stemiStack' : undefined}
+                stackId={isStacked ? 'multiSeriesStack' : undefined}
               />
             </BarChart>
           </ResponsiveContainer>

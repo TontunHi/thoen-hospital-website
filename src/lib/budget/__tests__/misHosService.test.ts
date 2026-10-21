@@ -242,6 +242,60 @@ describe('MisHosService', () => {
         body: JSON.stringify({ data1: THOEN_HOSPITAL_CODE, year: '2026' }),
       })
     )
+
+    // 3. Template config for Cancer (1469) matching MIS HOS Chunk 27 (4 sub-reports)
+    const mockEmptyCancerTemplate = [{ ST_ID: '1469', ST_TEMPLATENAME: 'Cancer', ST_CONFIG: '' }]
+    const mockCancerTplFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify(mockEmptyCancerTemplate)),
+    })
+
+    const cancerTpl = await MisHosService.getTemplateConfig('1469', {
+      fetchImpl: mockCancerTplFetch as unknown as typeof fetch,
+    })
+
+    expect(cancerTpl).toBeDefined()
+    expect(cancerTpl?.subReports.length).toBe(4)
+    expect(cancerTpl?.subReports[0].ssid).toBe('custom:m0402_cancer_year_chart')
+    expect(cancerTpl?.subReports[0].report_name).toBe('บริการเคมีบำบัดหรือฮอร์โมนหรือรังสีรักษาสำหรับผู้ป่วยโรคมะเร็ง')
+    expect(cancerTpl?.subReports[0].report_width).toBe('5')
+    expect(cancerTpl?.subReports[1].ssid).toBe('custom:m0402_cancer_month_chart')
+    expect(cancerTpl?.subReports[1].report_name).toBe('บริการเคมีบำบัดหรือฮอร์โมนหรือรังสีรักษาสำหรับผู้ป่วยโรคมะเร็ง ปีงบประมาณ')
+    expect(cancerTpl?.subReports[1].report_width).toBe('7')
+    expect(cancerTpl?.subReports[2].ssid).toBe('custom:m0402_cancer_year_table')
+    expect(cancerTpl?.subReports[2].report_name).toBe('บริการเคมีบำบัดหรือฮอร์โมนหรือรังสีรักษาสำหรับผู้ป่วยโรคมะเร็ง แยกรายปีงบประมาณ')
+    expect(cancerTpl?.subReports[2].report_width).toBe('6')
+    expect(cancerTpl?.subReports[3].ssid).toBe('custom:m0402_cancer_month_table')
+    expect(cancerTpl?.subReports[3].report_name).toBe('บริการเคมีบำบัดหรือฮอร์โมนหรือรังสีรักษาสำหรับผู้ป่วยโรคมะเร็ง แยกรายเดือน ปีงบประมาณ')
+    expect(cancerTpl?.subReports[3].report_width).toBe('6')
+
+    // 4. Cancer Data Fetch with computed TOTAL_AMT
+    const mockCancerRecords = [
+      { YEAR: '2569', NUMPT_OP: 9, ACT_AMT_OP: 1137.5, NUMPT_IP: 2, ACT_AMT_IP: 500 },
+    ]
+    const mockCancerDataFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify(mockCancerRecords)),
+    })
+
+    const cancerData = await MisHosService.getTableData('custom:m0402_cancer_month_table', {
+      hcode: THOEN_HOSPITAL_CODE,
+      year: '2569',
+      fetchImpl: mockCancerDataFetch as unknown as typeof fetch,
+    })
+
+    expect(cancerData.records.length).toBe(1)
+    expect(cancerData.records[0].TOTAL_AMT).toBe(1637.5)
+    expect(cancerData.chartConfig?.color).toEqual(['#e0e065', '#d6ba87'])
+    expect(cancerData.chartConfig?.table_header).toContain('รวม (บาท),2')
+    expect(mockCancerDataFetch).toHaveBeenCalledWith(
+      expect.stringContaining('m0402_cancer_month.php'),
+      expect.objectContaining({
+        body: JSON.stringify({ data1: THOEN_HOSPITAL_CODE, year: '2026' }),
+      })
+    )
   })
 
   it('robustly extracts JSON array even when PHP warnings or HTML prepend the response', async () => {
