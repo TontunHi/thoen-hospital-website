@@ -262,20 +262,25 @@ export default function MisHosChart({
     )
   }
 
-  // Case 1B: High Cost Multi-Series (STEMI/Stroke, Cancer OP/IP, Instrument OP/IP)
+  // Case 1B: High Cost Multi-Series (STEMI/Stroke, Cancer OP/IP, Cataract In/Out, Instrument OP/IP)
   const isMultiSeriesYear =
     ('YEAR' in first || 'MONTH' in first) &&
     (('ACTAMT_STEMI' in first || 'ACTAMT_STROKE' in first) ||
-      ('ACT_AMT_OP' in first && 'ACT_AMT_IP' in first))
+      ('ACT_AMT_OP' in first && 'ACT_AMT_IP' in first) ||
+      ('ACTAMT_IN' in first || 'ACTAMT_OUT' in first))
 
   if (isMultiSeriesYear) {
     const xNameKey = 'YEAR' in first ? 'YEAR' : 'MONTH'
     const isStemi = 'ACTAMT_STEMI' in first || 'ACTAMT_STROKE' in first
-    const series1Key = isStemi ? 'ACTAMT_STROKE' : 'ACT_AMT_OP'
-    const series1Name = isStemi ? 'STROKE (บาท)' : 'ผู้ป่วยนอก OP (บาท)'
-    const series2Key = isStemi ? 'ACTAMT_STEMI' : 'ACT_AMT_IP'
-    const series2Name = isStemi ? 'STEMI (บาท)' : 'ผู้ป่วยใน IP (บาท)'
-    const isStacked = isStemi ? xNameKey === 'MONTH' : true
+    const isCataract = 'ACTAMT_IN' in first || 'ACTAMT_OUT' in first
+    const series1Key = isStemi ? 'ACTAMT_STROKE' : (isCataract ? 'ACTAMT_IN' : 'ACT_AMT_OP')
+    const series1Name = isStemi ? 'STROKE (บาท)' : (isCataract ? 'ในเครือข่าย (บาท)' : 'ผู้ป่วยนอก OP (บาท)')
+    const series2Key = isStemi ? 'ACTAMT_STEMI' : (isCataract ? 'ACTAMT_OUT' : 'ACT_AMT_IP')
+    const series2Name = isStemi ? 'STEMI (บาท)' : (isCataract ? 'นอกเครือข่าย (บาท)' : 'ผู้ป่วยใน IP (บาท)')
+    const isStacked = (isStemi || isCataract) ? xNameKey === 'MONTH' : true
+
+    const defaultColor1 = isStemi ? '#bf9930' : (isCataract ? '#1d7373' : '#e0e065')
+    const defaultColor2 = isStemi ? '#f2de7e' : (isCataract ? '#5ccccc' : '#d6ba87')
 
     const chartData = records.map(r => ({
       name: xNameKey === 'YEAR' ? `ปี ${r.YEAR}` : String(r.MONTH),
@@ -317,14 +322,14 @@ export default function MisHosChart({
               <Bar
                 dataKey="series1"
                 name={series1Name}
-                fill={palette[0] || (isStemi ? '#bf9930' : '#e0e065')}
+                fill={palette[0] || defaultColor1}
                 radius={isStacked ? [0, 0, 0, 0] : [4, 4, 0, 0]}
                 stackId={isStacked ? 'multiSeriesStack' : undefined}
               />
               <Bar
                 dataKey="series2"
                 name={series2Name}
-                fill={palette[1] || (isStemi ? '#f2de7e' : '#d6ba87')}
+                fill={palette[1] || defaultColor2}
                 radius={[4, 4, 0, 0]}
                 stackId={isStacked ? 'multiSeriesStack' : undefined}
               />

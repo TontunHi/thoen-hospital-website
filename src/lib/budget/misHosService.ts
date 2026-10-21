@@ -144,7 +144,7 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
     submenus: [
       { id: '4.1', name: '4.1 ยาละลายลิ่มเลือด (STEMI/Stroke)', stId: '1468', defaultSsid: 'custom:m0401_stemi_year_chart' },
       { id: '4.2', name: '4.2 เคมีบำบัด มะเร็ง', stId: '1469', defaultSsid: 'custom:m0402_cancer_year_chart' },
-      { id: '4.3', name: '4.3 ผ่าตัดต้อกระจก (Cataract)', stId: '1470' },
+      { id: '4.3', name: '4.3 ผ่าตัดต้อกระจก (Cataract)', stId: '1470', defaultSsid: 'custom:m0403_cataract_year_chart' },
       { id: '4.4', name: '4.4 อวัยวะเทียมและอุปกรณ์', stId: '1084', secondaryStId: '1471', defaultSsid: '1107' },
       { id: '4.5', name: '4.5 นิ่วในระบบทางเดินปัสสาวะ', stId: '1472' },
       { id: '4.6', name: '4.6 บริการประคับประคอง (Palliative Care)', stId: '1062', secondaryStId: '1484', defaultSsid: '1082' },
@@ -299,8 +299,10 @@ export class MisHosService {
           ]
         } else if (stId === '1470') {
           subReports = [
-            { ssid: 'custom:m0403_cataract_year', report_name: 'บริการผ่าตัดต้อกระจก (Cataract) แยกรายปี', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
-            { ssid: 'custom:m0403_cataract_month', report_name: 'บริการผ่าตัดต้อกระจก แยกรายเดือน', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0403_cataract_year_chart', report_name: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายปี', chart_type: 'bar', report_width: '5', flag_data: 'Y' },
+            { ssid: 'custom:m0403_cataract_month_chart', report_name: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) ปีงบประมาณ', chart_type: 'bar', report_width: '7', flag_data: 'Y' },
+            { ssid: 'custom:m0403_cataract_year_table', report_name: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายปีงบประมาณ', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0403_cataract_month_table', report_name: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายเดือน ปีงบประมาณ', chart_type: 'table', report_width: '6', flag_data: 'Y' },
           ]
         } else if (stId === '1471') {
           subReports = [
@@ -451,19 +453,53 @@ export class MisHosService {
           color: ['#e0e065', '#d6ba87'],
           table_header: ['เดือน', 'ผู้ป่วยนอก จำนวน (ครั้ง),0', 'ผู้ป่วยนอก ชดเชย (บาท),2', 'ผู้ป่วยใน จำนวน (ครั้ง),0', 'ผู้ป่วยใน ชดเชย (บาท),2', 'รวม (บาท),2'],
         },
-        'custom:m0403_cataract_year': {
+        'custom:m0403_cataract_year_chart': {
           ssid,
-          reportName: 'บริการผ่าตัดต้อกระจก (Cataract) แยกรายปี',
+          reportName: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายปี',
           chartType: 'bar',
           yaxis: 'บาท',
-          table_header: ['ปีงบประมาณ', 'ผู้ป่วย (ราย),0', 'ชดเชย (บาท),2'],
+          color: ['#1d7373', '#5ccccc'],
+          table_header: ['ปีงบประมาณ', 'ในเครือข่าย จำนวน (ครั้ง),0', 'ในเครือข่าย ชดเชย (บาท),0', 'นอกเครือข่าย จำนวน (ครั้ง),0', 'นอกเครือข่าย ชดเชย (บาท),0', 'รวม (บาท),0'],
+        },
+        'custom:m0403_cataract_month_chart': {
+          ssid,
+          reportName: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) ปีงบประมาณ',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          color: ['#1d7373', '#5ccccc'],
+          table_header: ['เดือน', 'ในเครือข่าย จำนวน (ครั้ง),0', 'ในเครือข่าย ชดเชย (บาท),0', 'นอกเครือข่าย จำนวน (ครั้ง),0', 'นอกเครือข่าย ชดเชย (บาท),0', 'รวม (บาท),0'],
+        },
+        'custom:m0403_cataract_year_table': {
+          ssid,
+          reportName: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายปีงบประมาณ',
+          chartType: 'table',
+          yaxis: 'บาท',
+          color: ['#1d7373', '#5ccccc'],
+          table_header: ['ปีงบประมาณ', 'ในเครือข่าย จำนวน (ครั้ง),0', 'ในเครือข่าย ชดเชย (บาท),0', 'นอกเครือข่าย จำนวน (ครั้ง),0', 'นอกเครือข่าย ชดเชย (บาท),0', 'รวม (บาท),0'],
+        },
+        'custom:m0403_cataract_month_table': {
+          ssid,
+          reportName: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายเดือน ปีงบประมาณ',
+          chartType: 'table',
+          yaxis: 'บาท',
+          color: ['#1d7373', '#5ccccc'],
+          table_header: ['เดือน', 'ในเครือข่าย จำนวน (ครั้ง),0', 'ในเครือข่าย ชดเชย (บาท),0', 'นอกเครือข่าย จำนวน (ครั้ง),0', 'นอกเครือข่าย ชดเชย (บาท),0', 'รวม (บาท),0'],
+        },
+        'custom:m0403_cataract_year': {
+          ssid,
+          reportName: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายปี',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          color: ['#1d7373', '#5ccccc'],
+          table_header: ['ปีงบประมาณ', 'ในเครือข่าย จำนวน (ครั้ง),0', 'ในเครือข่าย ชดเชย (บาท),0', 'นอกเครือข่าย จำนวน (ครั้ง),0', 'นอกเครือข่าย ชดเชย (บาท),0', 'รวม (บาท),0'],
         },
         'custom:m0403_cataract_month': {
           ssid,
-          reportName: 'บริการผ่าตัดต้อกระจก แยกรายเดือน',
+          reportName: 'บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายเดือน ปีงบประมาณ',
           chartType: 'table',
           yaxis: 'บาท',
-          table_header: ['เดือน', 'ผู้ป่วย (ราย),0', 'ชดเชย (บาท),2'],
+          color: ['#1d7373', '#5ccccc'],
+          table_header: ['เดือน', 'ในเครือข่าย จำนวน (ครั้ง),0', 'ในเครือข่าย ชดเชย (บาท),0', 'นอกเครือข่าย จำนวน (ครั้ง),0', 'นอกเครือข่าย ชดเชย (บาท),0', 'รวม (บาท),0'],
         },
         'custom:m0404_instrument_year': {
           ssid,
@@ -618,7 +654,7 @@ export class MisHosService {
           )
         }
 
-        // Add computed totals for STEMI/Stroke and Cancer matching Chunks 34 and 27
+        // Add computed totals for STEMI/Stroke, Cancer, and Cataract matching Chunks 34, 27, and 29
         if (ssid.includes('m0401_stemi')) {
           records = records.map(r => ({
             ...r,
@@ -628,6 +664,11 @@ export class MisHosService {
           records = records.map(r => ({
             ...r,
             TOTAL_AMT: Number(r.ACT_AMT_OP || 0) + Number(r.ACT_AMT_IP || 0),
+          }))
+        } else if (ssid.includes('m0403_cataract')) {
+          records = records.map(r => ({
+            ...r,
+            TOTAL_AMT: Number(r.ACTAMT_IN || 0) + Number(r.ACTAMT_OUT || 0),
           }))
         }
 

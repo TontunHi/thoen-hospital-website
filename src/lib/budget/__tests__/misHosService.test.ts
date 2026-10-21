@@ -290,8 +290,55 @@ describe('MisHosService', () => {
     expect(cancerData.records[0].TOTAL_AMT).toBe(1637.5)
     expect(cancerData.chartConfig?.color).toEqual(['#e0e065', '#d6ba87'])
     expect(cancerData.chartConfig?.table_header).toContain('รวม (บาท),2')
-    expect(mockCancerDataFetch).toHaveBeenCalledWith(
-      expect.stringContaining('m0402_cancer_month.php'),
+    // 5. Template config for Cataract (1470) matching MIS HOS Chunk 29 (4 sub-reports)
+    const mockEmptyCataractTemplate = [{ ST_ID: '1470', ST_TEMPLATENAME: 'Cataract', ST_CONFIG: '' }]
+    const mockCataractTplFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify(mockEmptyCataractTemplate)),
+    })
+
+    const cataractTpl = await MisHosService.getTemplateConfig('1470', {
+      fetchImpl: mockCataractTplFetch as unknown as typeof fetch,
+    })
+
+    expect(cataractTpl).toBeDefined()
+    expect(cataractTpl?.subReports.length).toBe(4)
+    expect(cataractTpl?.subReports[0].ssid).toBe('custom:m0403_cataract_year_chart')
+    expect(cataractTpl?.subReports[0].report_name).toBe('บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายปี')
+    expect(cataractTpl?.subReports[0].report_width).toBe('5')
+    expect(cataractTpl?.subReports[1].ssid).toBe('custom:m0403_cataract_month_chart')
+    expect(cataractTpl?.subReports[1].report_name).toBe('บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) ปีงบประมาณ')
+    expect(cataractTpl?.subReports[1].report_width).toBe('7')
+    expect(cataractTpl?.subReports[2].ssid).toBe('custom:m0403_cataract_year_table')
+    expect(cataractTpl?.subReports[2].report_name).toBe('บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายปีงบประมาณ')
+    expect(cataractTpl?.subReports[2].report_width).toBe('6')
+    expect(cataractTpl?.subReports[3].ssid).toBe('custom:m0403_cataract_month_table')
+    expect(cataractTpl?.subReports[3].report_name).toBe('บริการผ่าตัดต้อกระจกพร้อมเลนส์ (Cataract) แยกรายเดือน ปีงบประมาณ')
+    expect(cataractTpl?.subReports[3].report_width).toBe('6')
+
+    // 6. Cataract Data Fetch with computed TOTAL_AMT
+    const mockCataractRecords = [
+      { YEAR: '2568', NUMPT_IN: 10, ACTAMT_IN: 70000, NUMPT_OUT: 5, ACTAMT_OUT: 35000 },
+    ]
+    const mockCataractDataFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify(mockCataractRecords)),
+    })
+
+    const cataractData = await MisHosService.getTableData('custom:m0403_cataract_year_table', {
+      hcode: THOEN_HOSPITAL_CODE,
+      year: '2569',
+      fetchImpl: mockCataractDataFetch as unknown as typeof fetch,
+    })
+
+    expect(cataractData.records.length).toBe(1)
+    expect(cataractData.records[0].TOTAL_AMT).toBe(105000)
+    expect(cataractData.chartConfig?.color).toEqual(['#1d7373', '#5ccccc'])
+    expect(cataractData.chartConfig?.table_header).toContain('รวม (บาท),0')
+    expect(mockCataractDataFetch).toHaveBeenCalledWith(
+      expect.stringContaining('m0403_cataract_year.php'),
       expect.objectContaining({
         body: JSON.stringify({ data1: THOEN_HOSPITAL_CODE, year: '2026' }),
       })
