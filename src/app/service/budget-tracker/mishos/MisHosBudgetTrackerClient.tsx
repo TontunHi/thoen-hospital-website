@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useTransition } from 'react'
+import React, { useState, useEffect, useMemo, useTransition, useCallback } from 'react'
 import {
   Building2,
   Calendar,
@@ -8,17 +8,15 @@ import {
   Search,
   Download,
   Database,
-  ChevronDown,
   ChevronRight,
   Folder,
   Layers,
-  ArrowUpDown,
   FileSpreadsheet,
   AlertCircle,
-  Clock,
-  TrendingUp,
   Receipt,
-  Hash,
+  TrendingUp,
+  BarChart3,
+  Loader2,
 } from 'lucide-react'
 import {
   MisHosCategory,
@@ -27,13 +25,13 @@ import {
   MisHosTemplateConfig,
   MisHosTableDataResult,
   MisHosHospitalInfo,
+  MisHosChartConfig,
   MIS_HOS_MENU_CATEGORIES,
   THOEN_HOSPITAL_CODE,
   calculateThaiFiscalYear,
   getAvailableMisHosFiscalYears,
 } from '@/lib/budget/misHosService'
-import MisHosChart from './components/MisHosChart'
-import { exportMisHosRecordsToExcel } from './utils/exportExcel'
+import MisHosSubReportCard from './components/MisHosSubReportCard'
 import '../budget-tracker.css'
 
 export const THOEN_NETWORK_PRESETS = [
@@ -52,6 +50,13 @@ export const THOEN_NETWORK_PRESETS = [
 ]
 
 export const AVAILABLE_YEARS = getAvailableMisHosFiscalYears(11)
+
+interface SubReportState {
+  records: Record<string, any>[]
+  chartConfig?: MisHosChartConfig | null
+  loading: boolean
+  error?: string
+}
 
 interface MisHosBudgetTrackerClientProps {
   initialTemplate: MisHosTemplateConfig | null
@@ -88,24 +93,32 @@ export default function MisHosBudgetTrackerClient({
 
   // Report & Template State
   const [template, setTemplate] = useState<MisHosTemplateConfig | null>(initialTemplate)
-  const [activeSsid, setActiveSsid] = useState<string>(
-    initialTemplate?.subReports[0]?.ssid || '1825'
-  )
-  const [records, setRecords] = useState<Record<string, any>[]>(
-    initialTableData?.records || []
-  )
+  const [subReportsData, setSubReportsData] = useState<Record<string, SubReportState>>(() => {
+    const map: Record<string, SubReportState> = {}
+    if (initialTemplate?.subReports) {
+      initialTemplate.subReports.forEach(sub => {
+        if (initialTableData && sub.ssid === initialTableData.ssid) {
+          map[sub.ssid] = {
+            records: initialTableData.records || [],
+            chartConfig: initialTableData.chartConfig,
+            loading: false,
+          }
+        } else {
+          map[sub.ssid] = {
+            records: [],
+            loading: false,
+          }
+        }
+      })
+    }
+    return map
+  })
+
   const [dataSource, setDataSource] = useState<string>(initialTableData?.source || 'upstream')
   const [lastUpdated, setLastUpdated] = useState<string>('')
-  const [loading, setLoading] = useState<boolean>(false)
+  const [globalLoading, setGlobalLoading] = useState<boolean>(false)
+  const [isTemplateLoading, setIsTemplateLoading] = useState<boolean>(false)
   const [errorMsg, setErrorMsg] = useState<string>('')
-
-  // Search & Pagination
-  const [searchTerm, setSearchTerm] = useState<string>('')
-  const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageInput, setPageInput] = useState<string>('1')
-  const pageSize = 15
-
-  const [isPending, startTransition] = useTransition()
 
   // Format lastUpdated on client mount to avoid SSR hydration mismatch
   useEffect(() => {
@@ -141,6 +154,123 @@ export default function MisHosBudgetTrackerClient({
     fetchHosp()
   }, [hcode])
 
+  // Fetch all sub-reports data in parallel for a given template
+  const loadSubReportsData = useCallback(
+    async (
+      tpl: MisHosTemplateConfig,
+      targetHcode: string,
+      targetYear: string,
+      force: boolean = false,
+      targetProvince?: string,
+      targetProvinceName?: string
+    ) => {
+      const activeSubs = tpl.subReports.filter(s => s.flag_data !== 'N')
+      if (activeSubs.length === 0) return
+
+      // Set loading state for all subreports
+      setSubReportsData(prev => {
+        const next = { ...prev }
+        activeSubs.forEach(s => {
+          next[s.ssid] = {
+            records: prev[s.ssid]?.records || [],
+            chartConfig: prev[s.ssid]?.chartConfig,
+            loading: true,
+          }
+        })
+        return next
+      })
+
+      try {
+        const ssids = activeSubs.map(s => s.ssid)
+        const res = await fetch('/api/budget/mishos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'getBatchTableData',
+            ssids,
+            hcode: targetHcode,
+            year: targetYear,
+            province: targetProvince || hospitalInfo?.provinceId || '52',
+            provinceName: targetProvinceName || hospitalInfo?.provinceName || 'ลำปาง',
+            forceRefresh: force,
+          }),
+        })
+        const json = await res.json()
+        if (json.success && Array.isArray(json.data)) {
+          const newMap: Record<string, SubReportState> = {}
+          let sourceVal = 'upstream'
+          let fetchedAtVal = ''
+
+          json.data.forEach((item: MisHosTableDataResult) => {
+            newMap[item.ssid] = {
+              records: item.records || [],
+              chartConfig: item.chartConfig,
+              loading: false,
+            }
+            if (item.source) sourceVal = item.source
+            if (item.fetchedAt) fetchedAtVal = item.fetchedAt
+          })
+
+          setSubReportsData(prev => ({ ...prev, ...newMap }))
+          setDataSource(sourceVal)
+          if (fetchedAtVal) {
+            setLastUpdated(new Date(fetchedAtVal).toLocaleTimeString('th-TH'))
+          }
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลตาราง'
+        setErrorMsg(msg)
+      } finally {
+        setSubReportsData(prev => {
+          const next = { ...prev }
+          activeSubs.forEach(s => {
+            if (next[s.ssid]?.loading) {
+              next[s.ssid] = { ...next[s.ssid], loading: false }
+            }
+          })
+          return next
+        })
+      }
+    },
+    []
+  )
+
+  // Fetch remaining initial sub-reports on initial mount if needed
+  useEffect(() => {
+    if (initialTemplate) {
+      const activeSubs = initialTemplate.subReports.filter(s => s.flag_data !== 'N')
+      const remainingSubs = activeSubs.filter(s => s.ssid !== initialTableData?.ssid)
+      if (remainingSubs.length > 0) {
+        const ssids = remainingSubs.map(s => s.ssid)
+        fetch('/api/budget/mishos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'getBatchTableData',
+            ssids,
+            hcode,
+            year: selectedYear,
+          }),
+        })
+          .then(res => res.json())
+          .then(json => {
+            if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+              const newMap: Record<string, SubReportState> = {}
+              json.data.forEach((item: MisHosTableDataResult) => {
+                newMap[item.ssid] = {
+                  records: item.records || [],
+                  chartConfig: item.chartConfig,
+                  loading: false,
+                }
+              })
+              setSubReportsData(prev => ({ ...prev, ...newMap }))
+            }
+          })
+          .catch(() => {})
+      }
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Toggle Category in Sidebar Accordion
   const toggleCategory = (catId: string) => {
     setOpenCategories(prev => ({
@@ -149,7 +279,7 @@ export default function MisHosBudgetTrackerClient({
     }))
   }
 
-  // Load Submenu Template & Data
+  // Load Submenu Template & All Sub-Reports
   const handleSelectSubmenu = async (
     category: MisHosCategory,
     submenu: MisHosSubmenu
@@ -157,16 +287,18 @@ export default function MisHosBudgetTrackerClient({
     setActiveCategory(category.id)
     setActiveSubmenu(submenu)
     setErrorMsg('')
-    setLoading(true)
+    setGlobalLoading(true)
+    setIsTemplateLoading(true)
 
     try {
-      // 1. Fetch template
+      // 1. Fetch template (supporting secondaryStId fallback)
       const tplRes = await fetch('/api/budget/mishos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'getTemplate',
           stId: submenu.stId,
+          secondaryStId: submenu.secondaryStId,
           hcode,
           year: selectedYear,
         }),
@@ -174,79 +306,42 @@ export default function MisHosBudgetTrackerClient({
       const tplJson = await tplRes.json()
       const tpl: MisHosTemplateConfig | null = tplJson.success ? tplJson.data : null
       setTemplate(tpl)
+      setIsTemplateLoading(false)
 
-      // 2. Select initial ssid
-      const targetSsid = tpl?.subReports[0]?.ssid || submenu.defaultSsid || submenu.stId
-      setActiveSsid(targetSsid)
-
-      // 3. Fetch table data for initial ssid
-      await loadTableData(targetSsid, false)
+      // 2. Fetch all sub-reports in parallel
+      if (tpl && tpl.subReports.length > 0) {
+        await loadSubReportsData(
+          tpl,
+          hcode,
+          selectedYear,
+          false,
+          hospitalInfo?.provinceId,
+          hospitalInfo?.provinceName
+        )
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'ไม่สามารถโหลดข้อมูลรายงานได้'
       setErrorMsg(msg)
+      setIsTemplateLoading(false)
     } finally {
-      setLoading(false)
+      setGlobalLoading(false)
+      setIsTemplateLoading(false)
     }
   }
 
-  // Load Table Data for a specific ssid
-  const loadTableData = async (ssid: string, force: boolean = false) => {
-    setLoading(true)
-    setErrorMsg('')
-    try {
-      const res = await fetch('/api/budget/mishos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'getTableData',
-          ssid,
-          hcode,
-          year: selectedYear,
-          forceRefresh: force,
-        }),
-      })
-      const json = await res.json()
-      if (json.success && json.data) {
-        setRecords(json.data.records || [])
-        setDataSource(json.data.source || 'upstream')
-        if (json.data.fetchedAt) {
-          setLastUpdated(new Date(json.data.fetchedAt).toLocaleTimeString('th-TH'))
-        }
-        setCurrentPage(1)
-        setPageInput('1')
-      } else {
-        setRecords([])
-        if (json.error?.message) {
-          setErrorMsg(json.error.message)
-        }
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลตาราง'
-      setErrorMsg(msg)
-      setRecords([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Handle Sub-report tab switch
-  const handleSelectSubReport = (sub: MisHosSubReport) => {
-    setActiveSsid(sub.ssid)
-    loadTableData(sub.ssid, false)
-  }
-
-  // Force Refresh current data
+  // Force Refresh current reports
   const handleForceRefresh = () => {
-    loadTableData(activeSsid, true)
+    if (template) {
+      loadSubReportsData(template, hcode, selectedYear, true)
+    }
   }
 
   // Switch Year handler
   const handleYearChange = (newYear: string) => {
     setSelectedYear(newYear)
-    // Re-fetch current report with new year
-    setTimeout(() => {
-      loadTableData(activeSsid, true)
-    }, 50)
+    if (template) {
+      loadSubReportsData(template, hcode, newYear, true)
+    }
   }
 
   // Switch Hospital preset handler
@@ -256,95 +351,76 @@ export default function MisHosBudgetTrackerClient({
     } else {
       setIsCustomHcode(false)
       setHcode(code)
-      setTimeout(() => {
-        loadTableData(activeSsid, true)
-      }, 50)
+      if (template) {
+        loadSubReportsData(template, code, selectedYear, true)
+      }
     }
   }
 
   // Apply custom hospital search
   const handleApplyCustomHcode = () => {
     if (customHcode.trim().length === 5) {
-      setHcode(customHcode.trim())
-      setTimeout(() => {
-        loadTableData(activeSsid, true)
-      }, 50)
+      const code = customHcode.trim()
+      setHcode(code)
+      if (template) {
+        loadSubReportsData(template, code, selectedYear, true)
+      }
     }
   }
 
-  // Active Sub-report info
-  const currentSubReport = useMemo(() => {
-    return template?.subReports.find(s => s.ssid === activeSsid)
-  }, [template, activeSsid])
+  // Active sub-reports list
+  const activeSubReports = useMemo(() => {
+    if (!template?.subReports) return []
+    return template.subReports.filter(s => s.flag_data !== 'N')
+  }, [template])
 
-  // Filter records by search text
-  const filteredRecords = useMemo(() => {
-    if (!searchTerm.trim()) return records
-    const term = searchTerm.toLowerCase().trim()
-    return records.filter(r =>
-      Object.values(r).some(val => String(val).toLowerCase().includes(term))
-    )
-  }, [records, searchTerm])
+  // Total records count across all sub-reports
+  const totalRecordsCount = useMemo(() => {
+    let count = 0
+    Object.values(subReportsData).forEach(s => {
+      count += s.records?.length || 0
+    })
+    return count
+  }, [subReportsData])
 
-  // Derived Table Columns
-  const tableColumns = useMemo(() => {
-    if (filteredRecords.length === 0) return []
-    const keys = new Set<string>()
-    filteredRecords.forEach(r => Object.keys(r).forEach(k => keys.add(k)))
-    return Array.from(keys)
-  }, [filteredRecords])
-
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredRecords.length / pageSize) || 1
-  const paginatedRecords = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredRecords.slice(start, start + pageSize)
-  }, [filteredRecords, currentPage, pageSize])
-
-  // KPI Calculations
+  // Overall KPI Calculations across all sub-reports
   const kpiData = useMemo(() => {
     let totalMoney = 0
     let totalVisits = 0
     let topFundName = '-'
     let topFundValue = 0
 
-    filteredRecords.forEach(r => {
-      // Find money field
-      const moneyVal =
-        parseFloat(r.BUDGET) ||
-        parseFloat(r.ACT_AMT) ||
-        parseFloat(r.BUDGET_UC) ||
-        parseFloat(r.SUM_AMT) ||
-        parseFloat(r.ACT_AMT_STM) ||
-        0
-      totalMoney += moneyVal
+    // Iterate through all records
+    Object.values(subReportsData).forEach(s => {
+      s.records.forEach(r => {
+        const moneyVal =
+          parseFloat(r.BUDGET) ||
+          parseFloat(r.ACT_AMT) ||
+          parseFloat(r.BUDGET_UC) ||
+          parseFloat(r.SUM_AMT) ||
+          parseFloat(r.ACT_AMT_STM) ||
+          0
+        totalMoney += moneyVal
 
-      // Find visits field
-      const visitVal = parseInt(r.NUM_VISIT || r.VISIT || r.COUNT || 0, 10)
-      totalVisits += isNaN(visitVal) ? 0 : visitVal
+        const visitVal = parseInt(r.NUM_VISIT || r.VISIT || r.COUNT || 0, 10)
+        totalVisits += isNaN(visitVal) ? 0 : visitVal
 
-      // Find top item
-      const itemName = r.DESCRIPTION || r.M_FUND_DESC || r.S_FUND_DESC || r.YEAR || r.MONTH_SEND
-      if (itemName && moneyVal > topFundValue) {
-        topFundValue = moneyVal
-        topFundName = String(itemName)
-      }
+        const itemName = r.DESCRIPTION || r.M_FUND_DESC || r.S_FUND_DESC || r.YEAR || r.MONTH_SEND
+        if (itemName && moneyVal > topFundValue) {
+          topFundValue = moneyVal
+          topFundName = String(itemName)
+        }
+      })
     })
 
     return { totalMoney, totalVisits, topFundName, topFundValue }
-  }, [filteredRecords])
+  }, [subReportsData])
 
-  // Excel Export Handler
-  const handleExportExcel = async () => {
-    await exportMisHosRecordsToExcel(
-      filteredRecords,
-      tableColumns,
-      currentSubReport?.report_name || activeSubmenu.name,
-      selectedYear,
-      hcode,
-      currentHospitalName
-    )
-  }
+  // For testing compatibility: first table sub-report records
+  const primaryTableRecords = useMemo(() => {
+    const tableSub = activeSubReports.find(s => s.chart_type === 'table') || activeSubReports[0]
+    return tableSub ? subReportsData[tableSub.ssid]?.records || [] : []
+  }, [activeSubReports, subReportsData])
 
   return (
     <div className="bt-mishos-container">
@@ -368,7 +444,9 @@ export default function MisHosBudgetTrackerClient({
               <span className="bt-mishos-hosp-meta">จ.{hospitalInfo.provinceName}</span>
             )}
             {hospitalInfo?.nhsoZone && (
-              <span className="bt-mishos-hosp-meta">เขต {hospitalInfo.nhsoZone}</span>
+              <span className="bt-mishos-hosp-meta">
+                สปสช. เขต {hospitalInfo.nhsoZone} {hospitalInfo.nhsoName ? `(${hospitalInfo.nhsoName})` : ''}
+              </span>
             )}
           </div>
 
@@ -427,7 +505,7 @@ export default function MisHosBudgetTrackerClient({
             >
               {AVAILABLE_YEARS.map(yr => (
                 <option key={yr} value={yr}>
-                  พ.ศ. {yr} {yr === AVAILABLE_YEARS[0] ? '(ปีงบล่าสุด)' : ''}
+                  พ.ศ. {yr} {yr === AVAILABLE_YEARS[0] ? '(ปีงบปัจจุบัน)' : ''}
                 </option>
               ))}
             </select>
@@ -437,12 +515,12 @@ export default function MisHosBudgetTrackerClient({
           <button
             type="button"
             onClick={handleForceRefresh}
-            disabled={loading}
+            disabled={globalLoading}
             className="bt-mishos-refresh-btn"
             title="ข้ามแคชเพื่อดึงข้อมูลสดจาก MIS HOS สปสช."
           >
-            <RefreshCw size={13} className={loading ? 'bt-spin' : ''} />
-            <span>{loading ? 'กำลังโหลด...' : 'ดึงข้อมูลสด'}</span>
+            <RefreshCw size={13} className={globalLoading ? 'bt-spin' : ''} />
+            <span>{globalLoading ? 'กำลังโหลด...' : 'ดึงข้อมูลสด'}</span>
           </button>
         </div>
       </div>
@@ -468,7 +546,8 @@ export default function MisHosBudgetTrackerClient({
           )}
         </div>
         <div className="bt-mishos-status-right">
-          พบข้อมูลทั้งหมด <b>{filteredRecords.length.toLocaleString('th-TH')}</b> แถว
+          พร้อมแสดงผล <b>{activeSubReports.length}</b> รายงานย่อย (รวม{' '}
+          <b>{totalRecordsCount.toLocaleString('th-TH')}</b> แถว)
         </div>
       </div>
 
@@ -481,7 +560,7 @@ export default function MisHosBudgetTrackerClient({
       )}
 
       {/* ============================================================ */}
-      {/* MAIN TWO-COLUMN LAYOUT: Sidebar (0-9) + Dynamic Report Panel */}
+      {/* MAIN TWO-COLUMN LAYOUT: Sidebar (0-9) + Multi-Card Grid      */}
       {/* ============================================================ */}
       <div className="bt-mishos-layout">
         {/* ------------------------------------------------------------ */}
@@ -551,44 +630,27 @@ export default function MisHosBudgetTrackerClient({
         </aside>
 
         {/* ------------------------------------------------------------ */}
-        {/* RIGHT MAIN PANEL: Sub-report Tabs, KPIs, Chart & Table       */}
+        {/* RIGHT MAIN PANEL: Module 381 Faithful Multi-Card Layout      */}
         {/* ------------------------------------------------------------ */}
         <main className="bt-mishos-main-panel">
-          {/* Active Submenu Header Card */}
+          {/* Top Template Header Banner matching Module 381 */}
           <div className="bt-mishos-header-card">
             <div>
               <div className="bt-mishos-header-category">
                 หมวดหมู่: {MIS_HOS_MENU_CATEGORIES.find(c => c.id === activeCategory)?.title}
               </div>
               <h2 className="bt-mishos-header-title">
-                <span>{activeSubmenu.name}</span>
+                <BarChart3 size={20} style={{ color: '#0284c7' }} />
+                <span>{template?.templateName || activeSubmenu.name}</span>
                 <span className="bt-mishos-header-stid">
                   ST-ID: {activeSubmenu.stId}
                 </span>
               </h2>
-            </div>
-
-            {/* Sub-report selector tabs if template has multiple sub-reports */}
-            {template && template.subReports.length > 1 && (
-              <div className="bt-mishos-subreport-tabs" role="tablist" aria-label="รายงานย่อย">
-                {template.subReports.map(sub => {
-                  const isSubActive = sub.ssid === activeSsid
-                  return (
-                    <button
-                      key={sub.ssid}
-                      type="button"
-                      role="tab"
-                      aria-selected={isSubActive}
-                      onClick={() => handleSelectSubReport(sub)}
-                      className={`bt-mishos-subreport-tab ${isSubActive ? 'active' : ''}`}
-                    >
-                      <span>{sub.report_name}</span>
-                      <span className="bt-mishos-subreport-tab-ssid">#{sub.ssid}</span>
-                    </button>
-                  )
-                })}
+              <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '0.25rem' }}>
+                หน่วยบริการ: {hcode} {currentHospitalName} จ.{hospitalInfo?.provinceName || 'ลำปาง'}
+                {hospitalInfo?.nhsoZone ? ` (เขต ${hospitalInfo.nhsoZone})` : ''}
               </div>
-            )}
+            </div>
           </div>
 
           {/* ========================================================== */}
@@ -628,7 +690,7 @@ export default function MisHosBudgetTrackerClient({
                 <div>
                   <div className="bt-mishos-kpi-label">จำนวนแถวข้อมูล</div>
                   <div className="bt-mishos-kpi-value">
-                    {filteredRecords.length.toLocaleString('th-TH')}
+                    {totalRecordsCount.toLocaleString('th-TH')}
                   </div>
                 </div>
                 <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-slate">
@@ -639,7 +701,7 @@ export default function MisHosBudgetTrackerClient({
                 <span>
                   {kpiData.totalVisits > 0
                     ? `รับบริการ ${kpiData.totalVisits.toLocaleString('th-TH')} ครั้ง`
-                    : 'รายการผลงานทั้งหมด'}
+                    : `${activeSubReports.length} รายงานย่อยพร้อมแสดงผล`}
                 </span>
               </div>
             </div>
@@ -684,7 +746,7 @@ export default function MisHosBudgetTrackerClient({
                 <div>
                   <div className="bt-mishos-kpi-label">รหัสรายงาน (SSID)</div>
                   <div className="bt-mishos-kpi-value">
-                    #{activeSsid}
+                    #{template?.subReports[0]?.ssid || activeSubmenu.defaultSsid || activeSubmenu.stId}
                   </div>
                 </div>
                 <div className="bt-mishos-kpi-icon bt-mishos-kpi-icon-navy">
@@ -698,185 +760,96 @@ export default function MisHosBudgetTrackerClient({
           </div>
 
           {/* ========================================================== */}
-          {/* INTERACTIVE CHART PANEL                                    */}
+          {/* MULTI-CARD DASHBOARD GRID (Faithful to MIS HOS Module 381) */}
           {/* ========================================================== */}
-          <MisHosChart
-            records={records}
-            reportTitle={currentSubReport?.report_name || activeSubmenu.name}
-            chartType={currentSubReport?.chart_type}
-          />
-
-          {/* ========================================================== */}
-          {/* SEARCH, FILTER & EXCEL EXPORT BAR                          */}
-          {/* ========================================================== */}
-          <div className="bt-mishos-toolbar">
-            {/* Search Input */}
-            <div className="bt-mishos-search-box">
-              <Search size={14} className="bt-mishos-search-icon" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={e => {
-                  setSearchTerm(e.target.value)
-                  setCurrentPage(1)
-                  setPageInput('1')
-                }}
-                placeholder="ค้นหาข้อมูลในตาราง..."
-                className="bt-mishos-search-input"
-                aria-label="ค้นหาข้อมูลในตาราง"
-              />
-            </div>
-
-            {/* Excel Export Button */}
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              disabled={filteredRecords.length === 0}
-              className="bt-mishos-btn-excel"
-            >
-              <Download size={14} />
-              <span>ส่งออก Excel (.xlsx)</span>
-            </button>
-          </div>
-
-          {/* ========================================================== */}
-          {/* DYNAMIC DATA TABLE & PAGINATION (No Overflow Bugs!)        */}
-          {/* ========================================================== */}
-          <div className="bt-mishos-table-card">
-            <div className="bt-mishos-table-scroll">
-              <table className="bt-mishos-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '50px', textAlign: 'center' }}>ลำดับ</th>
-                    {tableColumns.map(col => (
-                      <th key={col}>
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedRecords.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={tableColumns.length + 1 || 1}
-                        className="bt-mishos-empty-row"
-                      >
-                        {loading ? 'กำลังดึงข้อมูลจากระบบ MIS HOS...' : 'ไม่พบรายการข้อมูล'}
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedRecords.map((row, idx) => {
-                      const rowNum = (currentPage - 1) * pageSize + idx + 1
-                      return (
-                        <tr key={idx}>
-                          <td className="bt-mishos-col-seq">
-                            {rowNum}
-                          </td>
-                          {tableColumns.map(col => {
-                            const val = row[col]
-                            const upperCol = col.toUpperCase()
-                            const isCodeOrYear =
-                              upperCol.includes('YEAR') ||
-                              upperCol.includes('CODE') ||
-                              upperCol.includes('CD') ||
-                              upperCol.includes('ID') ||
-                              upperCol.includes('DATE') ||
-                              upperCol.includes('MONTH')
-
-                            const num = Number(val)
-                            const isNumeric =
-                              !isCodeOrYear &&
-                              !isNaN(num) &&
-                              typeof val === 'string' &&
-                              val.trim() !== '' &&
-                              !val.startsWith('0') &&
-                              val.length < 15
-
-                            const cellClass = isNumeric
-                              ? 'bt-mishos-col-num'
-                              : isCodeOrYear
-                              ? 'bt-mishos-col-code'
-                              : 'bt-mishos-col-text'
-
-                            return (
-                              <td key={col} className={cellClass}>
-                                {isNumeric
-                                  ? num.toLocaleString('th-TH', {
-                                      minimumFractionDigits: val.includes('.') ? 2 : 0,
-                                      maximumFractionDigits: 2,
-                                    })
-                                  : val ?? '-'}
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="bt-mishos-pagination">
-                <span className="bt-mishos-page-info">
-                  หน้า <b>{currentPage}</b> จาก <b>{totalPages}</b> (รวม{' '}
-                  <b>{filteredRecords.length}</b> รายการ)
-                </span>
-
-                <div className="bt-mishos-page-controls">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const p = Math.max(1, currentPage - 1)
-                      setCurrentPage(p)
-                      setPageInput(String(p))
+          <div className="bt-mishos-multicard-grid">
+            {isTemplateLoading ? (
+              <>
+                <div className="bt-mishos-subcard-wrap bt-mishos-col-6">
+                  <div
+                    className="bt-mishos-subcard"
+                    style={{
+                      minHeight: '260px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.75rem',
+                      background: '#ffffff',
                     }}
-                    disabled={currentPage === 1}
-                    className="bt-mishos-btn-page"
                   >
-                    ก่อนหน้า
-                  </button>
-
-                  <div className="bt-mishos-page-input-box">
-                    <input
-                      type="number"
-                      min={1}
-                      max={totalPages}
-                      value={pageInput}
-                      onChange={e => setPageInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          const p = parseInt(pageInput, 10)
-                          if (!isNaN(p)) {
-                            const valid = Math.max(1, Math.min(totalPages, p))
-                            setCurrentPage(valid)
-                            setPageInput(String(valid))
-                          }
-                        }
-                      }}
-                      className="bt-mishos-input-page"
-                      aria-label="เปลี่ยนหมายเลขหน้า"
-                    />
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>/ {totalPages}</span>
+                    <Loader2 size={26} className="bt-spin" style={{ color: '#0284c7' }} />
+                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                      กำลังเชื่อมต่อเทมเพลตรายงาน สปสช...
+                    </span>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const p = Math.min(totalPages, currentPage + 1)
-                      setCurrentPage(p)
-                      setPageInput(String(p))
+                </div>
+                <div className="bt-mishos-subcard-wrap bt-mishos-col-6">
+                  <div
+                    className="bt-mishos-subcard"
+                    style={{
+                      minHeight: '260px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.75rem',
+                      background: '#ffffff',
                     }}
-                    disabled={currentPage === totalPages}
-                    className="bt-mishos-btn-page"
                   >
-                    ถัดไป
-                  </button>
+                    <Loader2 size={26} className="bt-spin" style={{ color: '#0f766e' }} />
+                    <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                      กำลังจัดเตรียมแผนภาพและตารางข้อมูล...
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : activeSubReports.length === 0 ? (
+              <div
+                style={{
+                  gridColumn: '1 / -1',
+                  padding: '3rem 2rem',
+                  textAlign: 'center',
+                  background: '#ffffff',
+                  borderRadius: '0.75rem',
+                  border: '1px solid #e2e8f0',
+                  color: '#64748b',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                }}
+              >
+                <AlertCircle size={32} style={{ color: '#0284c7' }} />
+                <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '1rem' }}>
+                  ไม่พบรายการรายงานย่อยสำหรับหัวข้อนี้
+                </div>
+                <div style={{ fontSize: '0.875rem' }}>
+                  หัวข้อนี้ยังไม่มีรายงานย่อยที่กำหนดไว้สำหรับปีงบประมาณ พ.ศ. {selectedYear}
                 </div>
               </div>
+            ) : (
+              activeSubReports.map(sub => {
+                const subState = subReportsData[sub.ssid] || {
+                  records: [],
+                  loading: false,
+                  error: undefined,
+                }
+
+                return (
+                  <MisHosSubReportCard
+                    key={sub.ssid}
+                    subReport={sub}
+                    records={subState.records}
+                    chartConfig={subState.chartConfig}
+                    loading={subState.loading || globalLoading}
+                    error={subState.error}
+                    selectedYear={selectedYear}
+                    hcode={hcode}
+                    hname={currentHospitalName}
+                  />
+                )
+              })
             )}
           </div>
         </main>

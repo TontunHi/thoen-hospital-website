@@ -9,12 +9,15 @@ import {
 } from '@/lib/budget/misHosService'
 
 const MisHosRequestSchema = z.object({
-  action: z.enum(['getCategories', 'getHospitalInfo', 'getTemplate', 'getTableData']).default('getTableData'),
+  action: z.enum(['getCategories', 'getHospitalInfo', 'getTemplate', 'getTableData', 'getBatchTableData']).default('getTableData'),
   ssid: z.string().optional(),
+  ssids: z.array(z.string()).optional(),
   stId: z.string().optional(),
+  secondaryStId: z.string().optional(),
   hcode: z.string().optional(),
   year: z.string().optional(),
   province: z.string().optional(),
+  provinceName: z.string().optional(),
   subfund: z.string().optional(),
   forceRefresh: z.boolean().optional(),
 })
@@ -38,7 +41,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { action, ssid, stId, hcode, year, province, subfund, forceRefresh } = parsed.data
+    const { action, ssid, ssids, stId, secondaryStId, hcode, year, province, provinceName, subfund, forceRefresh } = parsed.data
 
     if (action === 'getCategories') {
       return NextResponse.json({ success: true, data: MIS_HOS_MENU_CATEGORIES })
@@ -57,11 +60,44 @@ export async function POST(req: NextRequest) {
         )
       }
       const template = await MisHosService.getTemplateConfig(stId, {
+        secondaryStId,
         year,
         hcode,
         subfund,
       })
       return NextResponse.json({ success: true, data: template })
+    }
+
+    if (action === 'getBatchTableData') {
+      const targetSsids = ssids || (ssid ? [ssid] : [])
+      if (targetSsids.length === 0) {
+        return NextResponse.json(
+          { success: false, error: { code: 'INVALID_INPUT', message: 'ระบุ ssids ของรายงาน' } },
+          { status: 400 }
+        )
+      }
+
+      const results = await Promise.all(
+        targetSsids.map(s =>
+          MisHosService.getTableData(s, {
+            hcode: hcode || THOEN_HOSPITAL_CODE,
+            year,
+            province,
+            provinceName,
+            subfund,
+            forceRefresh: Boolean(forceRefresh),
+          })
+        )
+      )
+
+      await logAudit(
+        'READ',
+        'budget_mishos',
+        `ดูรายงาน MIS HOS แบบกลุ่ม ssids=${targetSsids.join(',')} รหัสหน่วยบริการ=${hcode || THOEN_HOSPITAL_CODE}`,
+        session
+      )
+
+      return NextResponse.json({ success: true, data: results })
     }
 
     // Default action: getTableData
@@ -76,6 +112,7 @@ export async function POST(req: NextRequest) {
       hcode: hcode || THOEN_HOSPITAL_CODE,
       year,
       province,
+      provinceName,
       subfund,
       forceRefresh: Boolean(forceRefresh),
     })

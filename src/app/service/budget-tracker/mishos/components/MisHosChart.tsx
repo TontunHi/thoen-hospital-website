@@ -5,29 +5,59 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
   Cell,
+  Legend,
 } from 'recharts'
-import { BarChart3, TrendingUp, Layers } from 'lucide-react'
+import { BarChart3, TrendingUp, Layers, PieChart as PieIcon } from 'lucide-react'
+import { MisHosChartConfig } from '@/lib/budget/misHosService'
 
 interface MisHosChartProps {
   records: Record<string, any>[]
   reportTitle: string
   chartType?: string
+  chartConfig?: MisHosChartConfig | null
+  height?: number
+  hideHeader?: boolean
 }
 
-const PALETTE = ['#0284c7', '#0f766e', '#059669', '#0369a1', '#2563eb', '#0891b2', '#475569', '#334155']
+const DEFAULT_PALETTE = [
+  '#0284c7',
+  '#0f766e',
+  '#059669',
+  '#0369a1',
+  '#2563eb',
+  '#0891b2',
+  '#475569',
+  '#334155',
+]
 
-export default function MisHosChart({ records, reportTitle }: MisHosChartProps) {
+export default function MisHosChart({
+  records,
+  reportTitle,
+  chartType = 'bar',
+  chartConfig,
+  height = 260,
+  hideHeader = false,
+}: MisHosChartProps) {
   if (!records || records.length === 0) return null
 
-  // Analyze record keys to determine best chart data structure
+  const palette = chartConfig?.color && chartConfig.color.length > 0
+    ? chartConfig.color
+    : DEFAULT_PALETTE
+
+  const unitLabel = chartConfig?.yaxis ? `หน่วย: ${chartConfig.yaxis}` : 'หน่วย: ล้านบาท'
+
   const first = records[0]
 
-  // Case 1: Multi-year trend (e.g. YEAR & BUDGET_UC)
+  // Case 1: Multi-year trend (e.g. YEAR & BUDGET_UC or BUDGET)
   if ('YEAR' in first && ('BUDGET_UC' in first || 'BUDGET' in first)) {
     const valKey = 'BUDGET_UC' in first ? 'BUDGET_UC' : 'BUDGET'
     const chartData = records.map(r => ({
@@ -36,24 +66,106 @@ export default function MisHosChart({ records, reportTitle }: MisHosChartProps) 
     }))
 
     return (
-      <div className="bt-mishos-chart-card">
-        <div className="bt-mishos-chart-header">
-          <h3 className="bt-mishos-chart-title">
-            <TrendingUp size={16} style={{ color: '#0284c7' }} />
-            <span>แนวโน้มงบประมาณรายปี: {reportTitle}</span>
-          </h3>
-          <span className="bt-mishos-chart-unit">หน่วย: ล้านบาท</span>
-        </div>
-        <div style={{ width: '100%', height: 260 }}>
+      <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
+        {!hideHeader && (
+          <div className="bt-mishos-chart-header">
+            <h3 className="bt-mishos-chart-title">
+              <TrendingUp size={16} style={{ color: palette[0] || '#0284c7' }} />
+              <span>แนวโน้มงบประมาณรายปี: {reportTitle}</span>
+            </h3>
+            <span className="bt-mishos-chart-unit">{unitLabel}</span>
+          </div>
+        )}
+        <div style={{ width: '100%', height }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+            {chartType === 'line' ? (
+              <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
+                <Tooltip
+                  formatter={(val: any) => [
+                    `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ล้านบาท`,
+                    'ยอดเงิน',
+                  ]}
+                  contentStyle={{
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8125rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <Line type="monotone" dataKey="value" stroke={palette[0] || '#0284c7'} strokeWidth={2} dot={{ r: 4 }} />
+              </LineChart>
+            ) : (
+              <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
+                <Tooltip
+                  formatter={(val: any) => [
+                    `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ล้านบาท`,
+                    'ยอดเงิน',
+                  ]}
+                  contentStyle={{
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8125rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <Bar dataKey="value" name="งบประมาณ (ล้านบาท)" fill={palette[0] || '#0284c7'} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+      </div>
+    )
+  }
+
+  // Case 1B: High Cost Multi-Series (STEMI/Stroke, Cancer OP/IP, Instrument OP/IP)
+  const isMultiSeriesYear =
+    ('YEAR' in first || 'MONTH' in first) &&
+    (('ACTAMT_STEMI' in first || 'ACTAMT_STROKE' in first) ||
+      ('ACT_AMT_OP' in first && 'ACT_AMT_IP' in first))
+
+  if (isMultiSeriesYear) {
+    const xNameKey = 'YEAR' in first ? 'YEAR' : 'MONTH'
+    const isStemi = 'ACTAMT_STEMI' in first || 'ACTAMT_STROKE' in first
+    const series1Key = isStemi ? 'ACTAMT_STEMI' : 'ACT_AMT_OP'
+    const series1Name = isStemi ? 'STEMI (บาท)' : 'ผู้ป่วยนอก OP (บาท)'
+    const series2Key = isStemi ? 'ACTAMT_STROKE' : 'ACT_AMT_IP'
+    const series2Name = isStemi ? 'Stroke (บาท)' : 'ผู้ป่วยใน IP (บาท)'
+
+    const chartData = records.map(r => ({
+      name: xNameKey === 'YEAR' ? `ปี ${r.YEAR}` : String(r.MONTH),
+      series1: parseFloat(r[series1Key]) || 0,
+      series2: parseFloat(r[series2Key]) || 0,
+    }))
+
+    return (
+      <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
+        {!hideHeader && (
+          <div className="bt-mishos-chart-header">
+            <h3 className="bt-mishos-chart-title">
+              <TrendingUp size={16} style={{ color: palette[0] || '#0284c7' }} />
+              <span>เปรียบเทียบชดเชยค่าบริการ: {reportTitle}</span>
+            </h3>
+            <span className="bt-mishos-chart-unit">{unitLabel}</span>
+          </div>
+        )}
+        <div style={{ width: '100%', height }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} />
               <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
               <Tooltip
-                formatter={(val: any) => [
-                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ล้านบาท`,
-                  'ยอดเงิน',
+                formatter={(val: any, name: any) => [
+                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
+                  name,
                 ]}
                 contentStyle={{
                   borderRadius: 6,
@@ -63,7 +175,9 @@ export default function MisHosChart({ records, reportTitle }: MisHosChartProps) 
                   fontVariantNumeric: 'tabular-nums',
                 }}
               />
-              <Bar dataKey="value" name="งบประมาณ (ล้านบาท)" fill="#0284c7" radius={[4, 4, 0, 0]} />
+              <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '0.5rem' }} />
+              <Bar dataKey="series1" name={series1Name} fill={palette[0] || '#0284c7'} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="series2" name={series2Name} fill={palette[1] || '#0f766e'} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -81,44 +195,68 @@ export default function MisHosChart({ records, reportTitle }: MisHosChartProps) 
     }))
 
     return (
-      <div className="bt-mishos-chart-card">
-        <div className="bt-mishos-chart-header">
-          <h3 className="bt-mishos-chart-title">
-            <BarChart3 size={16} style={{ color: '#0f766e' }} />
-            <span>แนวโน้มการโอนเงินรายเดือน: {reportTitle}</span>
-          </h3>
-          <span className="bt-mishos-chart-unit">{isMillion ? 'หน่วย: ล้านบาท' : 'หน่วย: บาท'}</span>
-        </div>
-        <div style={{ width: '100%', height: 260 }}>
+      <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
+        {!hideHeader && (
+          <div className="bt-mishos-chart-header">
+            <h3 className="bt-mishos-chart-title">
+              <BarChart3 size={16} style={{ color: palette[1] || '#0f766e' }} />
+              <span>แนวโน้มการโอนเงินรายเดือน: {reportTitle}</span>
+            </h3>
+            <span className="bt-mishos-chart-unit">{chartConfig?.yaxis ? `หน่วย: ${chartConfig.yaxis}` : (isMillion ? 'หน่วย: ล้านบาท' : 'หน่วย: บาท')}</span>
+          </div>
+        )}
+        <div style={{ width: '100%', height }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 35 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fontSize: 10, fill: '#475569' }} />
-              <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
-              <Tooltip
-                formatter={(val: any) => [
-                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ${isMillion ? 'ล้านบาท' : 'บาท'}`,
-                  'ยอดเงิน'
-                ]}
-                contentStyle={{
-                  borderRadius: 6,
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.8125rem',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              />
-              <Bar dataKey="value" name="ยอดเงิน" fill="#0f766e" radius={[4, 4, 0, 0]} />
-            </BarChart>
+            {chartType === 'line' ? (
+              <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 35 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fontSize: 10, fill: '#475569' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
+                <Tooltip
+                  formatter={(val: any) => [
+                    `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ${isMillion ? 'ล้านบาท' : 'บาท'}`,
+                    'ยอดเงิน',
+                  ]}
+                  contentStyle={{
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8125rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <Line type="monotone" dataKey="value" stroke={palette[1] || '#0f766e'} strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            ) : (
+              <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 35 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fontSize: 10, fill: '#475569' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
+                <Tooltip
+                  formatter={(val: any) => [
+                    `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ${isMillion ? 'ล้านบาท' : 'บาท'}`,
+                    'ยอดเงิน',
+                  ]}
+                  contentStyle={{
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8125rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <Bar dataKey="value" name="ยอดเงิน" fill={palette[1] || '#0f766e'} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </div>
       </div>
     )
   }
 
-  // Case 3: Categorical / Fund breakdown (e.g. DESCRIPTION / M_FUND_DESC & BUDGET / ACT_AMT)
-  const nameKey = 'DESCRIPTION' in first ? 'DESCRIPTION' : ('M_FUND_DESC' in first ? 'M_FUND_DESC' : ('S_FUND_DESC' in first ? 'S_FUND_DESC' : null))
-  const numKey = 'ACT_AMT' in first ? 'ACT_AMT' : ('BUDGET' in first ? 'BUDGET' : ('ACT_AMT_STM' in first ? 'ACT_AMT_STM' : null))
+  // Case 3: Categorical / Fund breakdown
+  const nameKey = 'DESCRIPTION' in first ? 'DESCRIPTION' : ('M_FUND_DESC' in first ? 'M_FUND_DESC' : ('S_FUND_DESC' in first ? 'S_FUND_DESC' : ('PROVINCE_NAME' in first ? 'PROVINCE_NAME' : null)))
+  const numKey = 'ACT_AMT' in first ? 'ACT_AMT' : ('BUDGET' in first ? 'BUDGET' : ('ACT_AMT_STM' in first ? 'ACT_AMT_STM' : ('SUM_AMT' in first ? 'SUM_AMT' : null)))
 
   if (nameKey && numKey) {
     const sorted = [...records]
@@ -131,45 +269,234 @@ export default function MisHosChart({ records, reportTitle }: MisHosChartProps) 
       value: parseFloat(r[numKey]) || 0,
     }))
 
-    return (
-      <div className="bt-mishos-chart-card">
-        <div className="bt-mishos-chart-header">
-          <h3 className="bt-mishos-chart-title">
-            <Layers size={16} style={{ color: '#0369a1' }} />
-            <span>10 อันดับกองทุน/รายการงบประมาณสูงสุด: {reportTitle}</span>
-          </h3>
-          <span className="bt-mishos-chart-unit">หน่วย: บาท</span>
+    if (chartType === 'pie') {
+      return (
+        <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
+          {!hideHeader && (
+            <div className="bt-mishos-chart-header">
+              <h3 className="bt-mishos-chart-title">
+                <PieIcon size={16} style={{ color: palette[0] || '#0369a1' }} />
+                <span>สัดส่วนงบประมาณ: {reportTitle}</span>
+              </h3>
+              <span className="bt-mishos-chart-unit">{unitLabel}</span>
+            </div>
+          )}
+          <div style={{ width: '100%', height }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={Math.min(height / 2 - 20, 90)}
+                  label={({ name, percent }: any) => `${name} (${((percent || 0) * 100).toFixed(0)}%)`}
+                >
+                  {chartData.map((_, idx) => (
+                    <Cell key={`pie-cell-${idx}`} fill={palette[idx % palette.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(val: any) => [
+                    `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
+                    'ยอดเงิน',
+                  ]}
+                  contentStyle={{
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8125rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div style={{ width: '100%', height: 280 }}>
+      )
+    }
+
+    const isHorizontal = chartType === 'barhorizontal' || records.length > 5
+
+    return (
+      <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
+        {!hideHeader && (
+          <div className="bt-mishos-chart-header">
+            <h3 className="bt-mishos-chart-title">
+              <Layers size={16} style={{ color: palette[2] || '#0369a1' }} />
+              <span>10 อันดับงบประมาณสูงสุด: {reportTitle}</span>
+            </h3>
+            <span className="bt-mishos-chart-unit">{unitLabel}</span>
+          </div>
+        )}
+        <div style={{ width: '100%', height }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart layout="vertical" data={chartData} margin={{ top: 10, right: 30, left: 100, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-              <XAxis type="number" tick={{ fontSize: 10, fill: '#475569' }} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#1e293b' }} width={95} />
-              <Tooltip
-                formatter={(val: any) => [
-                  `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
-                  'ยอดเงิน',
-                ]}
-                labelFormatter={(_, arr) => arr[0]?.payload?.fullName || ''}
-                contentStyle={{
-                  borderRadius: 6,
-                  border: '1px solid #cbd5e1',
-                  fontSize: '0.8125rem',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              />
-              <Bar dataKey="value" name="ยอดเงิน (บาท)" radius={[0, 4, 4, 0]}>
-                {chartData.map((_, idx) => (
-                  <Cell key={`cell-${idx}`} fill={PALETTE[idx % PALETTE.length]} />
-                ))}
-              </Bar>
-            </BarChart>
+            {isHorizontal ? (
+              <BarChart layout="vertical" data={chartData} margin={{ top: 10, right: 30, left: 100, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                <XAxis type="number" tick={{ fontSize: 10, fill: '#475569' }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#1e293b' }} width={95} />
+                <Tooltip
+                  formatter={(val: any) => [
+                    `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
+                    'ยอดเงิน',
+                  ]}
+                  labelFormatter={(_, arr) => arr[0]?.payload?.fullName || ''}
+                  contentStyle={{
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8125rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <Bar dataKey="value" name="ยอดเงิน (บาท)" radius={[0, 4, 4, 0]}>
+                  {chartData.map((_, idx) => (
+                    <Cell key={`cell-${idx}`} fill={palette[idx % palette.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : (
+              <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 25 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#475569' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#475569' }} />
+                <Tooltip
+                  formatter={(val: any) => [
+                    `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`,
+                    'ยอดเงิน',
+                  ]}
+                  labelFormatter={(_, arr) => arr[0]?.payload?.fullName || ''}
+                  contentStyle={{
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.8125rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+                <Bar dataKey="value" name="ยอดเงิน (บาท)" radius={[4, 4, 0, 0]}>
+                  {chartData.map((_, idx) => (
+                    <Cell key={`cell-${idx}`} fill={palette[idx % palette.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </div>
       </div>
     )
+  }
+
+  // Case 4 (Generic Fallback): Any sub-report with non-table chartType
+  if (chartType !== 'table') {
+    const keys = Object.keys(first)
+    const labelKey = keys.find(k => {
+      const v = first[k]
+      return typeof v === 'string' && isNaN(Number(v)) && !k.toUpperCase().includes('ID')
+    }) || keys[0]
+
+    const numericKeys = keys.filter(k => {
+      if (k === labelKey) return false
+      const v = first[k]
+      return !isNaN(Number(v)) && String(v).trim() !== ''
+    })
+
+    if (labelKey && numericKeys.length > 0) {
+      const chartData = records.slice(0, 15).map(r => {
+        const item: Record<string, any> = {
+          name: String(r[labelKey] || '').length > 20
+            ? String(r[labelKey]).substring(0, 20) + '...'
+            : String(r[labelKey] || ''),
+          fullName: String(r[labelKey] || ''),
+        }
+        numericKeys.forEach(nk => {
+          item[nk] = parseFloat(r[nk]) || 0
+        })
+        return item
+      })
+
+      const displayKeys = numericKeys.slice(0, 3) // show top 3 series max to keep chart clean
+
+      return (
+        <div className={hideHeader ? '' : 'bt-mishos-chart-card'}>
+          {!hideHeader && (
+            <div className="bt-mishos-chart-header">
+              <h3 className="bt-mishos-chart-title">
+                <BarChart3 size={16} style={{ color: palette[0] || '#0284c7' }} />
+                <span>{reportTitle}</span>
+              </h3>
+              <span className="bt-mishos-chart-unit">{unitLabel}</span>
+            </div>
+          )}
+          <div style={{ width: '100%', height }}>
+            <ResponsiveContainer width="100%" height="100%">
+              {chartType === 'line' ? (
+                <LineChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#475569' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#475569' }} />
+                  <Tooltip
+                    formatter={(val: any, name: any) => [
+                      `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
+                      name,
+                    ]}
+                    labelFormatter={(_, arr) => arr[0]?.payload?.fullName || ''}
+                    contentStyle={{
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.8125rem',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    }}
+                  />
+                  {displayKeys.length > 1 && <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '0.25rem' }} />}
+                  {displayKeys.map((nk, idx) => (
+                    <Line
+                      key={nk}
+                      type="monotone"
+                      dataKey={nk}
+                      name={nk}
+                      stroke={palette[idx % palette.length]}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  ))}
+                </LineChart>
+              ) : (
+                <BarChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#475569' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#475569' }} />
+                  <Tooltip
+                    formatter={(val: any, name: any) => [
+                      `${Number(val ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
+                      name,
+                    ]}
+                    labelFormatter={(_, arr) => arr[0]?.payload?.fullName || ''}
+                    contentStyle={{
+                      borderRadius: 6,
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.8125rem',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                    }}
+                  />
+                  {displayKeys.length > 1 && <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '0.25rem' }} />}
+                  {displayKeys.map((nk, idx) => (
+                    <Bar
+                      key={nk}
+                      dataKey={nk}
+                      name={nk}
+                      fill={palette[idx % palette.length]}
+                      radius={[4, 4, 0, 0]}
+                    />
+                  ))}
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )
+    }
   }
 
   return null

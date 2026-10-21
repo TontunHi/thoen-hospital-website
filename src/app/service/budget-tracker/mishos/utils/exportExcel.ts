@@ -6,7 +6,8 @@ export async function exportMisHosRecordsToExcel(
   reportTitle: string,
   year: string,
   hcode: string,
-  hname: string = 'รพ.เถิน'
+  hname: string = 'รพ.เถิน',
+  columnLabels?: string[]
 ) {
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Thoen Hospital Portal'
@@ -18,7 +19,7 @@ export async function exportMisHosRecordsToExcel(
   })
 
   // Title Row (A1)
-  const lastColLetter = getColumnLetter(Math.max(columns.length, 1))
+  const lastColLetter = getColumnLetter(Math.max(columns.length + 1, 1))
   worksheet.mergeCells(`A1:${lastColLetter}1`)
   const titleCell = worksheet.getCell('A1')
   titleCell.value = `MIS HOS สปสช. - ${reportTitle}`
@@ -38,7 +39,10 @@ export async function exportMisHosRecordsToExcel(
   worksheet.addRow([]) // Row 3 empty
 
   // Header Row (Row 4)
-  const headerRow = worksheet.addRow(['ลำดับ', ...columns])
+  const displayHeaders = columnLabels && columnLabels.length === columns.length
+    ? columnLabels
+    : columns
+  const headerRow = worksheet.addRow(['ลำดับ', ...displayHeaders])
   headerRow.height = 24
   headerRow.eachCell(cell => {
     cell.font = { name: 'Sarabun', size: 9, bold: true, color: { argb: 'FFFFFFFF' } }

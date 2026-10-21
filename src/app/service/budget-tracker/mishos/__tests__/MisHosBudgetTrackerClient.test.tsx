@@ -12,6 +12,10 @@ vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => <div data-testid="recharts-container">{children}</div>,
   BarChart: ({ children }: any) => <div data-testid="barchart">{children}</div>,
   Bar: () => <div data-testid="bar" />,
+  LineChart: ({ children }: any) => <div data-testid="linechart">{children}</div>,
+  Line: () => <div data-testid="line" />,
+  PieChart: ({ children }: any) => <div data-testid="piechart">{children}</div>,
+  Pie: () => <div data-testid="pie" />,
   XAxis: () => <div data-testid="xaxis" />,
   YAxis: () => <div data-testid="yaxis" />,
   Tooltip: () => <div data-testid="tooltip" />,
@@ -26,21 +30,35 @@ vi.mock('../utils/exportExcel', () => ({
 }))
 
 describe('MisHosBudgetTrackerClient Component', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ success: true, data: [] }),
+    }) as any
+  })
+
   const mockTemplate: MisHosTemplateConfig = {
     stId: '1843',
     templateName: 'การโอนเงินชดเชยค่าบริการ',
     subReports: [
       { ssid: '1825', report_name: 'รายรับโอนเงินจาก สปสช. ทุกกองทุน', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
-      { ssid: '505', report_name: 'การโอนเงินรายเดือน', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
+      { ssid: '1826', report_name: 'รายรับ แยกรายกองทุนย่อย', chart_type: 'table', report_width: '12', flag_data: 'Y' },
     ],
   }
 
   const mockTableData: MisHosTableDataResult = {
-    ssid: '1825',
+    ssid: '1826',
     records: [
-      { YEAR: '2567', BUDGET_UC: '120.02' },
-      { YEAR: '2568', BUDGET_UC: '110.31' },
+      { FUND_NAME: 'กองทุนผู้ป่วยนอก', BUDGET: '30823389.83' },
+      { FUND_NAME: 'กองทุนผู้ป่วยใน', BUDGET: '15200000.00' },
     ],
+    chartConfig: {
+      ssid: '1826',
+      reportName: 'รายรับ แยกรายกองทุนย่อย',
+      chartType: 'table',
+      table_header: ['ชื่อกองทุน', 'งบประมาณ,2'],
+    },
     source: 'upstream',
     fetchedAt: '2026-10-21T04:30:00.000Z',
   }
@@ -54,7 +72,7 @@ describe('MisHosBudgetTrackerClient Component', () => {
     nhsoZone: '01',
   }
 
-  it('renders hospital name, year selector, and 4 KPI cards', () => {
+  it('renders hospital name, zone badge, year selector, and 4 KPI cards', () => {
     render(
       <MisHosBudgetTrackerClient
         initialTemplate={mockTemplate}
@@ -64,6 +82,7 @@ describe('MisHosBudgetTrackerClient Component', () => {
     )
 
     expect(screen.getAllByText(/รพ.เถิน/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText(/สปสช. เขต 01/)).toBeDefined()
     expect(screen.getByText('ปีงบประมาณ:')).toBeDefined()
     expect(screen.getByText('ยอดเงินรวมตามรายงาน')).toBeDefined()
     expect(screen.getByText('จำนวนแถวข้อมูล')).toBeDefined()
@@ -88,7 +107,7 @@ describe('MisHosBudgetTrackerClient Component', () => {
     expect(screen.getByText('5. ส่งเสริมป้องกันโรค (PP)')).toBeDefined()
   })
 
-  it('renders table columns and records properly', () => {
+  it('renders both multi-card sub-reports simultaneously matching Module 381', () => {
     render(
       <MisHosBudgetTrackerClient
         initialTemplate={mockTemplate}
@@ -97,10 +116,20 @@ describe('MisHosBudgetTrackerClient Component', () => {
       />
     )
 
-    expect(screen.getByText('YEAR')).toBeDefined()
-    expect(screen.getByText('BUDGET_UC')).toBeDefined()
-    expect(screen.getAllByText('2567').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('2568').length).toBeGreaterThanOrEqual(1)
+    // Sub-report 1 (Bar Chart)
+    expect(screen.getByText('รายรับโอนเงินจาก สปสช. ทุกกองทุน')).toBeDefined()
+    expect(screen.getByText('ID: 1825')).toBeDefined()
+
+    // Sub-report 2 (Table)
+    expect(screen.getByText('รายรับ แยกรายกองทุนย่อย')).toBeDefined()
+    expect(screen.getByText('ID: 1826')).toBeDefined()
+    expect(screen.getByText('ชื่อกองทุน')).toBeDefined()
+    expect(screen.getByText('งบประมาณ')).toBeDefined()
+    expect(screen.getByText('กองทุนผู้ป่วยนอก')).toBeDefined()
+    expect(screen.getByText('กองทุนผู้ป่วยใน')).toBeDefined()
+
+    // Table Summary Footer (tfoot)
+    expect(screen.getByText('รวม')).toBeDefined()
   })
 
   it('filters table rows when user types in search input', () => {
@@ -112,13 +141,10 @@ describe('MisHosBudgetTrackerClient Component', () => {
       />
     )
 
-    const searchInput = screen.getByPlaceholderText('ค้นหาข้อมูลในตาราง...')
-    fireEvent.change(searchInput, { target: { value: '2567' } })
+    const searchInput = screen.getByLabelText(/ค้นหาข้อมูลในตาราง/)
+    fireEvent.change(searchInput, { target: { value: 'ผู้ป่วยนอก' } })
 
-    expect(screen.getAllByText('2567').length).toBeGreaterThanOrEqual(1)
-    // The row with 2568 should no longer be in table
-    const tableCells = screen.getAllByRole('cell')
-    const hasCell2568 = tableCells.some(c => c.textContent === '2568')
-    expect(hasCell2568).toBe(false)
+    expect(screen.getByText('กองทุนผู้ป่วยนอก')).toBeDefined()
+    expect(screen.queryByText('กองทุนผู้ป่วยใน')).toBeNull()
   })
 })

@@ -4,6 +4,17 @@ import { calculateThaiFiscalYear } from '@/lib/events/eventUtils'
 export { calculateThaiFiscalYear }
 
 /**
+ * แปลงปี พ.ศ. เป็น ค.ศ. สำหรับเรียก API สปสช. (เช่น 2569 -> 2026)
+ */
+export function toMisHosCeYear(year: string): string {
+  const numYear = parseInt(year, 10)
+  if (!isNaN(numYear) && numYear > 2400) {
+    return String(numYear - 543)
+  }
+  return year
+}
+
+/**
  * คำนวณรายการปีงบประมาณย้อนหลัง โดยเริ่มต้นจากปีงบประมาณปัจจุบัน (ตามปฏิทินราชการไทย เดือนตุลาคมเป็นต้นไป)
  * เช่น เดือนตุลาคม 2026 = ปีงบประมาณ 2570
  */
@@ -24,6 +35,7 @@ export interface MisHosSubmenu {
   id: string
   name: string
   stId: string
+  secondaryStId?: string
   defaultSsid?: string
   description?: string
 }
@@ -43,6 +55,20 @@ export interface MisHosSubReport {
   flag_data: string
 }
 
+export interface MisHosChartConfig {
+  ssid: string
+  reportName: string
+  chartType: string
+  yaxis?: string
+  xaxis?: string
+  xaxisLabel?: string[]
+  showvalue?: boolean
+  table_header?: string[]
+  color?: string[]
+  digit?: string | number
+  height?: number
+}
+
 export interface MisHosTemplateConfig {
   stId: string
   templateName: string
@@ -53,6 +79,7 @@ export interface MisHosTableDataResult {
   ssid: string
   // Upstream NHSO SimpleStudio SQL statements return dynamic, heterogeneous columns per SSID
   records: Record<string, any>[]
+  chartConfig?: MisHosChartConfig | null
   source: 'upstream' | 'cache'
   fetchedAt: string
 }
@@ -72,93 +99,93 @@ export const MIS_HOS_MENU_CATEGORIES: MisHosCategory[] = [
     title: 'การโอนเงิน (Budget Transfer)',
     submenus: [
       { id: '0.1', name: '0.1 รายการรับเงิน (ทุกกองทุน / รายเดือน)', stId: '1843', defaultSsid: '1825' },
-      { id: '0.2', name: '0.2 Statement-UC (84 กองทุนย่อย / พึงรับ)', stId: '1823', defaultSsid: '1824' },
+      { id: '0.2', name: '0.2 Statement-UC (84 กองทุนย่อย / พึงรับ)', stId: '1823', defaultSsid: '1803' },
     ],
   },
   {
     id: '0-eclaim',
     title: '0-Eclaim Data (ข้อมูลส่งเบิก)',
     submenus: [
-      { id: '0-ec-1', name: 'สิทธิ UC (พึงรับชดเชย E-Claim รายเดือน)', stId: '1803', defaultSsid: '1803' },
-      { id: '0-ec-2', name: 'สิทธิอื่น ๆ (เบิกจ่ายตรง/อปท.)', stId: '1804', defaultSsid: '1804' },
+      { id: '0-ec-1', name: 'สิทธิ UC (พึงรับชดเชย E-Claim รายเดือน)', stId: '945', defaultSsid: '1462' },
+      { id: '0-ec-2', name: 'สิทธิอื่น ๆ (เบิกจ่ายตรง/อปท.)', stId: '948', defaultSsid: '1534' },
     ],
   },
   {
     id: '1',
     title: '1. บริการผู้ป่วยนอก (OP)',
     submenus: [
-      { id: '1.1', name: '1.1 ผู้ป่วยนอกฉุกเฉิน (OPAE)', stId: '1469', defaultSsid: '1469' },
-      { id: '1.2', name: '1.2 OP-Refer', stId: '1470', defaultSsid: '1470' },
-      { id: '1.3', name: '1.3 ค่าพาหนะส่งต่อ', stId: '1471', defaultSsid: '1471' },
-      { id: '1.4', name: '1.4 OP Walk-in ทุกที่', stId: '1472', defaultSsid: '1472' },
-      { id: '1.5', name: '1.5 ชดเชย On-Top', stId: '1484', defaultSsid: '1484' },
+      { id: '1.1', name: '1.1 ผู้ป่วยนอกฉุกเฉิน (OPAE)', stId: '1464', defaultSsid: '1507' },
+      { id: '1.2', name: '1.2 OP-Refer (ผู้ป่วยนอกข้ามจังหวัด)', stId: '1482', defaultSsid: '1566' },
+      { id: '1.3', name: '1.3 ค่าพาหนะส่งต่อ', stId: '1483', secondaryStId: '1631', defaultSsid: '1632' },
+      { id: '1.4', name: '1.4 OP Walk-in ทุกที่', stId: '1465', defaultSsid: '2065' },
+      { id: '1.5', name: '1.5 ชดเชย On-Top', stId: '1466', secondaryStId: '1202', defaultSsid: '1203' },
     ],
   },
   {
     id: '2',
     title: '2. บริการผู้ป่วยใน (IP)',
     submenus: [
-      { id: '2.1', name: '2.1 บริการผู้ป่วยใน (IP & AdjRW)', stId: '1464', defaultSsid: '1464' },
-      { id: '2.2', name: '2.2 ส่งข้อมูลผู้ป่วยใน / Error ติด C ติด Deny', stId: '1603', defaultSsid: '1603' },
+      { id: '2.1', name: '2.1 บริการผู้ป่วยใน (IP & AdjRW)', stId: '1467', defaultSsid: '2068' },
+      { id: '2.2', name: '2.2 ส่งข้อมูลผู้ป่วยใน / Error ติด C ติด Deny', stId: '1224', secondaryStId: '1225', defaultSsid: '2083' },
     ],
   },
   {
     id: '3',
     title: '3. บริการนอกเครือข่าย',
     submenus: [
-      { id: '3.1', name: '3.1 ฉุกเฉินนอกเขต', stId: '1482', defaultSsid: '1482' },
-      { id: '3.2', name: '3.2 OP-Refer นอกเขต', stId: '582', defaultSsid: '582' },
-      { id: '3.3', name: '3.3 ค่าพาหนะส่งต่อนอกเขต', stId: '1062', defaultSsid: '1062' },
+      { id: '3.1', name: '3.1 ฉุกเฉินนอกเขต (OPAE)', stId: '1464', defaultSsid: '1507' },
+      { id: '3.2', name: '3.2 OP-Refer นอกเขต', stId: '1482', defaultSsid: '1566' },
+      { id: '3.3', name: '3.3 ค่าพาหนะส่งต่อนอกเขต', stId: '1483', secondaryStId: '1631', defaultSsid: '1632' },
     ],
   },
   {
     id: '4',
     title: '4. บริการค่าใช้จ่ายสูง (High Cost)',
     submenus: [
-      { id: '4.1', name: '4.1 ยาละลายลิ่มเลือด (STEMI)', stId: '1468', defaultSsid: '1468' },
-      { id: '4.2', name: '4.2 เคมีบำบัด มะเร็ง', stId: '1483', defaultSsid: '1483' },
-      { id: '4.3', name: '4.3 ผ่าตัดต้อกระจก (Cataract)', stId: '1631', defaultSsid: '1631' },
-      { id: '4.4', name: '4.4 อวัยวะเทียมและอุปกรณ์', stId: '1084', defaultSsid: '1084' },
-      { id: '4.5', name: '4.5 นิ่วในระบบทางเดินปัสสาวะ', stId: '1465', defaultSsid: '1465' },
-      { id: '4.6', name: '4.6 บริการประคับประคอง (Palliative Care)', stId: '503', defaultSsid: '503' },
+      { id: '4.1', name: '4.1 ยาละลายลิ่มเลือด (STEMI/Stroke)', stId: '1468' },
+      { id: '4.2', name: '4.2 เคมีบำบัด มะเร็ง', stId: '1469' },
+      { id: '4.3', name: '4.3 ผ่าตัดต้อกระจก (Cataract)', stId: '1470' },
+      { id: '4.4', name: '4.4 อวัยวะเทียมและอุปกรณ์', stId: '1471' },
+      { id: '4.5', name: '4.5 นิ่วในระบบทางเดินปัสสาวะ', stId: '1472' },
+      { id: '4.6', name: '4.6 บริการประคับประคอง (Palliative Care)', stId: '1484', secondaryStId: '1062', defaultSsid: '1082' },
     ],
   },
   {
     id: '5',
     title: '5. ส่งเสริมป้องกันโรค (PP)',
     submenus: [
-      { id: '5.1', name: '5.1 บริการหญิงตั้งครรภ์ (ANC)', stId: '1527', defaultSsid: '1527' },
-      { id: '5.2', name: '5.2 ตรวจคัดกรองมะเร็ง', stId: '1528', defaultSsid: '1528' },
-      { id: '5.3', name: '5.3 ประเมินปัจจัยเสี่ยงสุขภาพ', stId: '1504', defaultSsid: '1504' },
-      { id: '5.4', name: '5.4 บริการทันตกรรมสร้างเสริมสุขภาพ', stId: '1524', defaultSsid: '1524' },
-      { id: '5.5', name: '5.5 ฉีดวัคซีนไข้หวัดใหญ่ (Flu Vaccine)', stId: '865', defaultSsid: '865' },
+      { id: '5.1', name: '5.1 บริการหญิงตั้งครรภ์ (ANC)', stId: '1485', secondaryStId: '742', defaultSsid: '1047' },
+      { id: '5.2', name: '5.2 ตรวจคัดกรองมะเร็ง (PAP & Fit test)', stId: '1522', defaultSsid: '2085' },
+      { id: '5.3', name: '5.3 ประเมินปัจจัยเสี่ยงสุขภาพ', stId: '1523', secondaryStId: '1104', defaultSsid: '1106' },
     ],
   },
   {
     id: '7',
     title: '7. นโยบายสำคัญ',
     submenus: [
-      { id: '7.1', name: '7.1 Cancer Anywhere (มะเร็งรักษาทุกที่)', stId: '2183', defaultSsid: '2183' },
-      { id: '7.2', name: '7.2 30 บาทรักษาทุกที่ (Walk-in)', stId: '2243', defaultSsid: '2243' },
-      { id: '7.3', name: '7.3 การแพทย์ทางไกล (Telemedicine)', stId: '2204', defaultSsid: '2204' },
-      { id: '7.4', name: '7.4 ระบบระบุตัวตน (Digital Health ID)', stId: '2207', defaultSsid: '2207' },
+      { id: '7.1', name: '7.1 Cancer Anywhere (มะเร็งรักษาทุกที่)', stId: '1524', secondaryStId: '865', defaultSsid: '870' },
+      { id: '7.2', name: '7.2 Covid-19 (พึงรับชดเชย)', stId: '1503', secondaryStId: '444', defaultSsid: '445' },
+      { id: '7.3', name: '7.3 เปลี่ยนสิทธิทันที', stId: '844', defaultSsid: '867' },
+      { id: '7.4', name: '7.4 รักษาทุกที่ (Walk-in)', stId: '1465', defaultSsid: '2065' },
+      { id: '7.5', name: '7.5 การแพทย์ทางไกล (Telemedicine)', stId: '1525', secondaryStId: '1164', defaultSsid: '1162' },
+      { id: '7.6', name: '7.6 บัตรประชาชนใบเดียวรักษาทุกที่ (ONE-ID)', stId: '2207', defaultSsid: '2283' },
     ],
   },
   {
     id: '8',
     title: '8. บริการเฉพาะ (DMIS)',
     submenus: [
-      { id: '8.1', name: '8.1 โรคไตวายเรื้อรัง (CKD)', stId: '945', defaultSsid: '945' },
-      { id: '8.2', name: '8.2 บริการ MOPH', stId: '404', defaultSsid: '404' },
-      { id: '8.3', name: '8.3 ปลูกถ่ายไต (KTP)', stId: '948', defaultSsid: '948' },
+      { id: '8.1', name: '8.1 โรคไตวายเรื้อรัง (CKD)', stId: '2183', defaultSsid: '2203' },
+      { id: '8.2', name: '8.2 บริการ MOPH-Claim', stId: '2204', defaultSsid: '2205' },
+      { id: '8.3', name: '8.3 Krungthai Platform (KTP)', stId: '2243', defaultSsid: '2263' },
     ],
   },
   {
     id: '9',
     title: '9. บริการสิทธิอื่น',
     submenus: [
-      { id: '9.1', name: '9.1 สิทธิข้าราชการ (CSMBS)', stId: '1525', defaultSsid: '1525' },
-      { id: '9.2', name: '9.2 สิทธิ อปท. (LGO)', stId: '1164', defaultSsid: '1164' },
+      { id: '9.1', name: '9.1 สิทธิข้าราชการ (CSMBS)', stId: '1527', secondaryStId: '1526', defaultSsid: '2107' },
+      { id: '9.2', name: '9.2 สิทธิ อปท. (LGO)', stId: '1528', secondaryStId: '1504', defaultSsid: '2108' },
     ],
   },
 ]
@@ -184,12 +211,21 @@ export class MisHosService {
     this.cache.clear()
   }
 
+  public static findSubmenuByStId(stId: string): MisHosSubmenu | undefined {
+    for (const cat of MIS_HOS_MENU_CATEGORIES) {
+      const found = cat.submenus.find(s => s.stId === stId || s.secondaryStId === stId)
+      if (found) return found
+    }
+    return undefined
+  }
+
   /**
    * Fetch and decode template configuration (cards, chart types, sub-reports)
    */
   public static async getTemplateConfig(
     stId: string,
     options?: {
+      secondaryStId?: string
       year?: string
       hcode?: string
       subfund?: string
@@ -224,7 +260,10 @@ export class MisHosService {
       })
 
       if (!res.ok) return null
-      const json = await res.json()
+      const text = await res.text()
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) return null
+      const json = JSON.parse(jsonMatch[0])
       if (!Array.isArray(json) || json.length === 0) return null
 
       const first = json[0]
@@ -238,10 +277,200 @@ export class MisHosService {
         }
       }
 
+      // If High Cost clinical modules lack ST_CONFIG in SimpleStudio, provide custom subreports matching MIS HOS endpoints
+      if (subReports.length === 0) {
+        if (stId === '1468') {
+          subReports = [
+            { ssid: 'custom:m0401_stemi_year', report_name: 'บริการกรณี ยาละลายลิ่มเลือด (STEMI/Stroke) แยกรายปี', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0401_stemi_month', report_name: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายเดือน', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+          ]
+        } else if (stId === '1469') {
+          subReports = [
+            { ssid: 'custom:m0402_cancer_year', report_name: 'บริการเคมีบำบัด/รังสีรักษา โรคมะเร็ง แยกรายปี', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0402_cancer_month', report_name: 'บริการเคมีบำบัด/รังสีรักษา โรคมะเร็ง แยกรายเดือน', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+          ]
+        } else if (stId === '1470') {
+          subReports = [
+            { ssid: 'custom:m0403_cataract_year', report_name: 'บริการผ่าตัดต้อกระจก (Cataract) แยกรายปี', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0403_cataract_month', report_name: 'บริการผ่าตัดต้อกระจก แยกรายเดือน', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+          ]
+        } else if (stId === '1471') {
+          subReports = [
+            { ssid: 'custom:m0404_instrument_year', report_name: 'บริการชดเชยอวัยวะเทียมและอุปกรณ์บำบัดรักษาโรค แยกรายปี', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0404_instrument_month', report_name: 'บริการชดเชยอวัยวะเทียมและอุปกรณ์ แยกรายเดือน', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+          ]
+        } else if (stId === '1472') {
+          subReports = [
+            { ssid: 'custom:m0405_stone_year', report_name: 'บริการสลายนิ่วในระบบทางเดินปัสสาวะ แยกรายปี', chart_type: 'bar', report_width: '6', flag_data: 'Y' },
+            { ssid: 'custom:m0405_stone_month', report_name: 'บริการสลายนิ่วในระบบทางเดินปัสสาวะ แยกรายเดือน', chart_type: 'table', report_width: '6', flag_data: 'Y' },
+          ]
+        }
+      }
+
+      // If primary stId still has 0 subReports, fallback to secondaryStId (hospital-view template)
+      const secondaryStId = options?.secondaryStId || this.findSubmenuByStId(stId)?.secondaryStId
+      if (subReports.length === 0 && secondaryStId && secondaryStId !== stId) {
+        const fallbackConfig = await this.getTemplateConfig(secondaryStId, {
+          ...options,
+          secondaryStId: undefined, // prevent infinite loop
+        })
+        if (fallbackConfig && fallbackConfig.subReports.length > 0) {
+          const combinedResult: MisHosTemplateConfig = {
+            stId,
+            templateName: first.ST_TEMPLATENAME || fallbackConfig.templateName,
+            subReports: fallbackConfig.subReports,
+          }
+          this.cache.set(cacheKey, { data: combinedResult, cachedAt: Date.now() })
+          return combinedResult
+        }
+      }
+
       const result: MisHosTemplateConfig = {
         stId: first.ST_ID || stId,
         templateName: first.ST_TEMPLATENAME || 'รายงาน',
         subReports,
+      }
+
+      this.cache.set(cacheKey, { data: result, cachedAt: Date.now() })
+      return result
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Fetch chart metadata & table header definitions from simplestudio/ss_statement.php (chart_get)
+   */
+  public static async getChartConfig(
+    ssid: string,
+    options?: { fetchImpl?: typeof fetch }
+  ): Promise<MisHosChartConfig | null> {
+    if (ssid.startsWith('custom:')) {
+      const customConfigs: Record<string, MisHosChartConfig> = {
+        'custom:m0401_stemi_year': {
+          ssid,
+          reportName: 'บริการกรณี ยาละลายลิ่มเลือด (STEMI/Stroke) แยกรายปี',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          table_header: ['ปีงบประมาณ', 'ผู้ป่วย Stroke (ราย),0', 'ชดเชย Stroke (บาท),2', 'ผู้ป่วย STEMI (ราย),0', 'ชดเชย STEMI (บาท),2'],
+        },
+        'custom:m0401_stemi_month': {
+          ssid,
+          reportName: 'บริการกรณี ยาละลายลิ่มเลือด แยกรายเดือน',
+          chartType: 'table',
+          yaxis: 'บาท',
+          table_header: ['เดือน', 'ผู้ป่วย Stroke (ราย),0', 'ชดเชย Stroke (บาท),2', 'ผู้ป่วย STEMI (ราย),0', 'ชดเชย STEMI (บาท),2'],
+        },
+        'custom:m0402_cancer_year': {
+          ssid,
+          reportName: 'บริการเคมีบำบัด/รังสีรักษา โรคมะเร็ง แยกรายปี',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          table_header: ['ปีงบประมาณ', 'ผู้ป่วย OP (ราย),0', 'ชดเชย OP (บาท),2', 'ผู้ป่วย IP (ราย),0', 'ชดเชย IP (บาท),2'],
+        },
+        'custom:m0402_cancer_month': {
+          ssid,
+          reportName: 'บริการเคมีบำบัด/รังสีรักษา โรคมะเร็ง แยกรายเดือน',
+          chartType: 'table',
+          yaxis: 'บาท',
+          table_header: ['เดือน', 'ผู้ป่วย OP (ราย),0', 'ชดเชย OP (บาท),2', 'ผู้ป่วย IP (ราย),0', 'ชดเชย IP (บาท),2'],
+        },
+        'custom:m0403_cataract_year': {
+          ssid,
+          reportName: 'บริการผ่าตัดต้อกระจก (Cataract) แยกรายปี',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          table_header: ['ปีงบประมาณ', 'ผู้ป่วย (ราย),0', 'ชดเชย (บาท),2'],
+        },
+        'custom:m0403_cataract_month': {
+          ssid,
+          reportName: 'บริการผ่าตัดต้อกระจก แยกรายเดือน',
+          chartType: 'table',
+          yaxis: 'บาท',
+          table_header: ['เดือน', 'ผู้ป่วย (ราย),0', 'ชดเชย (บาท),2'],
+        },
+        'custom:m0404_instrument_year': {
+          ssid,
+          reportName: 'บริการชดเชยอวัยวะเทียมและอุปกรณ์บำบัดรักษาโรค แยกรายปี',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          table_header: ['ปีงบประมาณ', 'ชดเชย OP (ครั้ง),0', 'ชดเชย OP (บาท),2', 'ชดเชย IP (ครั้ง),0', 'ชดเชย IP (บาท),2'],
+        },
+        'custom:m0404_instrument_month': {
+          ssid,
+          reportName: 'บริการชดเชยอวัยวะเทียมและอุปกรณ์ แยกรายเดือน',
+          chartType: 'table',
+          yaxis: 'บาท',
+          table_header: ['เดือน', 'ชดเชย OP (ครั้ง),0', 'ชดเชย OP (บาท),2', 'ชดเชย IP (ครั้ง),0', 'ชดเชย IP (บาท),2'],
+        },
+        'custom:m0405_stone_year': {
+          ssid,
+          reportName: 'บริการสลายนิ่วในระบบทางเดินปัสสาวะ แยกรายปี',
+          chartType: 'bar',
+          yaxis: 'บาท',
+          table_header: ['ปีงบประมาณ', 'ผู้ป่วย (ราย),0', 'ชดเชย (บาท),2'],
+        },
+        'custom:m0405_stone_month': {
+          ssid,
+          reportName: 'บริการสลายนิ่วในระบบทางเดินปัสสาวะ แยกรายเดือน',
+          chartType: 'table',
+          yaxis: 'บาท',
+          table_header: ['เดือน', 'ผู้ป่วย (ราย),0', 'ชดเชย (บาท),2'],
+        },
+      }
+      return customConfigs[ssid] || null
+    }
+
+    const fetchFn = options?.fetchImpl || fetch
+    const cacheKey = `chart_cfg:${ssid}`
+    const cached = this.cache.get(cacheKey)
+    if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS * 6) {
+      return cached.data
+    }
+
+    try {
+      const url = `${this.BASE_URL}${this.STATEMENT_ENDPOINT}`
+      const res = await fetchFn(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ss_id: ssid,
+          api_type: 'chart_get',
+        }),
+        // @ts-expect-error Node fetch supports agent
+        agent: this.httpsAgent,
+      })
+
+      if (!res.ok) return null
+      const text = await res.text()
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) return null
+      const json = JSON.parse(jsonMatch[0])
+      if (!Array.isArray(json) || json.length === 0) return null
+
+      const first = json[0]
+      let configObj: any = {}
+      if (first.SS_CHART_CONFIG) {
+        try {
+          const decoded = Buffer.from(first.SS_CHART_CONFIG, 'base64').toString('utf8')
+          configObj = JSON.parse(decoded)
+        } catch {
+          configObj = {}
+        }
+      }
+
+      const result: MisHosChartConfig = {
+        ssid,
+        reportName: first.SS_REPORTNAME || '',
+        chartType: first.CHART_TYPE || 'table',
+        yaxis: configObj.yaxis || '',
+        xaxis: configObj.xaxis || '',
+        xaxisLabel: configObj.xaxisLabel || [],
+        showvalue: Boolean(configObj.showvalue),
+        table_header: Array.isArray(configObj.table_header) ? configObj.table_header : [],
+        color: Array.isArray(configObj.color) ? configObj.color : [],
+        digit: configObj.digit ?? '2',
+        height: typeof configObj.height === 'number' ? configObj.height : 260,
       }
 
       this.cache.set(cacheKey, { data: result, cachedAt: Date.now() })
@@ -280,7 +509,8 @@ export class MisHosService {
       if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
         return {
           ssid,
-          records: cached.data,
+          records: cached.data.records,
+          chartConfig: cached.data.chartConfig,
           source: 'cache',
           fetchedAt: new Date(cached.cachedAt).toISOString(),
         }
@@ -288,42 +518,82 @@ export class MisHosService {
     }
 
     try {
+      // MIS HOS SQL statements filter on CE year (e.g. 2026 for FY 2569)
+      const numYear = parseInt(year, 10)
+      const isBe = !isNaN(numYear) && numYear > 2400
+      const primaryYear = isBe ? String(numYear - 543) : year
+      const fallbackYear = isBe ? year : String(numYear + 543)
+
+      // Dedicated hospital endpoints for High Cost modules (4.x) bypassing SimpleStudio
+      if (ssid.startsWith('custom:')) {
+        const endpoint = ssid.replace('custom:', '')
+        const customUrl = `${this.BASE_URL}${endpoint}.php`
+        let records = await this.executeTableQuery(
+          customUrl,
+          { data1: hcode, year: primaryYear },
+          fetchFn
+        )
+
+        if (records.length === 0) {
+          records = await this.executeTableQuery(
+            customUrl,
+            { data1: hcode, year: fallbackYear },
+            fetchFn
+          )
+        }
+
+        const chartConfig = await this.getChartConfig(ssid, { fetchImpl: fetchFn })
+        const dataToCache = { records, chartConfig }
+        this.cache.set(cacheKey, { data: dataToCache, cachedAt: Date.now() })
+
+        return {
+          ssid,
+          records,
+          chartConfig,
+          source: 'upstream',
+          fetchedAt: new Date().toISOString(),
+        }
+      }
+
       const url = `${this.BASE_URL}${this.STATEMENT_ENDPOINT}`
-      
-      // Some statements query CE year (e.g. 2024), some BE (e.g. 2567)
-      // We first try year as provided
+
+      // Fetch chart configuration in parallel with data
+      const chartConfigPromise = this.getChartConfig(ssid, { fetchImpl: fetchFn })
+
       let records = await this.executeTableQuery(url, {
         ssid,
         api_type: 'get_tabledata',
         hcode,
         province,
-        year,
+        year: primaryYear,
         subfund,
         province_name: provinceName,
       }, fetchFn)
 
-      // If empty and year is BE (>= 2500), try CE (year - 543)
-      const numYear = parseInt(year, 10)
-      if (records.length === 0 && !isNaN(numYear) && numYear > 2500) {
-        const ceYear = String(numYear - 543)
-        const ceRecords = await this.executeTableQuery(url, {
+      // Fallback if primary returned empty
+      if (records.length === 0) {
+        const fallbackRecords = await this.executeTableQuery(url, {
           ssid,
           api_type: 'get_tabledata',
           hcode,
           province,
-          year: ceYear,
+          year: fallbackYear,
           subfund,
           province_name: provinceName,
         }, fetchFn)
-        if (ceRecords.length > 0) {
-          records = ceRecords
+        if (fallbackRecords.length > 0) {
+          records = fallbackRecords
         }
       }
 
-      this.cache.set(cacheKey, { data: records, cachedAt: Date.now() })
+      const chartConfig = await chartConfigPromise
+      const dataToCache = { records, chartConfig }
+      this.cache.set(cacheKey, { data: dataToCache, cachedAt: Date.now() })
+
       return {
         ssid,
         records,
+        chartConfig,
         source: 'upstream',
         fetchedAt: new Date().toISOString(),
       }
@@ -331,6 +601,7 @@ export class MisHosService {
       return {
         ssid,
         records: [],
+        chartConfig: null,
         source: 'upstream',
         fetchedAt: new Date().toISOString(),
       }
@@ -353,9 +624,17 @@ export class MisHosService {
 
       if (!res.ok) return []
       const text = await res.text()
-      if (text.startsWith('<br') || text.includes('error')) return []
-      const json = JSON.parse(text)
-      return Array.isArray(json) ? json : []
+      // Extract JSON array even if PHP/OCI warnings or HTML headers prepend the output
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      if (jsonMatch) {
+        try {
+          const json = JSON.parse(jsonMatch[0])
+          return Array.isArray(json) ? json : []
+        } catch {
+          return []
+        }
+      }
+      return []
     } catch {
       return []
     }
@@ -382,7 +661,10 @@ export class MisHosService {
         agent: this.httpsAgent,
       })
       if (!res.ok) return null
-      const json = await res.json()
+      const text = await res.text()
+      const jsonMatch = text.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) return null
+      const json = JSON.parse(jsonMatch[0])
       if (!Array.isArray(json) || json.length === 0) return null
 
       const first = json[0]
