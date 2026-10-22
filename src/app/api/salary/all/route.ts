@@ -42,23 +42,15 @@ export async function GET(request: Request) {
       { username: session.username, email: session.email }
     ).catch(err => logger.error({ err }, 'Salary all audit log failed'))
 
-    // 3. Find target member in memberDb
+    // 3. Find target member in memberDb (optional augmentation)
     const memberRows = await queryMemberDb(
       'SELECT id, username, email, name, department, position, salary_user, salary_pass FROM members WHERE username = ? OR salary_user = ? LIMIT 1',
       [targetUsername, targetUsername]
     )
 
-    if (!memberRows || memberRows.length === 0) {
-      return NextResponse.json({
-        success: false,
-        notFound: true,
-        error: `ไม่พบข้อมูลบุคลากรสำหรับรหัส "${targetUsername}" ในระบบสมาชิก`
-      }, { status: 404 })
-    }
-
-    const targetMember = memberRows[0]
+    const targetMember = memberRows && memberRows.length > 0 ? memberRows[0] : null
     // The identifier in salary / ot table (matches c2)
-    const salaryLookupId = targetMember.salary_user || targetMember.username
+    const salaryLookupId = targetMember?.salary_user || targetUsername
 
     // 4. Fetch salary and ot records from salaryDb
     let salaryRows: any[] = []
@@ -80,6 +72,14 @@ export async function GET(request: Request) {
         { error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลเงินเดือนได้ในขณะนี้' },
         { status: 500 }
       )
+    }
+
+    if ((!salaryRows || salaryRows.length === 0) && (!otRows || otRows.length === 0) && !targetMember) {
+      return NextResponse.json({
+        success: false,
+        notFound: true,
+        error: `ไม่พบข้อมูลเงินเดือนสำหรับรหัส "${targetUsername}"`
+      }, { status: 404 })
     }
 
     try {
@@ -181,17 +181,21 @@ export async function GET(request: Request) {
       if (matchedOt) otData = matchedOt
     }
 
+    const resolvedName = targetMember?.name || salaryRows[0]?.c4?.trim() || otRows[0]?.c4?.trim() || targetUsername
+    const memberInfo = {
+      id: targetMember?.id || 0,
+      username: targetMember?.username || targetUsername,
+      name: resolvedName,
+      department: targetMember?.department || '-',
+      position: targetMember?.position || '-',
+      salary_user: targetMember?.salary_user || targetUsername
+    }
+
     return NextResponse.json({
       success: true,
-      member: {
-        id: targetMember.id,
-        username: targetMember.username,
-        name: targetMember.name,
-        department: targetMember.department,
-        position: targetMember.position,
-        salary_user: targetMember.salary_user
-      },
+      member: memberInfo,
       years,
+      periods: parsedPeriods.map(p => p.original),
       selectedYear: targetYear || '',
       selectedMonth: targetMonth || '',
       salary: salaryData,

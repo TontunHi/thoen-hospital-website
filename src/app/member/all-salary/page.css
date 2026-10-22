@@ -85,6 +85,45 @@
   line-height: 1.5;
 }
 
+.searchFormWrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.searchSubmitBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 16px 28px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.searchSubmitBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+  transform: translateY(-1px);
+}
+
+.searchSubmitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .inputContainer {
   position: relative;
   display: flex;
@@ -233,6 +272,485 @@
 .highlightNumber {
   color: #0284c7;
   font-weight: 700;
+}
+
+/* ========================================================= */
+/* STATEMENT EXPORT CARD (1m, 3m, 6m, 1y)                    */
+/* ========================================================= */
+.statementExportCard {
+  background: #ffffff;
+  border: 1.5px solid #e0f2fe;
+  border-radius: 20px;
+  padding: 1.75rem 2rem;
+  box-shadow: 0 10px 25px rgba(2, 132, 199, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.statementCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.statementTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.statementIconCircle {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #e0f2fe;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.statementTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.statementSubtitle {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.statementRangeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rangeSectionLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.statementRangePills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.rangePill {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 10px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  text-align: center;
+}
+
+.rangePill:hover {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.rangePill.active {
+  background: #f0fdf4;
+  border-color: #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.rangePill .pillTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rangePill.active .pillTitle {
+  color: #065f46;
+}
+
+.rangePill .pillDesc {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.rangePill.active .pillDesc {
+  color: #047857;
+  font-weight: 600;
+}
+
+.pillBadge {
+  position: absolute;
+  top: -8px;
+  right: 8px;
+  background: #f59e0b;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pillBadge.info {
+  background: #0284c7;
+}
+
+/* Custom Month Range Dropdowns */
+.rangePresetsHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.customRangeDropdownsRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+.customRangeLabel {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.customRangeSelectors {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.periodSelectGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.periodSelectGroup label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.periodSelect {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.periodSelect:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.rangeSeparator {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.customRangeBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #065f46;
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+/* Statement Action Buttons */
+.statementActionsRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.statementActionsLeft, .statementActionsRight {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.statementBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  border: none;
+}
+
+.btnExcel {
+  background: #059669;
+  color: #ffffff;
+}
+
+.btnExcel:hover:not(:disabled) {
+  background: #047857;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+}
+
+.btnPrint {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.btnPrint:hover:not(:disabled) {
+  background: #0369a1;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+
+.btnPreview {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.btnPreview:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.btnPreview.active {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #7dd3fc;
+}
+
+.statementBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.statementAlert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+}
+
+/* Statement Preview Table & KPIs */
+.statementPreviewContainer {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.statementKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.kpiCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpiCard.earningKpi {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.kpiCard.deductionKpi {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.kpiCard.netKpi {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.kpiLabel {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.kpiValue {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.earningKpi .kpiValue {
+  color: #047857;
+}
+
+.deductionKpi .kpiValue {
+  color: #b91c1c;
+}
+
+.netKpi .kpiValue {
+  color: #0369a1;
+}
+
+.kpiUnit {
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.kpiSub {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.kpiSub.highlight {
+  color: #0284c7;
+  font-weight: 700;
+}
+
+.statementPreviewSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 0.75rem;
+}
+
+.statementTableWrapper {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.statementTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.statementTable th {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-bottom: 1.5px solid #cbd5e1;
+  white-space: nowrap;
+}
+
+.statementTable td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.statementTable tbody tr:hover {
+  background: #f8fafc;
+}
+
+.statementTable .textCenter {
+  text-align: center;
+}
+
+.statementTable .textRight {
+  text-align: right;
+}
+
+.statementTable .fontBold {
+  font-weight: 700;
+}
+
+.statementTable .textSuccess {
+  color: #059669;
+}
+
+.statementTable .textDanger {
+  color: #dc2626;
+}
+
+.statementTable .textMuted {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.statementTable .netCol {
+  background: rgba(2, 132, 199, 0.04);
+  color: #0369a1;
+}
+
+.statementTable .totalRow {
+  background: #f8fafc;
+  font-weight: 700;
+  border-top: 2px solid #cbd5e1;
+}
+
+.statementTable .avgRow {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+.statementTable .emptyTableRow {
+  text-align: center;
+  padding: 2rem;
+  color: #94a3b8;
+}
+
+.statementNote {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-style: italic;
 }
 
 /* Filters Card */
@@ -501,4 +1019,249 @@
   margin: 0;
   max-width: 480px;
   line-height: 1.6;
+}
+
+/* ========================================================= */
+/* PRINTABLE OFFICIAL STATEMENT DOCUMENT                     */
+/* Hidden on normal screen, shown only when printing         */
+/* ========================================================= */
+.statementPrintOnlyDoc {
+  display: none;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0 !important;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0 !important;
+  }
+
+  /* Hide standard page elements */
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Sarabun', 'TH Sarabun New', 'Prompt', 'IBM Plex Sans Thai', sans-serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Hide all standard layout and UI components */
+  .no-print,
+  nav,
+  header,
+  footer,
+  .navbar,
+  .site-header,
+  .site-footer,
+  .allSalaryContainer {
+    display: none !important;
+  }
+
+  /* Reset wrappers completely - remove top/bottom paddings and gray background */
+  main,
+  #main-content,
+  .allSalaryPage {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Show Statement Document (No Browser Headers/Footers, Clean Page Flow) */
+  .statementPrintOnlyDoc {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .statementPrintPage {
+    padding: 12mm 15mm 12mm 15mm !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .statementPrintPage:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Header - Monochrome */
+  .statementPrintHeader {
+    border-bottom: 1.5px solid #000000 !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .statementPrintLogoRow {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+
+  .statementPrintBrandGroup {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  .statementPrintPageNumber {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    border: 1px solid #000000 !important;
+    padding: 2px 8px !important;
+    white-space: nowrap !important;
+  }
+
+  .statementPrintLogo {
+    width: 48px !important;
+    height: 48px !important;
+    object-fit: contain !important;
+    filter: grayscale(100%) !important;
+  }
+
+  .statementPrintHeaderText h2 {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    margin: 0 0 1px 0 !important;
+  }
+
+  .statementPrintHeaderText h3 {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    margin: 0 0 1px 0 !important;
+  }
+
+  .statementPrintDocSub {
+    font-size: 11px !important;
+    color: #000000 !important;
+    margin: 0 !important;
+  }
+
+  /* Member Profile Info Box - Clean Black Outline */
+  .statementPrintInfoBox {
+    background-color: #ffffff !important;
+    border: 1px solid #000000 !important;
+    border-radius: 0 !important;
+    padding: 6px 10px !important;
+    margin-bottom: 8px !important;
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+    color: #000000 !important;
+  }
+
+  .statementPrintInfoRow {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-bottom: 2px !important;
+  }
+
+  .statementPrintInfoRow:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  .statementPrintInfoRow .infoLabel {
+    color: #000000 !important;
+    font-weight: 600 !important;
+    margin-right: 5px !important;
+  }
+
+  .statementPrintInfoRow .infoVal {
+    color: #000000 !important;
+  }
+
+  .statementPrintInfoRow .infoVal.bold {
+    font-weight: 700 !important;
+    color: #000000 !important;
+  }
+
+  /* Table Title */
+  .statementPrintTableTitle {
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* Table - Pure Black & White, Compact for Single Page */
+  .statementPrintTable {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 10.5px !important;
+    margin-bottom: 0 !important;
+    color: #000000 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .statementPrintTable th,
+  .statementPrintTable td {
+    border: 1px solid #000000 !important;
+    padding: 3.5px 6px !important;
+    color: #000000 !important;
+    background: #ffffff !important;
+    line-height: 1.25 !important;
+  }
+
+  .statementPrintTable th {
+    background-color: #ffffff !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    color: #000000 !important;
+    border-bottom: 1.5px solid #000000 !important;
+  }
+
+  .statementPrintTable .textCenter {
+    text-align: center !important;
+  }
+
+  .statementPrintTable .textLeft {
+    text-align: left !important;
+  }
+
+  .statementPrintTable .textRight {
+    text-align: right !important;
+  }
+
+  .statementPrintTable .fontBold {
+    font-weight: 700 !important;
+  }
+
+  .statementPrintTable .printTotalRow td {
+    border-top: 1.5px solid #000000 !important;
+    border-bottom: 1.5px solid #000000 !important;
+    background-color: #ffffff !important;
+    font-weight: 700 !important;
+  }
 }
