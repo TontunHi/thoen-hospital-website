@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname, useSelectedLayoutSegment } from 'next/navigation'
-import { Building2, BarChart3, Activity } from 'lucide-react'
+import { BUDGET_NAV_GROUPS } from './budgetNavConfig'
 
 export default function BudgetTrackerNav() {
   const segment = useSelectedLayoutSegment()
@@ -13,40 +13,33 @@ export default function BudgetTrackerNav() {
   const isMisHos = segment === 'mishos' || pathname?.startsWith('/service/budget-tracker/mishos') || false
   const isRh1 = segment === 'rh1' || (!isSmt && !isMisHos)
 
+  // Top level active tabs from config (excluding unready/planfin)
+  const items = BUDGET_NAV_GROUPS.flatMap((group) => group.items).filter(
+    (item) => item.id !== 'planfin'
+  )
+
   return (
     <div className="bt-main-tabs" role="tablist" aria-label="หมวดหมู่ระบบติดตามงบประมาณ">
-      <Link
-        href="/service/budget-tracker/rh1"
-        role="tab"
-        aria-selected={isRh1}
-        className={`bt-main-tab-btn ${isRh1 ? 'active' : ''}`}
-        suppressHydrationWarning
-      >
-        <Building2 size={18} />
-        <span>ผลงานชดเชย เขต 1 (MIS HOS เขต 1)</span>
-      </Link>
-
-      <Link
-        href="/service/budget-tracker/smt"
-        role="tab"
-        aria-selected={isSmt}
-        className={`bt-main-tab-btn ${isSmt ? 'active' : ''}`}
-        suppressHydrationWarning
-      >
-        <BarChart3 size={18} />
-        <span>ติดตามงบ สปสช. (SMT Dashboard)</span>
-      </Link>
-
-      <Link
-        href="/service/budget-tracker/mishos"
-        role="tab"
-        aria-selected={isMisHos}
-        className={`bt-main-tab-btn ${isMisHos ? 'active' : ''}`}
-        suppressHydrationWarning
-      >
-        <Activity size={18} />
-        <span>MIS HOS สปสช. (ส่วนกลาง)</span>
-      </Link>
+      {items.map((item) => {
+        const isCurrent =
+          (item.id === 'rh1' && isRh1) ||
+          (item.id === 'smt' && isSmt) ||
+          (item.id === 'mishos' && isMisHos)
+        const IconComponent = item.icon
+        return (
+          <Link
+            key={item.id}
+            href={item.href}
+            role="tab"
+            aria-selected={isCurrent}
+            className={`bt-main-tab-btn ${isCurrent ? 'active' : ''}`}
+            suppressHydrationWarning
+          >
+            <IconComponent size={18} />
+            <span>{item.title}</span>
+          </Link>
+        )
+      })}
     </div>
   )
 }

@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import Rh1BudgetTrackerClient from '../rh1/Rh1BudgetTrackerClient'
 import BudgetTrackerNav from '../BudgetTrackerNav'
+import BudgetTrackerSidebar from '../BudgetTrackerSidebar'
 import { Rh1BudgetService, THOEN_HOSPITAL_CODE } from '@/lib/budget/rh1BudgetService'
 
 describe('BudgetTrackerNav Component', () => {
@@ -19,6 +20,65 @@ describe('BudgetTrackerNav Component', () => {
     expect(rh1Tab.getAttribute('href')).toBe('/service/budget-tracker/rh1')
     expect(smtTab.getAttribute('href')).toBe('/service/budget-tracker/smt')
     expect(misHosTab.getAttribute('href')).toBe('/service/budget-tracker/mishos')
+  })
+})
+
+describe('BudgetTrackerSidebar Component', () => {
+  it('renders all navigation groups and items including Planfin', () => {
+    render(
+      <BudgetTrackerSidebar
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        isMobileOpen={false}
+        onCloseMobile={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('งบ สปสช. & ชดเชยบริการ')).toBeDefined()
+    expect(screen.getByText('แผนเงินบำรุง & งบลงทุน')).toBeDefined()
+    expect(screen.getByText('MIS HOS เขต 1')).toBeDefined()
+    expect(screen.getByText('SMT Dashboard')).toBeDefined()
+    expect(screen.getByText('MIS HOS ส่วนกลาง')).toBeDefined()
+    expect(screen.getByText('Planfin')).toBeDefined()
+  })
+
+  it('filters navigation items via search query input', () => {
+    render(
+      <BudgetTrackerSidebar
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        isMobileOpen={false}
+        onCloseMobile={vi.fn()}
+      />
+    )
+
+    const searchInput = screen.getByPlaceholderText('ค้นหารายงาน / เมนู...')
+    fireEvent.change(searchInput, { target: { value: 'SMT' } })
+
+    expect(screen.getByText('SMT Dashboard')).toBeDefined()
+    expect(screen.queryByText('MIS HOS เขต 1')).toBeNull()
+    expect(screen.queryByText('Planfin')).toBeNull()
+
+    // Clear search
+    const clearBtn = screen.getByLabelText('ล้างการค้นหา')
+    fireEvent.click(clearBtn)
+    expect(screen.getByText('MIS HOS เขต 1')).toBeDefined()
+    expect(screen.getByText('Planfin')).toBeDefined()
+  })
+
+  it('applies collapsed class when isCollapsed is true', () => {
+    const { container } = render(
+      <BudgetTrackerSidebar
+        isCollapsed={true}
+        onToggleCollapse={vi.fn()}
+        isMobileOpen={false}
+        onCloseMobile={vi.fn()}
+      />
+    )
+
+    const aside = container.querySelector('aside.bt-sidebar')
+    expect(aside?.classList.contains('collapsed')).toBe(true)
+    expect(screen.queryByPlaceholderText('ค้นหารายงาน / เมนู...')).toBeNull()
   })
 })
 
