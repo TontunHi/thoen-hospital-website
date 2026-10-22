@@ -807,11 +807,80 @@
 }
 
 .modal-footer {
-  padding: 1.25rem 2rem;
+  padding: 1rem 2rem;
   border-top: 1.5px solid #e2e8f0;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
   background-color: #ffffff;
+}
+
+.print-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.print-controls-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.print-checkboxes {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.print-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+  background: #f8fafc;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.print-checkbox-label:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.print-checkbox-label.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.print-checkbox-label input[type="checkbox"] {
+  accent-color: var(--primary, #0d7446);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.print-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 38px;
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
 }
 
 /* ── Mobile Responsiveness ── */
@@ -870,6 +939,26 @@
 
   .modal-footer {
     padding: 1rem 1.25rem;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .print-controls-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .print-checkboxes {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .print-trigger-btn {
+    width: 100%;
+    justify-content: center;
   }
   
   .modal-tabs {
@@ -880,5 +969,262 @@
   .tab-btn {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   B&W Print Stylesheet (@media print)
+   ═══════════════════════════════════════════ */
+#lab-printable-document {
+  display: none;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 10mm 12mm 10mm 12mm;
+}
+
+@media print {
+  /* 1. Reset color and shadows to pure monochrome */
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  }
+
+  /* 2. Hide all interactive screen elements */
+  nav,
+  footer,
+  header,
+  .navbar,
+  .site-footer,
+  .breadcrumb,
+  .lab-search-header,
+  .search-box,
+  .results-section,
+  .modal-header,
+  .visit-meta-grid,
+  .xray-banner,
+  .modal-tabs,
+  .tab-content,
+  .modal-footer,
+  .no-print {
+    display: none !important;
+  }
+
+  /* 3. Neutralize modal wrappers so they take 0 space and don't scroll/clip */
+  .lab-search-page {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    min-height: auto !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .modal-overlay {
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .modal-card {
+    border: none !important;
+    box-shadow: none !important;
+    max-height: none !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* 4. Display printable document */
+  #lab-printable-document {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt;
+    line-height: 1.35;
+  }
+
+  /* Document Header */
+  .lab-print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+
+  .lab-print-hospital-name {
+    font-size: 14pt;
+    font-weight: 800;
+    color: #000000;
+    margin: 0 0 2px 0;
+  }
+
+  .lab-print-doc-sub {
+    font-size: 8.5pt;
+    color: #333333;
+    margin: 0 0 4px 0;
+  }
+
+  .lab-print-doc-title {
+    font-size: 11.5pt;
+    font-weight: 700;
+    color: #000000;
+    margin: 0;
+    text-decoration: underline;
+  }
+
+  .lab-print-doc-meta {
+    font-size: 8.5pt;
+    text-align: right;
+    color: #333333;
+    line-height: 1.4;
+  }
+
+  /* Patient Demographics Box */
+  .lab-print-patient-box {
+    border: 1px solid #000000;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    background: #ffffff;
+    font-size: 9.5pt;
+  }
+
+  .lab-print-info-row {
+    display: grid;
+    grid-template-columns: 2fr 1.2fr 2fr 1fr;
+    gap: 4px 10px;
+    margin-bottom: 4px;
+  }
+
+  .lab-print-info-row:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Sections */
+  .lab-print-section {
+    margin-bottom: 12px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .lab-print-section-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #000000;
+    border-bottom: 1px solid #000000;
+    padding-bottom: 3px;
+    margin: 0 0 6px 0;
+  }
+
+  /* Vitals & Complaints */
+  .lab-print-vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px 8px;
+    font-size: 9pt;
+    padding: 6px 8px;
+    border: 1px dashed #666666;
+    margin-bottom: 6px;
+  }
+
+  .lab-print-complaints {
+    font-size: 9pt;
+    margin-bottom: 6px;
+    line-height: 1.35;
+  }
+
+  .lab-print-complaint-item {
+    margin-bottom: 3px;
+  }
+
+  .lab-print-dx-box {
+    font-size: 9pt;
+    padding: 4px 8px;
+    border: 1px solid #999999;
+    background: #fafafa;
+    margin-bottom: 4px;
+  }
+
+  /* Tables */
+  .lab-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+    font-size: 9pt;
+  }
+
+  .lab-print-table th,
+  .lab-print-table td {
+    border: 1px solid #000000;
+    padding: 3px 6px;
+    color: #000000;
+    vertical-align: top;
+  }
+
+  .lab-print-table th {
+    background-color: #f2f2f2 !important;
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .lab-print-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .lab-print-empty-note {
+    font-style: italic;
+    font-size: 8.5pt;
+    color: #555555;
+    margin: 4px 0;
+  }
+
+  /* Footer */
+  .lab-print-footer {
+    margin-top: 14px;
+    padding-top: 6px;
+    border-top: 1px solid #999999;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8pt;
+    color: #444444;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 }

@@ -20,7 +20,8 @@ import {
   Zap, 
   ChevronRight,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Printer
 } from 'lucide-react';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import './page.css';
@@ -112,6 +113,11 @@ export default function LabSearchClient() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detail, setDetail] = useState<VisitDetail | null>(null);
   const [activeTab, setActiveTab] = useState<'screening' | 'drugs' | 'labs'>('screening');
+  const [printSections, setPrintSections] = useState({
+    screening: true,
+    drugs: true,
+    labs: true,
+  });
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,11 +166,45 @@ export default function LabSearchClient() {
       }
 
       setDetail(data);
+      setPrintSections({
+        screening: Boolean(data.type === 'OPD' && data.screen),
+        drugs: (data.drugs?.length ?? 0) > 0,
+        labs: (data.labs?.length ?? 0) > 0,
+      });
     } catch (err: any) {
       setDetailError(err.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลรายละเอียด');
     } finally {
       setDetailLoading(false);
     }
+  };
+
+  const handlePrintDocument = () => {
+    if (!detail) return;
+
+    const selectedParts: string[] = [];
+    if (printSections.screening && detail.type === 'OPD' && detail.screen) {
+      selectedParts.push('ซักประวัติ/สัญญาณชีพ');
+    }
+    if (printSections.drugs) {
+      selectedParts.push(`ยาที่ได้รับ (${detail.drugs.length})`);
+    }
+    if (printSections.labs) {
+      selectedParts.push(`ผลตรวจ LAB (${detail.labs.length})`);
+    }
+
+    const visitKey = selectedVisitId?.vn ? `VN: ${selectedVisitId.vn}` : `AN: ${selectedVisitId?.an}`;
+
+    fetch('/api/log-audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actionType: 'EXPORT',
+        targetTable: 'patient_lab_history',
+        actionDetails: `พิมพ์เวชระเบียน HN: ${detail.patient.hn} (${visitKey}) [${selectedParts.join(', ')}]`,
+      }),
+    }).catch(() => {});
+
+    window.print();
   };
 
   const handleCloseDetail = () => {
@@ -631,12 +671,235 @@ export default function LabSearchClient() {
                         </div>
                       )}
                     </div>
+
+                    {/* Printable Document (Visible only when printing) */}
+                    <div id="lab-printable-document" aria-hidden="true">
+                      {/* Document Header */}
+                      <div className="lab-print-header">
+                        <div className="lab-print-header-titles">
+                          <h1 className="lab-print-hospital-name">โรงพยาบาลเถิน (Thoen Hospital)</h1>
+                          <p className="lab-print-doc-sub">อำเภอเถิน จังหวัดลำปาง • กลุ่มงานสารสนเทศทางการแพทย์</p>
+                          <h2 className="lab-print-doc-title">ใบสรุปประวัติการตรวจรักษาและผลการตรวจทางห้องปฏิบัติการ</h2>
+                        </div>
+                        <div className="lab-print-doc-meta">
+                          <div>
+                            วันที่พิมพ์:{' '}
+                            {new Intl.DateTimeFormat('th-TH', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            }).format(new Date())}
+                          </div>
+                          <div>
+                            ประเภท:{' '}
+                            {detail.type === 'OPD'
+                              ? `ผู้ป่วยนอก (VN: ${selectedVisitId?.vn || '-'})`
+                              : `ผู้ป่วยใน (AN: ${selectedVisitId?.an || '-'})`}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Patient Information Box */}
+                      <div className="lab-print-patient-box">
+                        <div className="lab-print-info-row">
+                          <div><strong>ชื่อ-นามสกุล:</strong> {detail.patient.name}</div>
+                          <div><strong>HN:</strong> {detail.patient.hn}</div>
+                          <div><strong>เลขประจำตัวประชาชน:</strong> {maskCid(detail.patient.cid)}</div>
+                          <div><strong>อายุ:</strong> {detail.patient.age} ปี</div>
+                        </div>
+                        <div className="lab-print-info-row">
+                          <div><strong>วันที่รับบริการ:</strong> {detail.patient.dateText}</div>
+                          <div>
+                            <strong>แผนก:</strong>{' '}
+                            {detail.screen?.department || (detail.type === 'OPD' ? 'ผู้ป่วยนอก' : 'ผู้ป่วยใน')}
+                          </div>
+                          <div style={{ gridColumn: 'span 2' }}>
+                            <strong>การวินิจฉัยหลัก (Primary Dx):</strong>{' '}
+                            {detail.patient.diagnosis || detail.screen?.dxMain || '-'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section 1: Screening & Vitals */}
+                      {printSections.screening && detail.type === 'OPD' && detail.screen && (
+                        <div className="lab-print-section">
+                          <h3 className="lab-print-section-title">ข้อมูลการซักประวัติและสัญญาณชีพ (Triage & Vital Signs)</h3>
+                          <div className="lab-print-vitals-grid">
+                            <div><strong>ความดันโลหิต (BP):</strong> {detail.screen.bps || '-'}/{detail.screen.bpd || '-'} mmHg</div>
+                            <div><strong>ชีพจร (Pulse):</strong> {detail.screen.pulse || '-'} bpm</div>
+                            <div><strong>อุณหภูมิ (Temp):</strong> {detail.screen.temperature || '-'} °C</div>
+                            <div><strong>การหายใจ (RR):</strong> {detail.screen.rr || '-'} bpm</div>
+                            <div><strong>น้ำหนัก:</strong> {detail.screen.bw || '-'} กก.</div>
+                            <div><strong>ส่วนสูง:</strong> {detail.screen.height || '-'} ซม.</div>
+                          </div>
+
+                          <div className="lab-print-complaints">
+                            <div className="lab-print-complaint-item">
+                              <strong>อาการสำคัญ (Chief Complaint):</strong> {detail.screen.cc || '-'}
+                            </div>
+                            {detail.screen.hpi && (
+                              <div className="lab-print-complaint-item">
+                                <strong>ประวัติการเจ็บป่วยปัจจุบัน (HPI):</strong> {detail.screen.hpi}
+                              </div>
+                            )}
+                            {detail.screen.pmh && (
+                              <div className="lab-print-complaint-item">
+                                <strong>ประวัติการเจ็บป่วยในอดีต (PMH):</strong> {detail.screen.pmh}
+                              </div>
+                            )}
+                          </div>
+
+                          {(detail.screen.dxMain || detail.screen.dxSub0 || detail.screen.dxSub1 || detail.screen.dxSub2) && (
+                            <div className="lab-print-dx-box">
+                              <strong>การวินิจฉัยโรค (Diagnosis): </strong>
+                              {[detail.screen.dxMain, detail.screen.dxSub0, detail.screen.dxSub1, detail.screen.dxSub2]
+                                .filter(Boolean)
+                                .join(' | ')}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Section 2: Drugs */}
+                      {printSections.drugs && (
+                        <div className="lab-print-section">
+                          <h3 className="lab-print-section-title">
+                            รายการยาที่ได้รับ ({detail.drugs.length} รายการ)
+                          </h3>
+                          {detail.drugs.length > 0 ? (
+                            <table className="lab-print-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '40px', textAlign: 'center' }}>ลำดับ</th>
+                                  {detail.type === 'IPD' && <th style={{ width: '95px' }}>วันที่จ่าย</th>}
+                                  <th>ชื่อยาและความแรง</th>
+                                  <th style={{ width: '85px', textAlign: 'right' }}>จำนวน</th>
+                                  <th>วิธีใช้ยา</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {detail.drugs.map((drug, idx) => (
+                                  <tr key={idx}>
+                                    <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                                    {detail.type === 'IPD' && <td>{drug.dateText || '-'}</td>}
+                                    <td><strong>{drug.name}</strong> {drug.strength}</td>
+                                    <td style={{ textAlign: 'right' }}>{drug.qty} {drug.units}</td>
+                                    <td>{drug.usage}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <p className="lab-print-empty-note">- ไม่มีประวัติการสั่งใช้ยาในการรับบริการนี้ -</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Section 3: Labs */}
+                      {printSections.labs && (
+                        <div className="lab-print-section">
+                          <h3 className="lab-print-section-title">
+                            ผลตรวจทางห้องปฏิบัติการ LAB ({detail.labs.length} รายการ)
+                          </h3>
+                          {detail.labs.length > 0 ? (
+                            <table className="lab-print-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: '40px', textAlign: 'center' }}>ลำดับ</th>
+                                  {detail.type === 'IPD' && <th style={{ width: '95px' }}>วันที่รายงาน</th>}
+                                  <th style={{ width: '180px' }}>กลุ่มแบบฟอร์ม LAB</th>
+                                  <th>รายการตรวจ</th>
+                                  <th style={{ width: '100px', textAlign: 'center' }}>ผลตรวจ</th>
+                                  <th style={{ width: '120px' }}>ค่าอ้างอิงปกติ</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {detail.labs.map((lab, idx) => (
+                                  <tr key={idx}>
+                                    <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                                    {detail.type === 'IPD' && <td>{lab.dateText || '-'}</td>}
+                                    <td>{lab.formName}</td>
+                                    <td><strong>{lab.itemName}</strong></td>
+                                    <td style={{ textAlign: 'center' }}><strong>{lab.result}</strong></td>
+                                    <td>{lab.refValue || '-'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <p className="lab-print-empty-note">- ไม่มีบันทึกผลการตรวจทางห้องปฏิบัติการในการรับบริการนี้ -</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Document Footer */}
+                      <div className="lab-print-footer">
+                        <div className="lab-print-footer-notice">
+                          * เอกสารสรุปเวชระเบียน ใช้สำหรับการดูแลรักษาพยาบาลและการติดตามอาการของผู้ป่วย ข้อมูลนี้ได้รับความคุ้มครองตาม พ.ร.บ. สุขภาพแห่งชาติ
+                        </div>
+                        <div className="lab-print-footer-signature">
+                          <span>โรงพยาบาลเถิน อ.เถิน จ.ลำปาง</span>
+                        </div>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
 
               {/* Modal Bottom Footer */}
               <div className="modal-footer">
+                <div className="print-controls-bar">
+                  <span className="print-controls-label">เลือกส่วนพิมพ์:</span>
+                  <div className="print-checkboxes">
+                    {detail?.type === 'OPD' && (
+                      <label className={`print-checkbox-label ${!detail?.screen ? 'disabled' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(printSections.screening && detail?.screen)}
+                          disabled={!detail?.screen}
+                          onChange={(e) => setPrintSections((prev) => ({ ...prev, screening: e.target.checked }))}
+                        />
+                        <span>ซักประวัติ & สัญญาณชีพ</span>
+                      </label>
+                    )}
+                    <label className="print-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={printSections.drugs}
+                        onChange={(e) => setPrintSections((prev) => ({ ...prev, drugs: e.target.checked }))}
+                      />
+                      <span>ยาที่ได้รับ ({detail?.drugs.length || 0})</span>
+                    </label>
+                    <label className="print-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={printSections.labs}
+                        onChange={(e) => setPrintSections((prev) => ({ ...prev, labs: e.target.checked }))}
+                      />
+                      <span>ผลตรวจ LAB ({detail?.labs.length || 0})</span>
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary print-trigger-btn touch-target"
+                    disabled={
+                      !detail ||
+                      detailLoading ||
+                      !(
+                        (printSections.screening && detail?.type === 'OPD' && detail?.screen) ||
+                        printSections.drugs ||
+                        printSections.labs
+                      )
+                    }
+                    onClick={handlePrintDocument}
+                    title="สั่งพิมพ์ออกเครื่องพิมพ์ หรือเลือก Save as PDF ในหน้าต่างพิมพ์"
+                  >
+                    <Printer size={16} />
+                    <span>พิมพ์เอกสาร (PDF)</span>
+                  </button>
+                </div>
                 <button type="button" className="btn btn-outline touch-target" onClick={handleCloseDetail}>
                   ปิดหน้าต่าง
                 </button>
