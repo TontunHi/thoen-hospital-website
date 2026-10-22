@@ -14,8 +14,11 @@ import {
   X,
   Pause,
   AlertTriangle,
+  FileSpreadsheet,
 } from 'lucide-react'
 import './page.css'
+import './screeningExport.css'
+import { exportScreeningToExcel } from './utils/exportScreeningExcel'
 
 interface UserInfo {
   id?: number | null
@@ -58,6 +61,7 @@ export default function ScreeningDashboardClient({ user }: Props) {
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isExporting, setIsExporting] = useState<boolean>(false)
 
   // Compute if all active items have opened visit today
   const isAllVisitOpened = useMemo(() => {
@@ -234,6 +238,42 @@ export default function ScreeningDashboardClient({ user }: Props) {
     return birthDateStr
   }
 
+
+  // Export filtered items to Excel with audit logging
+  const handleExportExcel = async () => {
+    if (filteredItems.length === 0) {
+      alert('ไม่พบข้อมูลสำหรับส่งออก Excel ตามเงื่อนไขตัวกรองปัจจุบัน')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      // 1. Record PDPA-compliant Audit Log
+      await fetch('/api/service/screening/export-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          count: filteredItems.length,
+          dateFilter: selectedDate,
+          statusFilter,
+          searchApplied: Boolean(searchTerm.trim()),
+        }),
+      }).catch((err) => {
+        console.error('Failed to log screening export audit:', err)
+      })
+
+      // 2. Generate and download Excel
+      await exportScreeningToExcel(filteredItems, {
+        selectedDate,
+        statusFilter,
+      })
+    } catch (err: any) {
+      alert(`เกิดข้อผิดพลาดในการส่งออกไฟล์ Excel: ${err?.message || err}`)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   return (
     <div className="screeningPage">
       <div className="screeningContainer">
@@ -391,6 +431,17 @@ export default function ScreeningDashboardClient({ user }: Props) {
               >
                 <Calendar size={14} />
                 <span>{selectedDate === 'today' ? 'ดูข้อมูลย้อนหลัง' : selectedDate === 'all' ? 'แสดงทั้งหมด (All)' : `วันที่: ${selectedDate}`}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isExporting || filteredItems.length === 0}
+                className="exportExcelBtn"
+                title="ส่งออกข้อมูลเป็น Excel (วันที่รับบริการ, เลขบัตรประชาชน, ชื่อ-สกุล)"
+              >
+                <FileSpreadsheet size={14} />
+                <span>{isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}</span>
               </button>
             </div>
           </div>

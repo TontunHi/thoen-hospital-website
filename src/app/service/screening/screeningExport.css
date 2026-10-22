@@ -1,0 +1,33 @@
+/* ==========================================================================
+   Screening Export Excel Button Styling
+   ========================================================================== */
+
+.exportExcelBtn {
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #10b981;
+  background: #ecfdf5;
+  color: #047857;
+  transition: all 0.2s ease;
+}
+
+.exportExcelBtn:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+}
+
+.exportExcelBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
