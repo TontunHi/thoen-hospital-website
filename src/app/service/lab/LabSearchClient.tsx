@@ -204,7 +204,19 @@ export default function LabSearchClient() {
       }),
     }).catch(() => {});
 
+    const cleanTag = selectedVisitId?.vn || selectedVisitId?.an || 'visit';
+    const prevTitle = typeof document !== 'undefined' ? document.title : '';
+    if (typeof document !== 'undefined') {
+      document.title = `เวชระเบียน_HN_${detail.patient.hn}_${cleanTag}`;
+    }
+
     window.print();
+
+    if (typeof document !== 'undefined') {
+      setTimeout(() => {
+        document.title = prevTitle;
+      }, 1000);
+    }
   };
 
   const handleCloseDetail = () => {

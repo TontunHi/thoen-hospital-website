@@ -981,7 +981,7 @@
 
 @page {
   size: A4 portrait;
-  margin: 10mm 12mm 10mm 12mm;
+  margin: 0;
 }
 
 @media print {
@@ -1069,8 +1069,9 @@
   #lab-printable-document {
     display: block !important;
     width: 100% !important;
+    box-sizing: border-box !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 12mm 15mm 12mm 15mm !important;
     background: #ffffff !important;
     color: #000000 !important;
     font-size: 10pt;
