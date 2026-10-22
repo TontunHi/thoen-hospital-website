@@ -239,11 +239,24 @@ describe('LabSearchClient - B&W PDF & Document Print System', () => {
     const printDoc = container.querySelector('#lab-printable-document');
     expect(printDoc).toBeInTheDocument();
 
-    // Verify hospital name and unmasked formatted CID inside printable document
-    expect(printDoc).toHaveTextContent('โรงพยาบาลเถิน (Thoen Hospital)');
-    expect(printDoc).toHaveTextContent('1-5299-00123-45-6');
-    expect(printDoc).toHaveTextContent('ข้อมูลการซักประวัติและสัญญาณชีพ');
-    expect(printDoc).toHaveTextContent('Paracetamol');
-    expect(printDoc).toHaveTextContent('WBC Count');
+    // Verify repeat layout table structure (thead for repeating patient info across all pages)
+    const layoutTable = printDoc?.querySelector('.lab-print-layout-table');
+    expect(layoutTable).toBeInTheDocument();
+
+    const thead = layoutTable?.querySelector('thead');
+    expect(thead).toBeInTheDocument();
+    expect(thead).toHaveTextContent('โรงพยาบาลเถิน (Thoen Hospital)');
+    expect(thead).toHaveTextContent('1-5299-00123-45-6');
+    expect(thead).toHaveTextContent('นายทดสอบ รักษาดี');
+
+    const tbody = layoutTable?.querySelector('tbody');
+    expect(tbody).toBeInTheDocument();
+    expect(tbody).toHaveTextContent('ข้อมูลการซักประวัติและสัญญาณชีพ');
+    expect(tbody).toHaveTextContent('Paracetamol');
+    expect(tbody).toHaveTextContent('WBC Count');
+
+    const tfoot = layoutTable?.querySelector('tfoot');
+    expect(tfoot).toBeInTheDocument();
+    expect(tfoot).toHaveTextContent('พ.ร.บ. สุขภาพแห่งชาติ');
   });
 });

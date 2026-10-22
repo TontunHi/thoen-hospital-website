@@ -1078,6 +1078,38 @@
     line-height: 1.35;
   }
 
+  /* Layout Table for repeating patient header across every printed page */
+  .lab-print-layout-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .lab-print-layout-table > thead {
+    display: table-header-group !important;
+  }
+
+  .lab-print-layout-table > thead > tr > td {
+    border: none !important;
+    padding: 0 0 6px 0 !important;
+  }
+
+  .lab-print-layout-table > tbody > tr > td {
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .lab-print-layout-table > tfoot {
+    display: table-footer-group !important;
+  }
+
+  .lab-print-layout-table > tfoot > tr > td {
+    border: none !important;
+    padding: 8px 0 0 0 !important;
+  }
+
   /* Document Header */
   .lab-print-header {
     display: flex;
@@ -1085,7 +1117,7 @@
     align-items: flex-start;
     border-bottom: 2px solid #000000;
     padding-bottom: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
 
   .lab-print-hospital-name {
@@ -1106,7 +1138,7 @@
     font-weight: 700;
     color: #000000;
     margin: 0;
-    text-decoration: underline;
+    text-decoration: none !important;
   }
 
   .lab-print-doc-meta {
@@ -1119,8 +1151,8 @@
   /* Patient Demographics Box */
   .lab-print-patient-box {
     border: 1px solid #000000;
-    padding: 8px 10px;
-    margin-bottom: 12px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
     background: #ffffff;
     font-size: 9.5pt;
   }
@@ -1129,27 +1161,27 @@
     display: grid;
     grid-template-columns: 2fr 1.2fr 2fr 1fr;
     gap: 4px 10px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   .lab-print-info-row:last-child {
     margin-bottom: 0;
   }
 
-  /* Sections */
+  /* Sections: natural continuous flow without premature page splitting */
   .lab-print-section {
-    margin-bottom: 12px;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    margin-bottom: 10px;
   }
 
   .lab-print-section-title {
     font-size: 10.5pt;
     font-weight: 700;
     color: #000000;
-    border-bottom: 1px solid #000000;
-    padding-bottom: 3px;
-    margin: 0 0 6px 0;
+    margin: 8px 0 4px 0;
+    border-bottom: none !important;
+    text-decoration: none !important;
+    page-break-after: avoid;
+    break-after: avoid;
   }
 
   /* Vitals & Complaints */
