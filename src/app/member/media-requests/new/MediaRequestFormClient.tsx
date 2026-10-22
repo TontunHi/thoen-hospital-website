@@ -63,7 +63,7 @@ const WORK_TYPES_CONFIG = [
   { key: 'announcement_board', label: 'ป้ายประกาศ', icon: '📌', hasCustomInput: false },
   { key: 'sticker', label: 'สติ๊กเกอร์', icon: '🏷️', hasCustomInput: false },
   { key: 'video_editing', label: 'ตัดต่อวิดีโอ', icon: '🎬', hasCustomInput: false },
-  { key: 'powerpoint', label: 'PowerPoint', icon: '📊', hasCustomInput: false },
+  { key: 'powerpoint', label: 'PowerPoint / Canva', icon: '📊', hasCustomInput: false },
   {
     key: 'other',
     label: 'อื่น ๆ',

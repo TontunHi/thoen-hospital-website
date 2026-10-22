@@ -19,22 +19,37 @@ export interface ScreeningExportMeta {
 
 /**
  * Format timestamp into Thai Buddhist date and time (DD/MM/BBBB HH:mm น.)
+ * Handles both native Date instances (UTC/local) and ISO strings with timezone offsets
  */
 export function formatThaiDateTime(dateVal: string | Date): string {
   if (!dateVal) return '-'
   try {
-    const isoStr = typeof dateVal === 'string' ? dateVal : dateVal.toISOString()
-    const normalized = isoStr.endsWith('Z') ? isoStr.replace(/Z$/, '+07:00') : isoStr
-    const d = new Date(normalized)
-    if (isNaN(d.getTime())) return String(dateVal)
+    let d: Date | null = null
+    if (dateVal instanceof Date) {
+      d = isNaN(dateVal.getTime()) ? null : dateVal
+    } else if (typeof dateVal === 'string') {
+      let s = dateVal.trim()
+      if (!s) return '-'
+      if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(s)) s = s.replace(' ', 'T')
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(s)) s += '+07:00'
+      const parsed = new Date(s)
+      d = isNaN(parsed.getTime()) ? null : parsed
+    }
+    if (!d) return String(dateVal)
 
-    const day = String(d.getDate()).padStart(2, '0')
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const year = d.getFullYear() + 543
-    const hours = String(d.getHours()).padStart(2, '0')
-    const minutes = String(d.getMinutes()).padStart(2, '0')
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Bangkok',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(d)
 
-    return `${day}/${month}/${year} ${hours}:${minutes} น.`
+    const get = (type: string) => parts.find((p) => p.type === type)?.value || ''
+    const yearTh = parseInt(get('year'), 10) + 543
+    return `${get('day')}/${get('month')}/${yearTh} ${get('hour')}:${get('minute')} น.`
   } catch {
     return String(dateVal)
   }
@@ -196,5 +211,8 @@ export async function exportScreeningToExcel(
   anchor.href = url
   anchor.download = `screening_patients_${dateFileTag}.xlsx`
   anchor.click()
-  window.URL.revokeObjectURL(url)
+  // Delay revocation to ensure all browsers (Firefox, Safari, Chromium) complete downloading the stream
+  setTimeout(() => {
+    window.URL.revokeObjectURL(url)
+  }, 1000)
 }

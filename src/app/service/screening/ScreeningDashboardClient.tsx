@@ -248,8 +248,8 @@ export default function ScreeningDashboardClient({ user }: Props) {
 
     setIsExporting(true)
     try {
-      // 1. Record PDPA-compliant Audit Log
-      await fetch('/api/service/screening/export-audit', {
+      // 1. Record PDPA-compliant Audit Log (strictly required before exposing export)
+      const auditRes = await fetch('/api/service/screening/export-audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -258,9 +258,24 @@ export default function ScreeningDashboardClient({ user }: Props) {
           statusFilter,
           searchApplied: Boolean(searchTerm.trim()),
         }),
-      }).catch((err) => {
-        console.error('Failed to log screening export audit:', err)
       })
+
+      if (!auditRes.ok) {
+        let errorMsg = 'ไม่สามารถบันทึกประวัติการส่งออก (Audit Log) ได้'
+        try {
+          const auditJson = await auditRes.json()
+          if (auditJson?.error?.message) {
+            errorMsg = auditJson.error.message
+          } else if (auditRes.status === 401) {
+            errorMsg = 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่ก่อนส่งออกข้อมูล'
+          } else if (auditRes.status === 403) {
+            errorMsg = 'คุณไม่มีสิทธิ์ส่งออกข้อมูลผู้รับบริการ'
+          }
+        } catch {
+          // fallback to errorMsg
+        }
+        throw new Error(errorMsg)
+      }
 
       // 2. Generate and download Excel
       await exportScreeningToExcel(filteredItems, {

@@ -14,6 +14,22 @@ describe('exportScreeningExcel utility', () => {
       expect(formatted).toContain('08:30 น.')
     })
 
+    it('formats native Date object and UTC string ending with Z correctly in Asia/Bangkok (+07:00)', () => {
+      // 01:30 UTC is 08:30 in Bangkok
+      const utcString = '2026-10-22T01:30:00.000Z'
+      const formattedUtc = formatThaiDateTime(utcString)
+      expect(formattedUtc).toBe('22/10/2569 08:30 น.')
+
+      const nativeDate = new Date('2026-10-22T01:30:00.000Z')
+      const formattedNative = formatThaiDateTime(nativeDate)
+      expect(formattedNative).toBe('22/10/2569 08:30 น.')
+    })
+
+    it('formats SQL space datetime string correctly', () => {
+      const formattedSql = formatThaiDateTime('2026-10-22 08:30:00')
+      expect(formattedSql).toBe('22/10/2569 08:30 น.')
+    })
+
     it('handles falsy or invalid input gracefully', () => {
       expect(formatThaiDateTime('')).toBe('-')
       expect(formatThaiDateTime(null as any)).toBe('-')
