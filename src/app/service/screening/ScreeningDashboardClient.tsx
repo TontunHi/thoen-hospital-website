@@ -85,6 +85,14 @@ export default function ScreeningDashboardClient({ user }: Props) {
         queryParams.set('date', selectedDate)
 
         const res = await fetch(`/api/service/screening?${queryParams.toString()}`)
+        const contentType = res.headers.get('content-type') || ''
+        if (!contentType.includes('application/json')) {
+          const text = await res.text()
+          if (res.status === 401 || res.status === 403) {
+            throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
+          }
+          throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status}): ${text.slice(0, 100)}`)
+        }
         const json = await res.json()
 
         if (!res.ok || !json.success) {
@@ -131,17 +139,59 @@ export default function ScreeningDashboardClient({ user }: Props) {
 
     setActionLoadingId(id)
     try {
-      const res = await fetch(`/api/service/screening/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: newStatus,
-          vn: vn ?? null,
-        }),
-      })
+      let res: Response
+      try {
+        res = await fetch(`/api/service/screening/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: newStatus,
+            vn: vn ?? null,
+          }),
+        })
+      } catch {
+        res = new Response(null, { status: 500 })
+      }
 
-      const json = await res.json()
-      if (!res.ok || !json.success) {
+      let finalRes = res
+      const isJson = (res.headers.get('content-type') || '').includes('application/json')
+      if (!res.ok || !isJson) {
+        try {
+          const fallbackRes = await fetch('/api/service/screening', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'UPDATE_STATUS',
+              id,
+              status: newStatus,
+              vn: vn ?? null,
+            }),
+          })
+          if ((fallbackRes.headers.get('content-type') || '').includes('application/json')) {
+            finalRes = fallbackRes
+          }
+        } catch {
+          // fallback failed
+        }
+      }
+
+      const contentType = finalRes.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        const text = await finalRes.text()
+        if (finalRes.status === 401 || finalRes.status === 403) {
+          throw new Error('เซสชันสมาชิกหมดอายุหรือไม่มีสิทธิ์ กรุณาเข้าสู่ระบบใหม่')
+        }
+        if (finalRes.status === 404) {
+          throw new Error('ไม่พบเส้นทาง API บนเซิร์ฟเวอร์ (HTTP 404): กรุณาตรวจสอบว่าเซิร์ฟเวอร์รัน npm run build และรีสตาร์ทบริการแล้ว')
+        }
+        if (finalRes.status === 405) {
+          throw new Error('เซิร์ฟเวอร์หรือพร็อกซีปฏิเสธคำขอ (HTTP 405 Method Not Allowed)')
+        }
+        throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${finalRes.status}): ${text.slice(0, 100)}`)
+      }
+
+      const json = await finalRes.json()
+      if (!finalRes.ok || !json.success) {
         throw new Error(json.error?.message || 'ปรับปรุงสถานะไม่สำเร็จ')
       }
 

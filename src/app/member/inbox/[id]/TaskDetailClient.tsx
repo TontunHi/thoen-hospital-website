@@ -366,6 +366,10 @@ export default function TaskDetailClient({
       const files = Array.from(e.target.files)
       const newFiles: any[] = []
       for (const file of files) {
+        if (file.name && file.name.length > 80) {
+          alert(`ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร\n(ไฟล์ "${file.name}" ยาว ${file.name.length} ตัวอักษร)\n\nกรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด`)
+          continue
+        }
         if (file.size > 25 * 1024 * 1024) {
           alert(`ไฟล์ "${file.name}" มีขนาดเกิน 25MB`)
           continue
@@ -413,6 +417,10 @@ export default function TaskDetailClient({
       const files = Array.from(e.target.files)
       const newFiles: any[] = []
       for (const file of files) {
+        if (file.name && file.name.length > 80) {
+          alert(`ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร\n(ไฟล์ "${file.name}" ยาว ${file.name.length} ตัวอักษร)\n\nกรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด`)
+          continue
+        }
         if (file.size > 10 * 1024 * 1024) {
           alert(`ไฟล์ใบเสนอราคา "${file.name}" มีขนาดเกิน 10MB`)
           continue

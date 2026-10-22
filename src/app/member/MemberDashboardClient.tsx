@@ -445,11 +445,11 @@ export default function MemberDashboardClient({
                 )}
 
                 {/* ── Section 6: System Administration (สำหรับผู้ดูแลระบบ) ── */}
-                {permissions.isAdmin && adminItems.length > 0 && (
+                {adminItems.length > 0 && (
                   <section aria-labelledby="section-admin" className="memberSection">
                     <div className="adminContainer">
                       <h3 id="section-admin" className="memberSectionTitle">
-                        สำหรับผู้ดูแลระบบ
+                        {permissions.isAdmin ? 'สำหรับผู้ดูแลระบบ' : 'การจัดการระบบที่ได้รับมอบหมาย'}
                       </h3>
                       <div className="adminGrid">
                         {adminItems.map((item) => (

@@ -126,4 +126,29 @@ describe('DocumentStorage Module', () => {
       expect(res.publicUrl).toMatch(/^\/uploads\/test-batch\/batch_item-/)
     }
   })
+
+  it('rejects filenames exceeding 80 characters with StorageValidationError', async () => {
+    const dummyBuffer = Buffer.from('pdf content')
+    const longName = 'a'.repeat(81) + '.pdf'
+    await expect(
+      DocumentStorage.save(dummyBuffer, {
+        destinationDir: 'public/uploads/test-docs',
+        baseName: longName,
+        allowedExtensions: ['.pdf'],
+      })
+    ).rejects.toThrow('ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร')
+  })
+
+  it('safely caps baseName to 50 characters on disk to prevent path overflow', async () => {
+    const dummyBuffer = Buffer.from('pdf content')
+    const name70chars = 'a'.repeat(70) + '.pdf'
+    const result = await DocumentStorage.save(dummyBuffer, {
+      destinationDir: 'public/uploads/test-docs',
+      baseName: name70chars,
+      allowedExtensions: ['.pdf'],
+      collisionStrategy: 'fixed',
+    })
+    testFilesToClean.push(result.publicUrl)
+    expect(result.fileName.replace('.pdf', '').length).toBe(50)
+  })
 })

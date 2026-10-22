@@ -351,6 +351,11 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
 
+        if (file.name && file.name.length > 80) {
+          alert(`ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร\n(ไฟล์ "${file.name}" ยาว ${file.name.length} ตัวอักษร)\n\nกรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด`)
+          throw new Error(`ชื่อไฟล์ "${file.name}" ยาวเกินกำหนด (สูงสุด 80 ตัวอักษร)`)
+        }
+
         if (file.size > 25 * 1024 * 1024) {
           throw new Error(`ไฟล์ "${file.name}" มีขนาดเกิน 25MB`)
         }
@@ -428,6 +433,11 @@ export default function MediaRequestFormClient({ currentUser }: MediaRequestForm
       const newFiles: { fileName: string; filePath: string; fileType?: string; fileSize?: number }[] = []
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
+
+        if (file.name && file.name.length > 80) {
+          alert(`ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร\n(ไฟล์ "${file.name}" ยาว ${file.name.length} ตัวอักษร)\n\nกรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด`)
+          throw new Error(`ชื่อไฟล์ "${file.name}" ยาวเกินกำหนด (สูงสุด 80 ตัวอักษร)`)
+        }
 
         if (file.size > 10 * 1024 * 1024) {
           throw new Error(`ไฟล์ใบเสนอราคา "${file.name}" มีขนาดเกิน 10MB`)

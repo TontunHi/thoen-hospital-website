@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET as getQueues, POST as createQueue } from '../route'
-import { GET as getQueueDetail, PATCH as updateQueueStatus } from '../[id]/route'
+import {
+  GET as getQueueDetail,
+  PATCH as updateQueueStatus,
+  POST as updateQueuePost,
+  DELETE as cancelQueueDelete,
+} from '../[id]/route'
 import * as memberAuth from '@/lib/memberAuth'
 import { screeningQueueService } from '@/lib/screening/screeningService'
 import { NextRequest, NextResponse } from 'next/server'
@@ -175,6 +180,80 @@ describe('Screening Queue API Routes', () => {
       expect(res.status).toBe(200)
       expect(data.success).toBe(true)
       expect(data.data.status).toBe('VISIT_OPENED')
+    })
+
+    it('supports POST /api/service/screening/[id] for proxy compatibility', async () => {
+      vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+        member: mockMember as any,
+      })
+
+      vi.mocked(screeningQueueService.updateQueueStatus).mockResolvedValue({
+        id: 1,
+        status: 'CANCELLED',
+      } as any)
+
+      const req = new NextRequest('http://localhost:3000/api/service/screening/1', {
+        method: 'POST',
+        body: JSON.stringify({
+          status: 'CANCELLED',
+        }),
+      })
+
+      const res = await updateQueuePost(req, { params: Promise.resolve({ id: '1' }) })
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.data.status).toBe('CANCELLED')
+    })
+
+    it('supports DELETE /api/service/screening/[id] to cancel queue', async () => {
+      vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+        member: mockMember as any,
+      })
+
+      vi.mocked(screeningQueueService.updateQueueStatus).mockResolvedValue({
+        id: 1,
+        status: 'CANCELLED',
+      } as any)
+
+      const req = new NextRequest('http://localhost:3000/api/service/screening/1', {
+        method: 'DELETE',
+      })
+
+      const res = await cancelQueueDelete(req, { params: Promise.resolve({ id: '1' }) })
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.data.status).toBe('CANCELLED')
+    })
+
+    it('supports direct fallback POST /api/service/screening with UPDATE_STATUS action', async () => {
+      vi.spyOn(memberAuth, 'requireMemberApi').mockResolvedValue({
+        member: mockMember as any,
+      })
+
+      vi.mocked(screeningQueueService.updateQueueStatus).mockResolvedValue({
+        id: 1,
+        status: 'CANCELLED',
+      } as any)
+
+      const req = new NextRequest('http://localhost:3000/api/service/screening', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'UPDATE_STATUS',
+          id: 1,
+          status: 'CANCELLED',
+        }),
+      })
+
+      const res = await createQueue(req)
+      const data = await res.json()
+
+      expect(res.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.data.status).toBe('CANCELLED')
     })
   })
 })

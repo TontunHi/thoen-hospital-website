@@ -18,6 +18,12 @@ const createQueueSchema = z.object({
   vn: z.string().optional().nullable(),
 })
 
+const updateQueueBodySchema = z.object({
+  id: z.coerce.number().int().positive('รหัสคิวไม่ถูกต้อง'),
+  status: z.enum(['WAITING', 'VISIT_OPENED', 'NO_RECORD', 'CANCELLED']),
+  vn: z.string().optional().nullable(),
+})
+
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireMemberApi()
@@ -63,6 +69,43 @@ export async function POST(req: NextRequest) {
     const member = auth.member
 
     const body = await req.json()
+
+    // Status update fallback path (prevents proxy / reverse proxy issues with [id] or HTTP PATCH)
+    if (body.action === 'UPDATE_STATUS' || (body.id && body.status && !body.cid)) {
+      const parsedUpdate = updateQueueBodySchema.safeParse(body)
+      if (!parsedUpdate.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: parsedUpdate.error.issues[0]?.message || 'ข้อมูลสถานะไม่ถูกต้อง',
+            },
+          },
+          { status: 400 }
+        )
+      }
+
+      const updated = await screeningQueueService.updateQueueStatus(
+        parsedUpdate.data.id,
+        {
+          status: parsedUpdate.data.status,
+          vn: parsedUpdate.data.vn,
+        },
+        {
+          id: member.id,
+          name: member.name,
+          username: member.username,
+          role: member.role,
+        }
+      )
+
+      return NextResponse.json({
+        success: true,
+        data: updated,
+      })
+    }
+
     const parsed = createQueueSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
@@ -103,4 +146,8 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+export async function PATCH(req: NextRequest) {
+  return POST(req)
 }

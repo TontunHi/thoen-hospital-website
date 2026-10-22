@@ -77,12 +77,16 @@ const DEFAULT_ALLOWED_ROOT_PREFIXES = ['public/uploads', 'public/documents', 'st
 /**
  * Sanitize a string to be safely used as a filename or directory name.
  */
-export function sanitizeName(name: string): string {
-  return name
+export function sanitizeName(name: string, maxLength = 80): string {
+  const sanitized = name
     .replace(/[\\/:*?"<>|\r\n\t]/g, '_')
     .replace(/\.{2,}/g, '_')
     .replace(/[. ]+$/g, '')
     .trim()
+
+  return sanitized.length > maxLength
+    ? sanitized.slice(0, maxLength).trim().replace(/[. _-]+$/, '')
+    : sanitized
 }
 
 /**
@@ -144,6 +148,15 @@ export const DocumentStorage = {
       buffer = Buffer.from(await file.arrayBuffer())
     }
 
+    // Filename length validation (enforce max 80 characters to prevent Windows MAX_PATH/URL overflow)
+    const candidateName = options.baseName || originalName
+    if (candidateName && candidateName.length > 80) {
+      throw new StorageValidationError(
+        `ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร (ชื่อไฟล์ปัจจุบัน: ${candidateName.length} ตัวอักษร) กรุณาเปลี่ยนชื่อไฟล์ให้สั้นลง`,
+        'FILENAME_TOO_LONG'
+      )
+    }
+
     // Size validation
     if (fileSize > maxSize) {
       const mbLimit = Math.round(maxSize / (1024 * 1024))
@@ -177,7 +190,7 @@ export const DocumentStorage = {
     const rawBase = options.baseName
       ? (baseExt && allowedExts.includes(baseExt) ? path.basename(options.baseName, baseExt) : options.baseName)
       : path.basename(originalName, origExt)
-    const safeBase = sanitizeName(rawBase) || 'file'
+    const safeBase = sanitizeName(rawBase, 50) || 'file'
 
     // Build directory on disk
     const absoluteDirPath = path.join(/*turbopackIgnore: true*/ process.cwd(), safeDestDir)

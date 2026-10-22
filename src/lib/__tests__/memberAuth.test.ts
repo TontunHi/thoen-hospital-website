@@ -157,6 +157,7 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
         },
       ]) // members query
       .mockResolvedValueOnce([{ permission_key: 'manage_ethics' }]) // member permissions
+      .mockResolvedValueOnce([]) // position permissions
       .mockResolvedValueOnce([
         { config_key: 'feature_signature', config_value: '1' },
         { config_key: 'feature_salary', config_value: '0' },
@@ -207,6 +208,7 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
         },
       ])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]) // position permissions
       .mockResolvedValueOnce([{ config_key: 'feature_salary', config_value: '0' }])
       .mockResolvedValueOnce([])
 
@@ -248,6 +250,7 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
         },
       ])
       .mockResolvedValueOnce([{ permission_key: 'manage_rdu' }])
+      .mockResolvedValueOnce([]) // position permissions
       .mockResolvedValueOnce([{ config_key: 'feature_signature', config_value: '1' }])
       .mockResolvedValueOnce([{ id: 5 }])
 
@@ -310,6 +313,7 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
         },
       ])
       .mockResolvedValueOnce([{ permission_key: 'upload_salary' }])
+      .mockResolvedValueOnce([]) // position permissions
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
 
@@ -334,6 +338,7 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
         },
       ])
       .mockResolvedValueOnce([]) // NO member_permissions
+      .mockResolvedValueOnce([]) // position permissions
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
 
@@ -366,12 +371,46 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
         },
       ])
       .mockResolvedValueOnce([{ permission_key: 'manage_news' }])
+      .mockResolvedValueOnce([]) // position permissions
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
 
     const memberWithNews = await fetchAuthenticatedMember('pr_officer', 'pr@hospital.go.th')
     expect(memberWithNews?.can('manage_news')).toBe(true)
     expect(memberWithNews?.can('upload_salary')).toBe(false)
+  })
+
+  it('hydrates permissions from position_permissions table into member permissions set', async () => {
+    const { fetchAuthenticatedMember } = await import('../memberAuth')
+    const memberDb = await import('../memberDb')
+
+    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
+    querySpy
+      .mockResolvedValueOnce([
+        {
+          id: 501,
+          username: 'supplies_officer',
+          email: 'supplies@hospital.go.th',
+          name: 'เจ้าหน้าที่ พัสดุ',
+          department: 'งานพัสดุ',
+          position: 'เจ้าพนักงานพัสดุ',
+          role: 'member',
+        },
+      ])
+      .mockResolvedValueOnce([]) // member_permissions (none)
+      .mockResolvedValueOnce([{ permission_key: 'manage_news' }]) // position_permissions
+      .mockResolvedValueOnce([]) // settings
+      .mockResolvedValueOnce([]) // telegram
+
+    const member = await fetchAuthenticatedMember('supplies_officer', 'supplies@hospital.go.th')
+    expect(member).not.toBeNull()
+    expect(member?.can('manage_news')).toBe(true)
+    expect(member?.permissions.has('manage_news')).toBe(true)
+    expect(querySpy).toHaveBeenNthCalledWith(
+      3,
+      'SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)',
+      ['เจ้าพนักงานพัสดุ']
+    )
 
     querySpy.mockRestore()
   })
@@ -488,7 +527,8 @@ describe('requireNewsPermission Route Guard', () => {
           role: 'member',
         },
       ])
-      .mockResolvedValueOnce([{ permission_key: 'manage_news' }]) // member_permissions
+      .mockResolvedValueOnce([{ permission_key: 'manage_news' }])
+      .mockResolvedValueOnce([]) // position permissions // member_permissions
       .mockResolvedValueOnce([]) // settings
       .mockResolvedValueOnce([]) // telegram
 
@@ -527,6 +567,7 @@ describe('requireNewsPermission Route Guard', () => {
         },
       ])
       .mockResolvedValueOnce([]) // no individual permissions
+      .mockResolvedValueOnce([]) // position permissions
       .mockResolvedValueOnce([]) // settings
       .mockResolvedValueOnce([]) // telegram
       // 3. checkPositionPermission queries:
@@ -573,6 +614,7 @@ describe('requireNewsPermission Route Guard', () => {
         },
       ])
       .mockResolvedValueOnce([]) // no individual permissions
+      .mockResolvedValueOnce([]) // position permissions
       .mockResolvedValueOnce([]) // settings
       .mockResolvedValueOnce([]) // telegram
       // 3. checkPositionPermission:

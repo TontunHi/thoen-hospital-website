@@ -291,8 +291,11 @@ export async function fetchAuthenticatedMember(username: string, email: string):
     const isAdmin = user.role === 'admin'
 
     // 2. Fetch parallel context data: permissions, system settings, telegram linking
-    const [permsRes, settingsRows, telegramRows] = await Promise.all([
+    const [permsRes, posPermsRes, settingsRows, telegramRows] = await Promise.all([
       queryMemberDb('SELECT permission_key FROM member_permissions WHERE member_id = ?', [user.id]),
+      userPosition
+        ? queryMemberDb('SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)', [userPosition])
+        : Promise.resolve([]),
       queryMemberDb('SELECT config_key, config_value FROM member_system_settings'),
       queryMemberDb('SELECT id FROM member_telegram_links WHERE member_id = ? LIMIT 1', [user.id])
     ])
@@ -300,6 +303,12 @@ export async function fetchAuthenticatedMember(username: string, email: string):
     const permissions = new Set<string>()
     if (permsRes && Array.isArray(permsRes)) {
       permsRes.forEach((row: any) => {
+        if (row.permission_key) permissions.add(row.permission_key)
+      })
+    }
+
+    if (posPermsRes && Array.isArray(posPermsRes)) {
+      posPermsRes.forEach((row: any) => {
         if (row.permission_key) permissions.add(row.permission_key)
       })
     }

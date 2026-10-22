@@ -41,6 +41,15 @@ export default function CreateNewsPage() {
     const files = e.target.files
     if (!files || files.length === 0) return
 
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].name.length > 80) {
+        alert(`ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร\n(ไฟล์ "${files[i].name}" ยาว ${files[i].name.length} ตัวอักษร)\n\nกรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด`)
+        setError(`ชื่อไฟล์ "${files[i].name}" ยาวเกินกำหนด (สูงสุด 80 ตัวอักษร)`)
+        e.target.value = ''
+        return
+      }
+    }
+
     setUploadingImage(true)
     setError('')
 
@@ -48,7 +57,6 @@ export default function CreateNewsPage() {
       const file = files[i]
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('title', title || 'news-image')
       formData.append('publishedAt', publishedAt)
 
       try {
@@ -60,10 +68,12 @@ export default function CreateNewsPage() {
         if (res.ok) {
           setImages((prev) => [...prev, data.url])
         } else {
+          alert(data.error || 'อัปโหลดไฟล์ภาพไม่สำเร็จ')
           setError(data.error || 'อัปโหลดไฟล์ภาพไม่สำเร็จ')
           break
         }
       } catch {
+        alert('ไม่สามารถอัปโหลดไฟล์ภาพได้')
         setError('ไม่สามารถอัปโหลดไฟล์ภาพได้')
         break
       }
@@ -77,11 +87,17 @@ export default function CreateNewsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (file.name.length > 80) {
+      alert(`ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร\n(ไฟล์ "${file.name}" ยาว ${file.name.length} ตัวอักษร)\n\nกรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด`)
+      setError(`ชื่อไฟล์ "${file.name}" ยาวเกินกำหนด (สูงสุด 80 ตัวอักษร)`)
+      e.target.value = ''
+      return
+    }
+
     setUploadingPdf(true)
     setError('')
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('title', title || 'news-document')
     formData.append('publishedAt', publishedAt)
 
     try {
@@ -93,9 +109,11 @@ export default function CreateNewsPage() {
       if (res.ok) {
         setPdfUrl(data.url)
       } else {
+        alert(data.error || 'อัปโหลดเอกสาร PDF ไม่สำเร็จ')
         setError(data.error || 'อัปโหลดเอกสาร PDF ไม่สำเร็จ')
       }
     } catch {
+      alert('ไม่สามารถอัปโหลดเอกสาร PDF ได้')
       setError('ไม่สามารถอัปโหลดเอกสาร PDF ได้')
     } finally {
       setUploadingPdf(false)

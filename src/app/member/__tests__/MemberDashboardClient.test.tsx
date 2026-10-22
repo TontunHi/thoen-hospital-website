@@ -123,7 +123,7 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
     expect(screen.getByText('ประวัติการใช้งาน (Audit Logs)')).toBeInTheDocument()
   })
 
-  it('hides admin section when user is not admin', () => {
+  it('hides admin section when user is not admin and has no delegated admin permissions', () => {
     const nonAdminProps: MemberDashboardClientProps = {
       ...defaultProps,
       displayRole: 'สมาชิกทั่วไป',
@@ -131,11 +131,34 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
         ...defaultProps.permissions,
         isAdmin: false,
         isLocationsAuthorized: false,
+        isNewsAuthorized: false,
       },
     }
 
     render(<MemberDashboardClient {...nonAdminProps} />)
     expect(screen.queryByRole('heading', { level: 3, name: 'สำหรับผู้ดูแลระบบ' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 3, name: 'การจัดการระบบที่ได้รับมอบหมาย' })).not.toBeInTheDocument()
+  })
+
+  it('renders news card in management section for non-admin user with isNewsAuthorized', () => {
+    const newsUserProps: MemberDashboardClientProps = {
+      ...defaultProps,
+      displayRole: 'สมาชิกทั่วไป',
+      permissions: {
+        ...defaultProps.permissions,
+        isAdmin: false,
+        isLocationsAuthorized: false,
+        isNewsAuthorized: true,
+      },
+    }
+
+    render(<MemberDashboardClient {...newsUserProps} />)
+    expect(screen.getByRole('heading', { level: 3, name: 'การจัดการระบบที่ได้รับมอบหมาย' })).toBeInTheDocument()
+    expect(screen.getByText('โปรแกรมโพสข่าวประชาสัมพันธ์')).toBeInTheDocument()
+    expect(screen.queryByText('ตั้งค่าระบบและเปิด/ปิดฟังก์ชัน')).not.toBeInTheDocument()
+    expect(screen.queryByText('ตรวจสอบคำขอลงทะเบียน')).not.toBeInTheDocument()
+    expect(screen.queryByText('แดชบอร์ดจัดการสมาชิก')).not.toBeInTheDocument()
+    expect(screen.queryByText('ประวัติการใช้งาน (Audit Logs)')).not.toBeInTheDocument()
   })
 
   it('renders subdistrict notice for subdistrict role accounts', () => {

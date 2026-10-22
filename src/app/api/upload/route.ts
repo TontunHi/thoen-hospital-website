@@ -18,12 +18,16 @@ export async function POST(request: Request) {
       )
     }
 
-    const title = (formData.get('title') as string) || ''
-    const publishedAt = (formData.get('publishedAt') as string) || ''
+    if (file.name && file.name.length > 80) {
+      return NextResponse.json(
+        { error: `ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร (ชื่อไฟล์ปัจจุบัน: ${file.name.length} ตัวอักษร) กรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด` },
+        { status: 400 }
+      )
+    }
 
+    const publishedAt = (formData.get('publishedAt') as string) || ''
     const destinationDir = DocumentStorage.formatDateDirectory('public/uploads', publishedAt, 'daily')
 
-    const cleanTitle = sanitizeName(title) || 'slide'
     const isVideo =
       (Boolean(file.type) && file.type.startsWith('video/')) ||
       /\.(mp4|mov|m4v|webm)$/i.test(file.name)
@@ -34,9 +38,16 @@ export async function POST(request: Request) {
       ? 100 * 1024 * 1024
       : (isPdf ? 25 * 1024 * 1024 : 20 * 1024 * 1024)
 
+    // Derive safe baseName from file name itself, not from the news/slide headline title
+    const origExt = file.name && file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : ''
+    const rawFileBase = file.name && file.name.includes('.')
+      ? file.name.slice(0, file.name.lastIndexOf('.'))
+      : (file.name || (isPdf ? 'doc' : isVideo ? 'video' : 'slide'))
+    const safeBaseName = sanitizeName(rawFileBase, 50) || (isPdf ? 'doc' : isVideo ? 'video' : 'slide')
+
     const saved = await DocumentStorage.save(file, {
       destinationDir,
-      baseName: cleanTitle,
+      baseName: safeBaseName,
       allowedMimeTypes: [
         'image/jpeg',
         'image/jpg',

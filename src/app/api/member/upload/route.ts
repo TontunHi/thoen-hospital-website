@@ -17,18 +17,26 @@ export async function POST(request: Request) {
       )
     }
 
-    const title = (formData.get('title') as string) || 'pr-attachment'
-    const publishedAt = (formData.get('publishedAt') as string) || ''
+    if (file.name && file.name.length > 80) {
+      return NextResponse.json(
+        { error: `ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร (ชื่อไฟล์ปัจจุบัน: ${file.name.length} ตัวอักษร) กรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด` },
+        { status: 400 }
+      )
+    }
 
+    const publishedAt = (formData.get('publishedAt') as string) || ''
     const dateStr = DocumentStorage.formatDateDirectory('', publishedAt, 'daily')
 
-    const cleanTitle = sanitizeName(title) || 'untitled'
     const isPdf = file.type === 'application/pdf'
-    const maxSizeBytes = isPdf ? 15 * 1024 * 1024 : 5 * 1024 * 1024
+    const origExt = file.name && file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : ''
+    const rawFileBase = file.name && file.name.includes('.')
+      ? file.name.slice(0, file.name.lastIndexOf('.'))
+      : (file.name || 'file')
+    const safeBaseName = sanitizeName(rawFileBase, 50) || 'file'
 
     const saved = await DocumentStorage.save(file, {
       destinationDir: `public/uploads/member-pr/${dateStr}`,
-      baseName: cleanTitle,
+      baseName: safeBaseName,
       allowedMimeTypes: [
         'image/jpeg',
         'image/png',

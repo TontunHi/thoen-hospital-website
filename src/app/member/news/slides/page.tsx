@@ -222,6 +222,15 @@ export default function AdminSlidesPage() {
     setIsVideoPreview(isVideo)
     setUploadedFileName(file.name)
 
+    if (file.name.length > 80) {
+      alert(`ไม่อนุญาตให้ตั้งชื่อไฟล์ยาวเกิน 80 ตัวอักษร\n(ไฟล์ "${file.name}" ยาว ${file.name.length} ตัวอักษร)\n\nกรุณาเปลี่ยนชื่อไฟล์ให้สั้นลงก่อนอัปโหลด`)
+      setError(`ชื่อไฟล์ "${file.name}" ยาวเกินกำหนด (สูงสุด 80 ตัวอักษร)`)
+      setIsVideoPreview(false)
+      setUploadedFileName('')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     const maxSize = isVideo ? 100 * 1024 * 1024 : 20 * 1024 * 1024
     if (file.size > maxSize) {
       setError(`ไฟล์มีขนาดใหญ่เกินกำหนด (${isVideo ? 'วิดีโอ MP4 ไม่เกิน 100MB' : 'รูปภาพไม่เกิน 20MB'})`)
@@ -257,7 +266,7 @@ export default function AdminSlidesPage() {
 
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('title', title || 'slide')
+    formData.append('title', 'slide')
 
     try {
       const res = await fetch('/api/upload', {
@@ -270,6 +279,7 @@ export default function AdminSlidesPage() {
         setIsVideoPreview(Boolean(data.isVideo || isVideo))
         setSuccess(isVideo ? 'อัปโหลดไฟล์วิดีโอ MP4 สำเร็จ (สามารถกดเล่นและทดสอบเปิดเสียงได้)' : 'อัปโหลดไฟล์ภาพสำเร็จ')
       } else {
+        alert(data.error || 'อัปโหลดไฟล์ไม่สำเร็จ')
         setError(data.error || 'อัปโหลดไฟล์ไม่สำเร็จ')
         setLocalPreviewUrl('')
         setImagePath('')
@@ -278,6 +288,7 @@ export default function AdminSlidesPage() {
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
     } catch {
+      alert('เกิดข้อผิดพลาดในการอัปโหลด')
       setError('เกิดข้อผิดพลาดในการอัปโหลด')
       setLocalPreviewUrl('')
       setImagePath('')

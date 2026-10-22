@@ -108,3 +108,58 @@ export async function PATCH(
     )
   }
 }
+
+// Proxies or hospital WAFs often block HTTP PATCH; provide POST and DELETE fallbacks
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  return PATCH(req, context)
+}
+
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const auth = await requireMemberApi()
+    if (auth.error) return auth.error
+    const member = auth.member
+
+    const { id } = await context.params
+    const queueId = parseInt(id, 10)
+    if (isNaN(queueId)) {
+      return NextResponse.json(
+        { success: false, error: { code: 'BAD_REQUEST', message: 'รหัสคิวไม่ถูกต้อง' } },
+        { status: 400 }
+      )
+    }
+
+    const updated = await screeningQueueService.updateQueueStatus(
+      queueId,
+      { status: 'CANCELLED' },
+      {
+        id: member.id,
+        name: member.name,
+        username: member.username,
+        role: member.role,
+      }
+    )
+
+    return NextResponse.json({
+      success: true,
+      data: updated,
+    })
+  } catch (error: any) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'CANCEL_QUEUE_ERROR',
+          message: error?.message || 'เกิดข้อผิดพลาดในการยกเลิกคิว',
+        },
+      },
+      { status: 500 }
+    )
+  }
+}
