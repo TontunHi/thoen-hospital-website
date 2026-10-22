@@ -194,6 +194,35 @@ describe('EquipmentBorrowService', () => {
     })
   })
 
+      it('throws error when creating borrow request for an asset that is currently borrowed', async () => {
+      mockDb.hospitalAsset.findUnique.mockResolvedValue({ id: 101, isLoanable: true, status: 'ACTIVE' })
+      mockDb.equipmentBorrowItem.findFirst = vi.fn().mockResolvedValue({ id: 99, status: 'BORROWED' })
+
+      const requestInput = {
+        purpose: 'ประชุมวิชาการ',
+        borrowDate: new Date(),
+        items: [{ itemType: 'ASSET' as const, assetId: 101, itemName: 'โปรเจกเตอร์ EPSON', quantity: 1 }],
+      }
+      const requester = { id: 10, name: 'สมชาย รักดี' }
+      await expect(service.createBorrowRequest(requestInput, requester)).rejects.toThrow(
+        /อยู่ระหว่างการยืมโดยผู้อื่น/
+      )
+    })
+
+    it('throws error in approveAndDispenseRequest if asset is already on an active loan', async () => {
+      const mockRequest = {
+        id: 55,
+        status: 'PENDING',
+        items: [{ id: 301, itemType: 'ASSET', assetId: 105, itemName: 'เครื่องวัดความดันเคลื่อนที่', quantity: 1 }],
+      }
+      mockDb.equipmentBorrowRequest.findUnique.mockResolvedValue(mockRequest)
+      mockDb.equipmentBorrowItem.findFirst = vi.fn().mockResolvedValue({ id: 88, status: 'BORROWED' })
+
+      await expect(service.approveAndDispenseRequest(55, actor)).rejects.toThrow(
+        /กำลังถูกยืมโดยคำขออื่นในขณะนี้/
+      )
+    })
+
   describe('Approval and Dispense', () => {
     it('approves request and decrements material stock in transaction', async () => {
       const mockRequest = {

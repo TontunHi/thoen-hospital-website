@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { EventEmitter } from 'events'
 
 export interface BridgeCardPayload {
@@ -37,15 +38,18 @@ export interface BridgeStationState {
   lastCard?: BridgeCardPayload | null
 }
 
-const DEFAULT_SECRET = process.env.SMARTCARD_BRIDGE_SECRET || 'thoen-smartcard-bridge-secret-2026'
 const STATION_OFFLINE_TIMEOUT_MS = 8000
 
 export class SmartCardBridgeHub extends EventEmitter {
   private stations: Map<string, BridgeStationState> = new Map()
   private cleanupTimer: NodeJS.Timeout | null = null
+  private secret: string
 
-  constructor() {
+  constructor(secret?: string) {
     super()
+    // In Localhost Loopback Architecture, SMARTCARD_BRIDGE_SECRET is optional.
+    // When unset, remote push fails closed safely without crashing the Next.js server.
+    this.secret = secret !== undefined ? secret : (process.env.SMARTCARD_BRIDGE_SECRET || '')
     this.setMaxListeners(200)
     // Periodic liveness monitor for stations
     this.cleanupTimer = setInterval(() => this.checkStationTimeouts(), 3000)
@@ -55,8 +59,11 @@ export class SmartCardBridgeHub extends EventEmitter {
   }
 
   public verifyToken(token: string | null | undefined): boolean {
-    if (!token) return false
-    return token === DEFAULT_SECRET
+    if (!token || !this.secret) return false
+    const tokenBuf = Buffer.from(token)
+    const secretBuf = Buffer.from(this.secret)
+    if (tokenBuf.length !== secretBuf.length) return false
+    return crypto.timingSafeEqual(tokenBuf, secretBuf)
   }
 
   public getStationState(stationId: string): BridgeStationState {

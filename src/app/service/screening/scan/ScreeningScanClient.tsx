@@ -295,8 +295,10 @@ export default function ScreeningScanClient({ operator }: Props) {
         try {
           const payload = JSON.parse(e.data)
           const online = Boolean(payload.online)
-          setIsBridgeConnected(online)
-          setBridgeReaderName(payload.reader || '')
+          if (online) {
+            setIsBridgeConnected(true)
+            setBridgeReaderName(payload.reader || '')
+          }
           const isPresent = Boolean(payload.cardPresent)
           setCardPresent(isPresent)
 
@@ -349,6 +351,64 @@ export default function ScreeningScanClient({ operator }: Props) {
       }
     }
   }, [stationId, applyCardData])
+
+  // Localhost Loopback Polling: directly monitors local hardware bridge (127.0.0.1:8084)
+  // Ensures zero reliance on external cloud secrets and enables seamless offline/local scanning.
+  useEffect(() => {
+    let isCancelled = false
+    let isPolling = false
+
+    const pollLocalBridge = async () => {
+      if (isCancelled || isPolling) return
+      isPolling = true
+
+      try {
+        const status = await fetchFromBridge('status')
+        if (isCancelled) return
+
+        if (status && status.online) {
+          setIsBridgeConnected(true)
+          if (status.reader) setBridgeReaderName(status.reader)
+
+          const isPresent = Boolean(status.cardPresent)
+          setCardPresent(isPresent)
+
+          if (isPresent) {
+            setDeviceStatus(`ตรวจพบบัตรประชาชนในเครื่อง (${status.reader || 'Smart Card Reader'})`)
+            // If card is inserted and not yet loaded on screen, read it immediately
+            if (!currentCardRef.current && !isReadingRef.current && lastSavedCidRef.current !== lastReadCidRef.current) {
+              const result = await fetchFromBridge('read')
+              if (result && result.success && result.data && result.data.cid) {
+                if (result.data.cid !== lastSavedCidRef.current) {
+                  applyCardData(result.data)
+                }
+              }
+            }
+          } else {
+            setDeviceStatus(`Smart Card Bridge ออนไลน์ (Localhost Loopback): ${status.reader || 'พร้อมอ่านบัตร'}`)
+            if (lastSavedCidRef.current) {
+              setLastSavedCid('')
+            }
+            if (lastReadCidRef.current) {
+              setLastReadCid('')
+            }
+          }
+        }
+      } catch {
+        // Local bridge not active or unreachable
+      } finally {
+        isPolling = false
+      }
+    }
+
+    pollLocalBridge()
+    const timer = setInterval(pollLocalBridge, 1500)
+
+    return () => {
+      isCancelled = true
+      clearInterval(timer)
+    }
+  }, [fetchFromBridge, applyCardData])
 
   // Save current card to screening queue
   const handleSaveQueue = async () => {

@@ -4,7 +4,7 @@ import { getThaidConfig, exchangeThaidAuthorizationCode } from '@/lib/thaidAuth'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { queryMemberDb } from '@/lib/memberDb'
-import { renderOtpEmailHtml, renderOtpEmailText } from '@/lib/auth/otpEmailTemplate'
+import { renderOtpEmailHtml, renderOtpEmailText, formatMaskedCitizenId } from '@/lib/auth/otpEmailTemplate'
 
 export interface OtpRequestResult {
   success: boolean
@@ -150,7 +150,7 @@ export class MemberAuthService {
 
     if (!users || users.length === 0) {
       try {
-        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${trimmedUsername}: User not found or email mismatch`, { username: trimmedUsername, email: trimmedEmail || 'unknown' })
+        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: User not found or email mismatch`, { username: formatMaskedCitizenId(trimmedUsername), email: trimmedEmail || 'unknown' })
       } catch {}
       throw new Error('ข้อมูลผู้ใช้งานหรืออีเมลไม่ถูกต้อง')
     }
@@ -159,14 +159,14 @@ export class MemberAuthService {
 
     if (!user.otp_code || user.otp_code !== trimmedOtp) {
       try {
-        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${trimmedUsername}: Incorrect OTP`, { username: trimmedUsername, email: user.email })
+        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: Incorrect OTP`, { username: formatMaskedCitizenId(trimmedUsername), email: user.email })
       } catch {}
       throw new Error('รหัส OTP ไม่ถูกต้อง')
     }
 
     if (!user.is_valid) {
       try {
-        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${trimmedUsername}: OTP expired`, { username: trimmedUsername, email: user.email })
+        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: OTP expired`, { username: trimmedUsername, email: user.email })
       } catch {}
       throw new Error('รหัส OTP หมดอายุการใช้งานแล้ว กรุณาขอรหัสใหม่')
     }
@@ -200,7 +200,7 @@ export class MemberAuthService {
     const signature = sign(encoded)
     
     try {
-      await logAudit('LOGIN', 'members', `User ${payload.username} logged in successfully`, { username: payload.username, email: payload.email })
+      await logAudit('LOGIN', 'members', `User ${formatMaskedCitizenId(payload.username)} logged in successfully`, { username: formatMaskedCitizenId(payload.username), email: payload.email })
     } catch {}
     
     return `${encoded}.${signature}`
@@ -282,8 +282,8 @@ export class MemberAuthService {
         await logAudit(
           'LOGIN',
           'members',
-          `เข้าสู่ระบบ ThaID สำเร็จแต่ไม่มีบัญชีในระบบ: ${fullName} (เลขบัตรประชาชน ${userInfo.pid}) พยายามเข้าสู่ระบบ แต่ไม่พบในฐานข้อมูลบุคลากร`,
-          { username: userInfo.pid, email: '' }
+          `เข้าสู่ระบบ ThaID สำเร็จแต่ไม่มีบัญชีในระบบ: ${fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(userInfo.pid)}) พยายามเข้าสู่ระบบ แต่ไม่พบในฐานข้อมูลบุคลากร`,
+          { username: formatMaskedCitizenId(userInfo.pid), email: '' }
         )
       } catch {}
       throw new Error('ThaID citizen ID not registered in hospital members')
@@ -295,8 +295,8 @@ export class MemberAuthService {
       await logAudit(
         'LOGIN',
         'members',
-        `เข้าสู่ระบบสำเร็จผ่าน ThaID: ${user.name || fullName} (เลขบัตรประชาชน ${user.username})`,
-        { username: user.username, email: user.email }
+        `เข้าสู่ระบบสำเร็จผ่าน ThaID: ${user.name || fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(user.username)})`,
+        { username: formatMaskedCitizenId(user.username), email: user.email }
       )
     } catch {}
 

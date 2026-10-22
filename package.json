@@ -23,8 +23,6 @@
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
-    "@types/exceljs": "^0.5.3",
-    "@types/nodemailer": "^8.0.0",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
     "exceljs": "^4.4.0",
@@ -59,7 +57,9 @@
     "lint-staged": "^17.5.1",
     "tsx": "^4.22.3",
     "typescript": "^5",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.1",
+    "@types/exceljs": "^0.5.3",
+    "@types/nodemailer": "^8.0.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

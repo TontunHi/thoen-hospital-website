@@ -5,11 +5,17 @@ describe('SmartCardBridgeHub', () => {
   let hub: SmartCardBridgeHub
 
   beforeEach(() => {
-    hub = new SmartCardBridgeHub()
+    hub = new SmartCardBridgeHub('test-bridge-secret-2026')
+  })
+
+  it('rejects all tokens when secret is not configured (fail-closed)', () => {
+    const unconfiguredHub = new SmartCardBridgeHub('')
+    expect(unconfiguredHub.verifyToken('any-token')).toBe(false)
+    expect(unconfiguredHub.verifyToken('')).toBe(false)
   })
 
   it('validates bridge secret token correctly', () => {
-    expect(hub.verifyToken('thoen-smartcard-bridge-secret-2026')).toBe(true)
+    expect(hub.verifyToken('test-bridge-secret-2026')).toBe(true)
     expect(hub.verifyToken('wrong-secret')).toBe(false)
     expect(hub.verifyToken('')).toBe(false)
     expect(hub.verifyToken(null)).toBe(false)

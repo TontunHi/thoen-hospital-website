@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { queryClinicalDb } from '@/lib/clinicalDb'
 import { z } from 'zod'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { logThrottledAudit } from '@/lib/audit'
 
 const searchSchema = z.object({
   q: z
@@ -52,6 +53,15 @@ export async function GET(request: Request) {
     `
 
     const appointments = await queryClinicalDb(sql, [searchValue])
+
+    // Log PDPA-compliant throttled audit for patient appointment lookup (coalesced 5-min window)
+    const maskedCid = `x-xxxx-xxxxx-${searchValue.slice(-4)}`
+    logThrottledAudit(
+      'READ',
+      'oapp',
+      `Patient appointment self-lookup for CID: ${maskedCid} (found ${appointments.length} record(s))`,
+      { username: maskedCid, email: '' }
+    ).catch(() => {})
 
     // Mask patient name for PDPA compliance (Readable & Secure):
     // e.g. "นาย สมชาย ใจดี" -> "นาย สมช** ใจ**"

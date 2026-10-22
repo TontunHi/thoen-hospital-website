@@ -547,12 +547,13 @@ namespace ThoenSmartCardBridge
 
     public class CloudBridgeClient
     {
-        public static string[] TargetEndpoints = new string[] {
-            "https://thlp.moph.go.th/api/service/screening/bridge-push"
-        };
-        public const string SecretToken = "thoen-smartcard-bridge-secret-2026";
+        // In the Localhost Loopback Architecture, the Bridge operates entirely on http://127.0.0.1:8084.
+        // Zero secrets are embedded in the binary. Web browsers communicate directly via localhost loopback
+        // and submit patient screening records using the logged-in hospital staff session.
+        // Optional cloud push can still be activated via command-line flags (--url=... and --secret=...).
+        public static string TargetEndpoint = "";
+        public static string SecretToken = "";
         public static string StationId = "1";
-        private static string activeUrl = null;
 
         static CloudBridgeClient()
         {
@@ -570,25 +571,12 @@ namespace ThoenSmartCardBridge
 
         public static bool SendPush(string action, string readerName, bool cardPresent, Dictionary<string, object> cardData)
         {
-            if (!string.IsNullOrEmpty(activeUrl))
+            if (string.IsNullOrEmpty(TargetEndpoint) || string.IsNullOrEmpty(SecretToken))
             {
-                if (TryPostTo(activeUrl, action, readerName, cardPresent, cardData))
-                {
-                    return true;
-                }
-                activeUrl = null;
+                return false;
             }
 
-            foreach (string url in TargetEndpoints)
-            {
-                if (TryPostTo(url, action, readerName, cardPresent, cardData))
-                {
-                    activeUrl = url;
-                    return true;
-                }
-            }
-
-            return false;
+            return TryPostTo(TargetEndpoint, action, readerName, cardPresent, cardData);
         }
 
         private static bool TryPostTo(string url, string action, string readerName, bool cardPresent, Dictionary<string, object> cardData)
@@ -659,6 +647,7 @@ namespace ThoenSmartCardBridge
         private static volatile bool isRunning = true;
         private static bool isCleaningUp = false;
         private static readonly object cleanupLock = new object();
+        public static Dictionary<string, object> LastCardData = null;
 
         private static bool OnConsoleCtrl(uint dwCtrlType)
         {
@@ -675,6 +664,7 @@ namespace ThoenSmartCardBridge
             }
 
             isRunning = false;
+            LastCardData = null;
 
             try
             {
@@ -731,11 +721,31 @@ namespace ThoenSmartCardBridge
             };
 
             Console.OutputEncoding = Encoding.UTF8;
-            Console.Title = "โรงพยาบาลเถิน - Thoen Smart Card Bridge v2.0";
+            Console.Title = "โรงพยาบาลเถิน - Thoen Smart Card Bridge v2.0 (Localhost Loopback)";
 
-            if (args != null && args.Length > 0 && !string.IsNullOrEmpty(args[0]))
+            if (args != null)
             {
-                CloudBridgeClient.StationId = args[0].Trim();
+                foreach (string rawArg in args)
+                {
+                    if (string.IsNullOrEmpty(rawArg)) continue;
+                    string arg = rawArg.Trim();
+                    if (arg.StartsWith("--secret=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        CloudBridgeClient.SecretToken = arg.Substring("--secret=".Length).Trim();
+                    }
+                    else if (arg.StartsWith("--url=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        CloudBridgeClient.TargetEndpoint = arg.Substring("--url=".Length).Trim();
+                    }
+                    else if (arg.StartsWith("--station=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        CloudBridgeClient.StationId = arg.Substring("--station=".Length).Trim();
+                    }
+                    else if (!arg.StartsWith("-"))
+                    {
+                        CloudBridgeClient.StationId = arg;
+                    }
+                }
             }
 
             try
@@ -769,8 +779,13 @@ namespace ThoenSmartCardBridge
                 Console.WriteLine("===============================================================");
                 Console.WriteLine("    โรงพยาบาลเถิน - Thoen Smart Card Bridge v2.0               ");
                 Console.WriteLine("===============================================================");
-                Console.WriteLine(" [ระบบเชื่อมต่อ]: Smart Card Direct Browser Bridge (100% บน HTTPS)");
+                Console.WriteLine(" [สถาปัตยกรรม]: Localhost Loopback Pattern (100% ไร้ Hardcoded Secret)");
+                Console.WriteLine(" [พอร์ตบริการ]: http://127.0.0.1:8084/ (และ http://localhost:8084/)");
                 Console.WriteLine(" [จุดบริการ]: จุดตรวจที่ " + CloudBridgeClient.StationId);
+                if (!string.IsNullOrEmpty(CloudBridgeClient.SecretToken))
+                {
+                    Console.WriteLine(" [Cloud Relay]: เปิดใช้งานการส่งข้อมูลทางไกลสำรอง");
+                }
                 Console.WriteLine(" [สถานะ]: กำลังค้นหาเครื่องอ่านบัตรประชาชน PC/SC...");
 
                 int ret = PcscInterop.SCardEstablishContext(PcscInterop.SCARD_SCOPE_USER, IntPtr.Zero, IntPtr.Zero, out hContextGlobal);
@@ -906,6 +921,7 @@ namespace ThoenSmartCardBridge
                             Console.ResetColor();
 
                             var cardData = CardReader.ReadCardData(hContextGlobal, reader);
+                            LastCardData = cardData;
                             if (cardData != null)
                             {
                                 Console.ForegroundColor = ConsoleColor.Green;
@@ -964,6 +980,7 @@ namespace ThoenSmartCardBridge
                         else if (!isPresent && wasPresent)
                         {
                             wasPresent = false;
+                            LastCardData = null;
                             Console.ForegroundColor = ConsoleColor.Cyan;
                             Console.WriteLine(string.Format(" [{0}] ดึงบัตรประชาชนออกจากเครื่องอ่านแล้ว (พร้อมรับบัตรใบถัดไป...)\n", DateTime.Now.ToString("HH:mm:ss")));
                             Console.ResetColor();
@@ -1048,21 +1065,24 @@ namespace ThoenSmartCardBridge
 
                 if (path == "/status" || path == "/")
                 {
-                    json = string.Format("{{\"online\":true,\"reader\":\"{0}\",\"cardPresent\":{1}}}",
+                    json = string.Format("{{\"online\":true,\"reader\":\"{0}\",\"cardPresent\":{1},\"hasData\":{2}}}",
                         readerName != null ? readerName.Replace("\\", "\\\\").Replace("\"", "\\\"") : "None",
-                        isPresent ? "true" : "false");
+                        isPresent ? "true" : "false",
+                        (LastCardData != null) ? "true" : "false");
                 }
                 else if (path == "/read")
                 {
                     if (!isPresent)
                     {
+                        LastCardData = null;
                         json = "{\"success\":false,\"error\":\"NO_CARD_PRESENT\",\"message\":\"ไม่พบบัตรประชาชนในเครื่องอ่าน\"}";
                     }
                     else
                     {
-                        var data = CardReader.ReadCardData(hContext, readerName);
+                        var data = LastCardData ?? CardReader.ReadCardData(hContext, readerName);
                         if (data != null)
                         {
+                            LastCardData = data;
                             StringBuilder sb = new StringBuilder();
                             sb.Append("{\"success\":true,\"data\":{");
                             bool first = true;

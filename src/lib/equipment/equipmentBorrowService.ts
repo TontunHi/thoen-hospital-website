@@ -838,13 +838,43 @@ export class EquipmentBorrowService {
           if (!asset || !asset.isLoanable || asset.status !== 'ACTIVE') {
             throw new Error(`ครุภัณฑ์ ${item.itemName} ไม่อยู่ในสถานะพร้อมให้ยืม`)
           }
+          if (typeof this.db.equipmentBorrowItem?.findFirst === 'function') {
+            const activeLoan = await this.db.equipmentBorrowItem.findFirst({
+              where: {
+                itemType: 'ASSET',
+                assetId: item.assetId,
+                status: 'BORROWED',
+                request: { status: { in: ['APPROVED', 'PARTIAL_RETURNED'] } },
+              },
+            })
+            if (activeLoan) {
+              throw new Error(`ครุภัณฑ์ ${item.itemName} อยู่ระหว่างการยืมโดยผู้อื่นในขณะนี้`)
+            }
+          }
         }
       }
 
       const now = new Date()
       const yearMonth = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`
-      const countThisMonth = await this.db.equipmentBorrowRequest.count()
-      const requestNo = `BR-${yearMonth}-${(countThisMonth + 1).toString().padStart(4, '0')}`
+      const prefix = `BR-${yearMonth}-`
+      let nextSeq = 1
+
+      if (typeof this.db.equipmentBorrowRequest?.findFirst === 'function') {
+        const latestThisMonth = await this.db.equipmentBorrowRequest.findFirst({
+          where: { requestNo: { startsWith: prefix } },
+          orderBy: { requestNo: 'desc' },
+          select: { requestNo: true },
+        })
+        if (latestThisMonth?.requestNo) {
+          const parts = latestThisMonth.requestNo.split('-')
+          const lastNum = parseInt(parts[parts.length - 1], 10)
+          if (!isNaN(lastNum)) nextSeq = lastNum + 1
+        }
+      } else {
+        const countThisMonth = await this.db.equipmentBorrowRequest.count()
+        nextSeq = countThisMonth + 1
+      }
+      const requestNo = `${prefix}${nextSeq.toString().padStart(4, '0')}`
 
       const borrowDate = new Date(input.borrowDate)
       const expectedReturnDate = input.expectedReturnDate ? new Date(input.expectedReturnDate) : null
@@ -907,14 +937,33 @@ export class EquipmentBorrowService {
         if (assetRows.length === 0 || !assetRows[0].is_loanable || assetRows[0].status !== 'ACTIVE') {
           throw new Error(`ครุภัณฑ์ ${item.itemName} ไม่อยู่ในสถานะพร้อมให้ยืม`)
         }
+        const activeLoans = await this.queryExecutor(
+          `SELECT i.id FROM equipment_borrow_items i
+           JOIN equipment_borrow_requests r ON i.request_id = r.id
+           WHERE i.item_type = 'ASSET' AND i.asset_id = ? AND i.status = 'BORROWED'
+             AND r.status IN ('APPROVED', 'PARTIAL_RETURNED') LIMIT 1`,
+          [item.assetId]
+        )
+        if (activeLoans && activeLoans.length > 0) {
+          throw new Error(`ครุภัณฑ์ ${item.itemName} อยู่ระหว่างการยืมโดยผู้อื่นในขณะนี้`)
+        }
       }
     }
 
     const now = new Date()
     const yearMonth = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`
-    const countRows = await this.queryExecutor('SELECT COUNT(*) AS cnt FROM equipment_borrow_requests')
-    const count = Number(countRows[0]?.cnt || 0)
-    const requestNo = `BR-${yearMonth}-${(count + 1).toString().padStart(4, '0')}`
+    const prefix = `BR-${yearMonth}-`
+    const latestRows = await this.queryExecutor(
+      'SELECT request_no FROM equipment_borrow_requests WHERE request_no LIKE ? ORDER BY request_no DESC LIMIT 1',
+      [`${prefix}%`]
+    )
+    let nextSeq = 1
+    if (latestRows && latestRows.length > 0 && latestRows[0].request_no) {
+      const parts = String(latestRows[0].request_no).split('-')
+      const lastNum = parseInt(parts[parts.length - 1], 10)
+      if (!isNaN(lastNum)) nextSeq = lastNum + 1
+    }
+    const requestNo = `${prefix}${nextSeq.toString().padStart(4, '0')}`
 
     const formattedBorrowDate = input.borrowDate instanceof Date
       ? input.borrowDate.toISOString().slice(0, 10)
@@ -1195,7 +1244,24 @@ export class EquipmentBorrowService {
       if (request.status !== 'PENDING') throw new Error(`คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ (สถานะปัจจุบัน: ${request.status})`)
 
       return await this.db.$transaction(async (tx: any) => {
-        // 1. Pre-validate stock availability for all materials
+        // 1. Pre-validate stock availability for materials and check asset availability
+        for (const item of request.items) {
+          if (item.itemType === 'ASSET' && item.assetId && typeof tx.equipmentBorrowItem?.findFirst === 'function') {
+            const activeLoan = await tx.equipmentBorrowItem.findFirst({
+              where: {
+                itemType: 'ASSET',
+                assetId: item.assetId,
+                status: 'BORROWED',
+                requestId: { not: id },
+                request: { status: { in: ['APPROVED', 'PARTIAL_RETURNED'] } },
+              },
+            })
+            if (activeLoan) {
+              throw new Error(`ครุภัณฑ์ ${item.itemName} กำลังถูกยืมโดยคำขออื่นในขณะนี้ ไม่สามารถอนุมัติจ่ายซ้ำได้`)
+            }
+          }
+        }
+
         const requiredQuantities = new Map<number, number>()
         for (const item of request.items) {
           if (item.itemType === 'MATERIAL' && item.materialId) {
@@ -1274,7 +1340,22 @@ export class EquipmentBorrowService {
     if (!request) throw new Error(`ไม่พบคำขอยืมรหัส ${id}`)
     if (request.status !== 'PENDING') throw new Error(`คำขอนี้ไม่ได้อยู่ในสถานะรออนุมัติ (สถานะปัจจุบัน: ${request.status})`)
 
-    // 1. Pre-validate stock availability for all materials before making any mutations
+    // 1. Pre-validate stock availability for materials and check asset availability
+    for (const item of request.items) {
+      if (item.itemType === 'ASSET' && item.assetId) {
+        const activeLoans = await this.queryExecutor(
+          `SELECT i.id FROM equipment_borrow_items i
+           JOIN equipment_borrow_requests r ON i.request_id = r.id
+           WHERE i.item_type = 'ASSET' AND i.asset_id = ? AND i.status = 'BORROWED' AND i.request_id != ?
+             AND r.status IN ('APPROVED', 'PARTIAL_RETURNED') LIMIT 1`,
+          [item.assetId, id]
+        )
+        if (activeLoans && activeLoans.length > 0) {
+          throw new Error(`ครุภัณฑ์ ${item.itemName} กำลังถูกยืมโดยคำขออื่นในขณะนี้ ไม่สามารถอนุมัติจ่ายซ้ำได้`)
+        }
+      }
+    }
+
     const requiredQuantities = new Map<number, number>()
     for (const item of request.items) {
       if (item.itemType === 'MATERIAL' && item.materialId) {
