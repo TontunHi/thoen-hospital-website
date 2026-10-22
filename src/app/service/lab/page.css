@@ -1071,7 +1071,7 @@
     width: 100% !important;
     box-sizing: border-box !important;
     margin: 0 !important;
-    padding: 12mm 15mm 12mm 15mm !important;
+    padding: 0 15mm 10mm 15mm !important;
     background: #ffffff !important;
     color: #000000 !important;
     font-size: 10pt;
@@ -1093,7 +1093,7 @@
 
   .lab-print-layout-table > thead > tr > td {
     border: none !important;
-    padding: 0 0 6px 0 !important;
+    padding: 12mm 0 6px 0 !important;
   }
 
   .lab-print-layout-table > tbody > tr > td {
@@ -1107,7 +1107,7 @@
 
   .lab-print-layout-table > tfoot > tr > td {
     border: none !important;
-    padding: 8px 0 0 0 !important;
+    padding: 6px 0 12mm 0 !important;
   }
 
   /* Document Header */
