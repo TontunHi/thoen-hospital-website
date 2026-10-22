@@ -666,6 +666,55 @@ describe('HospitalEventService', () => {
       expect(mockDb.eventAttachment.create).toHaveBeenCalled()
     })
 
+    it('addAttachment allows regular member to upload IMAGE', async () => {
+      mockDb.hospitalEvent.findUnique.mockResolvedValue({
+        id: 14,
+        title: 'กิจกรรมสุขภาพ',
+        headOrganizerId: 10,
+        coOrganizers: [],
+      })
+
+      mockDb.eventAttachment.create.mockResolvedValue({
+        id: 8,
+        eventId: 14,
+        attachmentType: 'IMAGE',
+        title: 'ภาพจากเจ้าหน้าที่ทั่วไป',
+        filePath: '/uploads/events/14/member-photo.jpg',
+        fileType: 'image/jpeg',
+        fileSize: BigInt(1024),
+        textContent: null,
+        uploadedByMemberId: 99,
+        displayOrder: 0,
+        createdAt: new Date('2026-10-25T14:30:00Z'),
+        updatedAt: new Date('2026-10-25T14:30:00Z'),
+        uploadedBy: { id: 99, name: 'จนท.ทดสอบ', department: 'เภสัชกรรม', profilePath: null },
+      })
+
+      const created = await service.addAttachment(
+        14,
+        {
+          attachmentType: 'IMAGE',
+          title: 'ภาพจากเจ้าหน้าที่ทั่วไป',
+          filePath: '/uploads/events/14/member-photo.jpg',
+          fileType: 'image/jpeg',
+          fileSize: 1024,
+        },
+        nonOrganizerActor
+      )
+
+      expect(created.id).toBe(8)
+      expect(created.uploadedByMemberId).toBe(99)
+      expect(mockDb.eventAttachment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            eventId: 14,
+            attachmentType: 'IMAGE',
+            uploadedByMemberId: 99,
+          }),
+        })
+      )
+    })
+
     it('addAttachment rejects unauthorized member', async () => {
       mockDb.hospitalEvent.findUnique.mockResolvedValue({
         id: 14,
@@ -711,12 +760,44 @@ describe('HospitalEventService', () => {
       expect(DocumentStorage.delete).toHaveBeenCalledWith('/uploads/events/14/file.pdf')
     })
 
+    it('deleteAttachment allows uploader member to delete their own attachment', async () => {
+      const { DocumentStorage } = await import('@/lib/storage/documentStorage')
+
+      mockDb.hospitalEvent.findUnique.mockResolvedValue({
+        id: 14,
+        title: 'กิจกรรมสุขภาพ',
+        headOrganizerId: 10,
+        coOrganizers: [],
+      })
+
+      mockDb.eventAttachment.findUnique.mockResolvedValue({
+        id: 8,
+        eventId: 14,
+        uploadedByMemberId: 99, // Uploaded by nonOrganizerActor
+        filePath: '/uploads/events/14/member-photo.jpg',
+      })
+      mockDb.eventAttachment.delete.mockResolvedValue({ id: 8 })
+
+      const res = await service.deleteAttachment(14, 8, nonOrganizerActor)
+
+      expect(res.success).toBe(true)
+      expect(mockDb.eventAttachment.delete).toHaveBeenCalledWith({ where: { id: 8 } })
+      expect(DocumentStorage.delete).toHaveBeenCalledWith('/uploads/events/14/member-photo.jpg')
+    })
+
     it('deleteAttachment rejects unauthorized member', async () => {
       mockDb.hospitalEvent.findUnique.mockResolvedValue({
         id: 14,
         title: 'กิจกรรมสุขภาพ',
         headOrganizerId: 10,
         coOrganizers: [],
+      })
+
+      mockDb.eventAttachment.findUnique.mockResolvedValue({
+        id: 5,
+        eventId: 14,
+        uploadedByMemberId: 10,
+        filePath: '/uploads/events/14/file.pdf',
       })
 
       await expect(

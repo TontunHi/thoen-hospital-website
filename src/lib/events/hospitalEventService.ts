@@ -1545,12 +1545,20 @@ export class HospitalEventService {
     const event = await this.getEventById(eventId)
     if (!event) throw new Error('ไม่พบข้อมูลกิจกรรม')
 
-    const isAuthorized =
+    if (!actor.id) {
+      throw new Error('กรุณาเข้าสู่ระบบก่อนดำเนินการ')
+    }
+
+    const isOrganizer =
       actor.role === 'admin' ||
       event.headOrganizerId === actor.id ||
       event.coOrganizers?.some((c: any) => c.member?.id === actor.id || c.memberId === actor.id)
 
-    if (!isAuthorized) {
+    const isImageUpload = input.attachmentType === 'IMAGE'
+
+    // Allow all authenticated members to upload activity photos (IMAGE).
+    // Restrict DOCUMENT and NOTE creation to organizers and admins.
+    if (!isOrganizer && !isImageUpload) {
       throw new Error('คุณไม่มีสิทธิ์แนบเอกสารหรือรูปภาพในกิจกรรมนี้')
     }
 
@@ -1611,14 +1619,14 @@ export class HospitalEventService {
     const event = await this.getEventById(eventId)
     if (!event) throw new Error('ไม่พบข้อมูลกิจกรรม')
 
-    const isAuthorized =
+    if (!actor.id) {
+      throw new Error('กรุณาเข้าสู่ระบบก่อนดำเนินการ')
+    }
+
+    const isOrganizer =
       actor.role === 'admin' ||
       event.headOrganizerId === actor.id ||
       event.coOrganizers?.some((c: any) => c.member?.id === actor.id || c.memberId === actor.id)
-
-    if (!isAuthorized) {
-      throw new Error('คุณไม่มีสิทธิ์ลบเอกสารหรือรูปภาพในกิจกรรมนี้')
-    }
 
     let filePathToDelete: string | null = null
 
@@ -1629,14 +1637,32 @@ export class HospitalEventService {
       if (!existing || existing.eventId !== eventId) {
         throw new Error('ไม่พบข้อมูลเอกสารหรือไฟล์แนบที่ต้องการลบ')
       }
+
+      const isUploader = Boolean(actor.id && existing.uploadedByMemberId === actor.id)
+      if (!isOrganizer && !isUploader) {
+        throw new Error('คุณไม่มีสิทธิ์ลบเอกสารหรือรูปภาพในกิจกรรมนี้')
+      }
+
       filePathToDelete = existing.filePath
       await this.db.eventAttachment.delete({ where: { id: attachmentId } })
     } else {
-      const rows = await this.queryExecutor('SELECT id, event_id, file_path FROM event_attachments WHERE id = ?', [attachmentId])
+      const rows = await this.queryExecutor(
+        'SELECT id, event_id, file_path, uploaded_by_member_id FROM event_attachments WHERE id = ?',
+        [attachmentId]
+      )
       const existing = rows?.[0]
       if (!existing || existing.event_id !== eventId) {
         throw new Error('ไม่พบข้อมูลเอกสารหรือไฟล์แนบที่ต้องการลบ')
       }
+
+      const isUploader = Boolean(
+        actor.id &&
+        (existing.uploaded_by_member_id === actor.id || existing.uploadedByMemberId === actor.id)
+      )
+      if (!isOrganizer && !isUploader) {
+        throw new Error('คุณไม่มีสิทธิ์ลบเอกสารหรือรูปภาพในกิจกรรมนี้')
+      }
+
       filePathToDelete = existing.file_path
       await this.queryExecutor('DELETE FROM event_attachments WHERE id = ?', [attachmentId])
     }

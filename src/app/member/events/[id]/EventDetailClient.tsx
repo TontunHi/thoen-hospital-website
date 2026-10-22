@@ -215,6 +215,9 @@ export default function EventDetailClient({
         if (!res.ok || !json.success) throw new Error(json.error || 'อัปโหลดไฟล์ไม่สำเร็จ')
         const newItems = Array.isArray(json.data) ? json.data : [json.data]
         setAttachments((prev) => [...newItems, ...prev])
+        if (attachType === 'IMAGE' && attachmentFilter !== 'ALL' && attachmentFilter !== 'IMAGE') {
+          setAttachmentFilter('IMAGE')
+        }
       }
 
       setIsAddAttachModalOpen(false)
@@ -614,19 +617,18 @@ export default function EventDetailClient({
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('attachments')
-                handleOpenAddAttachModal('IMAGE')
-              }}
-              className="btnAttachmentAddTop"
-            >
-              <Paperclip size={14} />
-              <span>แนบไฟล์ / ภาพกิจกรรม</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('attachments')
+              handleOpenAddAttachModal('IMAGE')
+            }}
+            className="btnAttachmentAddTop"
+            title={canManage ? 'แนบไฟล์หรือภาพกิจกรรม' : 'อัปโหลดภาพกิจกรรมเข้าระบบ'}
+          >
+            {canManage ? <Paperclip size={14} /> : <ImageIcon size={14} />}
+            <span>{canManage ? 'แนบไฟล์ / ภาพกิจกรรม' : 'อัปโหลดภาพกิจกรรม'}</span>
+          </button>
 
           {canManage && (
             <button
@@ -983,16 +985,15 @@ export default function EventDetailClient({
                 </button>
               </div>
 
-              {canManage && (
-                <button
-                  type="button"
-                  onClick={() => handleOpenAddAttachModal('IMAGE')}
-                  className="btnAttachmentAdd"
-                >
-                  <Plus size={15} />
-                  <span>แนบไฟล์ / เอกสาร / ภาพ</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => handleOpenAddAttachModal('IMAGE')}
+                className="btnAttachmentAdd"
+                title={canManage ? 'แนบไฟล์ เอกสาร หรือภาพกิจกรรม' : 'อัปโหลดภาพกิจกรรมเข้าร่วมแชร์'}
+              >
+                {canManage ? <Plus size={15} /> : <ImageIcon size={15} />}
+                <span>{canManage ? 'แนบไฟล์ / เอกสาร / ภาพ' : 'อัปโหลดภาพกิจกรรม'}</span>
+              </button>
             </div>
 
             {filteredAttachments.length === 0 ? (
@@ -1001,17 +1002,15 @@ export default function EventDetailClient({
                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>
                   ยังไม่มีเอกสาร รูปภาพ หรือข้อความบันทึกในหมวดนี้
                 </p>
-                {canManage && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenAddAttachModal('IMAGE')}
-                    className="btnAttachmentAdd"
-                    style={{ marginTop: '1.25rem' }}
-                  >
-                    <Plus size={15} />
-                    <span>แนบไฟล์หรือข้อความแรก</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleOpenAddAttachModal('IMAGE')}
+                  className="btnAttachmentAdd"
+                  style={{ marginTop: '1.25rem' }}
+                >
+                  {canManage ? <Plus size={15} /> : <ImageIcon size={15} />}
+                  <span>{canManage ? 'แนบไฟล์หรือข้อความแรก' : 'อัปโหลดภาพกิจกรรมแรก'}</span>
+                </button>
               </div>
             ) : (
               <div style={{ padding: '0.5rem 0' }}>
@@ -1019,9 +1018,29 @@ export default function EventDetailClient({
                 {(attachmentFilter === 'ALL' || attachmentFilter === 'IMAGE') && imageCount > 0 && (
                   <div>
                     {attachmentFilter === 'ALL' && (
-                      <div style={{ padding: '0.75rem 1.25rem 0.25rem', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <ImageIcon size={15} color="#094738" />
-                        <span>ภาพบรรยากาศกิจกรรม ({imageCount})</span>
+                      <div style={{ padding: '0.75rem 1.25rem 0.25rem', fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <ImageIcon size={15} color="#094738" />
+                          <span>ภาพบรรยากาศกิจกรรม ({imageCount})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAddAttachModal('IMAGE')}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#094738',
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                          }}
+                        >
+                          <Plus size={13} />
+                          <span>เพิ่มรูปภาพ</span>
+                        </button>
                       </div>
                     )}
                     <div className="attachmentGrid">
@@ -1063,7 +1082,7 @@ export default function EventDetailClient({
                               >
                                 <Download size={13} />
                               </a>
-                              {canManage && (
+                              {(canManage || img.uploadedByMemberId === currentUser.id || img.uploadedBy?.id === currentUser.id) && (
                                 <button
                                   type="button"
                                   disabled={deletingAttachId === img.id}
@@ -1084,7 +1103,8 @@ export default function EventDetailClient({
                                 {img.title}
                               </span>
                               <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>
-                                {img.uploadedBy?.name || 'เจ้าหน้าที่'} • {formatThaiDateOnly(img.createdAt)}
+                                {img.uploadedBy?.name || (img.uploadedByMemberId === currentUser.id ? currentUser.name : 'เจ้าหน้าที่')}
+                                {(img.uploadedByMemberId === currentUser.id || img.uploadedBy?.id === currentUser.id) ? ' (คุณ)' : ''} • {formatThaiDateOnly(img.createdAt)}
                               </span>
                             </div>
                           </div>
@@ -1178,7 +1198,7 @@ export default function EventDetailClient({
                                   <Download size={13} />
                                   <span>ดาวน์โหลด</span>
                                 </a>
-                                {canManage && (
+                                {(canManage || doc.uploadedByMemberId === currentUser.id || doc.uploadedBy?.id === currentUser.id) && (
                                   <button
                                     type="button"
                                     disabled={deletingAttachId === doc.id}
@@ -1216,7 +1236,7 @@ export default function EventDetailClient({
                                 <MessageSquare size={15} color="#d97706" />
                                 <strong style={{ fontSize: '0.9rem', color: '#0f172a' }}>{note.title}</strong>
                               </div>
-                              {canManage && (
+                              {(canManage || note.uploadedByMemberId === currentUser.id || note.uploadedBy?.id === currentUser.id) && (
                                 <button
                                   type="button"
                                   disabled={deletingAttachId === note.id}
@@ -1935,7 +1955,7 @@ export default function EventDetailClient({
         <div className="attendeeModalOverlay">
           <div className="attendeeModalCard" style={{ maxWidth: 560 }}>
             <div className="attendeeModalHeader">
-              <h3>แนบไฟล์ / เอกสาร / ข้อความประกอบกิจกรรม</h3>
+              <h3>{canManage ? 'แนบไฟล์ / เอกสาร / ข้อความประกอบกิจกรรม' : '📸 อัปโหลดภาพกิจกรรม'}</h3>
               <button
                 type="button"
                 onClick={() => setIsAddAttachModalOpen(false)}
@@ -1955,35 +1975,69 @@ export default function EventDetailClient({
                 )}
 
                 {/* Type Selection */}
-                <div>
-                  <label className="formFieldLabel">เลือกประเภทสิ่งที่แนบ</label>
-                  <div className="attachmentTypeGrid">
-                    <button
-                      type="button"
-                      onClick={() => setAttachType('IMAGE')}
-                      className={`attachmentTypeOption ${attachType === 'IMAGE' ? 'activeImage' : ''}`}
-                    >
-                      <ImageIcon size={20} />
-                      <span>📸 ภาพกิจกรรม</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAttachType('DOCUMENT')}
-                      className={`attachmentTypeOption ${attachType === 'DOCUMENT' ? 'activeDoc' : ''}`}
-                    >
-                      <FileText size={20} />
-                      <span>📄 เอกสาร/PDF</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAttachType('NOTE')}
-                      className={`attachmentTypeOption ${attachType === 'NOTE' ? 'activeNote' : ''}`}
-                    >
-                      <MessageSquare size={20} />
-                      <span>📝 ข้อความบันทึก</span>
-                    </button>
+                {!canManage ? (
+                  <div style={{
+                    background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '0.65rem',
+                    padding: '0.75rem 0.95rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    fontSize: '0.825rem',
+                    color: '#065f46',
+                    lineHeight: 1.45,
+                  }}>
+                    <div style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      background: '#d1fae5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <ImageIcon size={18} color="#059669" />
+                    </div>
+                    <div>
+                      <strong>สมาชิกทุกคนสามารถร่วมแชร์ภาพบรรยากาศกิจกรรมได้</strong>
+                      <div style={{ fontSize: '0.75rem', color: '#047857', marginTop: '0.15rem' }}>
+                        สามารถเลือกภาพจากมือถือหรือคอมพิวเตอร์ได้หลายรูปพร้อมกัน (ไม่เกิน 10MB ต่อภาพ)
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <label className="formFieldLabel">เลือกประเภทสิ่งที่แนบ</label>
+                    <div className="attachmentTypeGrid">
+                      <button
+                        type="button"
+                        onClick={() => setAttachType('IMAGE')}
+                        className={`attachmentTypeOption ${attachType === 'IMAGE' ? 'activeImage' : ''}`}
+                      >
+                        <ImageIcon size={20} />
+                        <span>📸 ภาพกิจกรรม</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAttachType('DOCUMENT')}
+                        className={`attachmentTypeOption ${attachType === 'DOCUMENT' ? 'activeDoc' : ''}`}
+                      >
+                        <FileText size={20} />
+                        <span>📄 เอกสาร/PDF</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAttachType('NOTE')}
+                        className={`attachmentTypeOption ${attachType === 'NOTE' ? 'activeNote' : ''}`}
+                      >
+                        <MessageSquare size={20} />
+                        <span>📝 ข้อความบันทึก</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Common Title */}
                 <div>
@@ -2068,10 +2122,10 @@ export default function EventDetailClient({
                   {attachLoading ? (
                     <>
                       <Loader2 size={14} className="modalBtnSpinner" />
-                      <span>กำลังบันทึก...</span>
+                      <span>{attachType === 'IMAGE' ? 'กำลังอัปโหลดรูปภาพ...' : 'กำลังบันทึก...'}</span>
                     </>
                   ) : (
-                    <span>บันทึกสิ่งที่แนบ</span>
+                    <span>{canManage ? 'บันทึกสิ่งที่แนบ' : 'อัปโหลดภาพกิจกรรม'}</span>
                   )}
                 </button>
               </div>
