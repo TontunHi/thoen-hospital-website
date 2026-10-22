@@ -88,14 +88,11 @@ interface VisitDetail {
   xray: string | null;
 }
 
-function maskCid(cid: string) {
+function formatCid(cid: string) {
   if (!cid) return '-';
   const clean = cid.replace(/\D/g, '');
   if (clean.length === 13) {
-    return `x-xxxx-xxxxx-${clean.slice(9, 11)}-${clean.slice(11, 13)}`;
-  }
-  if (cid.length > 4) {
-    return 'x'.repeat(cid.length - 4) + cid.slice(-4);
+    return `${clean.slice(0, 1)}-${clean.slice(1, 5)}-${clean.slice(5, 10)}-${clean.slice(10, 12)}-${clean.slice(12, 13)}`;
   }
   return cid;
 }
@@ -323,7 +320,7 @@ export default function LabSearchClient() {
                         <h2>{visits[0].ptname}</h2>
                         <div className="patient-meta-tags">
                           <span className="meta-pill">HN: <strong>{visits[0].hn}</strong></span>
-                          <span className="meta-pill">CID: <strong>{maskCid(visits[0].cid)}</strong></span>
+                          <span className="meta-pill">CID: <strong>{formatCid(visits[0].cid)}</strong></span>
                           <span className="meta-pill count-pill">ประวัติพบ <strong>{visits.length}</strong> ครั้งล่าสุด</span>
                         </div>
                       </div>
@@ -718,7 +715,7 @@ export default function LabSearchClient() {
                         <div className="lab-print-info-row">
                           <div><strong>ชื่อ-นามสกุล:</strong> {detail.patient.name}</div>
                           <div><strong>HN:</strong> {detail.patient.hn}</div>
-                          <div><strong>เลขประจำตัวประชาชน:</strong> {maskCid(detail.patient.cid)}</div>
+                          <div><strong>เลขประจำตัวประชาชน:</strong> {formatCid(detail.patient.cid)}</div>
                           <div><strong>อายุ:</strong> {detail.patient.age} ปี</div>
                         </div>
                         <div className="lab-print-info-row">

@@ -217,7 +217,7 @@ describe('LabSearchClient - B&W PDF & Document Print System', () => {
     );
   });
 
-  it('renders printable document with hospital header, masked CID, and selected sections', async () => {
+  it('renders printable document with hospital header, unmasked CID, and selected sections', async () => {
     const { container } = render(<LabSearchClient />);
 
     // Search and open modal
@@ -239,9 +239,9 @@ describe('LabSearchClient - B&W PDF & Document Print System', () => {
     const printDoc = container.querySelector('#lab-printable-document');
     expect(printDoc).toBeInTheDocument();
 
-    // Verify hospital name and masked CID inside printable document
+    // Verify hospital name and unmasked formatted CID inside printable document
     expect(printDoc).toHaveTextContent('โรงพยาบาลเถิน (Thoen Hospital)');
-    expect(printDoc).toHaveTextContent('x-xxxx-xxxxx-34-56');
+    expect(printDoc).toHaveTextContent('1-5299-00123-45-6');
     expect(printDoc).toHaveTextContent('ข้อมูลการซักประวัติและสัญญาณชีพ');
     expect(printDoc).toHaveTextContent('Paracetamol');
     expect(printDoc).toHaveTextContent('WBC Count');
