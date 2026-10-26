@@ -1,5 +1,5 @@
 import React from 'react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import EventsClient from '../EventsClient'
 
@@ -46,6 +46,9 @@ describe('EventsClient Component', () => {
   ]
 
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-15T08:00:00.000Z'))
+
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -56,6 +59,10 @@ describe('EventsClient Component', () => {
         }),
       })
     )
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('renders executive hospital header and personal stats', () => {
