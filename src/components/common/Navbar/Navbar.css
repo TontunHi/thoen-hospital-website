@@ -45,31 +45,6 @@
   box-sizing: border-box;
 }
 
-/* Mourning Ribbon (Configurable via siteConfig - D7) */
-.navbar__mourning-ribbon {
-  position: absolute;
-  top: 0;
-  left: 20px;
-  z-index: 110;
-  pointer-events: none;
-}
-
-.navbar__mourning-ribbon img {
-  width: 36px;
-  height: 72px;
-  object-fit: contain;
-}
-
-@media (max-width: 768px) {
-  .navbar__mourning-ribbon {
-    left: 10px;
-  }
-  .navbar__mourning-ribbon img {
-    width: 28px;
-    height: 56px;
-  }
-}
-
 /* ==========================================================================
    Brand Logo
    ========================================================================== */

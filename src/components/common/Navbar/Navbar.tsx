@@ -256,19 +256,6 @@ export default function Navbar() {
 
   return (
     <nav ref={navRef} className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`} aria-label="แถบนำทางหลัก">
-      {/* Mourning Ribbon (Configurable via siteConfig - D7) */}
-      {siteConfig.features.showMourningRibbon && (
-        <div className="navbar__mourning-ribbon">
-          <Image
-            src="/images/home/black.webp"
-            alt="ไว้อาลัย"
-            width={40}
-            height={80}
-            priority
-          />
-        </div>
-      )}
-
       <div className="navbar__container">
         {/* Brand Logo */}
         <Link href="/" className="navbar__logo" aria-label="กลับสู่หน้าแรกโรงพยาบาลเถิน">

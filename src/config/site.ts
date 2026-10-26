@@ -11,12 +11,6 @@ export const siteConfig = {
   description: 'โรงพยาบาลเถิน จังหวัดลำปาง ให้บริการด้านสุขภาพอย่างครบวงจร ด้วยทีมแพทย์และบุคลากรที่มีคุณภาพ พร้อมดูแลสุขภาพของประชาชนในพื้นที่อำเภอเถินและใกล้เคียง',
   url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
   
-  // UI Features and Flags
-  features: {
-    // Flag to show/hide mourning ribbon on the navbar (D7 in upgrade.md)
-    showMourningRibbon: false,
-  },
-
   // Contact & Emergency Information
   contact: {
     emergencyPhone: '1669',
