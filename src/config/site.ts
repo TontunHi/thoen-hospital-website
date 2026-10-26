@@ -14,7 +14,7 @@ export const siteConfig = {
   // UI Features and Flags
   features: {
     // Flag to show/hide mourning ribbon on the navbar (D7 in upgrade.md)
-    showMourningRibbon: true,
+    showMourningRibbon: false,
   },
 
   // Contact & Emergency Information
