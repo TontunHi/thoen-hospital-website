@@ -43,7 +43,16 @@ export default function ContactClientView() {
                 <div className="infoItem__content">
                   <strong>สายด่วนอุบัติเหตุและฉุกเฉิน (24 ชม.):</strong>
                   <p style={{ color: 'var(--danger)', fontWeight: 700, fontSize: '1.125rem' }}>
-                    {siteConfig.contact.emergencyPhone} หรือ {siteConfig.contact.hospitalPhone}
+                    <a href={`tel:${siteConfig.contact.emergencyPhone}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {siteConfig.contact.emergencyPhone}
+                    </a>
+                    {' '}หรือ{' '}
+                    <a href={`tel:${siteConfig.contact.hospitalPhone.replace(/-/g, '')}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {siteConfig.contact.hospitalPhone}
+                    </a>
+                  </p>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.25rem' }}>
+                    ({siteConfig.contact.emergencyDirectNote})
                   </p>
                 </div>
               </div>

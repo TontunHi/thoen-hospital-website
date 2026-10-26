@@ -411,7 +411,11 @@ export default async function HomePage() {
               <Phone size={20} />
               <span>สายด่วนฉุกเฉิน 1669 (ฟรี)</span>
             </a>
-            <a href={`tel:${siteConfig.contact.hospitalPhone}`} className="btn btn-white btn-lg touch-target">
+            <a 
+              href={`tel:${siteConfig.contact.hospitalPhone.replace(/-/g, '')}`} 
+              className="btn btn-white btn-lg touch-target"
+              title={`โทร ${siteConfig.contact.hospitalPhone} (${siteConfig.contact.emergencyDirectNote})`}
+            >
               <Phone size={20} />
               <span>โทร {siteConfig.contact.hospitalPhone}</span>
             </a>
@@ -420,6 +424,9 @@ export default async function HomePage() {
               <span>ส่งข้อความ / ข้อเสนอแนะ</span>
             </Link>
           </div>
+          <p className="cta__subnote" style={{ marginTop: '1rem', fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.85)' }}>
+            ({siteConfig.contact.emergencyDirectNote})
+          </p>
         </div>
       </section>
     </div>

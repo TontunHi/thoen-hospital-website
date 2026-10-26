@@ -20,7 +20,8 @@ export const siteConfig = {
   // Contact & Emergency Information
   contact: {
     emergencyPhone: '1669',
-    hospitalPhone: '054-291568',
+    hospitalPhone: '054-292275',
+    emergencyDirectNote: 'เบอร์โทรศัพท์สายตรงห้องฉุกเฉิน ไม่สามารถโอนสายได้',
     fax: '054-291569',
     email: 'thoenhospital@gmail.com',
     facebook: 'https://www.facebook.com/thoenhospital',
