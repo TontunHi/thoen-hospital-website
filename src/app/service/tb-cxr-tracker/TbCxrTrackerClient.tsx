@@ -130,13 +130,13 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
   // Export Modal
   const [exportModalOpen, setExportModalOpen] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
-  const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
-  const handleCopyCode = (text: string) => {
+  const handleCopyCode = (key: string, text: string) => {
     if (!text) return
     navigator.clipboard.writeText(text)
-    setCopiedCode(text)
-    setTimeout(() => setCopiedCode(null), 1800)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(null), 1800)
   }
 
   // Fetch initial data
@@ -569,6 +569,8 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                   {paginatedRows.map((row, idx) => {
                     const rowNumber = (currentPage - 1) * pageSize + idx + 1
                     const isDone = row.cxr_status === 'DONE'
+                    const rowKey = `${row.id || row.hn || idx}`
+                    const isCopied = copiedKey === rowKey
                     return (
                       <tr key={row.id || `${row.hn}-${idx}`} className={isDone ? 'rowDone' : 'rowMissing'}>
                         <td className="tbCellCenter tbColMuted">
@@ -607,11 +609,11 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                               </span>
                               <button
                                 type="button"
-                                className={`tbDateRawBtn ${copiedCode === row.cxr_date ? 'copied' : ''}`}
+                                className={`tbDateRawBtn ${isCopied ? 'copied' : ''}`}
                                 title="คลิกเพื่อคัดลอกค่า cxr_date (YYYYMMDD)"
-                                onClick={() => handleCopyCode(row.cxr_date!)}
+                                onClick={() => handleCopyCode(rowKey, row.cxr_date!)}
                               >
-                                {copiedCode === row.cxr_date ? (
+                                {isCopied ? (
                                   <>
                                     <Check size={11} /> คัดลอกแล้ว
                                   </>
