@@ -10,8 +10,6 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
-  Eye,
-  EyeOff,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -107,23 +105,6 @@ function formatThaiDateString(rawDate?: string | null): string {
   }
 }
 
-/** Mask ข้อมูลส่วนบุคคลตามมาตรฐาน PDPA (แสดง 4 ตัวท้าย) */
-function maskCid(cid?: string | null, isMasked = true): string {
-  if (!cid) return '-'
-  if (!isMasked) return cid
-  const s = String(cid).trim()
-  if (s.length < 5) return s
-  return 'x-xxxx-xxxxx-xx-' + s.slice(-4)
-}
-
-function maskHn(hn?: string | null, isMasked = true): string {
-  if (!hn) return '-'
-  if (!isMasked) return hn
-  const s = String(hn).trim()
-  if (s.length < 5) return s
-  return '***' + s.slice(-4)
-}
-
 export default function TbCxrTrackerClient({ userRole }: Props) {
   const [data, setData] = useState<TbRecord[]>([])
   const [summary, setSummary] = useState<SummaryData>({
@@ -142,7 +123,6 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
   const [activeTab, setActiveTab] = useState<'all' | 'done' | 'missing'>('all')
   const [selectedHosp, setSelectedHosp] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState<string>('')
-  const [isMasked, setIsMasked] = useState<boolean>(true)
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -390,15 +370,6 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
 
           <div className="tbHeaderActions">
             <button
-              onClick={() => setIsMasked(!isMasked)}
-              className={`tbActionBtn ${isMasked ? '' : 'active'}`}
-              title={isMasked ? 'แสดงข้อมูลแบบไม่ปิดบัง' : 'ซ่อนข้อมูลส่วนบุคคล (PDPA)'}
-            >
-              {isMasked ? <Eye size={16} /> : <EyeOff size={16} />}
-              <span>{isMasked ? 'แสดง PDPA' : 'ซ่อน PDPA'}</span>
-            </button>
-
-            <button
               onClick={() => fetchData(true)}
               className="tbActionBtn"
               disabled={refreshing}
@@ -611,7 +582,7 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                           {rowNumber}
                         </td>
                         <td className="tbColHn">
-                          <code>{maskHn(row.hn, isMasked)}</code>
+                          <code>{row.hn || '-'}</code>
                         </td>
                         <td className="tbColName">
                           <span className="tbPatientName">
@@ -619,7 +590,7 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                           </span>
                         </td>
                         <td className="tbColCid">
-                          <code>{maskCid(row.cid, isMasked)}</code>
+                          <code>{row.cid || '-'}</code>
                         </td>
                         <td style={{ textAlign: 'center' }} className="tbColMeta">
                           <span className="tbGenderBadge">
