@@ -509,21 +509,32 @@
 }
 
 .tbTable th {
-  padding: 0.75rem 0.85rem;
+  padding: 0.85rem 1rem;
   background: #f8fafc;
   color: var(--tb-slate-700);
   font-weight: 700;
   font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   border-bottom: 1px solid var(--tb-slate-200);
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .tbTable td {
-  padding: 0.75rem 0.85rem;
+  padding: 0.8rem 1rem;
   border-bottom: 1px solid var(--tb-slate-100);
   color: var(--tb-slate-700);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.tbCellCenter {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.tbCellLeft {
+  text-align: left;
   vertical-align: middle;
 }
 
@@ -533,110 +544,123 @@
 
 .tbColMuted {
   color: var(--tb-slate-500);
-  font-size: 0.8rem;
+  font-size: 0.825rem;
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .tbColHn code,
-.tbColCid code {
+.tbColCid code,
+.tbCellCenter code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.825rem;
   background: var(--tb-slate-100);
-  padding: 0.2rem 0.4rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 4px;
-  color: var(--tb-slate-700);
+  color: var(--tb-slate-800);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .tbPatientName {
   font-weight: 600;
   color: var(--tb-slate-900);
+  display: inline-block;
+  vertical-align: middle;
 }
 
-.tbColMeta {
-  display: flex;
+.tbMetaInline {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.45rem;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .tbGenderBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
   background: var(--tb-slate-100);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--tb-slate-700);
+  vertical-align: middle;
+}
+
+.tbGenderBadge.male {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid rgba(3, 105, 161, 0.2);
+}
+
+.tbGenderBadge.female {
+  background: #ffe4e6;
+  color: #be123c;
+  border: 1px solid rgba(190, 18, 60, 0.2);
 }
 
 .tbAgeText {
-  font-size: 0.8rem;
-  color: var(--tb-slate-500);
+  font-size: 0.825rem;
+  color: var(--tb-slate-600);
   font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  vertical-align: middle;
 }
 
 .tbStatusBadge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
+  vertical-align: middle;
 }
 
 .tbStatusBadge.done {
   background: var(--tb-success-bg);
   color: var(--tb-success);
-  border: 1px solid rgba(5, 150, 105, 0.2);
+  border: 1px solid rgba(5, 150, 105, 0.25);
 }
 
 .tbStatusBadge.missing {
   background: var(--tb-danger-bg);
   color: var(--tb-danger);
-  border: 1px solid rgba(220, 38, 38, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.25);
 }
 
-.tbStatusWrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.tbStatusCodePill {
+/* Date Inline (Same Horizontal Line) */
+.tbDateInline {
   display: inline-flex;
   align-items: center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 0.05rem 0.4rem;
-  border-radius: 4px;
-  letter-spacing: 0.03em;
+  justify-content: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
-.tbStatusCodePill.done {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px dashed rgba(5, 150, 105, 0.35);
-}
-
-.tbStatusCodePill.missing {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px dashed rgba(220, 38, 38, 0.35);
-}
-
-.tbDateCellWrapper {
-  display: flex;
-  flex-direction: column;
+.tbDatePill {
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 4px;
+  background: #f0fdfa;
+  color: var(--tb-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  vertical-align: middle;
 }
 
 .tbDateRawBtn {
@@ -645,14 +669,16 @@
   gap: 0.3rem;
   background: #f8fafc;
   border: 1px solid var(--tb-slate-200);
-  padding: 0.12rem 0.45rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--tb-slate-600);
+  color: var(--tb-slate-700);
   cursor: pointer;
   transition: all 0.15s ease;
+  vertical-align: middle;
+  line-height: 1.35;
 }
 
 .tbDateRawBtn:hover {
@@ -668,44 +694,40 @@
 }
 
 .tbDateRawMissing {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   color: var(--tb-slate-400);
   background: var(--tb-slate-50);
-  padding: 0.05rem 0.3rem;
-  border-radius: 3px;
-}
-
-.tbDatePill {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--tb-slate-200);
+  padding: 0.1rem 0.4rem;
   border-radius: 4px;
-  background: #f0fdfa;
-  color: var(--tb-primary);
-  font-size: 0.8rem;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
 }
 
 .tbMutedDash {
   color: var(--tb-slate-300);
+  font-weight: 600;
 }
 
 .tbHospTag {
   display: inline-block;
-  font-size: 0.8rem;
+  font-size: 0.825rem;
   font-weight: 500;
   color: var(--tb-slate-700);
+  vertical-align: middle;
 }
 
 .tbColHome {
-  max-width: 320px;
+  max-width: 340px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.825rem;
   color: var(--tb-slate-500);
+  vertical-align: middle;
 }
 
 /* ── Pagination ── */

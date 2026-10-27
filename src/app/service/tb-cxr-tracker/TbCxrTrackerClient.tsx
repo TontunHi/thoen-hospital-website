@@ -556,13 +556,13 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
               <table className="tbTable">
                 <thead>
                   <tr>
-                    <th style={{ width: '60px', textAlign: 'center' }}>ลำดับ</th>
-                    <th style={{ width: '100px' }}>HN</th>
+                    <th style={{ width: '56px', textAlign: 'center' }}>ลำดับ</th>
+                    <th style={{ width: '100px', textAlign: 'center' }}>HN</th>
                     <th style={{ width: '180px' }}>ชื่อ - สกุล</th>
-                    <th style={{ width: '170px' }}>เลขบัตรประชาชน</th>
-                    <th style={{ width: '80px', textAlign: 'center' }}>เพศ/อายุ</th>
-                    <th style={{ width: '140px', textAlign: 'center' }}>สถานะ CXR</th>
-                    <th style={{ width: '150px', textAlign: 'center' }}>วันที่ตรวจ CXR</th>
+                    <th style={{ width: '160px', textAlign: 'center' }}>เลขบัตรประชาชน</th>
+                    <th style={{ width: '110px', textAlign: 'center' }}>เพศ/อายุ</th>
+                    <th style={{ width: '130px', textAlign: 'center' }}>สถานะ CXR</th>
+                    <th style={{ width: '230px', textAlign: 'center' }}>วันที่ตรวจ CXR</th>
                     <th style={{ width: '170px' }}>รพ.สต. ที่รับผิดชอบ</th>
                     <th>ที่อยู่</th>
                   </tr>
@@ -573,35 +573,37 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                     const isDone = row.cxr_status === 'DONE'
                     return (
                       <tr key={row.id || `${row.hn}-${idx}`} className={isDone ? 'rowDone' : 'rowMissing'}>
-                        <td style={{ textAlign: 'center' }} className="tbColMuted">
+                        <td className="tbCellCenter tbColMuted">
                           {rowNumber}
                         </td>
-                        <td className="tbColHn">
+                        <td className="tbCellCenter tbColHn">
                           <code>{row.hn || '-'}</code>
                         </td>
-                        <td className="tbColName">
+                        <td className="tbCellLeft tbColName">
                           <span className="tbPatientName">
                             {row.title || ''}{row.fname || '-'} {row.lname || ''}
                           </span>
                         </td>
-                        <td className="tbColCid">
+                        <td className="tbCellCenter tbColCid">
                           <code>{row.cid || '-'}</code>
                         </td>
-                        <td style={{ textAlign: 'center' }} className="tbColMeta">
-                          <span className="tbGenderBadge">
-                            {row.gender === 'M' ? 'ช' : row.gender === 'F' ? 'ญ' : '-'}
-                          </span>
-                          <span className="tbAgeText">{row.age ? `${row.age} ปี` : '-'}</span>
+                        <td className="tbCellCenter">
+                          <div className="tbMetaInline">
+                            <span className={`tbGenderBadge ${row.gender === 'M' ? 'male' : row.gender === 'F' ? 'female' : ''}`}>
+                              {row.gender === 'M' ? 'ช' : row.gender === 'F' ? 'ญ' : '-'}
+                            </span>
+                            <span className="tbAgeText">{row.age ? `${row.age} ปี` : '-'}</span>
+                          </div>
                         </td>
-                        <td style={{ textAlign: 'center' }}>
+                        <td className="tbCellCenter">
                           <span className={`tbStatusBadge ${isDone ? 'done' : 'missing'}`}>
                             {isDone ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
                             {isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ'}
                           </span>
                         </td>
-                        <td style={{ textAlign: 'center' }} className="tbColDate">
+                        <td className="tbCellCenter tbColDate">
                           {isDone && row.cxr_date ? (
-                            <div className="tbDateCellWrapper">
+                            <div className="tbDateInline">
                               <span className="tbDatePill">
                                 {formatThaiDateString(row.cxr_date)}
                               </span>
@@ -623,7 +625,7 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                               </button>
                             </div>
                           ) : (
-                            <div className="tbDateCellWrapper">
+                            <div className="tbDateInline">
                               <span className="tbMutedDash">-</span>
                               <code className="tbDateRawMissing" title="ยังไม่มีค่า cxr_date">
                                 NULL
@@ -631,10 +633,10 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                             </div>
                           )}
                         </td>
-                        <td className="tbColHosp">
+                        <td className="tbCellLeft tbColHosp">
                           <span className="tbHospTag">{row.status || '-'}</span>
                         </td>
-                        <td className="tbColHome" title={row.home || ''}>
+                        <td className="tbCellLeft tbColHome" title={row.home || ''}>
                           {row.home || '-'}
                         </td>
                       </tr>
