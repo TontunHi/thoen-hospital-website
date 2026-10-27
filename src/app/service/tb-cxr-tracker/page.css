@@ -693,13 +693,20 @@
 }
 
 .tbColHome {
-  max-width: 340px;
+  max-width: 260px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.825rem;
   color: var(--tb-slate-500);
   vertical-align: middle;
+  cursor: help;
+}
+
+@media (min-width: 1440px) {
+  .tbColHome {
+    max-width: 360px;
+  }
 }
 
 /* ── Pagination ── */
