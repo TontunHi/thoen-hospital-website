@@ -258,8 +258,7 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
         { header: 'อายุ (ปี)', key: 'age', width: 10 },
         { header: 'วันเกิด (YYYYMMDD)', key: 'born_raw', width: 16 },
         { header: 'วันเกิด (ไทย)', key: 'born', width: 14 },
-        { header: 'สถานะ CXR', key: 'cxr_status_text', width: 16 },
-        { header: 'รหัสสถานะ (cxr_status)', key: 'cxr_status', width: 18 },
+        { header: 'สถานะ CXR', key: 'cxr_status', width: 16 },
         { header: 'ค่าวันที่ CXR (cxr_date)', key: 'cxr_date_raw', width: 22 },
         { header: 'วันที่ตรวจ CXR (ไทย)', key: 'cxr_date', width: 18 },
         { header: 'รพ.สต. / สถานพยาบาล', key: 'status', width: 22 },
@@ -297,8 +296,7 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
           age: r.age ?? '',
           born_raw: r.born || '',
           born: formatThaiDateString(r.born),
-          cxr_status_text: isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ',
-          cxr_status: r.cxr_status || (isDone ? 'DONE' : 'MISSING'),
+          cxr_status: isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ',
           cxr_date_raw: r.cxr_date || '',
           cxr_date: isDone ? formatThaiDateString(r.cxr_date) : '-',
           status: r.status || '',
@@ -310,14 +308,11 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
         })
 
         // Status highlight
-        const statusCell = row.getCell('cxr_status_text')
-        const codeCell = row.getCell('cxr_status')
+        const statusCell = row.getCell('cxr_status')
         if (isDone) {
           statusCell.font = { color: { argb: 'FF059669' }, bold: true } // Green
-          codeCell.font = { color: { argb: 'FF059669' }, bold: true }
         } else {
           statusCell.font = { color: { argb: 'FFDC2626' }, bold: true } // Red
-          codeCell.font = { color: { argb: 'FFDC2626' }, bold: true }
         }
 
         row.height = 22
@@ -599,18 +594,10 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                           <span className="tbAgeText">{row.age ? `${row.age} ปี` : '-'}</span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <div className="tbStatusWrapper">
-                            <span className={`tbStatusBadge ${isDone ? 'done' : 'missing'}`}>
-                              {isDone ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-                              {isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ'}
-                            </span>
-                            <span
-                              className={`tbStatusCodePill ${isDone ? 'done' : 'missing'}`}
-                              title="รหัสสถานะในระบบ (cxr_status)"
-                            >
-                              {row.cxr_status}
-                            </span>
-                          </div>
+                          <span className={`tbStatusBadge ${isDone ? 'done' : 'missing'}`}>
+                            {isDone ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                            {isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ'}
+                          </span>
                         </td>
                         <td style={{ textAlign: 'center' }} className="tbColDate">
                           {isDone && row.cxr_date ? (
