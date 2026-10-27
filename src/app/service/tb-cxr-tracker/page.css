@@ -91,34 +91,6 @@
   margin: 0;
 }
 
-.tbLiveBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: 9999px;
-  background-color: var(--tb-primary-light);
-  color: var(--tb-primary);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  border: 1px solid rgba(15, 118, 110, 0.2);
-}
-
-.tbPulseDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--tb-primary);
-  animation: tbPulse 1.8s infinite;
-}
-
-@keyframes tbPulse {
-  0% { transform: scale(0.95); opacity: 1; }
-  50% { transform: scale(1.3); opacity: 0.5; }
-  100% { transform: scale(0.95); opacity: 1; }
-}
-
 .tbSubtitle {
   margin: 0;
   font-size: 0.9rem;

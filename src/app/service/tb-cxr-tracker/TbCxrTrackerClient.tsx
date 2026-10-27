@@ -354,9 +354,6 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
             </Link>
             <div className="tbTitleRow">
               <h1 className="tbTitle">ระบบติดตามการทำ CXR ในกลุ่มผู้ป่วย TB</h1>
-              <span className="tbLiveBadge">
-                <span className="tbPulseDot"></span> LIVE API
-              </span>
             </div>
             <p className="tbSubtitle">
               โรงพยาบาลเถิน · ฐานข้อมูล HOSxP & กลุ่มคัดกรองวัณโรค (CXR Screening Tracker)
