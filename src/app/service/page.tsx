@@ -103,6 +103,14 @@ export default async function ServicePage() {
       category: 'clinical',
       icon: Pill,
     },
+    {
+      title: 'ติดตามการทำ CXR ผู้ป่วย TB',
+      desc: 'ระบบติดตามและตรวจสอบการตรวจภาพถ่ายรังสีทรวงอก (CXR) ในกลุ่มเสี่ยงและผู้ป่วยวัณโรค พร้อมระบบสลับสถานะและส่งออก Excel',
+      link: '/service/tb-cxr-tracker',
+      btnText: 'ติดตามการทำ CXR',
+      category: 'clinical',
+      icon: ScanLine,
+    },
 
     // Administrative & Management
     {

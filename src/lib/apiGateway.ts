@@ -277,6 +277,32 @@ export class ApiGatewayClient {
       }>('/api/v1/clinical/drugs/status')
     },
 
+    getTbCxrTracker: (params?: {
+      status?: 'all' | 'done' | 'missing'
+      startDate?: string
+      hospcode?: string
+      search?: string
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.status) q.set('status', params.status)
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.hospcode) q.set('hospcode', params.hospcode)
+      if (params?.search) q.set('search', params.search)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{
+        success: boolean
+        count: number
+        summary: {
+          total: number
+          doneCount: number
+          missingCount: number
+          coveragePercentage: number
+          statusBreakdown: Record<string, number>
+        }
+        data: Array<Record<string, unknown>>
+      }>(`/api/v1/clinical/tb/cxr-tracker${qs}`)
+    },
+
     getLoratadineMonitor: (age = 'adult') => {
       return this.get<Array<Record<string, unknown>>>(`/api/v1/clinical/drugs/loratadine?age=${encodeURIComponent(age)}`)
     },
