@@ -19,7 +19,6 @@ import {
   Copy,
   X,
   Clock,
-  Sparkles,
   Filter
 } from 'lucide-react'
 import './page.css'
@@ -210,11 +209,13 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
     return filteredData.slice(start, start + pageSize)
   }, [filteredData, currentPage, pageSize])
 
-  // List of all unique health centers
+  // List of all unique health centers sorted in Thai alphabetical order
   const hospList = useMemo(() => {
     const keys = Object.keys(summary.statusBreakdown || {})
-    if (keys.length > 0) return keys.sort()
-    return Array.from(new Set(data.map((d) => d.status).filter(Boolean))).sort()
+    if (keys.length > 0) return keys.sort((a, b) => a.localeCompare(b, 'th'))
+    return Array.from(new Set(data.map((d) => d.status).filter(Boolean)))
+      .map(String)
+      .sort((a, b) => a.localeCompare(b, 'th'))
   }, [summary.statusBreakdown, data])
 
   // Export to Excel using exceljs

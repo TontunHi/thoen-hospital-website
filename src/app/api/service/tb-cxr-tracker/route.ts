@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiGateway } from '@/lib/apiGateway'
 import { verifyMemberSession, attachRenewedMemberSessionCookie } from '@/lib/memberAuth'
 import { logThrottledAudit } from '@/lib/audit'
+import { getCachedData } from '@/lib/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,12 +22,18 @@ export async function GET(request: Request) {
     const search = searchParams.get('search') || undefined
     const startDate = searchParams.get('startDate') || undefined
 
-    const result = await apiGateway.clinical.getTbCxrTracker({
-      status,
-      hospcode,
-      search,
-      startDate
-    })
+    const cacheKey = `tb-cxr-tracker:${status}:${hospcode || ''}:${search || ''}:${startDate || ''}`
+    const result = await getCachedData(
+      cacheKey,
+      () =>
+        apiGateway.clinical.getTbCxrTracker({
+          status,
+          hospcode,
+          search,
+          startDate
+        }),
+      15_000
+    )
 
     let rows: any[] = []
     let count = 0
