@@ -28,6 +28,14 @@ export async function GET(request: Request) {
     const queryUserId = searchParams.get('userId')
 
     if (queryPath) {
+      // Authorization check: User can only access their own signature unless admin
+      if (session.role !== 'admin') {
+        const ownMembers = await queryMemberDb('SELECT signature_path FROM members WHERE username = ? LIMIT 1', [session.username])
+        const ownSignature = ownMembers[0]?.signature_path
+        if (!ownSignature || ownSignature !== queryPath) {
+          return NextResponse.json({ error: 'คุณไม่มีสิทธิ์เข้าถึงลายเซ็นนี้' }, { status: 403 })
+        }
+      }
       try {
         const fileBuffer = await DocumentStorage.readBuffer(queryPath)
         return new Response(fileBuffer as any, { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store, max-age=0' } })

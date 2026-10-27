@@ -44,7 +44,11 @@ export async function GET(request: Request) {
 
     const escapeCsv = (str: any) => {
       if (str === null || str === undefined) return '""'
-      const val = String(str).replace(/"/g, '""')
+      let val = String(str).replace(/"/g, '""')
+      // Defend against CSV Formula Injection in spreadsheet software
+      if (/^[=+\-@\t\r]/.test(val)) {
+        val = `'${val}`
+      }
       return `"${val}"`
     }
 

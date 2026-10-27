@@ -43,10 +43,11 @@ export async function POST(request: Request) {
       })
     }
 
+    const maskedQuery = searchQuery.length > 4 ? `x-xxxx-xxxxx-${searchQuery.slice(-4)}` : searchQuery
     await logAudit(
       'READ',
       'patient_lab_history',
-      `ค้นหาประวัติการรักษาและผลแลปสำหรับ: ${searchQuery} (พบ ${patients.length} รายการ)`,
+      `ค้นหาประวัติการรักษาและผลแลปสำหรับ: ${maskedQuery} (พบ ${patients.length} รายการ)`,
       memberSession
     )
 

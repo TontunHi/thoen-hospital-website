@@ -166,7 +166,7 @@ export class MemberAuthService {
 
     if (!user.is_valid) {
       try {
-        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: OTP expired`, { username: trimmedUsername, email: user.email })
+        await logAudit('LOGIN', 'members', `Failed OTP attempt for user ${formatMaskedCitizenId(trimmedUsername)}: OTP expired`, { username: formatMaskedCitizenId(trimmedUsername), email: user.email })
       } catch {}
       throw new Error('รหัส OTP หมดอายุการใช้งานแล้ว กรุณาขอรหัสใหม่')
     }

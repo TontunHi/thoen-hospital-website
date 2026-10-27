@@ -44,7 +44,8 @@ function getSecretForState(customSecret?: string): string {
     customSecret ||
     process.env.THAID_CLIENT_SECRET ||
     process.env.JWT_SECRET ||
-    'thoen-thaid-oauth-state-secret-fallback'
+    process.env.MEMBER_SESSION_SECRET ||
+    (() => { throw new Error('ThaID OAuth state secret is required: set THAID_CLIENT_SECRET or MEMBER_SESSION_SECRET') })()
   )
 }
 

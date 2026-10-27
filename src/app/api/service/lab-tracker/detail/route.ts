@@ -24,10 +24,11 @@ export async function GET(request: Request) {
       )
     }
 
+    const maskedHn = hn.length > 4 ? `xxxx${hn.slice(-4)}` : hn
     logAudit(
       'READ',
       'lab_order',
-      `Viewed lab results detail for HN: ${hn}`,
+      `Viewed lab results detail for HN: ${maskedHn}`,
       { username: memberSession.username, email: memberSession.email }
     ).catch((err) => logger.error({ err }, 'Lab detail audit log failed'))
 

@@ -32,12 +32,15 @@ export async function GET(request: Request) {
       )
     }
 
+    const rawHn = details.patient?.hn || ''
+    const maskedHn = rawHn.length > 4 ? `xxxx${rawHn.slice(-4)}` : rawHn
+
     await logAudit(
       'READ',
       'patient_lab_history',
       vn
-        ? `เข้าดูรายละเอียดเวชระเบียน/ผลแลป OPD VN: ${vn} (HN: ${details.patient.hn})`
-        : `เข้าดูรายละเอียดเวชระเบียน/ผลแลป IPD AN: ${an} (HN: ${details.patient.hn})`,
+        ? `เข้าดูรายละเอียดเวชระเบียน/ผลแลป OPD VN: ${vn} (HN: ${maskedHn})`
+        : `เข้าดูรายละเอียดเวชระเบียน/ผลแลป IPD AN: ${an} (HN: ${maskedHn})`,
       memberSession
     )
 

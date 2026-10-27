@@ -1,9 +1,19 @@
 import { NextRequest } from 'next/server'
 import { smartCardBridgeHub } from '@/lib/screening/smartCardBridgeHub'
+import { verifyMemberSession } from '@/lib/memberAuth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
+  // Allow access if caller has an active member session OR provides valid bridge token
+  const session = await verifyMemberSession()
+  const token = req.headers.get('x-bridge-token') || req.nextUrl.searchParams.get('token')
+  const isTokenValid = smartCardBridgeHub.verifyToken(token)
+
+  if (!session && !isTokenValid) {
+    return new Response('Unauthorized: Member login or bridge token required', { status: 401 })
+  }
+
   const station = req.nextUrl.searchParams.get('station') || '1'
   const encoder = new TextEncoder()
   let unsubscribe: (() => void) | null = null

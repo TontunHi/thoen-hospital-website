@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { DocumentStorage, StorageValidationError, sanitizeName } from '@/lib/storage/documentStorage'
+import { logAudit } from '@/lib/audit'
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +43,6 @@ export async function POST(request: Request) {
         'image/png',
         'image/gif',
         'image/webp',
-        'image/svg+xml',
         'application/pdf',
         'application/msword',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         'application/zip',
         'application/x-zip-compressed',
       ],
-      allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.zip'],
+      allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.zip'],
       maxSizeBytes: 25 * 1024 * 1024,
       collisionStrategy: 'timestamp',
     })
@@ -89,6 +89,14 @@ export async function DELETE(request: Request) {
     }
 
     await DocumentStorage.delete(filePath)
+
+    await logAudit(
+      'DELETE',
+      'uploads',
+      `ลบไฟล์อัปโหลดประชาสัมพันธ์: ${filePath}`,
+      member.session
+    )
+
     return NextResponse.json({ success: true, message: 'ลบไฟล์เรียบร้อยแล้ว' })
   } catch (error: any) {
     console.error('Delete member upload error:', error)

@@ -21,6 +21,13 @@ export async function GET(req: NextRequest) {
         'Viewed ER live status and active patient registry',
         { username: memberSession.username, email: memberSession.email }
       ).catch(err => logger.error({ err }, 'ER status audit log failed'))
+    } else if (isTvMode) {
+      logThrottledAudit(
+        'READ',
+        'er_regist',
+        'Viewed ER live status via TV display mode (unauthenticated)',
+        { username: 'TV_DISPLAY', email: '' }
+      ).catch(err => logger.error({ err }, 'ER status TV mode audit log failed'))
     }
 
     // Fetch raw status with 8s in-memory cache to prevent HOSxP replica overload
@@ -143,9 +150,24 @@ export async function GET(req: NextRequest) {
       }
     }, 8000)
 
+    const activePatients = (isStaff || isTvMode)
+      ? erData.activePatients.map((p: any) => {
+          if (isStaff) return p
+          // For unauthenticated public TV displays: protect PHI (mask HN, VN, surname)
+          const nameParts = (p.ptname || '').trim().split(/\s+/)
+          const maskedName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : p.ptname
+          return {
+            ...p,
+            hn: p.hn ? `xxxx${String(p.hn).slice(-4)}` : '',
+            vn: p.vn ? `xxxx${String(p.vn).slice(-4)}` : '',
+            ptname: maskedName,
+          }
+        })
+      : []
+
     return NextResponse.json({
-      activePatients: (isStaff || isTvMode) ? erData.activePatients : [],
-      errorStatusList: (isStaff || isTvMode) ? erData.errorStatusList : { total: erData.errorStatusList?.total || 0, list: [] },
+      activePatients,
+      errorStatusList: isStaff ? erData.errorStatusList : { total: erData.errorStatusList?.total || 0, list: [] },
       summary: erData.summary,
       stats: erData.stats,
     })
