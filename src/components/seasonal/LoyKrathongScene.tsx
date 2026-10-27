@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import styles from './LoyKrathongScene.module.css'
 
 /**
- * Checks if the given date falls into the annual Loy Krathong window (Nov 10 - Nov 30).
+ * Checks if the given date falls into the annual Loy Krathong window (Nov 1 - Nov 30).
  * Evaluation is based on Thailand local time (UTC+7).
  */
 export function isLoyKrathongSeason(now: Date = new Date()): boolean {
@@ -19,8 +19,7 @@ export function isLoyKrathongSeason(now: Date = new Date()): boolean {
   const month = parseInt(monthStr, 10)
   const day = parseInt(dayStr, 10)
 
-  // Active during festival season: Late October (from Oct 25) through end of November (Nov 30)
-  if (month === 10 && day >= 25) return true
+  // Active during festival season: November (Nov 1 through Nov 30)
   if (month === 11 && day <= 30) return true
   return false
 }
@@ -305,9 +304,9 @@ export default function LoyKrathongScene() {
     return null
   }
 
-  // Allows testing normal mode (?theme=normal) or forcing festival (?theme=loy-krathong)
+  // Allows testing normal mode (?theme=normal), forcing halloween (?theme=halloween), or forcing festival (?theme=loy-krathong)
   const themeParam = searchParams.get('theme')
-  if (themeParam === 'normal') {
+  if (themeParam === 'normal' || themeParam === 'halloween') {
     return null
   }
   const isQueryActive = themeParam === 'loy-krathong'
