@@ -18,6 +18,7 @@ import {
   Building2,
   Users,
   Check,
+  Copy,
   X,
   Clock,
   Sparkles,
@@ -150,6 +151,14 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
   // Export Modal
   const [exportModalOpen, setExportModalOpen] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
+  const [copiedCode, setCopiedCode] = useState<string | null>(null)
+
+  const handleCopyCode = (text: string) => {
+    if (!text) return
+    navigator.clipboard.writeText(text)
+    setCopiedCode(text)
+    setTimeout(() => setCopiedCode(null), 1800)
+  }
 
   // Fetch initial data
   const fetchData = useCallback(async (manual = false) => {
@@ -267,13 +276,17 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
         { header: 'เลขบัตรประชาชน', key: 'cid', width: 18 },
         { header: 'เพศ', key: 'gender', width: 8 },
         { header: 'อายุ (ปี)', key: 'age', width: 10 },
-        { header: 'วันเกิด', key: 'born', width: 14 },
-        { header: 'สถานะ CXR', key: 'cxr_status', width: 18 },
-        { header: 'วันที่ตรวจ CXR', key: 'cxr_date', width: 16 },
+        { header: 'วันเกิด (YYYYMMDD)', key: 'born_raw', width: 16 },
+        { header: 'วันเกิด (ไทย)', key: 'born', width: 14 },
+        { header: 'สถานะ CXR', key: 'cxr_status_text', width: 16 },
+        { header: 'รหัสสถานะ (cxr_status)', key: 'cxr_status', width: 18 },
+        { header: 'ค่าวันที่ CXR (cxr_date)', key: 'cxr_date_raw', width: 22 },
+        { header: 'วันที่ตรวจ CXR (ไทย)', key: 'cxr_date', width: 18 },
         { header: 'รพ.สต. / สถานพยาบาล', key: 'status', width: 22 },
         { header: 'ที่อยู่ตามทะเบียน', key: 'home', width: 40 },
         { header: 'สิทธิการรักษา', key: 'inccl_id', width: 24 },
-        { header: 'ผลการตรวจ CXR', key: 'cxr_result', width: 16 },
+        { header: 'ผลตรวจ CXR (cxr_result)', key: 'cxr_result', width: 20 },
+        { header: 'ผลผิดปกติ (cxr_abnormal_result)', key: 'cxr_abnormal_result', width: 24 },
         { header: 'หมายเหตุ', key: 'note', width: 20 },
       ]
 
@@ -302,22 +315,29 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
           cid: r.cid || '',
           gender: r.gender === 'M' ? 'ชาย' : r.gender === 'F' ? 'หญิง' : '',
           age: r.age ?? '',
+          born_raw: r.born || '',
           born: formatThaiDateString(r.born),
-          cxr_status: isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ',
+          cxr_status_text: isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ',
+          cxr_status: r.cxr_status || (isDone ? 'DONE' : 'MISSING'),
+          cxr_date_raw: r.cxr_date || '',
           cxr_date: isDone ? formatThaiDateString(r.cxr_date) : '-',
           status: r.status || '',
           home: r.home || '',
           inccl_id: r.inccl_id || '',
           cxr_result: r.cxr_result || '',
+          cxr_abnormal_result: r.cxr_abnormal_result || '',
           note: r.note || '',
         })
 
         // Status highlight
-        const statusCell = row.getCell('cxr_status')
+        const statusCell = row.getCell('cxr_status_text')
+        const codeCell = row.getCell('cxr_status')
         if (isDone) {
           statusCell.font = { color: { argb: 'FF059669' }, bold: true } // Green
+          codeCell.font = { color: { argb: 'FF059669' }, bold: true }
         } else {
           statusCell.font = { color: { argb: 'FFDC2626' }, bold: true } // Red
+          codeCell.font = { color: { argb: 'FFDC2626' }, bold: true }
         }
 
         row.height = 22
@@ -575,8 +595,8 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                     <th style={{ width: '180px' }}>ชื่อ - สกุล</th>
                     <th style={{ width: '170px' }}>เลขบัตรประชาชน</th>
                     <th style={{ width: '80px', textAlign: 'center' }}>เพศ/อายุ</th>
-                    <th style={{ width: '130px', textAlign: 'center' }}>สถานะ CXR</th>
-                    <th style={{ width: '130px', textAlign: 'center' }}>วันที่ตรวจ</th>
+                    <th style={{ width: '140px', textAlign: 'center' }}>สถานะ CXR</th>
+                    <th style={{ width: '150px', textAlign: 'center' }}>วันที่ตรวจ CXR</th>
                     <th style={{ width: '170px' }}>รพ.สต. ที่รับผิดชอบ</th>
                     <th>ที่อยู่</th>
                   </tr>
@@ -608,23 +628,49 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
                           <span className="tbAgeText">{row.age ? `${row.age} ปี` : '-'}</span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          {isDone ? (
-                            <span className="tbStatusBadge done">
-                              <CheckCircle2 size={13} /> ตรวจแล้ว
+                          <div className="tbStatusWrapper">
+                            <span className={`tbStatusBadge ${isDone ? 'done' : 'missing'}`}>
+                              {isDone ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                              {isDone ? 'ตรวจแล้ว' : 'ยังไม่ได้ตรวจ'}
                             </span>
-                          ) : (
-                            <span className="tbStatusBadge missing">
-                              <AlertCircle size={13} /> ยังไม่ได้ตรวจ
+                            <span
+                              className={`tbStatusCodePill ${isDone ? 'done' : 'missing'}`}
+                              title="รหัสสถานะในระบบ (cxr_status)"
+                            >
+                              {row.cxr_status}
                             </span>
-                          )}
+                          </div>
                         </td>
                         <td style={{ textAlign: 'center' }} className="tbColDate">
-                          {isDone ? (
-                            <span className="tbDatePill">
-                              {formatThaiDateString(row.cxr_date)}
-                            </span>
+                          {isDone && row.cxr_date ? (
+                            <div className="tbDateCellWrapper">
+                              <span className="tbDatePill">
+                                {formatThaiDateString(row.cxr_date)}
+                              </span>
+                              <button
+                                type="button"
+                                className={`tbDateRawBtn ${copiedCode === row.cxr_date ? 'copied' : ''}`}
+                                title="คลิกเพื่อคัดลอกค่า cxr_date (YYYYMMDD)"
+                                onClick={() => handleCopyCode(row.cxr_date!)}
+                              >
+                                {copiedCode === row.cxr_date ? (
+                                  <>
+                                    <Check size={11} /> คัดลอกแล้ว
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={10} /> {row.cxr_date}
+                                  </>
+                                )}
+                              </button>
+                            </div>
                           ) : (
-                            <span className="tbMutedDash">-</span>
+                            <div className="tbDateCellWrapper">
+                              <span className="tbMutedDash">-</span>
+                              <code className="tbDateRawMissing" title="ยังไม่มีค่า cxr_date">
+                                NULL
+                              </code>
+                            </div>
                           )}
                         </td>
                         <td className="tbColHosp">

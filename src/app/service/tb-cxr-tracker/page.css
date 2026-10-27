@@ -602,6 +602,81 @@
   border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
+.tbStatusWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tbStatusCodePill {
+  display: inline-flex;
+  align-items: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  letter-spacing: 0.03em;
+}
+
+.tbStatusCodePill.done {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px dashed rgba(5, 150, 105, 0.35);
+}
+
+.tbStatusCodePill.missing {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px dashed rgba(220, 38, 38, 0.35);
+}
+
+.tbDateCellWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.tbDateRawBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #f8fafc;
+  border: 1px solid var(--tb-slate-200);
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--tb-slate-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tbDateRawBtn:hover {
+  background: #e2e8f0;
+  color: var(--tb-slate-900);
+  border-color: var(--tb-slate-400);
+}
+
+.tbDateRawBtn.copied {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+
+.tbDateRawMissing {
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.68rem;
+  color: var(--tb-slate-400);
+  background: var(--tb-slate-50);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+}
+
 .tbDatePill {
   display: inline-block;
   padding: 0.15rem 0.5rem;
