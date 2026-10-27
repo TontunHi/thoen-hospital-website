@@ -134,7 +134,7 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [lastFetched, setLastFetched] = useState<Date>(new Date())
+  const [lastFetched, setLastFetched] = useState<Date | null>(null)
 
   // Filters & Controls
   const [activeTab, setActiveTab] = useState<'all' | 'done' | 'missing'>('all')
@@ -518,9 +518,11 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
             {selectedHosp && <span className="tbFilterPill">รพ.สต.: {selectedHosp}</span>}
             {searchTerm && <span className="tbFilterPill">ค้นหา: &quot;{searchTerm}&quot;</span>}
           </span>
-          <span className="tbTimestamp">
-            อัปเดตล่าสุด: {lastFetched.toLocaleTimeString('th-TH')} น.
-          </span>
+          {lastFetched && (
+            <span className="tbTimestamp">
+              อัปเดตล่าสุด: {lastFetched.toLocaleTimeString('th-TH')} น.
+            </span>
+          )}
         </div>
 
         {/* Table View */}
