@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
+import LoyKrathongScene from '@/components/seasonal/LoyKrathongScene'
 import './page.css'
 
 function MemberLoginForm() {
@@ -298,6 +299,9 @@ function MemberLoginForm() {
 export default function MemberLoginPage() {
   return (
     <div className="memberLoginContainer">
+      <Suspense fallback={null}>
+        <LoyKrathongScene />
+      </Suspense>
       <Suspense fallback={<div className="memberLoginCard"><p style={{ color: '#fff', textAlign: 'center' }}>กำลังโหลด...</p></div>}>
         <MemberLoginForm />
       </Suspense>

@@ -85,8 +85,7 @@ export async function GET(request: Request) {
       hasPerm('view_all_work') ||
       hasPerm('manage_media_requests') ||
       isPrStaff ||
-      userPos.includes('ดิจิทัลทางการแพทย์') ||
-      userPos.includes('พัสดุ')
+      userPos.includes('ดิจิทัลทางการแพทย์')
 
     let whereClauses: string[] = ["t.task_type = 'MEDIA_REQUEST'"]
     let queryParams: any[] = []

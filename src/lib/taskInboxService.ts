@@ -148,15 +148,11 @@ export const REGISTERED_TASK_TYPES: Record<string, TaskTypeDefinition> = {
 export const MEDIA_REQUEST_ROLES = {
   PR_OFFICER: 'นักประชาสัมพันธ์',
   DIGITAL_HEAD: 'หัวหน้ากลุ่มงานดิจิทัลทางการแพทย์',
-  PROCUREMENT_OFFICER: 'เจ้าหน้าที่พัสดุ',
-  PROCUREMENT_HEAD: 'หัวหน้าเจ้าหน้าที่พัสดุ',
   DIRECTOR: 'ผู้อำนวยการโรงพยาบาลเถิน',
 } as const
 
 export const MEDIA_REQUEST_ROLE_CIDS: Record<string, string> = {
   [MEDIA_REQUEST_ROLES.DIGITAL_HEAD]: '3510101262116',
-  [MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER]: '1529900015359',
-  [MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD]: '3521000525368',
   [MEDIA_REQUEST_ROLES.DIRECTOR]: '3540300329784',
 }
 
@@ -211,34 +207,20 @@ export function getMediaRequestWorkflowSteps(hasCost: boolean): WorkflowStepDefi
     },
     {
       stepNo: 3,
-      stepName: 'เจ้าหน้าที่พัสดุ ตรวจสอบความถูกต้อง',
-      assigneeType: 'ROLE',
-      assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER,
-      canEditFields: ['comment'],
-    },
-    {
-      stepNo: 4,
-      stepName: 'หัวหน้าเจ้าหน้าที่พัสดุ ตรวจสอบและให้ความเห็นชอบ',
-      assigneeType: 'ROLE',
-      assignedRole: MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD,
-      canEditFields: ['comment'],
-    },
-    {
-      stepNo: 5,
       stepName: 'ผู้อำนวยการโรงพยาบาลเถิน พิจารณาลงนามอนุมัติ',
       assigneeType: 'ROLE',
       assignedRole: MEDIA_REQUEST_ROLES.DIRECTOR,
       canEditFields: ['comment'],
     },
     {
-      stepNo: 6,
+      stepNo: 4,
       stepName: 'นักประชาสัมพันธ์ ดำเนินการสั่งพิมพ์/ผลิตสื่อ',
       assigneeType: 'ROLE',
       assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
       canEditFields: ['comment'],
     },
     {
-      stepNo: 7,
+      stepNo: 5,
       stepName: 'นักประชาสัมพันธ์ ดำเนินการเสร็จสิ้นและส่งมอบงาน',
       assigneeType: 'ROLE',
       assignedRole: MEDIA_REQUEST_ROLES.PR_OFFICER,
@@ -822,6 +804,10 @@ export async function updateTaskByManager(
               }
             }
           }
+          await executor(
+            `DELETE FROM inbox_task_steps WHERE task_id = ? AND step_no > ? AND status IN ('PENDING', 'WAITING')`,
+            [taskId, targetSteps.length]
+          )
         } else if (updates.costType === 'NO_COST') {
           const targetSteps = getMediaRequestWorkflowSteps(false)
           await executor(

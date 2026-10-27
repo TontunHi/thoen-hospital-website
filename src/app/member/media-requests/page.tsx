@@ -24,8 +24,7 @@ export default async function MediaRequestsPage() {
     member.can('manage_media_requests') ||
     member.can('view_all_work') ||
     isPrStaff ||
-    userPos.includes('ดิจิทัลทางการแพทย์') ||
-    userPos.includes('พัสดุ')
+    userPos.includes('ดิจิทัลทางการแพทย์')
 
   let whereClauses: string[] = ["t.task_type = 'MEDIA_REQUEST'"]
   let queryParams: any[] = []

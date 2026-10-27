@@ -1,0 +1,277 @@
+/* Loy Krathong Seasonal Scene - Pure CSS & GPU Accelerated */
+
+.seasonWrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(circle at 85% 15%, rgba(254, 240, 138, 0.08) 0%, transparent 45%),
+              linear-gradient(180deg, rgba(6, 30, 48, 0.45) 0%, rgba(3, 40, 32, 0.25) 60%, rgba(2, 24, 20, 0.8) 100%);
+  transition: opacity 0.8s ease-in-out;
+}
+
+/* Full Moon */
+.moonContainer {
+  position: absolute;
+  top: 5%;
+  right: 8%;
+  width: 90px;
+  height: 90px;
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .moonContainer {
+    top: 7%;
+    right: 12%;
+    width: 120px;
+    height: 120px;
+  }
+}
+
+.moon {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 38%, #fffef0 0%, #fef08a 45%, #fde047 75%, #eab308 100%);
+  box-shadow:
+    0 0 25px rgba(254, 240, 138, 0.7),
+    0 0 55px rgba(250, 204, 21, 0.4),
+    0 0 100px rgba(234, 179, 8, 0.25);
+  animation: moonPulse 6s ease-in-out infinite alternate;
+}
+
+@keyframes moonPulse {
+  0% {
+    box-shadow:
+      0 0 25px rgba(254, 240, 138, 0.6),
+      0 0 50px rgba(250, 204, 21, 0.35),
+      0 0 90px rgba(234, 179, 8, 0.2);
+    transform: scale(1);
+  }
+  100% {
+    box-shadow:
+      0 0 35px rgba(254, 240, 138, 0.85),
+      0 0 70px rgba(250, 204, 21, 0.5),
+      0 0 120px rgba(234, 179, 8, 0.35);
+    transform: scale(1.02);
+  }
+}
+
+/* Twinkling Stars */
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background-color: #ffffff;
+  pointer-events: none;
+  animation: twinkle ease-in-out infinite alternate;
+}
+
+@keyframes twinkle {
+  0% {
+    opacity: 0.2;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+/* Floating Lanterns (Khom Loi / Yee Peng) */
+.lantern {
+  position: absolute;
+  bottom: -90px;
+  will-change: transform, opacity;
+  animation: floatUpward linear infinite;
+  pointer-events: none;
+}
+
+@keyframes floatUpward {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(40px, -115vh, 0) rotate(5deg);
+    opacity: 0;
+  }
+}
+
+/* River Water at the bottom */
+.riverLayer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 140px;
+  background: linear-gradient(180deg, rgba(4, 30, 24, 0) 0%, rgba(2, 28, 22, 0.65) 40%, rgba(1, 18, 14, 0.95) 100%);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.riverWave {
+  position: absolute;
+  bottom: 25px;
+  left: -50%;
+  width: 200%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(254, 240, 138, 0.15) 30%, rgba(250, 204, 21, 0.25) 50%, rgba(254, 240, 138, 0.15) 70%, transparent 100%);
+  animation: waveShimmer 8s ease-in-out infinite alternate;
+}
+
+.riverWave2 {
+  position: absolute;
+  bottom: 12px;
+  left: -30%;
+  width: 160%;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent 0%, rgba(167, 243, 208, 0.12) 40%, rgba(110, 231, 183, 0.2) 60%, transparent 100%);
+  animation: waveShimmer 11s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes waveShimmer {
+  0% {
+    transform: translateX(0) scaleY(1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateX(6%) scaleY(1.5);
+    opacity: 0.85;
+  }
+}
+
+/* Floating Krathong */
+.krathong {
+  position: absolute;
+  bottom: 15px;
+  left: -120px;
+  will-change: transform;
+  animation: krathongDrift linear infinite;
+  pointer-events: none;
+}
+
+@keyframes krathongDrift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(-1.5deg);
+  }
+  25% {
+    transform: translate3d(28vw, -4px, 0) rotate(1.5deg);
+  }
+  50% {
+    transform: translate3d(55vw, 2px, 0) rotate(-1.2deg);
+  }
+  75% {
+    transform: translate3d(82vw, -3px, 0) rotate(1.2deg);
+  }
+  100% {
+    transform: translate3d(calc(100vw + 140px), 0, 0) rotate(-1.5deg);
+  }
+}
+
+/* Candle Flame Flicker */
+.candleFlame,
+  .firework {
+  animation: candleFlicker 1.8s ease-in-out infinite alternate;
+  transform-origin: center bottom;
+}
+
+@keyframes candleFlicker {
+  0% {
+    transform: scale(0.92) rotate(-2deg);
+    opacity: 0.85;
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.8));
+  }
+  50% {
+    transform: scale(1.08) rotate(2deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 9px rgba(245, 158, 11, 0.95));
+  }
+  100% {
+    transform: scale(0.96) rotate(-1deg);
+    opacity: 0.9;
+    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.85));
+  }
+}
+
+/* Water Ripple Reflection under Krathong */
+.krathongGlow {
+  filter: drop-shadow(0 4px 12px rgba(250, 204, 21, 0.35));
+}
+
+
+/* Festive Fireworks (พลุเฉลิมฉลองทรงพุ่มดอกไม้ไฟ) */
+.firework {
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  margin-left: -85px;
+  margin-top: -85px;
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: fireworkBurst ease-out infinite;
+}
+
+@keyframes fireworkBurst {
+  0% {
+    transform: scale(0.06) translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  10% {
+    transform: scale(0.4) translate3d(0, 0, 0);
+    opacity: 1;
+  }
+  38% {
+    transform: scale(0.85) translate3d(0, 6px, 0);
+    opacity: 0.95;
+  }
+  65% {
+    transform: scale(1.05) translate3d(0, 16px, 0);
+    opacity: 0.8;
+  }
+  85% {
+    transform: scale(1.18) translate3d(0, 28px, 0);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.26) translate3d(0, 38px, 0);
+    opacity: 0;
+  }
+}
+
+/* Accessibility: Reduce Motion */
+@media (prefers-reduced-motion: reduce) {
+  .moon,
+  .star,
+  .lantern,
+  .riverWave,
+  .riverWave2,
+  .krathong,
+  .candleFlame {
+    animation: none !important;
+  }
+
+  .krathong {
+    left: 15% !important;
+    bottom: 20px !important;
+  }
+
+  .lantern {
+    bottom: 30% !important;
+    opacity: 0.6 !important;
+  }
+}

@@ -34,26 +34,29 @@ describe('MEDIA_REQUEST Workflow Configuration', () => {
     expect(steps[3].stepName).toContain('ดำเนินการเสร็จสิ้นและส่งมอบงาน')
   })
 
-  it('generates 7 steps including PR, Digital Head, Procurement and Hospital Director when hasCost is true (HAS_COST)', () => {
+  it('generates 5 steps including PR, Digital Head, and Hospital Director when hasCost is true (HAS_COST)', () => {
     const steps = getMediaRequestWorkflowSteps(true)
-    expect(steps).toHaveLength(7)
+    expect(steps).toHaveLength(5)
 
+    expect(steps[0].stepNo).toBe(1)
     expect(steps[0].assignedRole).toBe(MEDIA_REQUEST_ROLES.PR_OFFICER)
+    expect(steps[0].stepName).toContain('ตรวจสอบและจัดทำแบบ')
+
+    expect(steps[1].stepNo).toBe(2)
     expect(steps[1].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIGITAL_HEAD)
-    expect(steps[2].assignedRole).toBe(MEDIA_REQUEST_ROLES.PROCUREMENT_OFFICER)
-    expect(steps[3].assignedRole).toBe(MEDIA_REQUEST_ROLES.PROCUREMENT_HEAD)
+    expect(steps[1].stepName).toContain('ตรวจสอบและเสนอเรื่อง')
+
+    expect(steps[2].stepNo).toBe(3)
+    expect(steps[2].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIRECTOR)
+    expect(steps[2].stepName).toContain('ผู้อำนวยการโรงพยาบาลเถิน')
+
+    expect(steps[3].stepNo).toBe(4)
+    expect(steps[3].assignedRole).toBe(MEDIA_REQUEST_ROLES.PR_OFFICER)
+    expect(steps[3].stepName).toContain('ดำเนินการสั่งพิมพ์/ผลิตสื่อ')
 
     expect(steps[4].stepNo).toBe(5)
-    expect(steps[4].assignedRole).toBe(MEDIA_REQUEST_ROLES.DIRECTOR)
-    expect(steps[4].stepName).toContain('ผู้อำนวยการโรงพยาบาลเถิน')
-
-    expect(steps[5].stepNo).toBe(6)
-    expect(steps[5].assignedRole).toBe(MEDIA_REQUEST_ROLES.PR_OFFICER)
-    expect(steps[5].stepName).toContain('ดำเนินการสั่งพิมพ์/ผลิตสื่อ')
-
-    expect(steps[6].stepNo).toBe(7)
-    expect(steps[6].assignedRole).toBe(MEDIA_REQUEST_ROLES.PR_OFFICER)
-    expect(steps[6].stepName).toContain('ดำเนินการเสร็จสิ้นและส่งมอบงาน')
+    expect(steps[4].assignedRole).toBe(MEDIA_REQUEST_ROLES.PR_OFFICER)
+    expect(steps[4].stepName).toContain('ดำเนินการเสร็จสิ้นและส่งมอบงาน')
   })
 
   it('generates unique cryptographic signature stamp hash for approver', async () => {
