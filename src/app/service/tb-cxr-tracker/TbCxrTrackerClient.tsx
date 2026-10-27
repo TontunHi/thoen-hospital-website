@@ -134,6 +134,7 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
   })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
 
   // Filters & Controls
@@ -156,6 +157,7 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
     else setLoading(true)
 
     try {
+      setFetchError(null)
       // ดึงข้อมูลทั้งหมดผ่านเส้น API Gateway Adapter
       const res = await fetch('/api/service/tb-cxr-tracker?status=all', { cache: 'no-store' })
       const json = await res.json()
@@ -165,9 +167,12 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
           setSummary(json.summary)
         }
         setLastFetched(new Date())
+      } else {
+        setFetchError(json.error || 'ไม่สามารถโหลดข้อมูลจากระบบได้')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load TB CXR data:', err)
+      setFetchError(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
     } finally {
       setLoading(false)
       if (manual) setTimeout(() => setRefreshing(false), 500)
@@ -531,6 +536,18 @@ export default function TbCxrTrackerClient({ userRole }: Props) {
             <div className="tbLoadingState">
               <RefreshCw size={32} className="tbSpin" />
               <p>กำลังเชื่อมต่อ API Gateway และโหลดข้อมูลเวชระเบียน...</p>
+            </div>
+          ) : fetchError ? (
+            <div className="tbEmptyState">
+              <AlertCircle size={40} style={{ color: '#ef4444' }} />
+              <h3>เกิดข้อผิดพลาดในการโหลดข้อมูล</h3>
+              <p>{fetchError}</p>
+              <button
+                className="tbResetBtn"
+                onClick={() => fetchData(true)}
+              >
+                ลองใหม่อีกครั้ง
+              </button>
             </div>
           ) : paginatedRows.length === 0 ? (
             <div className="tbEmptyState">

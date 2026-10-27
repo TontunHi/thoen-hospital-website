@@ -28,18 +28,47 @@ export async function GET(request: Request) {
       startDate
     })
 
+    let rows: any[] = []
+    let count = 0
+    let summary: any = null
+
+    if (Array.isArray(result)) {
+      rows = result
+      count = rows.length
+      let done = 0
+      let missing = 0
+      const breakdown: Record<string, number> = {}
+      for (const r of rows) {
+        if (r.cxr_status === 'DONE') done++
+        else missing++
+        const st = r.status || 'ไม่ระบุ'
+        breakdown[st] = (breakdown[st] || 0) + 1
+      }
+      summary = {
+        total: count,
+        doneCount: done,
+        missingCount: missing,
+        coveragePercentage: count > 0 ? parseFloat(((done / count) * 100).toFixed(1)) : 0,
+        statusBreakdown: breakdown
+      }
+    } else if (result && typeof result === 'object') {
+      rows = (result as any).items || (result as any).data || []
+      count = (result as any).count ?? rows.length
+      summary = (result as any).summary ?? null
+    }
+
     await logThrottledAudit(
       'READ',
       'tb_cxr_tracker',
-      `เข้าดูระบบติดตามการทำ CXR ผู้ป่วย TB (สถานะ: ${status}, ผลลัพธ์ ${result.count || 0} รายการ)`,
+      `เข้าดูระบบติดตามการทำ CXR ผู้ป่วย TB (สถานะ: ${status}, ผลลัพธ์ ${count} รายการ)`,
       memberSession
     )
 
     const response = NextResponse.json({
       success: true,
-      count: result.count,
-      summary: result.summary,
-      data: result.data
+      count,
+      summary,
+      data: rows
     })
 
     return attachRenewedMemberSessionCookie(response, memberSession)
