@@ -98,7 +98,18 @@ describe('GET /api/service/tb-cxr-tracker', () => {
       role: 'subdistrict',
     } as any)
 
-    vi.mocked(apiGateway.clinical.getTbCxrTracker).mockResolvedValue([])
+    vi.mocked(apiGateway.clinical.getTbCxrTracker).mockResolvedValue({
+      success: true,
+      count: 0,
+      summary: {
+        total: 0,
+        doneCount: 0,
+        missingCount: 0,
+        coveragePercentage: 0,
+        statusBreakdown: {},
+      },
+      data: [],
+    })
 
     const request = new Request('http://localhost:3000/api/service/tb-cxr-tracker')
     const response = await GET(request)
