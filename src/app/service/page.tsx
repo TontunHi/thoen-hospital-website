@@ -182,7 +182,7 @@ export default async function ServicePage() {
   ]
 
   const displaySystems = session.role === 'subdistrict'
-    ? internalSystems.filter((sys) => sys.link === '/service/lab' || sys.link === '/service/lab-tracker')
+    ? internalSystems.filter((sys) => sys.link === '/service/lab' || sys.link === '/service/lab-tracker' || sys.link === '/service/tb-cxr-tracker')
     : internalSystems
 
   const categories = [

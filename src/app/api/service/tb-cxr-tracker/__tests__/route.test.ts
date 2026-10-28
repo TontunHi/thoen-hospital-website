@@ -89,4 +89,23 @@ describe('GET /api/service/tb-cxr-tracker', () => {
       startDate: undefined,
     })
   })
+
+  it('returns 200 and allows access for subdistrict role user', async () => {
+    vi.spyOn(memberAuth, 'verifyMemberSession').mockResolvedValue({
+      id: 99,
+      name: 'เจ้าหน้าที่ รพ.สต.',
+      cid: '9876543210987',
+      role: 'subdistrict',
+    } as any)
+
+    vi.mocked(apiGateway.clinical.getTbCxrTracker).mockResolvedValue([])
+
+    const request = new Request('http://localhost:3000/api/service/tb-cxr-tracker')
+    const response = await GET(request)
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(apiGateway.clinical.getTbCxrTracker).toHaveBeenCalled()
+  })
 })
