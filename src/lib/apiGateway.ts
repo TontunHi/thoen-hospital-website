@@ -632,6 +632,25 @@ export class ApiGatewayClient {
       return this.get<Array<Record<string, unknown>>>('/api/v1/app/registrations')
     }
   }
+
+  // ================================================================
+  // Domain Namespace: GTW (Gotowin) Office Integration
+  // ================================================================
+  public readonly gtw = {
+    /**
+     * Fetch raw articles from GTW database via Centralized API Gateway.
+     */
+    getArticles: async <T = Record<string, unknown>>(options?: { limit?: number; offset?: number; since?: string }): Promise<T[]> => {
+      const q = new URLSearchParams()
+      if (options?.limit) q.set('limit', String(options.limit))
+      if (options?.offset) q.set('offset', String(options.offset))
+      if (options?.since) q.set('since', options.since)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      const res = await this.get<{ data?: T[] } | T[]>(`/api/v1/gtw/articles${qs}`)
+      if (Array.isArray(res)) return res
+      return (res as { data?: T[] })?.data || []
+    }
+  }
 }
 
 /**

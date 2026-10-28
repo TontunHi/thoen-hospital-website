@@ -360,5 +360,29 @@ describe('ApiGatewayClient (Ticket 01)', () => {
 
       expect(res).toEqual({ success: true, logId: 9999 })
     })
+
+    it('gtw.getArticles calls GET /api/v1/gtw/articles with query params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          count: 2,
+          data: [
+            { ARTICLE_ID: 101, ARTICLE_NUM: '7440-001', ARTICLE_NAME: 'PC' },
+            { ARTICLE_ID: 102, ARTICLE_NUM: '7430-002', ARTICLE_NAME: 'Printer' }
+          ]
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.gtw.getArticles({ limit: 50, since: '2026-01-01' })
+
+      expect(res).toHaveLength(2)
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/gtw/articles?limit=50&since=2026-01-01'),
+        expect.objectContaining({ method: 'GET' })
+      )
+    })
   })
 })

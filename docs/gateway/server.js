@@ -52,11 +52,20 @@ await fastify.register(fastifySwaggerUi, {
 // ------------------------------------------------------------------
 // Database Connection Pools (3 Databases)
 // ------------------------------------------------------------------
+
+function getRequiredEnv(key) {
+  const val = process.env[key]
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    throw new Error(`CRITICAL CONFIG ERROR: Required environment variable "${key}" is missing or empty in .env`)
+  }
+  return val.trim()
+}
+
 const hosPool = mysql.createPool({
   host: process.env.HOSXP_DB_HOST || '192.168.1.4',
   port: parseInt(process.env.HOSXP_DB_PORT || '3306', 10),
   user: process.env.HOSXP_DB_USER || 'guest',
-  password: process.env.HOSXP_DB_PASSWORD || 'guest',
+  password: getRequiredEnv('HOSXP_DB_PASSWORD'),
   database: process.env.HOSXP_DB_NAME || 'hos',
   charset: process.env.HOSXP_DB_CHARSET || 'tis620',
   connectionLimit: 25,
@@ -69,7 +78,7 @@ const salaryPool = mysql.createPool({
   host: process.env.SALARY_DB_HOST || '192.168.1.4',
   port: parseInt(process.env.SALARY_DB_PORT || '3306', 10),
   user: process.env.SALARY_DB_USER || 'guest',
-  password: process.env.SALARY_DB_PASSWORD || 'guest',
+  password: getRequiredEnv('SALARY_DB_PASSWORD'),
   database: process.env.SALARY_DB_NAME || 'salary',
   charset: process.env.SALARY_DB_CHARSET || 'tis620',
   connectionLimit: 15,
@@ -82,7 +91,7 @@ const salaryEditPool = mysql.createPool({
   host: process.env.SALARY_EDIT_DB_HOST || '192.168.1.4',
   port: parseInt(process.env.SALARY_EDIT_DB_PORT || '3306', 10),
   user: process.env.SALARY_EDIT_DB_USER || 'salary',
-  password: process.env.SALARY_EDIT_DB_PASSWORD || 'Thlp11152*',
+  password: getRequiredEnv('SALARY_EDIT_DB_PASSWORD'),
   database: process.env.SALARY_EDIT_DB_NAME || 'salary',
   charset: process.env.SALARY_EDIT_DB_CHARSET || 'tis620',
   connectionLimit: 10,
@@ -95,7 +104,7 @@ const appPool = mysql.createPool({
   host: process.env.APP_DB_HOST || '192.168.1.7',
   port: parseInt(process.env.APP_DB_PORT || '3306', 10),
   user: process.env.APP_DB_USER || 'prnew',
-  password: process.env.APP_DB_PASSWORD || 'PRnew11152@',
+  password: getRequiredEnv('APP_DB_PASSWORD'),
   database: process.env.APP_DB_NAME || 'thoen_hospital_website',
   charset: 'utf8mb4',
   timezone: '+07:00',
@@ -110,6 +119,37 @@ const appPool = mysql.createPool({
 appPool.on('connection', (conn) => {
   conn.query('SET NAMES utf8mb4', () => {})
 })
+
+// ------------------------------------------------------------------
+// GTW (Gotowin) Database Connection Pool (Lazy Loaded - Zero Hardcode)
+// ------------------------------------------------------------------
+let gtwPool = null
+function getGtwPool() {
+  if (!gtwPool) {
+    const host = process.env.GTW_DB_HOST
+    const port = parseInt(process.env.GTW_DB_PORT || '15301', 10)
+    const user = process.env.GTW_DB_USER
+    const password = process.env.GTW_DB_PASSWORD
+    const database = process.env.GTW_DB_NAME
+    if (!host || !user || !password || !database) {
+      throw new Error('GTW Database is not configured: Missing GTW_DB_HOST, GTW_DB_USER, GTW_DB_PASSWORD, or GTW_DB_NAME in gateway .env')
+    }
+    gtwPool = mysql.createPool({
+      host,
+      port,
+      user,
+      password,
+      database,
+      charset: process.env.GTW_DB_CHARSET || 'utf8mb4',
+      connectionLimit: 5,
+      waitForConnections: true,
+      queueLimit: 0,
+      connectTimeout: 5000
+    })
+  }
+  return gtwPool
+}
+
 
 
 // In-Memory Short-Lived Caching
@@ -130,7 +170,7 @@ function getCached(key, ttlMs, fetcher) {
 }
 
 // Authentication Security Hook
-const API_KEY = process.env.GATEWAY_API_KEY || 'thoen_gw_sec_7a8b9c2d1e0f3456'
+const API_KEY = getRequiredEnv('GATEWAY_API_KEY')
 fastify.addHook('onRequest', async (req, reply) => {
   if (req.url === '/health' || req.url === '/' || req.url.startsWith('/docs')) return
   const clientKey = req.headers['x-api-key'] || req.query?.apiKey
@@ -586,7 +626,196 @@ fastify.get('/api/v1/clinical/rcm/ipd-dept-adjrw', {
   }
 })
 
-// 1.12 Universal Read-Only Query for HOSxP
+
+// ------------------------------------------------------------------
+// 1.12 TB Chest X-Ray Screening Tracker (ระบบติดตามการทำ CXR ในกลุ่มผู้ป่วย TB)
+// ------------------------------------------------------------------
+function getHospitalStatus(chw, amp, tmb, moo) {
+  if (chw !== '52' || amp !== '08') return '\u0e2d\u0e22\u0e39\u0e48\u0e15\u0e48\u0e32\u0e07\u0e2d\u0e33\u0e40\u0e20\u0e2d/\u0e15\u0e48\u0e32\u0e07\u0e08\u0e31\u0e07\u0e2b\u0e27\u0e31\u0e14';
+  const m = String(moo || '').padStart(2, '0');
+  if (tmb === '01') {
+    if (['01','06','07','08','12','13'].includes(m)) return '\u0e23\u0e1e.\u0e40\u0e16\u0e34\u0e19';
+    if (['02','03','04','05','09','10','11','14'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e40\u0e14\u0e48\u0e19\u0e41\u0e01\u0e49\u0e27';
+  }
+  if (tmb === '02') {
+    if (['01','04','05','06'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e40\u0e14\u0e48\u0e19\u0e0a\u0e31\u0e22';
+    if (['02','03','07','08'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e41\u0e21\u0e48\u0e27\u0e30\u0e2b\u0e25\u0e27\u0e07';
+  }
+  if (tmb === '03') {
+    if (['01','02','05','07','08'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e41\u0e21\u0e48\u0e1b\u0e30\u0e2b\u0e25\u0e27\u0e07';
+    if (['03','04','06','09','10'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e17\u0e48\u0e32\u0e21\u0e30\u0e40\u0e01\u0e27\u0e4b\u0e19';
+  }
+  if (tmb === '04') {
+    if (['01','02','05','06','09'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e41\u0e21\u0e48\u0e21\u0e2d\u0e01\u0e01\u0e25\u0e32\u0e07';
+    if (['03','04','07','08','10'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e01\u0e38\u0e48\u0e21\u0e40\u0e19\u0e34\u0e49\u0e07';
+  }
+  if (tmb === '05') {
+    if (['01','08','14'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e2b\u0e19\u0e2d\u0e07\u0e2b\u0e2d\u0e22';
+    if (['04','06','10','11'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e1b\u0e32\u0e07\u0e2d\u0e49\u0e32';
+    if (['02','03','12'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e2a\u0e30\u0e40\u0e25\u0e35\u0e22\u0e21\u0e2b\u0e27\u0e32\u0e19';
+    if (['05','09','13'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e2b\u0e2d\u0e23\u0e1a';
+    if (['07'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e17\u0e48\u0e32\u0e40\u0e01\u0e27\u0e35\u0e22\u0e19';
+  }
+  if (tmb === '06') {
+    if (['01','02','03','04','08','09','11','12'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e2b\u0e49\u0e27\u0e22\u0e41\u0e01\u0e49\u0e27';
+    if (['05','06','07','10'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e19\u0e32\u0e40\u0e1a\u0e35\u0e49\u0e22\u0e2b\u0e25\u0e27\u0e07';
+  }
+  if (tmb === '07') {
+    if (['01','02','06','08','09','10','11'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e41\u0e21\u0e48\u0e16\u0e2d\u0e14';
+    if (['03','04','05','07','12','13'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e19\u0e32\u0e1a\u0e49\u0e32\u0e19\u0e44\u0e23\u0e48';
+  }
+  if (tmb === '08') {
+    if (['01','02','03','04','05','08','10','13'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e14\u0e2d\u0e19\u0e41\u0e01\u0e49\u0e27';
+    if (['06','07','09','11','12','14'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e27\u0e31\u0e07\u0e2b\u0e34\u0e19';
+  }
+  return '\u0e2d\u0e22\u0e39\u0e48\u0e15\u0e48\u0e32\u0e07\u0e2d\u0e33\u0e40\u0e20\u0e2d/\u0e15\u0e48\u0e32\u0e07\u0e08\u0e31\u0e07\u0e2b\u0e27\u0e31\u0e14';
+}
+
+// 1.12 TB Chest X-Ray Screening Tracker
+fastify.get('/api/v1/clinical/tb/cxr-tracker', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'TB Chest X-Ray Screening Tracker',
+    description: 'Track TB screening and CXR status with filters',
+    querystring: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['all', 'done', 'missing'], default: 'all' },
+        startDate: { type: 'string', default: '2026-10-01' },
+        hospcode: { type: 'string' },
+        search: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { status = 'all', startDate = '2026-10-01', hospcode, search } = req.query || {}
+  const conn = await hosPool.getConnection()
+  try {
+    const queryParams = [startDate]
+    let whereClauses = []
+
+    if (status === 'done') {
+      whereClauses.push('xr.report_date IS NOT NULL')
+    } else if (status === 'missing') {
+      whereClauses.push('xr.report_date IS NULL')
+    }
+
+    if (search && search.trim()) {
+      const s = `%${search.trim()}%`
+      whereClauses.push('(c.cid LIKE ? OR hp.hn LIKE ? OR hp.fname LIKE ? OR hp.lname LIKE ?)')
+      queryParams.push(s, s, s, s)
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    const sql = `
+SELECT 
+  c.id,
+  c.risk_type,
+  hp.pname AS title,
+  hp.fname AS fname,
+  hp.lname AS lname,
+  c.cid,
+  IF(hp.sex=1,"M","F") AS gender,
+  CONCAT(YEAR(hp.birthday),DATE_FORMAT(hp.birthday,"%m%d")) AS born,
+  hp.addrpart AS addr,
+  hp.moopart AS mu,
+  hp.chwpart,
+  hp.amppart,
+  hp.tmbpart,
+  hp.moopart,
+  pv.name AS province_id,
+  ap.name AS amphur_id,
+  tb.name AS tambol_id,
+  tb.full_name AS full_name,
+  ec.emp_citizenship_name AS people_type,
+  c.race_id,
+  hp.hn,
+  p.name AS inccl_id,
+  c.contact_date,
+  c.symptom_screen,
+  CONCAT(YEAR(xr.report_date),DATE_FORMAT(xr.report_date,"%m%d")) AS cxr_date,
+  IF(xr.report_date IS NOT NULL, 'DONE', 'MISSING') AS cxr_status,
+  c.cxr_result,
+  c.cxr_abnormal_result,
+  c.dx,
+  c.icd10,
+  c.hba1c,
+  c.immunno_discase,
+  c.b24,
+  c.b24_ch,
+  c.note,
+  YEAR(CURDATE())-YEAR(hp.birthday) AS age
+FROM CID.cid_link_tb c
+LEFT JOIN patient hp ON c.cid=hp.cid
+LEFT JOIN emp_citizenship ec ON hp.citizenship=ec.emp_citizenship_id
+LEFT JOIN pttype p ON hp.pttype=p.pttype
+LEFT JOIN thaiaddress pv ON pv.chwpart=hp.chwpart AND pv.codetype=1
+LEFT JOIN thaiaddress ap ON ap.chwpart=hp.chwpart AND ap.amppart=hp.amppart AND ap.codetype=2
+LEFT JOIN thaiaddress tb ON tb.chwpart=hp.chwpart AND tb.amppart=hp.amppart AND tb.tmbpart=hp.tmbpart AND tb.codetype=3
+LEFT JOIN (
+    SELECT hn, MAX(report_date) AS report_date
+    FROM xray_report
+    WHERE xray_items_code IN ('48','49','139','142','205','208')
+      AND confirm='Y'
+      AND report_date >= ?
+    GROUP BY hn
+) xr ON xr.hn = hp.hn
+${whereSql}
+ORDER BY c.id ASC
+    `
+    const [rawRows] = await conn.query(sql, queryParams)
+
+    let doneCount = 0
+    let missingCount = 0
+    const statusBreakdown = {}
+    const filteredRows = []
+
+    const targetHospcode = hospcode ? hospcode.trim() : null
+
+    for (const r of rawRows) {
+      const st = getHospitalStatus(r.chwpart, r.amppart, r.tmbpart, r.moopart)
+      const home = `${r.addr || ''} \u0e2b\u0e21\u0e39\u0e48\u0e17\u0e35\u0e48 ${r.mu || ''} ${r.full_name || ''}`.trim()
+
+      if (r.cxr_status === 'DONE') doneCount++
+      else missingCount++
+      statusBreakdown[st] = (statusBreakdown[st] || 0) + 1
+
+      if (!targetHospcode || st === targetHospcode) {
+        filteredRows.push({
+          ...r,
+          status: st,
+          home
+        })
+      }
+    }
+
+    const total = rawRows.length
+    const coveragePercentage = total > 0 ? parseFloat(((doneCount / total) * 100).toFixed(1)) : 0
+
+    return {
+      success: true,
+      data: {
+        count: filteredRows.length,
+        summary: {
+          total,
+          doneCount,
+          missingCount,
+          coveragePercentage,
+          statusBreakdown
+        },
+        items: filteredRows
+      }
+    }
+  } catch (err) {
+    reply.code(500)
+    return { success: false, error: err.message }
+  } finally {
+    conn.release()
+  }
+})
+
+// 1.13 Universal Read-Only Query for HOSxP
 fastify.post('/api/v1/clinical/query', {
   schema: {
     tags: ['1. Clinical Services (HOSxP)'],
@@ -1421,6 +1650,9 @@ fastify.post('/api/v1/salary/execute', {
 }, async (req, reply) => {
   const { sql, params = [] } = req.body || {}
   if (!sql || typeof sql !== 'string') { reply.code(400); return { success: false, error: 'SQL query required' } }
+  if (sql.includes(';')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Multi-statements / semicolons are not allowed' }
+  }
   const trimmed = sql.trim().toUpperCase()
   const forbiddenKeywords = ['DROP ', 'TRUNCATE ', 'ALTER ', 'GRANT ', 'REVOKE ', 'CREATE USER']
   if (forbiddenKeywords.some(kw => trimmed.includes(kw))) {
@@ -1933,6 +2165,110 @@ fastify.get('/api/v1/app/events', {
   }
 })
 
+
+// 4.5.1 Event Attachments (Media, Documents, Notes)
+fastify.get('/api/v1/app/events/:id/attachments', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการเอกสาร รูปภาพ และบันทึกข้อความของกิจกรรม (Event Attachments)',
+    params: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer', description: 'Event ID' }
+      },
+      required: ['id']
+    }
+  }
+}, async (req, reply) => {
+  try {
+    const eventId = Number(req.params.id)
+    const [rows] = await appPool.query(
+      `SELECT a.id, a.event_id, a.attachment_type, a.title, a.file_path, a.file_type,
+              a.file_size, a.text_content, a.uploaded_by_member_id, a.display_order,
+              a.created_at, a.updated_at,
+              m.name AS uploader_name, m.department AS uploader_dept
+       FROM event_attachments a
+       LEFT JOIN members m ON a.uploaded_by_member_id = m.id
+       WHERE a.event_id = ?
+       ORDER BY a.display_order ASC, a.created_at DESC`,
+      [eventId]
+    )
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/app/events/:id/attachments', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แนบเอกสาร รูปภาพ หรือข้อความสรุปสำหรับกิจกรรม (Add Event Attachment)',
+    params: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer', description: 'Event ID' }
+      },
+      required: ['id']
+    },
+    body: {
+      type: 'object',
+      required: ['attachment_type', 'title'],
+      properties: {
+        attachment_type: { type: 'string', enum: ['IMAGE', 'DOCUMENT', 'NOTE'], description: 'ประเภทสิ่งที่แนบ' },
+        title: { type: 'string', description: 'ชื่อไฟล์/หัวข้อบันทึก' },
+        file_path: { type: 'string', nullable: true, description: 'Path ไฟล์บน Server' },
+        file_type: { type: 'string', nullable: true, description: 'MIME type' },
+        file_size: { type: 'integer', nullable: true, description: 'ขนาดไฟล์ bytes' },
+        text_content: { type: 'string', nullable: true, description: 'เนื้อหาข้อความกรณีเป็น NOTE' },
+        uploaded_by_member_id: { type: 'integer', nullable: true, description: 'Member ID ผู้แนบ' },
+        display_order: { type: 'integer', default: 0 }
+      }
+    }
+  }
+}, async (req, reply) => {
+  try {
+    const eventId = Number(req.params.id)
+    const { attachment_type, title, file_path, file_type, file_size, text_content, uploaded_by_member_id, display_order } = req.body
+    const [res] = await appPool.query(
+      `INSERT INTO event_attachments (
+        event_id, attachment_type, title, file_path, file_type, file_size, text_content, uploaded_by_member_id, display_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [eventId, attachment_type, title, file_path || null, file_type || null, file_size || null, text_content || null, uploaded_by_member_id || null, display_order || 0]
+    )
+    return { success: true, insertId: res.insertId, message: 'แนบเอกสาร/รูปภาพสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.delete('/api/v1/app/events/:id/attachments/:attachmentId', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบเอกสารหรือรูปภาพของกิจกรรม (Delete Event Attachment)',
+    params: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer', description: 'Event ID' },
+        attachmentId: { type: 'integer', description: 'Attachment ID' }
+      },
+      required: ['id', 'attachmentId']
+    }
+  }
+}, async (req, reply) => {
+  try {
+    const eventId = Number(req.params.id)
+    const attachmentId = Number(req.params.attachmentId)
+    const [res] = await appPool.query(
+      'DELETE FROM event_attachments WHERE id = ? AND event_id = ?',
+      [attachmentId, eventId]
+    )
+    return { success: true, affectedRows: res.affectedRows, message: 'ลบไฟล์แนบสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+
 // 4.6 Inbox Tasks (Workflows & Repairs)
 fastify.get('/api/v1/app/tasks', {
   schema: {
@@ -2055,6 +2391,9 @@ fastify.post('/api/v1/app/execute', {
 }, async (req, reply) => {
   const { sql, params = [] } = req.body || {}
   if (!sql || typeof sql !== 'string') { reply.code(400); return { success: false, error: 'SQL query required' } }
+  if (sql.includes(';')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Multi-statements / semicolons are not allowed' }
+  }
   const trimmed = sql.trim().toUpperCase()
   const forbiddenKeywords = ['DROP ', 'TRUNCATE ', 'ALTER ', 'GRANT ', 'REVOKE ', 'CREATE USER']
   if (forbiddenKeywords.some(kw => trimmed.includes(kw))) {
@@ -2118,6 +2457,76 @@ fastify.post('/api/v1/app/transaction', {
     reply.code(500); return { success: false, error: err.message }
   } finally {
     connection.release()
+  }
+})
+
+
+// ==================================================================
+// SECTION 5: GTW (Gotowin) Integration Services
+// ==================================================================
+fastify.get('/api/v1/gtw/articles', {
+  schema: {
+    tags: ['5. GTW Integration Services'],
+    summary: 'ดึงข้อมูลครุภัณฑ์จากฐานข้อมูล Gotowin (GTW Articles)',
+    querystring: {
+      type: 'object',
+      properties: {
+        limit: { type: 'integer' },
+        offset: { type: 'integer' },
+        since: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  try {
+    const pool = getGtwPool()
+    const { limit, offset, since } = req.query || {}
+    let sql = `
+      SELECT 
+        a.ARTICLE_ID,
+        a.ARTICLE_NUM,
+        COALESCE(a.SUP_FSN, s.SUP_FSN_NUM) as SUP_FSN,
+        a.ARTICLE_NAME,
+        a.ARTICLE_MODELS,
+        a.SERIAL_NO,
+        a.RECEIVE_DATE,
+        a.INS_START_DATE,
+        a.INS_END_DATE,
+        a.EXPIRE_DATE,
+        a.PRICE_PER_UNIT,
+        a.VENDOR_ID,
+        a.DOC_NO_NUM,
+        a.DEP_SUB_SUB_NAME,
+        a.LOCATEDEPT,
+        a.STATUS_ID,
+        a.STATUS_DELETE,
+        a.updated_at
+      FROM asset_article a
+      LEFT JOIN supplies s ON a.SUP_ID = s.ID
+      WHERE a.ARTICLE_NUM IS NOT NULL 
+        AND a.ARTICLE_NUM != ''
+        AND (a.STATUS_DELETE = 'false' OR a.STATUS_DELETE IS NULL)
+    `
+    const params = []
+    if (since) {
+      sql += ' AND a.updated_at >= ?'
+      params.push(since)
+    }
+    sql += ' ORDER BY a.ARTICLE_ID DESC'
+    if (limit) {
+      sql += ' LIMIT ?'
+      params.push(Number(limit))
+      if (offset) {
+        sql += ' OFFSET ?'
+        params.push(Number(offset))
+      }
+    }
+    const [rows] = await pool.query(sql, params)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    const status = err.message.includes('not configured') ? 503 : 500
+    reply.code(status)
+    return { success: false, error: err.message }
   }
 })
 

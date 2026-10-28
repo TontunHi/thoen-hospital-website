@@ -1,4 +1,5 @@
 import { queryGtwDb, QueryExecutor } from '@/lib/gtwDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logger } from '@/lib/logger'
 
 export interface GtwRawArticle {
@@ -87,6 +88,17 @@ export async function fetchGtwArticles(
   executor: QueryExecutor = queryGtwDb,
   options: { limit?: number; offset?: number; since?: string } = {}
 ): Promise<GtwRawArticle[]> {
+  // If default executor, route via centralized Unified API Gateway
+  if (executor === queryGtwDb) {
+    try {
+      const rows = await apiGateway.gtw.getArticles<GtwRawArticle>(options)
+      return rows
+    } catch (err: any) {
+      logger.error({ error: err.message }, 'Failed to fetch articles from GTW via Gateway')
+      throw err
+    }
+  }
+
   const { limit, offset, since } = options
   let sql = `
     SELECT 

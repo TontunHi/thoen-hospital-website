@@ -96,10 +96,13 @@ Don't run the full checklist on every diff; scale it to what the change touches.
   - Package overrides in `package.json`: `sharp` (`^0.35.4`) and `deepmerge-ts` (`^8.0.2`) are pinned to prevent high/critical vulnerabilities. Do not remove these overrides.
   - Always verify vulnerabilities with `npm audit` after modifying dependencies.
 
-### 2. Multi-Database Architecture & Read Replicas
-- **Primary Database (Prisma ORM):** MySQL/MariaDB storing application CMS, admin accounts, news, slides, repair tickets, approvals, and audit logs. Access via `@/lib/prisma`.
-- **HOSxP Hospital Database (Read-Only):** Direct database pool for hospital information system data. Full access patterns, caching rules, and PDPA masking specifics for this integration are in `.agents/skills/hosxp-db-access/SKILL.md` — read that skill before touching `/check-date`, `/service/lab`, `/service/lab-tracker`, `/service/er-in-status`, or `/service/loratadine-dispense`.
-- **Salary Database (Read-Only):** External connection for encrypted pay slip generation. See `.agents/skills/salary-db/SKILL.md`.
+### 2. Zero-Database Architecture & Centralized API Gateway
+- **100% Zero-Database Architecture:** The Next.js application opens ZERO direct database sockets (no MySQL port 3306). All data operations route strictly through the centralized **Thoen Hospital Unified API Gateway** (`http://192.168.1.208:8443` or `process.env.API_GATEWAY_URL`) via `@/lib/apiGateway` (`ApiGatewayClient`).
+- **Strict Fail-Closed Policy:** If the Gateway is unreachable, `GatewayUnavailableError` (HTTP 503) is thrown immediately. Never silently fallback to direct DB connections.
+- **HOSxP Clinical DB (Read-Only):** `@/lib/clinicalDb` (`queryClinicalDb`) and clinical domain services delegate to `apiGateway.clinical.query` or dedicated endpoints. Enforced read-only (`SELECT`, `EXPLAIN`, `SHOW`). See `.agents/skills/hosxp-db-access/SKILL.md`.
+- **Salary DB:** `@/lib/salaryDb` (`querySalaryDb`, `querySalaryEditDb`) delegates to `apiGateway.salary`. See `.agents/skills/salary-db/SKILL.md`.
+- **Website Core & Member DB:** `@/lib/memberDb` (`queryMemberDb`) delegates to `apiGateway.app.query`, `apiGateway.app.execute`, and `apiGateway.app.transaction`.
+- **Remote Gateway Operations (`/ssh-thlp`):** Whenever inspecting, modifying, or deploying the internal API Gateway on the Proxmox VM (`192.168.1.208`), invoke `.agents/skills/ssh-thlp/SKILL.md` via `/ssh-thlp`. Always use ephemeral Python paramiko scripts without persistent credentials, and consult the refactoring roadmap in `docs/gateway/TODO.md`.
 
 ### 3. Authentication & Access Control Flow
 - **Hospital Staff Portal (`/member`):** Passwordless OTP auth. Full flow and required session-check pattern are in `.agents/skills/member-auth-flow/SKILL.md` — read that skill before touching any `/member` route or its APIs.
