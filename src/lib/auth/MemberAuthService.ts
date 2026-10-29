@@ -1,7 +1,14 @@
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
 import { getThaidConfig, exchangeThaidAuthorizationCode } from '@/lib/thaidAuth'
-import { getProviderIdConfig, authenticateWithProviderId, NotAProviderError, type ProviderIdProfile } from '@/lib/providerIdAuth'
+import {
+  getProviderIdConfig,
+  authenticateWithProviderId,
+  authenticateWithHealthId,
+  NotAProviderError,
+  type ProviderIdProfile,
+  type HealthIdUser,
+} from '@/lib/providerIdAuth'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { queryMemberDb } from '@/lib/memberDb'
@@ -389,6 +396,81 @@ export class MemberAuthService {
       username: user.username,
       email: user.email,
       role: user.role || 'member'
+    }
+  }
+
+  async exchangeHealthIdCode(code: string, state: string): Promise<MemberSessionPayload> {
+    const config = getProviderIdConfig()
+    if (!config) throw new Error('Health ID is not configured')
+
+    let user: HealthIdUser
+    try {
+      user = await authenticateWithHealthId(code, config)
+    } catch (authErr: any) {
+      try {
+        await logAudit(
+          'LOGIN',
+          'members',
+          `พยายามเข้าสู่ระบบด้วย Health ID แต่การแลกเปลี่ยน Token ล้มเหลว (${authErr?.message || 'Token Exchange Failed'})`,
+          { username: 'HEALTH_ID_EXCHANGE_ERROR', email: '' }
+        )
+      } catch {}
+      throw authErr
+    }
+
+    if (!user.citizenId && !user.hashCid) {
+      try {
+        await logAudit(
+          'LOGIN',
+          'members',
+          'พยายามเข้าสู่ระบบด้วย Health ID แต่ไม่พบเลขบัตรประชาชนหรือ hash_cid ในข้อมูล Token',
+          { username: 'HEALTH_ID_MISSING_ID', email: '' }
+        )
+      } catch {}
+      throw new Error('Failed to obtain identity from Health ID')
+    }
+
+    let users: any[]
+    if (user.citizenId) {
+      users = await this.db(
+        'SELECT id, username, email, role, name FROM members WHERE username = ? LIMIT 1',
+        [user.citizenId]
+      )
+    } else {
+      users = await this.db(
+        'SELECT id, username, email, role, name FROM members WHERE SHA2(username, 256) = ? LIMIT 1',
+        [user.hashCid!.toLowerCase()]
+      )
+    }
+
+    if (!users || users.length === 0) {
+      const maskedId = user.citizenId ? formatMaskedCitizenId(user.citizenId) : `${user.hashCid?.slice(0, 10)}...`
+      try {
+        await logAudit(
+          'LOGIN',
+          'members',
+          `เข้าสู่ระบบ Health ID สำเร็จแต่ไม่มีบัญชีในระบบ: ${user.name || 'ไม่ระบุชื่อ'} (${maskedId}) ไม่พบในฐานข้อมูลบุคลากร`,
+          { username: 'NOT_REGISTERED', email: '' }
+        )
+      } catch {}
+      throw new Error('Health ID citizen ID not registered in hospital members')
+    }
+
+    const member = users[0]
+
+    try {
+      await logAudit(
+        'LOGIN',
+        'members',
+        `เข้าสู่ระบบสำเร็จผ่าน Health ID: ${member.name || user.name || 'บุคลากร'} (เลขบัตรประชาชน ${formatMaskedCitizenId(member.username)})`,
+        { username: formatMaskedCitizenId(member.username), email: member.email }
+      )
+    } catch {}
+
+    return {
+      username: member.username,
+      email: member.email,
+      role: member.role || 'member',
     }
   }
 }

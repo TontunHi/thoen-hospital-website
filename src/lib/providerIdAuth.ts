@@ -49,6 +49,14 @@ export interface ProviderIdProfile {
   rawPayload?: Record<string, any>
 }
 
+export interface HealthIdUser {
+  citizenId?: string
+  hashCid?: string
+  accountId?: string
+  name?: string
+  rawPayload?: Record<string, any>
+}
+
 export class NotAProviderError extends Error {
   constructor(message = 'This user has not provider id') {
     super(message)
@@ -111,8 +119,7 @@ function getSecretForState(customSecret?: string): string {
 }
 
 /**
- * Generates an HMAC-signed state token containing timestamp, random nonce, and signature.
- * Prevents CSRF attacks and allows stateless verification.
+ * Generates an HMAC-signed state token for Provider ID login.
  */
 export function generateProviderIdOAuthState(customSecret?: string): string {
   const secret = getSecretForState(customSecret)
@@ -124,41 +131,105 @@ export function generateProviderIdOAuthState(customSecret?: string): string {
 }
 
 /**
- * Verifies that the Provider ID OAuth state parameter is authentic and not expired.
+ * Generates an HMAC-signed state token for Health ID login.
  */
-export function verifyProviderIdOAuthState(
+export function generateHealthIdOAuthState(customSecret?: string): string {
+  const secret = getSecretForState(customSecret)
+  const timestamp = Date.now()
+  const nonce = crypto.randomBytes(16).toString('hex')
+  const payload = `hid_${timestamp}.${nonce}`
+  const hmac = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
+  return `${payload}.${hmac}`
+}
+
+/**
+ * Verifies any MOPH OAuth state parameter (supporting both `hid_` and `pid_` prefixes).
+ */
+export function verifyMophOAuthState(
   state: string,
   customSecret?: string,
   maxAgeMs = 15 * 60 * 1000 // 15 minutes
-): boolean {
-  if (!state || typeof state !== 'string') return false
+): { isValid: boolean; type?: 'health_id' | 'provider_id' } {
+  if (!state || typeof state !== 'string') return { isValid: false }
   const parts = state.split('.')
-  if (parts.length !== 3) return false
+  if (parts.length !== 3) return { isValid: false }
   const [prefixTimestamp, nonce, hmac] = parts
-  if (!prefixTimestamp.startsWith('pid_')) return false
-  const timestampStr = prefixTimestamp.slice(4)
+
+  let type: 'health_id' | 'provider_id' | undefined
+  let timestampStr = ''
+
+  if (prefixTimestamp.startsWith('pid_')) {
+    type = 'provider_id'
+    timestampStr = prefixTimestamp.slice(4)
+  } else if (prefixTimestamp.startsWith('hid_')) {
+    type = 'health_id'
+    timestampStr = prefixTimestamp.slice(4)
+  } else {
+    return { isValid: false }
+  }
+
   const timestamp = parseInt(timestampStr, 10)
-  if (isNaN(timestamp) || !nonce || !hmac) return false
+  if (isNaN(timestamp) || !nonce || !hmac) return { isValid: false }
 
   const now = Date.now()
   if (now - timestamp > maxAgeMs || timestamp > now + 60 * 1000) {
-    return false
+    return { isValid: false }
   }
 
   const secret = getSecretForState(customSecret)
   const payload = `${prefixTimestamp}.${nonce}`
   const expectedHmac = crypto.createHmac('sha256', secret).update(payload).digest('base64url')
 
-  if (expectedHmac.length !== hmac.length) return false
+  if (expectedHmac.length !== hmac.length) return { isValid: false }
   try {
-    return crypto.timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(hmac))
+    const isMatch = crypto.timingSafeEqual(Buffer.from(expectedHmac), Buffer.from(hmac))
+    return { isValid: isMatch, type: isMatch ? type : undefined }
   } catch {
-    return false
+    return { isValid: false }
   }
 }
 
 /**
- * Builds the Health ID authorization redirect URL for Provider ID login.
+ * Verifies that the Provider ID OAuth state parameter is authentic and not expired.
+ */
+export function verifyProviderIdOAuthState(
+  state: string,
+  customSecret?: string,
+  maxAgeMs = 15 * 60 * 1000
+): boolean {
+  const result = verifyMophOAuthState(state, customSecret, maxAgeMs)
+  return result.isValid && result.type === 'provider_id'
+}
+
+/**
+ * Verifies that the Health ID OAuth state parameter is authentic and not expired.
+ */
+export function verifyHealthIdOAuthState(
+  state: string,
+  customSecret?: string,
+  maxAgeMs = 15 * 60 * 1000
+): boolean {
+  const result = verifyMophOAuthState(state, customSecret, maxAgeMs)
+  return result.isValid && result.type === 'health_id'
+}
+
+/**
+ * Safely decodes a JWT token without verifying cryptographic signature.
+ */
+export function decodeJwtPayload(jwtToken: string): Record<string, any> | null {
+  try {
+    const parts = jwtToken.split('.')
+    if (parts.length < 2) return null
+    const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8')
+    return JSON.parse(payloadJson)
+  } catch (err) {
+    logger.warn({ err }, 'Failed to decode JWT payload')
+    return null
+  }
+}
+
+/**
+ * Builds the Health ID authorization redirect URL for Health ID or Provider ID login.
  */
 export function buildProviderIdAuthorizeUrl(state: string, config: ProviderIdConfig): string {
   const params = new URLSearchParams({
@@ -319,11 +390,19 @@ export async function getProviderIdProfile(
 const inFlightProviderExchanges = new Map<string, Promise<ProviderIdProfile>>()
 const completedProviderExchanges = new Map<string, { profile: ProviderIdProfile; timestamp: number }>()
 
-function cleanExpiredProviderExchanges() {
+const inFlightHealthIdExchanges = new Map<string, Promise<HealthIdUser>>()
+const completedHealthIdExchanges = new Map<string, { user: HealthIdUser; timestamp: number }>()
+
+function cleanExpiredExchanges() {
   const now = Date.now()
   for (const [codeKey, record] of completedProviderExchanges.entries()) {
     if (now - record.timestamp > 60_000) {
       completedProviderExchanges.delete(codeKey)
+    }
+  }
+  for (const [codeKey, record] of completedHealthIdExchanges.entries()) {
+    if (now - record.timestamp > 60_000) {
+      completedHealthIdExchanges.delete(codeKey)
     }
   }
 }
@@ -336,7 +415,7 @@ export async function authenticateWithProviderId(
   code: string,
   config: ProviderIdConfig
 ): Promise<ProviderIdProfile> {
-  cleanExpiredProviderExchanges()
+  cleanExpiredExchanges()
 
   const cached = completedProviderExchanges.get(code)
   if (cached && Date.now() - cached.timestamp < 60_000) {
@@ -365,5 +444,77 @@ export async function authenticateWithProviderId(
     return profile
   } finally {
     inFlightProviderExchanges.delete(code)
+  }
+}
+
+/**
+ * Executes Health ID direct authentication flow:
+ * Health ID Code -> Health ID Token -> Extracts Identity / Profile
+ */
+export async function authenticateWithHealthId(
+  code: string,
+  config: ProviderIdConfig
+): Promise<HealthIdUser> {
+  cleanExpiredExchanges()
+
+  const cached = completedHealthIdExchanges.get(code)
+  if (cached && Date.now() - cached.timestamp < 60_000) {
+    return cached.user
+  }
+
+  if (inFlightHealthIdExchanges.has(code)) {
+    return inFlightHealthIdExchanges.get(code)!
+  }
+
+  const exchangePromise = (async () => {
+    const healthIdToken = await exchangeHealthIdCode(code, config)
+    const jwt = decodeJwtPayload(healthIdToken)
+
+    const cidCandidate =
+      jwt?.pid ||
+      jwt?.cid ||
+      jwt?.citizen_id ||
+      jwt?.national_id ||
+      (typeof jwt?.sub === 'string' && /^\d{13}$/.test(jwt.sub) ? jwt.sub : undefined)
+
+    const hashCid = jwt?.hash_cid || jwt?.hashCid
+
+    if (cidCandidate || hashCid) {
+      return {
+        citizenId: cidCandidate,
+        hashCid,
+        accountId: jwt?.account_id || jwt?.sub,
+        name: jwt?.name || jwt?.full_name,
+        rawPayload: jwt || {},
+      }
+    }
+
+    // Secondary fallback: query Provider ID token if user is also registered as provider
+    try {
+      const providerToken = await exchangeProviderIdToken(healthIdToken, config)
+      const profile = await getProviderIdProfile(providerToken, config)
+      return {
+        hashCid: profile.hash_cid,
+        accountId: profile.account_id,
+        name: profile.name_th,
+        rawPayload: profile.rawPayload,
+      }
+    } catch {
+      return {
+        accountId: jwt?.account_id || jwt?.sub,
+        name: jwt?.name,
+        rawPayload: jwt || {},
+      }
+    }
+  })()
+
+  inFlightHealthIdExchanges.set(code, exchangePromise)
+
+  try {
+    const user = await exchangePromise
+    completedHealthIdExchanges.set(code, { user, timestamp: Date.now() })
+    return user
+  } finally {
+    inFlightHealthIdExchanges.delete(code)
   }
 }

@@ -15,6 +15,7 @@ function MemberLoginForm() {
   const [step, setStep] = useState<1 | 2>(1) // 1: Input user/email, 2: Input OTP
   const [loading, setLoading] = useState(false)
   const [thaidLoading, setThaidLoading] = useState(false)
+  const [healthIdLoading, setHealthIdLoading] = useState(false)
   const [providerIdLoading, setProviderIdLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -46,6 +47,18 @@ function MemberLoginForm() {
         case 'thaid_server_error':
           setError('เกิดข้อผิดพลาดในการตรวจสอบข้อมูลกับเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง')
           break
+        case 'health_id_denied':
+          setError('การยืนยันตัวตนด้วย Health ID ถูกยกเลิก หรือไม่ได้รับความยินยอม กรุณาลองใหม่อีกครั้ง')
+          break
+        case 'health_id_exchange_failed':
+          setError('ไม่สามารถเชื่อมต่อแลกเปลี่ยนข้อมูลกับระบบ Health ID ได้ กรุณาลองใหม่ หรือใช้วิธีอื่น')
+          break
+        case 'health_id_invalid_state':
+          setError('เซสชันการยืนยันตัวตนหมดอายุ กรุณากดเข้าสู่ระบบด้วย Health ID ใหม่อีกครั้ง')
+          break
+        case 'health_id_not_configured':
+          setError('ระบบ Health ID ยังไม่ได้กำหนดค่าการเชื่อมต่อ กรุณาติดต่อผู้ดูแลระบบหรือใช้วิธี OTP')
+          break
         case 'provider_id_denied':
           setError('การยืนยันตัวตนด้วย Provider ID ถูกยกเลิก หรือไม่ได้รับความยินยอม กรุณาลองใหม่อีกครั้ง')
           break
@@ -76,7 +89,7 @@ function MemberLoginForm() {
   }, [countdown])
 
   const handleThaidLogin = async () => {
-    if (thaidLoading || providerIdLoading || loading) return
+    if (thaidLoading || healthIdLoading || providerIdLoading || loading) return
     setError('')
     setSuccess('')
     setThaidLoading(true)
@@ -97,8 +110,29 @@ function MemberLoginForm() {
     }
   }
 
+  const handleHealthIdLogin = async () => {
+    if (healthIdLoading || providerIdLoading || thaidLoading || loading) return
+    setError('')
+    setSuccess('')
+    setHealthIdLoading(true)
+
+    try {
+      const res = await fetch('/api/auth/health-id/authorize?format=json')
+      const data = await res.json()
+
+      if (data.success && data.redirectUrl) {
+        window.location.href = data.redirectUrl
+      } else {
+        setError(data.error || 'ไม่สามารถเชื่อมต่อกับระบบ Health ID ได้ กรุณาลองใหม่อีกครั้ง')
+        setHealthIdLoading(false)
+      }
+    } catch {
+      window.location.href = '/api/auth/health-id/authorize'
+    }
+  }
+
   const handleProviderIdLogin = async () => {
-    if (providerIdLoading || thaidLoading || loading) return
+    if (providerIdLoading || healthIdLoading || thaidLoading || loading) return
     setError('')
     setSuccess('')
     setProviderIdLoading(true)
@@ -202,13 +236,14 @@ function MemberLoginForm() {
       {error && <div className="memberAlert alert-danger">{error}</div>}
       {success && <div className="memberAlert alert-success">{success}</div>}
 
-      {/* Primary Option: Digital ID Login (ThaID & Provider ID) */}
+      {/* Primary Option: Digital ID Login (ThaID on top, Health ID & Provider ID 50/50 below) */}
       <div className="digitalIdSection">
+        {/* Row 1: ThaID Digital ID (Full width) */}
         <button
           type="button"
           className="thaidLoginBtn"
           onClick={handleThaidLogin}
-          disabled={loading || thaidLoading || providerIdLoading}
+          disabled={loading || thaidLoading || healthIdLoading || providerIdLoading}
         >
           <span className="thaidIconWrapper">
             <Image
@@ -228,29 +263,56 @@ function MemberLoginForm() {
           </div>
         </button>
 
-        <button
-          type="button"
-          className="providerIdLoginBtn"
-          onClick={handleProviderIdLogin}
-          disabled={loading || thaidLoading || providerIdLoading}
-        >
-          <span className="providerIdIconWrapper">
-            <Image
-              src="/images/common/logo-provider-id.svg"
-              alt="Provider ID Logo"
-              width={36}
-              height={36}
-              className="providerIdLogoImg"
-              priority
-            />
-          </span>
-          <div className="providerIdBtnText">
-            <span className="providerIdBtnTitle">
-              {providerIdLoading ? 'กำลังเชื่อมต่อไปยัง Provider ID...' : 'เข้าสู่ระบบด้วย Provider ID'}
+        {/* Row 2: Health ID and Provider ID (50/50 split) */}
+        <div className="mophIdRow">
+          <button
+            type="button"
+            className="mophIdBtn healthIdLoginBtn"
+            onClick={handleHealthIdLogin}
+            disabled={loading || thaidLoading || healthIdLoading || providerIdLoading}
+          >
+            <span className="healthIdIconWrapper">
+              <Image
+                src="/images/common/logo-Health-ID-g.webp"
+                alt="Health ID Logo"
+                width={34}
+                height={34}
+                className="healthIdLogoImg"
+                priority
+              />
             </span>
-            <span className="providerIdBtnSubtitle">ผู้ให้บริการสุขภาพ (กระทรวงสาธารณสุข)</span>
-          </div>
-        </button>
+            <div className="mophIdBtnText">
+              <span className="mophIdBtnTitle">
+                {healthIdLoading ? 'เชื่อมต่อ...' : 'Health ID'}
+              </span>
+              <span className="healthIdBtnSubtitle">กระทรวงสาธารณสุข</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="mophIdBtn providerIdLoginBtn"
+            onClick={handleProviderIdLogin}
+            disabled={loading || thaidLoading || healthIdLoading || providerIdLoading}
+          >
+            <span className="providerIdIconWrapper">
+              <Image
+                src="/images/common/logo-provider-id.webp"
+                alt="Provider ID Logo"
+                width={34}
+                height={34}
+                className="providerIdLogoImg"
+                priority
+              />
+            </span>
+            <div className="mophIdBtnText">
+              <span className="mophIdBtnTitle">
+                {providerIdLoading ? 'เชื่อมต่อ...' : 'Provider ID'}
+              </span>
+              <span className="providerIdBtnSubtitle">ผู้ให้บริการสุขภาพ</span>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Divider */}
@@ -270,7 +332,7 @@ function MemberLoginForm() {
             onChange={(e) => setUsername(e.target.value)}
             placeholder="กรอกชื่อผู้ใช้งาน หรือเลขบัตรประชาชน"
             required
-            disabled={loading || step === 2 || thaidLoading || providerIdLoading}
+            disabled={loading || step === 2 || thaidLoading || healthIdLoading || providerIdLoading}
           />
         </div>
 
@@ -284,7 +346,7 @@ function MemberLoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="กรอกอีเมลของคุณ"
             required
-            disabled={loading || step === 2 || thaidLoading || providerIdLoading}
+            disabled={loading || step === 2 || thaidLoading || healthIdLoading || providerIdLoading}
           />
         </div>
 
@@ -331,7 +393,7 @@ function MemberLoginForm() {
           </div>
         )}
 
-        <button type="submit" className="memberSubmitBtn" disabled={loading || thaidLoading || providerIdLoading}>
+        <button type="submit" className="memberSubmitBtn" disabled={loading || thaidLoading || healthIdLoading || providerIdLoading}>
           {loading
             ? 'กำลังดำเนินการ...'
             : step === 1

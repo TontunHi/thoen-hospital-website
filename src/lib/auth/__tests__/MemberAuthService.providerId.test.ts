@@ -9,6 +9,7 @@ vi.mock('@/lib/providerIdAuth', async (importOriginal) => {
     ...actual,
     getProviderIdConfig: vi.fn(),
     authenticateWithProviderId: vi.fn(),
+    authenticateWithHealthId: vi.fn(),
   }
 })
 
@@ -16,7 +17,7 @@ vi.mock('@/lib/audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
-describe('MemberAuthService.exchangeProviderIdCode', () => {
+describe('MemberAuthService.exchangeProviderIdCode and exchangeHealthIdCode', () => {
   let mockDb: any
   let authService: MemberAuthService
 
@@ -31,112 +32,179 @@ describe('MemberAuthService.exchangeProviderIdCode', () => {
     delete process.env.MEMBER_SESSION_SECRET
   })
 
-  it('throws error when Provider ID is not configured', async () => {
-    vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue(null)
+  describe('exchangeProviderIdCode', () => {
+    it('throws error when Provider ID is not configured', async () => {
+      vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue(null)
 
-    await expect(authService.exchangeProviderIdCode('test-code', 'test-state')).rejects.toThrow(
-      'Provider ID is not configured'
-    )
-  })
-
-  it('throws NotAProviderError when user is not a provider', async () => {
-    vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue({
-      env: 'PRD',
-      healthIdBaseUrl: 'https://moph.id.th',
-      providerIdBaseUrl: 'https://provider.id.th',
-      healthIdClientId: 'h-id',
-      healthIdClientSecret: 'h-sec',
-      providerIdClientId: 'p-id',
-      providerIdSecretKey: 'p-sec',
-      redirectUri: 'https://example.com',
+      await expect(authService.exchangeProviderIdCode('test-code', 'test-state')).rejects.toThrow(
+        'Provider ID is not configured'
+      )
     })
-    vi.mocked(providerIdAuth.authenticateWithProviderId).mockRejectedValue(
-      new providerIdAuth.NotAProviderError('This user has not provider id')
-    )
 
-    await expect(authService.exchangeProviderIdCode('code', 'state')).rejects.toThrow(
-      providerIdAuth.NotAProviderError
-    )
-    expect(audit.logAudit).toHaveBeenCalledWith(
-      'LOGIN',
-      'members',
-      expect.stringContaining('ไม่พบข้อมูลการเป็นบุคลากรสาธารณสุข'),
-      expect.objectContaining({ username: 'NOT_A_PROVIDER' })
-    )
-  })
+    it('throws NotAProviderError when user is not a provider', async () => {
+      vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue({
+        env: 'PRD',
+        healthIdBaseUrl: 'https://moph.id.th',
+        providerIdBaseUrl: 'https://provider.id.th',
+        healthIdClientId: 'h-id',
+        healthIdClientSecret: 'h-sec',
+        providerIdClientId: 'p-id',
+        providerIdSecretKey: 'p-sec',
+        redirectUri: 'https://example.com',
+      })
+      vi.mocked(providerIdAuth.authenticateWithProviderId).mockRejectedValue(
+        new providerIdAuth.NotAProviderError('This user has not provider id')
+      )
 
-  it('throws when member is not found in local database', async () => {
-    vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue({
-      env: 'PRD',
-      healthIdBaseUrl: 'https://moph.id.th',
-      providerIdBaseUrl: 'https://provider.id.th',
-      healthIdClientId: 'h-id',
-      healthIdClientSecret: 'h-sec',
-      providerIdClientId: 'p-id',
-      providerIdSecretKey: 'p-sec',
-      redirectUri: 'https://example.com',
+      await expect(authService.exchangeProviderIdCode('code', 'state')).rejects.toThrow(
+        providerIdAuth.NotAProviderError
+      )
+      expect(audit.logAudit).toHaveBeenCalledWith(
+        'LOGIN',
+        'members',
+        expect.stringContaining('ไม่พบข้อมูลการเป็นบุคลากรสาธารณสุข'),
+        expect.objectContaining({ username: 'NOT_A_PROVIDER' })
+      )
     })
-    vi.mocked(providerIdAuth.authenticateWithProviderId).mockResolvedValue({
-      account_id: '12345',
-      hash_cid: 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',
-      provider_id: '0111111111X21',
-      name_th: 'นายแพทย์ บุคลากร สาธารณสุข',
-    })
-    mockDb.mockResolvedValue([])
 
-    await expect(authService.exchangeProviderIdCode('code', 'state')).rejects.toThrow(
-      'Provider ID citizen ID not registered in hospital members'
-    )
-    expect(mockDb).toHaveBeenCalledWith(
-      expect.stringContaining('SELECT id, username, email, role, name FROM members WHERE SHA2(username, 256) = ?'),
-      ['a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3']
-    )
-    expect(audit.logAudit).toHaveBeenCalledWith(
-      'LOGIN',
-      'members',
-      expect.stringContaining('เข้าสู่ระบบ Provider ID สำเร็จแต่ไม่มีบัญชีในระบบ'),
-      expect.objectContaining({ username: 'NOT_REGISTERED' })
-    )
-  })
+    it('throws when member is not found in local database', async () => {
+      vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue({
+        env: 'PRD',
+        healthIdBaseUrl: 'https://moph.id.th',
+        providerIdBaseUrl: 'https://provider.id.th',
+        healthIdClientId: 'h-id',
+        healthIdClientSecret: 'h-sec',
+        providerIdClientId: 'p-id',
+        providerIdSecretKey: 'p-sec',
+        redirectUri: 'https://example.com',
+      })
+      vi.mocked(providerIdAuth.authenticateWithProviderId).mockResolvedValue({
+        account_id: '12345',
+        hash_cid: 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',
+        provider_id: '0111111111X21',
+        name_th: 'นายแพทย์ บุคลากร สาธารณสุข',
+      })
+      mockDb.mockResolvedValue([])
 
-  it('successfully logs in when user matches in hospital members table', async () => {
-    vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue({
-      env: 'PRD',
-      healthIdBaseUrl: 'https://moph.id.th',
-      providerIdBaseUrl: 'https://provider.id.th',
-      healthIdClientId: 'h-id',
-      healthIdClientSecret: 'h-sec',
-      providerIdClientId: 'p-id',
-      providerIdSecretKey: 'p-sec',
-      redirectUri: 'https://example.com',
+      await expect(authService.exchangeProviderIdCode('code', 'state')).rejects.toThrow(
+        'Provider ID citizen ID not registered in hospital members'
+      )
+      expect(mockDb).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT id, username, email, role, name FROM members WHERE SHA2(username, 256) = ?'),
+        ['a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3']
+      )
+      expect(audit.logAudit).toHaveBeenCalledWith(
+        'LOGIN',
+        'members',
+        expect.stringContaining('เข้าสู่ระบบ Provider ID สำเร็จแต่ไม่มีบัญชีในระบบ'),
+        expect.objectContaining({ username: 'NOT_REGISTERED' })
+      )
     })
-    vi.mocked(providerIdAuth.authenticateWithProviderId).mockResolvedValue({
-      account_id: '12345',
-      hash_cid: 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',
-      provider_id: '0111111111X21',
-      name_th: 'นายแพทย์ สมชาย ใจดี',
-    })
-    mockDb.mockResolvedValue([
-      {
-        id: 10,
+
+    it('successfully logs in when user matches in hospital members table', async () => {
+      vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue({
+        env: 'PRD',
+        healthIdBaseUrl: 'https://moph.id.th',
+        providerIdBaseUrl: 'https://provider.id.th',
+        healthIdClientId: 'h-id',
+        healthIdClientSecret: 'h-sec',
+        providerIdClientId: 'p-id',
+        providerIdSecretKey: 'p-sec',
+        redirectUri: 'https://example.com',
+      })
+      vi.mocked(providerIdAuth.authenticateWithProviderId).mockResolvedValue({
+        account_id: '12345',
+        hash_cid: 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',
+        provider_id: '0111111111X21',
+        name_th: 'นายแพทย์ สมชาย ใจดี',
+      })
+      mockDb.mockResolvedValue([
+        {
+          id: 10,
+          username: '3520100123456',
+          email: 'somchai@thoenhospital.go.th',
+          role: 'doctor',
+          name: 'นายแพทย์ สมชาย ใจดี',
+        },
+      ])
+
+      const sessionPayload = await authService.exchangeProviderIdCode('valid-code', 'valid-state')
+      expect(sessionPayload).toEqual({
         username: '3520100123456',
         email: 'somchai@thoenhospital.go.th',
         role: 'doctor',
-        name: 'นายแพทย์ สมชาย ใจดี',
-      },
-    ])
-
-    const sessionPayload = await authService.exchangeProviderIdCode('valid-code', 'valid-state')
-    expect(sessionPayload).toEqual({
-      username: '3520100123456',
-      email: 'somchai@thoenhospital.go.th',
-      role: 'doctor',
+      })
+      expect(audit.logAudit).toHaveBeenCalledWith(
+        'LOGIN',
+        'members',
+        expect.stringContaining('เข้าสู่ระบบสำเร็จผ่าน Provider ID'),
+        expect.objectContaining({ email: 'somchai@thoenhospital.go.th' })
+      )
     })
-    expect(audit.logAudit).toHaveBeenCalledWith(
-      'LOGIN',
-      'members',
-      expect.stringContaining('เข้าสู่ระบบสำเร็จผ่าน Provider ID'),
-      expect.objectContaining({ email: 'somchai@thoenhospital.go.th' })
-    )
+  })
+
+  describe('exchangeHealthIdCode', () => {
+    it('successfully logs in with Health ID via direct citizen ID', async () => {
+      vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue({
+        env: 'PRD',
+        healthIdBaseUrl: 'https://moph.id.th',
+        providerIdBaseUrl: 'https://provider.id.th',
+        healthIdClientId: 'h-id',
+        healthIdClientSecret: 'h-sec',
+        providerIdClientId: 'p-id',
+        providerIdSecretKey: 'p-sec',
+        redirectUri: 'https://example.com',
+      })
+      vi.mocked(providerIdAuth.authenticateWithHealthId).mockResolvedValue({
+        citizenId: '3520100123456',
+        accountId: 'acc-123',
+        name: 'พยาบาล ทดสอบ',
+      })
+      mockDb.mockResolvedValue([
+        {
+          id: 12,
+          username: '3520100123456',
+          email: 'nurse@thoenhospital.go.th',
+          role: 'nurse',
+          name: 'พยาบาล ทดสอบ',
+        },
+      ])
+
+      const sessionPayload = await authService.exchangeHealthIdCode('code', 'state')
+      expect(sessionPayload).toEqual({
+        username: '3520100123456',
+        email: 'nurse@thoenhospital.go.th',
+        role: 'nurse',
+      })
+      expect(audit.logAudit).toHaveBeenCalledWith(
+        'LOGIN',
+        'members',
+        expect.stringContaining('เข้าสู่ระบบสำเร็จผ่าน Health ID'),
+        expect.objectContaining({ email: 'nurse@thoenhospital.go.th' })
+      )
+    })
+
+    it('throws when Health ID citizen is not in hospital members', async () => {
+      vi.mocked(providerIdAuth.getProviderIdConfig).mockReturnValue({
+        env: 'PRD',
+        healthIdBaseUrl: 'https://moph.id.th',
+        providerIdBaseUrl: 'https://provider.id.th',
+        healthIdClientId: 'h-id',
+        healthIdClientSecret: 'h-sec',
+        providerIdClientId: 'p-id',
+        providerIdSecretKey: 'p-sec',
+        redirectUri: 'https://example.com',
+      })
+      vi.mocked(providerIdAuth.authenticateWithHealthId).mockResolvedValue({
+        citizenId: '9999999999999',
+        accountId: 'acc-unknown',
+        name: 'บุคคล ภายนอก',
+      })
+      mockDb.mockResolvedValue([])
+
+      await expect(authService.exchangeHealthIdCode('code', 'state')).rejects.toThrow(
+        'Health ID citizen ID not registered in hospital members'
+      )
+    })
   })
 })

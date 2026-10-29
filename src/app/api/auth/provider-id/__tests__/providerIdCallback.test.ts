@@ -1,14 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GET as providerIdCallbackHandler } from '../callback/route'
-import { generateProviderIdOAuthState, NotAProviderError } from '@/lib/providerIdAuth'
+import { GET as callbackHandler } from '../callback/route'
+import {
+  generateProviderIdOAuthState,
+  generateHealthIdOAuthState,
+  NotAProviderError,
+} from '@/lib/providerIdAuth'
 
-const { mockCookieStore, mockExchangeProviderIdCode } = vi.hoisted(() => ({
+const { mockCookieStore, mockExchangeProviderIdCode, mockExchangeHealthIdCode } = vi.hoisted(() => ({
   mockCookieStore: {
     get: vi.fn(),
     delete: vi.fn(),
     set: vi.fn(),
   },
   mockExchangeProviderIdCode: vi.fn(),
+  mockExchangeHealthIdCode: vi.fn(),
 }))
 
 vi.mock('next/headers', () => ({
@@ -27,6 +32,7 @@ vi.mock('@/lib/auth/MemberAuthService', () => {
   return {
     MemberAuthService: class {
       exchangeProviderIdCode = mockExchangeProviderIdCode
+      exchangeHealthIdCode = mockExchangeHealthIdCode
     },
   }
 })
@@ -48,7 +54,7 @@ vi.mock('@/lib/providerIdAuth', async (importOriginal) => {
   }
 })
 
-describe('Provider ID Callback Route Handler', () => {
+describe('Provider ID & Health ID Callback Route Handler', () => {
   const secret = 'test-p-secret-at-least-32-chars-long'
 
   beforeEach(() => {
@@ -57,7 +63,7 @@ describe('Provider ID Callback Route Handler', () => {
 
   it('redirects to provider_id_denied when error is returned in search params', async () => {
     const req = new Request('http://localhost:3000/api/auth/provider-id/callback?error=access_denied')
-    const res = await providerIdCallbackHandler(req)
+    const res = await callbackHandler(req)
 
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/member/login?error=provider_id_denied')
@@ -65,7 +71,7 @@ describe('Provider ID Callback Route Handler', () => {
 
   it('redirects to provider_id_invalid_request when code or state is missing', async () => {
     const req = new Request('http://localhost:3000/api/auth/provider-id/callback?code=some-code')
-    const res = await providerIdCallbackHandler(req)
+    const res = await callbackHandler(req)
 
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/member/login?error=provider_id_invalid_request')
@@ -75,7 +81,7 @@ describe('Provider ID Callback Route Handler', () => {
     mockCookieStore.get.mockReturnValue(undefined) // No cookie
 
     const req = new Request('http://localhost:3000/api/auth/provider-id/callback?code=test-code&state=invalid-state')
-    const res = await providerIdCallbackHandler(req)
+    const res = await callbackHandler(req)
 
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/member/login?error=provider_id_invalid_state')
@@ -87,7 +93,7 @@ describe('Provider ID Callback Route Handler', () => {
     mockExchangeProviderIdCode.mockRejectedValue(new NotAProviderError())
 
     const req = new Request(`http://localhost:3000/api/auth/provider-id/callback?code=test-code&state=${validState}`)
-    const res = await providerIdCallbackHandler(req)
+    const res = await callbackHandler(req)
 
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/member/login?error=provider_id_not_provider')
@@ -101,13 +107,13 @@ describe('Provider ID Callback Route Handler', () => {
     )
 
     const req = new Request(`http://localhost:3000/api/auth/provider-id/callback?code=test-code&state=${validState}`)
-    const res = await providerIdCallbackHandler(req)
+    const res = await callbackHandler(req)
 
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/member/login?error=not_registered')
   })
 
-  it('successfully logs in and redirects to /member on valid state and exchange', async () => {
+  it('successfully logs in via Provider ID and redirects to /member', async () => {
     const validState = generateProviderIdOAuthState(secret)
     mockCookieStore.get.mockReturnValue({ value: validState })
     mockExchangeProviderIdCode.mockResolvedValue({
@@ -117,10 +123,27 @@ describe('Provider ID Callback Route Handler', () => {
     })
 
     const req = new Request(`http://localhost:3000/api/auth/provider-id/callback?code=valid-code&state=${validState}`)
-    const res = await providerIdCallbackHandler(req)
+    const res = await callbackHandler(req)
 
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toContain('/member')
     expect(mockCookieStore.delete).toHaveBeenCalledWith('provider_id_oauth_state')
+  })
+
+  it('successfully logs in via Health ID and redirects to /member', async () => {
+    const validHealthState = generateHealthIdOAuthState(secret)
+    mockCookieStore.get.mockReturnValue({ value: validHealthState })
+    mockExchangeHealthIdCode.mockResolvedValue({
+      username: '3520100123456',
+      email: 'nurse@thoen.moph.go.th',
+      role: 'nurse',
+    })
+
+    const req = new Request(`http://localhost:3000/api/auth/provider-id/callback?code=valid-code&state=${validHealthState}`)
+    const res = await callbackHandler(req)
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('/member')
+    expect(mockExchangeHealthIdCode).toHaveBeenCalledWith('valid-code', validHealthState)
   })
 })

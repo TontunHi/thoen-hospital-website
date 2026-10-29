@@ -2,17 +2,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   getProviderIdConfig,
   generateProviderIdOAuthState,
+  generateHealthIdOAuthState,
   verifyProviderIdOAuthState,
+  verifyHealthIdOAuthState,
+  verifyMophOAuthState,
   buildProviderIdAuthorizeUrl,
   exchangeHealthIdCode,
   exchangeProviderIdToken,
   getProviderIdProfile,
   authenticateWithProviderId,
+  authenticateWithHealthId,
+  decodeJwtPayload,
   NotAProviderError,
   type ProviderIdConfig,
 } from '../providerIdAuth'
 
-describe('providerIdAuth', () => {
+describe('providerIdAuth & healthIdAuth', () => {
   const originalEnv = process.env
 
   beforeEach(() => {
@@ -65,11 +70,26 @@ describe('providerIdAuth', () => {
   })
 
   describe('OAuth State generation & verification', () => {
-    it('generates a valid state and successfully verifies it', () => {
+    it('generates a valid provider_id state and verifies it', () => {
       const state = generateProviderIdOAuthState('my-test-secret')
       expect(state.startsWith('pid_')).toBe(true)
-      const isValid = verifyProviderIdOAuthState(state, 'my-test-secret')
-      expect(isValid).toBe(true)
+      expect(verifyProviderIdOAuthState(state, 'my-test-secret')).toBe(true)
+      expect(verifyHealthIdOAuthState(state, 'my-test-secret')).toBe(false)
+
+      const mophCheck = verifyMophOAuthState(state, 'my-test-secret')
+      expect(mophCheck.isValid).toBe(true)
+      expect(mophCheck.type).toBe('provider_id')
+    })
+
+    it('generates a valid health_id state and verifies it', () => {
+      const state = generateHealthIdOAuthState('my-test-secret')
+      expect(state.startsWith('hid_')).toBe(true)
+      expect(verifyHealthIdOAuthState(state, 'my-test-secret')).toBe(true)
+      expect(verifyProviderIdOAuthState(state, 'my-test-secret')).toBe(false)
+
+      const mophCheck = verifyMophOAuthState(state, 'my-test-secret')
+      expect(mophCheck.isValid).toBe(true)
+      expect(mophCheck.type).toBe('health_id')
     })
 
     it('rejects tampered state or wrong secret', () => {
@@ -107,6 +127,21 @@ describe('providerIdAuth', () => {
       expect(parsed.searchParams.get('response_type')).toBe('code')
       expect(parsed.searchParams.get('state')).toBe('test-state-123')
       expect(parsed.searchParams.get('redirect_uri')).toBe('https://thlp.moph.go.th/api/auth/provider-id/callback')
+    })
+  })
+
+  describe('JWT payload decoder', () => {
+    it('decodes valid JWT payload', () => {
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
+      const payload = Buffer.from(JSON.stringify({ pid: '1234567890123', name: 'Dr. Test' })).toString('base64url')
+      const dummyJwt = `${header}.${payload}.sig`
+
+      const decoded = decodeJwtPayload(dummyJwt)
+      expect(decoded).toEqual({ pid: '1234567890123', name: 'Dr. Test' })
+    })
+
+    it('returns null on invalid JWT', () => {
+      expect(decodeJwtPayload('invalid-jwt')).toBeNull()
     })
   })
 
@@ -188,6 +223,24 @@ describe('providerIdAuth', () => {
       expect(profile.account_id).toBe('acc123')
       expect(profile.hash_cid).toBe('7a5635c12063210ec4cb9ea689709541a0d474890e38813e78c566e09f8f6aa7')
       expect(profile.name_th).toBe('หมอพร้อม สงบสุข')
+    })
+
+    it('authenticateWithHealthId resolves citizenId directly from JWT', async () => {
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url')
+      const payload = Buffer.from(JSON.stringify({ pid: '3520100123456', name: 'บุคลากร ทดสอบ' })).toString('base64url')
+      const mockJwt = `${header}.${payload}.sig`
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          status: 'success',
+          data: { access_token: mockJwt },
+        }),
+      } as any)
+
+      const user = await authenticateWithHealthId('code-health-id', mockConfig)
+      expect(user.citizenId).toBe('3520100123456')
+      expect(user.name).toBe('บุคลากร ทดสอบ')
     })
 
     it('authenticateWithProviderId runs end-to-end pipeline', async () => {
