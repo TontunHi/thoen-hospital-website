@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
 import { getThaidConfig, exchangeThaidAuthorizationCode } from '@/lib/thaidAuth'
+import { getProviderIdConfig, authenticateWithProviderId, NotAProviderError, type ProviderIdProfile } from '@/lib/providerIdAuth'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { queryMemberDb } from '@/lib/memberDb'
@@ -296,6 +297,90 @@ export class MemberAuthService {
         'LOGIN',
         'members',
         `เข้าสู่ระบบสำเร็จผ่าน ThaID: ${user.name || fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(user.username)})`,
+        { username: formatMaskedCitizenId(user.username), email: user.email }
+      )
+    } catch {}
+
+    return {
+      username: user.username,
+      email: user.email,
+      role: user.role || 'member'
+    }
+  }
+
+  async exchangeProviderIdCode(code: string, state: string): Promise<MemberSessionPayload> {
+    const config = getProviderIdConfig()
+    if (!config) throw new Error('Provider ID is not configured')
+
+    let profile: ProviderIdProfile
+    try {
+      profile = await authenticateWithProviderId(code, config)
+    } catch (authErr: any) {
+      if (authErr instanceof NotAProviderError) {
+        try {
+          await logAudit(
+            'LOGIN',
+            'members',
+            'พยายามเข้าสู่ระบบด้วย Provider ID แต่ไม่พบข้อมูลการเป็นบุคลากรสาธารณสุข (User is not a Provider)',
+            { username: 'NOT_A_PROVIDER', email: '' }
+          )
+        } catch {}
+        throw authErr
+      }
+      try {
+        await logAudit(
+          'LOGIN',
+          'members',
+          `พยายามเข้าสู่ระบบด้วย Provider ID แต่การแลกเปลี่ยน Token ล้มเหลว (${authErr?.message || 'Token Exchange Failed'})`,
+          { username: 'PROVIDER_ID_EXCHANGE_ERROR', email: '' }
+        )
+      } catch {}
+      throw authErr
+    }
+
+    if (!profile || !profile.hash_cid) {
+      try {
+        await logAudit(
+          'LOGIN',
+          'members',
+          'พยายามเข้าสู่ระบบด้วย Provider ID แต่ไม่ได้รับ hash_cid จากระบบ สธ.',
+          { username: 'PROVIDER_ID_MISSING_HASH_CID', email: '' }
+        )
+      } catch {}
+      throw new Error('Failed to obtain identity hash from Provider ID')
+    }
+
+    const fullName = [
+      profile.title_th,
+      profile.special_title_th,
+      profile.name_th || `${profile.firstname_th || ''} ${profile.lastname_th || ''}`
+    ].filter(Boolean).join(' ').trim() || 'ไม่ระบุชื่อ'
+
+    // Match member via SHA256 of citizen ID (members.username contains 13-digit citizen ID)
+    const users = await this.db(
+      'SELECT id, username, email, role, name FROM members WHERE SHA2(username, 256) = ? LIMIT 1',
+      [profile.hash_cid.toLowerCase()]
+    )
+
+    if (!users || users.length === 0) {
+      try {
+        await logAudit(
+          'LOGIN',
+          'members',
+          `เข้าสู่ระบบ Provider ID สำเร็จแต่ไม่มีบัญชีในระบบ: ${fullName} (PID: ${profile.provider_id || '-'}, hash_cid: ${profile.hash_cid.slice(0, 10)}...) พยายามเข้าสู่ระบบ แต่ไม่พบในฐานข้อมูลบุคลากร`,
+          { username: 'NOT_REGISTERED', email: '' }
+        )
+      } catch {}
+      throw new Error('Provider ID citizen ID not registered in hospital members')
+    }
+
+    const user = users[0]
+
+    try {
+      await logAudit(
+        'LOGIN',
+        'members',
+        `เข้าสู่ระบบสำเร็จผ่าน Provider ID: ${user.name || fullName} (เลขบัตรประชาชน ${formatMaskedCitizenId(user.username)}, PID: ${profile.provider_id || '-'})`,
         { username: formatMaskedCitizenId(user.username), email: user.email }
       )
     } catch {}

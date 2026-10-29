@@ -15,6 +15,7 @@ function MemberLoginForm() {
   const [step, setStep] = useState<1 | 2>(1) // 1: Input user/email, 2: Input OTP
   const [loading, setLoading] = useState(false)
   const [thaidLoading, setThaidLoading] = useState(false)
+  const [providerIdLoading, setProviderIdLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [countdown, setCountdown] = useState(0)
@@ -45,6 +46,21 @@ function MemberLoginForm() {
         case 'thaid_server_error':
           setError('เกิดข้อผิดพลาดในการตรวจสอบข้อมูลกับเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง')
           break
+        case 'provider_id_denied':
+          setError('การยืนยันตัวตนด้วย Provider ID ถูกยกเลิก หรือไม่ได้รับความยินยอม กรุณาลองใหม่อีกครั้ง')
+          break
+        case 'provider_id_exchange_failed':
+          setError('ไม่สามารถเชื่อมต่อแลกเปลี่ยนข้อมูลกับระบบ Provider ID/Health ID ได้ กรุณาลองใหม่ หรือใช้วิธีอื่น')
+          break
+        case 'provider_id_invalid_state':
+          setError('เซสชันการยืนยันตัวตนหมดอายุ กรุณากดเข้าสู่ระบบด้วย Provider ID ใหม่อีกครั้ง')
+          break
+        case 'provider_id_not_configured':
+          setError('ระบบ Provider ID ยังไม่ได้กำหนดค่าการเชื่อมต่อ กรุณาติดต่อผู้ดูแลระบบหรือใช้วิธี OTP')
+          break
+        case 'provider_id_not_provider':
+          setError('ไม่พบข้อมูลการเป็นบุคลากรสาธารณสุขในระบบ Provider ID ของท่าน กรุณาเข้าสู่ระบบด้วย ThaID หรือ OTP')
+          break
         default:
           setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง')
       }
@@ -60,7 +76,7 @@ function MemberLoginForm() {
   }, [countdown])
 
   const handleThaidLogin = async () => {
-    if (thaidLoading || loading) return
+    if (thaidLoading || providerIdLoading || loading) return
     setError('')
     setSuccess('')
     setThaidLoading(true)
@@ -78,6 +94,28 @@ function MemberLoginForm() {
     } catch {
       // Fallback to top-level navigation if fetch fails
       window.location.href = '/api/auth/thaid/authorize'
+    }
+  }
+
+  const handleProviderIdLogin = async () => {
+    if (providerIdLoading || thaidLoading || loading) return
+    setError('')
+    setSuccess('')
+    setProviderIdLoading(true)
+
+    try {
+      const res = await fetch('/api/auth/provider-id/authorize?format=json')
+      const data = await res.json()
+
+      if (data.success && data.redirectUrl) {
+        window.location.href = data.redirectUrl
+      } else {
+        setError(data.error || 'ไม่สามารถเชื่อมต่อกับระบบ Provider ID ได้ กรุณาลองใหม่อีกครั้ง')
+        setProviderIdLoading(false)
+      }
+    } catch {
+      // Fallback to top-level navigation if fetch fails
+      window.location.href = '/api/auth/provider-id/authorize'
     }
   }
 
@@ -164,13 +202,13 @@ function MemberLoginForm() {
       {error && <div className="memberAlert alert-danger">{error}</div>}
       {success && <div className="memberAlert alert-success">{success}</div>}
 
-      {/* Primary Option: ThaID Digital ID Login */}
-      <div className="thaidSection">
+      {/* Primary Option: Digital ID Login (ThaID & Provider ID) */}
+      <div className="digitalIdSection">
         <button
           type="button"
           className="thaidLoginBtn"
           onClick={handleThaidLogin}
-          disabled={loading || thaidLoading}
+          disabled={loading || thaidLoading || providerIdLoading}
         >
           <span className="thaidIconWrapper">
             <Image
@@ -187,6 +225,30 @@ function MemberLoginForm() {
               {thaidLoading ? 'กำลังเชื่อมต่อไปยัง ThaID...' : 'เข้าสู่ระบบด้วย ThaID'}
             </span>
             <span className="thaidBtnSubtitle">บัตรประชาชนดิจิทัล (DOPA Digital ID)</span>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="providerIdLoginBtn"
+          onClick={handleProviderIdLogin}
+          disabled={loading || thaidLoading || providerIdLoading}
+        >
+          <span className="providerIdIconWrapper">
+            <Image
+              src="/images/common/logo-provider-id.svg"
+              alt="Provider ID Logo"
+              width={36}
+              height={36}
+              className="providerIdLogoImg"
+              priority
+            />
+          </span>
+          <div className="providerIdBtnText">
+            <span className="providerIdBtnTitle">
+              {providerIdLoading ? 'กำลังเชื่อมต่อไปยัง Provider ID...' : 'เข้าสู่ระบบด้วย Provider ID'}
+            </span>
+            <span className="providerIdBtnSubtitle">ผู้ให้บริการสุขภาพ (กระทรวงสาธารณสุข)</span>
           </div>
         </button>
       </div>
@@ -208,7 +270,7 @@ function MemberLoginForm() {
             onChange={(e) => setUsername(e.target.value)}
             placeholder="กรอกชื่อผู้ใช้งาน หรือเลขบัตรประชาชน"
             required
-            disabled={loading || step === 2 || thaidLoading}
+            disabled={loading || step === 2 || thaidLoading || providerIdLoading}
           />
         </div>
 
@@ -222,7 +284,7 @@ function MemberLoginForm() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="กรอกอีเมลของคุณ"
             required
-            disabled={loading || step === 2 || thaidLoading}
+            disabled={loading || step === 2 || thaidLoading || providerIdLoading}
           />
         </div>
 
@@ -269,7 +331,7 @@ function MemberLoginForm() {
           </div>
         )}
 
-        <button type="submit" className="memberSubmitBtn" disabled={loading || thaidLoading}>
+        <button type="submit" className="memberSubmitBtn" disabled={loading || thaidLoading || providerIdLoading}>
           {loading
             ? 'กำลังดำเนินการ...'
             : step === 1

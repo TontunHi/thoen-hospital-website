@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#047857" />
+      <stop offset="50%" stop-color="#065f46" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.3" />
+    </filter>
+  </defs>
+  <!-- Background Shield / Rounded Rect -->
+  <rect x="2" y="2" width="44" height="44" rx="11" fill="url(#bgGrad)" stroke="#34d399" stroke-width="1.5" />
+  <!-- Inner Glow Accent -->
+  <rect x="4" y="4" width="40" height="40" rx="9" fill="none" stroke="#6ee7b7" stroke-width="0.75" stroke-opacity="0.4" />
+  
+  <!-- Health / Provider Medical Symbol -->
+  <!-- ID Card outline / Provider Badge -->
+  <g filter="url(#shadow)">
+    <!-- ID Card Base -->
+    <rect x="11" y="11" width="26" height="26" rx="4" fill="#ffffff" fill-opacity="0.12" stroke="#6ee7b7" stroke-width="1.2" />
+    <!-- ID Card Clip / Notch at top -->
+    <rect x="20" y="8.5" width="8" height="3" rx="1.5" fill="#34d399" />
+    <!-- Doctor / Personnel Avatar -->
+    <circle cx="24" cy="18.5" r="4" fill="#ffffff" />
+    <path d="M16 29c0-3.5 3.5-5.5 8-5.5s8 2 8 5.5" stroke="#ffffff" stroke-width="2" stroke-linecap="round" fill="none" />
+    <!-- Medical Cross Badge in bottom-right corner -->
+    <circle cx="32" cy="32" r="5.5" fill="#10b981" stroke="#ffffff" stroke-width="1" />
+    <path d="M32 29.5v5M29.5 32h5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
+  </g>
+</svg>
