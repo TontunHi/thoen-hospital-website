@@ -184,23 +184,19 @@ describe('OrganizationPublicClient Component', () => {
     expect(screen.getByText('100%')).toBeDefined()
   })
 
-  it('toggles staff list collapse and expand in tree node', async () => {
+  it('verifies that staff count pill is not displayed and all members are directly rendered', async () => {
     render(<OrganizationPublicClient />)
 
     await waitFor(() => {
       expect(screen.getByText('จนท.กู้ชีพ EMS')).toBeDefined()
     })
 
-    // Find staff toggle button for EMS unit (3rd group with 1 staff member)
-    const staffToggleBtns = screen.getAllByText(/เจ้าหน้าที่ 1 ท่าน/i)
-    const emsToggleBtn = staffToggleBtns[staffToggleBtns.length - 1]
-    fireEvent.click(emsToggleBtn)
+    // Confirm that staff count text like "เจ้าหน้าที่ 1 ท่าน" is NOT displayed
+    expect(screen.queryByText(/เจ้าหน้าที่ \d+ ท่าน/i)).toBeNull()
 
-    // Staff member in that unit is collapsed
-    expect(screen.queryByText('จนท.กู้ชีพ EMS')).toBeNull()
-
-    // Click again to re-expand
-    fireEvent.click(emsToggleBtn)
+    // Confirm all staff members are directly displayed in the tree
+    expect(screen.getByText('พว.สมชาย พยาบาล')).toBeDefined()
+    expect(screen.getByText('พยาบาล ER 1')).toBeDefined()
     expect(screen.getByText('จนท.กู้ชีพ EMS')).toBeDefined()
   })
 })

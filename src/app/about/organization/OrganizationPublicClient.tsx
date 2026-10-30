@@ -4,12 +4,10 @@ import React, { useState, useEffect } from 'react'
 import Breadcrumb from '@/components/ui/Breadcrumb'
 import {
   Users,
+  User,
   Shield,
   Search,
-  Building2,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Loader2,
   X,
   Network,
@@ -73,23 +71,13 @@ function OrgTreeMemberLeaf({
 /**
  * Recursive Tree Subnode for Org Chart Diagram View
  */
-function OrgTreeSubnode({
-  node,
-  expandedStaff,
-  onToggleStaff
-}: {
-  node: PublicGroupNode
-  expandedStaff: Record<number, boolean>
-  onToggleStaff: (id: number) => void
-}) {
+function OrgTreeSubnode({ node }: { node: PublicGroupNode }) {
   const leader = node.members.find((m) => m.role === 'leader')
   const otherLeaders = node.members.filter((m) => m.role === 'leader' && m.id !== leader?.id)
   const staff = node.members.filter((m) => m.role !== 'leader')
-  const isExpanded = expandedStaff[node.id] !== false
   const children = node.children || []
 
-  const hasChildBranches =
-    children.length > 0 || (isExpanded && (staff.length > 0 || otherLeaders.length > 0))
+  const hasChildBranches = children.length > 0 || staff.length > 0 || otherLeaders.length > 0
 
   return (
     <li>
@@ -120,26 +108,12 @@ function OrgTreeSubnode({
               className="treeNodeAvatarFallback"
               style={{ background: '#f1f5f9', color: '#94a3b8' }}
             >
-              <Building2 size={24} />
+              <User size={24} />
             </div>
             <span className="treeNodeName" style={{ color: '#64748b', fontSize: '0.85rem' }}>
               เจ้าหน้าที่ผู้ปฏิบัติงาน
             </span>
           </>
-        )}
-
-        {/* Regular staff members toggle */}
-        {staff.length > 0 && (
-          <button
-            type="button"
-            className="treeNodeStaffPill"
-            onClick={() => onToggleStaff(node.id)}
-            title={isExpanded ? 'คลิกเพื่อย่อสายโยงเจ้าหน้าที่' : 'คลิกเพื่อขยายสายโยงเจ้าหน้าที่'}
-          >
-            <Users size={12} />
-            เจ้าหน้าที่ {staff.length} ท่าน
-            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
         )}
       </div>
 
@@ -148,33 +122,26 @@ function OrgTreeSubnode({
         <ul>
           {/* Sub-departments / Sub-units */}
           {children.map((child) => (
-            <OrgTreeSubnode
-              key={`group-${child.id}`}
-              node={child}
-              expandedStaff={expandedStaff}
-              onToggleStaff={onToggleStaff}
-            />
+            <OrgTreeSubnode key={`group-${child.id}`} node={child} />
           ))}
 
           {/* Deputy Leaders (if any) */}
-          {isExpanded &&
-            otherLeaders.map((deputy) => (
-              <OrgTreeMemberLeaf
-                key={`deputy-${deputy.id}`}
-                member={deputy}
-                badge="รองหัวหน้างาน"
-              />
-            ))}
+          {otherLeaders.map((deputy) => (
+            <OrgTreeMemberLeaf
+              key={`deputy-${deputy.id}`}
+              member={deputy}
+              badge="รองหัวหน้างาน"
+            />
+          ))}
 
           {/* Staff Members as Individual Leaf Cards with connecting lines */}
-          {isExpanded &&
-            staff.map((member) => (
-              <OrgTreeMemberLeaf
-                key={`staff-${member.id}`}
-                member={member}
-                badge="เจ้าหน้าที่"
-              />
-            ))}
+          {staff.map((member) => (
+            <OrgTreeMemberLeaf
+              key={`staff-${member.id}`}
+              member={member}
+              badge="เจ้าหน้าที่"
+            />
+          ))}
         </ul>
       )}
     </li>
@@ -282,20 +249,11 @@ export default function OrganizationPublicClient() {
   // View mode: 'tree' (Org Chart Diagram) vs 'cards' (Directory Cards View)
   const [viewMode, setViewMode] = useState<'tree' | 'cards'>('tree')
   const [zoom, setZoom] = useState<number>(1)
-  const [expandedStaff, setExpandedStaff] = useState<Record<number, boolean>>({})
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<PublicMember[]>([])
   const [searching, setSearching] = useState(false)
-
-  // Toggle staff in tree node
-  const toggleStaff = (groupId: number) => {
-    setExpandedStaff((prev) => ({
-      ...prev,
-      [groupId]: prev[groupId] === undefined ? false : !prev[groupId]
-    }))
-  }
 
   // Fetch full org chart
   useEffect(() => {
@@ -351,11 +309,10 @@ export default function OrganizationPublicClient() {
     ? selectedRoot.members.filter((m) => m.role === 'leader' && m.id !== rootLeader?.id)
     : []
   const rootStaff = selectedRoot ? selectedRoot.members.filter((m) => m.role !== 'leader') : []
-  const isRootStaffExpanded = selectedRoot ? expandedStaff[selectedRoot.id] !== false : true
   const rootChildren = selectedRoot ? selectedRoot.children || [] : []
 
   const hasRootBranches =
-    rootChildren.length > 0 || (isRootStaffExpanded && (rootStaff.length > 0 || otherRootLeaders.length > 0))
+    rootChildren.length > 0 || rootStaff.length > 0 || otherRootLeaders.length > 0
 
   return (
     <div className="publicOrgPage">
@@ -469,14 +426,14 @@ export default function OrganizationPublicClient() {
             ) : orgChart.length === 0 ? (
               <div className="deptDisplayCard">
                 <div className="publicEmptyState">
-                  <Building2 size={48} className="text-slate-300" />
+                  <User size={48} className="text-slate-300" />
                   <h3>ยังไม่มีข้อมูลโครงสร้างกลุ่มงาน</h3>
                   <p>ระบบยังไม่ได้เพิ่มข้อมูลกลุ่มงานและบุคลากรในขณะนี้</p>
                 </div>
               </div>
             ) : (
               <>
-                {/* Department Selection Tabs */}
+                {/* Department Selection Tabs (Clean without group icon) */}
                 <div className="deptTabsNav">
                   {orgChart.map((root) => (
                     <button
@@ -487,7 +444,6 @@ export default function OrganizationPublicClient() {
                         setZoom(1)
                       }}
                     >
-                      <Building2 size={16} />
                       {root.name}
                     </button>
                   ))}
@@ -613,26 +569,12 @@ export default function OrganizationPublicClient() {
                                     className="treeNodeAvatarFallback"
                                     style={{ background: '#f1f5f9', color: '#94a3b8' }}
                                   >
-                                    <Building2 size={28} />
+                                    <User size={28} />
                                   </div>
                                   <span className="treeNodeName" style={{ color: '#64748b' }}>
                                     ยังไม่ระบุหัวหน้ากลุ่มงาน
                                   </span>
                                 </>
-                              )}
-
-                              {/* Root Regular Staff Toggle Button */}
-                              {rootStaff.length > 0 && (
-                                <button
-                                  type="button"
-                                  className="treeNodeStaffPill"
-                                  onClick={() => toggleStaff(selectedRoot.id)}
-                                  title={isRootStaffExpanded ? 'คลิกเพื่อย่อสายโยงเจ้าหน้าที่' : 'คลิกเพื่อขยายสายโยงเจ้าหน้าที่'}
-                                >
-                                  <Users size={12} />
-                                  เจ้าหน้าที่ {rootStaff.length} ท่าน
-                                  {isRootStaffExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                </button>
                               )}
                             </div>
 
@@ -644,30 +586,26 @@ export default function OrganizationPublicClient() {
                                   <OrgTreeSubnode
                                     key={`group-${child.id}`}
                                     node={child}
-                                    expandedStaff={expandedStaff}
-                                    onToggleStaff={toggleStaff}
                                   />
                                 ))}
 
                                 {/* Deputy Leaders (if any) */}
-                                {isRootStaffExpanded &&
-                                  otherRootLeaders.map((deputy) => (
-                                    <OrgTreeMemberLeaf
-                                      key={`deputy-${deputy.id}`}
-                                      member={deputy}
-                                      badge="รองหัวหน้ากลุ่มงาน"
-                                    />
-                                  ))}
+                                {otherRootLeaders.map((deputy) => (
+                                  <OrgTreeMemberLeaf
+                                    key={`deputy-${deputy.id}`}
+                                    member={deputy}
+                                    badge="รองหัวหน้ากลุ่มงาน"
+                                  />
+                                ))}
 
                                 {/* Direct Staff Members of Root Group */}
-                                {isRootStaffExpanded &&
-                                  rootStaff.map((member) => (
-                                    <OrgTreeMemberLeaf
-                                      key={`staff-${member.id}`}
-                                      member={member}
-                                      badge="เจ้าหน้าที่"
-                                    />
-                                  ))}
+                                {rootStaff.map((member) => (
+                                  <OrgTreeMemberLeaf
+                                    key={`staff-${member.id}`}
+                                    member={member}
+                                    badge="เจ้าหน้าที่"
+                                  />
+                                ))}
                               </ul>
                             )}
                           </div>
