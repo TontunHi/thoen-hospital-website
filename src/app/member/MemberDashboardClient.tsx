@@ -280,6 +280,17 @@ export default function MemberDashboardClient({
         visible: permissions.isAdmin,
       },
       {
+        id: 'organization',
+        title: 'ผังกลุ่มงานและสมาชิก',
+        shortDesc: 'จัดการโครงสร้างกลุ่มงาน หน่วยงานย่อย และรายชื่อบุคลากรประจำแต่ละแผนก',
+        href: '/member/organization',
+        icon: 'account_tree',
+        category: 'admin',
+        categoryLabel: 'สำหรับผู้ดูแลระบบ',
+        keywords: ['ผังกลุ่มงาน', 'แผนผัง', 'บุคลากร', 'องค์กร', 'โครงสร้าง', 'organization', 'department'],
+        visible: permissions.isAdmin,
+      },
+      {
         id: 'locations',
         title: 'จัดการสถานที่ ตึก-ชั้น-ห้อง',
         shortDesc: 'แดชบอร์ดจัดการข้อมูลสถานที่ ตรวจสอบความถูกต้อง เปิด/ปิดใช้งาน',

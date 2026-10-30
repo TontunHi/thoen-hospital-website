@@ -1,0 +1,127 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import OrganizationPublicClient from '../OrganizationPublicClient'
+
+describe('OrganizationPublicClient Component', () => {
+  const samplePublicOrgChart = [
+    {
+      id: 1,
+      name: 'กลุ่มงานการพยาบาล',
+      parentId: null,
+      orderIndex: 0,
+      members: [
+        {
+          id: 10,
+          groupId: 1,
+          name: 'พว.สมหญิง หัวหน้างาน',
+          position: 'พยาบาลวิชาชีพชำนาญการพิเศษ',
+          role: 'leader',
+          orderIndex: 0,
+          imagePath: '/uploads/head.jpg'
+        },
+        {
+          id: 20,
+          groupId: 1,
+          name: 'พว.สมชาย พยาบาล',
+          position: 'พยาบาลวิชาชีพ',
+          role: 'member',
+          orderIndex: 1,
+          imagePath: null
+        }
+      ],
+      children: [
+        {
+          id: 2,
+          name: 'งานอุบัติเหตุและฉุกเฉิน',
+          parentId: 1,
+          orderIndex: 0,
+          members: [
+            {
+              id: 30,
+              groupId: 2,
+              name: 'พยาบาล ER 1',
+              position: 'พยาบาลวิชาชีพ',
+              role: 'member',
+              orderIndex: 0,
+              imagePath: null
+            }
+          ],
+          children: []
+        }
+      ]
+    }
+  ]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/departments/public/search')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: [
+                {
+                  id: 10,
+                  groupId: 1,
+                  name: 'พว.สมหญิง หัวหน้างาน',
+                  position: 'พยาบาลวิชาชีพชำนาญการพิเศษ',
+                  role: 'leader',
+                  orderIndex: 0,
+                  imagePath: '/uploads/head.jpg',
+                  groupName: 'กลุ่มงานการพยาบาล'
+                }
+              ]
+            })
+        })
+      }
+      if (url.includes('/api/departments/public')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: samplePublicOrgChart })
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: [] })
+      })
+    }) as any
+  })
+
+  it('renders hero banner and department tabs', async () => {
+    render(<OrganizationPublicClient />)
+
+    expect(screen.getAllByText('โครงสร้างกลุ่มงานและบุคลากร').length).toBeGreaterThanOrEqual(1)
+
+    await waitFor(() => {
+      expect(screen.getAllByText('กลุ่มงานการพยาบาล').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getByText('พว.สมหญิง หัวหน้างาน')).toBeDefined()
+      expect(screen.getByText('หัวหน้ากลุ่มงาน')).toBeDefined()
+    })
+  })
+
+  it('verifies that no phone numbers are rendered on public view (PDPA Privacy)', async () => {
+    render(<OrganizationPublicClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('พว.สมหญิง หัวหน้างาน')).toBeDefined()
+    })
+
+    // Confirm no telephone icon text or phone labels exist
+    expect(screen.queryByText(/เบอร์ภายใน/i)).toBeNull()
+    expect(screen.queryByText(/เบอร์โทร/i)).toBeNull()
+  })
+
+  it('searches staff by keyword and displays instant results', async () => {
+    render(<OrganizationPublicClient />)
+
+    const searchInput = screen.getByPlaceholderText(/ค้นหาบุคลากรตามชื่อ-นามสกุล หรือตำแหน่ง/i)
+    fireEvent.change(searchInput, { target: { value: 'สมหญิง' } })
+
+    await waitFor(() => {
+      expect(screen.getByText(/ผลการค้นหาสำหรับ/i)).toBeDefined()
+      expect(screen.getAllByText('พว.สมหญิง หัวหน้างาน').length).toBeGreaterThanOrEqual(1)
+    })
+  })
+})

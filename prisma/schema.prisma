@@ -775,3 +775,43 @@ model KpiEntry {
 }
 
 
+
+
+model DepartmentGroup {
+  id          Int                 @id @default(autoincrement())
+  name        String              @db.VarChar(200)
+  parentId    Int?                @map("parent_id")
+  orderIndex  Int                 @default(0) @map("order_index")
+  isActive    Boolean             @default(true) @map("is_active")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  parent      DepartmentGroup?    @relation("DepartmentGroupHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    DepartmentGroup[]   @relation("DepartmentGroupHierarchy")
+  members     DepartmentMember[]
+
+  @@index([parentId], map: "idx_dept_group_parent")
+  @@index([orderIndex], map: "idx_dept_group_order")
+  @@map("department_groups")
+}
+
+model DepartmentMember {
+  id          Int              @id @default(autoincrement())
+  groupId     Int              @map("group_id")
+  name        String           @db.VarChar(255)
+  position    String           @db.VarChar(200)
+  role        String           @default("member") @db.VarChar(50)
+  orderIndex  Int              @default(0) @map("order_index")
+  imagePath   String?          @map("image_path") @db.VarChar(255)
+  phone       String?          @db.VarChar(50)
+  memberId    Int?             @map("member_id")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt   DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  group       DepartmentGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId], map: "idx_dept_member_group")
+  @@index([orderIndex], map: "idx_dept_member_order")
+  @@index([role], map: "idx_dept_member_role")
+  @@map("department_members")
+}
