@@ -46,7 +46,26 @@ describe('OrganizationPublicClient Component', () => {
               imagePath: null
             }
           ],
-          children: []
+          children: [
+            {
+              id: 3,
+              name: 'หน่วยรถพยาบาล EMS',
+              parentId: 2,
+              orderIndex: 0,
+              members: [
+                {
+                  id: 40,
+                  groupId: 3,
+                  name: 'จนท.กู้ชีพ EMS',
+                  position: 'พนักงานขับรถพยาบาล',
+                  role: 'member',
+                  orderIndex: 0,
+                  imagePath: null
+                }
+              ],
+              children: []
+            }
+          ]
         }
       ]
     }
@@ -98,6 +117,9 @@ describe('OrganizationPublicClient Component', () => {
       expect(screen.getAllByText('กลุ่มงานการพยาบาล').length).toBeGreaterThanOrEqual(1)
       expect(screen.getByText('พว.สมหญิง หัวหน้างาน')).toBeDefined()
       expect(screen.getByText('หัวหน้ากลุ่มงาน')).toBeDefined()
+      expect(screen.getByText('งานอุบัติเหตุและฉุกเฉิน')).toBeDefined()
+      expect(screen.getByText('หน่วยรถพยาบาล EMS')).toBeDefined()
+      expect(screen.getByText('จนท.กู้ชีพ EMS')).toBeDefined()
     })
   })
 

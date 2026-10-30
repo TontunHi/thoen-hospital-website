@@ -33,6 +33,96 @@ interface PublicGroupNode {
   children: PublicGroupNode[]
 }
 
+function PublicSubgroupView({ subgroup, depth = 0 }: { subgroup: PublicGroupNode; depth?: number }) {
+  const subLeaders = subgroup.members.filter((m) => m.role === 'leader')
+  const subMembers = subgroup.members.filter((m) => m.role !== 'leader')
+
+  return (
+    <div
+      key={subgroup.id}
+      className="subgroupBlock"
+      style={{ marginLeft: depth > 0 ? `${Math.min(depth * 18, 54)}px` : undefined }}
+    >
+      <div className="subgroupHeader">
+        <ChevronRight size={18} className="text-emerald-600" />
+        <h3>{subgroup.name}</h3>
+      </div>
+
+      {/* Subgroup Leader */}
+      {subLeaders.map((leader) => (
+        <div key={leader.id} className="publicLeaderCard" style={{ padding: '16px 20px' }}>
+          {leader.imagePath ? (
+            <img
+              src={leader.imagePath}
+              alt={leader.name}
+              className="publicLeaderAvatar"
+              style={{ width: '72px', height: '72px' }}
+            />
+          ) : (
+            <div className="publicAvatarFallback" style={{ width: '72px', height: '72px', fontSize: '1.5rem' }}>
+              {leader.name.slice(0, 1)}
+            </div>
+          )}
+          <div className="publicLeaderInfo">
+            <span className="publicLeaderBadge">
+              <Shield size={11} />
+              หัวหน้างาน
+            </span>
+            <span className="publicLeaderName" style={{ fontSize: '1.15rem' }}>
+              {leader.name}
+            </span>
+            <span className="publicLeaderPosition">{leader.position}</span>
+          </div>
+        </div>
+      ))}
+
+      {/* Subgroup Regular Members */}
+      {subMembers.length > 0 ? (
+        <div className="publicMembersGrid">
+          {subMembers.map((member) => (
+            <div key={member.id} className="publicMemberCard">
+              {member.imagePath ? (
+                <img
+                  src={member.imagePath}
+                  alt={member.name}
+                  className="publicMemberAvatar"
+                />
+              ) : (
+                <div className="publicMemberAvatarFallback">
+                  {member.name.slice(0, 1)}
+                </div>
+              )}
+              <div className="publicMemberInfo">
+                <span className="publicMemberName" title={member.name}>
+                  {member.name}
+                </span>
+                <span className="publicMemberPosition">
+                  {member.position}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        subLeaders.length === 0 && (!subgroup.children || subgroup.children.length === 0) && (
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>
+            ยังไม่มีรายชื่อสมาชิกในหน่วยงานย่อยนี้
+          </p>
+        )
+      )}
+
+      {/* Recursive Nested Sub-groups (Depth 2, 3, etc.) */}
+      {subgroup.children && subgroup.children.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
+          {subgroup.children.map((child) => (
+            <PublicSubgroupView key={child.id} subgroup={child} depth={depth + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function OrganizationPublicClient() {
   const [orgChart, setOrgChart] = useState<PublicGroupNode[]>([])
   const [selectedRootId, setSelectedRootId] = useState<number | null>(null)
@@ -292,85 +382,12 @@ export default function OrganizationPublicClient() {
                       </div>
                     )}
 
-                    {/* Sub-groups (งานย่อย / หน่วยงานย่อย) */}
+                    {/* Sub-groups (Recursive Multi-level Tree) */}
                     {selectedRoot.children && selectedRoot.children.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {selectedRoot.children.map((subgroup) => {
-                          const subLeaders = subgroup.members.filter((m) => m.role === 'leader')
-                          const subMembers = subgroup.members.filter((m) => m.role !== 'leader')
-
-                          return (
-                            <div key={subgroup.id} className="subgroupBlock">
-                              <div className="subgroupHeader">
-                                <ChevronRight size={18} className="text-emerald-600" />
-                                <h3>{subgroup.name}</h3>
-                              </div>
-
-                              {/* Subgroup Leader */}
-                              {subLeaders.map((leader) => (
-                                <div key={leader.id} className="publicLeaderCard" style={{ padding: '16px 20px' }}>
-                                  {leader.imagePath ? (
-                                    <img
-                                      src={leader.imagePath}
-                                      alt={leader.name}
-                                      className="publicLeaderAvatar"
-                                      style={{ width: '72px', height: '72px' }}
-                                    />
-                                  ) : (
-                                    <div className="publicAvatarFallback" style={{ width: '72px', height: '72px', fontSize: '1.5rem' }}>
-                                      {leader.name.slice(0, 1)}
-                                    </div>
-                                  )}
-                                  <div className="publicLeaderInfo">
-                                    <span className="publicLeaderBadge">
-                                      <Shield size={11} />
-                                      หัวหน้างาน
-                                    </span>
-                                    <span className="publicLeaderName" style={{ fontSize: '1.15rem' }}>
-                                      {leader.name}
-                                    </span>
-                                    <span className="publicLeaderPosition">{leader.position}</span>
-                                  </div>
-                                </div>
-                              ))}
-
-                              {/* Subgroup Regular Members */}
-                              {subMembers.length > 0 ? (
-                                <div className="publicMembersGrid">
-                                  {subMembers.map((member) => (
-                                    <div key={member.id} className="publicMemberCard">
-                                      {member.imagePath ? (
-                                        <img
-                                          src={member.imagePath}
-                                          alt={member.name}
-                                          className="publicMemberAvatar"
-                                        />
-                                      ) : (
-                                        <div className="publicMemberAvatarFallback">
-                                          {member.name.slice(0, 1)}
-                                        </div>
-                                      )}
-                                      <div className="publicMemberInfo">
-                                        <span className="publicMemberName" title={member.name}>
-                                          {member.name}
-                                        </span>
-                                        <span className="publicMemberPosition">
-                                          {member.position}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                subLeaders.length === 0 && (
-                                  <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>
-                                    ยังไม่มีรายชื่อสมาชิกในหน่วยงานย่อยนี้
-                                  </p>
-                                )
-                              )}
-                            </div>
-                          )
-                        })}
+                        {selectedRoot.children.map((subgroup) => (
+                          <PublicSubgroupView key={subgroup.id} subgroup={subgroup} depth={0} />
+                        ))}
                       </div>
                     )}
 

@@ -12,19 +12,7 @@ describe('DepartmentService (TDD)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockExecutor = vi.fn()
-    service = new DepartmentService(mockExecutor as any, { skipEnsureTables: true })
-  })
-
-  describe('Table Schema Initialization', () => {
-    it('executes CREATE TABLE IF NOT EXISTS for groups and members', async () => {
-      const freshService = new DepartmentService(mockExecutor as any, { skipEnsureTables: false })
-      mockExecutor.mockResolvedValue([])
-
-      await freshService.ensureTablesExist()
-      expect(mockExecutor).toHaveBeenCalledTimes(2)
-      expect(mockExecutor.mock.calls[0][0]).toContain('CREATE TABLE IF NOT EXISTS department_groups')
-      expect(mockExecutor.mock.calls[1][0]).toContain('CREATE TABLE IF NOT EXISTS department_members')
-    })
+    service = new DepartmentService(mockExecutor as any)
   })
 
   describe('Group Management', () => {
@@ -140,16 +128,17 @@ describe('DepartmentService (TDD)', () => {
       expect(publicMembers[0].role).toBe('leader')
     })
 
-    it('reorders members in a group sequentially', async () => {
-      mockExecutor.mockResolvedValue({ affectedRows: 1 })
+    it('reorders members in a group in a single batch query', async () => {
+      mockExecutor.mockResolvedValueOnce({ affectedRows: 3 })
 
       const success = await service.reorderMembers(1, [103, 101, 102], { id: 99, name: 'Admin' })
       expect(success).toBe(true)
-      // 3 updates for the 3 members
-      expect(mockExecutor).toHaveBeenCalledTimes(3)
-      expect(mockExecutor.mock.calls[0][1]).toEqual([0, 103, 1])
-      expect(mockExecutor.mock.calls[1][1]).toEqual([1, 101, 1])
-      expect(mockExecutor.mock.calls[2][1]).toEqual([2, 102, 1])
+      // Exactly 1 batch update query instead of 3 roundtrips!
+      expect(mockExecutor).toHaveBeenCalledTimes(1)
+      const [sql, params] = mockExecutor.mock.calls[0]
+      expect(sql).toContain('SET order_index = CASE id')
+      expect(sql).toContain('WHERE group_id = ? AND id IN (?, ?, ?)')
+      expect(params).toEqual([103, 0, 101, 1, 102, 2, 1, 103, 101, 102])
     })
 
     it('fetches complete public org chart without phone numbers', async () => {

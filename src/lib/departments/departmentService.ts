@@ -63,62 +63,14 @@ export interface ActorInfo {
 }
 
 export class DepartmentService {
-  private hasEnsuredTables: boolean
-
   constructor(
-    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb,
-    options: { skipEnsureTables?: boolean } = {}
-  ) {
-    this.hasEnsuredTables = !!options.skipEnsureTables
-  }
-
-  /**
-   * Ensures the database tables exist in MySQL before operations.
-   */
-  async ensureTablesExist(): Promise<void> {
-    if (this.hasEnsuredTables) return
-
-    await this.queryExecutor(`
-      CREATE TABLE IF NOT EXISTS department_groups (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(200) NOT NULL,
-        parent_id INT NULL,
-        order_index INT NOT NULL DEFAULT 0,
-        is_active TINYINT(1) NOT NULL DEFAULT 1,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_dept_group_parent (parent_id),
-        INDEX idx_dept_group_order (order_index)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `)
-
-    await this.queryExecutor(`
-      CREATE TABLE IF NOT EXISTS department_members (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        group_id INT NOT NULL,
-        name VARCHAR(255) NOT NULL,
-        position VARCHAR(200) NOT NULL,
-        role VARCHAR(50) NOT NULL DEFAULT 'member',
-        order_index INT NOT NULL DEFAULT 0,
-        image_path VARCHAR(255) NULL,
-        phone VARCHAR(50) NULL,
-        member_id INT NULL,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_dept_member_group (group_id),
-        INDEX idx_dept_member_order (order_index),
-        INDEX idx_dept_member_role (role)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `)
-
-    this.hasEnsuredTables = true
-  }
+    private readonly queryExecutor: (sql: string, params?: any[]) => Promise<any[]> = queryMemberDb
+  ) {}
 
   /**
    * Retrieves all groups and builds a recursive tree structure.
    */
   async getGroupTree(options: { activeOnly?: boolean } = {}): Promise<DepartmentGroupNode[]> {
-    await this.ensureTablesExist()
     const whereClause = options.activeOnly ? 'WHERE is_active = 1' : ''
     const rows = await this.queryExecutor(`
       SELECT id, name, parent_id, order_index, is_active
@@ -158,7 +110,6 @@ export class DepartmentService {
    * Retrieves a single group by ID.
    */
   async getGroupById(id: number): Promise<DepartmentGroupNode | null> {
-    await this.ensureTablesExist()
     const rows = await this.queryExecutor(
       `SELECT id, name, parent_id, order_index, is_active FROM department_groups WHERE id = ? LIMIT 1`,
       [id]
@@ -179,7 +130,6 @@ export class DepartmentService {
    * Creates a new department or subgroup.
    */
   async createGroup(input: CreateGroupInput, actor: ActorInfo): Promise<{ id: number; name: string; parentId: number | null; orderIndex: number; isActive: boolean }> {
-    await this.ensureTablesExist()
     const cleanName = input.name.trim()
     const parentId = input.parentId && input.parentId > 0 ? input.parentId : null
     const orderIndex = input.orderIndex ?? 0
@@ -211,7 +161,6 @@ export class DepartmentService {
    * Updates an existing department or subgroup.
    */
   async updateGroup(id: number, input: UpdateGroupInput, actor: ActorInfo): Promise<boolean> {
-    await this.ensureTablesExist()
     const updates: string[] = []
     const params: any[] = []
 
@@ -254,8 +203,6 @@ export class DepartmentService {
    * Deletes a department or subgroup, preventing deletion if it contains subgroups or members.
    */
   async deleteGroup(id: number, actor: ActorInfo): Promise<boolean> {
-    await this.ensureTablesExist()
-
     // 1. Check subgroups
     const subRows = await this.queryExecutor(
       `SELECT COUNT(*) AS count FROM department_groups WHERE parent_id = ?`,
@@ -291,7 +238,6 @@ export class DepartmentService {
    * If isPublic=true, phone number is stripped for privacy (PDPA compliance).
    */
   async getMembersByGroupId(groupId: number, options: { isPublic?: boolean } = {}): Promise<DepartmentMemberRecord[]> {
-    await this.ensureTablesExist()
     const rows = await this.queryExecutor(
       `SELECT id, group_id, name, position, role, order_index, image_path, phone, member_id
        FROM department_members
@@ -324,7 +270,6 @@ export class DepartmentService {
    * Creates a member inside a department group.
    */
   async createMember(input: CreateMemberInput, actor: ActorInfo): Promise<DepartmentMemberRecord> {
-    await this.ensureTablesExist()
     const cleanName = input.name.trim()
     const cleanPosition = input.position.trim()
     const role = input.role === 'leader' ? 'leader' : 'member'
@@ -365,7 +310,6 @@ export class DepartmentService {
    * Updates an existing member.
    */
   async updateMember(id: number, input: UpdateMemberInput, actor: ActorInfo): Promise<boolean> {
-    await this.ensureTablesExist()
     const updates: string[] = []
     const params: any[] = []
 
@@ -420,7 +364,6 @@ export class DepartmentService {
    * Deletes a department member.
    */
   async deleteMember(id: number, actor: ActorInfo): Promise<boolean> {
-    await this.ensureTablesExist()
     await this.queryExecutor(`DELETE FROM department_members WHERE id = ?`, [id])
 
     await logAudit(
@@ -434,16 +377,21 @@ export class DepartmentService {
   }
 
   /**
-   * Reorders members inside a group by array of member IDs.
+   * Reorders members inside a group in a single atomic batch query.
    */
   async reorderMembers(groupId: number, memberIds: number[], actor: ActorInfo): Promise<boolean> {
-    await this.ensureTablesExist()
-    for (let i = 0; i < memberIds.length; i++) {
-      await this.queryExecutor(
-        `UPDATE department_members SET order_index = ? WHERE id = ? AND group_id = ?`,
-        [i, memberIds[i], groupId]
-      )
-    }
+    if (memberIds.length === 0) return true
+
+    const cases = memberIds.map(() => 'WHEN ? THEN ?').join(' ')
+    const caseParams = memberIds.flatMap((id, idx) => [id, idx])
+    const inPlaceholders = memberIds.map(() => '?').join(', ')
+
+    await this.queryExecutor(
+      `UPDATE department_members
+       SET order_index = CASE id ${cases} ELSE order_index END
+       WHERE group_id = ? AND id IN (${inPlaceholders})`,
+      [...caseParams, groupId, ...memberIds]
+    )
 
     await logAudit(
       'UPDATE',
@@ -459,7 +407,6 @@ export class DepartmentService {
    * Fast search across active staff for the public directory (no phone returned).
    */
   async searchStaff(keyword: string): Promise<Array<DepartmentMemberRecord & { groupName: string }>> {
-    await this.ensureTablesExist()
     const cleanKw = `%${keyword.trim()}%`
     const rows = await this.queryExecutor(
       `SELECT m.id, m.group_id, m.name, m.position, m.role, m.order_index, m.image_path, g.name AS group_name
@@ -488,8 +435,6 @@ export class DepartmentService {
    * Excludes phone numbers to comply with PDPA and hospital privacy standards.
    */
   async getPublicOrgChart(): Promise<any[]> {
-    await this.ensureTablesExist()
-
     const [groups, members] = await Promise.all([
       this.queryExecutor(`
         SELECT id, name, parent_id, order_index
@@ -498,9 +443,11 @@ export class DepartmentService {
         ORDER BY order_index ASC, id ASC
       `),
       this.queryExecutor(`
-        SELECT id, group_id, name, position, role, order_index, image_path
-        FROM department_members
-        ORDER BY CASE WHEN role = 'leader' THEN 0 ELSE 1 END, order_index ASC, id ASC
+        SELECT m.id, m.group_id, m.name, m.position, m.role, m.order_index, m.image_path
+        FROM department_members m
+        JOIN department_groups g ON m.group_id = g.id
+        WHERE g.is_active = 1
+        ORDER BY CASE WHEN m.role = 'leader' THEN 0 ELSE 1 END, m.order_index ASC, m.id ASC
       `)
     ])
 

@@ -383,18 +383,24 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     })
   }
 
-  // Move member up/down to reorder
-  const handleMoveMember = async (index: number, direction: 'up' | 'down') => {
+  // Move member up/down to reorder scoped strictly to role section
+  const handleMoveMember = async (role: 'leader' | 'member', sectionIndex: number, direction: 'up' | 'down') => {
     if (!selectedGroup) return
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= members.length) return
+    const sectionList = role === 'leader' ? leaderMembers : regularMembers
+    const targetIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1
+    if (targetIndex < 0 || targetIndex >= sectionList.length) return
 
-    const newMembers = [...members]
-    const temp = newMembers[index]
-    newMembers[index] = newMembers[targetIndex]
-    newMembers[targetIndex] = temp
+    const updatedSection = [...sectionList]
+    const temp = updatedSection[sectionIndex]
+    updatedSection[sectionIndex] = updatedSection[targetIndex]
+    updatedSection[targetIndex] = temp
 
-    setMembers(newMembers)
+    const updatedCombined =
+      role === 'leader'
+        ? [...updatedSection, ...regularMembers]
+        : [...leaderMembers, ...updatedSection]
+
+    setMembers(updatedCombined)
 
     try {
       const res = await fetch('/api/departments/members/reorder', {
@@ -402,7 +408,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           groupId: selectedGroup.id,
-          memberIds: newMembers.map((m) => m.id)
+          memberIds: updatedCombined.map((m) => m.id)
         })
       })
       const json = await res.json()
@@ -626,8 +632,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                           <Shield size={16} className="text-emerald-600" />
                           หัวหน้ากลุ่มงาน / ผู้บริหาร
                         </div>
-                        {leaderMembers.map((leader) => {
-                          const originalIndex = members.findIndex((m) => m.id === leader.id)
+                        {leaderMembers.map((leader, leaderIndex) => {
                           return (
                             <div key={leader.id} className="leaderCard">
                               {leader.imagePath ? (
@@ -662,16 +667,16 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                   <button
                                     className="orderBtn"
                                     title="เลื่อนขึ้น"
-                                    disabled={originalIndex === 0}
-                                    onClick={() => handleMoveMember(originalIndex, 'up')}
+                                    disabled={leaderIndex === 0}
+                                    onClick={() => handleMoveMember('leader', leaderIndex, 'up')}
                                   >
                                     <ArrowUp size={12} />
                                   </button>
                                   <button
                                     className="orderBtn"
                                     title="เลื่อนลง"
-                                    disabled={originalIndex === members.length - 1}
-                                    onClick={() => handleMoveMember(originalIndex, 'down')}
+                                    disabled={leaderIndex === leaderMembers.length - 1}
+                                    onClick={() => handleMoveMember('leader', leaderIndex, 'down')}
                                   >
                                     <ArrowDown size={12} />
                                   </button>
@@ -717,8 +722,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                           เจ้าหน้าที่ / สมาชิกในกลุ่มงาน ({regularMembers.length})
                         </div>
                         <div className="membersGrid">
-                          {regularMembers.map((member) => {
-                            const originalIndex = members.findIndex((m) => m.id === member.id)
+                          {regularMembers.map((member, memberIndex) => {
                             return (
                               <div key={member.id} className="memberCard">
                                 {member.imagePath ? (
@@ -752,16 +756,16 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                     <button
                                       className="orderBtn"
                                       title="เลื่อนขึ้น"
-                                      disabled={originalIndex === 0}
-                                      onClick={() => handleMoveMember(originalIndex, 'up')}
+                                      disabled={memberIndex === 0}
+                                      onClick={() => handleMoveMember('member', memberIndex, 'up')}
                                     >
                                       <ArrowUp size={12} />
                                     </button>
                                     <button
                                       className="orderBtn"
                                       title="เลื่อนลง"
-                                      disabled={originalIndex === members.length - 1}
-                                      onClick={() => handleMoveMember(originalIndex, 'down')}
+                                      disabled={memberIndex === regularMembers.length - 1}
+                                      onClick={() => handleMoveMember('member', memberIndex, 'down')}
                                     >
                                       <ArrowDown size={12} />
                                     </button>
