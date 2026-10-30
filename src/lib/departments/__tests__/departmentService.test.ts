@@ -82,6 +82,18 @@ describe('DepartmentService (TDD)', () => {
       expect(result).toBe(true)
       expect(mockExecutor).toHaveBeenCalledTimes(3)
     })
+
+    it('reorders groups atomically within the hierarchy', async () => {
+      mockExecutor.mockResolvedValueOnce({ affectedRows: 3 })
+
+      const success = await service.reorderGroups([5, 1, 3], { id: 99, name: 'Admin' })
+      expect(success).toBe(true)
+      expect(mockExecutor).toHaveBeenCalledTimes(1)
+      const [sql, params] = mockExecutor.mock.calls[0]
+      expect(sql).toContain('SET order_index = CASE id')
+      expect(sql).toContain('WHERE id IN (?, ?, ?)')
+      expect(params).toEqual([5, 0, 1, 1, 3, 2, 5, 1, 3])
+    })
   })
 
   describe('Member Management & Privacy', () => {

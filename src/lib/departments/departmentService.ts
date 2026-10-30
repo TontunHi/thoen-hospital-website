@@ -200,6 +200,33 @@ export class DepartmentService {
   }
 
   /**
+   * Reorders department groups atomically within the same hierarchy level.
+   */
+  async reorderGroups(groupIds: number[], actor: ActorInfo): Promise<boolean> {
+    if (groupIds.length === 0) return true
+
+    const cases = groupIds.map(() => 'WHEN ? THEN ?').join(' ')
+    const caseParams = groupIds.flatMap((id, idx) => [id, idx])
+    const inPlaceholders = groupIds.map(() => '?').join(', ')
+
+    await this.queryExecutor(
+      `UPDATE department_groups
+       SET order_index = CASE id ${cases} ELSE order_index END
+       WHERE id IN (${inPlaceholders})`,
+      [...caseParams, ...groupIds]
+    )
+
+    await logAudit(
+      'UPDATE',
+      'department_groups',
+      JSON.stringify({ action: 'REORDER_GROUPS', groupIds }),
+      { username: actor.name || undefined }
+    ).catch(() => {})
+
+    return true
+  }
+
+  /**
    * Deletes a department or subgroup, preventing deletion if it contains subgroups or members.
    */
   async deleteGroup(id: number, actor: ActorInfo): Promise<boolean> {

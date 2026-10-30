@@ -5,7 +5,6 @@ import Breadcrumb from '@/components/ui/Breadcrumb'
 import {
   Users,
   User,
-  Shield,
   Search,
   ChevronRight,
   Loader2,
@@ -95,9 +94,9 @@ function OrgTreeSubnode({ node }: { node: PublicGroupNode }) {
             )}
             <span
               className="publicLeaderBadge"
-              style={{ fontSize: '0.65rem', padding: '2px 8px', margin: '0 auto', width: 'fit-content' }}
+              style={{ fontSize: '0.7rem', padding: '3px 10px', margin: '0 auto', width: 'fit-content' }}
             >
-              <Shield size={10} /> หัวหน้างาน
+              หัวหน้างาน
             </span>
             <span className="treeNodeName">{leader.name}</span>
             <span className="treeNodePosition">{leader.position}</span>
@@ -183,7 +182,6 @@ function PublicSubgroupView({ subgroup, depth = 0 }: { subgroup: PublicGroupNode
           )}
           <div className="publicLeaderInfo">
             <span className="publicLeaderBadge">
-              <Shield size={11} />
               หัวหน้างาน
             </span>
             <span className="publicLeaderName" style={{ fontSize: '1.15rem' }}>
@@ -551,13 +549,13 @@ export default function OrganizationPublicClient() {
                                   <span
                                     className="publicLeaderBadge"
                                     style={{
-                                      fontSize: '0.7rem',
-                                      padding: '2px 8px',
+                                      fontSize: '0.75rem',
+                                      padding: '3px 12px',
                                       margin: '0 auto',
                                       width: 'fit-content'
                                     }}
                                   >
-                                    <Shield size={10} /> หัวหน้ากลุ่มงาน
+                                    หัวหน้ากลุ่มงาน
                                   </span>
                                   <span className="treeNodeName" style={{ fontSize: '1.05rem' }}>
                                     {rootLeader.name}
@@ -633,7 +631,6 @@ export default function OrganizationPublicClient() {
                             )}
                             <div className="publicLeaderInfo">
                               <span className="publicLeaderBadge">
-                                <Shield size={12} />
                                 หัวหน้ากลุ่มงาน
                               </span>
                               <span className="publicLeaderName">{rootLeader.name}</span>

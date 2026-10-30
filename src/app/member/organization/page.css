@@ -570,6 +570,30 @@
   animation: modalEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.modalContent.modalWide {
+  max-width: 720px;
+}
+
+.modalFormGrid {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .modalFormGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.modalSectionCol {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 @keyframes modalEnter {
   from {
     opacity: 0;

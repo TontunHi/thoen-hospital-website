@@ -15,7 +15,6 @@ import {
   Search,
   Upload,
   Phone,
-  Shield,
   Loader2,
   X,
   Check,
@@ -54,6 +53,17 @@ interface SystemMemberSearchResult {
   position: string
   department: string
   profilePath: string | null
+}
+
+function findGroupName(nodes: DepartmentGroupNode[], targetId: number): string | null {
+  for (const node of nodes) {
+    if (node.id === targetId) return node.name
+    if (node.children && node.children.length > 0) {
+      const found = findGroupName(node.children, targetId)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin?: any }) {
@@ -423,9 +433,50 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     }
   }
 
+  // Handle move group order (up or down within same hierarchy level)
+  const handleMoveGroup = async (
+    siblings: DepartmentGroupNode[],
+    currentIndex: number,
+    direction: 'up' | 'down'
+  ) => {
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (targetIndex < 0 || targetIndex >= siblings.length) return
+
+    const updatedSiblings = [...siblings]
+    const [moved] = updatedSiblings.splice(currentIndex, 1)
+    updatedSiblings.splice(targetIndex, 0, moved)
+
+    const reorderedGroupIds = updatedSiblings.map((g) => g.id)
+
+    try {
+      const res = await fetch('/api/departments/groups/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupIds: reorderedGroupIds })
+      })
+      const json = await res.json()
+      if (json.success) {
+        addToast('สลับลำดับกลุ่มงานสำเร็จ', 'success')
+        await loadGroups(selectedGroup?.id)
+      } else {
+        addToast(json.error || 'ไม่สามารถสลับลำดับกลุ่มงานได้', 'error')
+      }
+    } catch {
+      addToast('เกิดข้อผิดพลาดในการสลับลำดับกลุ่มงาน', 'error')
+    }
+  }
+
   // Recursive tree node renderer
-  const renderGroupNode = (node: DepartmentGroupNode, level = 0) => {
+  const renderGroupNode = (
+    node: DepartmentGroupNode,
+    level = 0,
+    siblings: DepartmentGroupNode[] = groups,
+    index = 0
+  ) => {
     const isSelected = selectedGroup?.id === node.id
+    const canMoveUp = index > 0
+    const canMoveDown = index < siblings.length - 1
+
     return (
       <div key={node.id} className={`orgTreeItem ${isSelected ? 'active' : ''}`}>
         <div
@@ -441,6 +492,26 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           </div>
 
           <div className="orgTreeActions" onClick={(e) => e.stopPropagation()}>
+            {/* Reorder Buttons for Groups */}
+            <div className="orderButtons" style={{ flexDirection: 'row', gap: '2px' }}>
+              <button
+                className="orderBtn"
+                title="เลื่อนกลุ่มงานขึ้น"
+                disabled={!canMoveUp}
+                onClick={() => handleMoveGroup(siblings, index, 'up')}
+              >
+                <ArrowUp size={11} />
+              </button>
+              <button
+                className="orderBtn"
+                title="เลื่อนกลุ่มงานลง"
+                disabled={!canMoveDown}
+                onClick={() => handleMoveGroup(siblings, index, 'down')}
+              >
+                <ArrowDown size={11} />
+              </button>
+            </div>
+
             <button
               className="iconBtn"
               title="เพิ่มงานย่อยภายใต้กลุ่มนี้"
@@ -475,7 +546,9 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
 
         {node.children && node.children.length > 0 && (
           <div className="orgTreeChildren">
-            {node.children.map((child) => renderGroupNode(child, level + 1))}
+            {node.children.map((child, childIdx) =>
+              renderGroupNode(child, level + 1, node.children, childIdx)
+            )}
           </div>
         )}
       </div>
@@ -563,7 +636,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   <p style={{ fontSize: '0.8rem' }}>คลิกปุ่ม &quot;เพิ่มกลุ่มงานหลัก&quot; ด้านบนเพื่อเริ่มต้น</p>
                 </div>
               ) : (
-                groups.map((group) => renderGroupNode(group, 0))
+                groups.map((group, idx) => renderGroupNode(group, 0, groups, idx))
               )}
             </div>
           </div>
@@ -639,7 +712,6 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                     {leaderMembers.length > 0 && (
                       <div className="orgMemberSection">
                         <div className="orgSectionHeading">
-                          <Shield size={16} className="text-emerald-600" />
                           หัวหน้ากลุ่มงาน / ผู้บริหาร
                         </div>
                         {leaderMembers.map((leader, leaderIndex) => {
@@ -659,7 +731,6 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
 
                               <div className="leaderInfo">
                                 <span className="leaderBadge">
-                                  <Shield size={12} />
                                   หัวหน้ากลุ่มงาน
                                 </span>
                                 <span className="leaderName">{leader.name}</span>
@@ -831,7 +902,21 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           <div className="modalOverlay" onClick={() => setIsGroupModalOpen(false)}>
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
               <div className="modalHeader">
-                <h3>{groupModalMode === 'create' ? 'เพิ่มกลุ่มงานใหม่' : 'แก้ไขชื่อกลุ่มงาน'}</h3>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                    {groupModalMode === 'create'
+                      ? groupFormData.parentId
+                        ? 'เพิ่มงานย่อย'
+                        : 'เพิ่มกลุ่มงานหลัก'
+                      : 'แก้ไขชื่อกลุ่มงาน'}
+                  </h3>
+                  {groupFormData.parentId && (
+                    <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--admin-slate-muted)' }}>
+                      ภายใต้กลุ่มงาน:{' '}
+                      <strong>{findGroupName(groups, groupFormData.parentId) || 'กลุ่มงานหลัก'}</strong>
+                    </p>
+                  )}
+                </div>
                 <button className="iconBtn" onClick={() => setIsGroupModalOpen(false)}>
                   <X size={18} />
                 </button>
@@ -871,161 +956,224 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
         {/* Member Add/Edit Modal */}
         {isMemberModalOpen && (
           <div className="modalOverlay" onClick={() => setIsMemberModalOpen(false)}>
-            <div className="modalContent" onClick={(e) => e.stopPropagation()}>
+            <div className="modalContent modalWide" onClick={(e) => e.stopPropagation()}>
               <div className="modalHeader">
-                <h3>{memberModalMode === 'create' ? 'เพิ่มสมาชิกในกลุ่มงาน' : 'แก้ไขข้อมูลสมาชิก'}</h3>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                    {memberModalMode === 'create' ? 'เพิ่มสมาชิกในกลุ่มงาน' : 'แก้ไขข้อมูลสมาชิก'}
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--admin-slate-muted)' }}>
+                    กลุ่มงาน: <strong style={{ color: 'var(--admin-slate-dark)' }}>{selectedGroup?.name}</strong>
+                  </p>
+                </div>
                 <button className="iconBtn" onClick={() => setIsMemberModalOpen(false)}>
                   <X size={18} />
                 </button>
               </div>
               <form onSubmit={handleSaveMember}>
                 <div className="modalBody">
-                  {/* Prefill from System Member Search */}
-                  {memberModalMode === 'create' && (
-                    <div className="formGroup" style={{ position: 'relative' }}>
-                      <label className="formLabel">
-                        ค้นหาและดึงข้อมูลจากบัญชีบุคลากรในระบบ (ทางเลือก สะดวกรวดเร็ว)
-                      </label>
-                      <div style={{ position: 'relative' }}>
+                  <div className="modalFormGrid">
+                    {/* Left Column: Member Search (if create) + Photo Upload */}
+                    <div className="modalSectionCol">
+                      {memberModalMode === 'create' && (
+                        <div className="formGroup autocompleteContainer">
+                          <label className="formLabel">
+                            ดึงข้อมูลจากบัญชีบุคลากร (ทางเลือก)
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="text"
+                              className="formInput"
+                              style={{ width: '100%', paddingLeft: '34px', fontSize: '0.85rem' }}
+                              placeholder="ค้นชื่อ หรือ แผนก..."
+                              value={searchMemberQuery}
+                              onChange={(e) => setSearchMemberQuery(e.target.value)}
+                            />
+                            <Search
+                              size={15}
+                              className="text-slate-400"
+                              style={{ position: 'absolute', left: '10px', top: '11px' }}
+                            />
+                            {searchingMembers && (
+                              <Loader2
+                                size={15}
+                                className="animate-spin text-emerald-600"
+                                style={{ position: 'absolute', right: '10px', top: '11px' }}
+                              />
+                            )}
+                          </div>
+
+                          {searchMemberResults.length > 0 && (
+                            <div className="autocompleteList">
+                              {searchMemberResults.map((s) => (
+                                <div
+                                  key={s.id}
+                                  className="autocompleteItem"
+                                  onClick={() => {
+                                    setMemberFormData({
+                                      ...memberFormData,
+                                      name: s.name,
+                                      position: s.position,
+                                      imagePath: s.profilePath || '',
+                                      memberId: s.id
+                                    })
+                                    setSearchMemberResults([])
+                                    setSearchMemberQuery(s.name)
+                                    addToast(`ดึงข้อมูลคุณ ${s.name} เรียบร้อย`, 'info')
+                                  }}
+                                >
+                                  {s.profilePath ? (
+                                    <img src={s.profilePath} alt={s.name} className="autocompleteAvatar" />
+                                  ) : (
+                                    <div
+                                      className="autocompleteAvatar"
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontWeight: 'bold',
+                                        fontSize: '13px',
+                                        color: '#047857',
+                                        background: '#d1fae5'
+                                      }}
+                                    >
+                                      {s.name.slice(0, 1)}
+                                    </div>
+                                  )}
+                                  <div className="autocompleteText">
+                                    <span className="autocompleteItemName">{s.name}</span>
+                                    <span className="autocompleteItemSub">
+                                      {s.position} • {s.department}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Photo Upload Area */}
+                      <div className="formGroup">
+                        <label className="formLabel">รูปถ่ายบุคลากร</label>
+                        <div
+                          className="photoUploadArea"
+                          style={{
+                            flexDirection: 'column',
+                            textAlign: 'center',
+                            padding: '16px 12px',
+                            gap: '10px'
+                          }}
+                        >
+                          {memberFormData.imagePath ? (
+                            <img
+                              src={memberFormData.imagePath}
+                              alt="Preview"
+                              className="photoPreview"
+                              style={{ width: '80px', height: '80px' }}
+                            />
+                          ) : (
+                            <div
+                              className="avatarFallback"
+                              style={{ width: '80px', height: '80px', fontSize: '1.75rem' }}
+                            >
+                              {memberFormData.name ? memberFormData.name.slice(0, 1) : '?'}
+                            </div>
+                          )}
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '6px',
+                              width: '100%'
+                            }}
+                          >
+                            <label
+                              className="btn btnSecondary"
+                              style={{
+                                cursor: 'pointer',
+                                width: '100%',
+                                fontSize: '0.8rem',
+                                padding: '8px 10px'
+                              }}
+                            >
+                              <Upload size={14} />
+                              {isUploadingPhoto ? 'กำลังอัปโหลด...' : 'เลือกรูปถ่าย (JPG, PNG)'}
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handlePhotoUpload}
+                                disabled={isUploadingPhoto}
+                                style={{ display: 'none' }}
+                              />
+                            </label>
+                            {memberFormData.imagePath && (
+                              <button
+                                type="button"
+                                className="iconBtn danger"
+                                style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                                onClick={() => setMemberFormData({ ...memberFormData, imagePath: '' })}
+                              >
+                                <Trash2 size={12} /> ลบรูปภาพ
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Name, Position, Phone */}
+                    <div className="modalSectionCol">
+                      <div className="formGroup">
+                        <label className="formLabel">คำนำหน้า-ชื่อ-นามสกุล *</label>
                         <input
                           type="text"
                           className="formInput"
-                          style={{ width: '100%', paddingLeft: '34px' }}
-                          placeholder="พิมพ์ชื่อ นามสกุล หรือแผนก เพื่อดึงข้อมูลอัตโนมัติ..."
-                          value={searchMemberQuery}
-                          onChange={(e) => setSearchMemberQuery(e.target.value)}
+                          placeholder="เช่น พญ.นฤณาท จอมภาปิน, นายแพทย์สาธิต ปทุมมัง"
+                          value={memberFormData.name}
+                          onChange={(e) =>
+                            setMemberFormData({ ...memberFormData, name: e.target.value })
+                          }
+                          required
                         />
-                        <Search
-                          size={16}
-                          className="text-slate-400"
-                          style={{ position: 'absolute', left: '10px', top: '12px' }}
-                        />
-                        {searchingMembers && (
-                          <Loader2
-                            size={16}
-                            className="animate-spin text-emerald-600"
-                            style={{ position: 'absolute', right: '10px', top: '12px' }}
-                          />
-                        )}
                       </div>
 
-                      {searchMemberResults.length > 0 && (
-                        <div className="autocompleteList">
-                          {searchMemberResults.map((s) => (
-                            <div
-                              key={s.id}
-                              className="autocompleteItem"
-                              onClick={() => {
-                                setMemberFormData({
-                                  ...memberFormData,
-                                  name: s.name,
-                                  position: s.position,
-                                  imagePath: s.profilePath || '',
-                                  memberId: s.id
-                                })
-                                setSearchMemberResults([])
-                                setSearchMemberQuery(s.name)
-                                addToast(`ดึงข้อมูลคุณ ${s.name} เรียบร้อย`, 'info')
-                              }}
-                            >
-                              {s.profilePath ? (
-                                <img src={s.profilePath} alt={s.name} className="autocompleteAvatar" />
-                              ) : (
-                                <div
-                                  className="autocompleteAvatar"
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontWeight: 'bold',
-                                    fontSize: '13px',
-                                    color: '#047857',
-                                    background: '#d1fae5'
-                                  }}
-                                >
-                                  {s.name.slice(0, 1)}
-                                </div>
-                              )}
-                              <div className="autocompleteText">
-                                <span className="autocompleteItemName">{s.name}</span>
-                                <span className="autocompleteItemSub">
-                                  {s.position} • {s.department}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Photo Upload Area */}
-                  <div className="formGroup">
-                    <label className="formLabel">รูปถ่ายบุคลากร</label>
-                    <div className="photoUploadArea">
-                      {memberFormData.imagePath ? (
-                        <img
-                          src={memberFormData.imagePath}
-                          alt="Preview"
-                          className="photoPreview"
+                      <div className="formGroup">
+                        <label className="formLabel">ตำแหน่งงาน *</label>
+                        <input
+                          type="text"
+                          className="formInput"
+                          placeholder="เช่น ผู้อำนวยการโรงพยาบาล, พยาบาลวิชาชีพชำนาญการ"
+                          value={memberFormData.position}
+                          onChange={(e) =>
+                            setMemberFormData({ ...memberFormData, position: e.target.value })
+                          }
+                          required
                         />
-                      ) : (
-                        <div className="avatarFallback">
-                          {memberFormData.name ? memberFormData.name.slice(0, 1) : '?'}
-                        </div>
-                      )}
+                      </div>
 
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <label className="btn btnSecondary" style={{ cursor: 'pointer', width: 'fit-content' }}>
-                          <Upload size={14} />
-                          {isUploadingPhoto ? 'กำลังอัปโหลด...' : 'เลือกรูปถ่าย (JPG, PNG, WebP)'}
-                          <input
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp"
-                            onChange={handlePhotoUpload}
-                            disabled={isUploadingPhoto}
-                            style={{ display: 'none' }}
-                          />
-                        </label>
-                        {memberFormData.imagePath && (
-                          <button
-                            type="button"
-                            className="iconBtn danger"
-                            style={{ width: 'fit-content', fontSize: '0.75rem', padding: '2px 6px' }}
-                            onClick={() => setMemberFormData({ ...memberFormData, imagePath: '' })}
-                          >
-                            <Trash2 size={12} /> ลบรูปภาพ
-                          </button>
-                        )}
+                      <div className="formGroup">
+                        <label className="formLabel">เบอร์โทรศัพท์ภายใน (สำหรับดูเฉพาะภายใน รพ.)</label>
+                        <input
+                          type="text"
+                          className="formInput"
+                          placeholder="เช่น 101, 102 หรือ เบอร์ต่อห้องตรวจ"
+                          value={memberFormData.phone}
+                          onChange={(e) =>
+                            setMemberFormData({ ...memberFormData, phone: e.target.value })
+                          }
+                        />
+                        <small style={{ color: '#64748b', fontSize: '0.75rem', lineHeight: '1.3' }}>
+                          * เบอร์ภายในจะแสดงเฉพาะเจ้าหน้าที่ในระบบ จะไม่แสดงบนเว็บสาธารณะ
+                        </small>
                       </div>
                     </div>
                   </div>
 
-                  <div className="formGroup">
-                    <label className="formLabel">คำนำหน้า-ชื่อ-นามสกุล *</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      placeholder="เช่น พญ.นฤณาท จอมภาปิน, นายแพทย์สาธิต ปทุมมัง"
-                      value={memberFormData.name}
-                      onChange={(e) => setMemberFormData({ ...memberFormData, name: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">ตำแหน่งงาน *</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      placeholder="เช่น ผู้อำนวยการโรงพยาบาล, พยาบาลวิชาชีพชำนาญการ"
-                      value={memberFormData.position}
-                      onChange={(e) => setMemberFormData({ ...memberFormData, position: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="formGroup">
+                  {/* Bottom: Role in Group (Full Width) */}
+                  <div className="formGroup" style={{ marginTop: '8px' }}>
                     <label className="formLabel">บทบาทในกลุ่มงาน *</label>
                     <div className="roleSelectorGrid">
                       <div
@@ -1040,7 +1188,6 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                         }}
                       >
                         <div className="roleOptionCardTitle">
-                          <Users size={16} className={memberFormData.role === 'member' ? 'text-emerald-600' : 'text-slate-400'} />
                           เจ้าหน้าที่ผู้ปฏิบัติงาน
                         </div>
                         <div className="roleOptionCardDesc">
@@ -1060,7 +1207,6 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                         }}
                       >
                         <div className="roleOptionCardTitle">
-                          <Shield size={16} className={memberFormData.role === 'leader' ? 'text-emerald-600' : 'text-slate-400'} />
                           หัวหน้ากลุ่มงาน / ผู้บริหาร
                         </div>
                         <div className="roleOptionCardDesc">
@@ -1068,20 +1214,6 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="formGroup">
-                    <label className="formLabel">เบอร์โทรศัพท์ภายใน (สำหรับดูเฉพาะภายใน รพ.)</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      placeholder="เช่น 101, 102 หรือ เบอร์ต่อห้องตรวจ"
-                      value={memberFormData.phone}
-                      onChange={(e) => setMemberFormData({ ...memberFormData, phone: e.target.value })}
-                    />
-                    <small style={{ color: '#64748b', fontSize: '0.75rem' }}>
-                      * เบอร์โทรนี้จะแสดงเฉพาะในระบบหลังบ้านเพื่อการติดต่อภายใน จะไม่ถูกนำไปแสดงบนหน้าเว็บสาธารณะ
-                    </small>
                   </div>
                 </div>
                 <div className="modalFooter">

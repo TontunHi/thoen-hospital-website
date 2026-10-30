@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET as getGroups, POST as createGroup } from '../groups/route'
 import { PUT as updateGroup, DELETE as deleteGroup } from '../groups/[id]/route'
+import { PATCH as reorderGroups } from '../groups/reorder/route'
 import { GET as getMembers, POST as createMember } from '../members/route'
 import { PATCH as reorderMembers } from '../members/reorder/route'
 import { GET as getPublicOrgChart } from '../public/route'
@@ -90,6 +91,27 @@ describe('Department API Routes', () => {
       const data = await res.json()
       expect(data.success).toBe(false)
       expect(data.error).toContain('ยังมีสมาชิกอยู่')
+    })
+
+    it('PATCH /api/departments/groups/reorder reorders successfully for admin', async () => {
+      vi.mocked(memberAuth.requireMemberApi).mockResolvedValueOnce({ member: adminMember } as any)
+      vi.mocked(departmentService.reorderGroups).mockResolvedValueOnce(true)
+
+      const req = new Request('http://localhost/api/departments/groups/reorder', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          groupIds: [3, 1, 2]
+        })
+      })
+
+      const res = await reorderGroups(req)
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.success).toBe(true)
+      expect(departmentService.reorderGroups).toHaveBeenCalledWith([3, 1, 2], {
+        id: adminMember.id,
+        name: adminMember.name
+      })
     })
   })
 
