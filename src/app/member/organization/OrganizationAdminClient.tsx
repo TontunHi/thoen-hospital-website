@@ -19,7 +19,8 @@ import {
   Loader2,
   X,
   Check,
-  Building2
+  Building2,
+  ExternalLink
 } from 'lucide-react'
 import Link from 'next/link'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -503,6 +504,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           <div className="orgAdminHeaderActions">
             <Link href="/about/organization" target="_blank" className="btn btnSecondary">
               ดูหน้าเว็บสาธารณะ
+              <ExternalLink size={14} />
             </Link>
             <button
               className="btn btnPrimary"
@@ -515,6 +517,14 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               <FolderPlus size={16} />
               เพิ่มกลุ่มงานหลัก
             </button>
+          </div>
+        </div>
+
+        {/* Helpful Guide Tip Banner */}
+        <div className="adminTipBanner">
+          <div className="adminTipIcon">💡</div>
+          <div className="adminTipContent">
+            <strong>คำแนะนำการจัดผังองค์กร:</strong> จัดการกลุ่มงานหลักและงานย่อยที่แผงฝั่งซ้าย จากนั้นเพิ่มบุคลากรที่แผงฝั่งขวา โดยกำหนดบทบาทเป็น <strong>&quot;หัวหน้างาน&quot;</strong> เพื่อให้อยู่ด้านบนเป็นจุดเริ่มต้น และกำหนด <strong>&quot;เจ้าหน้าที่ผู้ปฏิบัติงาน&quot;</strong> เพื่อให้ระบบโยงเส้นสายการบังคับบัญชาลงมาโดยอัตโนมัติ
           </div>
         </div>
 
@@ -918,10 +928,30 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                 addToast(`ดึงข้อมูลคุณ ${s.name} เรียบร้อย`, 'info')
                               }}
                             >
-                              <span className="autocompleteItemName">{s.name}</span>
-                              <span className="autocompleteItemSub">
-                                {s.position} • {s.department}
-                              </span>
+                              {s.profilePath ? (
+                                <img src={s.profilePath} alt={s.name} className="autocompleteAvatar" />
+                              ) : (
+                                <div
+                                  className="autocompleteAvatar"
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 'bold',
+                                    fontSize: '13px',
+                                    color: '#047857',
+                                    background: '#d1fae5'
+                                  }}
+                                >
+                                  {s.name.slice(0, 1)}
+                                </div>
+                              )}
+                              <div className="autocompleteText">
+                                <span className="autocompleteItemName">{s.name}</span>
+                                <span className="autocompleteItemSub">
+                                  {s.position} • {s.department}
+                                </span>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -996,20 +1026,48 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   </div>
 
                   <div className="formGroup">
-                    <label className="formLabel">บทบาทในกลุ่มงาน</label>
-                    <select
-                      className="formSelect"
-                      value={memberFormData.role}
-                      onChange={(e) =>
-                        setMemberFormData({
-                          ...memberFormData,
-                          role: e.target.value as 'leader' | 'member'
-                        })
-                      }
-                    >
-                      <option value="member">เจ้าหน้าที่ / สมาชิกทั่วไป</option>
-                      <option value="leader">หัวหน้ากลุ่มงาน / ผู้บริหาร (แสดงเด่นด้านบน)</option>
-                    </select>
+                    <label className="formLabel">บทบาทในกลุ่มงาน *</label>
+                    <div className="roleSelectorGrid">
+                      <div
+                        className={`roleOptionCard ${memberFormData.role === 'member' ? 'active' : ''}`}
+                        onClick={() => setMemberFormData({ ...memberFormData, role: 'member' })}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setMemberFormData({ ...memberFormData, role: 'member' })
+                          }
+                        }}
+                      >
+                        <div className="roleOptionCardTitle">
+                          <Users size={16} className={memberFormData.role === 'member' ? 'text-emerald-600' : 'text-slate-400'} />
+                          เจ้าหน้าที่ผู้ปฏิบัติงาน
+                        </div>
+                        <div className="roleOptionCardDesc">
+                          แสดงเป็นการ์ดพร้อมเส้นโยงสายการบังคับบัญชาลงมาจากหัวหน้างาน
+                        </div>
+                      </div>
+
+                      <div
+                        className={`roleOptionCard ${memberFormData.role === 'leader' ? 'active' : ''}`}
+                        onClick={() => setMemberFormData({ ...memberFormData, role: 'leader' })}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setMemberFormData({ ...memberFormData, role: 'leader' })
+                          }
+                        }}
+                      >
+                        <div className="roleOptionCardTitle">
+                          <Shield size={16} className={memberFormData.role === 'leader' ? 'text-emerald-600' : 'text-slate-400'} />
+                          หัวหน้ากลุ่มงาน / ผู้บริหาร
+                        </div>
+                        <div className="roleOptionCardDesc">
+                          แสดงเด่นด้านบนสุด เป็นจุดเริ่มต้นของสายการบังคับบัญชา
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="formGroup">

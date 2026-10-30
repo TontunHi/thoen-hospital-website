@@ -326,6 +326,7 @@ export default function OrganizationPublicClient() {
               { label: 'โครงสร้างกลุ่มงานและบุคลากร' }
             ]}
           />
+          <span className="orgHeroBadge">🏥 โรงพยาบาลเถิน จ.ลำปาง</span>
           <h1 className="orgHeroTitle">โครงสร้างกลุ่มงานและบุคลากร</h1>
           <p className="orgHeroDesc">
             คณะผู้บริหาร หัวหน้ากลุ่มงาน และบุคลากรผู้ปฏิบัติงาน โรงพยาบาลเถิน
