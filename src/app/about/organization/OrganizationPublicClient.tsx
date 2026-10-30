@@ -41,6 +41,36 @@ interface PublicGroupNode {
 }
 
 /**
+ * Leaf Member Card in the Org Tree with its own connecting branch line
+ */
+function OrgTreeMemberLeaf({
+  member,
+  badge = 'เจ้าหน้าที่'
+}: {
+  member: PublicMember
+  badge?: string
+}) {
+  return (
+    <li>
+      <div className="treeMemberCard">
+        {member.imagePath ? (
+          <img src={member.imagePath} alt={member.name} className="treeMemberAvatar" />
+        ) : (
+          <div className="treeMemberAvatarFallback">{member.name.slice(0, 1)}</div>
+        )}
+        <span className={`treeMemberBadge ${badge.includes('รอง') ? 'deputy' : ''}`}>
+          {badge}
+        </span>
+        <span className="treeMemberName" title={member.name}>
+          {member.name}
+        </span>
+        <span className="treeMemberPosition">{member.position}</span>
+      </div>
+    </li>
+  )
+}
+
+/**
  * Recursive Tree Subnode for Org Chart Diagram View
  */
 function OrgTreeSubnode({
@@ -53,12 +83,17 @@ function OrgTreeSubnode({
   onToggleStaff: (id: number) => void
 }) {
   const leader = node.members.find((m) => m.role === 'leader')
+  const otherLeaders = node.members.filter((m) => m.role === 'leader' && m.id !== leader?.id)
   const staff = node.members.filter((m) => m.role !== 'leader')
   const isExpanded = expandedStaff[node.id] !== false
+  const children = node.children || []
+
+  const hasChildBranches =
+    children.length > 0 || (isExpanded && (staff.length > 0 || otherLeaders.length > 0))
 
   return (
     <li>
-      <div className="treeNodeCard">
+      <div className="treeNodeCard subUnitNode">
         <span className="treeNodeGroupTag" title={node.name}>
           {node.name}
         </span>
@@ -99,58 +134,47 @@ function OrgTreeSubnode({
             type="button"
             className="treeNodeStaffPill"
             onClick={() => onToggleStaff(node.id)}
+            title={isExpanded ? 'คลิกเพื่อย่อสายโยงเจ้าหน้าที่' : 'คลิกเพื่อขยายสายโยงเจ้าหน้าที่'}
           >
             <Users size={12} />
             เจ้าหน้าที่ {staff.length} ท่าน
             {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         )}
-
-        {isExpanded && staff.length > 0 && (
-          <div className="treeStaffList">
-            {staff.map((s) => (
-              <div key={s.id} className="treeStaffItem" title={`${s.name} - ${s.position}`}>
-                {s.imagePath ? (
-                  <img src={s.imagePath} alt={s.name} className="treeStaffItemAvatar" />
-                ) : (
-                  <div
-                    className="treeStaffItemAvatar"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '9px',
-                      background: '#cbd5e1',
-                      color: '#334155',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    {s.name.slice(0, 1)}
-                  </div>
-                )}
-                <div className="treeStaffItemInfo">
-                  <div>
-                    <strong>{s.name}</strong>
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{s.position}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Recursive Child Branches */}
-      {node.children && node.children.length > 0 && (
+      {/* Recursive Child Branches (Subgroups + Individual Staff with Connecting Lines) */}
+      {hasChildBranches && (
         <ul>
-          {node.children.map((child) => (
+          {/* Sub-departments / Sub-units */}
+          {children.map((child) => (
             <OrgTreeSubnode
-              key={child.id}
+              key={`group-${child.id}`}
               node={child}
               expandedStaff={expandedStaff}
               onToggleStaff={onToggleStaff}
             />
           ))}
+
+          {/* Deputy Leaders (if any) */}
+          {isExpanded &&
+            otherLeaders.map((deputy) => (
+              <OrgTreeMemberLeaf
+                key={`deputy-${deputy.id}`}
+                member={deputy}
+                badge="รองหัวหน้างาน"
+              />
+            ))}
+
+          {/* Staff Members as Individual Leaf Cards with connecting lines */}
+          {isExpanded &&
+            staff.map((member) => (
+              <OrgTreeMemberLeaf
+                key={`staff-${member.id}`}
+                member={member}
+                badge="เจ้าหน้าที่"
+              />
+            ))}
         </ul>
       )}
     </li>
@@ -323,8 +347,15 @@ export default function OrganizationPublicClient() {
 
   const selectedRoot = orgChart.find((g) => g.id === selectedRootId) || orgChart[0]
   const rootLeader = selectedRoot ? selectedRoot.members.find((m) => m.role === 'leader') : null
+  const otherRootLeaders = selectedRoot
+    ? selectedRoot.members.filter((m) => m.role === 'leader' && m.id !== rootLeader?.id)
+    : []
   const rootStaff = selectedRoot ? selectedRoot.members.filter((m) => m.role !== 'leader') : []
   const isRootStaffExpanded = selectedRoot ? expandedStaff[selectedRoot.id] !== false : true
+  const rootChildren = selectedRoot ? selectedRoot.children || [] : []
+
+  const hasRootBranches =
+    rootChildren.length > 0 || (isRootStaffExpanded && (rootStaff.length > 0 || otherRootLeaders.length > 0))
 
   return (
     <div className="publicOrgPage">
@@ -539,7 +570,7 @@ export default function OrganizationPublicClient() {
                           style={{ transform: `scale(${zoom})` }}
                         >
                           <div className="orgTree">
-                            {/* Root Node Card */}
+                            {/* Root Node Card (Head of Department) */}
                             <div className="treeNodeCard rootNode">
                               <span className="treeNodeGroupTag">{selectedRoot.name}</span>
 
@@ -590,74 +621,53 @@ export default function OrganizationPublicClient() {
                                 </>
                               )}
 
-                              {/* Root Regular Staff */}
+                              {/* Root Regular Staff Toggle Button */}
                               {rootStaff.length > 0 && (
                                 <button
                                   type="button"
                                   className="treeNodeStaffPill"
                                   onClick={() => toggleStaff(selectedRoot.id)}
+                                  title={isRootStaffExpanded ? 'คลิกเพื่อย่อสายโยงเจ้าหน้าที่' : 'คลิกเพื่อขยายสายโยงเจ้าหน้าที่'}
                                 >
                                   <Users size={12} />
                                   เจ้าหน้าที่ {rootStaff.length} ท่าน
                                   {isRootStaffExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                                 </button>
                               )}
-
-                              {isRootStaffExpanded && rootStaff.length > 0 && (
-                                <div className="treeStaffList">
-                                  {rootStaff.map((s) => (
-                                    <div
-                                      key={s.id}
-                                      className="treeStaffItem"
-                                      title={`${s.name} - ${s.position}`}
-                                    >
-                                      {s.imagePath ? (
-                                        <img
-                                          src={s.imagePath}
-                                          alt={s.name}
-                                          className="treeStaffItemAvatar"
-                                        />
-                                      ) : (
-                                        <div
-                                          className="treeStaffItemAvatar"
-                                          style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '9px',
-                                            background: '#cbd5e1',
-                                            color: '#334155',
-                                            fontWeight: 'bold'
-                                          }}
-                                        >
-                                          {s.name.slice(0, 1)}
-                                        </div>
-                                      )}
-                                      <div className="treeStaffItemInfo">
-                                        <div>
-                                          <strong>{s.name}</strong>
-                                        </div>
-                                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                                          {s.position}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
                             </div>
 
-                            {/* Subgroup Branches */}
-                            {selectedRoot.children && selectedRoot.children.length > 0 && (
+                            {/* Root Connecting Branches: โยงลงมายังงานย่อย และเจ้าหน้าที่ผู้ปฏิบัติงานแต่ละคน! */}
+                            {hasRootBranches && (
                               <ul>
-                                {selectedRoot.children.map((child) => (
+                                {/* Sub-departments / Sub-units */}
+                                {rootChildren.map((child) => (
                                   <OrgTreeSubnode
-                                    key={child.id}
+                                    key={`group-${child.id}`}
                                     node={child}
                                     expandedStaff={expandedStaff}
                                     onToggleStaff={toggleStaff}
                                   />
                                 ))}
+
+                                {/* Deputy Leaders (if any) */}
+                                {isRootStaffExpanded &&
+                                  otherRootLeaders.map((deputy) => (
+                                    <OrgTreeMemberLeaf
+                                      key={`deputy-${deputy.id}`}
+                                      member={deputy}
+                                      badge="รองหัวหน้ากลุ่มงาน"
+                                    />
+                                  ))}
+
+                                {/* Direct Staff Members of Root Group */}
+                                {isRootStaffExpanded &&
+                                  rootStaff.map((member) => (
+                                    <OrgTreeMemberLeaf
+                                      key={`staff-${member.id}`}
+                                      member={member}
+                                      badge="เจ้าหน้าที่"
+                                    />
+                                  ))}
                               </ul>
                             )}
                           </div>

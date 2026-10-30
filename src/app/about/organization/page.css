@@ -694,6 +694,97 @@
   line-height: 1.35;
 }
 
+/* Sub-unit node card styling */
+.treeNodeCard.subUnitNode {
+  border: 2px solid #0d9488;
+  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
+  width: 240px;
+}
+
+.treeNodeCard.subUnitNode .treeNodeGroupTag {
+  background: #0d9488;
+  color: #ffffff;
+}
+
+/* Individual Staff Member Node Card (Branch Leaf with Connecting Line) */
+.treeMemberCard {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 14px 12px;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 190px;
+  text-align: center;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.treeMemberCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  border-color: #059669;
+}
+
+.treeMemberAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.treeMemberAvatarFallback {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #f1f5f9;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border: 2px solid #e2e8f0;
+}
+
+.treeMemberBadge {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.treeMemberBadge.deputy {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.treeMemberName {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.treeMemberPosition {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .treeNodeStaffPill {
   margin-top: 4px;
   display: inline-flex;
