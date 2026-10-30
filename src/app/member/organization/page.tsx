@@ -1,4 +1,4 @@
-import { getAuthenticatedMember } from '@/lib/memberAuth'
+import { getAuthenticatedMember, toClientMember } from '@/lib/memberAuth'
 import OrganizationAdminClient from './OrganizationAdminClient'
 
 export const dynamic = 'force-dynamic'
@@ -14,5 +14,5 @@ export default async function OrganizationAdminPage() {
     redirectTo: '/unauthorized',
   })
 
-  return <OrganizationAdminClient currentAdmin={member} />
+  return <OrganizationAdminClient currentAdmin={toClientMember(member)} />
 }

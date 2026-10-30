@@ -55,7 +55,7 @@ interface SystemMemberSearchResult {
   profilePath: string | null
 }
 
-export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin: any }) {
+export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin?: any }) {
   const [groups, setGroups] = useState<DepartmentGroupNode[]>([])
   const [selectedGroup, setSelectedGroup] = useState<DepartmentGroupNode | null>(null)
   const [members, setMembers] = useState<DepartmentMember[]>([])
