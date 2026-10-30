@@ -8,8 +8,15 @@ import {
   Search,
   Building2,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Loader2,
-  X
+  X,
+  Network,
+  LayoutGrid,
+  ZoomIn,
+  ZoomOut,
+  MoveHorizontal
 } from 'lucide-react'
 import './page.css'
 
@@ -33,6 +40,126 @@ interface PublicGroupNode {
   children: PublicGroupNode[]
 }
 
+/**
+ * Recursive Tree Subnode for Org Chart Diagram View
+ */
+function OrgTreeSubnode({
+  node,
+  expandedStaff,
+  onToggleStaff
+}: {
+  node: PublicGroupNode
+  expandedStaff: Record<number, boolean>
+  onToggleStaff: (id: number) => void
+}) {
+  const leader = node.members.find((m) => m.role === 'leader')
+  const staff = node.members.filter((m) => m.role !== 'leader')
+  const isExpanded = expandedStaff[node.id] !== false
+
+  return (
+    <li>
+      <div className="treeNodeCard">
+        <span className="treeNodeGroupTag" title={node.name}>
+          {node.name}
+        </span>
+
+        {leader ? (
+          <>
+            {leader.imagePath ? (
+              <img src={leader.imagePath} alt={leader.name} className="treeNodeAvatar" />
+            ) : (
+              <div className="treeNodeAvatarFallback">{leader.name.slice(0, 1)}</div>
+            )}
+            <span
+              className="publicLeaderBadge"
+              style={{ fontSize: '0.65rem', padding: '2px 8px', margin: '0 auto', width: 'fit-content' }}
+            >
+              <Shield size={10} /> หัวหน้างาน
+            </span>
+            <span className="treeNodeName">{leader.name}</span>
+            <span className="treeNodePosition">{leader.position}</span>
+          </>
+        ) : (
+          <>
+            <div
+              className="treeNodeAvatarFallback"
+              style={{ background: '#f1f5f9', color: '#94a3b8' }}
+            >
+              <Building2 size={24} />
+            </div>
+            <span className="treeNodeName" style={{ color: '#64748b', fontSize: '0.85rem' }}>
+              เจ้าหน้าที่ผู้ปฏิบัติงาน
+            </span>
+          </>
+        )}
+
+        {/* Regular staff members toggle */}
+        {staff.length > 0 && (
+          <button
+            type="button"
+            className="treeNodeStaffPill"
+            onClick={() => onToggleStaff(node.id)}
+          >
+            <Users size={12} />
+            เจ้าหน้าที่ {staff.length} ท่าน
+            {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        )}
+
+        {isExpanded && staff.length > 0 && (
+          <div className="treeStaffList">
+            {staff.map((s) => (
+              <div key={s.id} className="treeStaffItem" title={`${s.name} - ${s.position}`}>
+                {s.imagePath ? (
+                  <img src={s.imagePath} alt={s.name} className="treeStaffItemAvatar" />
+                ) : (
+                  <div
+                    className="treeStaffItemAvatar"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '9px',
+                      background: '#cbd5e1',
+                      color: '#334155',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {s.name.slice(0, 1)}
+                  </div>
+                )}
+                <div className="treeStaffItemInfo">
+                  <div>
+                    <strong>{s.name}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{s.position}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recursive Child Branches */}
+      {node.children && node.children.length > 0 && (
+        <ul>
+          {node.children.map((child) => (
+            <OrgTreeSubnode
+              key={child.id}
+              node={child}
+              expandedStaff={expandedStaff}
+              onToggleStaff={onToggleStaff}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+/**
+ * Recursive Subgroup Block for Directory Cards View
+ */
 function PublicSubgroupView({ subgroup, depth = 0 }: { subgroup: PublicGroupNode; depth?: number }) {
   const subLeaders = subgroup.members.filter((m) => m.role === 'leader')
   const subMembers = subgroup.members.filter((m) => m.role !== 'leader')
@@ -128,10 +255,23 @@ export default function OrganizationPublicClient() {
   const [selectedRootId, setSelectedRootId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // View mode: 'tree' (Org Chart Diagram) vs 'cards' (Directory Cards View)
+  const [viewMode, setViewMode] = useState<'tree' | 'cards'>('tree')
+  const [zoom, setZoom] = useState<number>(1)
+  const [expandedStaff, setExpandedStaff] = useState<Record<number, boolean>>({})
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<PublicMember[]>([])
   const [searching, setSearching] = useState(false)
+
+  // Toggle staff in tree node
+  const toggleStaff = (groupId: number) => {
+    setExpandedStaff((prev) => ({
+      ...prev,
+      [groupId]: prev[groupId] === undefined ? false : !prev[groupId]
+    }))
+  }
 
   // Fetch full org chart
   useEffect(() => {
@@ -182,6 +322,9 @@ export default function OrganizationPublicClient() {
   }, [searchQuery])
 
   const selectedRoot = orgChart.find((g) => g.id === selectedRootId) || orgChart[0]
+  const rootLeader = selectedRoot ? selectedRoot.members.find((m) => m.role === 'leader') : null
+  const rootStaff = selectedRoot ? selectedRoot.members.filter((m) => m.role !== 'leader') : []
+  const isRootStaffExpanded = selectedRoot ? expandedStaff[selectedRoot.id] !== false : true
 
   return (
     <div className="publicOrgPage">
@@ -308,7 +451,10 @@ export default function OrganizationPublicClient() {
                     <button
                       key={root.id}
                       className={`deptTabBtn ${selectedRootId === root.id ? 'active' : ''}`}
-                      onClick={() => setSelectedRootId(root.id)}
+                      onClick={() => {
+                        setSelectedRootId(root.id)
+                        setZoom(1)
+                      }}
                     >
                       <Building2 size={16} />
                       {root.name}
@@ -326,69 +472,265 @@ export default function OrganizationPublicClient() {
                       </div>
                     </div>
 
-                    {/* Department Leader Highlight */}
-                    {selectedRoot.members.filter((m) => m.role === 'leader').map((leader) => (
-                      <div key={leader.id} className="publicLeaderCard">
-                        {leader.imagePath ? (
-                          <img
-                            src={leader.imagePath}
-                            alt={leader.name}
-                            className="publicLeaderAvatar"
-                          />
-                        ) : (
-                          <div className="publicAvatarFallback">
-                            {leader.name.slice(0, 1)}
-                          </div>
-                        )}
-                        <div className="publicLeaderInfo">
-                          <span className="publicLeaderBadge">
-                            <Shield size={12} />
-                            หัวหน้ากลุ่มงาน
-                          </span>
-                          <span className="publicLeaderName">{leader.name}</span>
-                          <span className="publicLeaderPosition">{leader.position}</span>
-                        </div>
+                    {/* View Switcher Toolbar (Tree Diagram vs Directory Cards) */}
+                    <div className="viewToggleBar">
+                      <div className="viewModePills">
+                        <button
+                          type="button"
+                          className={`viewModeBtn ${viewMode === 'tree' ? 'active' : ''}`}
+                          onClick={() => setViewMode('tree')}
+                        >
+                          <Network size={16} />
+                          ผังโครงสร้างองค์กร
+                        </button>
+                        <button
+                          type="button"
+                          className={`viewModeBtn ${viewMode === 'cards' ? 'active' : ''}`}
+                          onClick={() => setViewMode('cards')}
+                        >
+                          <LayoutGrid size={16} />
+                          รายชื่อแบบการ์ด
+                        </button>
                       </div>
-                    ))}
 
-                    {/* Department Root Members (Regular) */}
-                    {selectedRoot.members.filter((m) => m.role !== 'leader').length > 0 && (
-                      <div className="publicMembersGrid">
-                        {selectedRoot.members
-                          .filter((m) => m.role !== 'leader')
-                          .map((member) => (
-                            <div key={member.id} className="publicMemberCard">
-                              {member.imagePath ? (
-                                <img
-                                  src={member.imagePath}
-                                  alt={member.name}
-                                  className="publicMemberAvatar"
-                                />
+                      {viewMode === 'tree' && (
+                        <div className="diagramToolbar">
+                          <span className="diagramScrollHint">
+                            <MoveHorizontal size={14} /> เลื่อนเพื่อดูผังเพิ่มเติม
+                          </span>
+                          <div className="zoomControls">
+                            <button
+                              type="button"
+                              className="zoomBtn"
+                              title="ย่อขนาด"
+                              onClick={() => setZoom((z) => Math.max(0.6, Number((z - 0.1).toFixed(1))))}
+                            >
+                              <ZoomOut size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="zoomLevelText"
+                              title="รีเซ็ตขนาด 100%"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                              onClick={() => setZoom(1)}
+                            >
+                              {`${Math.round(zoom * 100)}%`}
+                            </button>
+                            <button
+                              type="button"
+                              className="zoomBtn"
+                              title="ขยายขนาด"
+                              onClick={() => setZoom((z) => Math.min(1.2, Number((z + 0.1).toFixed(1))))}
+                            >
+                              <ZoomIn size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ==============================================================
+                        VIEW MODE 1: VISUAL TREE DIAGRAM (CSS Tree with Connecting Lines)
+                        ============================================================== */}
+                    {viewMode === 'tree' ? (
+                      <div className="orgDiagramScroll">
+                        <div
+                          className="orgDiagramCanvas"
+                          style={{ transform: `scale(${zoom})` }}
+                        >
+                          <div className="orgTree">
+                            {/* Root Node Card */}
+                            <div className="treeNodeCard rootNode">
+                              <span className="treeNodeGroupTag">{selectedRoot.name}</span>
+
+                              {rootLeader ? (
+                                <>
+                                  {rootLeader.imagePath ? (
+                                    <img
+                                      src={rootLeader.imagePath}
+                                      alt={rootLeader.name}
+                                      className="treeNodeAvatar"
+                                      style={{ width: '70px', height: '70px' }}
+                                    />
+                                  ) : (
+                                    <div
+                                      className="treeNodeAvatarFallback"
+                                      style={{ width: '70px', height: '70px', fontSize: '1.5rem' }}
+                                    >
+                                      {rootLeader.name.slice(0, 1)}
+                                    </div>
+                                  )}
+                                  <span
+                                    className="publicLeaderBadge"
+                                    style={{
+                                      fontSize: '0.7rem',
+                                      padding: '2px 8px',
+                                      margin: '0 auto',
+                                      width: 'fit-content'
+                                    }}
+                                  >
+                                    <Shield size={10} /> หัวหน้ากลุ่มงาน
+                                  </span>
+                                  <span className="treeNodeName" style={{ fontSize: '1.05rem' }}>
+                                    {rootLeader.name}
+                                  </span>
+                                  <span className="treeNodePosition">{rootLeader.position}</span>
+                                </>
                               ) : (
-                                <div className="publicMemberAvatarFallback">
-                                  {member.name.slice(0, 1)}
+                                <>
+                                  <div
+                                    className="treeNodeAvatarFallback"
+                                    style={{ background: '#f1f5f9', color: '#94a3b8' }}
+                                  >
+                                    <Building2 size={28} />
+                                  </div>
+                                  <span className="treeNodeName" style={{ color: '#64748b' }}>
+                                    ยังไม่ระบุหัวหน้ากลุ่มงาน
+                                  </span>
+                                </>
+                              )}
+
+                              {/* Root Regular Staff */}
+                              {rootStaff.length > 0 && (
+                                <button
+                                  type="button"
+                                  className="treeNodeStaffPill"
+                                  onClick={() => toggleStaff(selectedRoot.id)}
+                                >
+                                  <Users size={12} />
+                                  เจ้าหน้าที่ {rootStaff.length} ท่าน
+                                  {isRootStaffExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                </button>
+                              )}
+
+                              {isRootStaffExpanded && rootStaff.length > 0 && (
+                                <div className="treeStaffList">
+                                  {rootStaff.map((s) => (
+                                    <div
+                                      key={s.id}
+                                      className="treeStaffItem"
+                                      title={`${s.name} - ${s.position}`}
+                                    >
+                                      {s.imagePath ? (
+                                        <img
+                                          src={s.imagePath}
+                                          alt={s.name}
+                                          className="treeStaffItemAvatar"
+                                        />
+                                      ) : (
+                                        <div
+                                          className="treeStaffItemAvatar"
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '9px',
+                                            background: '#cbd5e1',
+                                            color: '#334155',
+                                            fontWeight: 'bold'
+                                          }}
+                                        >
+                                          {s.name.slice(0, 1)}
+                                        </div>
+                                      )}
+                                      <div className="treeStaffItemInfo">
+                                        <div>
+                                          <strong>{s.name}</strong>
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                                          {s.position}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
-                              <div className="publicMemberInfo">
-                                <span className="publicMemberName" title={member.name}>
-                                  {member.name}
-                                </span>
-                                <span className="publicMemberPosition">
-                                  {member.position}
-                                </span>
-                              </div>
                             </div>
-                          ))}
-                      </div>
-                    )}
 
-                    {/* Sub-groups (Recursive Multi-level Tree) */}
-                    {selectedRoot.children && selectedRoot.children.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {selectedRoot.children.map((subgroup) => (
-                          <PublicSubgroupView key={subgroup.id} subgroup={subgroup} depth={0} />
-                        ))}
+                            {/* Subgroup Branches */}
+                            {selectedRoot.children && selectedRoot.children.length > 0 && (
+                              <ul>
+                                {selectedRoot.children.map((child) => (
+                                  <OrgTreeSubnode
+                                    key={child.id}
+                                    node={child}
+                                    expandedStaff={expandedStaff}
+                                    onToggleStaff={toggleStaff}
+                                  />
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    ) : (
+                      /* ==============================================================
+                         VIEW MODE 2: DIRECTORY CARDS (Grouped Lists)
+                         ============================================================== */
+                      <>
+                        {/* Department Leader Highlight */}
+                        {rootLeader && (
+                          <div className="publicLeaderCard">
+                            {rootLeader.imagePath ? (
+                              <img
+                                src={rootLeader.imagePath}
+                                alt={rootLeader.name}
+                                className="publicLeaderAvatar"
+                              />
+                            ) : (
+                              <div className="publicAvatarFallback">
+                                {rootLeader.name.slice(0, 1)}
+                              </div>
+                            )}
+                            <div className="publicLeaderInfo">
+                              <span className="publicLeaderBadge">
+                                <Shield size={12} />
+                                หัวหน้ากลุ่มงาน
+                              </span>
+                              <span className="publicLeaderName">{rootLeader.name}</span>
+                              <span className="publicLeaderPosition">{rootLeader.position}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Department Root Members (Regular) */}
+                        {rootStaff.length > 0 && (
+                          <div className="publicMembersGrid">
+                            {rootStaff.map((member) => (
+                              <div key={member.id} className="publicMemberCard">
+                                {member.imagePath ? (
+                                  <img
+                                    src={member.imagePath}
+                                    alt={member.name}
+                                    className="publicMemberAvatar"
+                                  />
+                                ) : (
+                                  <div className="publicMemberAvatarFallback">
+                                    {member.name.slice(0, 1)}
+                                  </div>
+                                )}
+                                <div className="publicMemberInfo">
+                                  <span className="publicMemberName" title={member.name}>
+                                    {member.name}
+                                  </span>
+                                  <span className="publicMemberPosition">
+                                    {member.position}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Sub-groups (Recursive Multi-level Tree) */}
+                        {selectedRoot.children && selectedRoot.children.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            {selectedRoot.children.map((subgroup) => (
+                              <PublicSubgroupView key={subgroup.id} subgroup={subgroup} depth={0} />
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
 
                     {selectedRoot.members.length === 0 &&

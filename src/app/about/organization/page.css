@@ -400,3 +400,362 @@
   color: #64748b;
   gap: 12px;
 }
+
+
+/* ========================================================================
+   ORGANIZATION TREE DIAGRAM VIEW (CSS Tree with Connecting Lines)
+   ======================================================================== */
+
+.viewToggleBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 8px 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.viewModePills {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+}
+
+.viewModeBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.viewModeBtn.active {
+  background: #ffffff;
+  color: #059669;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.diagramToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+
+.zoomBtn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.zoomBtn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.zoomLevelText {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  min-width: 40px;
+  text-align: center;
+}
+
+.diagramScrollHint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Diagram Container */
+.orgDiagramScroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 40px 20px 60px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  scrollbar-width: thin;
+}
+
+.orgDiagramCanvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: fit-content;
+  margin: 0 auto;
+  transform-origin: top center;
+  transition: transform 0.15s ease;
+}
+
+/* Tree Structure */
+.orgTree, .orgTree ul, .orgTree li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.orgTree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.orgTree ul {
+  display: flex;
+  justify-content: center;
+  margin-top: 36px;
+  padding: 0;
+  position: relative;
+}
+
+.orgTree li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 16px 0 16px;
+  position: relative;
+}
+
+/* Connecting line from parent to horizontal bar */
+.orgTree ul::before {
+  content: '';
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  border-left: 2px solid #059669;
+  width: 0;
+  height: 36px;
+  transform: translateX(-50%);
+}
+
+/* Branch lines connecting children */
+.orgTree li::before, .orgTree li::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  border-top: 2px solid #059669;
+  width: 50%;
+  height: 36px;
+}
+
+.orgTree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid #059669;
+}
+
+.orgTree li:only-child::after,
+.orgTree li:only-child::before {
+  display: none;
+}
+
+.orgTree li:only-child {
+  padding-top: 0;
+}
+
+.orgTree li:first-child::before {
+  border: 0 none;
+}
+
+.orgTree li:last-child::after {
+  border: 0 none;
+}
+
+.orgTree li:first-child::after {
+  border-radius: 12px 0 0 0;
+}
+
+.orgTree li:last-child::before {
+  border-right: 2px solid #059669;
+  border-radius: 0 12px 0 0;
+}
+
+/* Tree Node Card Design */
+.treeNodeCard {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 230px;
+  text-align: center;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.treeNodeCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  border-color: #059669;
+}
+
+.treeNodeCard.rootNode {
+  border: 2px solid #059669;
+  background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 100%);
+  width: 270px;
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.12);
+}
+
+.treeNodeGroupTag {
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.treeNodeCard.rootNode .treeNodeGroupTag {
+  background: #059669;
+  color: #ffffff;
+  font-size: 0.8rem;
+}
+
+.treeNodeAvatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #10b981;
+  background-color: #e2e8f0;
+}
+
+.treeNodeAvatarFallback {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #d1fae5;
+  color: #065f46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.treeNodeName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.treeNodePosition {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.treeNodeStaffPill {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #a7f3d0;
+  transition: all 0.15s;
+}
+
+.treeNodeStaffPill:hover {
+  background: #d1fae5;
+}
+
+/* Attached staff dropdown inside tree node */
+.treeStaffList {
+  width: 100%;
+  margin-top: 8px;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.treeStaffItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #334155;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.treeStaffItem:hover {
+  background: #f1f5f9;
+}
+
+.treeStaffItemAvatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.treeStaffItemInfo {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

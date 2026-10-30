@@ -146,4 +146,61 @@ describe('OrganizationPublicClient Component', () => {
       expect(screen.getAllByText('พว.สมหญิง หัวหน้างาน').length).toBeGreaterThanOrEqual(1)
     })
   })
+
+  it('switches between Tree Diagram View and Directory Cards View', async () => {
+    render(<OrganizationPublicClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('ผังโครงสร้างองค์กร')).toBeDefined()
+      expect(screen.getByText('รายชื่อแบบการ์ด')).toBeDefined()
+    })
+
+    // Initially in tree view: zoom level "100%" should be visible
+    expect(screen.getByText('100%')).toBeDefined()
+
+    // Zoom in
+    const zoomInBtn = screen.getByTitle('ขยายขนาด')
+    fireEvent.click(zoomInBtn)
+    expect(screen.getByText('110%')).toBeDefined()
+
+    // Switch to Directory Cards view
+    const cardsBtn = screen.getByText('รายชื่อแบบการ์ด')
+    fireEvent.click(cardsBtn)
+
+    // In cards view, zoom controls should be hidden
+    expect(screen.queryByText('110%')).toBeNull()
+
+    // Subgroup header should still be visible in cards view
+    expect(screen.getByText('งานอุบัติเหตุและฉุกเฉิน')).toBeDefined()
+
+    // Switch back to tree view (zoom level is preserved)
+    const treeBtn = screen.getByText('ผังโครงสร้างองค์กร')
+    fireEvent.click(treeBtn)
+    expect(screen.getByText('110%')).toBeDefined()
+
+    // Reset zoom level back to 100%
+    const resetZoomBtn = screen.getByTitle('รีเซ็ตขนาด 100%')
+    fireEvent.click(resetZoomBtn)
+    expect(screen.getByText('100%')).toBeDefined()
+  })
+
+  it('toggles staff list collapse and expand in tree node', async () => {
+    render(<OrganizationPublicClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('จนท.กู้ชีพ EMS')).toBeDefined()
+    })
+
+    // Find staff toggle button for EMS unit (3rd group with 1 staff member)
+    const staffToggleBtns = screen.getAllByText(/เจ้าหน้าที่ 1 ท่าน/i)
+    const emsToggleBtn = staffToggleBtns[staffToggleBtns.length - 1]
+    fireEvent.click(emsToggleBtn)
+
+    // Staff member in that unit is collapsed
+    expect(screen.queryByText('จนท.กู้ชีพ EMS')).toBeNull()
+
+    // Click again to re-expand
+    fireEvent.click(emsToggleBtn)
+    expect(screen.getByText('จนท.กู้ชีพ EMS')).toBeDefined()
+  })
 })
