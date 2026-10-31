@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberAdmin } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { maskAuditIdentifier, maskAuditDetails } from '@/lib/audit'
 
 export async function GET(request: Request) {
   // 1. Enforce strict server-side session check for Admin role
@@ -24,10 +25,19 @@ export async function GET(request: Request) {
 
     if (search) {
       const searchPattern = `%${search}%`
-      const searchCond = ' AND (username LIKE ? OR email LIKE ? OR target_table LIKE ? OR action_details LIKE ? OR ip_address LIKE ?)'
+      const maskedSearch = maskAuditIdentifier(search)
+      let searchCond = ' AND (username LIKE ? OR email LIKE ? OR target_table LIKE ? OR action_details LIKE ? OR ip_address LIKE ?'
+      const searchParams = [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern]
+
+      if (maskedSearch && maskedSearch !== search) {
+        searchCond += ' OR username LIKE ? OR action_details LIKE ?'
+        searchParams.push(`%${maskedSearch}%`, `%${maskedSearch}%`)
+      }
+      searchCond += ')'
+
       query += searchCond
       countQuery += searchCond
-      params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern)
+      params.push(...searchParams)
     }
 
     if (actionType) {
@@ -64,6 +74,8 @@ export async function GET(request: Request) {
       }
       return {
         ...log,
+        username: maskAuditIdentifier(log.username),
+        action_details: maskAuditDetails(log.action_details),
         timestamp: ts
       }
     })

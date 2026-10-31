@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireMemberAdmin } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
 import { parseUserAgent } from '@/lib/userAgentParser'
+import { maskAuditIdentifier, maskAuditDetails } from '@/lib/audit'
 
 export async function GET(request: Request) {
   const auth = await requireMemberAdmin()
@@ -19,8 +20,18 @@ export async function GET(request: Request) {
 
     if (search) {
       const searchPattern = `%${search}%`
-      query += ' AND (username LIKE ? OR email LIKE ? OR target_table LIKE ? OR ip_address LIKE ?)'
-      params.push(searchPattern, searchPattern, searchPattern, searchPattern)
+      const maskedSearch = maskAuditIdentifier(search)
+      let searchCond = ' AND (username LIKE ? OR email LIKE ? OR target_table LIKE ? OR ip_address LIKE ?'
+      const searchParams = [searchPattern, searchPattern, searchPattern, searchPattern]
+
+      if (maskedSearch && maskedSearch !== search) {
+        searchCond += ' OR username LIKE ? OR action_details LIKE ?'
+        searchParams.push(`%${maskedSearch}%`, `%${maskedSearch}%`)
+      }
+      searchCond += ')'
+
+      query += searchCond
+      params.push(...searchParams)
     }
 
     if (actionType) {
@@ -89,11 +100,11 @@ export async function GET(request: Request) {
         return [
           escapeCsv(log.id),
           escapeCsv(formattedTs),
-          escapeCsv(log.username),
+          escapeCsv(maskAuditIdentifier(log.username)),
           escapeCsv(log.email),
           escapeCsv(log.action_type),
           escapeCsv(log.target_table),
-          escapeCsv(log.action_details),
+          escapeCsv(maskAuditDetails(log.action_details)),
           escapeCsv(log.ip_address),
           escapeCsv(deviceTypeLabel),
           escapeCsv(parsedUa.os),
