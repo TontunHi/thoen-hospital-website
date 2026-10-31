@@ -245,4 +245,44 @@ describe('RepairFormClient Component (Hallmark Anti-AI-Slop Redesign)', () => {
       expect(screen.getByText(/กรุณาเลือกประเภทงานซ่อม/i)).toBeInTheDocument()
     })
   })
+
+  it('renders header back link and asset search input', () => {
+    render(
+      <RepairFormClient
+        currentUser={mockCurrentUser}
+        initialLocations={mockLocations}
+      />
+    )
+
+    // Back link in header
+    expect(screen.getByRole('link', { name: /กลับสู่กล่องงาน/i })).toBeInTheDocument()
+
+    // Asset search input
+    expect(screen.getByPlaceholderText(/เช่น 7440-013-0007\/154\/69 หรือชื่อเครื่อง…/i)).toBeInTheDocument()
+  })
+
+  it('suggests matching department location and allows 1-click quick anchor', () => {
+    const userWithMatchingDept = {
+      ...mockCurrentUser,
+      department: 'ห้องตรวจ 1',
+    }
+
+    render(
+      <RepairFormClient
+        currentUser={userWithMatchingDept}
+        initialLocations={mockLocations}
+      />
+    )
+
+    // Should show recommendation
+    expect(screen.getByText('แนะนำตามแผนก')).toBeInTheDocument()
+    expect(screen.getByText('อาคารผู้ป่วยนอก (OPD) ชั้น 1 ห้องตรวจ 1')).toBeInTheDocument()
+
+    // Click quick anchor
+    const quickBtn = screen.getByRole('button', { name: /ปักหมุดด่วน/i })
+    fireEvent.click(quickBtn)
+
+    // Should display selected location badge
+    expect(screen.getByText('พิกัดที่เลือกปัจจุบัน:')).toBeInTheDocument()
+  })
 })

@@ -283,6 +283,26 @@ export default function RepairFormClient({
     return () => clearTimeout(timer)
   }, [equipmentNumber])
 
+  // Smart Location Anchor: find matching location based on currentUser department
+  const deptMatchLocation = useMemo(() => {
+    if (!currentUser?.department || !initialLocations.length) return null
+    const dept = currentUser.department.trim().toLowerCase()
+    return (
+      initialLocations.find(
+        (loc) =>
+          loc.room_name.toLowerCase().includes(dept) ||
+          dept.includes(loc.room_name.toLowerCase()) ||
+          loc.full_name.toLowerCase().includes(dept)
+      ) || null
+    )
+  }, [currentUser?.department, initialLocations])
+
+  // Currently selected location item
+  const selectedLocation = useMemo(() => {
+    if (!selectedRoomId) return null
+    return initialLocations.find((loc) => loc.id === Number(selectedRoomId)) || null
+  }, [initialLocations, selectedRoomId])
+
   // Extract unique Buildings from initialLocations
   const buildingOptions = useMemo(() => {
     const map = new Map<number, { id: number; name: string }>()
@@ -326,10 +346,21 @@ export default function RepairFormClient({
       asset.name + (asset.brand || asset.model ? ` (${[asset.brand, asset.model].filter(Boolean).join(' ')})` : '')
     setEquipmentName(fullName)
 
-    // Auto switch repair type based on asset category
-    if (asset.category === 'IT') setRepairType('IT_REPAIR')
-    else if (asset.category === 'MEDICAL') setRepairType('MEDICAL_REPAIR')
-    else if (asset.category === 'GENERAL') setRepairType('GENERAL_REPAIR')
+    // Auto switch repair type based on asset category or FSN prefix
+    if (asset.category === 'IT') {
+      setRepairType('IT_REPAIR')
+    } else if (asset.category === 'MEDICAL') {
+      setRepairType('MEDICAL_REPAIR')
+    } else if (asset.category === 'GENERAL') {
+      setRepairType('GENERAL_REPAIR')
+    } else if (asset.articleNum) {
+      const art = String(asset.articleNum)
+      if (art.startsWith('7440') || art.startsWith('7430')) {
+        setRepairType('IT_REPAIR')
+      } else if (art.startsWith('6515') || art.startsWith('6520') || art.startsWith('6530')) {
+        setRepairType('MEDICAL_REPAIR')
+      }
+    }
 
     // Calculate warranty
     const wInfo = calculateWarrantyInfo(asset.warrantyEndDate, asset.expireDate)
@@ -554,30 +585,19 @@ export default function RepairFormClient({
 
   return (
     <div className="repairPageContainer">
-      {/* ── Top Navigation Bar ── */}
-      <nav aria-label="นำทางแบบฟอร์ม" className="repairNav">
-        <Link href="/member/inbox" className="repairNavBackLink">
-          <ArrowLeft aria-hidden="true" className="w-4 h-4" />
-          <span>กลับสู่กล่องงาน</span>
-        </Link>
-      </nav>
-
       {/* ── Main Form Shell Card ── */}
       <div className="repairFormShell">
-        {/* Hero Banner Header */}
+        {/* App-Shell Header with Back Navigation on Top */}
         <header className="repairHeroHeader">
-          <div className="repairHeroInner">
-            <div>
-              <div className="repairHeroBadge">
-                <Wrench aria-hidden="true" className="w-3.5 h-3.5" />
-                Hospital Maintenance & Asset Repair System
-              </div>
-              <h1 className="repairHeroTitle">แบบฟอร์มแจ้งซ่อมบำรุงและอุปกรณ์</h1>
-              <p className="repairHeroSubtitle">
-                ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมแจ้งเตือนส่งตรงเข้ากลุ่มงานช่างทันที
-              </p>
-            </div>
-          </div>
+          <Link href="/member/inbox" className="repairNavBackLink">
+            <ArrowLeft aria-hidden="true" className="w-4 h-4" />
+            <span>กลับสู่กล่องงาน</span>
+          </Link>
+
+          <h1 className="repairHeroTitle">แบบฟอร์มแจ้งซ่อมบำรุงและอุปกรณ์</h1>
+          <p className="repairHeroSubtitle">
+            ยื่นคำขอแจ้งซ่อมงานช่าง คอมพิวเตอร์ และเครื่องมือแพทย์ พร้อมแจ้งเตือนส่งตรงเข้ากลุ่มงานช่างทันที
+          </p>
         </header>
 
         {/* Error Alert Banner with Live Region */}
@@ -622,15 +642,15 @@ export default function RepairFormClient({
                         <Icon aria-hidden="true" className="w-5 h-5" />
                       </div>
 
+                      {/* Top-Right Corner Checkmark Badge */}
+                      {isSelected && (
+                        <span className="repairCompactCheckBadge" aria-hidden="true">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </span>
+                      )}
+
                       <div className="repairCompactBody">
-                        <div className="flex items-center justify-between gap-1">
-                          <strong className="repairCompactTitle">{cat.title}</strong>
-                          {isSelected && (
-                            <span className="repairCompactCheckBadge" aria-hidden="true">
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            </span>
-                          )}
-                        </div>
+                        <strong className="repairCompactTitle">{cat.title}</strong>
                         <span className="repairCompactSubtitle">{cat.subtitle}</span>
                       </div>
                     </button>
@@ -735,7 +755,7 @@ export default function RepairFormClient({
                         />
                         {isSearchingAsset && (
                           <div className="inputTrailingSpinner">
-                            <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin text-teal-600" />
+                            <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin text-emerald-600" />
                           </div>
                         )}
                       </div>
@@ -931,20 +951,24 @@ export default function RepairFormClient({
               </div>
 
               <div className="photoUploadContainer">
-                {photos.map((p, idx) => (
-                  <div key={idx} className="photoThumbWrap">
-                    <img src={p.previewUrl} alt={`รูปประกอบความเสียหาย ${idx + 1}`} className="photoThumbImg" />
-                    <button
-                      type="button"
-                      className="photoDeleteBtn"
-                      onClick={() => removePhoto(idx)}
-                      aria-label={`ลบรูปที่ ${idx + 1}`}
-                      title={`ลบรูปที่ ${idx + 1}`}
-                    >
-                      <X aria-hidden="true" className="w-3.5 h-3.5" />
-                    </button>
+                {photos.length > 0 && (
+                  <div className="photoThumbnailsGrid">
+                    {photos.map((p, idx) => (
+                      <div key={idx} className="photoThumbWrap">
+                        <img src={p.previewUrl} alt={`รูปประกอบความเสียหาย ${idx + 1}`} className="photoThumbImg" />
+                        <button
+                          type="button"
+                          className="photoDeleteBtn"
+                          onClick={() => removePhoto(idx)}
+                          aria-label={`ลบรูปที่ ${idx + 1}`}
+                          title={`ลบรูปที่ ${idx + 1}`}
+                        >
+                          <X aria-hidden="true" className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
 
                 {photos.length < 5 && (
                   <label
@@ -966,6 +990,7 @@ export default function RepairFormClient({
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"
+                      capture="environment"
                       multiple
                       onChange={handlePhotoSelect}
                       className="fileInputHidden"
@@ -985,12 +1010,44 @@ export default function RepairFormClient({
 
           {/* ── Right Column: Location, Urgency & Submission Sidebar (4 cols, sticky) ── */}
           <aside className="repairSidebarCol">
-            {/* Sidebar Box 1: Location Cascader */}
+            {/* Sidebar Box 1: Location Cascader with Express Auto-Anchor */}
             <div className="sidebarBox">
               <div className="sidebarBoxHeader">
-                <MapPin aria-hidden="true" className="w-4 h-4 text-teal-600" />
+                <MapPin aria-hidden="true" className="w-4 h-4 text-emerald-700" />
                 <h3 className="sidebarBoxTitle">สถานที่ตั้ง / จุดเกิดเหตุ</h3>
               </div>
+
+              {/* Express Location Status / Selected Location Banner */}
+              {selectedLocation ? (
+                <div className="selectedLocCard">
+                  <div className="selectedLocIcon">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="selectedLocContent">
+                    <span className="selectedLocLabel">พิกัดที่เลือกปัจจุบัน:</span>
+                    <strong className="selectedLocName">{selectedLocation.full_name}</strong>
+                  </div>
+                </div>
+              ) : deptMatchLocation ? (
+                <div className="deptMatchBox">
+                  <div className="deptMatchTextWrap">
+                    <span className="deptMatchBadge">แนะนำตามแผนก</span>
+                    <strong className="deptMatchRoomName">{deptMatchLocation.full_name}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    className="deptMatchQuickBtn"
+                    onClick={() => {
+                      setSelectedBuildingId(String(deptMatchLocation.building_id))
+                      setSelectedFloorId(String(deptMatchLocation.floor_id))
+                      setSelectedRoomId(String(deptMatchLocation.id))
+                    }}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>ปักหมุดด่วน</span>
+                  </button>
+                </div>
+              ) : null}
 
               <div className="locationCascadeWrap">
                 {/* Building */}
