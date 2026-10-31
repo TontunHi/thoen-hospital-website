@@ -1,9 +1,17 @@
-/* SSS Dental Page CSS (Hospital Theme - High Contrast) */
+/* ==========================================================================
+   Dashboard-RCM Shared & SSS Dental CSS (Hospital Emerald Tokens)
+   Serves as shared base for sss-dental, opd-doctor, opd, and ipd
+   ========================================================================== */
 
-.rcm-content-container {
+/* ===== 1. SHARED RCM BASE CLASSES (Used by opd-doctor, opd, ipd) ===== */
+
+.rcm-content-container,
+.rcm-opd-container,
+.rcm-ipd-container {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  width: 100%;
 }
 
 /* Page Header Card */
@@ -46,7 +54,8 @@
   margin: 0;
 }
 
-.rcm-header-desc {
+.rcm-header-desc,
+.rcm-header-p {
   font-size: 0.85rem;
   color: #334155;
   font-weight: 500;
@@ -154,7 +163,8 @@
   outline: 2px solid rgba(5, 150, 105, 0.2);
 }
 
-.rcm-actions-row {
+.rcm-actions-row,
+.rcm-header-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -526,4 +536,881 @@
   border-radius: 6px;
   font-weight: 700;
   font-size: 0.82rem;
+}
+
+
+/* ===== 2. SSS DENTAL DENSE FINANCIAL LEDGER SPECIFIC STYLES ===== */
+
+.dental-page-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+/* Command Bar (Sticky Toolbar) */
+.dental-command-bar {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dental-command-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dental-command-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.dental-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background-color: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dental-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.dental-code-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background-color: #064e3b;
+  color: #ffffff;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.dental-tag {
+  font-size: 0.75rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+.dental-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #064e3b;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.dental-subtitle {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0.2rem 0 0 0;
+}
+
+.dental-command-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dental-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  font-size: 0.825rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dental-btn:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+
+.dental-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dental-btn-primary {
+  background-color: #059669;
+  color: #ffffff;
+  border: 1px solid #047857;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
+}
+
+.dental-btn-primary:hover:not(:disabled) {
+  background-color: #047857;
+  transform: translateY(-1px);
+}
+
+.dental-btn-secondary {
+  background-color: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.dental-btn-secondary:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+/* Filter Controls Row */
+.dental-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.dental-segmented-group {
+  display: inline-flex;
+  padding: 0.25rem;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  gap: 0.25rem;
+}
+
+.dental-seg-btn {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
+  background-color: transparent;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dental-seg-btn:hover {
+  color: #0f172a;
+}
+
+.dental-seg-btn.active {
+  background-color: #ffffff;
+  color: #064e3b;
+  font-weight: 800;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dental-date-selectors {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dental-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dental-input-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.dental-select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.4rem 1.6rem 0.4rem 0.65rem;
+  font-size: 0.825rem;
+  font-weight: 600;
+  background-color: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.dental-select:focus {
+  border-color: #059669;
+  outline: 2px solid rgba(5, 150, 105, 0.2);
+}
+
+.dental-range-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dental-range-sep {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.dental-date-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.38rem 0.65rem;
+  font-size: 0.825rem;
+  font-weight: 600;
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.dental-date-input:focus {
+  border-color: #059669;
+  outline: 2px solid rgba(5, 150, 105, 0.2);
+}
+
+.dental-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 320px;
+}
+
+.dental-search-icon {
+  position: absolute;
+  left: 0.65rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.dental-search-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.4rem 1.8rem 0.4rem 2rem;
+  font-size: 0.825rem;
+  font-weight: 500;
+  background-color: #ffffff;
+  color: #0f172a;
+  transition: all 0.15s ease;
+}
+
+.dental-search-input:focus {
+  border-color: #059669;
+  outline: 2px solid rgba(5, 150, 105, 0.2);
+}
+
+.dental-search-clear {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dental-search-clear:hover {
+  color: #334155;
+}
+
+.dental-match-counter {
+  font-size: 0.8rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.dental-match-counter b {
+  color: #0f172a;
+  font-size: 0.85rem;
+}
+
+/* Alert Box */
+.dental-alert-box {
+  padding: 0.85rem 1.15rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.85rem;
+}
+
+.dental-alert-icon {
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+/* Compact KPI Metric Strip */
+.dental-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.dental-kpi-item {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dental-kpi-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+.dental-kpi-item.kpi-has-debit {
+  border-color: #fecdd3;
+  background-color: #fffafb;
+}
+
+.dental-kpi-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-visits {
+  background-color: #ecfdf5;
+  color: #059669;
+}
+
+.kpi-income {
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.kpi-uc {
+  background-color: #f0fdf4;
+  color: #16a34a;
+}
+
+.kpi-rcpt {
+  background-color: #faf5ff;
+  color: #9333ea;
+}
+
+.kpi-debit {
+  background-color: #fff1f2;
+  color: #e11d48;
+}
+
+.dental-kpi-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dental-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.dental-kpi-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.dental-kpi-number {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  font-family: monospace;
+  letter-spacing: -0.02em;
+}
+
+.dental-kpi-unit {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.text-income {
+  color: #1d4ed8;
+}
+
+.text-uc {
+  color: #15803d;
+}
+
+.text-rcpt {
+  color: #7e22ce;
+}
+
+.text-debit {
+  color: #be123c;
+}
+
+/* Dense Responsive Financial Ledger Card */
+.dental-ledger-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.dental-ledger-header {
+  padding: 0.5rem 0.85rem;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dental-ledger-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.dental-ledger-icon {
+  color: #059669;
+}
+
+/* Quarter Legend Pills */
+.dental-quarter-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.dental-quarter-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.quarter-q1 {
+  background-color: #ecfdf5;
+  color: #064e3b;
+  border: 1px solid #a7f3d0;
+}
+
+.quarter-q2 {
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.quarter-q3 {
+  background-color: #fefce8;
+  color: #854d0e;
+  border: 1px solid #fef08a;
+}
+
+.quarter-q4 {
+  background-color: #fdf2f8;
+  color: #9d174d;
+  border: 1px solid #fbcfe8;
+}
+
+.dental-ledger-time {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.dental-ledger-time b {
+  color: #0f172a;
+}
+
+/* Table Container & Table (Compact) */
+.dental-table-container {
+  overflow-x: auto;
+  position: relative;
+  max-height: 720px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  width: 100%;
+}
+
+.dental-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  text-align: left;
+}
+
+/* Single-tier Sticky Header */
+.dental-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background-color: #f1f5f9;
+  color: #1e293b;
+  font-weight: 700;
+  padding: 0.42rem 0.45rem;
+  border-bottom: 2px solid #cbd5e1;
+  border-right: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+/* Sortable Headers */
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.sortable:hover {
+  background-color: #e2e8f0 !important;
+}
+
+.th-sort-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.justify-end {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.rcm-sort-icon.muted {
+  color: #94a3b8;
+}
+
+.rcm-sort-icon.active {
+  color: #059669;
+}
+
+/* Sticky Column Widths & Left Offsets (Tighter Footprint) */
+.th-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 30 !important;
+  background-color: #f1f5f9;
+}
+
+.td-sticky {
+  position: sticky;
+  z-index: 10;
+  background-color: #ffffff;
+}
+
+.th-col-idx,
+.td-col-idx {
+  left: 0;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  text-align: center;
+  border-right: 1px solid #e2e8f0;
+}
+
+.th-col-doctor,
+.td-col-doctor {
+  left: 36px;
+  width: 170px;
+  min-width: 170px;
+  max-width: 185px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.th-col-visits,
+.td-col-visits {
+  left: 206px;
+  width: 66px;
+  min-width: 66px;
+  max-width: 66px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.th-col-income,
+.td-col-income {
+  left: 272px;
+  width: 105px;
+  min-width: 105px;
+  max-width: 105px;
+  border-right: 2px solid #cbd5e1 !important;
+  box-shadow: 4px 0 8px -2px rgba(0, 0, 0, 0.08);
+}
+
+/* Summary & Month Columns (Slimmer for Wide Screen Density) */
+.th-col-summary,
+.td-col-summary {
+  width: 95px;
+  min-width: 88px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.th-month-col,
+.td-month-col {
+  width: 78px;
+  min-width: 72px;
+  border-right: 1px solid #f1f5f9;
+}
+
+/* Month Header Cell with Quarter Pill */
+.th-month-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.th-qtag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.q1-badge .th-qtag {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.q2-badge .th-qtag {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.q3-badge .th-qtag {
+  background-color: #fef9c3;
+  color: #854d0e;
+}
+
+.q4-badge .th-qtag {
+  background-color: #fce7f3;
+  color: #9d174d;
+}
+
+.th-month-label {
+  font-size: 0.74rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+/* Table Body Rows */
+.dental-row {
+  transition: background-color 0.1s ease;
+}
+
+.dental-row:nth-child(even) td {
+  background-color: #fafbfc;
+}
+
+.dental-row:hover td {
+  background-color: #f0fdf4 !important;
+}
+
+.dental-row td {
+  padding: 0.32rem 0.45rem;
+  border-bottom: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
+  color: #0f172a;
+}
+
+/* Doctor Cell Presentation */
+.doctor-cell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  line-height: 1.25;
+}
+
+.doctor-name {
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.78rem;
+}
+
+.doctor-code {
+  font-size: 0.67rem;
+  color: #64748b;
+  line-height: 1;
+  margin-top: 0.1rem;
+}
+
+.has-income {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.is-zero {
+  color: #cbd5e1;
+  font-size: 0.72rem;
+}
+
+/* Debit Badge */
+.debit-pill {
+  display: inline-block;
+  background-color: #fff1f2;
+  color: #be123c;
+  border: 1px solid #fecdd3;
+  border-radius: 4px;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.debit-zero {
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+/* Sticky Total Row */
+.dental-total-row td {
+  position: sticky;
+  bottom: 0;
+  z-index: 15;
+  background-color: #f1f5f9 !important;
+  color: #0f172a;
+  border-top: 2px solid #064e3b;
+  border-bottom: 2px solid #064e3b;
+  padding: 0.42rem 0.45rem;
+}
+
+.dental-total-row .td-sticky {
+  z-index: 25 !important;
+  background-color: #f1f5f9 !important;
+}
+
+.total-month-val {
+  color: #064e3b;
+  font-weight: 700;
+}
+
+/* Empty & Loading States */
+.td-empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background-color: #ffffff;
+}
+
+.td-spin-icon {
+  margin: 0 auto 0.75rem;
+  color: #059669;
+}
+
+.td-empty-icon {
+  margin: 0 auto 0.75rem;
+  color: #94a3b8;
+}
+
+.td-empty-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.td-empty-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* Typography Utilities */
+.text-right {
+  text-align: right;
+}
+
+.font-mono {
+  font-family: monospace, var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-heavy {
+  font-weight: 800;
+}
+
+/* Responsive Table Breakpoints */
+@media (max-width: 1200px) {
+  .dental-kpi-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dental-kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dental-command-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dental-command-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .dental-filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dental-search-box {
+    max-width: 100%;
+  }
+
+  .th-col-doctor,
+  .td-col-doctor {
+    min-width: 150px;
+  }
 }

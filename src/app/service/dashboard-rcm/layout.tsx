@@ -1,7 +1,6 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import DashboardRcmNavTabs from './DashboardRcmNavTabs'
+import DashboardRcmShell from './DashboardRcmShell'
 import './layout.css'
 
 export const metadata = {
@@ -24,24 +23,8 @@ export default async function DashboardRcmLayout({
   }
 
   return (
-    <div className="rcm-page-container">
-      <header className="rcm-header">
-        <div className="rcm-header-top">
-          <div className="rcm-title-area">
-            <Link href="/service" className="rcm-back-btn" title="กลับหน้าบริการหลัก">
-              ← กลับ
-            </Link>
-            <div>
-              <h1 className="rcm-main-title">Dashboard-RCM</h1>
-              <p className="rcm-subtitle">Hospital Revenue Cycle Management • โรงพยาบาลเถิน</p>
-            </div>
-          </div>
-        </div>
-        <DashboardRcmNavTabs />
-      </header>
-      <div className="rcm-main-content">
-        {children}
-      </div>
-    </div>
+    <DashboardRcmShell userRole={session.role}>
+      {children}
+    </DashboardRcmShell>
   )
 }

@@ -233,7 +233,7 @@ a:hover {
   --container-padding: 1.5rem;
 
   /* Navbar */
-  --navbar-height: 80px;
+  --navbar-height: 72px;
 }
 
 /* Headings - Hallmark Typography Purity: Roman headers only (Discipline 6) */
@@ -738,7 +738,7 @@ p {
 @media (max-width: 1024px) {
   :root {
     --container-padding: 1.25rem;
-    --navbar-height: 76px;
+    --navbar-height: 72px;
   }
 
   h1 { font-size: var(--font-size-3xl); }
@@ -751,7 +751,7 @@ p {
 @media (max-width: 768px) {
   :root {
     --container-padding: 1rem;
-    --navbar-height: 70px;
+    --navbar-height: 72px;
   }
 
   h1 { font-size: var(--font-size-2xl); }

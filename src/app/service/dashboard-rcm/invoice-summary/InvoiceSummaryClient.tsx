@@ -536,25 +536,28 @@ export default function InvoiceSummaryClient() {
           {/* Date Mode Selector */}
           <div className="invoice-date-mode-group">
             <button
+              type="button"
+              onClick={() => setDateMode('custom')}
+              className={`invoice-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
+            >
+              กำหนดเอง (วันถึงวัน)
+            </button>
+            <button
+              type="button"
               onClick={() => setDateMode('month')}
               className={`invoice-mode-btn ${dateMode === 'month' ? 'active' : ''}`}
             >
-              รายเดือน (Monthly)
+              รายเดือน
             </button>
             <button
+              type="button"
               onClick={() => {
                 setDateMode('year')
                 handleSelectYear(selectedYear)
               }}
               className={`invoice-mode-btn ${dateMode === 'year' ? 'active' : ''}`}
             >
-              ปีงบประมาณ (Fiscal)
-            </button>
-            <button
-              onClick={() => setDateMode('custom')}
-              className={`invoice-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
-            >
-              กำหนดเอง (Custom)
+              รายปีงบประมาณ
             </button>
           </div>
 

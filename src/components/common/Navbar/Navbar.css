@@ -7,6 +7,13 @@
    - Clean 1080px Breakpoint to eliminate zoom-out on small screens
    ========================================================================== */
 
+:root {
+  --navbar-height: 72px;
+}
+
+:root:has(.navbar--scrolled) {
+  --navbar-height: 66px;
+}
 .navbar {
   position: fixed;
   top: 0;

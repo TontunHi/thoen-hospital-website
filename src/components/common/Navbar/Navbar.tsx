@@ -80,11 +80,17 @@ export default function Navbar() {
     return member.username;
   }, [member]);
 
-  // Handle scroll effect
+  // Handle scroll effect & synchronize dynamic navbar height
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 15);
+      const isScrolled = window.scrollY > 15;
+      setScrolled(isScrolled);
+      document.documentElement.style.setProperty(
+        '--navbar-height',
+        isScrolled ? '66px' : '72px'
+      );
     };
+    handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
