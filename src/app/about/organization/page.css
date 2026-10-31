@@ -1,0 +1,953 @@
+/* ========================================================================
+   THOEN HOSPITAL - PUBLIC ORGANIZATION & PERSONNEL DIRECTORY
+   Design System: Medical Emerald / Slate Tactile Theme
+   Standards: WCAG AA, Touch-Friendly >= 36-44px, Smooth Transitions
+   ======================================================================== */
+
+:root {
+  --org-primary: #059669;
+  --org-primary-dark: #064e3b;
+  --org-primary-light: #ecfdf5;
+  --org-accent-teal: #0d9488;
+  --org-accent-teal-light: #f0fdfa;
+  --org-slate-dark: #0f172a;
+  --org-slate-body: #334155;
+  --org-slate-muted: #64748b;
+  --org-border: #e2e8f0;
+  --org-border-hover: #cbd5e1;
+  --org-card-bg: #ffffff;
+  --org-line-connector: #10b981;
+}
+
+.publicOrgPage {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  color: var(--org-slate-dark);
+  font-family: var(--font-ibm-thai), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding-bottom: 96px;
+  overflow-x: clip;
+}
+
+/* ========================================================================
+   1. HERO BANNER
+   ======================================================================== */
+.orgHero {
+  background: linear-gradient(135deg, #064e3b 0%, #047857 55%, #059669 100%);
+  color: #ffffff;
+  padding: 48px 20px 64px;
+  position: relative;
+  overflow: hidden;
+}
+
+.orgHero::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orgHero::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: linear-gradient(to top, rgba(248, 250, 252, 0.12), transparent);
+  pointer-events: none;
+}
+
+.orgHeroContainer {
+  max-width: 1240px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.orgHeroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  width: fit-content;
+  letter-spacing: 0.02em;
+}
+
+.orgHeroTitle {
+  font-size: clamp(1.85rem, 4vw, 2.5rem);
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.orgHeroDesc {
+  font-size: 1rem;
+  color: #d1fae5;
+  max-width: 720px;
+  margin: 0;
+  line-height: 1.65;
+}
+
+/* ========================================================================
+   2. CONTENT CONTAINER
+   ======================================================================== */
+.orgContentContainer {
+  max-width: 1240px;
+  margin: -28px auto 0;
+  padding: 0 20px;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Instant Search Card */
+.orgSearchCard {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px 20px;
+  box-shadow: 0 8px 24px -4px rgba(15, 23, 42, 0.06), 0 2px 6px rgba(15, 23, 42, 0.04);
+  border: 1.5px solid var(--org-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.orgSearchCard:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 12px 28px -4px rgba(16, 185, 129, 0.15), 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.orgSearchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  color: var(--org-slate-dark);
+  font-family: inherit;
+  background: transparent;
+}
+
+.orgSearchInput::placeholder {
+  color: var(--org-slate-muted);
+}
+
+.clearSearchBtn {
+  background: #f1f5f9;
+  border: 1px solid var(--org-border);
+  border-radius: 8px;
+  color: var(--org-slate-body);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.clearSearchBtn:hover {
+  background: #e2e8f0;
+  color: var(--org-slate-dark);
+}
+
+/* ========================================================================
+   3. DEPARTMENT NAVIGATION TABS
+   ======================================================================== */
+.deptTabsNav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.deptTabBtn {
+  background: #ffffff;
+  border: 1.5px solid var(--org-border);
+  border-radius: 9999px;
+  padding: 10px 22px;
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: var(--org-slate-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.deptTabBtn:hover {
+  background-color: #f8fafc;
+  color: var(--org-slate-dark);
+  border-color: var(--org-border-hover);
+  transform: translateY(-1px);
+}
+
+.deptTabBtn:focus-visible {
+  outline: 2px solid var(--org-primary);
+  outline-offset: 2px;
+}
+
+.deptTabBtn.active {
+  background: var(--org-primary);
+  color: #ffffff;
+  border-color: var(--org-primary);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+}
+
+/* ========================================================================
+   4. ACTIVE DEPARTMENT CARD & TOOLBAR
+   ======================================================================== */
+.deptDisplayCard {
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid var(--org-border);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@media (max-width: 640px) {
+  .deptDisplayCard {
+    padding: 20px 16px;
+    border-radius: 18px;
+  }
+}
+
+.deptHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.deptTitleBlock h2 {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--org-slate-dark);
+  margin: 0 0 4px 0;
+  letter-spacing: -0.01em;
+}
+
+.deptTitleBlock p {
+  font-size: 0.875rem;
+  color: var(--org-slate-muted);
+  margin: 0;
+}
+
+/* View Mode Switcher Toolbar */
+.viewToggleBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--org-border);
+  border-radius: 16px;
+  padding: 8px 12px;
+}
+
+.viewModePills {
+  display: flex;
+  background: #e2e8f0;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.viewModeBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--org-slate-muted);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.viewModeBtn:hover {
+  color: var(--org-slate-dark);
+}
+
+.viewModeBtn:focus-visible {
+  outline: 2px solid var(--org-primary);
+  outline-offset: 1px;
+}
+
+.viewModeBtn.active {
+  background: #ffffff;
+  color: var(--org-primary);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.diagramToolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.diagramScrollHint {
+  font-size: 0.775rem;
+  color: var(--org-slate-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--org-border);
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #ffffff;
+  border: 1.5px solid var(--org-border);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.zoomBtn {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--org-slate-body);
+  transition: all 0.15s;
+}
+
+.zoomBtn:hover {
+  background: #f1f5f9;
+  color: var(--org-slate-dark);
+}
+
+.zoomBtn:focus-visible {
+  outline: 2px solid var(--org-primary);
+  outline-offset: -1px;
+}
+
+.zoomLevelText {
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: var(--org-slate-body);
+  min-width: 44px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  transition: background-color 0.15s;
+}
+
+.zoomLevelText:hover {
+  background: #f1f5f9;
+  color: var(--org-primary);
+}
+
+/* ========================================================================
+   5. VISUAL TREE DIAGRAM (CSS Connecting Lines & Tactile Cards)
+   ======================================================================== */
+.orgDiagramScroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 48px 24px 64px;
+  background: #fafafa;
+  border-radius: 20px;
+  border: 1px solid var(--org-border);
+  box-shadow: inset 0 2px 6px rgba(15, 23, 42, 0.02);
+  scrollbar-width: thin;
+  cursor: grab;
+  -webkit-overflow-scrolling: touch;
+}
+
+.orgDiagramScroll:active {
+  cursor: grabbing;
+}
+
+.orgDiagramCanvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: fit-content;
+  margin: 0 auto;
+  transform-origin: top center;
+  transition: transform 0.15s ease-out;
+}
+
+/* Tree Structure */
+.orgTree, .orgTree ul, .orgTree li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.orgTree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.orgTree ul {
+  display: flex;
+  justify-content: center;
+  margin-top: 36px;
+  padding: 0;
+  position: relative;
+}
+
+.orgTree li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 36px 14px 0 14px;
+  position: relative;
+}
+
+/* Connecting line from parent card down to horizontal connector bar */
+.orgTree ul::before {
+  content: '';
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  border-left: 2px solid var(--org-line-connector);
+  width: 0;
+  height: 36px;
+  transform: translateX(-50%);
+}
+
+/* Branch lines connecting children horizontally and vertically down to cards */
+.orgTree li::before, .orgTree li::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  border-top: 2px solid var(--org-line-connector);
+  width: 50%;
+  height: 36px;
+}
+
+.orgTree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid var(--org-line-connector);
+}
+
+.orgTree li:only-child::after,
+.orgTree li:only-child::before {
+  display: none;
+}
+
+.orgTree li:only-child {
+  padding-top: 0;
+}
+
+.orgTree li:first-child::before {
+  border: 0 none;
+}
+
+.orgTree li:last-child::after {
+  border: 0 none;
+}
+
+.orgTree li:first-child::after {
+  border-radius: 14px 0 0 0;
+}
+
+.orgTree li:last-child::before {
+  border-right: 2px solid var(--org-line-connector);
+  border-radius: 0 14px 0 0;
+}
+
+/* ========================================================================
+   6. TREE NODE CARDS DESIGN
+   ======================================================================== */
+
+/* Base Tree Node Card */
+.treeNodeCard {
+  background: #ffffff;
+  border: 1.5px solid var(--org-border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 240px;
+  text-align: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 2;
+}
+
+.treeNodeCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  border-color: #10b981;
+}
+
+/* Root Leader Card (Department Head) */
+.treeNodeCard.rootNode {
+  border: 2px solid #10b981;
+  background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+  width: 280px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 28px -4px rgba(5, 150, 105, 0.15), 0 0 0 1px rgba(16, 185, 129, 0.1);
+}
+
+.treeNodeCard.rootNode .treeNodeAvatar {
+  width: 72px;
+  height: 72px;
+  border: 3px solid #10b981;
+}
+
+.treeNodeCard.rootNode .treeNodeAvatarFallback {
+  width: 72px;
+  height: 72px;
+  font-size: 1.6rem;
+  border: 3px solid #10b981;
+}
+
+/* Sub-unit Leader Card (e.g. งานอุบัติเหตุ, งานผู้ป่วยใน) */
+.treeNodeCard.subUnitNode {
+  border: 2px solid var(--org-accent-teal);
+  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
+  width: 240px;
+  box-shadow: 0 8px 20px -3px rgba(13, 148, 136, 0.1);
+}
+
+.treeNodeCard.subUnitNode .treeNodeGroupTag {
+  background: var(--org-accent-teal);
+  color: #ffffff;
+}
+
+.treeNodeCard.subUnitNode .treeNodeAvatar {
+  border-color: var(--org-accent-teal);
+}
+
+/* Group Name Tag on Top of Card */
+.treeNodeGroupTag {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+
+.treeNodeCard.rootNode .treeNodeGroupTag {
+  background: var(--org-primary);
+  color: #ffffff;
+  font-size: 0.8rem;
+  padding: 4px 14px;
+}
+
+.treeNodeAvatar {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #10b981;
+  background-color: #f1f5f9;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.treeNodeAvatarFallback {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background-color: #d1fae5;
+  color: #065f46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  font-weight: 800;
+  border: 2px solid #10b981;
+}
+
+.treeNodeName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--org-slate-dark);
+  line-height: 1.25;
+}
+
+.treeNodePosition {
+  font-size: 0.775rem;
+  color: var(--org-slate-muted);
+  line-height: 1.35;
+}
+
+/* ========================================================================
+   7. INDIVIDUAL STAFF MEMBER LEAF CARD (Branch Child with Connecting Line)
+   ======================================================================== */
+.treeMemberCard {
+  background: #ffffff;
+  border: 1.5px solid var(--org-border);
+  border-radius: 14px;
+  padding: 14px 12px;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 195px;
+  text-align: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 2;
+}
+
+.treeMemberCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  border-color: #10b981;
+}
+
+.treeMemberAvatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.treeMemberAvatarFallback {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: #f1f5f9;
+  color: var(--org-slate-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 800;
+  border: 2px solid #e2e8f0;
+}
+
+.treeMemberBadge {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.treeMemberBadge.deputy {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.treeMemberName {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--org-slate-dark);
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.treeMemberPosition {
+  font-size: 0.75rem;
+  color: var(--org-slate-muted);
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Leader Badges (Shared) */
+.publicLeaderBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: var(--org-primary);
+  color: #ffffff;
+  font-size: 0.725rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  width: fit-content;
+}
+
+.treeNodeCard.subUnitNode .publicLeaderBadge {
+  background-color: var(--org-accent-teal);
+}
+
+/* ========================================================================
+   8. DIRECTORY CARDS VIEW (Grouped Cards)
+   ======================================================================== */
+.publicLeaderCard {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 2px solid #6ee7b7;
+  border-radius: 18px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.08);
+}
+
+@media (max-width: 600px) {
+  .publicLeaderCard {
+    flex-direction: column;
+    text-align: center;
+    padding: 24px 16px;
+    gap: 16px;
+  }
+}
+
+.publicLeaderAvatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #10b981;
+  background-color: #e2e8f0;
+  flex-shrink: 0;
+}
+
+.publicAvatarFallback {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background-color: #d1fae5;
+  color: #065f46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.publicLeaderInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.publicLeaderName {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--org-slate-dark);
+}
+
+.publicLeaderPosition {
+  font-size: 0.95rem;
+  color: #065f46;
+  font-weight: 600;
+}
+
+/* Sub-group Block */
+.subgroupBlock {
+  background: #f8fafc;
+  border: 1.5px solid var(--org-border);
+  border-radius: 18px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.subgroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subgroupHeader h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* Public Members Grid */
+.publicMembersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.publicMemberCard {
+  background: #ffffff;
+  border: 1.5px solid var(--org-border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.publicMemberCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+  border-color: #10b981;
+}
+
+.publicMemberAvatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #e2e8f0;
+  flex-shrink: 0;
+  border: 1.5px solid var(--org-border);
+}
+
+.publicMemberAvatarFallback {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #f1f5f9;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.publicMemberInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.publicMemberName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--org-slate-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.publicMemberPosition {
+  font-size: 0.825rem;
+  color: var(--org-slate-muted);
+  line-height: 1.35;
+}
+
+.publicMemberDeptBadge {
+  font-size: 0.725rem;
+  color: var(--org-primary);
+  font-weight: 700;
+  background-color: var(--org-primary-light);
+  padding: 2px 7px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+/* Search Results Block */
+.searchResultsBlock {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid var(--org-border);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.searchResultsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  color: var(--org-slate-muted);
+}
+
+/* Empty States */
+.publicEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 20px;
+  text-align: center;
+  color: var(--org-slate-muted);
+  gap: 12px;
+}
+
+.publicEmptyState h3 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--org-slate-dark);
+  margin: 0;
+}
+
+.publicEmptyState p {
+  font-size: 0.9rem;
+  color: var(--org-slate-muted);
+  margin: 0;
+}

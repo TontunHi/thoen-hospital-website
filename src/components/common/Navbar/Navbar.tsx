@@ -247,6 +247,7 @@ export default function Navbar() {
         { href: '/about/history', label: 'ประวัติความเป็นมา' },
         { href: '/about/vision-mission', label: 'วิสัยทัศน์ ค่านิยม พันธกิจ' },
         { href: '/about/board', label: 'คณะกรรมการบริหาร' },
+        { href: '/about/organization', label: 'โครงสร้างกลุ่มงานและบุคลากร' },
       ]
     },
     { href: '/contact', label: 'ติดต่อเรา' },
