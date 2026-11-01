@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import {
   Package,
@@ -29,6 +29,7 @@ import {
   SlidersHorizontal,
   FolderOpen,
   Eye,
+  Building2,
 } from 'lucide-react'
 import { getInitials } from '@/lib/formatters'
 import './equipment-borrow.css'
@@ -177,6 +178,9 @@ export default function EquipmentBorrowClient({
   const [allRequests, setAllRequests] = useState<BorrowRequestRecord[]>([])
   const [allRequestsStatusFilter, setAllRequestsStatusFilter] = useState('ALL')
   const [approvalSearch, setApprovalSearch] = useState('')
+  const prevSubTabRef = useRef(approvalsSubTab)
+  const prevSearchRef = useRef(approvalSearch)
+  const prevFilterRef = useRef(allRequestsStatusFilter)
   const [viewDetailModalData, setViewDetailModalData] = useState<BorrowRequestRecord | null>(null)
 
   // State: Reject Modal
@@ -206,13 +210,20 @@ export default function EquipmentBorrowClient({
     notes: '',
   })
 
-  // Auto-dismiss alert
+  // Auto-dismiss alert notifications
   useEffect(() => {
     if (successMsg) {
-      const timer = setTimeout(() => setSuccessMsg(null), 4000)
+      const timer = setTimeout(() => setSuccessMsg(null), 3200)
       return () => clearTimeout(timer)
     }
   }, [successMsg])
+
+  useEffect(() => {
+    if (errorMsg) {
+      const timer = setTimeout(() => setErrorMsg(null), 3200)
+      return () => clearTimeout(timer)
+    }
+  }, [errorMsg])
 
   // Fetch Dashboard Stats
   const refreshStats = useCallback(async () => {
@@ -364,13 +375,34 @@ export default function EquipmentBorrowClient({
     } else if (activeTab === 'my-requests') {
       fetchMyRequests()
     } else if (activeTab === 'approvals') {
-      if (approvalsSubTab === 'pending') fetchPendingRequests()
-      else if (approvalsSubTab === 'active') fetchActiveLoans()
-      else fetchAllRequests()
+      // Parallel fetch all approval datasets so all subtab count badges are populated immediately
+      prevSubTabRef.current = approvalsSubTab
+      prevSearchRef.current = approvalSearch
+      prevFilterRef.current = allRequestsStatusFilter
+      Promise.all([fetchPendingRequests(), fetchActiveLoans(), fetchAllRequests()])
     } else if (activeTab === 'inventory') {
       fetchInventory()
     }
-  }, [activeTab, approvalsSubTab, fetchCatalog, fetchMyRequests, fetchPendingRequests, fetchActiveLoans, fetchAllRequests, fetchInventory])
+  }, [activeTab, approvalsSubTab, approvalSearch, allRequestsStatusFilter, fetchCatalog, fetchMyRequests, fetchPendingRequests, fetchActiveLoans, fetchAllRequests, fetchInventory])
+
+  // Subtab-specific search or filter change in approvals
+  useEffect(() => {
+    if (activeTab === 'approvals') {
+      const hasChanged =
+        prevSubTabRef.current !== approvalsSubTab ||
+        prevSearchRef.current !== approvalSearch ||
+        prevFilterRef.current !== allRequestsStatusFilter
+
+      if (hasChanged) {
+        prevSubTabRef.current = approvalsSubTab
+        prevSearchRef.current = approvalSearch
+        prevFilterRef.current = allRequestsStatusFilter
+        if (approvalsSubTab === 'pending') fetchPendingRequests()
+        else if (approvalsSubTab === 'active') fetchActiveLoans()
+        else fetchAllRequests()
+      }
+    }
+  }, [activeTab, approvalsSubTab, approvalSearch, allRequestsStatusFilter, fetchPendingRequests, fetchActiveLoans, fetchAllRequests])
 
   // Basket Handlers
   const handleAddToBasket = (item: CatalogItem) => {
@@ -708,15 +740,35 @@ export default function EquipmentBorrowClient({
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
-        return <span className="statusBadge statusPending">⏳ รออนุมัติ</span>
+        return (
+          <span className="statusBadge statusPending">
+            <Clock size={12} /> รออนุมัติ
+          </span>
+        )
       case 'APPROVED':
-        return <span className="statusBadge statusApproved">📦 กำลังยืม</span>
+        return (
+          <span className="statusBadge statusApproved">
+            <Package size={12} /> กำลังยืม
+          </span>
+        )
       case 'PARTIAL_RETURNED':
-        return <span className="statusBadge statusPartial">🔄 คืนบางส่วน</span>
+        return (
+          <span className="statusBadge statusPartial">
+            <RotateCcw size={12} /> คืนบางส่วน
+          </span>
+        )
       case 'RETURNED':
-        return <span className="statusBadge statusReturned">✅ ส่งคืนครบแล้ว</span>
+        return (
+          <span className="statusBadge statusReturned">
+            <CheckCircle2 size={12} /> ส่งคืนครบแล้ว
+          </span>
+        )
       case 'REJECTED':
-        return <span className="statusBadge statusRejected">❌ ไม่อนุมัติ</span>
+        return (
+          <span className="statusBadge statusRejected">
+            <X size={12} /> ไม่อนุมัติ
+          </span>
+        )
       default:
         return <span className="statusBadge">{status}</span>
     }
@@ -726,69 +778,85 @@ export default function EquipmentBorrowClient({
   const renderItemStatusBadge = (itemStatus: string, requestStatus?: string) => {
     if (requestStatus === 'REJECTED' || itemStatus === 'REJECTED') {
       return (
-        <span className="statusBadge statusRejected" style={{ fontSize: '0.8125rem', padding: '0.2rem 0.5rem' }}>
-          ❌ ไม่อนุมัติ
+        <span className="statusBadge statusRejected">
+          <X size={12} /> ไม่อนุมัติ
         </span>
       )
     }
     if (requestStatus === 'PENDING' || itemStatus === 'PENDING') {
       return (
-        <span className="statusBadge statusPending" style={{ fontSize: '0.8125rem', padding: '0.2rem 0.5rem' }}>
-          ⏳ รออนุมัติ
+        <span className="statusBadge statusPending">
+          <Clock size={12} /> รออนุมัติ
         </span>
       )
     }
     if (itemStatus === 'RETURNED') {
       return (
-        <span className="statusBadge statusReturned" style={{ fontSize: '0.8125rem', padding: '0.2rem 0.5rem' }}>
-          ✅ คืนแล้ว
+        <span className="statusBadge statusReturned">
+          <CheckCircle2 size={12} /> คืนแล้ว
         </span>
       )
     }
     if (itemStatus === 'CONSUMED') {
       return (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.3rem',
-            fontSize: '0.8125rem',
-            fontWeight: 600,
-            padding: '0.2rem 0.5rem',
-            borderRadius: '9999px',
-            background: '#eff6ff',
-            color: '#1e40af',
-            border: '1px solid #bfdbfe',
-          }}
-        >
-          📦 เบิกจ่ายแล้ว
+        <span className="statusBadge statusConsumed">
+          <Check size={12} /> เบิกจ่ายแล้ว
         </span>
       )
     }
     return (
-      <span className="statusBadge statusApproved" style={{ fontSize: '0.8125rem', padding: '0.2rem 0.5rem' }}>
-        📦 กำลังยืม
+      <span className="statusBadge statusApproved">
+        <Package size={12} /> กำลังยืม
       </span>
     )
   }
 
   return (
     <div className="borrowPageContainer">
+      {/* ── Floating Notification Toasts (Anti-slop, Auto-dismissing) ── */}
+      {(errorMsg || successMsg) && (
+        <div className="borrowToastContainer" role="status" aria-live="polite">
+          {errorMsg && (
+            <div role="alert" className="borrowToast borrowToastError">
+              <div className="borrowToastIcon">
+                <AlertCircle size={18} />
+              </div>
+              <div className="borrowToastText">{errorMsg}</div>
+              <button onClick={() => setErrorMsg(null)} className="borrowToastClose" aria-label="ปิดการแจ้งเตือน">
+                <X size={15} />
+              </button>
+              <div className="borrowToastTimerBar borrowToastTimerBarError" />
+            </div>
+          )}
+
+          {successMsg && (
+            <div role="alert" className="borrowToast borrowToastSuccess">
+              <div className="borrowToastIcon">
+                <CheckCircle2 size={18} />
+              </div>
+              <div className="borrowToastText">{successMsg}</div>
+              <button onClick={() => setSuccessMsg(null)} className="borrowToastClose" aria-label="ปิดการแจ้งเตือน">
+                <X size={15} />
+              </button>
+              <div className="borrowToastTimerBar borrowToastTimerBarSuccess" />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Header ── */}
       <header className="borrowHeader">
         <div className="borrowHeaderTitle">
           <Link href="/member" className="borrowBackLink">
-            <ArrowLeft size={16} /> กลับสู่ระบบสมาชิก
+            <ArrowLeft size={15} />
+            <span>กลับสู่ระบบสมาชิก</span>
           </Link>
-          <div className="borrowHospitalBadge">
-            <ShieldCheck size={14} />
-            <span>โรงพยาบาลเถิน จ.ลำปาง • ระบบยืม-คืนอุปกรณ์และพัสดุ</span>
-          </div>
           <h1>
-            <Package size={28} />
             ระบบยืม-คืนอุปกรณ์และพัสดุ
           </h1>
-          <p>บริการยืม-คืนอุปกรณ์ ครุภัณฑ์ และเบิกจ่ายวัสดุสำหรับกิจกรรมและการปฏิบัติงาน โรงพยาบาลเถิน</p>
+          <p>
+            ระบบเบิกจ่ายและยืมคืนอุปกรณ์ เครื่องมือทางการแพทย์ โสตทัศนูปกรณ์ และวัสดุหมุนเวียน สำหรับเจ้าหน้าที่โรงพยาบาลเถิน
+          </p>
         </div>
 
         <div className="headerActions">
@@ -797,77 +865,50 @@ export default function EquipmentBorrowClient({
             className="primaryButton"
             aria-label="ขอยืมอุปกรณ์"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             ขอยืมอุปกรณ์
           </button>
         </div>
       </header>
 
-      {/* ── Notifications ── */}
-      {errorMsg && (
-        <div role="alert" className="borrowAlert borrowAlertError">
-          <div className="borrowAlertContent">
-            <AlertCircle size={20} />
-            <span>{errorMsg}</span>
-          </div>
-          <button onClick={() => setErrorMsg(null)} className="borrowAlertClose" aria-label="ปิดการแจ้งเตือน">
-            <X size={18} />
-          </button>
-        </div>
-      )}
-
-      {successMsg && (
-        <div role="alert" className="borrowAlert borrowAlertSuccess">
-          <div className="borrowAlertContent">
-            <CheckCircle2 size={20} />
-            <span>{successMsg}</span>
-          </div>
-          <button onClick={() => setSuccessMsg(null)} className="borrowAlertClose" aria-label="ปิดการแจ้งเตือน">
-            <X size={18} />
-          </button>
-        </div>
-      )}
-
-      {/* ── 4 Stats Cards ── */}
+      {/* ── 4 Stats Cards (Modern Clinical Metric KPIs) ── */}
       <section className="statsGrid" aria-label="สถิติระบบยืม-คืน">
         <div className="statCard">
-          <div className="statIconBox statIconTotal">
-            <Package size={26} />
+          <div className="statCardHeader">
+            <span className="statCardLabel">อุปกรณ์ทั้งหมด</span>
+            <span className="statCardIndicator statIndicatorTotal" />
           </div>
-          <div className="statInfo">
-            <h3>{stats.totalItems}</h3>
-            <span>อุปกรณ์ทั้งหมดในคลัง</span>
-          </div>
+          <div className="statCardValue">{stats.totalItems}</div>
+          <div className="statCardCaption">รายการในระบบคลัง</div>
         </div>
 
         <div className="statCard">
-          <div className="statIconBox statIconAvail">
-            <CheckCircle2 size={26} />
+          <div className="statCardHeader">
+            <span className="statCardLabel">พร้อมให้ยืม</span>
+            <span className="statCardIndicator statIndicatorAvail" />
           </div>
-          <div className="statInfo">
-            <h3>{stats.availableItems}</h3>
-            <span>พร้อมให้ยืม</span>
-          </div>
+          <div className="statCardValue statValueSuccess">{stats.availableItems}</div>
+          <div className="statCardCaption">สามารถเบิก/ยืมได้ทันที</div>
         </div>
 
         <div className="statCard">
-          <div className="statIconBox statIconBorrowed">
-            <Clock size={26} />
+          <div className="statCardHeader">
+            <span className="statCardLabel">กำลังถูกยืม</span>
+            <span className="statCardIndicator statIndicatorBorrowed" />
           </div>
-          <div className="statInfo">
-            <h3>{stats.borrowedItems}</h3>
-            <span>กำลังถูกยืม</span>
-          </div>
+          <div className="statCardValue statValueInfo">{stats.borrowedItems}</div>
+          <div className="statCardCaption">อยู่ระหว่างการใช้งาน</div>
         </div>
 
         <div className="statCard">
-          <div className="statIconBox statIconOverdue">
-            <AlertTriangle size={26} />
+          <div className="statCardHeader">
+            <span className="statCardLabel">เกินกำหนดส่งคืน</span>
+            <span className="statCardIndicator statIndicatorOverdue" />
           </div>
-          <div className="statInfo">
-            <h3>{stats.overdueRequests}</h3>
-            <span>เกินกำหนดส่งคืน</span>
+          <div className={`statCardValue ${stats.overdueRequests > 0 ? 'statValueDanger' : ''}`}>
+            {stats.overdueRequests}
           </div>
+          <div className="statCardCaption">ต้องติดตามรับคืน</div>
         </div>
       </section>
 
@@ -994,7 +1035,7 @@ export default function EquipmentBorrowClient({
                         {item.subType || (item.itemType === 'ASSET' ? 'ครุภัณฑ์' : 'วัสดุ')}
                       </span>
                       <span className={`stockBadge ${item.availableQty > 0 ? 'stockAvail' : 'stockZero'}`}>
-                        {item.availableQty > 0 ? `พร้อมยืม: ${item.availableQty} ${item.unit}` : '📦 กำลังถูกยืม'}
+                        {item.availableQty > 0 ? `พร้อมยืม ${item.availableQty} ${item.unit}` : 'ถูกยืมหมดแล้ว'}
                       </span>
                     </div>
 
@@ -1116,24 +1157,37 @@ export default function EquipmentBorrowClient({
       {activeTab === 'approvals' && currentUser.canManageBorrow && (
         <section>
           {/* Subtabs Bar */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <div className="approvalsNavPills">
             <button
+              type="button"
               onClick={() => setApprovalsSubTab('pending')}
-              className={approvalsSubTab === 'pending' ? 'primaryButton' : 'secondaryButton'}
+              className={`approvalsNavPill ${approvalsSubTab === 'pending' ? 'active' : ''}`}
             >
-              ⏳ รายการรออนุมัติ ({pendingRequests.length})
+              <Clock size={15} />
+              <span>รายการรออนุมัติ</span>
+              <span className={`pillCount ${pendingRequests.length > 0 ? 'pillCountUrgent' : ''}`}>
+                {pendingRequests.length}
+              </span>
             </button>
             <button
+              type="button"
               onClick={() => setApprovalsSubTab('active')}
-              className={approvalsSubTab === 'active' ? 'primaryButton' : 'secondaryButton'}
+              className={`approvalsNavPill ${approvalsSubTab === 'active' ? 'active' : ''}`}
             >
-              📦 รายการกำลังยืม & ตรวจรับคืน ({activeLoans.length})
+              <RotateCcw size={15} />
+              <span>รายการกำลังยืม & ตรวจรับคืน</span>
+              <span className={`pillCount ${activeLoans.length > 0 ? 'pillCountInfo' : ''}`}>
+                {activeLoans.length}
+              </span>
             </button>
             <button
+              type="button"
               onClick={() => setApprovalsSubTab('all')}
-              className={approvalsSubTab === 'all' ? 'primaryButton' : 'secondaryButton'}
+              className={`approvalsNavPill ${approvalsSubTab === 'all' ? 'active' : ''}`}
             >
-              📋 ประวัติทุกคำขอ ({allRequests.length})
+              <FileText size={15} />
+              <span>ประวัติทุกคำขอ</span>
+              <span className="pillCount">{allRequests.length}</span>
             </button>
           </div>
 
@@ -1155,11 +1209,11 @@ export default function EquipmentBorrowClient({
                 style={{ width: 'auto', minWidth: 160 }}
               >
                 <option value="ALL">ทุกสถานะ</option>
-                <option value="PENDING">⏳ รออนุมัติ</option>
-                <option value="APPROVED">📦 กำลังยืม</option>
-                <option value="PARTIAL_RETURNED">🔄 คืนบางส่วน</option>
-                <option value="RETURNED">✅ ส่งคืนครบแล้ว</option>
-                <option value="REJECTED">❌ ไม่อนุมัติ</option>
+                <option value="PENDING">รออนุมัติ</option>
+                <option value="APPROVED">กำลังยืม</option>
+                <option value="PARTIAL_RETURNED">คืนบางส่วน</option>
+                <option value="RETURNED">ส่งคืนครบแล้ว</option>
+                <option value="REJECTED">ไม่อนุมัติ</option>
               </select>
             )}
             <button
@@ -1213,7 +1267,11 @@ export default function EquipmentBorrowClient({
                         </td>
                         <td>
                           <div style={{ fontWeight: 500 }}>{req.purpose}</div>
-                          {req.location && <div style={{ fontSize: '0.8rem', color: '#64748b' }}>📍 {req.location}</div>}
+                          {req.location && (
+                            <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <MapPin size={12} /> {req.location}
+                            </div>
+                          )}
                         </td>
                         <td>
                           <div>เริ่ม: {new Date(req.borrowDate).toLocaleDateString('th-TH')}</div>
@@ -1350,7 +1408,11 @@ export default function EquipmentBorrowClient({
                         </td>
                         <td>
                           <div style={{ fontWeight: 500 }}>{req.purpose}</div>
-                          {req.location && <div style={{ fontSize: '0.8rem', color: '#64748b' }}>📍 {req.location}</div>}
+                          {req.location && (
+                            <div style={{ fontSize: '0.8rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <MapPin size={12} /> {req.location}
+                            </div>
+                          )}
                         </td>
                         <td>
                           <div>เริ่ม: {new Date(req.borrowDate).toLocaleDateString('th-TH')}</div>
@@ -1360,8 +1422,8 @@ export default function EquipmentBorrowClient({
                         </td>
                         <td>
                           {req.actualReturnDate ? (
-                            <span style={{ color: '#059669', fontSize: '0.875rem' }}>
-                              ✅ {new Date(req.actualReturnDate).toLocaleDateString('th-TH')}
+                            <span style={{ color: '#059669', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <CheckCircle2 size={13} /> {new Date(req.actualReturnDate).toLocaleDateString('th-TH')}
                             </span>
                           ) : (
                             <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>-</span>
@@ -1391,19 +1453,23 @@ export default function EquipmentBorrowClient({
       {activeTab === 'inventory' && currentUser.canManageBorrow && (
         <section>
           {/* Subtab Bar */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="inventorySubtabsRow">
+            <div className="inventoryNavPills">
               <button
+                type="button"
                 onClick={() => setInventoryType('materials')}
-                className={inventoryType === 'materials' ? 'primaryButton' : 'secondaryButton'}
+                className={`inventoryNavPill ${inventoryType === 'materials' ? 'active' : ''}`}
               >
-                📦 คลังวัสดุ (Materials / Supplies)
+                <Package size={15} />
+                <span>คลังพัสดุและวัสดุ (Materials)</span>
               </button>
               <button
+                type="button"
                 onClick={() => setInventoryType('assets')}
-                className={inventoryType === 'assets' ? 'primaryButton' : 'secondaryButton'}
+                className={`inventoryNavPill ${inventoryType === 'assets' ? 'active' : ''}`}
               >
-                🏷️ ครุภัณฑ์ที่อนุญาตให้ยืม (Hospital Assets)
+                <Building2 size={15} />
+                <span>ครุภัณฑ์พร้อมให้ยืม (Assets)</span>
               </button>
             </div>
 
@@ -1580,8 +1646,8 @@ export default function EquipmentBorrowClient({
         <div className="modalBackdrop">
           <div className="modalContent">
             <div className="modalHeader">
-              <h2>📋 แบบฟอร์มขอยืมอุปกรณ์และวัสดุ</h2>
-              <button onClick={() => setIsBorrowModalOpen(false)} className="modalCloseBtn">
+              <h2>แบบฟอร์มขอยืมอุปกรณ์และวัสดุ</h2>
+              <button onClick={() => setIsBorrowModalOpen(false)} className="modalCloseBtn" aria-label="ปิดหน้าต่าง">
                 <X size={20} />
               </button>
             </div>
@@ -1590,7 +1656,7 @@ export default function EquipmentBorrowClient({
               <div className="modalBody">
                 {/* Basket Items List */}
                 <div className="formGroup">
-                  <label>📦 รายการอุปกรณ์ที่เลือกไว้ ({basket.length} ชนิด)</label>
+                  <label>รายการอุปกรณ์ที่เลือกไว้ ({basket.length} ชนิด)</label>
                   {basket.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '1.5rem', background: '#f8fafc', borderRadius: '0.75rem', color: '#94a3b8' }}>
                       ยังไม่มีอุปกรณ์ในตะกร้า (กรุณาเลือกจากแท็บ "คลังอุปกรณ์พร้อมยืม")
@@ -1774,8 +1840,8 @@ export default function EquipmentBorrowClient({
         <div className="modalBackdrop">
           <div className="modalContent" style={{ maxWidth: '750px' }}>
             <div className="modalHeader">
-              <h2>🔄 ตรวจรับคืนอุปกรณ์ ({inspectModalData.requestNo})</h2>
-              <button onClick={() => setInspectModalData(null)} className="modalCloseBtn">
+              <h2>ตรวจรับคืนอุปกรณ์ ({inspectModalData.requestNo})</h2>
+              <button onClick={() => setInspectModalData(null)} className="modalCloseBtn" aria-label="ปิดหน้าต่าง">
                 <X size={20} />
               </button>
             </div>
@@ -1786,8 +1852,9 @@ export default function EquipmentBorrowClient({
               </div>
 
               {inspectModalData.items.every((it) => it.returnedQty >= it.quantity || it.status === 'CONSUMED') && (
-                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', borderRadius: '0.75rem', fontSize: '0.875rem' }}>
-                  ℹ️ รายการอุปกรณ์ทั้งหมดในคำขอนี้ได้รับการตรวจรับคืนครบแล้ว ท่านสามารถกดยืนยันเพื่อปิดคำขอและปรับสถานะเป็น &quot;ส่งคืนครบแล้ว&quot; ได้ทันที
+                <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', borderRadius: '0.75rem', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CheckCircle2 size={16} />
+                  <span>รายการอุปกรณ์ทั้งหมดในคำขอนี้ได้รับการตรวจรับคืนครบแล้ว ท่านสามารถกดยืนยันเพื่อปิดคำขอและปรับสถานะเป็น &quot;ส่งคืนครบแล้ว&quot; ได้ทันที</span>
                 </div>
               )}
 
@@ -1803,7 +1870,7 @@ export default function EquipmentBorrowClient({
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                           <span style={{ fontWeight: 600 }}>{item.itemName}</span>
                           <span style={{ fontSize: '0.85rem', color: remaining <= 0 ? '#16a34a' : '#64748b', fontWeight: remaining <= 0 ? 600 : 'normal' }}>
-                            {remaining <= 0 ? '✅ คืนครบแล้ว' : `ยืมไป: ${item.quantity} | คืนแล้ว: ${item.returnedQty} | ค้างคืน: ${remaining}`}
+                            {remaining <= 0 ? 'คืนครบแล้ว' : `ยืมไป: ${item.quantity} | คืนแล้ว: ${item.returnedQty} | ค้างคืน: ${remaining}`}
                           </span>
                         </div>
 
@@ -1840,9 +1907,9 @@ export default function EquipmentBorrowClient({
                                 })
                               }}
                             >
-                              <option value="NORMAL">✅ ปกติ (คืนสต็อกคลัง)</option>
-                              <option value="DAMAGED">⚠️ ชำรุด (ไม่คืนสต็อก)</option>
-                              <option value="LOST">❌ สูญหาย (ไม่คืนสต็อก)</option>
+                              <option value="NORMAL">ปกติ (คืนสต็อกคลัง)</option>
+                              <option value="DAMAGED">ชำรุด (ไม่คืนสต็อก)</option>
+                              <option value="LOST">สูญหาย (ไม่คืนสต็อก)</option>
                             </select>
                           </div>
 
@@ -1889,8 +1956,8 @@ export default function EquipmentBorrowClient({
         <div className="modalBackdrop">
           <div className="modalContent" style={{ maxWidth: '550px' }}>
             <div className="modalHeader">
-              <h2>{materialModalMode === 'create' ? '➕ เพิ่มรายการวัสดุใหม่' : '✏️ แก้ไขข้อมูลวัสดุ'}</h2>
-              <button onClick={() => setMaterialModalMode(null)} className="modalCloseBtn">
+              <h2>{materialModalMode === 'create' ? 'เพิ่มรายการวัสดุใหม่' : 'แก้ไขข้อมูลวัสดุ'}</h2>
+              <button onClick={() => setMaterialModalMode(null)} className="modalCloseBtn" aria-label="ปิดหน้าต่าง">
                 <X size={20} />
               </button>
             </div>
@@ -2059,10 +2126,14 @@ export default function EquipmentBorrowClient({
                       {viewDetailModalData.requesterName}
                     </div>
                     <div className="detailRequesterMeta">
-                      <span>🏢 {viewDetailModalData.requesterDept || 'ไม่ระบุแผนก'}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Building2 size={13} />
+                        {viewDetailModalData.requesterDept || 'ไม่ระบุแผนก'}
+                      </span>
                       {viewDetailModalData.phone && (
-                        <span>
-                          📞 <a href={`tel:${viewDetailModalData.phone}`} style={{ color: '#15856a', textDecoration: 'none' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Phone size={13} />
+                          <a href={`tel:${viewDetailModalData.phone}`} style={{ color: '#15856a', textDecoration: 'none' }}>
                             {viewDetailModalData.phone}
                           </a>
                         </span>
@@ -2192,11 +2263,11 @@ export default function EquipmentBorrowClient({
                           <td>
                             <div style={{ fontWeight: 500 }}>
                               {it.returnCondition === 'NORMAL'
-                                ? '✨ สภาพปกติ'
+                                ? 'สภาพปกติ'
                                 : it.returnCondition === 'DAMAGED'
-                                ? '⚠️ ชำรุด'
+                                ? 'ชำรุดเสียหาย'
                                 : it.returnCondition === 'LOST'
-                                ? '❌ สูญหาย'
+                                ? 'สูญหาย'
                                 : '-'}
                             </div>
                             {it.returnNotes && (

@@ -131,8 +131,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`/member/login?error=${errorParamPrefix}_exchange_failed`, baseUrl))
   }
 
-  // 3. Issue member session cookie
-  await createMemberSession(sessionPayload.username, sessionPayload.email, sessionPayload.role)
+  // 3. Issue member session cookie - Provider ID already logged explicit LOGIN
+  await createMemberSession(sessionPayload.username, sessionPayload.email, sessionPayload.role, { skipAudit: true })
 
   return NextResponse.redirect(new URL('/member', baseUrl))
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Package,
@@ -22,9 +22,16 @@ import {
   X,
   Building,
   Loader2,
+  Copy,
+  Check,
+  Filter,
+  DollarSign,
   Calendar,
-  DollarSign
+  Layers,
+  MapPin,
+  Tag
 } from 'lucide-react'
+import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import './assets.css'
 
 interface AssetStats {
@@ -92,9 +99,9 @@ export default function AssetsDashboardClient({
 
   // Filters & Pagination
   const [search, setSearch] = useState('')
-  const [category, setCategory] = useState('ALL')
-  const [warrantyStatus, setWarrantyStatus] = useState('ALL')
-  const [status, setStatus] = useState('ALL')
+  const [category, setCategory] = useState<'ALL' | 'IT' | 'MEDICAL' | 'GENERAL'>('ALL')
+  const [warrantyStatus, setWarrantyStatus] = useState<'ALL' | 'ACTIVE' | 'EXPIRED'>('ALL')
+  const [status, setStatus] = useState<'ALL' | 'ACTIVE' | 'IN_REPAIR' | 'STANDBY' | 'DISPOSED'>('ALL')
   const [sortBy, setSortBy] = useState('receivedDate')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
   const [page, setPage] = useState(1)
@@ -108,6 +115,9 @@ export default function AssetsDashboardClient({
   const [selectedRoomId, setSelectedRoomId] = useState<string>('')
   const [isCustomLocation, setIsCustomLocation] = useState(false)
 
+  // Clipboard copy state
+  const [copiedArticleNum, setCopiedArticleNum] = useState<string | null>(null)
+
   // Modals
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
   const [editingAsset, setEditingAsset] = useState<HospitalAssetItem | null>(null)
@@ -115,12 +125,29 @@ export default function AssetsDashboardClient({
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Notification Toast
-  const [notification, setNotification] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  // Toasts
+  const [toasts, setToasts] = useState<ToastMessage[]>([])
 
-  const showNotify = (text: string, type: 'success' | 'error' = 'success') => {
-    setNotification({ text, type })
-    setTimeout(() => setNotification(null), 4000)
+  const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    const id = Date.now().toString()
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedArticleNum(text)
+      addToast(`คัดลอก ${label} เรียบร้อยแล้ว`, 'success')
+      setTimeout(() => {
+        setCopiedArticleNum((prev) => (prev === text ? null : prev))
+      }, 2000)
+    } catch {
+      addToast('ไม่สามารถคัดลอกข้อความได้', 'error')
+    }
   }
 
   // Form State
@@ -169,10 +196,10 @@ export default function AssetsDashboardClient({
         setTotalPages(json.pagination?.totalPages || 1)
         setTotalCount(json.pagination?.total || 0)
       } else {
-        showNotify('ไม่สามารถดึงข้อมูลครุภัณฑ์ได้', 'error')
+        addToast('ไม่สามารถดึงข้อมูลครุภัณฑ์ได้', 'error')
       }
     } catch (err: any) {
-      showNotify(err.message, 'error')
+      addToast(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error')
     } finally {
       setLoading(false)
     }
@@ -208,7 +235,7 @@ export default function AssetsDashboardClient({
   }, [])
 
   // Unique Buildings
-  const buildingOptions = React.useMemo(() => {
+  const buildingOptions = useMemo(() => {
     const map = new Map<number, string>()
     locationsList.forEach((loc) => {
       if (loc.building_id && loc.building_name) {
@@ -219,7 +246,7 @@ export default function AssetsDashboardClient({
   }, [locationsList])
 
   // Floors for Selected Building
-  const floorOptions = React.useMemo(() => {
+  const floorOptions = useMemo(() => {
     if (!selectedBuildingId) return []
     const bId = Number(selectedBuildingId)
     const map = new Map<number, string>()
@@ -234,7 +261,7 @@ export default function AssetsDashboardClient({
   }, [locationsList, selectedBuildingId])
 
   // Rooms for Selected Building & Floor
-  const roomOptions = React.useMemo(() => {
+  const roomOptions = useMemo(() => {
     if (!selectedBuildingId) return []
     const bId = Number(selectedBuildingId)
     return locationsList.filter((loc) => {
@@ -259,14 +286,14 @@ export default function AssetsDashboardClient({
       })
       const json = await res.json()
       if (res.ok) {
-        showNotify(json.message || 'ซิงค์ข้อมูลสำเร็จ')
+        addToast(json.message || 'ซิงค์ข้อมูลจาก GTW สำเร็จ', 'success')
         fetchAssets()
         fetchStats()
       } else {
-        showNotify(json.error || 'เกิดข้อผิดพลาดในการซิงค์', 'error')
+        addToast(json.error || 'เกิดข้อผิดพลาดในการซิงค์ข้อมูล', 'error')
       }
     } catch (err: any) {
-      showNotify(err.message, 'error')
+      addToast(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error')
     } finally {
       setSyncing(false)
     }
@@ -371,7 +398,7 @@ export default function AssetsDashboardClient({
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.articleNum.trim() || !formData.name.trim()) {
-      showNotify('กรุณากรอกเลขครุภัณฑ์และชื่อครุภัณฑ์', 'error')
+      addToast('กรุณากรอกเลขครุภัณฑ์และชื่อครุภัณฑ์', 'error')
       return
     }
 
@@ -388,15 +415,15 @@ export default function AssetsDashboardClient({
 
       const json = await res.json()
       if (res.ok) {
-        showNotify(json.message || 'บันทึกข้อมูลเรียบร้อยแล้ว')
+        addToast(json.message || 'บันทึกข้อมูลครุภัณฑ์เรียบร้อยแล้ว', 'success')
         setIsFormModalOpen(false)
         fetchAssets()
         fetchStats()
       } else {
-        showNotify(json.error || 'เกิดข้อผิดพลาดในการบันทึก', 'error')
+        addToast(json.error || 'เกิดข้อผิดพลาดในการบันทึก', 'error')
       }
     } catch (err: any) {
-      showNotify(err.message, 'error')
+      addToast(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error')
     } finally {
       setIsSubmitting(false)
     }
@@ -412,15 +439,15 @@ export default function AssetsDashboardClient({
       })
       const json = await res.json()
       if (res.ok) {
-        showNotify(json.message || 'ลบข้อมูลเรียบร้อยแล้ว')
+        addToast(json.message || 'ลบข้อมูลครุภัณฑ์เรียบร้อยแล้ว', 'success')
         setDeleteTarget(null)
         fetchAssets()
         fetchStats()
       } else {
-        showNotify(json.error || 'เกิดข้อผิดพลาดในการลบ', 'error')
+        addToast(json.error || 'เกิดข้อผิดพลาดในการลบ', 'error')
       }
     } catch (err: any) {
-      showNotify(err.message, 'error')
+      addToast(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ', 'error')
     } finally {
       setIsDeleting(false)
     }
@@ -449,170 +476,274 @@ export default function AssetsDashboardClient({
     })
   }
 
+  const formatPrice = (price: number | null) => {
+    if (price === null || price === undefined) return '-'
+    return Number(price).toLocaleString('th-TH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + ' บาท'
+  }
+
+  const hasActiveFilters = Boolean(
+    search || category !== 'ALL' || warrantyStatus !== 'ALL' || status !== 'ALL'
+  )
+
+  const handleResetFilters = () => {
+    setSearch('')
+    setCategory('ALL')
+    setWarrantyStatus('ALL')
+    setStatus('ALL')
+    setPage(1)
+  }
+
   return (
     <div className="assetAdminContainer">
       <div className="assetAdminWrapper">
-        {/* Toast Notification */}
-        {notification && (
-          <div
-            style={{
-              position: 'fixed',
-              top: '20px',
-              right: '20px',
-              zIndex: 100,
-              background: notification.type === 'success' ? '#059669' : '#dc2626',
-              color: 'white',
-              padding: '0.75rem 1.25rem',
-              borderRadius: '0.75rem',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              fontWeight: 500,
-              fontSize: '0.9rem',
-            }}
-          >
-            {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-            <span>{notification.text}</span>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="assetHeaderCard">
-          <div className="assetHeaderLeft">
-            <div className="assetIconBadge">
-              <Package size={28} />
-            </div>
-            <div className="assetTitleArea">
-              <h1>ระบบจัดการข้อมูลครุภัณฑ์</h1>
-              <p>ทะเบียนครุภัณฑ์โรงพยาบาลเถิน ตรวจสอบสถานะการรับประกัน และเชื่อมโยงระบบแจ้งซ่อม</p>
-            </div>
-          </div>
-          <div className="assetHeaderActions">
-            <button
-              className="assetSyncBtn"
-              onClick={handleSyncGtw}
-              disabled={syncing}
-              title="ดึงข้อมูลล่าสุดจากฐานข้อมูล GTW"
-            >
-              <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-              <span>{syncing ? 'กำลังซิงค์ GTW...' : 'ซิงค์ข้อมูลจาก GTW'}</span>
-            </button>
-            <button className="assetPrimaryBtn" onClick={handleOpenCreateModal}>
-              <Plus size={16} />
-              <span>เพิ่มครุภัณฑ์</span>
-            </button>
+        {/* Header Card */}
+        <header className="assetHeaderCard">
+          <div className="assetHeaderTop">
             <Link href="/member" className="assetBackBtn">
               <ArrowLeft size={16} />
-              <span>กลับหน้าสมาชิก</span>
+              <span>กลับสู่ศูนย์ควบคุมสมาชิก</span>
             </Link>
-          </div>
-        </div>
 
-        {/* Stats Grid */}
-        <div className="assetStatsGrid">
-          <div className="assetStatCard">
-            <div className="assetStatIcon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-              <Package size={24} />
-            </div>
-            <div className="assetStatContent">
-              <span className="assetStatLabel">ครุภัณฑ์ทั้งหมด</span>
-              <span className="assetStatValue">{stats.totalAssets.toLocaleString()} ชิ้น</span>
+            <div className="assetHeaderBadges">
+              <div className="assetSystemBadge" title="ระบบจัดการทะเบียนครุภัณฑ์และตรวจรับพัสดุ">
+                <span className="assetLiveDot" aria-hidden="true"></span>
+                <span>ระบบจัดการข้อมูลครุภัณฑ์ • โรงพยาบาลเถิน</span>
+              </div>
             </div>
           </div>
 
+          <div className="assetHeaderMain">
+            <div className="assetHeaderLeft">
+              <div className="assetIconBadge" aria-hidden="true">
+                <Package size={24} />
+              </div>
+              <div className="assetTitleArea">
+                <div className="assetTitleRow">
+                  <h1>ระบบจัดการข้อมูลครุภัณฑ์</h1>
+                </div>
+                <p>
+                  ทะเบียนและตรวจสอบสถานะครุภัณฑ์โรงพยาบาลเถิน ตรวจสอบระยะเวลารับประกัน 
+                  สถานที่ติดตั้ง โครงสร้างอาคาร และเชื่อมโยงประวัติงานซ่อมบำรุง
+                </p>
+              </div>
+            </div>
+
+            <div className="assetHeaderActions">
+              <button
+                type="button"
+                className="assetSyncBtn"
+                onClick={handleSyncGtw}
+                disabled={syncing || loading}
+                title="ดึงข้อมูลครุภัณฑ์ล่าสุดจากฐานข้อมูลระบบ GTW"
+              >
+                <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
+                <span>{syncing ? 'กำลังซิงค์ GTW...' : 'ซิงค์ข้อมูลจาก GTW'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="assetPrimaryBtn"
+                onClick={handleOpenCreateModal}
+              >
+                <Plus size={16} />
+                <span>เพิ่มครุภัณฑ์ใหม่</span>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Stats KPI Dashboard Grid */}
+        <section className="assetStatsGrid" aria-label="สถิติครุภัณฑ์โรงพยาบาล">
+          {/* Card 1: Total */}
           <div className="assetStatCard">
-            <div className="assetStatIcon" style={{ background: '#ecfdf5', color: '#059669' }}>
-              <ShieldCheck size={24} />
+            <div className="assetStatCardHeader">
+              <div className="assetStatIconWrapper statIconTotal" aria-hidden="true">
+                <Package size={18} />
+              </div>
+              <span className="assetStatBadge">ทะเบียนทั้งหมด</span>
             </div>
             <div className="assetStatContent">
-              <span className="assetStatLabel">อยู่ในระยะประกัน</span>
-              <span className="assetStatValue" style={{ color: '#059669' }}>
-                {stats.activeWarrantyCount.toLocaleString()} ชิ้น
+              <span className="assetStatLabel">ครุภัณฑ์ทั้งหมด (Total Assets)</span>
+              <span className="assetStatValue">{stats.totalAssets.toLocaleString()}</span>
+              <span className="assetStatSubtext">
+                IT: {stats.itCount} • แพทย์: {stats.medicalCount} • ทั่วไป: {stats.generalCount}
               </span>
             </div>
           </div>
 
+          {/* Card 2: Active Warranty */}
           <div className="assetStatCard">
-            <div className="assetStatIcon" style={{ background: '#eff6ff', color: '#3b82f6' }}>
-              <Monitor size={24} />
+            <div className="assetStatCardHeader">
+              <div className="assetStatIconWrapper statIconWarranty" aria-hidden="true">
+                <ShieldCheck size={18} />
+              </div>
+              <span className="assetStatBadge assetStatBadgeSuccess">พร้อมเคลมประกัน</span>
             </div>
             <div className="assetStatContent">
-              <span className="assetStatLabel">คอมพิวเตอร์ & IT</span>
-              <span className="assetStatValue">{stats.itCount.toLocaleString()} ชิ้น</span>
+              <span className="assetStatLabel">อยู่ในระยะรับประกัน (In Warranty)</span>
+              <span className="assetStatValue" style={{ color: '#047857' }}>
+                {stats.activeWarrantyCount.toLocaleString()}
+              </span>
+              <span className="assetStatSubtext">
+                {stats.expiredWarrantyCount.toLocaleString()} รายการหมดระยะประกันแล้ว
+              </span>
             </div>
           </div>
 
+          {/* Card 3: IT Assets */}
           <div className="assetStatCard">
-            <div className="assetStatIcon" style={{ background: '#fef2f2', color: '#dc2626' }}>
-              <HeartPulse size={24} />
+            <div className="assetStatCardHeader">
+              <div className="assetStatIconWrapper statIconIt" aria-hidden="true">
+                <Monitor size={18} />
+              </div>
+              <span className="assetStatBadge">คอมพิวเตอร์ & IT</span>
             </div>
             <div className="assetStatContent">
-              <span className="assetStatLabel">เครื่องมือแพทย์</span>
-              <span className="assetStatValue">{stats.medicalCount.toLocaleString()} ชิ้น</span>
+              <span className="assetStatLabel">อุปกรณ์ IT & เครือข่าย (IT Assets)</span>
+              <span className="assetStatValue">{stats.itCount.toLocaleString()}</span>
+              <span className="assetStatSubtext">
+                คอมพิวเตอร์, เซิร์ฟเวอร์, ปริ้นเตอร์ และสวิตช์
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Filters */}
-        <div className="assetFilterCard">
-          <div className="assetFilterRow">
+          {/* Card 4: Medical Equipment */}
+          <div className="assetStatCard">
+            <div className="assetStatCardHeader">
+              <div className="assetStatIconWrapper statIconMedical" aria-hidden="true">
+                <HeartPulse size={18} />
+              </div>
+              <span className="assetStatBadge">เครื่องมือแพทย์</span>
+            </div>
+            <div className="assetStatContent">
+              <span className="assetStatLabel">เครื่องมือแพทย์ (Medical)</span>
+              <span className="assetStatValue">{stats.medicalCount.toLocaleString()}</span>
+              <span className="assetStatSubtext">
+                อุปกรณ์การแพทย์ช่วยชีวิตและตรวจรักษา
+              </span>
+            </div>
+          </div>
+
+          {/* Card 5: In Repair */}
+          <div className="assetStatCard">
+            <div className="assetStatCardHeader">
+              <div className="assetStatIconWrapper statIconRepair" aria-hidden="true">
+                <Wrench size={18} />
+              </div>
+              <span className="assetStatBadge assetStatBadgeAmber">ส่งซ่อมบำรุง</span>
+            </div>
+            <div className="assetStatContent">
+              <span className="assetStatLabel">อยู่ระหว่างส่งซ่อม (In Repair)</span>
+              <span className="assetStatValue" style={{ color: '#b45309' }}>
+                {stats.inRepairCount.toLocaleString()}
+              </span>
+              <span className="assetStatSubtext">
+                ประสานงานช่างและรอตรวจรับคืนงานซ่อม
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {/* Filter Card & Segmented Category Pills */}
+        <section className="assetFilterCard" aria-label="ตัวกรองและค้นหาครุภัณฑ์">
+          {/* Segmented Category Tabs */}
+          <div className="assetCategoryTabsRow">
+            <span className="assetCategoryTabsLabel">
+              <Filter size={14} />
+              <span>หมวดหมู่ครุภัณฑ์:</span>
+            </span>
+            <div className="assetCategoryTabsList" role="tablist" aria-label="เลือกหมวดหมู่ครุภัณฑ์">
+              {[
+                { id: 'ALL', label: 'ทั้งหมด', count: stats.totalAssets },
+                { id: 'IT', label: 'คอมพิวเตอร์ & IT', count: stats.itCount },
+                { id: 'MEDICAL', label: 'เครื่องมือแพทย์', count: stats.medicalCount },
+                { id: 'GENERAL', label: 'ครุภัณฑ์ทั่วไป', count: stats.generalCount },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={category === tab.id}
+                  className={`assetCategoryTab ${category === tab.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setCategory(tab.id as any)
+                    setPage(1)
+                  }}
+                >
+                  <span>{tab.label}</span>
+                  <span className="assetCategoryTabCount">{tab.count.toLocaleString()}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Secondary Filter Toolbar */}
+          <div className="assetFilterToolbar">
+            {/* Search Input */}
             <div className="assetSearchWrapper">
-              <Search size={18} className="assetSearchIcon" />
+              <Search size={16} className="assetSearchIcon" />
               <input
                 type="text"
                 className="assetSearchInput"
-                placeholder="ค้นหาเลขครุภัณฑ์, ชื่อรายการ, รุ่น, S/N หรือแผนก..."
+                placeholder="ค้นหาเลขครุภัณฑ์, ชื่อรายการ, ยี่ห้อ, รุ่น, S/N, แผนก หรือสถานที่..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value)
                   setPage(1)
                 }}
               />
+              {search && (
+                <button
+                  type="button"
+                  className="assetClearSearchBtn"
+                  onClick={() => {
+                    setSearch('')
+                    setPage(1)
+                  }}
+                  title="ล้างคำค้นหา"
+                  aria-label="ล้างคำค้นหา"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
-            <select
-              className="assetSelect"
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value)
-                setPage(1)
-              }}
-            >
-              <option value="ALL">ทุกหมวดหมู่</option>
-              <option value="IT">คอมพิวเตอร์ & IT</option>
-              <option value="MEDICAL">เครื่องมือแพทย์</option>
-              <option value="GENERAL">ครุภัณฑ์ทั่วไป/สำนักงาน</option>
-            </select>
-
+            {/* Warranty Status Filter */}
             <select
               className="assetSelect"
               value={warrantyStatus}
               onChange={(e) => {
-                setWarrantyStatus(e.target.value)
+                setWarrantyStatus(e.target.value as any)
                 setPage(1)
               }}
+              aria-label="กรองสถานะการรับประกัน"
             >
               <option value="ALL">สถานะประกันทั้งหมด</option>
               <option value="ACTIVE">อยู่ในระยะประกัน (Active)</option>
-              <option value="EXPIRED">หมดประกันแล้ว</option>
+              <option value="EXPIRED">หมดระยะประกันแล้ว (Expired)</option>
             </select>
 
+            {/* Asset Condition Status Filter */}
             <select
               className="assetSelect"
               value={status}
               onChange={(e) => {
-                setStatus(e.target.value)
+                setStatus(e.target.value as any)
                 setPage(1)
               }}
+              aria-label="กรองสถานะการใช้งานเครื่อง"
             >
               <option value="ALL">สถานะเครื่องทั้งหมด</option>
-              <option value="ACTIVE">ใช้งานปกติ (Active)</option>
+              <option value="ACTIVE">พร้อมใช้งาน (Active)</option>
               <option value="IN_REPAIR">กำลังส่งซ่อม (In Repair)</option>
               <option value="STANDBY">เครื่องสำรอง (Standby)</option>
               <option value="DISPOSED">แทงจำหน่าย (Disposed)</option>
             </select>
 
+            {/* Sort Options */}
             <select
               className="assetSelect"
               value={`${sortBy}_${sortOrder}`}
@@ -639,486 +770,842 @@ export default function AssetsDashboardClient({
                 }
                 setPage(1)
               }}
+              aria-label="เรียงลำดับรายการครุภัณฑ์"
             >
-              <option value="receivedDate_desc">เรียงจาก: วันตรวจรับพัสดุ (ใหม่ ➔ เก่า)</option>
-              <option value="receivedDate_asc">เรียงจาก: วันตรวจรับพัสดุ (เก่า ➔ ใหม่)</option>
-              <option value="createdAt_desc">เรียงจาก: วันที่นำเข้าระบบล่าสุด (ID ล่าสุด)</option>
-              <option value="warrantyEndDate_asc">เรียงจาก: วันประกันใกล้หมดอายุ</option>
-              <option value="price_desc">เรียงจาก: ราคาสูง ➔ ต่ำ</option>
-              <option value="articleNum_asc">เรียงตาม: เลขครุภัณฑ์ (0-9 / ก-ฮ)</option>
+              <option value="receivedDate_desc">เรียงจาก: ตรวจรับล่าสุด (ใหม่ → เก่า)</option>
+              <option value="receivedDate_asc">เรียงจาก: ตรวจรับ (เก่า → ใหม่)</option>
+              <option value="createdAt_desc">เรียงจาก: นำเข้าสู่ระบบล่าสุด</option>
+              <option value="warrantyEndDate_asc">เรียงจาก: ประกันใกล้หมดอายุ</option>
+              <option value="price_desc">เรียงจาก: ราคาสูง → ต่ำ</option>
+              <option value="articleNum_asc">เรียงจาก: เลขครุภัณฑ์ (ก-ฮ / 0-9)</option>
             </select>
           </div>
-        </div>
 
-        {/* Data Table */}
-        <div className="assetTableCard">
-          <div className="assetTableContainer">
-            <table className="assetTable">
-              <thead>
-                <tr>
-                  <th>เลขครุภัณฑ์ / FSN</th>
-                  <th>ชื่อรายการ / รุ่น</th>
-                  <th>หมวดหมู่</th>
-                  <th>แผนก / ที่ตั้ง</th>
-                  <th>สถานะประกัน</th>
-                  <th>วันที่ตรวจรับ</th>
-                  <th>สถานะเครื่อง</th>
-                  <th style={{ textAlign: 'center' }}>จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                      <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 0.5rem', color: '#0284c7' }} />
-                      <p style={{ color: '#64748b', fontSize: '0.9rem' }}>กำลังโหลดข้อมูลครุภัณฑ์...</p>
-                    </td>
-                  </tr>
-                ) : assets.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                      <Package size={40} style={{ margin: '0 auto 0.5rem', color: '#94a3b8' }} />
-                      <p style={{ fontWeight: 600, color: '#334155', margin: '0 0 0.25rem' }}>ไม่พบข้อมูลครุภัณฑ์</p>
-                      <p style={{ color: '#64748b', fontSize: '0.85rem' }}>
-                        ลองเปลี่ยนคำค้นหา หรือกดปุ่ม <strong>"ซิงค์ข้อมูลจาก GTW"</strong> เพื่อนำเข้าข้อมูล
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  assets.map((item) => {
-                    const underWarranty = isUnderWarranty(item)
-                    return (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="assetNumCell">
-                            <span>{item.articleNum}</span>
-                            {item.fsnNum && <span className="assetFsnSub">FSN: {item.fsnNum}</span>}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="assetNameCell">{item.name}</div>
-                          {(item.brand || item.model || item.serialNo) && (
-                            <div className="assetModelSub">
-                              {[item.brand, item.model, item.serialNo ? `S/N: ${item.serialNo}` : null]
-                                .filter(Boolean)
-                                .join(' • ')}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          {item.category === 'IT' && <span className="badge badgeCategoryIt">IT & Network</span>}
-                          {item.category === 'MEDICAL' && <span className="badge badgeCategoryMedical">เครื่องมือแพทย์</span>}
-                          {item.category === 'GENERAL' && <span className="badge badgeCategoryGeneral">ครุภัณฑ์ทั่วไป</span>}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 500 }}>{item.department || '-'}</div>
-                          {item.locationFullName && (
-                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{item.locationFullName}</div>
-                          )}
-                        </td>
-                        <td>
-                          {underWarranty ? (
-                            <span className="badge badgeWarrantyActive">
-                              <ShieldCheck size={12} />
-                              <span>ในประกัน ({formatThaiDate(item.warrantyEndDate || item.expireDate)})</span>
-                            </span>
-                          ) : (
-                            <span className="badge badgeWarrantyExpired">
-                              <span>หมดประกัน</span>
-                            </span>
-                          )}
-                        </td>
-                        <td>{formatThaiDate(item.receivedDate)}</td>
-                        <td>
-                          {item.status === 'ACTIVE' && <span className="badge badgeStatusActive">พร้อมใช้งาน</span>}
-                          {item.status === 'IN_REPAIR' && <span className="badge badgeStatusRepair">กำลังซ่อม</span>}
-                          {item.status === 'STANDBY' && <span className="badge badgeCategoryGeneral">สำรอง</span>}
-                          {item.status === 'DISPOSED' && <span className="badge badgeStatusDisposed">แทงจำหน่าย</span>}
-                        </td>
-                        <td>
-                          <div className="actionBtnGroup" style={{ justifyContent: 'center' }}>
-                            <button
-                              className="actionIconBtn edit"
-                              onClick={() => handleOpenEditModal(item)}
-                              title="แก้ไขข้อมูลครุภัณฑ์"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              className="actionIconBtn delete"
-                              onClick={() => setDeleteTarget(item)}
-                              title="ลบข้อมูลครุภัณฑ์"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
+          {/* Active filter summary row */}
+          {hasActiveFilters && (
+            <div className="assetFilterStatusRow">
+              <div className="assetActiveFilters">
+                <span className="assetFilterStatusNote">ตัวกรองที่ใช้งาน:</span>
+                {search && (
+                  <span className="assetFilterTag">
+                    คำค้น: &ldquo;{search}&rdquo;
+                    <button type="button" onClick={() => setSearch('')} aria-label="ลบตัวกรองคำค้นหา">
+                      <X size={12} />
+                    </button>
+                  </span>
                 )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {!loading && assets.length > 0 && (
-            <div className="assetPagination">
-              <span>
-                แสดงรายการที่ {(page - 1) * 20 + 1} - {Math.min(page * 20, totalCount)} จากทั้งหมด {totalCount.toLocaleString()} รายการ
-              </span>
-              <div className="paginationBtnGroup">
-                <button
-                  className="paginationBtn"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                >
-                  <ChevronLeft size={16} />
-                  <span>ก่อนหน้า</span>
-                </button>
-                <span style={{ margin: '0 0.5rem', fontWeight: 600, color: '#0f172a' }}>
-                  หน้า {page} / {totalPages}
-                </span>
-                <button
-                  className="paginationBtn"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                >
-                  <span>ถัดไป</span>
-                  <ChevronRight size={16} />
-                </button>
+                {category !== 'ALL' && (
+                  <span className="assetFilterTag">
+                    หมวด: {category}
+                    <button type="button" onClick={() => setCategory('ALL')} aria-label="ลบตัวกรองหมวดหมู่">
+                      <X size={12} />
+                    </button>
+                  </span>
+                )}
+                {warrantyStatus !== 'ALL' && (
+                  <span className="assetFilterTag">
+                    ประกัน: {warrantyStatus === 'ACTIVE' ? 'ในประกัน' : 'หมดประกัน'}
+                    <button type="button" onClick={() => setWarrantyStatus('ALL')} aria-label="ลบตัวกรองประกัน">
+                      <X size={12} />
+                    </button>
+                  </span>
+                )}
+                {status !== 'ALL' && (
+                  <span className="assetFilterTag">
+                    สถานะ: {status}
+                    <button type="button" onClick={() => setStatus('ALL')} aria-label="ลบตัวกรองสถานะ">
+                      <X size={12} />
+                    </button>
+                  </span>
+                )}
               </div>
+
+              <button type="button" className="assetResetFilterBtn" onClick={handleResetFilters}>
+                <RefreshCw size={13} />
+                <span>ล้างตัวกรองทั้งหมด</span>
+              </button>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Modal Create / Edit */}
+        {/* Data Table & Responsive List Container */}
+        <section className="assetTableCard" aria-label="ตารางข้อมูลทะเบียนครุภัณฑ์">
+          <div className="assetTableTopBar">
+            <div className="assetTableTitle">
+              <h3>รายการทะเบียนครุภัณฑ์ ({totalCount.toLocaleString()} รายการ)</h3>
+              <span className="assetTableSubtitle">
+                แสดงผลหน้าละ 20 รายการ • จัดการสถานะประกันและสถานที่ติดตั้ง
+              </span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '3.5rem 1rem' }}>
+              <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 0.75rem', color: '#15856a' }} />
+              <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>กำลังโหลดข้อมูลครุภัณฑ์...</p>
+            </div>
+          ) : assets.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3.5rem 1rem' }}>
+              <Package size={40} style={{ margin: '0 auto 0.75rem', color: '#94a3b8' }} />
+              <p style={{ fontWeight: 700, color: '#0f172a', margin: '0 0 0.35rem', fontSize: '1.05rem' }}>
+                ไม่พบข้อมูลครุภัณฑ์
+              </p>
+              <p style={{ color: '#64748b', fontSize: '0.875rem', margin: '0 auto', maxWidth: '420px' }}>
+                {hasActiveFilters
+                  ? 'ไม่มีรายการที่ตรงกับเงื่อนไขการค้นหา ลองปรับตัวกรองหรือล้างการค้นหา'
+                  : 'ยังไม่มีข้อมูลครุภัณฑ์ในระบบ กดปุ่ม "ซิงค์ข้อมูลจาก GTW" หรือ "เพิ่มครุภัณฑ์ใหม่" เพื่อเริ่มต้น'}
+              </p>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="assetResetFilterBtn"
+                  style={{ marginTop: '1rem', display: 'inline-flex' }}
+                  onClick={handleResetFilters}
+                >
+                  <RefreshCw size={14} />
+                  <span>ล้างตัวกรองเพื่อดูทั้งหมด</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Desktop Table View (>= 861px) */}
+              <div className="desktopTableContainer">
+                <div className="tableWrapper">
+                  <table className="assetTable">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="col-asset-num">เลขครุภัณฑ์ / FSN</th>
+                        <th scope="col" className="col-asset-name">ชื่อรายการ / รุ่น</th>
+                        <th scope="col" className="col-asset-category">หมวดหมู่</th>
+                        <th scope="col" className="col-asset-location">แผนก / สถานที่ติดตั้ง</th>
+                        <th scope="col" className="col-asset-warranty">สถานะประกัน</th>
+                        <th scope="col" className="col-asset-date">วันตรวจรับ / ราคา</th>
+                        <th scope="col" className="col-asset-status">สถานะเครื่อง</th>
+                        <th scope="col" className="col-asset-actions">จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assets.map((item) => {
+                        const underWarranty = isUnderWarranty(item)
+                        const isCopied = copiedArticleNum === item.articleNum
+
+                        return (
+                          <tr key={item.id} className="assetRow">
+                            <td className="col-asset-num">
+                              <div className="assetNumCell">
+                                <span className="assetNumCode" title={item.articleNum}>
+                                  {item.articleNum}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="assetCopyBtn"
+                                  onClick={() => copyToClipboard(item.articleNum, `เลขครุภัณฑ์ ${item.articleNum}`)}
+                                  title="คัดลอกเลขครุภัณฑ์"
+                                  aria-label="คัดลอกเลขครุภัณฑ์"
+                                >
+                                  {isCopied ? (
+                                    <Check size={13} className="assetCopySuccess" />
+                                  ) : (
+                                    <Copy size={13} />
+                                  )}
+                                </button>
+                              </div>
+                              {item.fsnNum && (
+                                <span className="assetFsnSub">FSN: {item.fsnNum}</span>
+                              )}
+                            </td>
+
+                            <td className="col-asset-name">
+                              <div className="assetNameCell">
+                                <span className="assetNamePrimary" title={item.name}>
+                                  {item.name}
+                                </span>
+                                {(item.brand || item.model || item.serialNo) && (
+                                  <span className="assetMetaSub">
+                                    {[item.brand, item.model, item.serialNo ? `S/N: ${item.serialNo}` : null]
+                                      .filter(Boolean)
+                                      .join(' • ')}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            <td className="col-asset-category">
+                              {item.category === 'IT' && (
+                                <span className="badge badgeCategoryIt">IT & Network</span>
+                              )}
+                              {item.category === 'MEDICAL' && (
+                                <span className="badge badgeCategoryMedical">เครื่องมือแพทย์</span>
+                              )}
+                              {item.category === 'GENERAL' && (
+                                <span className="badge badgeCategoryGeneral">ครุภัณฑ์ทั่วไป</span>
+                              )}
+                            </td>
+
+                            <td className="col-asset-location">
+                              <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.85rem' }}>
+                                {item.department || '-'}
+                              </div>
+                              {item.locationFullName && (
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.15rem' }}>
+                                  <MapPin size={11} />
+                                  <span>{item.locationFullName}</span>
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="col-asset-warranty">
+                              {underWarranty ? (
+                                <span className="badge badgeWarrantyActive">
+                                  <ShieldCheck size={12} />
+                                  <span>ในประกัน ({formatThaiDate(item.warrantyEndDate || item.expireDate)})</span>
+                                </span>
+                              ) : (
+                                <span className="badge badgeWarrantyExpired">
+                                  <ShieldAlert size={12} />
+                                  <span>หมดประกันแล้ว</span>
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="col-asset-date">
+                              <div style={{ fontSize: '0.8125rem', color: '#0f172a', fontWeight: 500 }}>
+                                {formatThaiDate(item.receivedDate)}
+                              </div>
+                              {item.price !== null && item.price !== undefined && (
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                                  {formatPrice(item.price)}
+                                </div>
+                              )}
+                            </td>
+
+                            <td className="col-asset-status">
+                              {item.status === 'ACTIVE' && (
+                                <span className="badge badgeStatusActive">
+                                  <span className="badgeStatusDot" aria-hidden="true"></span>
+                                  <span>พร้อมใช้งาน</span>
+                                </span>
+                              )}
+                              {item.status === 'IN_REPAIR' && (
+                                <span className="badge badgeStatusRepair">
+                                  <span className="badgeStatusDot" aria-hidden="true"></span>
+                                  <span>กำลังส่งซ่อม</span>
+                                </span>
+                              )}
+                              {item.status === 'STANDBY' && (
+                                <span className="badge badgeStatusStandby">
+                                  <span className="badgeStatusDot" aria-hidden="true"></span>
+                                  <span>เครื่องสำรอง</span>
+                                </span>
+                              )}
+                              {item.status === 'DISPOSED' && (
+                                <span className="badge badgeStatusDisposed">
+                                  <span className="badgeStatusDot" aria-hidden="true"></span>
+                                  <span>แทงจำหน่าย</span>
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="col-asset-actions">
+                              <div className="actionBtnGroup">
+                                <button
+                                  type="button"
+                                  className="actionIconBtn edit"
+                                  onClick={() => handleOpenEditModal(item)}
+                                  title="แก้ไขข้อมูลครุภัณฑ์"
+                                  aria-label={`แก้ไขครุภัณฑ์ ${item.name}`}
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="actionIconBtn delete"
+                                  onClick={() => setDeleteTarget(item)}
+                                  title="ลบข้อมูลครุภัณฑ์"
+                                  aria-label={`ลบครุภัณฑ์ ${item.name}`}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Mobile / Tablet Responsive Cards View (<= 860px) */}
+              <div className="mobileCardsContainer">
+                {assets.map((item) => {
+                  const underWarranty = isUnderWarranty(item)
+                  const isCopied = copiedArticleNum === item.articleNum
+
+                  return (
+                    <div key={item.id} className="mobileAssetCard">
+                      <div className="mobileAssetTop">
+                        <div className="mobileAssetNumWrap">
+                          <div className="assetNumCell">
+                            <span className="assetNumCode">{item.articleNum}</span>
+                            <button
+                              type="button"
+                              className="assetCopyBtn"
+                              onClick={() => copyToClipboard(item.articleNum, `เลขครุภัณฑ์ ${item.articleNum}`)}
+                              title="คัดลอกเลขครุภัณฑ์"
+                            >
+                              {isCopied ? <Check size={12} className="assetCopySuccess" /> : <Copy size={12} />}
+                            </button>
+                          </div>
+                          {item.fsnNum && <span className="assetFsnSub">FSN: {item.fsnNum}</span>}
+                        </div>
+
+                        <div className="mobileAssetBadges">
+                          {item.category === 'IT' && <span className="badge badgeCategoryIt">IT</span>}
+                          {item.category === 'MEDICAL' && <span className="badge badgeCategoryMedical">แพทย์</span>}
+                          {item.category === 'GENERAL' && <span className="badge badgeCategoryGeneral">ทั่วไป</span>}
+
+                          {item.status === 'ACTIVE' && (
+                            <span className="badge badgeStatusActive">
+                              <span className="badgeStatusDot"></span>
+                              <span>พร้อมใช้</span>
+                            </span>
+                          )}
+                          {item.status === 'IN_REPAIR' && (
+                            <span className="badge badgeStatusRepair">
+                              <span className="badgeStatusDot"></span>
+                              <span>ส่งซ่อม</span>
+                            </span>
+                          )}
+                          {item.status === 'STANDBY' && (
+                            <span className="badge badgeStatusStandby">
+                              <span className="badgeStatusDot"></span>
+                              <span>สำรอง</span>
+                            </span>
+                          )}
+                          {item.status === 'DISPOSED' && (
+                            <span className="badge badgeStatusDisposed">
+                              <span className="badgeStatusDot"></span>
+                              <span>จำหน่าย</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mobileAssetBody">
+                        <div className="mobileAssetName">{item.name}</div>
+                        {(item.brand || item.model || item.serialNo) && (
+                          <div className="assetMetaSub">
+                            {[item.brand, item.model, item.serialNo ? `S/N: ${item.serialNo}` : null]
+                              .filter(Boolean)
+                              .join(' • ')}
+                          </div>
+                        )}
+
+                        <div className="mobileAssetMetaGrid">
+                          <div className="mobileAssetMetaItem">
+                            <span className="mobileAssetMetaLabel">แผนก:</span>
+                            <span className="mobileAssetMetaValue">{item.department || '-'}</span>
+                          </div>
+                          <div className="mobileAssetMetaItem">
+                            <span className="mobileAssetMetaLabel">ตรวจรับ:</span>
+                            <span className="mobileAssetMetaValue">{formatThaiDate(item.receivedDate)}</span>
+                          </div>
+                          {item.locationFullName && (
+                            <div className="mobileAssetMetaItem fullWidth">
+                              <span className="mobileAssetMetaLabel">ที่ตั้ง:</span>
+                              <span className="mobileAssetMetaValue">{item.locationFullName}</span>
+                            </div>
+                          )}
+                          <div className="mobileAssetMetaItem fullWidth">
+                            <span className="mobileAssetMetaLabel">ประกัน:</span>
+                            {underWarranty ? (
+                              <span className="badge badgeWarrantyActive" style={{ padding: '0.15rem 0.45rem' }}>
+                                <ShieldCheck size={11} />
+                                <span>ในประกัน ({formatThaiDate(item.warrantyEndDate || item.expireDate)})</span>
+                              </span>
+                            ) : (
+                              <span className="badge badgeWarrantyExpired" style={{ padding: '0.15rem 0.45rem' }}>
+                                <ShieldAlert size={11} />
+                                <span>หมดประกัน</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mobileAssetFooter">
+                        <span style={{ fontSize: '0.78rem', color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                          {item.price ? formatPrice(item.price) : ''}
+                        </span>
+                        <div className="mobileAssetActions">
+                          <button
+                            type="button"
+                            className="mobileBtnEdit"
+                            onClick={() => handleOpenEditModal(item)}
+                          >
+                            <Edit2 size={13} />
+                            <span>แก้ไข</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="mobileBtnDelete"
+                            onClick={() => setDeleteTarget(item)}
+                          >
+                            <Trash2 size={13} />
+                            <span>ลบ</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalCount > 0 && (
+                <div className="assetPagination">
+                  <div className="assetPaginationInfo">
+                    แสดงผล <span>{(page - 1) * 20 + 1} - {Math.min(page * 20, totalCount)}</span> จากทั้งหมด <span>{totalCount.toLocaleString()}</span> รายการ
+                  </div>
+
+                  <div className="paginationBtnGroup">
+                    <button
+                      type="button"
+                      className="paginationBtn paginationBtnSquare"
+                      onClick={() => setPage(1)}
+                      disabled={page <= 1 || loading}
+                      title="หน้าแรก"
+                      aria-label="หน้าแรก"
+                    >
+                      «
+                    </button>
+                    <button
+                      type="button"
+                      className="paginationBtn"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1 || loading}
+                    >
+                      <ChevronLeft size={15} />
+                      <span>ก่อนหน้า</span>
+                    </button>
+
+                    <div className="paginationPageIndicator">
+                      หน้า <strong>{page}</strong> จาก <strong>{totalPages || 1}</strong>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="paginationBtn"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages || loading}
+                    >
+                      <span>ถัดไป</span>
+                      <ChevronRight size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="paginationBtn paginationBtnSquare"
+                      onClick={() => setPage(totalPages)}
+                      disabled={page >= totalPages || loading}
+                      title="หน้าสุดท้าย"
+                      aria-label="หน้าสุดท้าย"
+                    >
+                      »
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* Create / Edit Modal Dialog */}
         {isFormModalOpen && (
-          <div className="modalBackdrop" onClick={() => !isSubmitting && setIsFormModalOpen(false)}>
+          <div className="modalBackdrop" onClick={() => !isSubmitting && setIsFormModalOpen(false)} role="dialog" aria-modal="true">
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
               <div className="modalHeader">
-                <h3>{editingAsset ? 'แก้ไขข้อมูลครุภัณฑ์' : 'เพิ่มข้อมูลครุภัณฑ์ใหม่'}</h3>
+                <div className="modalHeaderLeft">
+                  <div className="modalHeaderIcon" aria-hidden="true">
+                    <Package size={20} />
+                  </div>
+                  <div>
+                    <h3>{editingAsset ? 'แก้ไขข้อมูลครุภัณฑ์' : 'เพิ่มทะเบียนครุภัณฑ์ใหม่'}</h3>
+                    <span className="modalHeaderSub">
+                      {editingAsset ? `รหัสครุภัณฑ์ ID #${editingAsset.id}` : 'กรอกรายละเอียดพัสดุและจัดเก็บข้อมูล'}
+                    </span>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   className="modalCloseBtn"
                   onClick={() => !isSubmitting && setIsFormModalOpen(false)}
+                  aria-label="ปิดหน้าต่าง"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
+
               <form onSubmit={handleSubmitForm} className="modalForm">
                 <div className="modalBody">
-                  <div className="formGrid2">
+                  {/* Section 1: Basic Information */}
+                  <div className="formSection">
+                    <div className="formSectionHeader">
+                      <Tag size={14} />
+                      <span>1. ข้อมูลระบุตัวตนครุภัณฑ์ (Identity)</span>
+                    </div>
+
+                    <div className="formGrid2">
+                      <div className="formGroup">
+                        <label htmlFor="field-articleNum">เลขครุภัณฑ์ *</label>
+                        <input
+                          id="field-articleNum"
+                          type="text"
+                          className="formInput"
+                          placeholder="เช่น 7440-013-0007/154/69"
+                          value={formData.articleNum}
+                          onChange={(e) => setFormData({ ...formData, articleNum: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="formGroup">
+                        <label htmlFor="field-fsnNum">รหัสกลุ่ม FSN</label>
+                        <input
+                          id="field-fsnNum"
+                          type="text"
+                          className="formInput"
+                          placeholder="เช่น 7440-013-0007"
+                          value={formData.fsnNum}
+                          onChange={(e) => setFormData({ ...formData, fsnNum: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
                     <div className="formGroup">
-                      <label>เลขครุภัณฑ์ *</label>
+                      <label htmlFor="field-name">ชื่อรายการครุภัณฑ์ *</label>
                       <input
+                        id="field-name"
                         type="text"
                         className="formInput"
-                        placeholder="เช่น 7440-013-0007/154/69"
-                        value={formData.articleNum}
-                        onChange={(e) => setFormData({ ...formData, articleNum: e.target.value })}
+                        placeholder="เช่น คอมพิวเตอร์ประมวลผลแบบที่ 2 หรือ เครื่องวัดความดันโลหิต"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
                       />
                     </div>
-                    <div className="formGroup">
-                      <label>รหัสกลุ่ม FSN</label>
-                      <input
-                        type="text"
-                        className="formInput"
-                        placeholder="เช่น 7440-013-0007"
-                        value={formData.fsnNum}
-                        onChange={(e) => setFormData({ ...formData, fsnNum: e.target.value })}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="formGroup">
-                    <label>ชื่อครุภัณฑ์ *</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      placeholder="เช่น คอมพิวเตอร์ประมวลผลแบบที่ 2"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
-                  </div>
+                    <div className="formGrid3">
+                      <div className="formGroup">
+                        <label htmlFor="field-brand">ยี่ห้อ (Brand)</label>
+                        <input
+                          id="field-brand"
+                          type="text"
+                          className="formInput"
+                          placeholder="เช่น HP, Dell, Philips"
+                          value={formData.brand}
+                          onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                        />
+                      </div>
+                      <div className="formGroup">
+                        <label htmlFor="field-model">รุ่น (Model)</label>
+                        <input
+                          id="field-model"
+                          type="text"
+                          className="formInput"
+                          placeholder="เช่น ProDesk 400 G7"
+                          value={formData.model}
+                          onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                        />
+                      </div>
+                      <div className="formGroup">
+                        <label htmlFor="field-serialNo">Serial Number (S/N)</label>
+                        <input
+                          id="field-serialNo"
+                          type="text"
+                          className="formInput"
+                          placeholder="หมายเลขเครื่อง S/N"
+                          value={formData.serialNo}
+                          onChange={(e) => setFormData({ ...formData, serialNo: e.target.value })}
+                        />
+                      </div>
+                    </div>
 
-                  <div className="formGrid2">
                     <div className="formGroup">
-                      <label>ยี่ห้อ (Brand)</label>
-                      <input
-                        type="text"
-                        className="formInput"
-                        placeholder="เช่น HP, Dell, Epson"
-                        value={formData.brand}
-                        onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                      />
-                    </div>
-                    <div className="formGroup">
-                      <label>รุ่น (Model)</label>
-                      <input
-                        type="text"
-                        className="formInput"
-                        placeholder="เช่น ProDesk 400 G7"
-                        value={formData.model}
-                        onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="formGrid2">
-                    <div className="formGroup">
-                      <label>Serial Number (S/N)</label>
-                      <input
-                        type="text"
-                        className="formInput"
-                        placeholder="หมายเลขเครื่องจากผู้ผลิต"
-                        value={formData.serialNo}
-                        onChange={(e) => setFormData({ ...formData, serialNo: e.target.value })}
-                      />
-                    </div>
-                    <div className="formGroup">
-                      <label>หมวดหมู่งาน</label>
+                      <label htmlFor="field-category">หมวดหมู่งาน</label>
                       <select
+                        id="field-category"
                         className="formSelect"
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
                       >
-                        <option value="GENERAL">ครุภัณฑ์ทั่วไป / สำนักงาน</option>
-                        <option value="IT">คอมพิวเตอร์ & IT</option>
-                        <option value="MEDICAL">เครื่องมือแพทย์</option>
+                        <option value="GENERAL">ครุภัณฑ์ทั่วไป / สำนักงาน (General)</option>
+                        <option value="IT">คอมพิวเตอร์ & สารสนเทศ (IT & Network)</option>
+                        <option value="MEDICAL">เครื่องมือแพทย์ (Medical Equipment)</option>
                       </select>
                     </div>
                   </div>
 
-                  <div className="formGroup">
-                    <label>แผนก / หน่วยงานที่ครอบครอง</label>
-                    <input
-                      type="text"
-                      className="formInput"
-                      placeholder="เช่น งานเทคโนโลยีสารสนเทศ, ห้องฉุกเฉิน, งานพัสดุ"
-                      value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Location Selector (Building -> Floor -> Room) */}
-                  <div className="formGroup" style={{ marginTop: '0.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                      <label style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#0f172a', fontWeight: 600 }}>
-                        <Building size={16} color="#0284c7" />
-                        <span>สถานที่ติดตั้ง (ตึก ➔ ชั้น ➔ ห้อง)</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = !isCustomLocation
-                          setIsCustomLocation(next)
-                          if (next) {
-                            setSelectedBuildingId('')
-                            setSelectedFloorId('')
-                            setSelectedRoomId('')
-                          }
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#0284c7',
-                          fontSize: '0.8rem',
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          padding: 0,
-                        }}
-                      >
-                        {isCustomLocation ? '← เลือกจากรายการ ตึก/ชั้น/ห้อง' : '✏️ พิมพ์ระบุเอง'}
-                      </button>
+                  {/* Section 2: Location & Custodian */}
+                  <div className="formSection">
+                    <div className="formSectionHeader">
+                      <Building size={14} />
+                      <span>2. สถานที่ติดตั้งและหน่วยงานครอบครอง (Location)</span>
                     </div>
 
-                    {!isCustomLocation ? (
-                      <div className="locationSelectGrid">
-                        {/* 1. Building */}
-                        <select
-                          className="formSelect"
-                          value={selectedBuildingId}
-                          onChange={(e) => {
-                            const bId = e.target.value
-                            setSelectedBuildingId(bId)
-                            setSelectedFloorId('')
-                            setSelectedRoomId('')
-                            if (!bId) {
-                              setFormData((prev) => ({ ...prev, locationId: null, locationFullName: '' }))
+                    <div className="formGroup">
+                      <label htmlFor="field-department">แผนก / หน่วยงานที่ครอบครอง</label>
+                      <input
+                        id="field-department"
+                        type="text"
+                        className="formInput"
+                        placeholder="เช่น งานเทคโนโลยีสารสนเทศ, ห้องฉุกเฉิน, งานพัสดุ"
+                        value={formData.department}
+                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="formGroup">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                        <label style={{ margin: 0 }}>โครงสร้างสถานที่ติดตั้ง</label>
+                        <button
+                          type="button"
+                          className="locationToggleBtn"
+                          onClick={() => {
+                            const next = !isCustomLocation
+                            setIsCustomLocation(next)
+                            if (next) {
+                              setSelectedBuildingId('')
+                              setSelectedFloorId('')
+                              setSelectedRoomId('')
                             }
                           }}
                         >
-                          <option value="">-- เลือกตึก / อาคาร --</option>
-                          {buildingOptions.map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.name}
-                            </option>
-                          ))}
-                        </select>
+                          {isCustomLocation ? 'เลือกจากโครงสร้างอาคาร (ตึก/ชั้น/ห้อง)' : 'สลับพิมพ์ระบุเอง'}
+                        </button>
+                      </div>
 
-                        {/* 2. Floor */}
-                        <select
-                          className="formSelect"
-                          value={selectedFloorId}
-                          disabled={!selectedBuildingId}
-                          onChange={(e) => {
-                            const fId = e.target.value
-                            setSelectedFloorId(fId)
-                            setSelectedRoomId('')
-                          }}
-                        >
-                          <option value="">-- เลือกชั้น --</option>
-                          {floorOptions.map((f) => (
-                            <option key={f.id} value={f.id}>
-                              {f.name}
-                            </option>
-                          ))}
-                        </select>
+                      {!isCustomLocation ? (
+                        <div className="locationSelectGrid">
+                          <select
+                            className="formSelect"
+                            value={selectedBuildingId}
+                            onChange={(e) => {
+                              const bId = e.target.value
+                              setSelectedBuildingId(bId)
+                              setSelectedFloorId('')
+                              setSelectedRoomId('')
+                              if (!bId) {
+                                setFormData((prev) => ({ ...prev, locationId: null, locationFullName: '' }))
+                              }
+                            }}
+                            aria-label="เลือกอาคาร"
+                          >
+                            <option value="">-- เลือกตึก / อาคาร --</option>
+                            {buildingOptions.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name}
+                              </option>
+                            ))}
+                          </select>
 
-                        {/* 3. Room */}
-                        <select
-                          className="formSelect"
-                          value={selectedRoomId}
-                          disabled={!selectedBuildingId}
-                          onChange={(e) => {
-                            const rId = e.target.value
-                            setSelectedRoomId(rId)
-                            if (rId) {
-                              const loc = locationsList.find((l) => String(l.id) === rId)
-                              if (loc) {
+                          <select
+                            className="formSelect"
+                            value={selectedFloorId}
+                            disabled={!selectedBuildingId}
+                            onChange={(e) => {
+                              const fId = e.target.value
+                              setSelectedFloorId(fId)
+                              setSelectedRoomId('')
+                            }}
+                            aria-label="เลือกชั้น"
+                          >
+                            <option value="">-- เลือกชั้น --</option>
+                            {floorOptions.map((f) => (
+                              <option key={f.id} value={f.id}>
+                                {f.name}
+                              </option>
+                            ))}
+                          </select>
+
+                          <select
+                            className="formSelect"
+                            value={selectedRoomId}
+                            disabled={!selectedBuildingId}
+                            onChange={(e) => {
+                              const rId = e.target.value
+                              setSelectedRoomId(rId)
+                              if (rId) {
+                                const loc = locationsList.find((l) => String(l.id) === rId)
+                                if (loc) {
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    locationId: loc.id,
+                                    locationFullName: loc.full_name,
+                                  }))
+                                }
+                              } else {
                                 setFormData((prev) => ({
                                   ...prev,
-                                  locationId: loc.id,
-                                  locationFullName: loc.full_name,
+                                  locationId: null,
+                                  locationFullName: '',
                                 }))
                               }
-                            } else {
-                              setFormData((prev) => ({
-                                ...prev,
-                                locationId: null,
-                                locationFullName: '',
-                              }))
-                            }
-                          }}
+                            }}
+                            aria-label="เลือกห้องหรือจุดติดตั้ง"
+                          >
+                            <option value="">-- เลือกห้อง / จุดติดตั้ง --</option>
+                            {roomOptions.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.room_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          className="formInput"
+                          placeholder="เช่น อาคารผู้ป่วยนอก ชั้น 2 (ห้องศูนย์คอม) หรือ จุดติดตั้งพิเศษ"
+                          value={formData.locationFullName}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              locationId: null,
+                              locationFullName: e.target.value,
+                            }))
+                          }
+                        />
+                      )}
+
+                      {formData.locationFullName && (
+                        <div className="locationPreview">
+                          <CheckCircle2 size={14} />
+                          <span>
+                            สถานที่ที่เลือก: <strong>{formData.locationFullName}</strong>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Section 3: Acquisition & Warranty */}
+                  <div className="formSection">
+                    <div className="formSectionHeader">
+                      <ShieldCheck size={14} />
+                      <span>3. การตรวจรับ การรับประกัน และราคา (Warranty & Cost)</span>
+                    </div>
+
+                    <div className="formGrid2">
+                      <div className="formGroup">
+                        <label htmlFor="field-receivedDate">วันที่ตรวจรับพัสดุ</label>
+                        <input
+                          id="field-receivedDate"
+                          type="date"
+                          className="formInput"
+                          value={formData.receivedDate}
+                          onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })}
+                        />
+                      </div>
+                      <div className="formGroup">
+                        <label htmlFor="field-warrantyEndDate">วันสิ้นสุดการรับประกัน (Warranty End)</label>
+                        <input
+                          id="field-warrantyEndDate"
+                          type="date"
+                          className="formInput"
+                          value={formData.warrantyEndDate}
+                          onChange={(e) => setFormData({ ...formData, warrantyEndDate: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="formGrid2">
+                      <div className="formGroup">
+                        <label htmlFor="field-price">ราคาจัดซื้อ (บาท)</label>
+                        <input
+                          id="field-price"
+                          type="number"
+                          step="0.01"
+                          className="formInput"
+                          placeholder="0.00"
+                          value={formData.price}
+                          onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        />
+                      </div>
+                      <div className="formGroup">
+                        <label htmlFor="field-status">สถานะเครื่อง</label>
+                        <select
+                          id="field-status"
+                          className="formSelect"
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                         >
-                          <option value="">-- เลือกห้อง / จุดติดตั้ง --</option>
-                          {roomOptions.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.room_name}
-                            </option>
-                          ))}
+                          <option value="ACTIVE">พร้อมใช้งานปกติ (Active)</option>
+                          <option value="IN_REPAIR">กำลังส่งซ่อม (In Repair)</option>
+                          <option value="STANDBY">เครื่องสำรอง (Standby)</option>
+                          <option value="DISPOSED">แทงจำหน่าย (Disposed)</option>
                         </select>
                       </div>
-                    ) : (
-                      <input
-                        type="text"
-                        className="formInput"
-                        placeholder="เช่น อาคารผู้ป่วยนอก ชั้น 2 (ห้องศูนย์คอม) หรือ จุดติดตั้งพิเศษ"
-                        value={formData.locationFullName}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            locationId: null,
-                            locationFullName: e.target.value,
-                          }))
-                        }
-                      />
-                    )}
+                    </div>
+                  </div>
 
-                    {formData.locationFullName && (
-                      <div className="locationPreview">
-                        <CheckCircle2 size={14} />
-                        <span>
-                          สถานที่ระบุ: <strong>{formData.locationFullName}</strong>
-                        </span>
+                  {/* Section 4: Vendor & Additional Info */}
+                  <div className="formSection">
+                    <div className="formSectionHeader">
+                      <DollarSign size={14} />
+                      <span>4. ข้อมูลคู่ค้าและหมายเหตุ (Vendor & Contract)</span>
+                    </div>
+
+                    <div className="formGrid2">
+                      <div className="formGroup">
+                        <label htmlFor="field-vendorName">บริษัทผู้จำหน่าย / คู่สัญญา</label>
+                        <input
+                          id="field-vendorName"
+                          type="text"
+                          className="formInput"
+                          placeholder="ชื่อบริษัทหรือร้านค้าคู่สัญญา"
+                          value={formData.vendorName}
+                          onChange={(e) => setFormData({ ...formData, vendorName: e.target.value })}
+                        />
                       </div>
-                    )}
-                  </div>
+                      <div className="formGroup">
+                        <label htmlFor="field-vendorContact">เบอร์ติดต่อช่าง / เคลมประกัน</label>
+                        <input
+                          id="field-vendorContact"
+                          type="text"
+                          className="formInput"
+                          placeholder="เช่น 02-xxx-xxxx หรือ 08x-xxx-xxxx"
+                          value={formData.vendorContact}
+                          onChange={(e) => setFormData({ ...formData, vendorContact: e.target.value })}
+                        />
+                      </div>
+                    </div>
 
-                  <div className="formGrid2">
                     <div className="formGroup">
-                      <label>วันที่ตรวจรับ</label>
+                      <label htmlFor="field-contractNo">เลขที่สัญญา / ใบสั่งซื้อ (PO)</label>
                       <input
-                        type="date"
-                        className="formInput"
-                        value={formData.receivedDate}
-                        onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })}
-                      />
-                    </div>
-                    <div className="formGroup">
-                      <label>วันหมดประกัน (Warranty End)</label>
-                      <input
-                        type="date"
-                        className="formInput"
-                        value={formData.warrantyEndDate}
-                        onChange={(e) => setFormData({ ...formData, warrantyEndDate: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="formGrid2">
-                    <div className="formGroup">
-                      <label>ราคาจัดซื้อ (บาท)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="formInput"
-                        placeholder="0.00"
-                        value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      />
-                    </div>
-                    <div className="formGroup">
-                      <label>สถานะเครื่อง</label>
-                      <select
-                        className="formSelect"
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                      >
-                        <option value="ACTIVE">พร้อมใช้งาน (Active)</option>
-                        <option value="IN_REPAIR">กำลังส่งซ่อม (In Repair)</option>
-                        <option value="STANDBY">เครื่องสำรอง (Standby)</option>
-                        <option value="DISPOSED">แทงจำหน่าย (Disposed)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="formGrid2">
-                    <div className="formGroup">
-                      <label>บริษัทผู้ขาย / ผู้จำหน่าย</label>
-                      <input
+                        id="field-contractNo"
                         type="text"
                         className="formInput"
-                        placeholder="ชื่อบริษัทหรือร้านค้า"
-                        value={formData.vendorName}
-                        onChange={(e) => setFormData({ ...formData, vendorName: e.target.value })}
+                        placeholder="เช่น สัญญาเลขที่ 45/2569"
+                        value={formData.contractNo}
+                        onChange={(e) => setFormData({ ...formData, contractNo: e.target.value })}
                       />
                     </div>
-                    <div className="formGroup">
-                      <label>เบอร์โทรติดต่อช่างศูนย์ / เคลม</label>
-                      <input
-                        type="text"
-                        className="formInput"
-                        placeholder="เช่น 02-xxx-xxxx หรือ 08x-xxx-xxxx"
-                        value={formData.vendorContact}
-                        onChange={(e) => setFormData({ ...formData, vendorContact: e.target.value })}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="formGroup">
-                    <label>หมายเหตุเพิ่มเติม</label>
-                    <textarea
-                      className="formTextarea"
-                      placeholder="บันทึกข้อมูลเพิ่มเติมหรือข้อสังเกต..."
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    />
+                    <div className="formGroup">
+                      <label htmlFor="field-notes">หมายเหตุเพิ่มเติม</label>
+                      <textarea
+                        id="field-notes"
+                        className="formTextarea"
+                        placeholder="บันทึกข้อสังเกต อาการชำรุด หรือข้อมูลอ้างอิงเพิ่มเติม..."
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      />
+                    </div>
                   </div>
                 </div>
+
                 <div className="modalFooter">
                   <button
                     type="button"
@@ -1129,8 +1616,8 @@ export default function AssetsDashboardClient({
                     ยกเลิก
                   </button>
                   <button type="submit" className="modalSubmitBtn" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 size={16} className="animate-spin" />}
-                    <span>{editingAsset ? 'บันทึกการแก้ไข' : 'เพิ่มครุภัณฑ์'}</span>
+                    {isSubmitting && <Loader2 size={15} className="animate-spin" />}
+                    <span>{editingAsset ? 'บันทึกการแก้ไข' : 'บันทึกครุภัณฑ์'}</span>
                   </button>
                 </div>
               </form>
@@ -1138,31 +1625,45 @@ export default function AssetsDashboardClient({
           </div>
         )}
 
-        {/* Delete Confirmation Dialog */}
+        {/* Delete Confirmation Modal Dialog */}
         {deleteTarget && (
-          <div className="modalBackdrop" onClick={() => !isDeleting && setDeleteTarget(null)}>
+          <div
+            className="modalBackdrop"
+            onClick={() => !isDeleting && setDeleteTarget(null)}
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="modalContent" style={{ maxWidth: '440px' }} onClick={(e) => e.stopPropagation()}>
               <div className="modalHeader">
-                <h3 style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <AlertCircle size={20} />
-                  <span>ยืนยันการลบครุภัณฑ์</span>
-                </h3>
+                <div className="modalHeaderLeft">
+                  <div className="modalHeaderIcon" style={{ background: '#fef2f2', color: '#dc2626', borderColor: '#fecaca' }}>
+                    <AlertCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 style={{ color: '#dc2626' }}>ยืนยันการลบครุภัณฑ์</h3>
+                    <span className="modalHeaderSub">รายการ ID #{deleteTarget.id}</span>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   className="modalCloseBtn"
                   onClick={() => !isDeleting && setDeleteTarget(null)}
+                  aria-label="ปิดหน้าต่างยืนยัน"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
-              <div className="modalBody">
-                <p style={{ color: '#334155', fontSize: '0.95rem', margin: 0, wordBreak: 'break-word' }}>
-                  คุณต้องการลบข้อมูลครุภัณฑ์ <strong>"{deleteTarget.name}"</strong> (เลขครุภัณฑ์:{' '}
-                  <code style={{ wordBreak: 'break-all' }}>{deleteTarget.articleNum}</code>) ใช่หรือไม่?
+
+              <div className="modalBody" style={{ gap: '0.75rem' }}>
+                <p style={{ color: '#334155', fontSize: '0.925rem', margin: 0, lineHeight: 1.5 }}>
+                  คุณต้องการลบข้อมูลครุภัณฑ์ <strong>&ldquo;{deleteTarget.name}&rdquo;</strong> (เลขครุภัณฑ์:{' '}
+                  <code style={{ fontFamily: 'monospace', fontWeight: 600 }}>{deleteTarget.articleNum}</code>) ใช่หรือไม่?
                 </p>
-                <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '0.5rem 0 0' }}>
-                  การกระทำนี้ไม่สามารถย้อนกลับได้
+                <p style={{ color: '#64748b', fontSize: '0.8125rem', margin: 0 }}>
+                  การกระทำนี้จะลบข้อมูลออกจากระบบอย่างถาวรและไม่สามารถกู้คืนได้
                 </p>
               </div>
+
               <div className="modalFooter">
                 <button
                   type="button"
@@ -1174,28 +1675,20 @@ export default function AssetsDashboardClient({
                 </button>
                 <button
                   type="button"
+                  className="modalDeleteBtn"
                   onClick={handleConfirmDelete}
                   disabled={isDeleting}
-                  style={{
-                    padding: '0.6rem 1.25rem',
-                    borderRadius: '0.6rem',
-                    border: 'none',
-                    background: '#dc2626',
-                    color: 'white',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                  }}
                 >
-                  {isDeleting && <Loader2 size={16} className="animate-spin" />}
-                  <span>ลบข้อมูล</span>
+                  {isDeleting && <Loader2 size={15} className="animate-spin" />}
+                  <span>ยืนยันลบข้อมูล</span>
                 </button>
               </div>
             </div>
           </div>
         )}
+
+        {/* Toast Container */}
+        <ToastContainer toasts={toasts} onDismiss={removeToast} />
       </div>
     </div>
   )

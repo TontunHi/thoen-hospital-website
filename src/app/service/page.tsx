@@ -198,13 +198,12 @@ export default async function ServicePage() {
         <div className="serviceNavRow">
           <Link href="/member" className="serviceBackLink">
             <ChevronRight size={16} style={{ transform: 'rotate(180deg)' }} />
-            <span>กลับสู่หน้าหลักบุคลากร (Member Hub)</span>
+            <span>กลับสู่หน้าหลักบุคลากร</span>
           </Link>
         </div>
 
         {/* Header */}
         <header className="serviceHeader">
-          <span className="serviceKicker">Thoen Hospital Clinical & Internal Portal</span>
           <h1>ระบบงานสารสนเทศภายใน</h1>
           <p>
             ศูนย์รวมระบบสารสนเทศทางการแพทย์ เครื่องมือบริหารจัดการ และระบบงานเครือข่ายสุขภาพสำหรับบุคลากรโรงพยาบาลเถิน

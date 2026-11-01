@@ -201,8 +201,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/member/login?error=thaid_exchange_failed', baseUrl))
   }
 
-  // 3. Create secure session cookie (bypassing OTP)
-  await createMemberSession(sessionPayload.username, sessionPayload.email, sessionPayload.role)
+  // 3. Create secure session cookie (bypassing OTP) - ThaID already logged explicit LOGIN
+  await createMemberSession(sessionPayload.username, sessionPayload.email, sessionPayload.role, { skipAudit: true })
 
   return NextResponse.redirect(new URL('/member', baseUrl))
 }

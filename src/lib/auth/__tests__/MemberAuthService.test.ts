@@ -88,6 +88,31 @@ describe('MemberAuthService', () => {
       const verified = await authService.verifySession(token)
       expect(verified.username).toBe('123')
       expect(verified.role).toBe('admin')
+      expect(audit.logAudit).toHaveBeenCalledWith(
+        'LOGIN',
+        'members',
+        expect.stringContaining('logged in successfully'),
+        expect.anything()
+      )
+    })
+
+    it('buildSession does NOT log LOGIN audit when renewing session (iat provided)', async () => {
+      const pastIat = Date.now() - 900_000
+      await authService.buildSession({
+        username: '123',
+        email: 'test@test.com',
+        role: 'admin',
+        iat: pastIat,
+      })
+      expect(audit.logAudit).not.toHaveBeenCalled()
+    })
+
+    it('buildSession does NOT log LOGIN audit when skipAudit is true', async () => {
+      await authService.buildSession(
+        { username: '123', email: 'test@test.com', role: 'admin' },
+        { skipAudit: true }
+      )
+      expect(audit.logAudit).not.toHaveBeenCalled()
     })
 
     it('verifySession throws on bad JWT signature', async () => {

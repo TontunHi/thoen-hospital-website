@@ -191,8 +191,12 @@ export class MemberAuthService {
     }
   }
 
-  async buildSession(payload: MemberSessionPayload): Promise<string> {
+  async buildSession(
+    payload: MemberSessionPayload,
+    options?: { skipAudit?: boolean }
+  ): Promise<string> {
     const now = Date.now()
+    const isRenewal = typeof payload.iat === 'number'
     const iat = payload.iat ?? now
     const exp = payload.exp ?? (now + SESSION_MAX_AGE * 1000)
     
@@ -207,9 +211,12 @@ export class MemberAuthService {
     const encoded = Buffer.from(JSON.stringify(finalPayload)).toString('base64url')
     const signature = sign(encoded)
     
-    try {
-      await logAudit('LOGIN', 'members', `User ${formatMaskedCitizenId(payload.username)} logged in successfully`, { username: formatMaskedCitizenId(payload.username), email: payload.email })
-    } catch {}
+    // Only log LOGIN if this is an initial session creation, NOT an automatic background renewal/slide
+    if (!isRenewal && !options?.skipAudit) {
+      try {
+        await logAudit('LOGIN', 'members', `User ${formatMaskedCitizenId(payload.username)} logged in successfully`, { username: formatMaskedCitizenId(payload.username), email: payload.email })
+      } catch {}
+    }
     
     return `${encoded}.${signature}`
   }

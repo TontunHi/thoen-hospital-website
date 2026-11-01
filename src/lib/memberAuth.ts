@@ -192,8 +192,13 @@ export function renewToken(payload: { username: string; email: string; role: str
   throw new Error("renewToken is deprecated. Use MemberAuthService.buildSession instead.")
 }
 
-export async function createMemberSession(username: string, email: string, role: string): Promise<void> {
-  const token = await authService.buildSession({ username, email, role })
+export async function createMemberSession(
+  username: string,
+  email: string,
+  role: string,
+  options?: { skipAudit?: boolean }
+): Promise<void> {
+  const token = await authService.buildSession({ username, email, role }, options)
   const cookieStore = await cookies()
 
   cookieStore.set(COOKIE_NAME, token, {

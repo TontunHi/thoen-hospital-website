@@ -68,7 +68,7 @@ describe('EquipmentBorrowClient Component', () => {
     const borrowBtn = screen.getByRole('button', { name: 'ขอยืมอุปกรณ์' })
     fireEvent.click(borrowBtn)
 
-    expect(screen.getByText('📋 แบบฟอร์มขอยืมอุปกรณ์และวัสดุ')).toBeInTheDocument()
+    expect(screen.getByText(/แบบฟอร์มขอยืมอุปกรณ์และวัสดุ/)).toBeInTheDocument()
     expect(screen.getByPlaceholderText(/เช่น เพื่อใช้ในงานสัมมนา/)).toBeInTheDocument()
     expect(screen.getByText(/วันที่คาดว่าจะส่งคืน/)).toBeInTheDocument()
   })
