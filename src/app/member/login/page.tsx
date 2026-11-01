@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import LoyKrathongScene from '@/components/seasonal/LoyKrathongScene'
-import HalloweenScene from '@/components/seasonal/HalloweenScene'
 import './page.css'
 
 function MemberLoginForm() {
@@ -425,7 +424,6 @@ export default function MemberLoginPage() {
   return (
     <div className="memberLoginContainer">
       <Suspense fallback={null}>
-        <HalloweenScene />
         <LoyKrathongScene />
       </Suspense>
       <Suspense fallback={<div className="memberLoginCard"><p style={{ color: '#fff', textAlign: 'center' }}>กำลังโหลด...</p></div>}>

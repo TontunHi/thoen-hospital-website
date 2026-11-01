@@ -1,0 +1,583 @@
+/* ==========================================================================
+   Design Spec: หน้ากระดานคะแนนกิจกรรม (/member/events/leaderboard)
+   Tokens:
+   bg: #f6f7f5
+   surface: #ffffff
+   surface-alt: #fafbf9
+   border: #e3e7e2
+   border-input: #cfd6d0
+   row-divider: #eef1ee
+   ink: #14201a
+   ink-2: #33423a
+   muted: #5d6b63
+   accent: #0b6b47
+   accent-dark: #084d34
+   accent-tint: #e8f3ee
+   accent-row: #f3f9f6
+   on-accent-muted: #cfe6db
+   track: #eef1ee
+   ========================================================================== */
+
+.lb-page {
+  background-color: #f6f7f5;
+  min-height: 100vh;
+  padding: 32px 24px 64px;
+  font-family: 'IBM Plex Sans Thai', var(--font-ibm-thai), system-ui, -apple-system, sans-serif;
+  color: #14201a;
+  font-size: 15px;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+.lb-container {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 1. ลิงก์กลับ */
+.lb-back-link {
+  display: inline-flex;
+  align-items: center;
+  color: #5d6b63;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.15s ease;
+  width: fit-content;
+}
+
+.lb-back-link:hover {
+  color: #084d34;
+}
+
+.lb-back-link:focus-visible {
+  outline: 2px solid #0b6b47;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 2. หัวหน้า */
+.lb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.lb-header-text {
+  flex: 1;
+  min-width: 260px;
+}
+
+.lb-title {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #14201a;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.01em;
+}
+
+.lb-subtitle {
+  font-size: 14px;
+  color: #5d6b63;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.lb-year-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  cursor: pointer;
+}
+
+.lb-year-label {
+  font-size: 13px;
+  color: #5d6b63;
+  font-weight: 500;
+}
+
+.lb-year-select {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #cfd6d0;
+  background-color: #ffffff;
+  color: #14201a;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lb-year-select:focus {
+  outline: 2px solid #0b6b47;
+  outline-offset: 2px;
+}
+
+/* 3. แถวสรุป */
+.lb-summary-row {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 840px) {
+  .lb-summary-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lb-card-rank1 {
+  background-color: #0b6b47;
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.lb-rank1-badge {
+  font-size: 13px;
+  font-weight: 500;
+  color: #cfe6db;
+  margin-bottom: 8px;
+}
+
+.lb-rank1-score {
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 16px;
+}
+
+.lb-rank1-unit {
+  font-size: 16px;
+  font-weight: 400;
+  color: #cfe6db;
+  margin-left: 4px;
+}
+
+.lb-rank1-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.lb-rank1-member-item {
+  min-width: 140px;
+}
+
+.lb-rank1-member-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.lb-rank1-member-dept {
+  font-size: 13px;
+  color: #cfe6db;
+  margin-top: 2px;
+}
+
+.lb-rank1-empty {
+  font-size: 14px;
+  color: #cfe6db;
+}
+
+.lb-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.lb-stat-card {
+  background-color: #ffffff;
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.lb-stat-card-wide {
+  grid-column: span 2;
+}
+
+.lb-stat-label {
+  font-size: 13px;
+  color: #5d6b63;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.lb-stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #14201a;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-stat-unit {
+  font-size: 14px;
+  font-weight: 400;
+  color: #5d6b63;
+  margin-left: 4px;
+}
+
+.lb-my-standing-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #14201a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+
+.lb-my-standing-empty {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.lb-my-standing-empty-msg {
+  font-size: 14px;
+  color: #14201a;
+  line-height: 1.4;
+  flex: 1;
+  min-width: 200px;
+}
+
+.lb-btn-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background-color: #e8f3ee;
+  color: #084d34;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.lb-btn-cta:hover {
+  background-color: #0b6b47;
+  color: #ffffff;
+}
+
+.lb-btn-cta:focus-visible {
+  outline: 2px solid #0b6b47;
+  outline-offset: 2px;
+}
+
+/* 4. การ์ดข้อมูลรายการ */
+.lb-data-card {
+  background-color: #ffffff;
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.lb-toolbar {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-bottom: 1px solid #eef1ee;
+}
+
+.lb-segmented-control {
+  background-color: #eef1ee;
+  padding: 4px;
+  border-radius: 8px;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.lb-tab-btn {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  color: #5d6b63;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.lb-tab-btn:hover {
+  color: #14201a;
+}
+
+.lb-tab-btn.lb-tab-active {
+  background-color: #ffffff;
+  color: #14201a;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.lb-tab-btn:focus-visible {
+  outline: 2px solid #0b6b47;
+  outline-offset: 2px;
+}
+
+.lb-search-wrap {
+  flex: 1;
+  max-width: 300px;
+  min-width: 200px;
+}
+
+@media (max-width: 640px) {
+  .lb-page {
+    padding: 24px 16px 48px;
+  }
+  .lb-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lb-segmented-control {
+    width: 100%;
+  }
+  .lb-tab-btn {
+    flex: 1;
+  }
+  .lb-search-wrap {
+    max-width: 100%;
+  }
+  .lb-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .lb-stat-card-wide {
+    grid-column: span 1;
+  }
+}
+
+.lb-search-input {
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #cfd6d0;
+  background-color: #ffffff;
+  color: #14201a;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.lb-search-input::placeholder {
+  color: #5d6b63;
+}
+
+.lb-search-input:focus {
+  outline: 2px solid #0b6b47;
+  outline-offset: 2px;
+}
+
+/* Table */
+.lb-table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  line-height: 1.5;
+  min-width: 640px;
+}
+
+.lb-table thead {
+  background-color: #fafbf9;
+  border-bottom: 1px solid #eef1ee;
+}
+
+.lb-table th {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5d6b63;
+  text-align: left;
+}
+
+.lb-table td {
+  padding: 12px 20px;
+  border-bottom: 1px solid #eef1ee;
+  color: #14201a;
+  vertical-align: middle;
+}
+
+.lb-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Individual columns */
+.lb-table-individual .lb-th-rank,
+.lb-table-individual .lb-td-rank {
+  width: 56px;
+  text-align: center;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.lb-table-individual .lb-th-name,
+.lb-table-individual .lb-td-name {
+  width: 44%;
+}
+
+.lb-table-individual .lb-th-dept,
+.lb-table-individual .lb-td-dept {
+  width: 36%;
+  color: #33423a;
+}
+
+.lb-table-individual .lb-th-events,
+.lb-table-individual .lb-td-events {
+  width: 80px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #33423a;
+}
+
+.lb-table-individual .lb-th-points,
+.lb-table-individual .lb-td-points {
+  width: 72px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #14201a;
+}
+
+/* Department columns */
+.lb-table-department .lb-th-rank,
+.lb-table-department .lb-td-rank {
+  width: 56px;
+  text-align: center;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.lb-table-department .lb-th-dept-name,
+.lb-table-department .lb-td-dept-name {
+  color: #14201a;
+  font-weight: 500;
+}
+
+.lb-table-department .lb-th-members,
+.lb-table-department .lb-td-members {
+  width: 80px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #33423a;
+}
+
+.lb-table-department .lb-th-points,
+.lb-table-department .lb-td-points {
+  width: 72px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #14201a;
+}
+
+/* Row states */
+.lb-row-rank1 {
+  background-color: #f3f9f6;
+}
+
+.lb-rank-badge-1 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: #0b6b47;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.lb-rank-num {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #33423a;
+  font-variant-numeric: tabular-nums;
+}
+
+.lb-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lb-name-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: #14201a;
+}
+
+.lb-position-text {
+  font-size: 13px;
+  color: #5d6b63;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.lb-me-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: #e8f3ee;
+  color: #084d34;
+  padding: 1px 6px;
+  border-radius: 4px;
+  line-height: 1.3;
+}
+
+.lb-empty-cell {
+  text-align: center;
+  padding: 48px 20px !important;
+  color: #5d6b63;
+  font-size: 14px;
+}

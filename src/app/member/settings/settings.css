@@ -1,493 +1,380 @@
 /* ==========================================================================
-   HOSPITAL SETTINGS & ACCESS CONTROLS — TASK-CENTRIC UX/UI DESIGN
-   Theme: Emerald/Slate Professional Hospital Design System
+   HOSPITAL SETTINGS & ACCESS CONTROLS — HALLMARK DESIGN SYSTEM
+   Spec: settings-page-design-spec.md
+   Tokens:
+     Accent: #0b6b47 (Dark green)
+     Accent soft bg: #e8f3ee, text: #084d34
+     Page Background: #f6f7f5
+     Card Background: #ffffff
+     Borders: #e3e7e2
+     Text: #14201a
+     Muted: #5d6b63
+     Max-width: 1160px
+   Semantic Colors:
+     View: bg #e6f0fb, text #17467a, dot #2f6fb5, border #bcd7f5
+     Edit: bg #fdf1d6, text #6b4100, dot #c98a10, border #fae0a8
+     Approve: bg #fbe6ea, text #8f1d3a, dot #c43d5c, border #f5c1cc
+     Manage: bg #efe8fb, text #502a8f, dot #7b52c9, border #dccefa
+     Position Chip: bg #eef0fb, border #d5d9f2, text #2b3a8c
+     Member Chip: bg #e8f6f4, border #cdebe6, text #0f5c53
    ========================================================================== */
 
-/* Container & Layout */
-.adminSettingsContainer {
+/* --------------------------------------------------------------------------
+   1. Page Layout & Shell
+   -------------------------------------------------------------------------- */
+.set-page {
   min-height: calc(100vh - 60px);
-  padding: 32px 20px 80px;
-  background-color: #f8fafc;
-  background-image:
-    radial-gradient(ellipse at 12% 0%, rgba(13, 148, 136, 0.08) 0%, transparent 45%),
-    radial-gradient(ellipse at 88% 100%, rgba(2, 132, 199, 0.06) 0%, transparent 50%);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  font-family: var(--font-ibm-thai), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #0f172a;
-  position: relative;
-  overflow-x: hidden;
-  width: 100%;
-}
-
-.adminSettingsContainer .glowOrb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(140px);
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.35;
-}
-
-.adminSettingsContainer .glowOrb1 {
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(153, 246, 228, 0.6) 0%, transparent 70%);
-  top: -120px;
-  right: 6%;
-}
-
-.adminSettingsContainer .glowOrb2 {
-  width: 440px;
-  height: 440px;
-  background: radial-gradient(circle, rgba(186, 230, 253, 0.5) 0%, transparent 70%);
-  top: 35%;
-  left: -100px;
-}
-
-.adminSettingsWrapper {
-  width: 100%;
-  max-width: 1280px;
-  z-index: 10;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* ==========================================================================
-   Header Section
-   ========================================================================== */
-
-.adminSettingsHeader {
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 22px 26px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.03);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.adminSettingsHeaderTop {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.backLinkBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #64748b;
-  font-size: 0.88rem;
-  font-weight: 600;
-  text-decoration: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
-}
-
-.backLinkBtn:hover {
-  color: #059669;
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  transform: translateX(-2px);
-}
-
-.adminSecurityBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 14px;
-  background: #fff1f2;
-  color: #be123c;
-  font-size: 0.8rem;
-  font-weight: 700;
-  border-radius: 9999px;
-  border: 1px solid #fecdd3;
-  box-shadow: 0 1px 2px rgba(225, 29, 72, 0.06);
-}
-
-.adminSecurityBadge .shieldIcon {
-  color: #e11d48;
-}
-
-.adminSettingsHeaderMain {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.adminSettingsHeaderMain h1 {
-  font-size: 1.55rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.02em;
-  margin: 0;
-}
-
-.adminSettingsHeaderMain p {
-  font-size: 0.92rem;
-  color: #64748b;
-  margin: 0;
+  padding: 24px 16px 80px;
+  background-color: #f6f7f5;
+  color: #14201a;
+  font-family: var(--font-ibm-thai), 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
   line-height: 1.5;
-}
-
-/* ==========================================================================
-   Main Top Navigation Tabs
-   ========================================================================== */
-
-.settingsClientModern {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
   width: 100%;
-}
-
-.settingsMainTabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  background: #ffffff;
-  padding: 8px;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.02);
-}
-
-@media (max-width: 900px) {
-  .settingsMainTabs {
-    grid-template-columns: 1fr;
-  }
-}
-
-.settingsMainTabBtn {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-
-.settingsMainTabBtn:hover {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-.settingsMainTabBtn.active {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.08);
-}
-
-.settingsMainTabBtn .tabIconBox {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: #f1f5f9;
-  color: #64748b;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
 }
 
-.settingsMainTabBtn.active .tabIconBox {
-  background: #059669;
-  color: #ffffff;
-}
-
-.settingsMainTabBtn .tabTextBox {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-
-.settingsMainTabBtn .tabTitle {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.settingsMainTabBtn.active .tabTitle {
-  color: #065f46;
-}
-
-.settingsMainTabBtn .tabSub {
-  font-size: 0.75rem;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.settingsMainTabBtn .tabBadge {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background: #059669;
-  color: #ffffff;
-  margin-left: auto;
-}
-
-.settingsMainTabBtn .tabBadge.secondary {
-  background: #e2e8f0;
-  color: #475569;
-}
-
-.settingsMainTabBtn .tabBadge.dirty {
-  background: #ea580c;
-  color: #ffffff;
-  animation: pulseBadge 1.8s infinite;
-}
-
-@keyframes pulseBadge {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.05); }
-}
-
-/* ==========================================================================
-   TAB 1: TASK-CENTRIC PERMISSION MANAGEMENT (MASTER-DETAIL WORKSPACE)
-   ========================================================================== */
-
-.taskCentricContainer {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 18px;
-  align-items: start;
-}
-
-@media (max-width: 1024px) {
-  .taskCentricContainer {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Left Sidebar Pane */
-.taskSidebarPane {
-  background: #ffffff;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.taskSidebarHeader {
-  padding: 14px;
-  border-bottom: 1px solid #f1f5f9;
-  background: #fafbfc;
-}
-
-.taskSidebarSearchWrapper {
-  position: relative;
+.set-container {
   width: 100%;
-}
-
-.taskSidebarSearchWrapper .searchIcon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  pointer-events: none;
-}
-
-.taskSidebarSearchInput {
-  width: 100%;
-  padding: 9px 36px 9px 36px;
-  font-size: 0.86rem;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #0f172a;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.taskSidebarSearchInput:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
-}
-
-.clearSearchBtn {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #f1f5f9;
-  border: none;
-  color: #64748b;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.clearSearchBtn:hover {
-  background: #e2e8f0;
-  color: #0f172a;
-}
-
-.taskNavScrollable {
-  max-height: calc(100vh - 270px);
-  overflow-y: auto;
-  padding: 12px;
+  max-width: 1160px;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.taskNavGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* Accessibility Focus Ring */
+.set-page button:focus-visible,
+.set-page input:focus-visible,
+.set-page select:focus-visible,
+.set-page a:focus-visible {
+  outline: 2px solid #0b6b47;
+  outline-offset: 2px;
 }
 
-.taskNavGroupHeader {
+/* --------------------------------------------------------------------------
+   2. Top Bar & Header
+   -------------------------------------------------------------------------- */
+.set-top-bar {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  font-size: 0.74rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #64748b;
-  padding: 4px 8px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.groupIconWorkflow {
-  color: #8b5cf6;
+.set-back-link {
+  display: inline-flex;
+  align-items: center;
+  color: #5d6b63;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
-.groupIconSystem {
-  color: #0284c7;
+.set-back-link:hover {
+  color: #0b6b47;
 }
 
-.groupCount {
-  margin-left: auto;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 0.7rem;
-  padding: 1px 6px;
+.set-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
   border-radius: 9999px;
+  background-color: #fbe6ea;
+  border: 1px solid #f5c1cc;
+  color: #8f1d3a;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
-.taskNavList {
+.set-header {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.taskNavItem {
+.set-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #14201a;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.set-subtitle {
+  font-size: 14px;
+  color: #5d6b63;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   3. Single-line Underline Tabs
+   -------------------------------------------------------------------------- */
+.settingsClientModern {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.18s ease;
+  flex-direction: column;
+  gap: 16px;
   width: 100%;
 }
 
+.set-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid #e3e7e2;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.set-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.set-tab-btn {
+  background: transparent;
+  border: none;
+  padding: 10px 2px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 500;
+  color: #5d6b63;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s ease;
+}
+
+.set-tab-btn:hover {
+  color: #14201a;
+}
+
+.set-tab-btn.active {
+  color: #0b6b47;
+  font-weight: 600;
+}
+
+.set-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #0b6b47;
+}
+
+.set-tab-count {
+  color: #5d6b63;
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.set-tab-btn.active .set-tab-count {
+  color: #16644a;
+  font-weight: 500;
+}
+
+.set-tab-dirty-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ea580c;
+}
+
+/* --------------------------------------------------------------------------
+   4. Tab 1: Task-Centric Permission Management (Master-Detail Workspace)
+   -------------------------------------------------------------------------- */
+.taskCentricContainer {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .taskCentricContainer {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left Sidebar: Task Navigator (300px) */
+.taskSidebarPane {
+  background: #ffffff;
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.taskSidebarHeader {
+  padding: 12px;
+  border-bottom: 1px solid #e3e7e2;
+  background: #ffffff;
+}
+
+.taskSidebarSearchWrapper {
+  display: flex;
+  align-items: center;
+  background: #f6f7f5;
+  border: 1px solid #e3e7e2;
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 44px;
+  gap: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.taskSidebarSearchWrapper:focus-within {
+  border-color: #0b6b47;
+  background: #ffffff;
+}
+
+.taskSidebarSearchWrapper .searchIcon {
+  color: #5d6b63;
+  flex-shrink: 0;
+}
+
+.taskSidebarSearchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  color: #14201a;
+  outline: none;
+}
+
+.taskSidebarSearchInput::placeholder {
+  color: #5d6b63;
+}
+
+.clearSearchBtn {
+  background: transparent;
+  border: none;
+  color: #5d6b63;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.clearSearchBtn:hover {
+  color: #14201a;
+}
+
+.taskNavScrollable {
+  max-height: calc(100vh - 230px);
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.taskNavGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.taskNavGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.groupHeaderWorkflow {
+  background: #e8f3ee;
+  color: #084d34;
+}
+
+.groupHeaderSystem {
+  background: #e8edf3;
+  color: #2f4156;
+}
+
+.groupCount {
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.taskNavList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.taskNavItem {
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background 0.12s ease;
+  font-family: inherit;
+}
+
 .taskNavItem:hover {
-  background: #f8fafc;
-  border-color: #f1f5f9;
+  background: #f6f7f5;
 }
 
 .taskNavItem.active {
-  background: #ffffff;
-  border-color: #a7f3d0;
-  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.08);
-}
-
-.taskNavIconBox {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.taskNavInfo {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
+  background: #e8f3ee;
 }
 
 .taskNavName {
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: #1e293b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #14201a;
+  word-break: break-word;
 }
 
 .taskNavItem.active .taskNavName {
-  color: #059669;
+  color: #084d34;
+  font-weight: 600;
 }
 
 .taskNavRolesCount {
-  font-size: 0.72rem;
-  color: #94a3b8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 13px;
+  color: #5d6b63;
+  line-height: 1.3;
 }
 
-.taskNavArrow {
-  color: #cbd5e1;
-  flex-shrink: 0;
-  transition: transform 0.18s ease;
-}
-
-.taskNavItem.active .taskNavArrow {
-  color: #059669;
-  transform: translateX(2px);
+.taskNavItem.active .taskNavRolesCount {
+  color: #16644a;
 }
 
 .taskEmptySearch {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 36px 16px;
-  color: #94a3b8;
-  gap: 8px;
+  padding: 24px 12px;
   text-align: center;
-  font-size: 0.84rem;
+  color: #5d6b63;
+  font-size: 14px;
 }
 
-/* Right Column: Task Workspace */
+/* --------------------------------------------------------------------------
+   5. Right Pane: Selected Task Workspace & Header Card
+   -------------------------------------------------------------------------- */
 .taskWorkspacePane {
   display: flex;
   flex-direction: column;
@@ -495,324 +382,576 @@
   min-width: 0;
 }
 
-/* Task Workspace Header Banner */
-.taskWorkspaceHeader {
+.taskHeaderCard {
   background: #ffffff;
-  border-radius: 18px;
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
   padding: 20px 24px;
-  border: 1px solid #e2e8f0;
-  border-left: 6px solid #8b5cf6;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.taskWorkspaceHeaderLeft {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex: 1;
-  min-width: 280px;
-}
-
-.taskHeaderIconBox {
-  width: 54px;
-  height: 54px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.taskHeaderMeta {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 10px;
 }
 
-.taskHeaderCategoryBadge {
-  display: inline-flex;
+.taskHeaderTopLine {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: #64748b;
+  gap: 8px;
+  font-size: 13px;
+  color: #5d6b63;
 }
 
-.dotDivider {
-  color: #cbd5e1;
+.taskHeaderMonoCode {
+  font-family: var(--font-ibm-mono), 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  background: #f6f7f5;
+  border: 1px solid #e3e7e2;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #33423a;
 }
 
 .taskHeaderTitle {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-size: 22px;
+  font-weight: 600;
+  color: #14201a;
   margin: 0;
-  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 .taskHeaderDesc {
-  font-size: 0.86rem;
-  color: #64748b;
+  font-size: 14px;
+  color: #5d6b63;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
-.taskWorkspaceHeaderStats {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.taskStatBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 10px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #065f46;
-  font-size: 0.82rem;
-  font-weight: 500;
-}
-
-.taskStatBadge.positionBadge {
-  background: #f5f3ff;
-  border-color: #ddd6fe;
-  color: #5b21b6;
-}
-
-.taskStatBadge strong {
-  font-weight: 800;
-}
-
-/* ==========================================================================
-   Roles Grid & Board Cards
-   ========================================================================== */
-
-.rolesGridContainer {
+/* Summary 3 Boxes */
+.taskSummaryBoxes {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 6px;
 }
 
-@media (max-width: 960px) {
-  .rolesGridContainer {
+@media (max-width: 600px) {
+  .taskSummaryBoxes {
     grid-template-columns: 1fr;
   }
 }
 
-.roleBoardCard {
-  background: #ffffff;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
+.summaryBox {
+  padding: 12px 16px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  padding: 20px;
-  gap: 14px;
-  transition: all 0.2s ease;
+  gap: 2px;
 }
 
-.roleBoardCard:hover {
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
-  border-color: #cbd5e1;
+.summaryBoxMembers {
+  background: #e8f6f4;
+  border: 1px solid #cdebe6;
 }
 
-.roleBoardHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
+.summaryBoxPositions {
+  background: #eef0fb;
+  border: 1px solid #d5d9f2;
 }
 
-.roleBoardTitleRow {
+.summaryBoxRoles {
+  background: #f6f7f5;
+  border: 1px solid #e3e7e2;
+}
+
+.summaryNum {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.summaryBoxMembers .summaryNum {
+  color: #0f5c53;
+}
+
+.summaryBoxPositions .summaryNum {
+  color: #2b3a8c;
+}
+
+.summaryBoxRoles .summaryNum {
+  color: #33423a;
+}
+
+.summaryLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #5d6b63;
+}
+
+/* --------------------------------------------------------------------------
+   6. Permission Level Legend Bar
+   -------------------------------------------------------------------------- */
+.permLegendBar {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
-
-.roleIconBox {
-  width: 32px;
-  height: 32px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #e3e7e2;
   border-radius: 8px;
-  border: 1px solid;
-  display: flex;
+}
+
+.legendTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5d6b63;
+  margin-right: 4px;
+}
+
+.legendItem {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 
-.roleTitleMeta {
+/* --------------------------------------------------------------------------
+   7. Unified Roles Card & Role Rows
+   -------------------------------------------------------------------------- */
+.rolesUnifiedCard {
+  background: #ffffff;
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-.roleTitleText {
-  font-size: 0.98rem;
-  font-weight: 750;
-  color: #0f172a;
-  margin: 0;
+.roleRow {
+  display: flex;
+  border-bottom: 1px solid #e3e7e2;
 }
 
-.roleKeyBadge {
-  font-size: 0.7rem;
-  font-family: monospace;
-  color: #94a3b8;
+.roleRow:last-child {
+  border-bottom: none;
 }
 
-.roleTypeTag {
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 9999px;
-  border: 1px solid;
-  white-space: nowrap;
+@media (max-width: 768px) {
+  .roleRow {
+    flex-direction: column;
+  }
 }
 
-.roleDescriptionText {
-  font-size: 0.84rem;
-  color: #64748b;
-  margin: 0;
-  line-height: 1.45;
-}
-
-.roleActionsWrapper {
+/* Role Left Column (240px) */
+.roleColLeft {
+  width: 240px;
+  flex-shrink: 0;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border-radius: 10px;
-  border: 1px dashed #e2e8f0;
+  gap: 10px;
+  border-right: 1px solid #e3e7e2;
 }
 
-.roleActionsLabel {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+@media (max-width: 768px) {
+  .roleColLeft {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e3e7e2;
+  }
 }
 
-.roleActionPills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.actionPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
-  color: #334155;
+.roleLevelBadge {
+  display: inline-block;
+  align-self: flex-start;
   background: #ffffff;
   padding: 2px 8px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  font-weight: 500;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.actionPill svg {
-  color: #059669;
+.roleName {
+  font-size: 16px;
+  font-weight: 600;
+  color: #14201a;
+  margin: 0;
+  line-height: 1.4;
 }
 
-/* Assigned Section within Role Card */
-.roleAssignedSection {
+.roleMonoCode {
+  font-family: var(--font-ibm-mono), 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: #5d6b63;
+  word-break: break-all;
+}
+
+/* Role Right Column */
+.roleColRight {
+  flex: 1;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 4px;
-  flex: 1;
+  gap: 16px;
+  min-width: 0;
 }
 
-.assignedGroup {
+.roleDesc {
+  font-size: 14px;
+  color: #5d6b63;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ทำอะไรได้ (2-col grid) */
+.roleCapsSection {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.assignedGroupTitle {
+.roleCapsTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #14201a;
+  margin: 0;
+}
+
+.roleCapsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 16px;
+}
+
+.capItem {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: #475569;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #14201a;
 }
 
-.assignedChipsList {
+.capDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Assigned Sections & Chips */
+.assignedSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assignedTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #14201a;
+  margin: 0;
+}
+
+.chipsList {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 8px;
 }
 
-/* Position Chip */
-.positionChip {
+/* Position Chip (ม่วงอินดิโก) */
+.posChip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
+  background: #eef0fb;
+  border: 1px solid #d5d9f2;
+  color: #2b3a8c;
   border-radius: 8px;
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
-  color: #5b21b6;
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 13px;
 }
 
-.positionChip .chipName {
-  white-space: nowrap;
-}
-
-.positionChip .chipCount {
-  font-size: 0.7rem;
-  color: #7c3aed;
-  font-weight: 500;
-}
-
-.chipRemoveBtn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.chipRemoveBtn:hover {
-  background: #fee2e2;
-  color: #ef4444;
-}
-
-/* Member Chip */
+/* Member Chip (เขียวน้ำทะเล) */
 .memberChip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 8px 4px 4px;
-  border-radius: 9999px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  max-width: 100%;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #e8f6f4;
+  border: 1px solid #cdebe6;
+  color: #0f5c53;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.chipLabel {
+  font-weight: 500;
+}
+
+.chipSubCount,
+.chipMemberPos {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.chipCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  margin-left: 2px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.chipCloseBtn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.roleEmptyBox {
+  padding: 10px 14px;
+  background: #f6f7f5;
+  border: 1px solid #e3e7e2;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #5d6b63;
+}
+
+/* Quick Add Button */
+.roleActionsRow {
+  display: flex;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.addRoleAssigneeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #0b6b47;
+  color: #0b6b47;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.addRoleAssigneeBtn:hover {
+  background: #e8f3ee;
+}
+
+/* --------------------------------------------------------------------------
+   8. Modal: Add Assignee (Member / Position)
+   -------------------------------------------------------------------------- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 32, 26, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modalDialog {
+  background: #ffffff;
+  border: 1px solid #e3e7e2;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  font-family: inherit;
+}
+
+.modalLarge {
+  max-width: 680px;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e3e7e2;
+}
+
+.modalTitleMeta h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #14201a;
+  margin: 0 0 2px 0;
+}
+
+.modalTitleMeta p {
+  font-size: 13px;
+  color: #5d6b63;
+  margin: 0;
+}
+
+.modalCloseBtn {
+  background: transparent;
+  border: none;
+  color: #5d6b63;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalCloseBtn:hover {
+  color: #14201a;
+  background: #f6f7f5;
+}
+
+.modalTabSwitch {
+  display: flex;
+  border-bottom: 1px solid #e3e7e2;
+  background: #f6f7f5;
+}
+
+.modalTabBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #5d6b63;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.modalTabBtn.active {
+  background: #ffffff;
+  color: #0b6b47;
+  font-weight: 600;
+  border-bottom-color: #0b6b47;
+}
+
+.modalBodyContent {
+  padding: 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modalFilterBar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.modalSearchInputBox {
+  position: relative;
+  flex: 1;
+}
+
+.modalSearchInputBox .searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #5d6b63;
+}
+
+.modalSearchInput {
+  width: 100%;
+  height: 42px;
+  padding: 0 36px 0 36px;
+  border-radius: 8px;
+  border: 1px solid #e3e7e2;
+  font-size: 14px;
+  font-family: inherit;
+  color: #14201a;
+  outline: none;
+  background: #f6f7f5;
+}
+
+.modalSearchInput:focus {
+  border-color: #0b6b47;
+  background: #ffffff;
+}
+
+.modalDeptSelect {
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #e3e7e2;
+  font-size: 13px;
+  font-family: inherit;
+  background: #ffffff;
+  color: #14201a;
+  outline: none;
+}
+
+.modalMembersScrollable,
+.modalPositionsScrollable {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.modalMemberRow,
+.modalPositionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f6f7f5;
+  border: 1px solid #e3e7e2;
+  transition: all 0.15s ease;
+}
+
+.modalMemberRow.assigned,
+.modalPositionRow.assigned {
+  background: #e8f6f4;
+  border-color: #cdebe6;
 }
 
 .memberAvatarMini {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  font-size: 0.65rem;
+  font-size: 12px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -820,84 +959,130 @@
   flex-shrink: 0;
 }
 
-.memberChipInfo {
+.positionIconBox {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #eef0fb;
+  color: #2b3a8c;
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.memberChipInfo .memberName {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 130px;
-}
-
-.memberChipInfo .memberSub {
-  font-size: 0.66rem;
-  color: #94a3b8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 130px;
-}
-
-.roleEmptyNotice {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #f1f5f9;
-  color: #94a3b8;
-  font-size: 0.78rem;
-}
-
-.roleBoardFooter {
-  padding-top: 10px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.addAssigneeBtn {
-  width: 100%;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: 1px dashed #cbd5e1;
-  background: #ffffff;
-  color: #475569;
-  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.modalMemberInfo,
+.modalPositionInfo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  margin-left: 10px;
+}
+
+.modalMemberInfo .name,
+.modalPositionInfo .posName {
+  font-size: 14px;
   font-weight: 600;
+  color: #14201a;
+}
+
+.modalMemberInfo .sub,
+.modalPositionInfo .posSub {
+  font-size: 12.5px;
+  color: #5d6b63;
+}
+
+.modalMemberAction,
+.modalPositionAction {
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.btnGrantAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #0b6b47;
+  color: #ffffff;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease;
 }
 
-.addAssigneeBtn:hover {
-  background: #ecfdf5;
-  border-color: #059669;
-  color: #059669;
-  border-style: solid;
+.btnGrantAction:hover {
+  background: #085237;
 }
 
-/* ==========================================================================
-   TAB 2: MEMBER INSPECTOR VIEW
-   ========================================================================= */
+.btnRevokeAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: #e8f6f4;
+  color: #0f5c53;
+  border: 1px solid #cdebe6;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
 
+.btnRevokeAction:hover {
+  background: #fbe6ea;
+  border-color: #f5c1cc;
+  color: #8f1d3a;
+}
+
+.modalEmptyNotice {
+  padding: 32px 16px;
+  text-align: center;
+  color: #5d6b63;
+  font-size: 14px;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 22px;
+  border-top: 1px solid #e3e7e2;
+  background: #f6f7f5;
+}
+
+.modalCloseFooterBtn {
+  padding: 7px 18px;
+  border-radius: 6px;
+  background: #14201a;
+  color: #ffffff;
+  border: none;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.modalCloseFooterBtn:hover {
+  background: #2a3d33;
+}
+
+/* --------------------------------------------------------------------------
+   9. Tab 2: Member Permission Inspector View (ตรวจสอบสิทธิ์รายบุคคล)
+   -------------------------------------------------------------------------- */
 .inspectorContainer {
   display: grid;
   grid-template-columns: 320px 1fr;
-  gap: 18px;
+  gap: 20px;
   align-items: start;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .inspectorContainer {
     grid-template-columns: 1fr;
   }
@@ -905,66 +1090,62 @@
 
 .inspectorSidebar {
   background: #ffffff;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .inspectorSearchBox {
-  padding: 14px;
-  border-bottom: 1px solid #f1f5f9;
-  background: #fafbfc;
+  padding: 12px;
+  border-bottom: 1px solid #e3e7e2;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: #ffffff;
 }
 
 .searchInputWrapper {
-  position: relative;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  background: #f6f7f5;
+  border: 1px solid #e3e7e2;
+  border-radius: 8px;
+  padding: 0 10px;
+  height: 44px;
+  gap: 8px;
 }
 
-.searchInputWrapper .searchIcon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
+.searchInputWrapper:focus-within {
+  border-color: #0b6b47;
+  background: #ffffff;
 }
 
 .inspectorInput {
-  width: 100%;
-  padding: 9px 36px 9px 36px;
-  font-size: 0.86rem;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  color: #0f172a;
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: inherit;
+  color: #14201a;
   outline: none;
-  transition: all 0.2s ease;
-}
-
-.inspectorInput:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
 }
 
 .inspectorDeptSelect {
-  width: 100%;
-  padding: 7px 10px;
+  height: 40px;
+  padding: 0 10px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e3e7e2;
   background: #ffffff;
-  font-size: 0.8rem;
-  color: #334155;
+  font-size: 13px;
+  font-family: inherit;
+  color: #14201a;
   outline: none;
 }
 
 .inspectorMemberList {
-  max-height: calc(100vh - 300px);
+  max-height: calc(100vh - 270px);
   overflow-y: auto;
   padding: 8px;
   display: flex;
@@ -976,31 +1157,30 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid transparent;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
   background: transparent;
   cursor: pointer;
   text-align: left;
-  transition: all 0.18s ease;
+  transition: background 0.12s ease;
   width: 100%;
+  font-family: inherit;
 }
 
 .inspectorMemberItem:hover {
-  background: #f8fafc;
-  border-color: #f1f5f9;
+  background: #f6f7f5;
 }
 
 .inspectorMemberItem.active {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
+  background: #e8f3ee;
 }
 
 .memberAvatar {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  font-size: 0.82rem;
+  font-size: 13px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1022,44 +1202,45 @@
 }
 
 .nameText {
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: #1e293b;
+  font-size: 14px;
+  font-weight: 600;
+  color: #14201a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .adminTag {
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 700;
   padding: 1px 5px;
   border-radius: 4px;
-  background: #fef3c7;
-  color: #b45309;
+  background: #fdf1d6;
+  color: #6b4100;
 }
 
 .positionText {
-  font-size: 0.72rem;
-  color: #64748b;
+  font-size: 12.5px;
+  color: #5d6b63;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .deptText {
-  font-size: 0.68rem;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #5d6b63;
+  opacity: 0.8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .permCountBadge {
-  font-size: 0.7rem;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 2px 7px;
+  font-size: 12px;
+  color: #5d6b63;
+  background: #f6f7f5;
+  padding: 2px 8px;
   border-radius: 9999px;
   font-weight: 600;
   flex-shrink: 0;
@@ -1070,15 +1251,10 @@
 }
 
 .inspectorEmptySearch {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 36px 16px;
-  color: #94a3b8;
-  gap: 8px;
+  padding: 32px 16px;
   text-align: center;
-  font-size: 0.84rem;
+  color: #5d6b63;
+  font-size: 14px;
 }
 
 /* Inspector Main Pane */
@@ -1086,13 +1262,13 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .inspectorProfileCard {
   background: #ffffff;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -1102,36 +1278,37 @@
 .inspectorProfileHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 16px;
+  flex-wrap: wrap;
   padding-bottom: 20px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #e3e7e2;
 }
 
 .profileLeft {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  flex: 1;
+  min-width: 260px;
 }
 
 .profileAvatarLarge {
-  width: 58px;
-  height: 58px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .profileMeta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .profileTitleRow {
@@ -1142,68 +1319,81 @@
 }
 
 .profileTitleRow h2 {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-size: 20px;
+  font-weight: 600;
+  color: #14201a;
   margin: 0;
 }
 
 .roleBadgeAdmin {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   padding: 3px 10px;
   border-radius: 9999px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #b45309;
-  font-size: 0.74rem;
-  font-weight: 700;
+  background: #fbe6ea;
+  color: #8f1d3a;
+  border: 1px solid #f5c1cc;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .roleBadgeMember {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   padding: 3px 10px;
   border-radius: 9999px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #15803d;
-  font-size: 0.74rem;
-  font-weight: 700;
+  background: #e8f3ee;
+  color: #084d34;
+  border: 1px solid #cdebe6;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .profileSubRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
-  color: #64748b;
+  font-size: 13px;
+  color: #5d6b63;
   flex-wrap: wrap;
+}
+
+.profileSubRow strong {
+  color: #14201a;
+}
+
+.dotDivider {
+  color: #cbd5e1;
+}
+
+.profileRight {
+  display: flex;
+  align-items: center;
 }
 
 .editAllPermsBtn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px 16px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-  font-size: 0.84rem;
-  font-weight: 600;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #0b6b47;
+  color: #0b6b47;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .editAllPermsBtn:hover {
-  background: #ecfdf5;
-  border-color: #059669;
-  color: #059669;
+  background: #e8f3ee;
 }
 
+/* Permissions Breakdown by Task */
 .inspectorTasksSection {
   display: flex;
   flex-direction: column;
@@ -1214,51 +1404,48 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #0f172a;
-}
-
-.sectionHeading h3 {
-  font-size: 1.05rem;
-  font-weight: 800;
-  margin: 0;
+  color: #14201a;
 }
 
 .sectionHeading svg {
-  color: #059669;
+  color: #0b6b47;
+}
+
+.sectionHeading h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #14201a;
+  margin: 0;
 }
 
 .inspectorTasksGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 14px;
 }
 
-@media (max-width: 900px) {
-  .inspectorTasksGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .inspectorTaskCard {
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e3e7e2;
+  border-radius: 10px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: #ffffff;
-  transition: all 0.2s ease;
+  gap: 10px;
+  transition: border-color 0.15s ease;
 }
 
-.inspectorTaskCard.hasAccess {
-  border-color: #a7f3d0;
-  background: #fafdfc;
+.inspectorTaskCard.noAccess {
+  background: #fafafa;
+  opacity: 0.78;
 }
 
 .inspectorTaskCardHeader {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .taskCardIcon {
@@ -1274,18 +1461,23 @@
 .taskCardMeta {
   display: flex;
   flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .taskCardMeta h4 {
-  font-size: 0.9rem;
-  font-weight: 750;
-  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+  color: #14201a;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .taskCatLabel {
-  font-size: 0.7rem;
-  color: #94a3b8;
+  font-size: 12px;
+  color: #5d6b63;
 }
 
 .inspectorRolePillsList {
@@ -1298,14 +1490,18 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  background: #f8fafc;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
 }
 
 .inspectorRoleRow.granted {
-  background: #ecfdf5;
+  background: #f6f7f5;
+}
+
+.inspectorRoleRow.denied {
+  background: transparent;
+  color: #5d6b63;
 }
 
 .roleRowLeft {
@@ -1315,87 +1511,92 @@
 }
 
 .roleTypeMiniDot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .roleRowName {
-  font-weight: 600;
-  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.roleRowRight {
+  display: flex;
+  align-items: center;
 }
 
 .originBadge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 0.68rem;
-  font-weight: 700;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
   padding: 2px 7px;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
-.origin-admin {
-  background: #fef3c7;
-  color: #b45309;
+.originBadge.origin-admin {
+  background: #fdf1d6;
+  color: #6b4100;
 }
 
-.origin-position {
-  background: #f5f3ff;
-  color: #6d28d9;
+.originBadge.origin-position {
+  background: #eef0fb;
+  color: #2b3a8c;
+  border: 1px solid #d5d9f2;
 }
 
-.origin-member {
-  background: #dcfce7;
-  color: #15803d;
+.originBadge.origin-member {
+  background: #e8f6f4;
+  color: #0f5c53;
+  border: 1px solid #cdebe6;
 }
 
 .deniedBadge {
-  font-size: 0.68rem;
+  font-size: 11.5px;
   color: #94a3b8;
 }
 
 .inspectorEmptySelect {
   background: #ffffff;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
   padding: 60px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: #94a3b8;
+  color: #5d6b63;
   gap: 10px;
 }
 
 .inspectorEmptySelect h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #334155;
+  font-size: 18px;
+  font-weight: 600;
+  color: #14201a;
   margin: 0;
 }
 
 .inspectorEmptySelect p {
-  font-size: 0.88rem;
-  color: #64748b;
+  font-size: 14px;
+  color: #5d6b63;
   margin: 0;
-  max-width: 400px;
 }
 
-/* ==========================================================================
-   TAB 3: FEATURE TOGGLES & MODULES
-   ========================================================================== */
-
+/* --------------------------------------------------------------------------
+   10. Tab 3: Feature Toggles & System Modules (เปิด/ปิดโมดูลระบบบริการ)
+   -------------------------------------------------------------------------- */
 .featureTogglesContainer {
   background: #ffffff;
-  border-radius: 18px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.02);
 }
 
 .featureTogglesHeader {
@@ -1404,123 +1605,151 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e3e7e2;
 }
 
 .headerLeft h2 {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-size: 20px;
+  font-weight: 600;
+  color: #14201a;
   margin: 0 0 4px 0;
 }
 
 .headerLeft p {
-  font-size: 0.86rem;
-  color: #64748b;
+  font-size: 13.5px;
+  color: #5d6b63;
   margin: 0;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
 }
 
 .saveFeaturesBtn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  border-radius: 10px;
-  background: #cbd5e1;
-  color: #475569;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  background: #e3e7e2;
+  color: #5d6b63;
   border: none;
-  font-size: 0.86rem;
-  font-weight: 700;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
   cursor: not-allowed;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .saveFeaturesBtn.dirty {
-  background: #059669;
+  background: #0b6b47;
   color: #ffffff;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25);
 }
 
 .saveFeaturesBtn.dirty:hover {
-  background: #047857;
+  background: #085237;
 }
 
 .featureCardsGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
-}
-
-@media (max-width: 860px) {
-  .featureCardsGrid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .featureCard {
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e3e7e2;
+  border-radius: 12px;
   padding: 18px;
   display: flex;
-  gap: 16px;
+  gap: 14px;
   background: #ffffff;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .featureCard.active {
-  border-color: #a7f3d0;
-  background: #fafdfc;
+  border-color: #0b6b47;
+  box-shadow: 0 1px 4px rgba(11, 107, 71, 0.06);
+}
+
+.featureCard:not(.active) {
+  background: #fafafa;
+  opacity: 0.85;
 }
 
 .featureCardIconBox {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.iconTeal { background: #ecfdf5; color: #059669; }
-.iconIndigo { background: #eef2ff; color: #4f46e5; }
-.iconPurple { background: #f5f3ff; color: #8b5cf6; }
-.iconAmber { background: #fffbeb; color: #d97706; }
-.iconEmerald { background: #f0fdf4; color: #10b981; }
-.iconViolet { background: #faf5ff; color: #7c3aed; }
-.iconCyan { background: #f0fdfa; color: #0d9488; }
+.featureCardIconBox.iconEmerald {
+  background: #e8f3ee;
+  color: #0b6b47;
+}
+
+.featureCardIconBox.iconTeal {
+  background: #e8f6f4;
+  color: #0f5c53;
+}
+
+.featureCardIconBox.iconIndigo {
+  background: #eef0fb;
+  color: #2b3a8c;
+}
+
+.featureCardIconBox.iconPurple {
+  background: #efe8fb;
+  color: #502a8f;
+}
+
+.featureCardIconBox.iconAmber {
+  background: #fdf1d6;
+  color: #6b4100;
+}
+
+.featureCardIconBox.iconCyan {
+  background: #e6f0fb;
+  color: #17467a;
+}
 
 .featureCardContent {
   display: flex;
   flex-direction: column;
+  gap: 6px;
   flex: 1;
-  gap: 4px;
+  min-width: 0;
 }
 
 .featureCardTitleRow {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .featureCardTitleRow h3 {
-  font-size: 0.94rem;
-  font-weight: 750;
-  color: #0f172a;
-  margin: 0;
-}
-
-.featureCardContent p {
-  font-size: 0.8rem;
-  color: #64748b;
+  font-size: 15px;
+  font-weight: 600;
+  color: #14201a;
   margin: 0;
   line-height: 1.4;
 }
 
-/* Switch Toggle UI */
+.featureCardContent p {
+  font-size: 13px;
+  color: #5d6b63;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Switch Toggle Component */
 .switchToggle {
   position: relative;
   display: inline-block;
@@ -1535,18 +1764,16 @@
   height: 0;
 }
 
-.slider {
+.switchToggle .slider {
   position: absolute;
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background-color: #cbd5e1;
-  transition: 0.25s;
+  transition: 0.2s;
+  border-radius: 24px;
 }
 
-.slider:before {
+.switchToggle .slider:before {
   position: absolute;
   content: "";
   height: 18px;
@@ -1554,79 +1781,22 @@
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: 0.25s;
+  transition: 0.2s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-input:checked + .slider {
-  background-color: #059669;
+.switchToggle input:checked + .slider {
+  background-color: #0b6b47;
 }
 
-input:checked + .slider:before {
+.switchToggle input:checked + .slider:before {
   transform: translateX(20px);
 }
 
-.slider.round {
-  border-radius: 24px;
-}
-
-.slider.round:before {
-  border-radius: 50%;
-}
-
-/* ==========================================================================
-   MODALS & DIALOGS
-   ========================================================================== */
-
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-  animation: fadeIn 0.15s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.modalDialog {
-  background: #ffffff;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 680px;
-  max-height: 90vh;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.modalDialog.modalLarge {
-  max-width: 780px;
-}
-
-@keyframes slideUp {
-  from { transform: translateY(12px) scale(0.98); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-.modalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 24px;
-  border-bottom: 1px solid #f1f5f9;
-  background: #fafbfc;
-}
-
+/* --------------------------------------------------------------------------
+   11. Modal: Fine-grained Member Permission Editor (MemberPermissionModal)
+   -------------------------------------------------------------------------- */
 .modalHeaderTitleRow {
   display: flex;
   align-items: center;
@@ -1634,19 +1804,13 @@ input:checked + .slider:before {
 }
 
 .modalIconBox {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.modalTitleMeta {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
 }
 
 .modalTitleRow {
@@ -1656,270 +1820,111 @@ input:checked + .slider:before {
   flex-wrap: wrap;
 }
 
-.modalTitleMeta h3 {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0;
-}
-
 .modalPermCountBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
   border-radius: 9999px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #059669;
-  font-size: 0.74rem;
-  font-weight: 700;
-  transition: all 0.2s ease;
+  background: #e8f3ee;
+  color: #084d34;
 }
 
 .modalPermCountBadge.empty {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #64748b;
+  background: #f6f7f5;
+  color: #5d6b63;
 }
 
-.modalTitleMeta p {
-  font-size: 0.82rem;
-  color: #64748b;
-  margin: 0;
-}
-
-.modalCloseBtn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.modalCloseBtn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
-/* Modal Tab Switch */
-.modalTabSwitch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 6px;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.modalTabBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 0.84rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.modalTabBtn.active {
-  background: #ffffff;
-  color: #059669;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.modalBodyContent {
-  padding: 18px 24px;
+.memberPermEditGrid {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  overflow-y: auto;
-  max-height: 60vh;
+  gap: 12px;
 }
 
-.modalFilterBar {
+.memberEditTaskGroup {
+  border: 1px solid #e3e7e2;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.taskGroupHeader {
   display: flex;
+  align-items: center;
   gap: 10px;
-  align-items: center;
-}
-
-.modalSearchInputBox {
-  position: relative;
-  flex: 1;
-}
-
-.modalSearchInputBox .searchIcon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-}
-
-.modalSearchInput {
-  width: 100%;
-  padding: 8px 36px 8px 36px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-size: 0.86rem;
-  outline: none;
-}
-
-.modalSearchInput:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
-}
-
-.modalDeptSelect {
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  font-size: 0.82rem;
-  background: #ffffff;
-  color: #334155;
-  outline: none;
-}
-
-.modalMembersScrollable,
-.modalPositionsScrollable {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 380px;
-  overflow-y: auto;
-}
-
-.modalMemberRow,
-.modalPositionRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   padding: 10px 14px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  transition: all 0.15s ease;
+  background: #f6f7f5;
+  border-bottom: 1px solid #e3e7e2;
 }
 
-.modalMemberRow.assigned,
-.modalPositionRow.assigned {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-}
-
-.modalMemberInfo,
-.modalPositionInfo {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-  margin-left: 10px;
-}
-
-.modalMemberInfo .name,
-.modalPositionInfo .posName {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.modalMemberInfo .sub,
-.modalPositionInfo .posSub {
-  font-size: 0.74rem;
-  color: #64748b;
-}
-
-.positionIconBox {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #f5f3ff;
-  color: #7c3aed;
+.groupIconBox {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.btnGrantAction {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  background: #059669;
-  color: #ffffff;
-  border: none;
-  font-size: 0.78rem;
-  font-weight: 700;
+.groupTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #14201a;
+}
+
+.groupPermCheckboxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  padding: 12px 14px;
+  background: #ffffff;
+}
+
+.checkboxLabelItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #e3e7e2;
+  transition: all 0.12s ease;
 }
 
-.btnGrantAction:hover {
-  background: #047857;
+.checkboxLabelItem:hover {
+  background: #f6f7f5;
+  border-color: #0b6b47;
 }
 
-.btnRevokeAction {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #86efac;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s ease;
+.checkboxLabelItem input[type='checkbox'] {
+  margin-top: 3px;
+  accent-color: #0b6b47;
+  width: 16px;
+  height: 16px;
 }
 
-.btnRevokeAction:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #b91c1c;
-}
-
-.modalEmptyNotice {
+.checkboxText {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 16px;
-  color: #94a3b8;
-  gap: 8px;
-  font-size: 0.86rem;
+  gap: 2px;
 }
 
-.modalFooter {
-  padding: 14px 24px;
-  border-top: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 10px;
-  background: #fafbfc;
+.checkboxText .title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #14201a;
+}
+
+.checkboxText .desc {
+  font-size: 12px;
+  color: #5d6b63;
+  line-height: 1.35;
 }
 
 .modalFooter.spaceBetween {
   justify-content: space-between;
 }
 
-.modalFooterLeft {
-  display: flex;
-  align-items: center;
-}
-
+.modalFooterLeft,
 .modalFooterRight {
   display: flex;
   align-items: center;
@@ -1930,208 +1935,76 @@ input:checked + .slider:before {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  color: #e11d48;
-  font-size: 0.84rem;
-  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e3e7e2;
+  color: #8f1d3a;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .modalClearAllBtn:hover:not(:disabled) {
-  background: #ffe4e6;
-  border-color: #fda4af;
-  color: #be123c;
+  background: #fbe6ea;
+  border-color: #f5c1cc;
 }
 
 .modalClearAllBtn:disabled {
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: not-allowed;
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #94a3b8;
 }
 
 .clearAllCountBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9999px;
-  background: #fecdd3;
-  color: #9f1239;
-  font-size: 0.7rem;
-  font-weight: 800;
-}
-
-.modalCloseFooterBtn {
-  padding: 8px 20px;
-  border-radius: 10px;
-  background: #0f172a;
-  color: #ffffff;
-  border: none;
-  font-size: 0.86rem;
+  background: #fbe6ea;
+  color: #8f1d3a;
+  font-size: 11px;
   font-weight: 700;
-  cursor: pointer;
-}
-
-.modalCloseFooterBtn:hover {
-  background: #334155;
+  padding: 1px 6px;
+  border-radius: 9999px;
 }
 
 .modalCancelBtn {
-  padding: 8px 16px;
-  border-radius: 10px;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #475569;
-  font-size: 0.86rem;
-  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e3e7e2;
+  color: #5d6b63;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
   cursor: pointer;
+}
+
+.modalCancelBtn:hover {
+  background: #f6f7f5;
+  color: #14201a;
 }
 
 .modalSaveBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 20px;
-  border-radius: 10px;
-  background: #059669;
-  color: #ffffff;
-  border: none;
-  font-size: 0.86rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.modalSaveBtn:hover {
-  background: #047857;
-}
-
-/* Dark mode theme refinements */
-@media (prefers-color-scheme: dark) {
-  .modalClearAllBtn {
-    background: rgba(225, 29, 72, 0.15);
-    border-color: rgba(244, 63, 94, 0.35);
-    color: #fb7185;
-  }
-  .modalClearAllBtn:hover:not(:disabled) {
-    background: rgba(225, 29, 72, 0.25);
-    border-color: rgba(244, 63, 94, 0.5);
-    color: #fda4af;
-  }
-  .modalClearAllBtn:disabled {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: #64748b;
-  }
-  .clearAllCountBadge {
-    background: rgba(244, 63, 94, 0.3);
-    color: #fecdd3;
-  }
-  .modalPermCountBadge {
-    background: rgba(16, 185, 129, 0.15);
-    border-color: rgba(16, 185, 129, 0.35);
-    color: #34d399;
-  }
-  .modalPermCountBadge.empty {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: #94a3b8;
-  }
-}
-
-.memberPermEditGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.memberEditTaskGroup {
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: #fafbfc;
-}
-
-.taskGroupHeader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.groupIconBox {
-  width: 26px;
-  height: 26px;
+  padding: 7px 16px;
   border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.groupTitle {
-  font-size: 0.92rem;
-  font-weight: 750;
-  color: #0f172a;
-}
-
-.groupPermCheckboxes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-@media (max-width: 640px) {
-  .groupPermCheckboxes {
-    grid-template-columns: 1fr;
-  }
-}
-
-.checkboxLabelItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  background: #ffffff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.checkboxLabelItem:hover {
-  border-color: #a7f3d0;
-  background: #f0fdf4;
-}
-
-.checkboxLabelItem input[type="checkbox"] {
-  margin-top: 3px;
+  background: #0b6b47;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
   cursor: pointer;
 }
 
-.checkboxText {
-  display: flex;
-  flex-direction: column;
+.modalSaveBtn:hover:not(:disabled) {
+  background: #085237;
 }
 
-.checkboxText .title {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.checkboxText .desc {
-  font-size: 0.7rem;
-  color: #64748b;
-  line-height: 1.3;
+.modalSaveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .spinIcon {

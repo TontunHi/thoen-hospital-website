@@ -110,4 +110,30 @@ describe('OrganizationAdminClient Component', () => {
     expect(screen.getByText('เพิ่มสมาชิกในกลุ่มงาน')).toBeDefined()
     expect(screen.getByPlaceholderText(/เช่น ผู้อำนวยการโรงพยาบาล/i)).toBeDefined()
   })
+
+  it('filters group explorer by search query', async () => {
+    render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
+
+    await waitFor(() => {
+      expect(screen.getAllByText('กลุ่มงานการพยาบาล').length).toBeGreaterThanOrEqual(1)
+    })
+
+    const searchInput = screen.getByPlaceholderText(/ค้นหากลุ่มงาน/i)
+    fireEvent.change(searchInput, { target: { value: 'งานอุบัติเหตุ' } })
+
+    expect(screen.getByText('งานอุบัติเหตุและฉุกเฉิน')).toBeDefined()
+  })
+
+  it('renders stats overview and does not render tip banner', async () => {
+    render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('กลุ่มงานหลัก')).toBeDefined()
+      expect(screen.getByText('หน่วยงานย่อย')).toBeDefined()
+    })
+
+    // Tip banner and pill badges should be absent
+    expect(screen.queryByText(/คำแนะนำการจัดผังองค์กร/i)).toBeNull()
+    expect(screen.queryByText('Hospital Administration')).toBeNull()
+  })
 })

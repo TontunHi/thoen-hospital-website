@@ -12,7 +12,7 @@
  */
 export function getInitials(name?: string | null, uppercase: boolean = false): string {
   if (!name || !name.trim()) return '?'
-  const clean = name.replace(/^(นาย|นางสาว|นาง|นพ\.|พญ\.|ทพ\.|ภก\.|ภญ\.|พยาบาล|ดร\.)\s*/, '').trim()
+  const clean = name.replace(/^(นาย|นางสาว|นาง|นพ\.|พญ\.|ทพ\.|ทพญ\.|ภก\.|ภญ\.|พว\.|จพ\.|พยาบาล|ดร\.)\s*/, '').trim()
   if (!clean) return '?'
   const sliced = clean.slice(0, 2)
   return uppercase ? sliced.toUpperCase() : sliced

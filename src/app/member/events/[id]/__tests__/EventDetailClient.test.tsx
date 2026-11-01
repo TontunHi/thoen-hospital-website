@@ -168,4 +168,36 @@ describe('EventDetailClient - Member Photo Upload & Permissions', () => {
     expect(screen.getByText('📝 ข้อความบันทึก')).toBeDefined()
     expect(screen.getByRole('button', { name: /บันทึกสิ่งที่แนบ/i })).toBeDefined()
   })
+
+  it('renders print standee sheet and triggers window.print when clicking "พิมพ์ป้ายตั้งหน้างาน"', async () => {
+    const originalPrint = window.print
+    window.print = vi.fn()
+
+    const organizerEvent = {
+      ...baseEvent,
+      canManage: true,
+    }
+
+    render(
+      <EventDetailClient
+        event={organizerEvent}
+        checkinUrl="http://localhost:3000/checkin/test"
+        currentUser={organizerUser}
+      />
+    )
+
+    // Verify .printStandee is present in the DOM for print media
+    const standeeTitle = screen.getAllByText('กิจกรรมส่งเสริมสุขภาพโรงพยาบาลเถิน 2026')
+    expect(standeeTitle.length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('สแกนเช็คอินเข้าร่วมกิจกรรม (ยืนยันตัวตนผ่านแอป ThaID)')).toBeInTheDocument()
+
+    // Find and click "พิมพ์ป้ายตั้งหน้างาน"
+    const printBtn = screen.getByRole('button', { name: /พิมพ์ป้ายตั้งหน้างาน/i })
+    expect(printBtn).toBeInTheDocument()
+
+    fireEvent.click(printBtn)
+    expect(window.print).toHaveBeenCalledTimes(1)
+
+    window.print = originalPrint
+  })
 })

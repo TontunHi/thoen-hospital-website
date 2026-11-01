@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import EventsClient from '../EventsClient'
 
-describe('EventsClient Component', () => {
+describe('EventsClient Component (New Design)', () => {
   const mockUserStats = {
     totalPoints: 120,
     registeredCount: 3,
@@ -65,7 +65,7 @@ describe('EventsClient Component', () => {
     vi.useRealTimers()
   })
 
-  it('renders executive hospital header and personal stats', () => {
+  it('renders hospital header, back link, and personal stats', () => {
     render(
       <EventsClient
         initialEvents={mockEvents}
@@ -74,16 +74,14 @@ describe('EventsClient Component', () => {
       />
     )
 
-    expect(
-      screen.getByText('โรงพยาบาลเถิน จ.ลำปาง • ระบบกิจกรรมและเช็คอิน ThaID')
-    ).toBeInTheDocument()
+    expect(screen.getByText('← กลับสู่ระบบสมาชิก')).toBeInTheDocument()
     expect(
       screen.getByText('กิจกรรมและโครงการโรงพยาบาลเถิน')
     ).toBeInTheDocument()
     expect(screen.getByText('120')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
     expect(screen.getByText('โครงการอบรมช่วยฟื้นคืนชีพขั้นสูง (ACLS 2026)')).toBeInTheDocument()
-    expect(screen.getByText('ห้องประชุมเวียงเถิน ชั้น 4')).toBeInTheDocument()
+    expect(screen.getByText(/ห้องประชุมเวียงเถิน ชั้น 4/)).toBeInTheDocument()
   })
 
   it('renders admin create button only for admins', () => {
@@ -108,7 +106,7 @@ describe('EventsClient Component', () => {
     expect(screen.getByText('+ สร้างกิจกรรมใหม่')).toBeInTheDocument()
   })
 
-  it('filters events when searching query', () => {
+  it('filters events when searching query and displays empty state', () => {
     render(
       <EventsClient
         initialEvents={mockEvents}
@@ -117,14 +115,13 @@ describe('EventsClient Component', () => {
       />
     )
 
-    const searchInput = screen.getByPlaceholderText('ค้นหาชื่อกิจกรรม หรือสถานที่...')
+    const searchInput = screen.getByPlaceholderText('ค้นหาชื่อกิจกรรม หรือสถานที่')
     fireEvent.change(searchInput, { target: { value: 'ห้องประชุมเวียงเถิน' } })
 
     expect(screen.getByText('โครงการอบรมช่วยฟื้นคืนชีพขั้นสูง (ACLS 2026)')).toBeInTheDocument()
 
     fireEvent.change(searchInput, { target: { value: 'ไม่พบกิจกรรมใดๆ' } })
-    expect(screen.getByText('ไม่พบกิจกรรม')).toBeInTheDocument()
-    expect(screen.getByText('ไม่พบกิจกรรมที่ตรงกับคำค้นหาในหมวดหมู่นี้')).toBeInTheDocument()
+    expect(screen.getByText('ไม่พบกิจกรรมที่ตรงกับเงื่อนไข')).toBeInTheDocument()
   })
 
   it('renders 3 filter tabs with correct badge counts', () => {
@@ -170,9 +167,9 @@ describe('EventsClient Component', () => {
     )
 
     // Check tab buttons and badge counts
-    expect(screen.getByRole('tab', { name: /กิจกรรม เร็วๆ นี้ \(1\)/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /กิจกรรมที่เสร็จสิ้น \(1\)/ })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /ที่ฉันลงทะเบียนไว้ \(5\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /เร็วๆ นี้ · 1/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /เสร็จสิ้น · 1/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /ที่ฉันลงทะเบียน · 5/ })).toBeInTheDocument()
   })
 
   it('orders upcoming events nearest first in the default tab and allows tab switching', async () => {
@@ -292,24 +289,26 @@ describe('EventsClient Component', () => {
     expect(indexNextWeek).toBeLessThan(indexNextMonth)
 
     // Switch to completed tab
-    const completedTab = screen.getByRole('tab', { name: /กิจกรรมที่เสร็จสิ้น/ })
+    const completedTab = screen.getByRole('tab', { name: /เสร็จสิ้น/ })
     fireEvent.click(completedTab)
 
     await waitFor(() => {
+      expect(screen.getByText('เสร็จสิ้นแล้ว')).toBeInTheDocument()
       expect(screen.getByText('กิจกรรมเมื่อวานนี้')).toBeInTheDocument()
       expect(screen.getByText('กิจกรรมเดือนที่แล้ว')).toBeInTheDocument()
     })
 
-    // Switch to registered tab with both upcoming and past events -> divider appears
-    const registeredTab = screen.getByRole('tab', { name: /ที่ฉันลงทะเบียนไว้/ })
+    // Switch to registered tab
+    const registeredTab = screen.getByRole('tab', { name: /ที่ฉันลงทะเบียน/ })
     fireEvent.click(registeredTab)
 
     await waitFor(() => {
-      expect(screen.getByText('กิจกรรมที่เสร็จสิ้นแล้ว')).toBeInTheDocument()
+      expect(screen.getByText('กิจกรรมสัปดาห์หน้า')).toBeInTheDocument()
+      expect(screen.getByText('กิจกรรมเมื่อวานนี้')).toBeInTheDocument()
     })
   })
 
-  it('renders pre-registration button next to details button and allows toggling registration', async () => {
+  it('renders pre-registration button and allows toggling registration', async () => {
     const singleUpcomingEvent = [
       {
         id: 501,
@@ -356,10 +355,13 @@ describe('EventsClient Component', () => {
       />
     )
 
-    // Pre-registration button should be present next to details button
+    // Pre-registration button should be present
     const registerBtn = screen.getByRole('button', { name: /ลงทะเบียนล่วงหน้า/ })
     expect(registerBtn).toBeInTheDocument()
-    expect(screen.getByText('ดูรายละเอียด')).toBeInTheDocument()
+
+    // Event title is a link to details
+    const titleLink = screen.getByRole('link', { name: /โครงการอบรมช่วยฟื้นคืนชีพขั้นสูง/ })
+    expect(titleLink).toHaveAttribute('href', '/member/events/501')
 
     // Click to register
     fireEvent.click(registerBtn)
@@ -385,5 +387,39 @@ describe('EventsClient Component', () => {
       expect(screen.getByRole('button', { name: /ลงทะเบียนล่วงหน้า/ })).toBeInTheDocument()
       expect(screen.getByText('10')).toBeInTheDocument() // reverts back to 10
     })
+  })
+
+  it('renders QR Code button when current user is an organizer', () => {
+    const organizerEvent = [
+      {
+        id: 701,
+        title: 'กิจกรรมสำหรับผู้จัดงาน',
+        location: 'ห้องประชุม 1',
+        eventStartDate: '2026-10-30T09:00:00.000Z',
+        eventEndDate: '2026-10-30T16:00:00.000Z',
+        checkinOpenTime: '2026-10-30T08:00:00.000Z',
+        checkinCloseTime: '2026-10-30T17:00:00.000Z',
+        fiscalYear: '2570',
+        status: 'PUBLISHED',
+        headOrganizerId: mockCurrentUser.id,
+        registrationCount: 12,
+        attendanceCount: 5,
+        isOrganizer: true,
+        hasRegistered: false,
+      },
+    ]
+
+    render(
+      <EventsClient
+        initialEvents={organizerEvent}
+        userStats={{ totalPoints: 10, registeredCount: 0 }}
+        currentUser={mockCurrentUser}
+      />
+    )
+
+    const qrLink = screen.getByRole('link', { name: 'QR Code' })
+    expect(qrLink).toBeInTheDocument()
+    expect(qrLink).toHaveAttribute('href', '/member/events/701')
+    expect(qrLink).toHaveClass('ev-btn-qr')
   })
 })

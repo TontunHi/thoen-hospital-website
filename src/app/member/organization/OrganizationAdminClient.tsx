@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Users,
   FolderPlus,
@@ -19,9 +19,18 @@ import {
   X,
   Check,
   Building2,
-  ExternalLink
+  ExternalLink,
+  Shield,
+  Crown,
+  Layers,
+  Info,
+  FolderTree,
+  Filter,
+  CheckCircle2,
+  UserCheck
 } from 'lucide-react'
 import Link from 'next/link'
+import { getInitials } from '@/lib/formatters'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import './page.css'
@@ -66,6 +75,37 @@ function findGroupName(nodes: DepartmentGroupNode[], targetId: number): string |
   return null
 }
 
+function getGroupBreadcrumbs(
+  nodes: DepartmentGroupNode[],
+  targetId: number,
+  trail: { id: number; name: string }[] = []
+): { id: number; name: string }[] | null {
+  for (const node of nodes) {
+    const currentTrail = [...trail, { id: node.id, name: node.name }]
+    if (node.id === targetId) return currentTrail
+    if (node.children && node.children.length > 0) {
+      const found = getGroupBreadcrumbs(node.children, targetId, currentTrail)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+function countGroupsAndSubunits(nodes: DepartmentGroupNode[]): { total: number; main: number; sub: number } {
+  const main = nodes.length
+  let sub = 0
+  const countSub = (list: DepartmentGroupNode[]) => {
+    for (const item of list) {
+      if (item.children && item.children.length > 0) {
+        sub += item.children.length
+        countSub(item.children)
+      }
+    }
+  }
+  countSub(nodes)
+  return { total: main + sub, main, sub }
+}
+
 export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin?: any }) {
   const [groups, setGroups] = useState<DepartmentGroupNode[]>([])
   const [selectedGroup, setSelectedGroup] = useState<DepartmentGroupNode | null>(null)
@@ -73,6 +113,11 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
   const [loadingGroups, setLoadingGroups] = useState(true)
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
+
+  // UI state
+  const [searchGroupQuery, setSearchGroupQuery] = useState('')
+  const [searchMemberInGroupQuery, setSearchMemberInGroupQuery] = useState('')
+  const [expandedGroupIds, setExpandedGroupIds] = useState<Set<number>>(new Set())
 
   // Modals state
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
@@ -132,6 +177,20 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
       const json = await res.json()
       if (json.success && Array.isArray(json.data)) {
         setGroups(json.data)
+
+        // Expand all groups with children by default
+        const collectIds = (nodes: DepartmentGroupNode[]): number[] => {
+          let ids: number[] = []
+          for (const node of nodes) {
+            ids.push(node.id)
+            if (node.children && node.children.length > 0) {
+              ids = ids.concat(collectIds(node.children))
+            }
+          }
+          return ids
+        }
+        setExpandedGroupIds(new Set(collectIds(json.data)))
+
         // Select initial group or keep current
         if (selectGroupId) {
           const findNode = (nodes: DepartmentGroupNode[]): DepartmentGroupNode | null => {
@@ -180,6 +239,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
   useEffect(() => {
     if (selectedGroup) {
       loadMembers(selectedGroup.id)
+      setSearchMemberInGroupQuery('')
     } else {
       setMembers([])
     }
@@ -291,7 +351,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     setConfirmDialog({
       isOpen: true,
       title: 'ยืนยันการลบกลุ่มงาน',
-      message: `คุณต้องการลบ "${group.name}" ใช่หรือไม่? (ระบบจะไม่อนุญาตให้ลบหากยังมีกลุ่มงานย่อยหรือสมาชิกอยู่)`,
+      message: `คุณต้องการลบ "${group.name}" ใช่หรือไม่? (ระบบจะไม่ยินยอมให้ลบหากยังมีกลุ่มงานย่อยหรือสมาชิกอยู่)`,
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/departments/groups/${group.id}`, { method: 'DELETE' })
@@ -466,6 +526,49 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     }
   }
 
+  const toggleGroupExpand = (groupId: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpandedGroupIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(groupId)) {
+        next.delete(groupId)
+      } else {
+        next.add(groupId)
+      }
+      return next
+    })
+  }
+
+  // Computed metrics
+  const groupStats = useMemo(() => countGroupsAndSubunits(groups), [groups])
+  const breadcrumbs = useMemo(() => {
+    if (!selectedGroup) return []
+    return getGroupBreadcrumbs(groups, selectedGroup.id) || [{ id: selectedGroup.id, name: selectedGroup.name }]
+  }, [groups, selectedGroup])
+
+  // Filter groups tree based on search query
+  const filteredGroups = useMemo(() => {
+    const query = searchGroupQuery.trim().toLowerCase()
+    if (!query) return groups
+
+    const filterNode = (node: DepartmentGroupNode): DepartmentGroupNode | null => {
+      const nameMatch = node.name.toLowerCase().includes(query)
+      const matchingChildren = node.children
+        .map(filterNode)
+        .filter((c): c is DepartmentGroupNode => c !== null)
+
+      if (nameMatch || matchingChildren.length > 0) {
+        return {
+          ...node,
+          children: matchingChildren
+        }
+      }
+      return null
+    }
+
+    return groups.map(filterNode).filter((n): n is DepartmentGroupNode => n !== null)
+  }, [groups, searchGroupQuery])
+
   // Recursive tree node renderer
   const renderGroupNode = (
     node: DepartmentGroupNode,
@@ -474,6 +577,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     index = 0
   ) => {
     const isSelected = selectedGroup?.id === node.id
+    const hasChildren = Boolean(node.children && node.children.length > 0)
+    const isExpanded = expandedGroupIds.has(node.id)
     const canMoveUp = index > 0
     const canMoveDown = index < siblings.length - 1
 
@@ -482,29 +587,59 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
         <div
           className="orgTreeItemRow"
           onClick={() => setSelectedGroup(node)}
-          style={{ paddingLeft: `${Math.max(10, level * 16)}px` }}
+          style={{ paddingLeft: `${Math.max(8, level * 16 + 6)}px` }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              setSelectedGroup(node)
+            }
+          }}
         >
+          {/* Expand/Collapse Toggle or Indent spacer */}
+          {hasChildren ? (
+            <button
+              type="button"
+              className="orgTreeChevronBtn"
+              onClick={(e) => toggleGroupExpand(node.id, e)}
+              aria-label={isExpanded ? 'ยุบรายการ' : 'ขยายรายการ'}
+            >
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
+          ) : (
+            <span className="orgTreeChevronSpacer" />
+          )}
+
           <div className="orgTreeItemInfo">
-            <Building2 size={16} className={isSelected ? 'text-emerald-600' : 'text-slate-400'} />
+            <div className={`orgTreeIconWrap ${isSelected ? 'active' : ''} ${level > 0 ? 'sub' : ''}`}>
+              {level === 0 ? <Building2 size={15} /> : <Layers size={13} />}
+            </div>
             <span className="orgTreeItemName" title={node.name}>
               {node.name}
             </span>
+            {hasChildren && (
+              <span className="orgTreeSubCount" title={`มีงานย่อย ${node.children.length} แผนก`}>
+                {node.children.length}
+              </span>
+            )}
           </div>
 
           <div className="orgTreeActions" onClick={(e) => e.stopPropagation()}>
             {/* Reorder Buttons for Groups */}
-            <div className="orderButtons" style={{ flexDirection: 'row', gap: '2px' }}>
+            <div className="orderButtonsRow">
               <button
-                className="orderBtn"
-                title="เลื่อนกลุ่มงานขึ้น"
+                type="button"
+                className="orderBtnCompact"
+                title="เลื่อนขึ้น"
                 disabled={!canMoveUp}
                 onClick={() => handleMoveGroup(siblings, index, 'up')}
               >
                 <ArrowUp size={11} />
               </button>
               <button
-                className="orderBtn"
-                title="เลื่อนกลุ่มงานลง"
+                type="button"
+                className="orderBtnCompact"
+                title="เลื่อนลง"
                 disabled={!canMoveDown}
                 onClick={() => handleMoveGroup(siblings, index, 'down')}
               >
@@ -513,7 +648,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
             </div>
 
             <button
-              className="iconBtn"
+              type="button"
+              className="iconBtnCompact"
               title="เพิ่มงานย่อยภายใต้กลุ่มนี้"
               onClick={() => {
                 setGroupModalMode('create')
@@ -521,10 +657,11 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                 setIsGroupModalOpen(true)
               }}
             >
-              <Plus size={14} />
+              <Plus size={13} />
             </button>
             <button
-              className="iconBtn"
+              type="button"
+              className="iconBtnCompact"
               title="แก้ไขชื่อกลุ่มงาน"
               onClick={() => {
                 setGroupModalMode('edit')
@@ -532,19 +669,20 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                 setIsGroupModalOpen(true)
               }}
             >
-              <Edit2 size={14} />
+              <Edit2 size={12} />
             </button>
             <button
-              className="iconBtn danger"
+              type="button"
+              className="iconBtnCompact danger"
               title="ลบกลุ่มงาน"
               onClick={() => handleDeleteGroup(node)}
             >
-              <Trash2 size={14} />
+              <Trash2 size={12} />
             </button>
           </div>
         </div>
 
-        {node.children && node.children.length > 0 && (
+        {hasChildren && isExpanded && (
           <div className="orgTreeChildren">
             {node.children.map((child, childIdx) =>
               renderGroupNode(child, level + 1, node.children, childIdx)
@@ -559,27 +697,52 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
   const leaderMembers = members.filter((m) => m.role === 'leader')
   const regularMembers = members.filter((m) => m.role !== 'leader')
 
+  // Filter members by in-pane search
+  const filteredLeaderMembers = useMemo(() => {
+    const q = searchMemberInGroupQuery.trim().toLowerCase()
+    if (!q) return leaderMembers
+    return leaderMembers.filter((m) => m.name.toLowerCase().includes(q) || m.position.toLowerCase().includes(q))
+  }, [leaderMembers, searchMemberInGroupQuery])
+
+  const filteredRegularMembers = useMemo(() => {
+    const q = searchMemberInGroupQuery.trim().toLowerCase()
+    if (!q) return regularMembers
+    return regularMembers.filter((m) => m.name.toLowerCase().includes(q) || m.position.toLowerCase().includes(q))
+  }, [regularMembers, searchMemberInGroupQuery])
+
   return (
     <div className="orgAdminPage">
       <div className="orgAdminContainer">
-        {/* Header */}
-        <div className="orgAdminHeader">
-          <div className="orgAdminHeaderTitle">
-            <h1>
-              <Users className="text-emerald-600" size={28} />
-              จัดการแผนผังและสมาชิกกลุ่มงาน
-            </h1>
-            <p>
-              จัดการโครงสร้างกลุ่มภารกิจ หน่วยงานย่อย และรายชื่อบุคลากรประจำแต่ละแผนกของโรงพยาบาลเถิน
-            </p>
+        {/* Top Header Card */}
+        <header className="orgAdminHeader">
+          <div className="orgAdminHeaderLeft">
+            <div className="orgAdminLogoBadge">
+              <Building2 className="text-emerald-700" size={26} />
+            </div>
+            <div className="orgAdminHeaderTitle">
+              <h1>
+                <Users className="text-emerald-700 hidden sm:inline-block" size={26} />
+                จัดการแผนผังและสมาชิกกลุ่มงาน
+              </h1>
+              <p>
+                จัดการโครงสร้างกลุ่มภารกิจ หน่วยงานย่อย และทำเนียบบุคลากรประจำแต่ละแผนกของโรงพยาบาลเถิน
+              </p>
+            </div>
           </div>
 
           <div className="orgAdminHeaderActions">
-            <Link href="/about/organization" target="_blank" className="btn btnSecondary">
-              ดูหน้าเว็บสาธารณะ
+            <Link
+              href="/about/organization"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btnSecondary"
+              title="เปิดดูหน้าโครงสร้างองค์กรที่ประชาชนทั่วไปมองเห็น"
+            >
+              <span>ดูหน้าเว็บสาธารณะ</span>
               <ExternalLink size={14} />
             </Link>
             <button
+              type="button"
               className="btn btnPrimary"
               onClick={() => {
                 setGroupModalMode('create')
@@ -588,105 +751,221 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               }}
             >
               <FolderPlus size={16} />
-              เพิ่มกลุ่มงานหลัก
+              <span>เพิ่มกลุ่มงานหลัก</span>
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Helpful Guide Tip Banner */}
-        <div className="adminTipBanner">
-          <div className="adminTipIcon">💡</div>
-          <div className="adminTipContent">
-            <strong>คำแนะนำการจัดผังองค์กร:</strong> จัดการกลุ่มงานหลักและงานย่อยที่แผงฝั่งซ้าย จากนั้นเพิ่มบุคลากรที่แผงฝั่งขวา โดยกำหนดบทบาทเป็น <strong>&quot;หัวหน้างาน&quot;</strong> เพื่อให้อยู่ด้านบนเป็นจุดเริ่มต้น และกำหนด <strong>&quot;เจ้าหน้าที่ผู้ปฏิบัติงาน&quot;</strong> เพื่อให้ระบบโยงเส้นสายการบังคับบัญชาลงมาโดยอัตโนมัติ
+        {/* Overview Stats Strip */}
+        <div className="orgStatsStrip">
+          <div className="orgStatItem">
+            <div className="orgStatIconWrap">
+              <Building2 size={16} />
+            </div>
+            <div className="orgStatInfo">
+              <span className="orgStatLabel">กลุ่มงานหลัก</span>
+              <span className="orgStatValue">{groupStats.main}</span>
+            </div>
+          </div>
+
+          <div className="orgStatDivider" />
+
+          <div className="orgStatItem">
+            <div className="orgStatIconWrap sub">
+              <Layers size={16} />
+            </div>
+            <div className="orgStatInfo">
+              <span className="orgStatLabel">หน่วยงานย่อย</span>
+              <span className="orgStatValue">{groupStats.sub}</span>
+            </div>
+          </div>
+
+          <div className="orgStatDivider" />
+
+          <div className="orgStatItem">
+            <div className="orgStatIconWrap active">
+              <Users size={16} />
+            </div>
+            <div className="orgStatInfo">
+              <span className="orgStatLabel">สมาชิกในกลุ่มที่เลือก</span>
+              <span className="orgStatValue">
+                {selectedGroup ? members.length : '—'}
+                <small className="orgStatUnit">{selectedGroup ? ' คน' : ''}</small>
+              </span>
+            </div>
+          </div>
+
+          <div className="orgStatDivider" />
+
+          <div className="orgStatItem">
+            <div className="orgStatIconWrap gold">
+              <Crown size={16} />
+            </div>
+            <div className="orgStatInfo">
+              <span className="orgStatLabel">หัวหน้ากลุ่มงานนี้</span>
+              <span className="orgStatValue">
+                {selectedGroup ? leaderMembers.length : '—'}
+                <small className="orgStatUnit">{selectedGroup ? ' ท่าน' : ''}</small>
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Workbench Split View */}
         <div className="orgWorkbench">
           {/* Left Pane: Groups Explorer */}
-          <div className="orgGroupsPane">
+          <aside className="orgGroupsPane">
             <div className="orgPaneHeader">
-              <h3>
-                <Building2 size={18} className="text-emerald-600" />
-                โครงสร้างกลุ่มงาน
-              </h3>
+              <div className="orgPaneHeaderTitle">
+                <FolderTree size={18} className="text-emerald-700" />
+                <h3>โครงสร้างกลุ่มงาน</h3>
+                <span className="orgPaneBadge">{groupStats.total} แผนก</span>
+              </div>
               <button
-                className="btn btnSecondary"
-                style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                type="button"
+                className="btn btnSecondary btnSmall"
                 onClick={() => {
                   setGroupModalMode('create')
                   setGroupFormData({ name: '', parentId: null })
                   setIsGroupModalOpen(true)
                 }}
+                title="สร้างกลุ่มงานระดับบนสุดใหม่"
               >
-                <Plus size={14} /> กลุ่มหลัก
+                <Plus size={13} />
+                <span>กลุ่มหลัก</span>
               </button>
+            </div>
+
+            {/* Quick Search for Groups */}
+            <div className="orgGroupSearchWrap">
+              <Search size={14} className="orgGroupSearchIcon" />
+              <input
+                type="text"
+                className="orgGroupSearchInput"
+                placeholder="ค้นหากลุ่มงาน หรือ งานย่อย..."
+                value={searchGroupQuery}
+                onChange={(e) => setSearchGroupQuery(e.target.value)}
+              />
+              {searchGroupQuery && (
+                <button
+                  type="button"
+                  className="orgGroupSearchClear"
+                  onClick={() => setSearchGroupQuery('')}
+                  aria-label="ล้างคำค้นหา"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
 
             <div className="orgTreeList">
               {loadingGroups ? (
                 <div className="emptyState" style={{ padding: '40px 10px' }}>
-                  <Loader2 className="animate-spin text-emerald-600" size={24} />
+                  <Loader2 className="animate-spin text-emerald-700" size={24} />
                   <span>กำลังโหลดกลุ่มงาน...</span>
                 </div>
-              ) : groups.length === 0 ? (
+              ) : filteredGroups.length === 0 ? (
                 <div className="emptyState" style={{ padding: '40px 10px' }}>
                   <Building2 size={32} className="text-slate-300" />
-                  <span className="emptyStateTitle">ยังไม่มีกลุ่มงาน</span>
-                  <p style={{ fontSize: '0.8rem' }}>คลิกปุ่ม &quot;เพิ่มกลุ่มงานหลัก&quot; ด้านบนเพื่อเริ่มต้น</p>
+                  <span className="emptyStateTitle">
+                    {searchGroupQuery ? 'ไม่พบกลุ่มงานที่ค้นหา' : 'ยังไม่มีกลุ่มงาน'}
+                  </span>
+                  <p style={{ fontSize: '0.8rem' }}>
+                    {searchGroupQuery
+                      ? 'ลองค้นหาด้วยคำอื่น หรือกดล้างการค้นหา'
+                      : 'คลิกปุ่ม "+ กลุ่มหลัก" ด้านบนเพื่อเริ่มต้นสร้างโครงสร้าง'}
+                  </p>
+                  {searchGroupQuery && (
+                    <button
+                      type="button"
+                      className="btn btnSecondary btnSmall"
+                      onClick={() => setSearchGroupQuery('')}
+                    >
+                      ล้างการค้นหา
+                    </button>
+                  )}
                 </div>
               ) : (
-                groups.map((group, idx) => renderGroupNode(group, 0, groups, idx))
+                filteredGroups.map((group, idx) => renderGroupNode(group, 0, filteredGroups, idx))
               )}
             </div>
-          </div>
+          </aside>
 
           {/* Right Pane: Members in Selected Group */}
-          <div className="orgMembersPane">
+          <main className="orgMembersPane">
             {selectedGroup ? (
               <>
+                {/* Selected Group Header */}
                 <div className="orgMembersHeader">
-                  <div className="orgMembersTitle">
-                    <h2>{selectedGroup.name}</h2>
-                    <span className="orgGroupBreadcrumb">
-                      จำนวนสมาชิกทั้งหมด: <strong>{members.length}</strong> คน
-                    </span>
+                  <div className="orgMembersTitleWrap">
+                    {/* Breadcrumbs path */}
+                    <div className="orgBreadcrumbRow">
+                      <span className="orgBreadcrumbItem">โครงสร้าง</span>
+                      {breadcrumbs.map((crumb, idx) => (
+                        <React.Fragment key={crumb.id}>
+                          <ChevronRight size={13} className="text-slate-400" />
+                          <span
+                            className={`orgBreadcrumbItem ${idx === breadcrumbs.length - 1 ? 'active' : ''}`}
+                          >
+                            {crumb.name}
+                          </span>
+                        </React.Fragment>
+                      ))}
+                    </div>
+
+                    <div className="orgGroupNameRow">
+                      <h2>{selectedGroup.name}</h2>
+                      <div className="orgGroupActionsPill">
+                        <button
+                          type="button"
+                          className="actionPillBtn"
+                          title="แก้ไขชื่อกลุ่มงานนี้"
+                          onClick={() => {
+                            setGroupModalMode('edit')
+                            setGroupFormData({
+                              id: selectedGroup.id,
+                              name: selectedGroup.name,
+                              parentId: selectedGroup.parentId
+                            })
+                            setIsGroupModalOpen(true)
+                          }}
+                        >
+                          <Edit2 size={13} />
+                          <span>แก้ไขชื่อ</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="actionPillBtn"
+                          title="เพิ่มงานย่อยภายใต้กลุ่มนี้"
+                          onClick={() => {
+                            setGroupModalMode('create')
+                            setGroupFormData({ name: '', parentId: selectedGroup.id })
+                            setIsGroupModalOpen(true)
+                          }}
+                        >
+                          <Plus size={13} />
+                          <span>เพิ่มงานย่อย</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="orgGroupSummaryInfo">
+                      <span className="summaryPill">
+                        <Users size={12} /> บุคลากรทั้งหมด <strong>{members.length}</strong> คน
+                      </span>
+                      <span className="summaryPill">
+                        <Crown size={12} className="text-amber-600" /> หัวหน้า <strong>{leaderMembers.length}</strong> ท่าน
+                      </span>
+                      <span className="summaryPill">
+                        <UserCheck size={12} className="text-emerald-700" /> เจ้าหน้าที่ <strong>{regularMembers.length}</strong> คน
+                      </span>
+                    </div>
                   </div>
 
-                  <button
-                    className="btn btnPrimary"
-                    onClick={() => {
-                      setMemberModalMode('create')
-                      setMemberFormData({
-                        name: '',
-                        position: '',
-                        role: 'member',
-                        phone: '',
-                        imagePath: '',
-                        memberId: null
-                      })
-                      setSearchMemberQuery('')
-                      setIsMemberModalOpen(true)
-                    }}
-                  >
-                    <UserPlus size={16} />
-                    เพิ่มสมาชิก
-                  </button>
-                </div>
-
-                {loadingMembers ? (
-                  <div className="emptyState">
-                    <Loader2 className="animate-spin text-emerald-600" size={28} />
-                    <span>กำลังโหลดรายชื่อสมาชิก...</span>
-                  </div>
-                ) : members.length === 0 ? (
-                  <div className="emptyState">
-                    <Users size={48} className="text-slate-300" />
-                    <span className="emptyStateTitle">ยังไม่มีสมาชิกในกลุ่มงานนี้</span>
-                    <p style={{ fontSize: '0.875rem' }}>
-                      เพิ่มหัวหน้ากลุ่มงานหรือเจ้าหน้าที่เพื่อเริ่มต้นแสดงในแผนผัง
-                    </p>
+                  {/* Header CTA Buttons */}
+                  <div className="orgMembersHeaderActions">
                     <button
+                      type="button"
                       className="btn btnPrimary"
                       onClick={() => {
                         setMemberModalMode('create')
@@ -703,198 +982,306 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                       }}
                     >
                       <UserPlus size={16} />
-                      เพิ่มสมาชิกคนแรก
+                      <span>เพิ่มสมาชิก</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* In-group member search filter (only show if members exist) */}
+                {members.length > 3 && (
+                  <div className="orgMemberFilterRow">
+                    <div className="orgMemberSearchInputWrap">
+                      <Search size={14} className="orgMemberSearchIcon" />
+                      <input
+                        type="text"
+                        className="orgMemberSearchInput"
+                        placeholder="ค้นหาชื่อหรือตำแหน่งในกลุ่มงานนี้..."
+                        value={searchMemberInGroupQuery}
+                        onChange={(e) => setSearchMemberInGroupQuery(e.target.value)}
+                      />
+                      {searchMemberInGroupQuery && (
+                        <button
+                          type="button"
+                          className="orgMemberSearchClear"
+                          onClick={() => setSearchMemberInGroupQuery('')}
+                          aria-label="ล้างคำค้นหา"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {loadingMembers ? (
+                  <div className="emptyState">
+                    <Loader2 className="animate-spin text-emerald-700" size={32} />
+                    <span>กำลังโหลดรายชื่อสมาชิก...</span>
+                  </div>
+                ) : members.length === 0 ? (
+                  <div className="emptyState">
+                    <div className="emptyStateIconCircle">
+                      <Users size={36} className="text-emerald-700" />
+                    </div>
+                    <span className="emptyStateTitle">ยังไม่มีสมาชิกในกลุ่มงานนี้</span>
+                    <p style={{ fontSize: '0.875rem', maxWidth: '420px' }}>
+                      เพิ่มหัวหน้ากลุ่มงานหรือเจ้าหน้าที่ผู้ปฏิบัติงาน เพื่อเริ่มต้นจัดทำเนียบและแสดงผลในแผนผังองค์กรของโรงพยาบาลเถิน
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btnPrimary"
+                      onClick={() => {
+                        setMemberModalMode('create')
+                        setMemberFormData({
+                          name: '',
+                          position: '',
+                          role: 'member',
+                          phone: '',
+                          imagePath: '',
+                          memberId: null
+                        })
+                        setSearchMemberQuery('')
+                        setIsMemberModalOpen(true)
+                      }}
+                    >
+                      <UserPlus size={16} />
+                      <span>เพิ่มสมาชิกคนแรก</span>
                     </button>
                   </div>
                 ) : (
-                  <>
+                  <div className="orgMembersListScroll">
                     {/* Leader Section */}
                     {leaderMembers.length > 0 && (
-                      <div className="orgMemberSection">
+                      <section className="orgMemberSection">
                         <div className="orgSectionHeading">
-                          หัวหน้ากลุ่มงาน / ผู้บริหาร
+                          <Crown size={15} className="text-amber-600" />
+                          <span>หัวหน้ากลุ่มงาน / ผู้บริหาร</span>
+                          <span className="orgSectionCount">{leaderMembers.length}</span>
                         </div>
-                        {leaderMembers.map((leader, leaderIndex) => {
-                          return (
-                            <div key={leader.id} className="leaderCard">
-                              {leader.imagePath ? (
-                                <img
-                                  src={leader.imagePath}
-                                  alt={leader.name}
-                                  className="leaderAvatar"
-                                />
-                              ) : (
-                                <div className="avatarFallback">
-                                  {leader.name.slice(0, 1)}
-                                </div>
-                              )}
 
-                              <div className="leaderInfo">
-                                <span className="leaderBadge">
-                                  หัวหน้ากลุ่มงาน
-                                </span>
-                                <span className="leaderName">{leader.name}</span>
-                                <span className="leaderPosition">{leader.position}</span>
-                                {leader.phone && (
-                                  <span className="leaderPhone" title="เบอร์โทรภายใน (ดูได้เฉพาะเจ้าหน้าที่)">
-                                    <Phone size={13} />
-                                    เบอร์ภายใน: {leader.phone}
-                                  </span>
-                                )}
-                              </div>
+                        {filteredLeaderMembers.length === 0 ? (
+                          <div className="orgNoSearchResultNote">
+                            ไม่พบหัวหน้ากลุ่มงานที่ตรงกับคำค้นหา &quot;{searchMemberInGroupQuery}&quot;
+                          </div>
+                        ) : (
+                          <div className="leaderCardsList">
+                            {filteredLeaderMembers.map((leader, leaderIndex) => {
+                              return (
+                                <div key={leader.id} className="leaderCard">
+                                  <div className="leaderAvatarWrap">
+                                    {leader.imagePath ? (
+                                      <img
+                                        src={leader.imagePath}
+                                        alt={leader.name}
+                                        className="leaderAvatar"
+                                      />
+                                    ) : (
+                                      <div className="avatarFallback">
+                                        {getInitials(leader.name)}
+                                      </div>
+                                    )}
+                                    <span className="leaderCrownBadge" title="หัวหน้ากลุ่มงาน">
+                                      <Crown size={12} />
+                                    </span>
+                                  </div>
 
-                              <div className="cardActionButtons">
-                                <div className="orderButtons">
-                                  <button
-                                    className="orderBtn"
-                                    title="เลื่อนขึ้น"
-                                    disabled={leaderIndex === 0}
-                                    onClick={() => handleMoveMember('leader', leaderIndex, 'up')}
-                                  >
-                                    <ArrowUp size={12} />
-                                  </button>
-                                  <button
-                                    className="orderBtn"
-                                    title="เลื่อนลง"
-                                    disabled={leaderIndex === leaderMembers.length - 1}
-                                    onClick={() => handleMoveMember('leader', leaderIndex, 'down')}
-                                  >
-                                    <ArrowDown size={12} />
-                                  </button>
+                                  <div className="leaderInfo">
+                                    <div className="leaderHeaderLine">
+                                      <span className="leaderBadge">
+                                        หัวหน้ากลุ่มงาน
+                                      </span>
+                                      {leader.memberId && (
+                                        <span className="linkedAccountBadge" title="ผูกกับบัญชีบุคลากรในระบบ">
+                                          <CheckCircle2 size={11} /> บุคลากรในระบบ
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="leaderName">{leader.name}</span>
+                                    <span className="leaderPosition">{leader.position}</span>
+                                    {leader.phone && (
+                                      <div className="leaderPhoneChip" title="เบอร์โทรภายใน (ดูได้เฉพาะเจ้าหน้าที่)">
+                                        <Phone size={12} />
+                                        <span>เบอร์โทรภายใน: {leader.phone}</span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="cardActionButtons">
+                                    <div className="orderButtons">
+                                      <button
+                                        type="button"
+                                        className="orderBtn"
+                                        title="เลื่อนขึ้น"
+                                        disabled={leaderIndex === 0}
+                                        onClick={() => handleMoveMember('leader', leaderIndex, 'up')}
+                                      >
+                                        <ArrowUp size={12} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="orderBtn"
+                                        title="เลื่อนลง"
+                                        disabled={leaderIndex === leaderMembers.length - 1}
+                                        onClick={() => handleMoveMember('leader', leaderIndex, 'down')}
+                                      >
+                                        <ArrowDown size={12} />
+                                      </button>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="iconBtn"
+                                      title="แก้ไขข้อมูล"
+                                      onClick={() => {
+                                        setMemberModalMode('edit')
+                                        setMemberFormData({
+                                          id: leader.id,
+                                          name: leader.name,
+                                          position: leader.position,
+                                          role: leader.role,
+                                          phone: leader.phone || '',
+                                          imagePath: leader.imagePath || '',
+                                          memberId: leader.memberId || null
+                                        })
+                                        setIsMemberModalOpen(true)
+                                      }}
+                                    >
+                                      <Edit2 size={15} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="iconBtn danger"
+                                      title="ลบสมาชิก"
+                                      onClick={() => handleDeleteMember(leader)}
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
                                 </div>
-                                <button
-                                  className="iconBtn"
-                                  title="แก้ไขข้อมูล"
-                                  onClick={() => {
-                                    setMemberModalMode('edit')
-                                    setMemberFormData({
-                                      id: leader.id,
-                                      name: leader.name,
-                                      position: leader.position,
-                                      role: leader.role,
-                                      phone: leader.phone || '',
-                                      imagePath: leader.imagePath || '',
-                                      memberId: leader.memberId || null
-                                    })
-                                    setIsMemberModalOpen(true)
-                                  }}
-                                >
-                                  <Edit2 size={16} />
-                                </button>
-                                <button
-                                  className="iconBtn danger"
-                                  title="ลบสมาชิก"
-                                  onClick={() => handleDeleteMember(leader)}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </section>
                     )}
 
                     {/* Regular Members Grid */}
                     {regularMembers.length > 0 && (
-                      <div className="orgMemberSection">
+                      <section className="orgMemberSection">
                         <div className="orgSectionHeading">
-                          <Users size={16} className="text-slate-500" />
-                          เจ้าหน้าที่ / สมาชิกในกลุ่มงาน ({regularMembers.length})
+                          <Users size={15} className="text-slate-600" />
+                          <span>เจ้าหน้าที่ / สมาชิกในกลุ่มงาน ({regularMembers.length})</span>
+                          <span className="orgSectionCount">{regularMembers.length}</span>
                         </div>
-                        <div className="membersGrid">
-                          {regularMembers.map((member, memberIndex) => {
-                            return (
-                              <div key={member.id} className="memberCard">
-                                {member.imagePath ? (
-                                  <img
-                                    src={member.imagePath}
-                                    alt={member.name}
-                                    className="memberAvatarSmall"
-                                  />
-                                ) : (
-                                  <div className="avatarFallback small">
-                                    {member.name.slice(0, 1)}
-                                  </div>
-                                )}
 
-                                <div className="memberCardInfo">
-                                  <span className="memberCardName" title={member.name}>
-                                    {member.name}
-                                  </span>
-                                  <span className="memberCardPosition" title={member.position}>
-                                    {member.position}
-                                  </span>
-                                  {member.phone && (
-                                    <span className="memberCardPhone" title="เบอร์โทรภายใน">
-                                      <Phone size={11} /> {member.phone}
+                        {filteredRegularMembers.length === 0 ? (
+                          <div className="orgNoSearchResultNote">
+                            ไม่พบสมาชิกที่ตรงกับคำค้นหา &quot;{searchMemberInGroupQuery}&quot;
+                          </div>
+                        ) : (
+                          <div className="membersGrid">
+                            {filteredRegularMembers.map((member, memberIndex) => {
+                              return (
+                                <div key={member.id} className="memberCard">
+                                  <div className="memberCardAvatarWrap">
+                                    {member.imagePath ? (
+                                      <img
+                                        src={member.imagePath}
+                                        alt={member.name}
+                                        className="memberAvatarSmall"
+                                      />
+                                    ) : (
+                                      <div className="avatarFallback small">
+                                        {getInitials(member.name)}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="memberCardInfo">
+                                    <span className="memberCardName" title={member.name}>
+                                      {member.name}
                                     </span>
-                                  )}
-                                </div>
+                                    <span className="memberCardPosition" title={member.position}>
+                                      {member.position}
+                                    </span>
+                                    {member.phone && (
+                                      <span className="memberCardPhone" title="เบอร์โทรภายใน">
+                                        <Phone size={11} /> {member.phone}
+                                      </span>
+                                    )}
+                                  </div>
 
-                                <div className="cardActionButtons">
-                                  <div className="orderButtons">
+                                  <div className="cardActionButtons">
+                                    <div className="orderButtons">
+                                      <button
+                                        type="button"
+                                        className="orderBtn"
+                                        title="เลื่อนขึ้น"
+                                        disabled={memberIndex === 0}
+                                        onClick={() => handleMoveMember('member', memberIndex, 'up')}
+                                      >
+                                        <ArrowUp size={11} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="orderBtn"
+                                        title="เลื่อนลง"
+                                        disabled={memberIndex === regularMembers.length - 1}
+                                        onClick={() => handleMoveMember('member', memberIndex, 'down')}
+                                      >
+                                        <ArrowDown size={11} />
+                                      </button>
+                                    </div>
                                     <button
-                                      className="orderBtn"
-                                      title="เลื่อนขึ้น"
-                                      disabled={memberIndex === 0}
-                                      onClick={() => handleMoveMember('member', memberIndex, 'up')}
+                                      type="button"
+                                      className="iconBtn"
+                                      title="แก้ไขข้อมูล"
+                                      onClick={() => {
+                                        setMemberModalMode('edit')
+                                        setMemberFormData({
+                                          id: member.id,
+                                          name: member.name,
+                                          position: member.position,
+                                          role: member.role,
+                                          phone: member.phone || '',
+                                          imagePath: member.imagePath || '',
+                                          memberId: member.memberId || null
+                                        })
+                                        setIsMemberModalOpen(true)
+                                      }}
                                     >
-                                      <ArrowUp size={12} />
+                                      <Edit2 size={14} />
                                     </button>
                                     <button
-                                      className="orderBtn"
-                                      title="เลื่อนลง"
-                                      disabled={memberIndex === regularMembers.length - 1}
-                                      onClick={() => handleMoveMember('member', memberIndex, 'down')}
+                                      type="button"
+                                      className="iconBtn danger"
+                                      title="ลบสมาชิก"
+                                      onClick={() => handleDeleteMember(member)}
                                     >
-                                      <ArrowDown size={12} />
+                                      <Trash2 size={14} />
                                     </button>
                                   </div>
-                                  <button
-                                    className="iconBtn"
-                                    title="แก้ไขข้อมูล"
-                                    onClick={() => {
-                                      setMemberModalMode('edit')
-                                      setMemberFormData({
-                                        id: member.id,
-                                        name: member.name,
-                                        position: member.position,
-                                        role: member.role,
-                                        phone: member.phone || '',
-                                        imagePath: member.imagePath || '',
-                                        memberId: member.memberId || null
-                                      })
-                                      setIsMemberModalOpen(true)
-                                    }}
-                                  >
-                                    <Edit2 size={15} />
-                                  </button>
-                                  <button
-                                    className="iconBtn danger"
-                                    title="ลบสมาชิก"
-                                    onClick={() => handleDeleteMember(member)}
-                                  >
-                                    <Trash2 size={15} />
-                                  </button>
                                 </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </section>
                     )}
-                  </>
+                  </div>
                 )}
               </>
             ) : (
               <div className="emptyState">
-                <Building2 size={48} className="text-slate-300" />
+                <div className="emptyStateIconCircle">
+                  <Building2 size={36} className="text-emerald-700" />
+                </div>
                 <span className="emptyStateTitle">กรุณาเลือกกลุ่มงาน</span>
-                <p>เลือกกลุ่มงานจากรายการฝั่งซ้าย เพื่อดูและจัดการรายชื่อสมาชิก</p>
+                <p style={{ maxWidth: '380px' }}>
+                  เลือกกลุ่มงานจากรายการฝั่งซ้ายเพื่อตรวจสอบ ปรับปรุง หรือจัดลำดับรายชื่อสมาชิกและบุคลากร
+                </p>
               </div>
             )}
-          </div>
+          </main>
         </div>
 
         {/* Group Add/Edit Modal */}
@@ -903,7 +1290,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
             <div className="modalContent" onClick={(e) => e.stopPropagation()}>
               <div className="modalHeader">
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                  <h3 className="modalHeaderTitle">
                     {groupModalMode === 'create'
                       ? groupFormData.parentId
                         ? 'เพิ่มงานย่อย'
@@ -911,13 +1298,18 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                       : 'แก้ไขชื่อกลุ่มงาน'}
                   </h3>
                   {groupFormData.parentId && (
-                    <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--admin-slate-muted)' }}>
+                    <p className="modalHeaderSub">
                       ภายใต้กลุ่มงาน:{' '}
                       <strong>{findGroupName(groups, groupFormData.parentId) || 'กลุ่มงานหลัก'}</strong>
                     </p>
                   )}
                 </div>
-                <button className="iconBtn" onClick={() => setIsGroupModalOpen(false)}>
+                <button
+                  type="button"
+                  className="iconBtn"
+                  onClick={() => setIsGroupModalOpen(false)}
+                  aria-label="ปิด"
+                >
                   <X size={18} />
                 </button>
               </div>
@@ -928,12 +1320,15 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                     <input
                       type="text"
                       className="formInput"
-                      placeholder="เช่น กลุ่มงานการพยาบาล, งานอุบัติเหตุฉุกเฉิน"
+                      placeholder="เช่น กลุ่มงานการพยาบาล, งานอุบัติเหตุและฉุกเฉิน"
                       value={groupFormData.name}
                       onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
                       required
                       autoFocus
                     />
+                    <small className="formHelpText">
+                      ชื่อนี้จะปรากฏในผังโครงสร้างองค์กรและเว็บไซต์ทางการของโรงพยาบาลเถิน
+                    </small>
                   </div>
                 </div>
                 <div className="modalFooter">
@@ -959,14 +1354,19 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
             <div className="modalContent modalWide" onClick={(e) => e.stopPropagation()}>
               <div className="modalHeader">
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
+                  <h3 className="modalHeaderTitle">
                     {memberModalMode === 'create' ? 'เพิ่มสมาชิกในกลุ่มงาน' : 'แก้ไขข้อมูลสมาชิก'}
                   </h3>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--admin-slate-muted)' }}>
-                    กลุ่มงาน: <strong style={{ color: 'var(--admin-slate-dark)' }}>{selectedGroup?.name}</strong>
+                  <p className="modalHeaderSub">
+                    กลุ่มงาน: <strong>{selectedGroup?.name}</strong>
                   </p>
                 </div>
-                <button className="iconBtn" onClick={() => setIsMemberModalOpen(false)}>
+                <button
+                  type="button"
+                  className="iconBtn"
+                  onClick={() => setIsMemberModalOpen(false)}
+                  aria-label="ปิด"
+                >
                   <X size={18} />
                 </button>
               </div>
@@ -992,13 +1392,13 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                             <Search
                               size={15}
                               className="text-slate-400"
-                              style={{ position: 'absolute', left: '10px', top: '11px' }}
+                              style={{ position: 'absolute', left: '10px', top: '12px' }}
                             />
                             {searchingMembers && (
                               <Loader2
                                 size={15}
-                                className="animate-spin text-emerald-600"
-                                style={{ position: 'absolute', right: '10px', top: '11px' }}
+                                className="animate-spin text-emerald-700"
+                                style={{ position: 'absolute', right: '10px', top: '12px' }}
                               />
                             )}
                           </div>
@@ -1025,19 +1425,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                   {s.profilePath ? (
                                     <img src={s.profilePath} alt={s.name} className="autocompleteAvatar" />
                                   ) : (
-                                    <div
-                                      className="autocompleteAvatar"
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontWeight: 'bold',
-                                        fontSize: '13px',
-                                        color: '#047857',
-                                        background: '#d1fae5'
-                                      }}
-                                    >
-                                      {s.name.slice(0, 1)}
+                                    <div className="autocompleteAvatarFallback">
+                                      {getInitials(s.name)}
                                     </div>
                                   )}
                                   <div className="autocompleteText">
@@ -1056,51 +1445,23 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                       {/* Photo Upload Area */}
                       <div className="formGroup">
                         <label className="formLabel">รูปถ่ายบุคลากร</label>
-                        <div
-                          className="photoUploadArea"
-                          style={{
-                            flexDirection: 'column',
-                            textAlign: 'center',
-                            padding: '16px 12px',
-                            gap: '10px'
-                          }}
-                        >
+                        <div className="photoUploadArea">
                           {memberFormData.imagePath ? (
                             <img
                               src={memberFormData.imagePath}
                               alt="Preview"
                               className="photoPreview"
-                              style={{ width: '80px', height: '80px' }}
                             />
                           ) : (
-                            <div
-                              className="avatarFallback"
-                              style={{ width: '80px', height: '80px', fontSize: '1.75rem' }}
-                            >
-                              {memberFormData.name ? memberFormData.name.slice(0, 1) : '?'}
+                            <div className="avatarFallback photoPreviewFallback">
+                              {getInitials(memberFormData.name)}
                             </div>
                           )}
 
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              gap: '6px',
-                              width: '100%'
-                            }}
-                          >
-                            <label
-                              className="btn btnSecondary"
-                              style={{
-                                cursor: 'pointer',
-                                width: '100%',
-                                fontSize: '0.8rem',
-                                padding: '8px 10px'
-                              }}
-                            >
+                          <div className="photoUploadActions">
+                            <label className="btn btnSecondary btnSmall uploadBtnLabel">
                               <Upload size={14} />
-                              {isUploadingPhoto ? 'กำลังอัปโหลด...' : 'เลือกรูปถ่าย (JPG, PNG)'}
+                              <span>{isUploadingPhoto ? 'กำลังอัปโหลด...' : 'เลือกรูปถ่าย (JPG, PNG)'}</span>
                               <input
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp"
@@ -1112,8 +1473,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                             {memberFormData.imagePath && (
                               <button
                                 type="button"
-                                className="iconBtn danger"
-                                style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                                className="iconBtnCompact danger"
                                 onClick={() => setMemberFormData({ ...memberFormData, imagePath: '' })}
                               >
                                 <Trash2 size={12} /> ลบรูปภาพ
@@ -1131,7 +1491,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                         <input
                           type="text"
                           className="formInput"
-                          placeholder="เช่น พญ.นฤณาท จอมภาปิน, นายแพทย์สาธิต ปทุมมัง"
+                          placeholder="เช่น พญ.นฤนาท จอมภาปิน, นายแพทย์สาธิต ปทุมมัง"
                           value={memberFormData.name}
                           onChange={(e) =>
                             setMemberFormData({ ...memberFormData, name: e.target.value })
@@ -1155,7 +1515,9 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                       </div>
 
                       <div className="formGroup">
-                        <label className="formLabel">เบอร์โทรศัพท์ภายใน (สำหรับดูเฉพาะภายใน รพ.)</label>
+                        <label className="formLabel">
+                          เบอร์โทรศัพท์ภายใน (สำหรับดูเฉพาะภายใน รพ.)
+                        </label>
                         <input
                           type="text"
                           className="formInput"
@@ -1165,7 +1527,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                             setMemberFormData({ ...memberFormData, phone: e.target.value })
                           }
                         />
-                        <small style={{ color: '#64748b', fontSize: '0.75rem', lineHeight: '1.3' }}>
+                        <small className="formHelpText">
                           * เบอร์ภายในจะแสดงเฉพาะเจ้าหน้าที่ในระบบ จะไม่แสดงบนเว็บสาธารณะ
                         </small>
                       </div>
@@ -1173,7 +1535,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   </div>
 
                   {/* Bottom: Role in Group (Full Width) */}
-                  <div className="formGroup" style={{ marginTop: '8px' }}>
+                  <div className="formGroup" style={{ marginTop: '10px' }}>
                     <label className="formLabel">บทบาทในกลุ่มงาน *</label>
                     <div className="roleSelectorGrid">
                       <div
@@ -1187,8 +1549,11 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                           }
                         }}
                       >
-                        <div className="roleOptionCardTitle">
-                          เจ้าหน้าที่ผู้ปฏิบัติงาน
+                        <div className="roleOptionCardHeader">
+                          <Users size={16} className={memberFormData.role === 'member' ? 'text-emerald-700' : 'text-slate-400'} />
+                          <div className="roleOptionCardTitle">
+                            เจ้าหน้าที่ผู้ปฏิบัติงาน
+                          </div>
                         </div>
                         <div className="roleOptionCardDesc">
                           แสดงเป็นการ์ดพร้อมเส้นโยงสายการบังคับบัญชาลงมาจากหัวหน้างาน
@@ -1206,8 +1571,11 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                           }
                         }}
                       >
-                        <div className="roleOptionCardTitle">
-                          หัวหน้ากลุ่มงาน / ผู้บริหาร
+                        <div className="roleOptionCardHeader">
+                          <Crown size={16} className={memberFormData.role === 'leader' ? 'text-amber-600' : 'text-slate-400'} />
+                          <div className="roleOptionCardTitle">
+                            หัวหน้ากลุ่มงาน / ผู้บริหาร
+                          </div>
                         </div>
                         <div className="roleOptionCardDesc">
                           แสดงเด่นด้านบนสุด เป็นจุดเริ่มต้นของสายการบังคับบัญชา
@@ -1225,7 +1593,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                     ยกเลิก
                   </button>
                   <button type="submit" className="btn btnPrimary" disabled={isUploadingPhoto}>
-                    บันทึกข้อมูล
+                    {isUploadingPhoto ? 'กำลังดำเนินการ...' : 'บันทึกข้อมูล'}
                   </button>
                 </div>
               </form>
@@ -1248,7 +1616,10 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
         />
 
         {/* Toasts */}
-        <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
+        <ToastContainer
+          toasts={toasts}
+          onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))}
+        />
       </div>
     </div>
   )

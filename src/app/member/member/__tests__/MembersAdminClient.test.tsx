@@ -79,7 +79,7 @@ describe('MembersAdminClient Component', () => {
     // Verify title
     expect(screen.getByText('ระบบจัดการสมาชิกและบุคลากร')).toBeInTheDocument()
 
-    // Wait for members to load (both desktop table and mobile card render names)
+    // Wait for members to load
     await waitFor(() => {
       expect(screen.getAllByText('นพ. สมชาย ใจดี').length).toBeGreaterThanOrEqual(1)
     })
@@ -93,10 +93,6 @@ describe('MembersAdminClient Component', () => {
     // Verify members are listed
     expect(screen.getAllByText('นาง สมหญิง จริงใจ').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('นาย ประเสริฐ สุขี').length).toBeGreaterThanOrEqual(1)
-
-    // Verify salary badges
-    expect(screen.getAllByText('ผูกแล้ว').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('ยังไม่ระบุ').length).toBeGreaterThanOrEqual(1)
 
     // Verify current user (คุณ) badge
     expect(screen.getAllByText('คุณ').length).toBeGreaterThanOrEqual(1)
@@ -162,5 +158,37 @@ describe('MembersAdminClient Component', () => {
     expect(screen.getByDisplayValue('นาง สมหญิง จริงใจ')).toBeInTheDocument()
     expect(screen.getByDisplayValue('nurse02')).toBeInTheDocument()
     expect(screen.getByDisplayValue('nurse02@thoenhospital.go.th')).toBeInTheDocument()
+  })
+
+  it('disables delete button for current logged in user', async () => {
+    render(<MembersAdminClient />)
+
+    await waitFor(() => {
+      expect(screen.getAllByText('นพ. สมชาย ใจดี').length).toBeGreaterThanOrEqual(1)
+    })
+
+    const deleteButtons = screen.getAllByRole('button', { name: /^ลบสมาชิก/ })
+    // admin01 is index 0 (self)
+    expect(deleteButtons[0]).toBeDisabled()
+    expect(deleteButtons[0]).toHaveAttribute('title', 'ไม่สามารถลบบัญชีตนเองได้')
+
+    // nurse02 is index 1 and can be deleted
+    expect(deleteButtons[1]).not.toBeDisabled()
+  })
+
+  it('sorts members when clicking sortable table header', async () => {
+    render(<MembersAdminClient />)
+
+    await waitFor(() => {
+      expect(screen.getAllByText('นพ. สมชาย ใจดี').length).toBeGreaterThanOrEqual(1)
+    })
+
+    // Click 'บุคลากร' header to sort by name
+    const nameHeader = screen.getByText('บุคลากร')
+    fireEvent.click(nameHeader)
+
+    // Table rows should still render members
+    expect(screen.getAllByText('นพ. สมชาย ใจดี').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('นาง สมหญิง จริงใจ').length).toBeGreaterThanOrEqual(1)
   })
 })

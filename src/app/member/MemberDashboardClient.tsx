@@ -120,17 +120,6 @@ export default function MemberDashboardClient({
         visible: permissions.hasSalary,
       },
       {
-        id: 'signature',
-        title: 'จัดการลายเซ็นดิจิทัล',
-        shortDesc: 'ลงทะเบียนลายเซ็นอิเล็กทรอนิกส์สำหรับเอกสาร',
-        href: '/member/signature',
-        icon: 'draw',
-        category: 'daily',
-        categoryLabel: 'งานประจำวัน',
-        keywords: ['ลายเซ็น', 'ดิจิทัล', 'e-signature', 'ลงนาม', 'signature'],
-        visible: permissions.hasSignature,
-      },
-      {
         id: 'equipment_borrow',
         title: 'ระบบยืม-คืนอุปกรณ์และพัสดุ',
         shortDesc: 'ยืม-คืนครุภัณฑ์และเบิกวัสดุ พร้อมติดตามสถานะ',

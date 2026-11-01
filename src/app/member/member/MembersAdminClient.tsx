@@ -2,16 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { 
-  Search, 
-  UserPlus, 
-  Edit3, 
-  Trash2, 
-  Mail, 
-  Shield, 
-  User, 
-  Users,
-  UserCheck,
-  CreditCard,
   X, 
   Check, 
   Loader2, 
@@ -19,18 +9,14 @@ import {
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown, 
-  RefreshCw,
-  ArrowLeft,
-  Building2,
-  KeyRound
+  RefreshCw
 } from 'lucide-react'
 import Link from 'next/link'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
-import { getInitials } from '@/lib/formatters'
 import './page.css'
 
-interface Member {
+export interface Member {
   id: number
   username: string
   email: string
@@ -42,35 +28,6 @@ interface Member {
   role: 'member' | 'admin' | 'subdistrict'
   created_at: string
   updated_at: string
-}
-
-function MemberAvatar({ id, name, size = 36 }: { id: number; name: string | null; size?: number }) {
-  const [imgError, setImgError] = useState(false)
-  const initials = getInitials(name || '')
-
-  if (imgError || !id) {
-    return (
-      <div 
-        className="tableAvatarFallback" 
-        style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.38)) }}
-        aria-hidden="true"
-      >
-        {initials}
-      </div>
-    )
-  }
-
-  return (
-    <div className="tableAvatarWrap" style={{ width: size, height: size }}>
-      <img
-        src={`/api/member/profile/image?userId=${id}`}
-        alt={name || 'รูปโปรไฟล์'}
-        className="tableAvatarImg"
-        onError={() => setImgError(true)}
-        loading="lazy"
-      />
-    </div>
-  )
 }
 
 export default function MembersAdminClient() {
@@ -373,8 +330,7 @@ export default function MembersAdminClient() {
         <header className="pageHeader">
           <div className="pageHeaderTop">
             <Link href="/member" className="backLinkBtn">
-              <ArrowLeft size={16} />
-              <span>กลับสู่แดชบอร์ด</span>
+              ← กลับสู่แดชบอร์ด
             </Link>
 
             <div className="headerActions">
@@ -385,7 +341,7 @@ export default function MembersAdminClient() {
                 type="button"
                 title="ซิงค์ข้อมูลสลิปเงินเดือนอัตโนมัติจากฐานข้อมูลเงินเดือน"
               >
-                <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+                <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
                 <span>{syncing ? 'กำลังซิงค์...' : 'ซิงค์ข้อมูลเงินเดือน'}</span>
               </button>
 
@@ -394,7 +350,7 @@ export default function MembersAdminClient() {
                 onClick={handleCreateClick} 
                 type="button"
               >
-                <UserPlus size={16} />
+                <span className="addPlus" aria-hidden="true">+</span>
                 <span>เพิ่มสมาชิกใหม่</span>
               </button>
             </div>
@@ -411,88 +367,56 @@ export default function MembersAdminClient() {
           </div>
         </header>
 
-        {/* Stats Grid */}
+        {/* Stats Metric Strip */}
         <section className="statsGrid" aria-label="สรุปจำนวนสมาชิก">
-          <div className="statCard total">
+          <div className="statCard">
             <div className="statCardInfo">
               <span className="statLabel">บุคลากรทั้งหมด</span>
               <span className="statValue">{members.length} คน</span>
             </div>
-            <div className="statCardIcon total">
-              <Users size={22} />
-            </div>
           </div>
 
-          <div className="statCard admins">
+          <div className="statCard">
             <div className="statCardInfo">
               <span className="statLabel">ผู้ดูแลระบบ (Admin)</span>
               <span className="statValue">{adminCount} คน</span>
             </div>
-            <div className="statCardIcon admins">
-              <Shield size={22} />
-            </div>
           </div>
 
-          <div className="statCard general">
+          <div className="statCard">
             <div className="statCardInfo">
               <span className="statLabel">สมาชิกทั่วไป (Member)</span>
               <span className="statValue">{memberCount} คน</span>
             </div>
-            <div className="statCardIcon general">
-              <UserCheck size={22} />
-            </div>
           </div>
 
-          <div className="statCard subdistrict">
+          <div className="statCard">
             <div className="statCardInfo">
               <span className="statLabel">รพ.สต. ในเครือข่าย</span>
               <span className="statValue">{subdistrictCount} คน</span>
-            </div>
-            <div className="statCardIcon subdistrict">
-              <Building2 size={22} />
             </div>
           </div>
         </section>
 
         {error && (
           <div className="dashboardAlert alertDanger" role="alert">
-            <AlertCircle size={18} />
             <span>{error}</span>
-            <button type="button" className="alertCloseBtn" onClick={() => setError('')} aria-label="ปิดการแจ้งเตือน"><X size={14} /></button>
+            <button type="button" className="alertCloseBtn" onClick={() => setError('')} aria-label="ปิดการแจ้งเตือน">
+              <X size={14} />
+            </button>
           </div>
         )}
         {success && (
           <div className="dashboardAlert alertSuccess" role="status">
-            <Check size={18} />
             <span>{success}</span>
-            <button type="button" className="alertCloseBtn" onClick={() => setSuccess('')} aria-label="ปิดการแจ้งเตือน"><X size={14} /></button>
+            <button type="button" className="alertCloseBtn" onClick={() => setSuccess('')} aria-label="ปิดการแจ้งเตือน">
+              <X size={14} />
+            </button>
           </div>
         )}
 
         {/* Search & Filter Bar */}
         <section className="actionPanel" aria-label="ค้นหาและกรองข้อมูล">
-          <div className="searchWrapper">
-            <Search size={18} className="searchIcon" />
-            <input
-              type="text"
-              placeholder="ค้นหาชื่อ-นามสกุล, ชื่อผู้ใช้, อีเมล, กลุ่มงาน หรือตำแหน่ง..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="ค้นหาสมาชิก"
-            />
-            {searchQuery && (
-              <button 
-                type="button" 
-                className="clearSearchBtn" 
-                onClick={() => setSearchQuery('')}
-                title="ล้างคำค้นหา"
-                aria-label="ล้างคำค้นหา"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
           <div className="filterGroup" role="tablist" aria-label="กรองประเภทสมาชิก">
             <button
               type="button"
@@ -531,17 +455,37 @@ export default function MembersAdminClient() {
               แอดมิน <span className="filterCount">{adminCount}</span>
             </button>
           </div>
+
+          <div className="searchWrapper">
+            <input
+              type="search"
+              placeholder="ค้นหาชื่อ-นามสกุล, ชื่อผู้ใช้, อีเมล, กลุ่มงาน หรือตำแหน่ง..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="ค้นหาสมาชิก"
+            />
+            {searchQuery && (
+              <button 
+                type="button" 
+                className="clearSearchBtn" 
+                onClick={() => setSearchQuery('')}
+                title="ล้างคำค้นหา"
+                aria-label="ล้างคำค้นหา"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </section>
 
-        {/* Main Content Area - Locked Layout (Zero Horizontal Scroll Guarantee) */}
+        {/* Main Content Area - Responsive Desktop Table */}
         {loading ? (
-          <div className="loadingContainer card">
-            <Loader2 size={36} className="spinner" />
+          <div className="loadingContainer">
+            <Loader2 size={32} className="animate-spin" />
             <p>กำลังโหลดรายชื่อบุคลากร...</p>
           </div>
         ) : sortedMembers.length > 0 ? (
           <div className="tableCard">
-            {/* Desktop Table View - Exactly fitted to 100% width, no horizontal scroll */}
             <div className="desktopTableContainer">
               <table className="membersTable">
                 <thead>
@@ -558,7 +502,6 @@ export default function MembersAdminClient() {
                     <th onClick={() => handleSort('department')} className="sortableHeader col-dept">
                       <div className="headerFlex">กลุ่มงาน / สังกัด {renderSortIcon('department')}</div>
                     </th>
-                    <th className="col-salary">สลิปเงินเดือน</th>
                     <th onClick={() => handleSort('role')} className="sortableHeader col-role">
                       <div className="headerFlex">สิทธิ์ {renderSortIcon('role')}</div>
                     </th>
@@ -576,77 +519,45 @@ export default function MembersAdminClient() {
                           <span className="indexBadge">{index + 1}</span>
                         </td>
 
-                        {/* 2. Staff Avatar, Name & Position */}
+                        {/* 2. Staff Name & Position (Text-First, Clean & Modern) */}
                         <td className="col-member">
                           <div className="memberPersonnelCell">
-                            <MemberAvatar id={member.id} name={member.name || member.username} size={36} />
-                            <div className="memberDetails">
-                              <div className="memberNameRow">
-                                <span className="memberName" title={member.name || member.username}>
-                                  {member.name || member.username}
-                                </span>
-                                {isSelf && <span className="selfTag">คุณ</span>}
-                              </div>
-                              <span className="memberPosition" title={member.position || 'บุคลากรทั่วไป'}>
-                                {member.position || 'บุคลากรทั่วไป'}
+                            <div className="memberNameRow">
+                              <span className="memberName" title={member.name || member.username}>
+                                {member.name || member.username}
                               </span>
+                              {isSelf && <span className="selfTag">คุณ</span>}
                             </div>
+                            <span className="memberPosition" title={member.position || 'บุคลากรทั่วไป'}>
+                              {member.position || 'บุคลากรทั่วไป'}
+                            </span>
                           </div>
                         </td>
 
                         {/* 3. Username & Email */}
                         <td className="col-account">
                           <div className="accountCell">
-                            <div className="accountUsername">
-                              <User size={13} className="accountIcon" />
-                              <span className="truncate">{member.username}</span>
-                            </div>
-                            <div className="accountEmail">
-                              <Mail size={13} className="accountIcon" />
-                              <span className="truncate">{member.email}</span>
-                            </div>
+                            <span className="accountUsername">{member.username}</span>
+                            <span className="accountEmail">{member.email}</span>
                           </div>
                         </td>
 
                         {/* 4. Department */}
                         <td className="col-dept">
-                          <span className="deptText truncate" title={member.department || '-'}>
+                          <span className="deptText" title={member.department || '-'}>
                             {member.department || '-'}
                           </span>
                         </td>
 
-                        {/* 5. Salary Status Badge */}
-                        <td className="col-salary">
-                          {member.salary_user ? (
-                            <span className="salaryBadge linked" title={`ผูกบัญชีเงินเดือน: ${member.salary_user}`}>
-                              <CreditCard size={12} />
-                              <span>ผูกแล้ว</span>
-                            </span>
-                          ) : (
-                            <span className="salaryBadge unlinked" title="ยังไม่ได้ผูกบัญชีเงินเดือน">
-                              <span>ยังไม่ระบุ</span>
-                            </span>
-                          )}
-                        </td>
-
-                        {/* 6. Role Badge */}
+                        {/* 5. Role Badge */}
                         <td className="col-role">
                           <span className={`roleBadge ${member.role}`}>
                             {member.role === 'admin' ? (
-                              <>
-                                <Shield size={11} />
-                                <span>แอดมิน</span>
-                              </>
+                              'แอดมิน'
                             ) : member.role === 'subdistrict' ? (
-                              <>
-                                <Building2 size={11} />
-                                <span>รพ.สต.</span>
-                              </>
+                              'รพ.สต.'
                             ) : (
-                              <>
-                                <User size={11} />
-                                <span>ทั่วไป</span>
-                              </>
+                              'ทั่วไป'
                             )}
                           </span>
                         </td>
@@ -661,8 +572,7 @@ export default function MembersAdminClient() {
                               type="button"
                               aria-label={`แก้ไขข้อมูล ${member.name || member.username}`}
                             >
-                              <Edit3 size={14} />
-                              <span className="btnText">แก้ไข</span>
+                              แก้ไข
                             </button>
                             <button
                               className="actionBtn deleteBtn"
@@ -672,7 +582,7 @@ export default function MembersAdminClient() {
                               type="button"
                               aria-label={`ลบสมาชิก ${member.name || member.username}`}
                             >
-                              <Trash2 size={14} />
+                              ลบ
                             </button>
                           </div>
                         </td>
@@ -682,89 +592,9 @@ export default function MembersAdminClient() {
                 </tbody>
               </table>
             </div>
-
-            {/* Mobile / Tablet Responsive Card View - Zero Horizontal Scroll */}
-            <div className="mobileCardsContainer">
-              {sortedMembers.map((member) => {
-                const isSelf = currentUser && member.username === currentUser.username
-
-                return (
-                  <div key={member.id} className={`memberCardItem ${isSelf ? 'cardSelf' : ''}`}>
-                    <div className="cardTopRow">
-                      <div className="cardProfileWrap">
-                        <MemberAvatar id={member.id} name={member.name || member.username} size={42} />
-                        <div className="cardProfileInfo">
-                          <div className="cardNameRow">
-                            <span className="cardMemberName">{member.name || member.username}</span>
-                            {isSelf && <span className="selfTag">คุณ</span>}
-                          </div>
-                          <span className="cardPositionText">{member.position || 'บุคลากรทั่วไป'}</span>
-                        </div>
-                      </div>
-
-                      <div className="cardBadgesRow">
-                        <span className={`roleBadge ${member.role}`}>
-                          {member.role === 'admin' ? 'แอดมิน' : member.role === 'subdistrict' ? 'รพ.สต.' : 'ทั่วไป'}
-                        </span>
-                        {member.salary_user ? (
-                          <span className="salaryBadge linked">
-                            <CreditCard size={11} />
-                            <span>ผูกสลิปแล้ว</span>
-                          </span>
-                        ) : (
-                          <span className="salaryBadge unlinked">
-                            <span>ยังไม่ระบุสลิป</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="cardDetailsGrid">
-                      <div className="cardDetailRow">
-                        <span className="cardDetailLabel">ชื่อผู้ใช้:</span>
-                        <span className="cardDetailValue">{member.username}</span>
-                      </div>
-                      <div className="cardDetailRow">
-                        <span className="cardDetailLabel">อีเมล:</span>
-                        <span className="cardDetailValue truncate">{member.email}</span>
-                      </div>
-                      {member.department && (
-                        <div className="cardDetailRow">
-                          <span className="cardDetailLabel">กลุ่มงาน:</span>
-                          <span className="cardDetailValue truncate">{member.department}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="cardActionRow">
-                      <button
-                        className="mobileEditBtn"
-                        onClick={() => handleEditClick(member)}
-                        type="button"
-                      >
-                        <Edit3 size={15} />
-                        <span>แก้ไขข้อมูล</span>
-                      </button>
-
-                      <button
-                        className="mobileDeleteBtn"
-                        disabled={!!isSelf}
-                        onClick={() => requestDelete(member)}
-                        type="button"
-                        title={isSelf ? "ไม่สามารถลบบัญชีตนเองได้" : "ลบสมาชิก"}
-                        aria-label={`ลบสมาชิก ${member.name || member.username}`}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
           </div>
         ) : (
-          <div className="emptyState card">
-            <User size={48} className="emptyIcon" />
+          <div className="emptyState">
             <h3>ไม่พบข้อมูลสมาชิก</h3>
             <p>ไม่พบรายชื่อผู้ใช้ที่ตรงกับคำค้นหา &ldquo;{searchQuery}&rdquo;</p>
             {searchQuery && (
@@ -773,8 +603,7 @@ export default function MembersAdminClient() {
                 className="clearFilterBtn"
                 onClick={() => { setSearchQuery(''); setRoleFilter('all'); }}
               >
-                <RefreshCw size={14} />
-                <span>ล้างคำค้นหาทั้งหมด</span>
+                ล้างคำค้นหาทั้งหมด
               </button>
             )}
           </div>
@@ -784,11 +613,8 @@ export default function MembersAdminClient() {
       {/* Edit/Create Modal Dialog */}
       {isModalOpen && (
         <div className="modalOverlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modalCard premiumModal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <div className="modalCard" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="modalHeader">
-              <div className="headerIconContainer">
-                {isCreateMode ? <UserPlus size={20} /> : <Edit3 size={20} />}
-              </div>
               <div className="modalHeaderTitles">
                 <h2>{isCreateMode ? 'เพิ่มสมาชิกใหม่เข้าระบบ' : `แก้ไขข้อมูลสมาชิก: ${editingMember?.name || editingMember?.username}`}</h2>
                 <p className="headerSubtitle">
@@ -806,110 +632,95 @@ export default function MembersAdminClient() {
             </div>
 
             {modalError && (
-              <div className="modalAlert alertDanger flexItems" role="alert">
-                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              <div className="modalAlert alertDanger" role="alert">
                 <span>{modalError}</span>
               </div>
             )}
 
             <form onSubmit={handleSave} className="modalForm">
-              <div className="modalBody compactModalBody">
+              <div className="modalBody">
                 <div className="modalFormGrid">
                   {/* Personal & Hospital Info */}
                   <div className="modalSubSectionHeader col-span-2">
-                    <User size={14} />
-                    <span>ข้อมูลส่วนบุคคลและสังกัดงาน</span>
+                    ข้อมูลส่วนบุคคลและสังกัดงาน
                   </div>
 
                   <div className="formGroup">
                     <label htmlFor="member-fullname">ชื่อ-นามสกุล *</label>
-                    <div className="inputWrapper">
-                      <input
-                        id="member-fullname"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="เช่น นาย สมชาย ใจดี"
-                        required
-                      />
-                    </div>
+                    <input
+                      id="member-fullname"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="เช่น นาย สมชาย ใจดี"
+                      required
+                    />
                   </div>
 
                   <div className="formGroup">
                     <label htmlFor="member-position">ตำแหน่งการทำงาน</label>
-                    <div className="inputWrapper">
-                      <input
-                        id="member-position"
-                        type="text"
-                        value={position}
-                        onChange={(e) => setPosition(e.target.value)}
-                        placeholder="เช่น พยาบาลวิชาชีพ, นักวิชาการคอมพิวเตอร์"
-                      />
-                    </div>
+                    <input
+                      id="member-position"
+                      type="text"
+                      value={position}
+                      onChange={(e) => setPosition(e.target.value)}
+                      placeholder="เช่น พยาบาลวิชาชีพ, นักวิชาการคอมพิวเตอร์"
+                    />
                   </div>
 
                   <div className="formGroup col-span-2">
                     <label htmlFor="member-department">กลุ่มงาน / แผนก *</label>
-                    <div className="inputWrapper">
-                      <input
-                        id="member-department"
-                        type="text"
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        placeholder="เช่น กลุ่มงานดิจิทัลทางการแพทย์, งานผู้ป่วยนอก (OPD)"
-                        required
-                      />
-                    </div>
+                    <input
+                      id="member-department"
+                      type="text"
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      placeholder="เช่น กลุ่มงานดิจิทัลทางการแพทย์, งานผู้ป่วยนอก (OPD)"
+                      required
+                    />
                   </div>
 
                   {/* Account & Role Credentials */}
                   <div className="modalSubSectionHeader col-span-2">
-                    <KeyRound size={14} />
-                    <span>ข้อมูลบัญชีผู้ใช้และระดับสิทธิ์</span>
+                    ข้อมูลบัญชีผู้ใช้และระดับสิทธิ์
                   </div>
 
                   <div className="formGroup">
                     <label htmlFor="member-username">ชื่อผู้ใช้งาน (Username) *</label>
-                    <div className="inputWrapper">
-                      <input
-                        id="member-username"
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="รหัสบัตรประชาชน หรือ ชื่อล็อกอิน"
-                        required
-                      />
-                    </div>
+                    <input
+                      id="member-username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="รหัสบัตรประชาชน หรือ ชื่อล็อกอิน"
+                      required
+                    />
                   </div>
 
                   <div className="formGroup">
                     <label htmlFor="member-email">อีเมลติดต่อ (Email) *</label>
-                    <div className="inputWrapper">
-                      <input
-                        id="member-email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="example@thoenhospital.go.th"
-                        required
-                      />
-                    </div>
+                    <input
+                      id="member-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="example@thoenhospital.go.th"
+                      required
+                    />
                   </div>
 
                   <div className="formGroup col-span-2">
                     <label htmlFor="member-role">สิทธิ์การเข้าใช้งานระบบ (Role)</label>
-                    <div className="selectWrapper">
-                      <select
-                        id="member-role"
-                        value={role}
-                        onChange={(e) => setRole(e.target.value as 'member' | 'admin' | 'subdistrict')}
-                        disabled={!isCreateMode && editingMember?.username === currentUser?.username}
-                      >
-                        <option value="member">สมาชิกทั่วไป (Member) - เข้าใช้งานบริการและสลิปเงินเดือน</option>
-                        <option value="subdistrict">รพ.สต. (Sub-district) - หน่วยบริการปฐมภูมิในเครือข่าย</option>
-                        <option value="admin">ผู้ดูแลระบบ (Admin) - จัดการสมาชิกและระบบทั้งหมด</option>
-                      </select>
-                    </div>
+                    <select
+                      id="member-role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value as 'member' | 'admin' | 'subdistrict')}
+                      disabled={!isCreateMode && editingMember?.username === currentUser?.username}
+                    >
+                      <option value="member">สมาชิกทั่วไป (Member) - เข้าใช้งานบริการและสลิปเงินเดือน</option>
+                      <option value="subdistrict">รพ.สต. (Sub-district) - หน่วยบริการปฐมภูมิในเครือข่าย</option>
+                      <option value="admin">ผู้ดูแลระบบ (Admin) - จัดการสมาชิกและระบบทั้งหมด</option>
+                    </select>
                     {!isCreateMode && editingMember?.username === currentUser?.username && (
                       <span className="inputHint">ไม่สามารถเปลี่ยนสิทธิ์ของบัญชีตัวเองได้</span>
                     )}
@@ -917,39 +728,34 @@ export default function MembersAdminClient() {
 
                   {/* Salary Credentials Section */}
                   <div className="modalSubSectionHeader col-span-2">
-                    <CreditCard size={14} />
-                    <span>ข้อมูลเข้าสู่ระบบสลิปเงินเดือน (Salary Credentials)</span>
+                    ข้อมูลเข้าสู่ระบบสลิปเงินเดือน (Salary Credentials)
                   </div>
 
                   <div className="formGroup">
                     <label htmlFor="member-salary-user">รหัสบุคลากรเงินเดือน (Salary User)</label>
-                    <div className="inputWrapper">
-                      <input
-                        id="member-salary-user"
-                        type="text"
-                        value={salaryUser}
-                        onChange={(e) => setSalaryUser(e.target.value)}
-                        placeholder="เว้นว่างได้หากไม่มี"
-                      />
-                    </div>
+                    <input
+                      id="member-salary-user"
+                      type="text"
+                      value={salaryUser}
+                      onChange={(e) => setSalaryUser(e.target.value)}
+                      placeholder="เว้นว่างได้หากไม่มี"
+                    />
                   </div>
 
                   <div className="formGroup">
                     <label htmlFor="member-salary-pass">รหัสผ่านเงินเดือน (Salary Password)</label>
-                    <div className="inputWrapper">
-                      <input
-                        id="member-salary-pass"
-                        type="password"
-                        value={salaryPass}
-                        onChange={(e) => setSalaryPass(e.target.value)}
-                        placeholder={isCreateMode ? "เว้นว่างได้หากไม่มี" : "คงเดิม (พิมพ์ใหม่เพื่อเปลี่ยน)"}
-                      />
-                    </div>
+                    <input
+                      id="member-salary-pass"
+                      type="password"
+                      value={salaryPass}
+                      onChange={(e) => setSalaryPass(e.target.value)}
+                      placeholder={isCreateMode ? "เว้นว่างได้หากไม่มี" : "คงเดิม (พิมพ์ใหม่เพื่อเปลี่ยน)"}
+                    />
                   </div>
                 </div>
               </div>
 
-              <div className="modalFooter compactModalFooter">
+              <div className="modalFooter">
                 <button
                   type="button"
                   className="cancelBtn"
@@ -961,14 +767,11 @@ export default function MembersAdminClient() {
                 <button type="submit" className="saveBtn" disabled={saving}>
                   {saving ? (
                     <>
-                      <Loader2 size={16} className="spinner" />
+                      <Loader2 size={16} className="animate-spin" />
                       <span>กำลังบันทึก...</span>
                     </>
                   ) : (
-                    <>
-                      <Check size={16} />
-                      <span>{isCreateMode ? 'สร้างสมาชิกใหม่' : 'บันทึกการเปลี่ยนแปลง'}</span>
-                    </>
+                    <span>{isCreateMode ? 'สร้างสมาชิกใหม่' : 'บันทึกการเปลี่ยนแปลง'}</span>
                   )}
                 </button>
               </div>

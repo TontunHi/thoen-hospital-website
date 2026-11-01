@@ -8,7 +8,6 @@ import {
   Shield,
   UserCheck,
   UserCog,
-  Sparkles,
   Check,
   Layers,
   Users,
@@ -221,7 +220,6 @@ export default function MemberInspectorView({
             {/* Permissions Breakdown by Task */}
             <div className="inspectorTasksSection">
               <div className="sectionHeading">
-                <Sparkles size={18} />
                 <h3>สรุปสิทธิ์การเข้าถึงและการปฏิบัติงานในแต่ละภารกิจ</h3>
               </div>
 

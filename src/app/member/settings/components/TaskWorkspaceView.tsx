@@ -4,22 +4,15 @@ import React, { useState, useMemo } from 'react'
 import {
   Search,
   X,
-  Sparkles,
-  Building2,
-  ChevronRight,
-  Layers,
-  Users,
   Briefcase,
   Plus,
   Check,
-  Info,
   User,
 } from 'lucide-react'
 import { TaskDefinition, TaskRoleConfig } from '@/lib/permissions/taskDefinitions'
 import {
   MemberItem,
   PositionMappingItem,
-  ICON_MAP,
   ROLE_TYPE_CONFIG,
   getAvatarColor,
 } from '../types'
@@ -108,6 +101,25 @@ export default function TaskWorkspaceView({
       .map((p) => p.positionName)
   }
 
+  // Calculate distinct members and positions for a task
+  const getTaskCounts = (task: TaskDefinition) => {
+    const memberIds = new Set<number>()
+    const posNames = new Set<string>()
+    task.roles.forEach((r) => {
+      getAssignedMembersForPerm(r.permissionKey).forEach((m) => memberIds.add(m.id))
+      getAssignedPositionsForPerm(r.permissionKey).forEach((p) => posNames.add(p))
+    })
+    return {
+      memberCount: memberIds.size,
+      positionCount: posNames.size,
+    }
+  }
+
+  const currentTaskCounts = useMemo(() => {
+    if (!currentTask) return { memberCount: 0, positionCount: 0 }
+    return getTaskCounts(currentTask)
+  }, [currentTask, members, positionMappings])
+
   // Open Add Assignee Modal for a specific Task and Role
   const handleOpenAddModal = (task: TaskDefinition, role: TaskRoleConfig) => {
     setTargetTask(task)
@@ -144,7 +156,9 @@ export default function TaskWorkspaceView({
 
   return (
     <div className="taskCentricContainer">
-      {/* Left Column: Task Navigator */}
+      {/* =====================================================================
+          Left Column: Task Navigator (300px)
+          ===================================================================== */}
       <aside className="taskSidebarPane">
         <div className="taskSidebarHeader">
           <div className="taskSidebarSearchWrapper">
@@ -155,12 +169,14 @@ export default function TaskWorkspaceView({
               value={taskSearchQuery}
               onChange={(e) => setTaskSearchQuery(e.target.value)}
               className="taskSidebarSearchInput"
+              aria-label="ค้นหาภารกิจงาน"
             />
             {taskSearchQuery && (
               <button
                 type="button"
                 onClick={() => setTaskSearchQuery('')}
                 className="clearSearchBtn"
+                aria-label="ล้างการค้นหา"
               >
                 <X size={14} />
               </button>
@@ -168,52 +184,34 @@ export default function TaskWorkspaceView({
           </div>
         </div>
 
-        <div className="taskNavScrollable">
+        <div className="taskNavScrollable" role="tablist" aria-label="รายการภารกิจงาน">
           {/* Category 1: Workflow Tasks */}
           {workflowTasks.length > 0 && (
             <div className="taskNavGroup">
-              <div className="taskNavGroupHeader">
-                <Sparkles size={14} className="groupIcon groupIconWorkflow" />
-                <span>งานบริการ & กล่องงาน (Workflow)</span>
+              <div className="taskNavGroupHeader groupHeaderWorkflow">
+                <span>งานบริการ &amp; กล่องงาน</span>
                 <span className="groupCount">{workflowTasks.length}</span>
               </div>
               <div className="taskNavList">
                 {workflowTasks.map((task) => {
-                  const Icon = ICON_MAP[task.iconName] || Layers
                   const isSelected = selectedTaskId === task.id
-                  const totalAssignedMembers = task.roles.reduce(
-                    (acc, r) => acc + getAssignedMembersForPerm(r.permissionKey).length,
-                    0
-                  )
-                  const totalAssignedPositions = task.roles.reduce(
-                    (acc, r) => acc + getAssignedPositionsForPerm(r.permissionKey).length,
-                    0
-                  )
+                  const { memberCount, positionCount } = getTaskCounts(task)
 
                   return (
                     <button
                       key={task.id}
                       type="button"
+                      role="tab"
+                      aria-selected={isSelected}
+                      aria-pressed={isSelected}
                       onClick={() => onSelectTaskId(task.id)}
                       className={`taskNavItem ${isSelected ? 'active' : ''}`}
                     >
-                      <div
-                        className="taskNavIconBox"
-                        style={{
-                          backgroundColor: `${task.badgeColor}15`,
-                          color: task.badgeColor,
-                        }}
-                      >
-                        <Icon size={18} />
-                      </div>
-                      <div className="taskNavInfo">
-                        <span className="taskNavName">{task.name}</span>
-                        <span className="taskNavRolesCount">
-                          {task.roles.length} บทบาท ({totalAssignedMembers} คน
-                          {totalAssignedPositions > 0 ? `, ${totalAssignedPositions} ตำแหน่ง` : ''})
-                        </span>
-                      </div>
-                      <ChevronRight size={16} className="taskNavArrow" />
+                      <span className="taskNavName">{task.name}</span>
+                      <span className="taskNavRolesCount">
+                        {task.roles.length} บทบาท · {memberCount} คน
+                        {positionCount > 0 ? ` · ${positionCount} ตำแหน่ง` : ''}
+                      </span>
                     </button>
                   )
                 })}
@@ -224,48 +222,30 @@ export default function TaskWorkspaceView({
           {/* Category 2: System & Governance Modules */}
           {systemTasks.length > 0 && (
             <div className="taskNavGroup">
-              <div className="taskNavGroupHeader">
-                <Building2 size={14} className="groupIcon groupIconSystem" />
-                <span>ระบบบริหาร & กำกับดูแล (System)</span>
+              <div className="taskNavGroupHeader groupHeaderSystem">
+                <span>ระบบบริหาร &amp; กำกับดูแล</span>
                 <span className="groupCount">{systemTasks.length}</span>
               </div>
               <div className="taskNavList">
                 {systemTasks.map((task) => {
-                  const Icon = ICON_MAP[task.iconName] || Layers
                   const isSelected = selectedTaskId === task.id
-                  const totalAssignedMembers = task.roles.reduce(
-                    (acc, r) => acc + getAssignedMembersForPerm(r.permissionKey).length,
-                    0
-                  )
-                  const totalAssignedPositions = task.roles.reduce(
-                    (acc, r) => acc + getAssignedPositionsForPerm(r.permissionKey).length,
-                    0
-                  )
+                  const { memberCount, positionCount } = getTaskCounts(task)
 
                   return (
                     <button
                       key={task.id}
                       type="button"
+                      role="tab"
+                      aria-selected={isSelected}
+                      aria-pressed={isSelected}
                       onClick={() => onSelectTaskId(task.id)}
                       className={`taskNavItem ${isSelected ? 'active' : ''}`}
                     >
-                      <div
-                        className="taskNavIconBox"
-                        style={{
-                          backgroundColor: `${task.badgeColor}15`,
-                          color: task.badgeColor,
-                        }}
-                      >
-                        <Icon size={18} />
-                      </div>
-                      <div className="taskNavInfo">
-                        <span className="taskNavName">{task.name}</span>
-                        <span className="taskNavRolesCount">
-                          {task.roles.length} บทบาท ({totalAssignedMembers} คน
-                          {totalAssignedPositions > 0 ? `, ${totalAssignedPositions} ตำแหน่ง` : ''})
-                        </span>
-                      </div>
-                      <ChevronRight size={16} className="taskNavArrow" />
+                      <span className="taskNavName">{task.name}</span>
+                      <span className="taskNavRolesCount">
+                        {task.roles.length} บทบาท · {memberCount} คน
+                        {positionCount > 0 ? ` · ${positionCount} ตำแหน่ง` : ''}
+                      </span>
                     </button>
                   )
                 })}
@@ -275,223 +255,182 @@ export default function TaskWorkspaceView({
 
           {filteredTasks.length === 0 && (
             <div className="taskEmptySearch">
-              <Search size={28} />
               <p>ไม่พบภารกิจงานที่ตรงกับการค้นหา</p>
             </div>
           )}
         </div>
       </aside>
 
-      {/* Right Column: Task Workspace & 4 Roles Board */}
+      {/* =====================================================================
+          Right Column: Task Workspace & Roles Details
+          ===================================================================== */}
       <main className="taskWorkspacePane">
         {currentTask && (
           <>
-            {/* Task Header Banner */}
-            <div
-              className="taskWorkspaceHeader"
-              style={{ borderLeftColor: currentTask.badgeColor }}
-            >
-              <div className="taskWorkspaceHeaderLeft">
-                <div
-                  className="taskHeaderIconBox"
-                  style={{
-                    backgroundColor: `${currentTask.badgeColor}15`,
-                    color: currentTask.badgeColor,
-                  }}
-                >
-                  {React.createElement(ICON_MAP[currentTask.iconName] || Layers, {
-                    size: 28,
-                  })}
-                </div>
-                <div className="taskHeaderMeta">
-                  <div className="taskHeaderCategoryBadge">
-                    <span>{currentTask.categoryLabel}</span>
-                    <span className="dotDivider">•</span>
-                    <span>รหัสงาน: {currentTask.id}</span>
-                  </div>
-                  <h2 className="taskHeaderTitle">{currentTask.name}</h2>
-                  <p className="taskHeaderDesc">{currentTask.description}</p>
-                </div>
+            {/* 2.3 Task Header Card */}
+            <div className="taskHeaderCard">
+              <div className="taskHeaderTopLine">
+                <span>{currentTask.categoryLabel}</span>
+                <span>·</span>
+                <code className="taskHeaderMonoCode">{currentTask.id}</code>
               </div>
 
-              <div className="taskWorkspaceHeaderStats">
-                <div className="taskStatBadge">
-                  <Users size={16} />
-                  <span>
-                    กำหนดแล้ว{' '}
-                    <strong>
-                      {currentTask.roles.reduce(
-                        (acc, r) => acc + getAssignedMembersForPerm(r.permissionKey).length,
-                        0
-                      )}
-                    </strong>{' '}
-                    คน
-                  </span>
+              <h2 className="taskHeaderTitle">{currentTask.name}</h2>
+              <p className="taskHeaderDesc">{currentTask.description}</p>
+
+              {/* 3 Summary Boxes */}
+              <div className="taskSummaryBoxes">
+                <div className="summaryBox summaryBoxMembers">
+                  <span className="summaryNum">{currentTaskCounts.memberCount}</span>
+                  <span className="summaryLabel">คนที่ได้รับสิทธิ์</span>
                 </div>
-                <div className="taskStatBadge positionBadge">
-                  <Briefcase size={16} />
-                  <span>
-                    ผูกตำแหน่ง{' '}
-                    <strong>
-                      {currentTask.roles.reduce(
-                        (acc, r) => acc + getAssignedPositionsForPerm(r.permissionKey).length,
-                        0
-                      )}
-                    </strong>{' '}
-                    ตำแหน่ง
-                  </span>
+                <div className="summaryBox summaryBoxPositions">
+                  <span className="summaryNum">{currentTaskCounts.positionCount}</span>
+                  <span className="summaryLabel">ตำแหน่งที่ผูกสิทธิ์</span>
+                </div>
+                <div className="summaryBox summaryBoxRoles">
+                  <span className="summaryNum">{currentTask.roles.length}</span>
+                  <span className="summaryLabel">บทบาท</span>
                 </div>
               </div>
             </div>
 
-            {/* Role Boards Grid */}
-            <div className="rolesGridContainer">
+            {/* Legend Bar (แถบคำอธิบายระดับสิทธิ์เหนือรายการบทบาท) */}
+            <div className="permLegendBar" aria-label="คำอธิบายระดับสิทธิ์">
+              <span className="legendTitle">ระดับสิทธิ์:</span>
+              {(['view', 'edit', 'approve', 'manage'] as const).map((lvl) => {
+                const cfg = ROLE_TYPE_CONFIG[lvl]
+                return (
+                  <span
+                    key={lvl}
+                    className="legendItem"
+                    style={{ backgroundColor: cfg.bg, color: cfg.color }}
+                  >
+                    <span className="legendDot" style={{ backgroundColor: cfg.dotColor }} />
+                    {cfg.badgeLabel}
+                  </span>
+                )
+              })}
+            </div>
+
+            {/* 2.4 Unified Roles Card: All roles in single container */}
+            <div className="rolesUnifiedCard">
               {currentTask.roles.map((role) => {
                 const roleCfg = ROLE_TYPE_CONFIG[role.roleType]
                 const assignedMembers = getAssignedMembersForPerm(role.permissionKey)
                 const assignedPositions = getAssignedPositionsForPerm(role.permissionKey)
-                const RoleIcon = roleCfg.icon
 
                 return (
-                  <div key={role.permissionKey} className="roleBoardCard">
-                    <div className="roleBoardHeader">
-                      <div className="roleBoardTitleRow">
-                        <div
-                          className="roleIconBox"
-                          style={{
-                            backgroundColor: roleCfg.bg,
-                            color: roleCfg.color,
-                            borderColor: roleCfg.border,
-                          }}
-                        >
-                          <RoleIcon size={16} />
-                        </div>
-                        <div className="roleTitleMeta">
-                          <h3 className="roleTitleText">{role.label}</h3>
-                          <span className="roleKeyBadge">{role.permissionKey}</span>
-                        </div>
-                      </div>
-
+                  <div key={role.permissionKey} className="roleRow">
+                    {/* Left Column (240px) */}
+                    <div
+                      className="roleColLeft"
+                      style={{ backgroundColor: roleCfg.bg }}
+                    >
                       <span
-                        className="roleTypeTag"
-                        style={{
-                          backgroundColor: roleCfg.bg,
-                          color: roleCfg.color,
-                          borderColor: roleCfg.border,
-                        }}
+                        className="roleLevelBadge"
+                        style={{ color: roleCfg.color }}
                       >
-                        {roleCfg.label}
+                        {roleCfg.badgeLabel}
                       </span>
+                      <h3 className="roleName">{role.label}</h3>
+                      <code className="roleMonoCode">{role.permissionKey}</code>
                     </div>
 
-                    <p className="roleDescriptionText">{role.description}</p>
+                    {/* Right Column */}
+                    <div className="roleColRight">
+                      <p className="roleDesc">{role.description}</p>
 
-                    {/* Allowed Actions Pills */}
-                    {role.allowedActions && role.allowedActions.length > 0 && (
-                      <div className="roleActionsWrapper">
-                        <span className="roleActionsLabel">ขอบเขตอำนาจหน้าที่:</span>
-                        <div className="roleActionPills">
-                          {role.allowedActions.map((action, i) => (
-                            <span key={i} className="actionPill">
-                              <Check size={11} />
-                              {action}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Assigned Section */}
-                    <div className="roleAssignedSection">
-                      {/* 1. Assigned Positions */}
-                      {assignedPositions.length > 0 && (
-                        <div className="assignedGroup">
-                          <div className="assignedGroupTitle">
-                            <Briefcase size={13} />
-                            <span>ตามตำแหน่งงาน ({assignedPositions.length})</span>
-                          </div>
-                          <div className="assignedChipsList">
-                            {assignedPositions.map((pos) => (
-                              <div key={pos} className="positionChip">
-                                <span className="chipName">{pos}</span>
-                                {positionMemberCounts[pos] && (
-                                  <span className="chipCount">
-                                    ({positionMemberCounts[pos]} คน)
-                                  </span>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => onRevokePosition(pos, role)}
-                                  className="chipRemoveBtn"
-                                  title={`ปลดสิทธิ์ของตำแหน่ง ${pos}`}
-                                >
-                                  <X size={12} />
-                                </button>
+                      {/* ทำอะไรได้ (2-col grid) */}
+                      {role.allowedActions && role.allowedActions.length > 0 && (
+                        <div className="roleCapsSection">
+                          <h4 className="roleCapsTitle">ทำอะไรได้</h4>
+                          <div className="roleCapsGrid">
+                            {role.allowedActions.map((action, i) => (
+                              <div key={i} className="capItem">
+                                <span
+                                  className="capDot"
+                                  style={{ backgroundColor: roleCfg.dotColor }}
+                                />
+                                <span>{action}</span>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
 
-                      {/* 2. Assigned Members (Individual) */}
-                      <div className="assignedGroup">
-                        <div className="assignedGroupTitle">
-                          <Users size={13} />
-                          <span>รายบุคคล ({assignedMembers.length})</span>
+                      {/* ได้สิทธิ์ตามตำแหน่ง */}
+                      {assignedPositions.length > 0 && (
+                        <div className="assignedSection">
+                          <h4 className="assignedTitle">
+                            ได้สิทธิ์ตามตำแหน่ง ({assignedPositions.length})
+                          </h4>
+                          <div className="chipsList">
+                            {assignedPositions.map((pos) => (
+                              <span key={pos} className="posChip">
+                                <span className="chipLabel">{pos}</span>
+                                {positionMemberCounts[pos] !== undefined && (
+                                  <span className="chipSubCount">
+                                    ({positionMemberCounts[pos]} คน)
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => onRevokePosition(pos, role)}
+                                  className="chipCloseBtn"
+                                  aria-label={`ลบตำแหน่ง ${pos}`}
+                                  title={`ปลดสิทธิ์ตำแหน่ง ${pos}`}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
                         </div>
+                      )}
 
+                      {/* ได้สิทธิ์รายบุคคล */}
+                      <div className="assignedSection">
+                        <h4 className="assignedTitle">
+                          ได้สิทธิ์รายบุคคล ({assignedMembers.length})
+                        </h4>
                         {assignedMembers.length > 0 ? (
-                          <div className="assignedChipsList">
-                            {assignedMembers.map((member) => {
-                              const avColor = getAvatarColor(member.id)
-                              return (
-                                <div key={member.id} className="memberChip">
-                                  <div
-                                    className="memberAvatarMini"
-                                    style={{
-                                      backgroundColor: avColor.bg,
-                                      color: avColor.text,
-                                    }}
-                                  >
-                                    {member.name.charAt(0) || 'U'}
-                                  </div>
-                                  <div className="memberChipInfo">
-                                    <span className="memberName">{member.name}</span>
-                                    <span className="memberSub">
-                                      {member.position || member.department || 'เจ้าหน้าที่'}
-                                    </span>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => onRevokeMember(member, role)}
-                                    className="chipRemoveBtn"
-                                    title={`ปลดสิทธิ์ของคุณ ${member.name}`}
-                                  >
-                                    <X size={12} />
-                                  </button>
-                                </div>
-                              )
-                            })}
+                          <div className="chipsList">
+                            {assignedMembers.map((member) => (
+                              <span key={member.id} className="memberChip">
+                                <span className="chipLabel">{member.name}</span>
+                                <span className="chipMemberPos">
+                                  {member.position || member.department || 'เจ้าหน้าที่'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => onRevokeMember(member, role)}
+                                  className="chipCloseBtn"
+                                  aria-label={`ลบ ${member.name}`}
+                                  title={`ปลดสิทธิ์คุณ ${member.name}`}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
                           </div>
                         ) : assignedPositions.length === 0 ? (
-                          <div className="roleEmptyNotice">
-                            <Info size={14} />
-                            <span>ยังไม่มีการกำหนดผู้รับผิดชอบในบทบาทนี้</span>
+                          <div className="roleEmptyBox">
+                            ยังไม่มีการกำหนดผู้รับผิดชอบในบทบาทนี้
                           </div>
                         ) : null}
                       </div>
-                    </div>
 
-                    {/* Card Footer: Quick Add Button */}
-                    <div className="roleBoardFooter">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAddModal(currentTask, role)}
-                        className="addAssigneeBtn"
-                      >
-                        <Plus size={15} />
-                        <span>เพิ่มผู้รับผิดชอบในบทบาทนี้</span>
-                      </button>
+                      {/* Quick Add Button */}
+                      <div className="roleActionsRow">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenAddModal(currentTask, role)}
+                          className="addRoleAssigneeBtn"
+                        >
+                          + เพิ่มผู้รับผิดชอบ
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -508,27 +447,17 @@ export default function TaskWorkspaceView({
         <div className="modalOverlay" onClick={() => setIsAddModalOpen(false)}>
           <div className="modalDialog modalLarge" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
-              <div className="modalHeaderTitleRow">
-                <div
-                  className="modalIconBox"
-                  style={{
-                    backgroundColor: `${targetTask.badgeColor}15`,
-                    color: targetTask.badgeColor,
-                  }}
-                >
-                  <Plus size={20} />
-                </div>
-                <div className="modalTitleMeta">
-                  <h3>เพิ่มผู้รับผิดชอบในบทบาท</h3>
-                  <p>
-                    {targetTask.name} ➔ <strong>{targetRole.label}</strong>
-                  </p>
-                </div>
+              <div className="modalTitleMeta">
+                <h3>เพิ่มผู้รับผิดชอบในบทบาท</h3>
+                <p>
+                  {targetTask.name} ➔ <strong>{targetRole.label}</strong>
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
                 className="modalCloseBtn"
+                aria-label="ปิดหน้าต่าง"
               >
                 <X size={18} />
               </button>
@@ -542,7 +471,7 @@ export default function TaskWorkspaceView({
                 className={`modalTabBtn ${addMode === 'member' ? 'active' : ''}`}
               >
                 <User size={16} />
-                <span>เพิ่มรายบุคคล (Member-based)</span>
+                <span>เพิ่มรายบุคคล</span>
               </button>
               <button
                 type="button"
@@ -550,7 +479,7 @@ export default function TaskWorkspaceView({
                 className={`modalTabBtn ${addMode === 'position' ? 'active' : ''}`}
               >
                 <Briefcase size={16} />
-                <span>เพิ่มตามตำแหน่งงาน (Position-based)</span>
+                <span>เพิ่มตามตำแหน่งงาน</span>
               </button>
             </div>
 
@@ -573,6 +502,7 @@ export default function TaskWorkspaceView({
                         type="button"
                         onClick={() => setMemberSearchQuery('')}
                         className="clearSearchBtn"
+                        aria-label="ล้างการค้นหา"
                       >
                         <X size={14} />
                       </button>
@@ -646,7 +576,6 @@ export default function TaskWorkspaceView({
 
                   {modalFilteredMembers.length === 0 && (
                     <div className="modalEmptyNotice">
-                      <User size={32} />
                       <p>ไม่พบบุคลากรที่ตรงกับเงื่อนไขการค้นหา</p>
                     </div>
                   )}
@@ -673,6 +602,7 @@ export default function TaskWorkspaceView({
                         type="button"
                         onClick={() => setPositionSearchQuery('')}
                         className="clearSearchBtn"
+                        aria-label="ล้างการค้นหา"
                       >
                         <X size={14} />
                       </button>
@@ -732,7 +662,6 @@ export default function TaskWorkspaceView({
 
                   {modalFilteredPositions.length === 0 && (
                     <div className="modalEmptyNotice">
-                      <Briefcase size={32} />
                       <p>ไม่พบตำแหน่งงานที่ตรงกับการค้นหา</p>
                     </div>
                   )}

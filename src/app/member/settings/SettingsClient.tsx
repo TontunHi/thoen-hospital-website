@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { Sparkles, UserCheck, Sliders } from 'lucide-react'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import {
   TASK_DEFINITIONS,
@@ -281,50 +280,41 @@ export default function SettingsClient({ initialSettings }: SettingsClientProps)
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
       {/* Main Top Navigation Tabs */}
-      <div className="settingsMainTabs">
+      <div className="set-tabs" role="tablist" aria-label="หมวดหมู่การตั้งค่า">
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'tasks'}
+          aria-pressed={activeTab === 'tasks'}
           onClick={() => setActiveTab('tasks')}
-          className={`settingsMainTabBtn ${activeTab === 'tasks' ? 'active' : ''}`}
+          className={`set-tab-btn ${activeTab === 'tasks' ? 'active' : ''}`}
         >
-          <div className="tabIconBox">
-            <Sparkles size={18} />
-          </div>
-          <div className="tabTextBox">
-            <span className="tabTitle">กำหนดสิทธิ์ตามภารกิจงาน</span>
-            <span className="tabSub">Task-Centric Permissions (แนะนำ)</span>
-          </div>
-          <span className="tabBadge">{tasks.length} งาน</span>
+          <span>กำหนดสิทธิ์ตามภารกิจงาน</span>
+          <span className="set-tab-count">· {tasks.length} งาน</span>
         </button>
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'inspector'}
+          aria-pressed={activeTab === 'inspector'}
           onClick={() => setActiveTab('inspector')}
-          className={`settingsMainTabBtn ${activeTab === 'inspector' ? 'active' : ''}`}
+          className={`set-tab-btn ${activeTab === 'inspector' ? 'active' : ''}`}
         >
-          <div className="tabIconBox">
-            <UserCheck size={18} />
-          </div>
-          <div className="tabTextBox">
-            <span className="tabTitle">ตรวจสอบสิทธิ์รายบุคคล</span>
-            <span className="tabSub">Member Permission Inspector</span>
-          </div>
-          <span className="tabBadge secondary">{members.length} บุคลากร</span>
+          <span>ตรวจสอบสิทธิ์รายบุคคล</span>
+          <span className="set-tab-count">· {members.length} คน</span>
         </button>
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'features'}
+          aria-pressed={activeTab === 'features'}
           onClick={() => setActiveTab('features')}
-          className={`settingsMainTabBtn ${activeTab === 'features' ? 'active' : ''}`}
+          className={`set-tab-btn ${activeTab === 'features' ? 'active' : ''}`}
         >
-          <div className="tabIconBox">
-            <Sliders size={18} />
-          </div>
-          <div className="tabTextBox">
-            <span className="tabTitle">เปิด/ปิดโมดูลระบบบริการ</span>
-            <span className="tabSub">Feature Toggles & Modules</span>
-          </div>
-          {isFeaturesDirty && <span className="tabBadge dirty">มีแก้ไข</span>}
+          <span>เปิด/ปิดโมดูลระบบบริการ</span>
+          {isFeaturesDirty && <span className="set-tab-dirty-dot" title="มีแก้ไขที่ยังไม่บันทึก" />}
         </button>
       </div>
 

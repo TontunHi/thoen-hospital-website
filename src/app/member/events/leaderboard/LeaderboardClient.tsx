@@ -2,25 +2,10 @@
 
 import React, { useState, useMemo } from 'react'
 import Link from 'next/link'
-import {
-  Trophy,
-  Users,
-  Building2,
-  Search,
-  ArrowLeft,
-  Sparkles,
-  Award,
-  Crown,
-  Calendar,
-  ChevronRight,
-  X,
-  TrendingUp,
-} from 'lucide-react'
 import { calculateThaiFiscalYear } from '@/lib/events/eventUtils'
-import { getInitials } from '@/lib/formatters'
-import '../events.css'
+import './leaderboard.css'
 
-interface IndividualRankItem {
+export interface IndividualRankItem {
   rank: number
   memberId: number
   name: string
@@ -31,12 +16,12 @@ interface IndividualRankItem {
   eventCount: number
 }
 
-interface DepartmentRankItem {
+export interface DepartmentRankItem {
   rank: number
   department: string
   totalPoints: number
   memberCount: number
-  avgPointsPerMember: number
+  avgPointsPerMember?: number
 }
 
 interface LeaderboardClientProps {
@@ -59,7 +44,7 @@ export default function LeaderboardClient({
   const [individualList, setIndividualList] = useState<IndividualRankItem[]>(initialIndividual)
   const [departmentList, setDepartmentList] = useState<DepartmentRankItem[]>(initialDepartment)
   const [searchQuery, setSearchQuery] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
 
   const handleYearChange = async (year: string) => {
     setSelectedFiscalYear(year)
@@ -99,79 +84,44 @@ export default function LeaderboardClient({
     )
   }, [departmentList, searchQuery])
 
-  // Max department points for progress bar visualization
-  const maxDeptPoints = useMemo(() => {
-    return Math.max(...departmentList.map((d) => d.totalPoints), 1)
-  }, [departmentList])
+  // Top 1 individuals (handles ties)
+  const top1List = useMemo(() => {
+    return individualList.filter((it) => it.rank === 1)
+  }, [individualList])
 
-  // Current user's standing in this fiscal year
+  const top1Score = top1List.length > 0 ? top1List[0].totalPoints : 0
+
+  // Current logged in member standing
   const myStanding = useMemo(() => {
     return individualList.find((it) => it.memberId === currentMemberId)
   }, [individualList, currentMemberId])
 
-  // Top 3 Podium items for individual
-  const top1 = individualList.find((it) => it.rank === 1)
-  const top2 = individualList.find((it) => it.rank === 2)
-  const top3 = individualList.find((it) => it.rank === 3)
-
-  const getRankBadge = (rank: number) => {
-    if (rank === 1) {
-      return (
-        <span className="rankBadge rankBadgeGold" title="อันดับ 1 (ชนะเลิศ)">
-          🥇 1
-        </span>
-      )
-    }
-    if (rank === 2) {
-      return (
-        <span className="rankBadge rankBadgeSilver" title="อันดับ 2 (รองชนะเลิศอันดับ 1)">
-          🥈 2
-        </span>
-      )
-    }
-    if (rank === 3) {
-      return (
-        <span className="rankBadge rankBadgeBronze" title="อันดับ 3 (รองชนะเลิศอันดับ 2)">
-          🥉 3
-        </span>
-      )
-    }
-    return <span className="rankBadge rankBadgeDefault">#{rank}</span>
-  }
-
   return (
-    <div className="eventsPageContainer">
-      {/* Back Navigation */}
-      <div className="backNavRow">
-        <Link href="/member/events" className="eventsBackLink">
-          <ArrowLeft size={16} /> กลับสู่ระบบกิจกรรม
-        </Link>
-      </div>
+    <div className="lb-page">
+      <div className="lb-container">
+        {/* 1. ลิงก์กลับ */}
+        <div>
+          <Link href="/member/events" className="lb-back-link">
+            ← กลับระบบกิจกรรม
+          </Link>
+        </div>
 
-      {/* Hero Header & Podium */}
-      <div className="leaderboardHero">
-        <div className="leaderboardHeroTop">
-          <div className="leaderboardHeroTitleCol">
-            <div className="leaderboardHeroTag">
-              <Trophy size={14} style={{ color: '#fde68a' }} />
-              <span>กระดานเกียรติยศการมีส่วนร่วม • โรงพยาบาลเถิน</span>
-            </div>
-            <h1 className="leaderboardHeroTitle">กระดานคะแนนกิจกรรม</h1>
-            <p className="leaderboardHeroSubtitle">
-              บันทึกและเชิดชูเกียรติการเข้าร่วมกิจกรรมโรงพยาบาลเถินผ่าน ThaID (คะแนนเท่ากันครองอันดับร่วมกัน)
+        {/* 2. หัวหน้า */}
+        <header className="lb-header">
+          <div className="lb-header-text">
+            <h1 className="lb-title">กระดานคะแนนกิจกรรม</h1>
+            <p className="lb-subtitle">
+              บันทึกและเชิดชูเกียรติการเข้าร่วมกิจกรรมโรงพยาบาลเถินผ่าน ThaID
             </p>
           </div>
 
-          {/* Fiscal Year Selector */}
-          <div className="leaderboardYearControl">
-            <label className="leaderboardYearLabel">
-              <Calendar size={13} style={{ color: '#fde68a' }} />
-              <span>ปีงบประมาณ</span>
-            </label>
+          <label htmlFor="lb-year-select" className="lb-year-control">
+            <span className="lb-year-label">ปีงบประมาณ</span>
             <select
+              id="lb-year-select"
               value={selectedFiscalYear}
               onChange={(e) => handleYearChange(e.target.value)}
-              className="leaderboardYearSelect"
+              className="lb-year-select"
               aria-label="เลือกปีงบประมาณ"
             >
               {fiscalYears.map((yr) => (
@@ -181,383 +131,220 @@ export default function LeaderboardClient({
               ))}
               <option value="ALL">ตลอดกาล (All-time)</option>
             </select>
-          </div>
-        </div>
+          </label>
+        </header>
 
-        {/* Podium Top 3 (Individual) */}
-        {activeTab === 'individual' && top1 && (
-          <div className="leaderboardPodium">
-            {/* Rank 1 (Gold) - Desktop Center, Mobile Top */}
-            <div className="podiumCard podiumGold">
-              <div className="podiumCrownBadge">
-                <Crown size={12} />
-                <span>อันดับ 1 (ยอดเยี่ยม)</span>
+        {/* 3. แถวสรุป */}
+        <section className="lb-summary-row" aria-label="สรุปภาพรวมกระดานคะแนน">
+          {/* การ์ดอันดับ 1 */}
+          <div className="lb-card-rank1">
+            <div>
+              <div className="lb-rank1-badge">
+                {top1List.length > 1
+                  ? `อันดับ 1 ร่วมกัน ${top1List.length} คน`
+                  : 'อันดับ 1'}
               </div>
-              <div>
-                <div className="podiumAvatarWrap">
-                  {top1.profilePath ? (
-                    <img
-                      src={`/api/member/profile/image?userId=${top1.memberId}`}
-                      alt={top1.name}
-                      className="podiumAvatarImg"
-                    />
-                  ) : (
-                    <span className="podiumAvatarInitials">{getInitials(top1.name)}</span>
-                  )}
-                </div>
-                <div className="podiumRankLabel">🥇 ชนะเลิศอันดับ 1</div>
-                <div className="podiumName" title={top1.name}>
-                  {top1.name}
-                </div>
-                <div className="podiumDept">{top1.department || 'โรงพยาบาลเถิน'}</div>
-              </div>
-              <div className="podiumScoreSection">
-                <div className="podiumScoreValue">
-                  {top1.totalPoints}
-                  <span className="podiumScoreUnit">คะแนน</span>
-                </div>
-                <div className="podiumEventCount">{top1.eventCount} กิจกรรม</div>
+              <div className="lb-rank1-score">
+                {top1Score} <span className="lb-rank1-unit">คะแนน</span>
               </div>
             </div>
 
-            {/* Rank 2 (Silver) - Desktop Left, Mobile Second */}
-            <div className="podiumCard podiumSilver">
-              <div>
-                <div className="podiumAvatarWrap">
-                  {top2?.profilePath ? (
-                    <img
-                      src={`/api/member/profile/image?userId=${top2.memberId}`}
-                      alt={top2.name}
-                      className="podiumAvatarImg"
-                    />
-                  ) : (
-                    <span className="podiumAvatarInitials">{top2 ? getInitials(top2.name) : '-'}</span>
-                  )}
+            <div className="lb-rank1-members">
+              {top1List.length > 0 ? (
+                top1List.map((item) => (
+                  <div key={item.memberId} className="lb-rank1-member-item">
+                    <div className="lb-rank1-member-name">{item.name}</div>
+                    <div className="lb-rank1-member-dept">
+                      {item.department || 'โรงพยาบาลเถิน'}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="lb-rank1-empty">
+                  ยังไม่มีข้อมูลคะแนนในปีงบประมาณนี้
                 </div>
-                <div className="podiumRankLabel">🥈 รองชนะเลิศอันดับ 1</div>
-                <div className="podiumName" title={top2?.name || '-'}>
-                  {top2 ? top2.name : '-'}
-                </div>
-                <div className="podiumDept">{top2?.department || ''}</div>
-              </div>
-              <div className="podiumScoreSection">
-                <div className="podiumScoreValue">
-                  {top2 ? top2.totalPoints : 0}
-                  <span className="podiumScoreUnit">คะแนน</span>
-                </div>
-                <div className="podiumEventCount">{top2 ? `${top2.eventCount} กิจกรรม` : '-'}</div>
-              </div>
-            </div>
-
-            {/* Rank 3 (Bronze) - Desktop Right, Mobile Third */}
-            <div className="podiumCard podiumBronze">
-              <div>
-                <div className="podiumAvatarWrap">
-                  {top3?.profilePath ? (
-                    <img
-                      src={`/api/member/profile/image?userId=${top3.memberId}`}
-                      alt={top3.name}
-                      className="podiumAvatarImg"
-                    />
-                  ) : (
-                    <span className="podiumAvatarInitials">{top3 ? getInitials(top3.name) : '-'}</span>
-                  )}
-                </div>
-                <div className="podiumRankLabel">🥉 รองชนะเลิศอันดับ 2</div>
-                <div className="podiumName" title={top3?.name || '-'}>
-                  {top3 ? top3.name : '-'}
-                </div>
-                <div className="podiumDept">{top3?.department || ''}</div>
-              </div>
-              <div className="podiumScoreSection">
-                <div className="podiumScoreValue">
-                  {top3 ? top3.totalPoints : 0}
-                  <span className="podiumScoreUnit">คะแนน</span>
-                </div>
-                <div className="podiumEventCount">{top3 ? `${top3.eventCount} กิจกรรม` : '-'}</div>
-              </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
 
-      {/* My Standing Card (Only on Individual tab) */}
-      {activeTab === 'individual' && (
-        myStanding ? (
-          <div className="myStandingCard">
-            <div className="myStandingLeft">
-              <div className="myStandingBadge">สถานะของฉัน</div>
-              <div className="myStandingRank">
-                #{myStanding.rank}
-                <span className="myStandingTotal">/ ทั้งหมด {individualList.length} คน</span>
+          {/* สถิติฝั่งขวา */}
+          <div className="lb-stats-grid">
+            <div className="lb-stat-card">
+              <span className="lb-stat-label">ผู้เข้าร่วม</span>
+              <div className="lb-stat-value">
+                {individualList.length} <span className="lb-stat-unit">คน</span>
               </div>
             </div>
-            <div className="myStandingDivider" />
-            <div className="myStandingStats">
-              <div className="myStandingStatItem">
-                <span className="myStandingStatLabel">คะแนนสะสม</span>
-                <span className="myStandingStatValue highlight">{myStanding.totalPoints} คะแนน</span>
-              </div>
-              <div className="myStandingStatItem">
-                <span className="myStandingStatLabel">กิจกรรมที่เข้าร่วม</span>
-                <span className="myStandingStatValue">{myStanding.eventCount} งาน</span>
+
+            <div className="lb-stat-card">
+              <span className="lb-stat-label">แผนก/กลุ่มงาน</span>
+              <div className="lb-stat-value">
+                {departmentList.length} <span className="lb-stat-unit">แห่ง</span>
               </div>
             </div>
-            {myStanding.rank <= 3 && (
-              <div className="myStandingHonorBadge">
-                <Sparkles size={14} />
-                <span>Top 3 เกียรติยศ</span>
-              </div>
+
+            {/* สถานะของฉัน (เต็มแถวล่างของกริด) */}
+            <div className="lb-stat-card lb-stat-card-wide">
+              <span className="lb-stat-label">สถานะของฉัน</span>
+              {myStanding && myStanding.totalPoints > 0 ? (
+                <div className="lb-my-standing-text">
+                  อันดับของคุณ: {myStanding.rank} · คะแนน: {myStanding.totalPoints}
+                </div>
+              ) : (
+                <div className="lb-my-standing-empty">
+                  <span className="lb-my-standing-empty-msg">
+                    คุณยังไม่มีคะแนนสะสมในปีงบประมาณ{' '}
+                    {selectedFiscalYear === 'ALL' ? 'ที่ผ่านมา' : selectedFiscalYear}
+                  </span>
+                  <Link href="/member/events" className="lb-btn-cta">
+                    ดูกิจกรรมที่เปิดรับ
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* 4. การ์ดข้อมูลรายการ */}
+        <section className="lb-data-card" aria-label="ตารางอันดับคะแนน">
+          {/* แถบเครื่องมือ */}
+          <div className="lb-toolbar">
+            <div className="lb-segmented-control" role="tablist" aria-label="ประเภทกระดานอันดับ">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'individual'}
+                aria-pressed={activeTab === 'individual'}
+                onClick={() => setActiveTab('individual')}
+                className={`lb-tab-btn ${activeTab === 'individual' ? 'lb-tab-active' : ''}`}
+              >
+                รายบุคคล · {individualList.length}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'department'}
+                aria-pressed={activeTab === 'department'}
+                onClick={() => setActiveTab('department')}
+                className={`lb-tab-btn ${activeTab === 'department' ? 'lb-tab-active' : ''}`}
+              >
+                ระดับแผนก · {departmentList.length}
+              </button>
+            </div>
+
+            <div className="lb-search-wrap">
+              <input
+                type="search"
+                aria-label="ค้นหาชื่อ หรือแผนก"
+                placeholder="ค้นหาชื่อ หรือแผนก"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="lb-search-input"
+              />
+            </div>
+          </div>
+
+          {/* ตารางแสดงผล */}
+          <div className="lb-table-container">
+            {activeTab === 'individual' ? (
+              <table className="lb-table lb-table-individual">
+                <thead>
+                  <tr>
+                    <th className="lb-th-rank">อันดับ</th>
+                    <th className="lb-th-name">ชื่อ-สกุล</th>
+                    <th className="lb-th-dept">แผนก/กลุ่มงาน</th>
+                    <th className="lb-th-events">กิจกรรม</th>
+                    <th className="lb-th-points">คะแนน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredIndividual.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="lb-empty-cell">
+                        ไม่พบรายการที่ตรงกับคำค้นหา
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredIndividual.map((item) => {
+                      const isRank1 = item.rank === 1
+                      const isMe = item.memberId === currentMemberId
+                      return (
+                        <tr
+                          key={item.memberId}
+                          className={`${isRank1 ? 'lb-row-rank1' : ''}`}
+                        >
+                          <td className="lb-td-rank">
+                            {isRank1 ? (
+                              <span className="lb-rank-badge-1">1</span>
+                            ) : (
+                              <span className="lb-rank-num">{item.rank}</span>
+                            )}
+                          </td>
+                          <td className="lb-td-name">
+                            <div className="lb-name-row">
+                              <span className="lb-name-text">{item.name}</span>
+                              {isMe && <span className="lb-me-pill">คุณ</span>}
+                            </div>
+                            {item.position && (
+                              <div className="lb-position-text">{item.position}</div>
+                            )}
+                          </td>
+                          <td className="lb-td-dept">
+                            {item.department || '-'}
+                          </td>
+                          <td className="lb-td-events">{item.eventCount}</td>
+                          <td className="lb-td-points">{item.totalPoints}</td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <table className="lb-table lb-table-department">
+                <thead>
+                  <tr>
+                    <th className="lb-th-rank">อันดับ</th>
+                    <th className="lb-th-dept-name">แผนก/กลุ่มงาน</th>
+                    <th className="lb-th-members">ผู้เข้าร่วม</th>
+                    <th className="lb-th-points">คะแนน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDepartment.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="lb-empty-cell">
+                        ไม่พบรายการที่ตรงกับคำค้นหา
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredDepartment.map((dept) => {
+                      const isRank1 = dept.rank === 1
+                      return (
+                        <tr
+                          key={dept.department}
+                          className={`${isRank1 ? 'lb-row-rank1' : ''}`}
+                        >
+                          <td className="lb-td-rank">
+                            {isRank1 ? (
+                              <span className="lb-rank-badge-1">1</span>
+                            ) : (
+                              <span className="lb-rank-num">{dept.rank}</span>
+                            )}
+                          </td>
+                          <td className="lb-td-dept-name">{dept.department}</td>
+                          <td className="lb-td-members">{dept.memberCount}</td>
+                          <td className="lb-td-points">{dept.totalPoints}</td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
             )}
           </div>
-        ) : (
-          <div className="myStandingCard empty">
-            <div className="myStandingEmptyInfo">
-              <Award size={24} className="myStandingIcon" />
-              <div>
-                <div className="myStandingEmptyTitle">
-                  คุณยังไม่มีคะแนนสะสมในปีงบประมาณ {selectedFiscalYear === 'ALL' ? 'ที่ผ่านมา' : selectedFiscalYear}
-                </div>
-                <div className="myStandingEmptyDesc">
-                  เข้าร่วมกิจกรรมของโรงพยาบาลและสแกนเช็คอิน ThaID หน้างานเพื่อเริ่มสะสมคะแนน
-                </div>
-              </div>
-            </div>
-            <Link href="/member/events" className="myStandingCta">
-              <span>ดูกิจกรรมที่เปิดรับ</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-        )
-      )}
-
-      {/* Tab Selector & Search Header */}
-      <div className="eventsFilterBar">
-        <div className="eventsTabsGroup" role="tablist" aria-label="ประเภทกระดานอันดับ">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'individual'}
-            onClick={() => setActiveTab('individual')}
-            className={`eventsTabButton ${activeTab === 'individual' ? 'active' : ''}`}
-          >
-            <Users size={15} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: '-2px' }} />
-            อันดับรายบุคคล ({individualList.length})
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'department'}
-            onClick={() => setActiveTab('department')}
-            className={`eventsTabButton ${activeTab === 'department' ? 'active' : ''}`}
-          >
-            <Building2 size={15} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: '-2px' }} />
-            อันดับระดับแผนก ({departmentList.length})
-          </button>
-        </div>
-
-        <div className="eventsSearchWrap" style={{ maxWidth: 300 }}>
-          <Search className="eventsSearchIcon" size={16} />
-          <input
-            type="text"
-            placeholder={
-              activeTab === 'individual'
-                ? 'ค้นหาชื่อ หรือแผนก...'
-                : 'ค้นหากลุ่มงาน หรือแผนก...'
-            }
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="eventsSearchInput"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="btnClearSearch"
-              title="ล้างคำค้นหา"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
+        </section>
       </div>
-
-      {/* Table Content */}
-      {loading ? (
-        <div className="eventsLoadingSpinner">
-          <div className="spinnerCircle" />
-        </div>
-      ) : activeTab === 'individual' ? (
-        /* Individual Leaderboard Table */
-        <div className="tableCard">
-          {filteredIndividual.length === 0 ? (
-            <div className="eventsEmptyState" style={{ border: 'none' }}>
-              <Trophy size={42} className="eventsEmptyIcon" />
-              <h3 className="eventsEmptyTitle">ไม่พบข้อมูลคะแนนรายบุคคล</h3>
-              <p className="eventsEmptyDesc">
-                {searchQuery.trim()
-                  ? 'ไม่พบบุคลากรที่ตรงกับคำค้นหา ลองตรวจสอบชื่อหรือแผนกอีกครั้ง'
-                  : 'ยังไม่มีข้อมูลการเข้าร่วมกิจกรรมในปีงบประมาณนี้'}
-              </p>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="btnSecondary"
-                >
-                  ล้างคำค้นหา
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="tableResponsiveWrap">
-              <table className="styledTable">
-                <thead>
-                  <tr>
-                    <th style={{ width: 75, textAlign: 'center' }}>อันดับ</th>
-                    <th>ชื่อ-สกุล บุคลากร</th>
-                    <th>แผนก / กลุ่มงาน</th>
-                    <th>ตำแหน่ง</th>
-                    <th style={{ textAlign: 'center', width: 120 }}>จำนวนกิจกรรม</th>
-                    <th style={{ textAlign: 'right', width: 130 }}>คะแนนสะสม</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredIndividual.map((item) => {
-                    const isMe = item.memberId === currentMemberId
-                    return (
-                      <tr
-                        key={item.memberId}
-                        className={isMe ? 'highlightMe' : ''}
-                      >
-                        <td style={{ textAlign: 'center' }}>
-                          {getRankBadge(item.rank)}
-                        </td>
-                        <td>
-                          <div className="tableMemberCell">
-                            <div className="tableAvatarWrap">
-                              {item.profilePath ? (
-                                <img
-                                  src={`/api/member/profile/image?userId=${item.memberId}`}
-                                  alt={item.name}
-                                  className="tableAvatarImg"
-                                />
-                              ) : (
-                                <span className="tableAvatarInitials">
-                                  {getInitials(item.name)}
-                                </span>
-                              )}
-                            </div>
-                            <div>
-                              <span className="tableMemberNameText">{item.name}</span>
-                              {isMe && <span className="mePillBadge">คุณ</span>}
-                            </div>
-                          </div>
-                        </td>
-                        <td>{item.department || 'ไม่ระบุแผนก'}</td>
-                        <td>{item.position || '-'}</td>
-                        <td style={{ textAlign: 'center', color: '#475569' }}>
-                          {item.eventCount} งาน
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <span className="pointsPill">
-                            <Sparkles size={12} />
-                            <span>{item.totalPoints} คะแนน</span>
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Department Leaderboard Table */
-        <div className="tableCard">
-          {filteredDepartment.length === 0 ? (
-            <div className="eventsEmptyState" style={{ border: 'none' }}>
-              <Building2 size={42} className="eventsEmptyIcon" />
-              <h3 className="eventsEmptyTitle">ไม่พบข้อมูลคะแนนระดับแผนก</h3>
-              <p className="eventsEmptyDesc">
-                {searchQuery.trim()
-                  ? 'ไม่พบแผนกที่ตรงกับคำค้นหา ลองตรวจสอบคำค้นหาอีกครั้ง'
-                  : 'ยังไม่มีข้อมูลคะแนนของแผนกในปีงบประมาณนี้'}
-              </p>
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="btnSecondary"
-                >
-                  ล้างคำค้นหา
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="tableResponsiveWrap">
-              <table className="styledTable">
-                <thead>
-                  <tr>
-                    <th style={{ width: 75, textAlign: 'center' }}>อันดับ</th>
-                    <th>กลุ่มงาน / แผนก</th>
-                    <th style={{ textAlign: 'center', width: 130 }}>บุคลากรในแผนก</th>
-                    <th style={{ minWidth: 160 }}>คะแนนรวมทั้งหมด</th>
-                    <th style={{ textAlign: 'right', width: 140 }}>คะแนนเฉลี่ยต่อคน</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDepartment.map((dept) => {
-                    const percentOfMax = Math.min(
-                      100,
-                      Math.round((dept.totalPoints / maxDeptPoints) * 100)
-                    )
-                    return (
-                      <tr key={dept.department}>
-                        <td style={{ textAlign: 'center' }}>
-                          {getRankBadge(dept.rank)}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                            <Building2 size={15} style={{ color: '#059669', flexShrink: 0 }} />
-                            <strong style={{ color: '#0f172a' }}>{dept.department}</strong>
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'center', color: '#475569' }}>
-                          {dept.memberCount} คน
-                        </td>
-                        <td>
-                          <div className="deptPointsCell">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.775rem' }}>
-                              <span style={{ fontWeight: 800, color: '#065f46' }}>
-                                {dept.totalPoints} แต้ม
-                              </span>
-                              <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>
-                                {percentOfMax}%
-                              </span>
-                            </div>
-                            <div className="deptPointsBarWrap" title={`${dept.totalPoints} แต้ม`}>
-                              <div
-                                className="deptPointsBarFill"
-                                style={{ width: `${percentOfMax}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <span className="pointsPill">
-                            <TrendingUp size={12} />
-                            <span>{dept.avgPointsPerMember} แต้ม/คน</span>
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

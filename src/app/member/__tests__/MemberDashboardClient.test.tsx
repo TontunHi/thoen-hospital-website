@@ -90,7 +90,7 @@ describe('MemberDashboardClient Component (member-dashboard-design spec)', () =>
     expect(screen.getByText('แจ้งซ่อมบำรุงและอุปกรณ์')).toBeInTheDocument()
     expect(screen.getByText('ระบบขอสื่อประชาสัมพันธ์')).toBeInTheDocument()
     expect(screen.getByText('ระบบสลิปเงินเดือนออนไลน์')).toBeInTheDocument()
-    expect(screen.getByText('จัดการลายเซ็นดิจิทัล')).toBeInTheDocument()
+    expect(screen.queryByText('จัดการลายเซ็นดิจิทัล')).not.toBeInTheDocument()
     expect(screen.getByText('ระบบยืม-คืนอุปกรณ์และพัสดุ')).toBeInTheDocument()
     expect(screen.getByText('ระบบกิจกรรมและสะสมคะแนน')).toBeInTheDocument()
   })

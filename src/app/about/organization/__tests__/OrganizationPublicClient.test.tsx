@@ -119,8 +119,11 @@ describe('OrganizationPublicClient Component', () => {
       expect(screen.getByText('หัวหน้ากลุ่มงาน')).toBeDefined()
       expect(screen.getByText('งานอุบัติเหตุและฉุกเฉิน')).toBeDefined()
       expect(screen.getByText('หน่วยรถพยาบาล EMS')).toBeDefined()
-      expect(screen.getByText('จนท.กู้ชีพ EMS')).toBeDefined()
     })
+
+    // Hero badges should be removed
+    expect(screen.queryByText(/Thoen Hospital Organization/i)).toBeNull()
+    expect(screen.queryByText(/🏥 โรงพยาบาลเถิน จ.ลำปาง/i)).toBeNull()
   })
 
   it('verifies that no phone numbers are rendered on public view (PDPA Privacy)', async () => {
@@ -184,19 +187,19 @@ describe('OrganizationPublicClient Component', () => {
     expect(screen.getByText('100%')).toBeDefined()
   })
 
-  it('verifies that staff count pill is not displayed and all members are directly rendered', async () => {
+  it('renders regular staff members while omitting the "เจ้าหน้าที่" badge tag', async () => {
     render(<OrganizationPublicClient />)
 
     await waitFor(() => {
+      expect(screen.getByText('พว.สมหญิง หัวหน้างาน')).toBeDefined()
+      expect(screen.getByText('งานอุบัติเหตุและฉุกเฉิน')).toBeDefined()
+      // Regular staff members should be displayed
+      expect(screen.getByText('พว.สมชาย พยาบาล')).toBeDefined()
+      expect(screen.getByText('พยาบาล ER 1')).toBeDefined()
       expect(screen.getByText('จนท.กู้ชีพ EMS')).toBeDefined()
     })
 
-    // Confirm that staff count text like "เจ้าหน้าที่ 1 ท่าน" is NOT displayed
-    expect(screen.queryByText(/เจ้าหน้าที่ \d+ ท่าน/i)).toBeNull()
-
-    // Confirm all staff members are directly displayed in the tree
-    expect(screen.getByText('พว.สมชาย พยาบาล')).toBeDefined()
-    expect(screen.getByText('พยาบาล ER 1')).toBeDefined()
-    expect(screen.getByText('จนท.กู้ชีพ EMS')).toBeDefined()
+    // The badge tag "เจ้าหน้าที่" must NOT be rendered on member cards
+    expect(screen.queryByText('เจ้าหน้าที่')).toBeNull()
   })
 })

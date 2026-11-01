@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Breadcrumb from '@/components/ui/Breadcrumb'
 import {
   Users,
@@ -13,8 +13,12 @@ import {
   LayoutGrid,
   ZoomIn,
   ZoomOut,
-  MoveHorizontal
+  MoveHorizontal,
+  Building2,
+  Crown,
+  Layers
 } from 'lucide-react'
+import { getInitials } from '@/lib/formatters'
 import './page.css'
 
 interface PublicMember {
@@ -37,31 +41,61 @@ interface PublicGroupNode {
   children: PublicGroupNode[]
 }
 
+function countTotalMembersInGroup(node: PublicGroupNode): number {
+  let count = node.members.length
+  if (node.children && node.children.length > 0) {
+    for (const child of node.children) {
+      count += countTotalMembersInGroup(child)
+    }
+  }
+  return count
+}
+
+function countTotalSubUnits(node: PublicGroupNode): number {
+  let count = node.children ? node.children.length : 0
+  if (node.children && node.children.length > 0) {
+    for (const child of node.children) {
+      count += countTotalSubUnits(child)
+    }
+  }
+  return count
+}
+
 /**
- * Leaf Member Card in the Org Tree with its own connecting branch line
+ * Leaf Member Card in the Org Tree
+ * Note: If badge === 'เจ้าหน้าที่', the tag is intentionally omitted per user specification.
  */
 function OrgTreeMemberLeaf({
   member,
-  badge = 'เจ้าหน้าที่'
+  badge
 }: {
   member: PublicMember
   badge?: string
 }) {
+  const showBadge = Boolean(badge && badge !== 'เจ้าหน้าที่')
+  const isDeputy = badge?.includes('รอง')
+
   return (
     <li>
       <div className="treeMemberCard">
-        {member.imagePath ? (
-          <img src={member.imagePath} alt={member.name} className="treeMemberAvatar" />
-        ) : (
-          <div className="treeMemberAvatarFallback">{member.name.slice(0, 1)}</div>
+        <div className="treeMemberAvatarWrap">
+          {member.imagePath ? (
+            <img src={member.imagePath} alt={member.name} className="treeMemberAvatar" />
+          ) : (
+            <div className="treeMemberAvatarFallback">{getInitials(member.name)}</div>
+          )}
+        </div>
+        {showBadge && (
+          <span className={`treeMemberBadge ${isDeputy ? 'deputy' : ''}`}>
+            {badge}
+          </span>
         )}
-        <span className={`treeMemberBadge ${badge.includes('รอง') ? 'deputy' : ''}`}>
-          {badge}
-        </span>
         <span className="treeMemberName" title={member.name}>
           {member.name}
         </span>
-        <span className="treeMemberPosition">{member.position}</span>
+        <span className="treeMemberPosition" title={member.position}>
+          {member.position}
+        </span>
       </div>
     </li>
   )
@@ -76,7 +110,7 @@ function OrgTreeSubnode({ node }: { node: PublicGroupNode }) {
   const staff = node.members.filter((m) => m.role !== 'leader')
   const children = node.children || []
 
-  const hasChildBranches = children.length > 0 || staff.length > 0 || otherLeaders.length > 0
+  const hasChildBranches = children.length > 0 || otherLeaders.length > 0 || staff.length > 0
 
   return (
     <li>
@@ -87,19 +121,21 @@ function OrgTreeSubnode({ node }: { node: PublicGroupNode }) {
 
         {leader ? (
           <>
-            {leader.imagePath ? (
-              <img src={leader.imagePath} alt={leader.name} className="treeNodeAvatar" />
-            ) : (
-              <div className="treeNodeAvatarFallback">{leader.name.slice(0, 1)}</div>
-            )}
+            <div className="treeNodeAvatarWrap">
+              {leader.imagePath ? (
+                <img src={leader.imagePath} alt={leader.name} className="treeNodeAvatar" />
+              ) : (
+                <div className="treeNodeAvatarFallback">{getInitials(leader.name)}</div>
+              )}
+            </div>
             <span
               className="publicLeaderBadge"
-              style={{ fontSize: '0.7rem', padding: '3px 10px', margin: '0 auto', width: 'fit-content' }}
+              style={{ fontSize: '0.7rem', padding: '2px 9px', margin: '0 auto', width: 'fit-content' }}
             >
               หัวหน้างาน
             </span>
-            <span className="treeNodeName">{leader.name}</span>
-            <span className="treeNodePosition">{leader.position}</span>
+            <span className="treeNodeName" title={leader.name}>{leader.name}</span>
+            <span className="treeNodePosition" title={leader.position}>{leader.position}</span>
           </>
         ) : (
           <>
@@ -116,7 +152,7 @@ function OrgTreeSubnode({ node }: { node: PublicGroupNode }) {
         )}
       </div>
 
-      {/* Recursive Child Branches (Subgroups + Individual Staff with Connecting Lines) */}
+      {/* Recursive Child Branches (Subgroups + Deputy Leaders + Staff) */}
       {hasChildBranches && (
         <ul>
           {/* Sub-departments / Sub-units */}
@@ -133,7 +169,7 @@ function OrgTreeSubnode({ node }: { node: PublicGroupNode }) {
             />
           ))}
 
-          {/* Staff Members as Individual Leaf Cards with connecting lines */}
+          {/* Regular Staff Members (No tag "เจ้าหน้าที่" rendered) */}
           {staff.map((member) => (
             <OrgTreeMemberLeaf
               key={`staff-${member.id}`}
@@ -151,85 +187,121 @@ function OrgTreeSubnode({ node }: { node: PublicGroupNode }) {
  * Recursive Subgroup Block for Directory Cards View
  */
 function PublicSubgroupView({ subgroup, depth = 0 }: { subgroup: PublicGroupNode; depth?: number }) {
-  const subLeaders = subgroup.members.filter((m) => m.role === 'leader')
+  const primaryLeader = subgroup.members.find((m) => m.role === 'leader')
+  const deputyLeaders = subgroup.members.filter((m) => m.role === 'leader' && m.id !== primaryLeader?.id)
   const subMembers = subgroup.members.filter((m) => m.role !== 'leader')
 
   return (
     <div
       key={subgroup.id}
       className="subgroupBlock"
-      style={{ marginLeft: depth > 0 ? `${Math.min(depth * 18, 54)}px` : undefined }}
+      style={{ marginLeft: depth > 0 ? `${Math.min(depth * 16, 48)}px` : undefined }}
     >
       <div className="subgroupHeader">
-        <ChevronRight size={18} className="text-emerald-600" />
+        <div className="subgroupIconWrap">
+          <Layers size={16} />
+        </div>
         <h3>{subgroup.name}</h3>
+        <span className="subgroupMemberCount">
+          {subgroup.members.length} ท่าน
+        </span>
       </div>
 
-      {/* Subgroup Leader */}
-      {subLeaders.map((leader) => (
-        <div key={leader.id} className="publicLeaderCard" style={{ padding: '16px 20px' }}>
-          {leader.imagePath ? (
-            <img
-              src={leader.imagePath}
-              alt={leader.name}
-              className="publicLeaderAvatar"
-              style={{ width: '72px', height: '72px' }}
-            />
-          ) : (
-            <div className="publicAvatarFallback" style={{ width: '72px', height: '72px', fontSize: '1.5rem' }}>
-              {leader.name.slice(0, 1)}
-            </div>
-          )}
+      {/* Subgroup Primary Leader */}
+      {primaryLeader && (
+        <div className="publicLeaderCard" style={{ padding: '16px 20px' }}>
+          <div className="publicLeaderAvatarWrap">
+            {primaryLeader.imagePath ? (
+              <img
+                src={primaryLeader.imagePath}
+                alt={primaryLeader.name}
+                className="publicLeaderAvatar"
+                style={{ width: '68px', height: '68px' }}
+              />
+            ) : (
+              <div className="publicAvatarFallback" style={{ width: '68px', height: '68px', fontSize: '1.4rem' }}>
+                {getInitials(primaryLeader.name)}
+              </div>
+            )}
+            <span className="publicLeaderCrown" title="หัวหน้างาน">
+              <Crown size={12} />
+            </span>
+          </div>
           <div className="publicLeaderInfo">
             <span className="publicLeaderBadge">
               หัวหน้างาน
             </span>
             <span className="publicLeaderName" style={{ fontSize: '1.15rem' }}>
-              {leader.name}
+              {primaryLeader.name}
             </span>
-            <span className="publicLeaderPosition">{leader.position}</span>
+            <span className="publicLeaderPosition">{primaryLeader.position}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Subgroup Deputy Leaders (รองหัวหน้างาน) */}
+      {deputyLeaders.map((deputy) => (
+        <div key={deputy.id} className="publicLeaderCard publicDeputyCard" style={{ padding: '14px 18px' }}>
+          <div className="publicLeaderAvatarWrap">
+            {deputy.imagePath ? (
+              <img
+                src={deputy.imagePath}
+                alt={deputy.name}
+                className="publicLeaderAvatar"
+                style={{ width: '60px', height: '60px' }}
+              />
+            ) : (
+              <div className="publicAvatarFallback" style={{ width: '60px', height: '60px', fontSize: '1.25rem' }}>
+                {getInitials(deputy.name)}
+              </div>
+            )}
+          </div>
+          <div className="publicLeaderInfo">
+            <span className="publicLeaderBadge publicDeputyBadge">
+              รองหัวหน้างาน
+            </span>
+            <span className="publicLeaderName" style={{ fontSize: '1.05rem' }}>
+              {deputy.name}
+            </span>
+            <span className="publicLeaderPosition">{deputy.position}</span>
           </div>
         </div>
       ))}
 
-      {/* Subgroup Regular Members */}
-      {subMembers.length > 0 ? (
+      {/* Subgroup Regular Members (clean cards without 'เจ้าหน้าที่' tag) */}
+      {subMembers.length > 0 && (
         <div className="publicMembersGrid">
           {subMembers.map((member) => (
             <div key={member.id} className="publicMemberCard">
-              {member.imagePath ? (
-                <img
-                  src={member.imagePath}
-                  alt={member.name}
-                  className="publicMemberAvatar"
-                />
-              ) : (
-                <div className="publicMemberAvatarFallback">
-                  {member.name.slice(0, 1)}
-                </div>
-              )}
+              <div className="publicMemberAvatarWrap">
+                {member.imagePath ? (
+                  <img
+                    src={member.imagePath}
+                    alt={member.name}
+                    className="publicMemberAvatar"
+                  />
+                ) : (
+                  <div className="publicMemberAvatarFallback">
+                    {getInitials(member.name)}
+                  </div>
+                )}
+              </div>
               <div className="publicMemberInfo">
                 <span className="publicMemberName" title={member.name}>
                   {member.name}
                 </span>
-                <span className="publicMemberPosition">
+                <span className="publicMemberPosition" title={member.position}>
                   {member.position}
                 </span>
               </div>
             </div>
           ))}
         </div>
-      ) : (
-        subLeaders.length === 0 && (!subgroup.children || subgroup.children.length === 0) && (
-          <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>
-            ยังไม่มีรายชื่อสมาชิกในหน่วยงานย่อยนี้
-          </p>
-        )
       )}
 
       {/* Recursive Nested Sub-groups (Depth 2, 3, etc.) */}
       {subgroup.children && subgroup.children.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '6px' }}>
           {subgroup.children.map((child) => (
             <PublicSubgroupView key={child.id} subgroup={child} depth={depth + 1} />
           ))}
@@ -310,11 +382,22 @@ export default function OrganizationPublicClient() {
   const rootChildren = selectedRoot ? selectedRoot.children || [] : []
 
   const hasRootBranches =
-    rootChildren.length > 0 || rootStaff.length > 0 || otherRootLeaders.length > 0
+    rootChildren.length > 0 || otherRootLeaders.length > 0 || rootStaff.length > 0
+
+  // Computed totals for selected department
+  const selectedDeptTotalMembers = useMemo(() => {
+    if (!selectedRoot) return 0
+    return countTotalMembersInGroup(selectedRoot)
+  }, [selectedRoot])
+
+  const selectedDeptTotalSubUnits = useMemo(() => {
+    if (!selectedRoot) return 0
+    return countTotalSubUnits(selectedRoot)
+  }, [selectedRoot])
 
   return (
     <div className="publicOrgPage">
-      {/* Hero Header */}
+      {/* Hero Header without the badge */}
       <section className="orgHero">
         <div className="orgHeroContainer">
           <Breadcrumb
@@ -324,7 +407,6 @@ export default function OrganizationPublicClient() {
               { label: 'โครงสร้างกลุ่มงานและบุคลากร' }
             ]}
           />
-          <span className="orgHeroBadge">🏥 โรงพยาบาลเถิน จ.ลำปาง</span>
           <h1 className="orgHeroTitle">โครงสร้างกลุ่มงานและบุคลากร</h1>
           <p className="orgHeroDesc">
             คณะผู้บริหาร หัวหน้ากลุ่มงาน และบุคลากรผู้ปฏิบัติงาน โรงพยาบาลเถิน
@@ -337,7 +419,7 @@ export default function OrganizationPublicClient() {
       <div className="orgContentContainer">
         {/* Instant Search Bar */}
         <div className="orgSearchCard">
-          <Search size={20} className="text-emerald-600" />
+          <Search size={20} className="text-emerald-700" />
           <input
             type="text"
             className="orgSearchInput"
@@ -347,17 +429,18 @@ export default function OrganizationPublicClient() {
           />
           {searchQuery && (
             <button
+              type="button"
               className="clearSearchBtn"
-              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
               onClick={() => {
                 setSearchQuery('')
                 setSearchResults([])
               }}
+              aria-label="ล้างคำค้นหา"
             >
-              <X size={16} /> ล้างคำค้นหา
+              <X size={15} /> <span>ล้างคำค้นหา</span>
             </button>
           )}
-          {searching && <Loader2 size={18} className="animate-spin text-emerald-600" />}
+          {searching && <Loader2 size={18} className="animate-spin text-emerald-700" />}
         </div>
 
         {/* If Search Active: Show Search Results */}
@@ -371,7 +454,7 @@ export default function OrganizationPublicClient() {
 
             {searching ? (
               <div className="publicEmptyState">
-                <Loader2 size={32} className="animate-spin text-emerald-600" />
+                <Loader2 size={32} className="animate-spin text-emerald-700" />
                 <span>กำลังค้นหาข้อมูล...</span>
               </div>
             ) : searchResults.length === 0 ? (
@@ -383,17 +466,19 @@ export default function OrganizationPublicClient() {
               <div className="publicMembersGrid">
                 {searchResults.map((member) => (
                   <div key={member.id} className="publicMemberCard">
-                    {member.imagePath ? (
-                      <img
-                        src={member.imagePath}
-                        alt={member.name}
-                        className="publicMemberAvatar"
-                      />
-                    ) : (
-                      <div className="publicMemberAvatarFallback">
-                        {member.name.slice(0, 1)}
-                      </div>
-                    )}
+                    <div className="publicMemberAvatarWrap">
+                      {member.imagePath ? (
+                        <img
+                          src={member.imagePath}
+                          alt={member.name}
+                          className="publicMemberAvatar"
+                        />
+                      ) : (
+                        <div className="publicMemberAvatarFallback">
+                          {getInitials(member.name)}
+                        </div>
+                      )}
+                    </div>
                     <div className="publicMemberInfo">
                       <span className="publicMemberName" title={member.name}>
                         {member.name}
@@ -418,7 +503,7 @@ export default function OrganizationPublicClient() {
             {loading ? (
               <div className="deptDisplayCard">
                 <div className="publicEmptyState">
-                  <Loader2 size={36} className="animate-spin text-emerald-600" />
+                  <Loader2 size={36} className="animate-spin text-emerald-700" />
                   <span>กำลังโหลดโครงสร้างกลุ่มงาน...</span>
                 </div>
               </div>
@@ -432,20 +517,25 @@ export default function OrganizationPublicClient() {
               </div>
             ) : (
               <>
-                {/* Department Selection Tabs (Clean without group icon) */}
+                {/* Department Selection Tabs */}
                 <div className="deptTabsNav">
-                  {orgChart.map((root) => (
-                    <button
-                      key={root.id}
-                      className={`deptTabBtn ${selectedRootId === root.id ? 'active' : ''}`}
-                      onClick={() => {
-                        setSelectedRootId(root.id)
-                        setZoom(1)
-                      }}
-                    >
-                      {root.name}
-                    </button>
-                  ))}
+                  {orgChart.map((root) => {
+                    const isActive = selectedRootId === root.id
+                    return (
+                      <button
+                        key={root.id}
+                        type="button"
+                        className={`deptTabBtn ${isActive ? 'active' : ''}`}
+                        onClick={() => {
+                          setSelectedRootId(root.id)
+                          setZoom(1)
+                        }}
+                      >
+                        <Building2 size={15} />
+                        <span>{root.name}</span>
+                      </button>
+                    )
+                  })}
                 </div>
 
                 {/* Selected Department Display */}
@@ -453,8 +543,20 @@ export default function OrganizationPublicClient() {
                   <div className="deptDisplayCard">
                     <div className="deptHeaderRow">
                       <div className="deptTitleBlock">
-                        <h2>{selectedRoot.name}</h2>
-                        <p>โครงสร้างคณะผู้บริหารและเจ้าหน้าที่ผู้ปฏิบัติงาน</p>
+                        <div className="deptHeaderMain">
+                          <h2>{selectedRoot.name}</h2>
+                          <div className="deptBadgePillRow">
+                            <span className="deptMetaChip">
+                              <Users size={12} /> บุคลากรทั้งหมด <strong>{selectedDeptTotalMembers}</strong> ท่าน
+                            </span>
+                            {selectedDeptTotalSubUnits > 0 && (
+                              <span className="deptMetaChip">
+                                <Layers size={12} /> <strong>{selectedDeptTotalSubUnits}</strong> หน่วยงานย่อย
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p>โครงสร้างคณะผู้บริหารและเจ้าหน้าที่ผู้ปฏิบัติงาน ประจำ{selectedRoot.name}</p>
                       </div>
                     </div>
 
@@ -467,7 +569,7 @@ export default function OrganizationPublicClient() {
                           onClick={() => setViewMode('tree')}
                         >
                           <Network size={16} />
-                          ผังโครงสร้างองค์กร
+                          <span>ผังโครงสร้างองค์กร</span>
                         </button>
                         <button
                           type="button"
@@ -475,7 +577,7 @@ export default function OrganizationPublicClient() {
                           onClick={() => setViewMode('cards')}
                         >
                           <LayoutGrid size={16} />
-                          รายชื่อแบบการ์ด
+                          <span>รายชื่อแบบการ์ด</span>
                         </button>
                       </div>
 
@@ -490,6 +592,7 @@ export default function OrganizationPublicClient() {
                               className="zoomBtn"
                               title="ย่อขนาด"
                               onClick={() => setZoom((z) => Math.max(0.6, Number((z - 0.1).toFixed(1))))}
+                              aria-label="ย่อขนาด"
                             >
                               <ZoomOut size={14} />
                             </button>
@@ -497,7 +600,6 @@ export default function OrganizationPublicClient() {
                               type="button"
                               className="zoomLevelText"
                               title="รีเซ็ตขนาด 100%"
-                              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
                               onClick={() => setZoom(1)}
                             >
                               {`${Math.round(zoom * 100)}%`}
@@ -507,6 +609,7 @@ export default function OrganizationPublicClient() {
                               className="zoomBtn"
                               title="ขยายขนาด"
                               onClick={() => setZoom((z) => Math.min(1.2, Number((z + 0.1).toFixed(1))))}
+                              aria-label="ขยายขนาด"
                             >
                               <ZoomIn size={14} />
                             </button>
@@ -531,21 +634,26 @@ export default function OrganizationPublicClient() {
 
                               {rootLeader ? (
                                 <>
-                                  {rootLeader.imagePath ? (
-                                    <img
-                                      src={rootLeader.imagePath}
-                                      alt={rootLeader.name}
-                                      className="treeNodeAvatar"
-                                      style={{ width: '70px', height: '70px' }}
-                                    />
-                                  ) : (
-                                    <div
-                                      className="treeNodeAvatarFallback"
-                                      style={{ width: '70px', height: '70px', fontSize: '1.5rem' }}
-                                    >
-                                      {rootLeader.name.slice(0, 1)}
-                                    </div>
-                                  )}
+                                  <div className="treeNodeAvatarWrap">
+                                    {rootLeader.imagePath ? (
+                                      <img
+                                        src={rootLeader.imagePath}
+                                        alt={rootLeader.name}
+                                        className="treeNodeAvatar"
+                                        style={{ width: '72px', height: '72px' }}
+                                      />
+                                    ) : (
+                                      <div
+                                        className="treeNodeAvatarFallback"
+                                        style={{ width: '72px', height: '72px', fontSize: '1.5rem' }}
+                                      >
+                                        {getInitials(rootLeader.name)}
+                                      </div>
+                                    )}
+                                    <span className="treeCrownBadge" title="หัวหน้ากลุ่มงาน">
+                                      <Crown size={12} />
+                                    </span>
+                                  </div>
                                   <span
                                     className="publicLeaderBadge"
                                     style={{
@@ -577,7 +685,7 @@ export default function OrganizationPublicClient() {
                               )}
                             </div>
 
-                            {/* Root Connecting Branches: โยงลงมายังงานย่อย และเจ้าหน้าที่ผู้ปฏิบัติงานแต่ละคน! */}
+                            {/* Root Connecting Branches */}
                             {hasRootBranches && (
                               <ul>
                                 {/* Sub-departments / Sub-units */}
@@ -597,7 +705,7 @@ export default function OrganizationPublicClient() {
                                   />
                                 ))}
 
-                                {/* Direct Staff Members of Root Group */}
+                                {/* Direct Staff Members of Root Group (No tag "เจ้าหน้าที่" rendered) */}
                                 {rootStaff.map((member) => (
                                   <OrgTreeMemberLeaf
                                     key={`staff-${member.id}`}
@@ -614,21 +722,26 @@ export default function OrganizationPublicClient() {
                       /* ==============================================================
                          VIEW MODE 2: DIRECTORY CARDS (Grouped Lists)
                          ============================================================== */
-                      <>
+                      <div className="directoryCardsWrap">
                         {/* Department Leader Highlight */}
                         {rootLeader && (
                           <div className="publicLeaderCard">
-                            {rootLeader.imagePath ? (
-                              <img
-                                src={rootLeader.imagePath}
-                                alt={rootLeader.name}
-                                className="publicLeaderAvatar"
-                              />
-                            ) : (
-                              <div className="publicAvatarFallback">
-                                {rootLeader.name.slice(0, 1)}
-                              </div>
-                            )}
+                            <div className="publicLeaderAvatarWrap">
+                              {rootLeader.imagePath ? (
+                                <img
+                                  src={rootLeader.imagePath}
+                                  alt={rootLeader.name}
+                                  className="publicLeaderAvatar"
+                                />
+                              ) : (
+                                <div className="publicAvatarFallback">
+                                  {getInitials(rootLeader.name)}
+                                </div>
+                              )}
+                              <span className="publicLeaderCrown" title="หัวหน้ากลุ่มงาน">
+                                <Crown size={14} />
+                              </span>
+                            </div>
                             <div className="publicLeaderInfo">
                               <span className="publicLeaderBadge">
                                 หัวหน้ากลุ่มงาน
@@ -639,51 +752,87 @@ export default function OrganizationPublicClient() {
                           </div>
                         )}
 
+                        {/* Department Deputy Leaders (รองหัวหน้ากลุ่มงาน) */}
+                        {otherRootLeaders.map((deputy) => (
+                          <div key={deputy.id} className="publicLeaderCard publicDeputyCard">
+                            <div className="publicLeaderAvatarWrap">
+                              {deputy.imagePath ? (
+                                <img
+                                  src={deputy.imagePath}
+                                  alt={deputy.name}
+                                  className="publicLeaderAvatar"
+                                  style={{ width: '70px', height: '70px' }}
+                                />
+                              ) : (
+                                <div className="publicAvatarFallback" style={{ width: '70px', height: '70px', fontSize: '1.5rem' }}>
+                                  {getInitials(deputy.name)}
+                                </div>
+                              )}
+                            </div>
+                            <div className="publicLeaderInfo">
+                              <span className="publicLeaderBadge publicDeputyBadge">
+                                รองหัวหน้ากลุ่มงาน
+                              </span>
+                              <span className="publicLeaderName">{deputy.name}</span>
+                              <span className="publicLeaderPosition">{deputy.position}</span>
+                            </div>
+                          </div>
+                        ))}
+
                         {/* Department Root Members (Regular) */}
                         {rootStaff.length > 0 && (
-                          <div className="publicMembersGrid">
-                            {rootStaff.map((member) => (
-                              <div key={member.id} className="publicMemberCard">
-                                {member.imagePath ? (
-                                  <img
-                                    src={member.imagePath}
-                                    alt={member.name}
-                                    className="publicMemberAvatar"
-                                  />
-                                ) : (
-                                  <div className="publicMemberAvatarFallback">
-                                    {member.name.slice(0, 1)}
+                          <div className="directoryMembersSection">
+                            <div className="directorySectionTitle">
+                              <Users size={16} />
+                              <span>เจ้าหน้าที่ประจำกลุ่มงาน ({rootStaff.length} ท่าน)</span>
+                            </div>
+                            <div className="publicMembersGrid">
+                              {rootStaff.map((member) => (
+                                <div key={member.id} className="publicMemberCard">
+                                  <div className="publicMemberAvatarWrap">
+                                    {member.imagePath ? (
+                                      <img
+                                        src={member.imagePath}
+                                        alt={member.name}
+                                        className="publicMemberAvatar"
+                                      />
+                                    ) : (
+                                      <div className="publicMemberAvatarFallback">
+                                        {getInitials(member.name)}
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                                <div className="publicMemberInfo">
-                                  <span className="publicMemberName" title={member.name}>
-                                    {member.name}
-                                  </span>
-                                  <span className="publicMemberPosition">
-                                    {member.position}
-                                  </span>
+                                  <div className="publicMemberInfo">
+                                    <span className="publicMemberName" title={member.name}>
+                                      {member.name}
+                                    </span>
+                                    <span className="publicMemberPosition" title={member.position}>
+                                      {member.position}
+                                    </span>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         )}
 
                         {/* Sub-groups (Recursive Multi-level Tree) */}
                         {selectedRoot.children && selectedRoot.children.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                          <div className="directorySubgroupsList">
                             {selectedRoot.children.map((subgroup) => (
                               <PublicSubgroupView key={subgroup.id} subgroup={subgroup} depth={0} />
                             ))}
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
 
-                    {selectedRoot.members.length === 0 &&
-                      (!selectedRoot.children || selectedRoot.children.length === 0) && (
+                    {!rootLeader &&
+                      (!selectedRoot.children || selectedRoot.children.length === 0) &&
+                      rootStaff.length === 0 && (
                         <div className="publicEmptyState" style={{ padding: '30px' }}>
                           <Users size={36} className="text-slate-300" />
-                          <p>ยังไม่มีรายชื่อบุคลากรในกลุ่มงานนี้</p>
+                          <p>ยังไม่มีข้อมูลในกลุ่มงานนี้</p>
                         </div>
                       )}
                   </div>

@@ -59,39 +59,49 @@ export const ROLE_TYPE_CONFIG: Record<
   PermRoleType,
   {
     label: string
+    badgeLabel: string
     icon: React.ComponentType<{ size?: number; className?: string }>
     color: string
     bg: string
     border: string
+    dotColor: string
   }
 > = {
   view: {
     label: 'View (ดูข้อมูล)',
+    badgeLabel: 'View · ดูข้อมูล',
     icon: Eye,
-    color: '#0284c7',
-    bg: '#f0f9ff',
-    border: '#bae6fd',
+    color: '#17467a',
+    bg: '#e6f0fb',
+    border: '#bcd7f5',
+    dotColor: '#2f6fb5',
   },
   edit: {
     label: 'Edit / Do (ปฏิบัติงาน)',
+    badgeLabel: 'Edit / Do · ปฏิบัติงาน',
     icon: Wrench,
-    color: '#d97706',
-    bg: '#fffbeb',
-    border: '#fde68a',
+    color: '#6b4100',
+    bg: '#fdf1d6',
+    border: '#fae0a8',
+    dotColor: '#c98a10',
   },
   approve: {
     label: 'Approve (อนุมัติ/ตรวจรับ)',
+    badgeLabel: 'Approve · อนุมัติ/ตรวจรับ',
     icon: CheckCircle2,
-    color: '#e11d48',
-    bg: '#fff1f2',
-    border: '#fecdd3',
+    color: '#8f1d3a',
+    bg: '#fbe6ea',
+    border: '#f5c1cc',
+    dotColor: '#c43d5c',
   },
   manage: {
     label: 'Manage (ผู้ดูแลงาน)',
+    badgeLabel: 'Manage · ผู้ดูแลงาน',
     icon: Shield,
-    color: '#7c3aed',
-    bg: '#f5f3ff',
-    border: '#ddd6fe',
+    color: '#502a8f',
+    bg: '#efe8fb',
+    border: '#dccefa',
+    dotColor: '#7b52c9',
   },
 }
 

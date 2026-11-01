@@ -1,41 +1,59 @@
 /* ========================================================================
-   MEMBERS DIRECTORY ADMIN DASHBOARD - Hallmark Anti-AI Slop Design
-   Design System: Emerald / Slate Hospital Theme (Clean, Tactile, Responsive)
+   MEMBERS DIRECTORY ADMIN DASHBOARD - Hallmark Workbench Design
+   Genre: modern-minimal / clinical-admin
+   Theme: Clinical Emerald (#0b6b47)
+   Anti-slop: zero gradient, zero glow, zero heavy shadows, zero emojis,
+              pure typography, high contrast (>= 4.5:1), responsive table
    ======================================================================== */
+
+:root {
+  --admin-bg: #f6f7f5;
+  --admin-surface: #ffffff;
+  --admin-surface-alt: #fafbf9;
+  --admin-border: #e3e7e2;
+  --admin-border-input: #cfd6d0;
+  --admin-row-divider: #eef1ee;
+  --admin-ink: #14201a;
+  --admin-ink-2: #33423a;
+  --admin-muted: #5d6b63;
+  --admin-accent: #0b6b47;
+  --admin-accent-dark: #084d34;
+  --admin-accent-tint: #e8f3ee;
+  --admin-accent-row: #f3f9f6;
+  --admin-danger: #c5221f;
+  --admin-danger-tint: #fce8e6;
+  --admin-danger-border: #f8b4b2;
+  --admin-font: 'IBM Plex Sans Thai', var(--font-ibm-thai), system-ui, -apple-system, sans-serif;
+}
 
 .membersDashboardPage {
   min-height: calc(100vh - 60px);
-  padding: 32px 20px 80px;
-  background-color: #f8fafc;
+  padding: 32px 24px 80px;
+  background-color: var(--admin-bg);
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  font-family: var(--font-ibm-thai), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #0f172a;
-  position: relative;
-  overflow-x: hidden;
+  font-family: var(--admin-font);
+  color: var(--admin-ink);
+  font-size: 15px;
+  line-height: 1.6;
+  box-sizing: border-box;
   width: 100%;
 }
 
 .membersDashboardPage .container {
   width: 100%;
   max-width: 1280px;
-  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 /* ========================================================================
-   Header Section - Clinical Administrative Hero Banner
+   1. Utility Header Section
    ======================================================================== */
 
 .membersDashboardPage .pageHeader {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 24px 28px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -46,31 +64,27 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
+  gap: 16px;
 }
 
 .membersDashboardPage .backLinkBtn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: #64748b;
-  font-size: 0.88rem;
-  font-weight: 600;
+  color: var(--admin-muted);
+  font-size: 14px;
+  font-weight: 500;
   text-decoration: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  transition: all 0.15s ease-in-out;
+  transition: color 0.15s ease;
 }
 
 .membersDashboardPage .backLinkBtn:hover {
-  color: #059669;
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  transform: translateX(-2px);
+  color: var(--admin-accent-dark);
+}
+
+.membersDashboardPage .backLinkBtn:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .membersDashboardPage .headerActions {
@@ -84,22 +98,24 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: #f0fdf4;
-  color: #047857;
-  border: 1px solid #bbf7d0;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.88rem;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 16px;
+  background-color: var(--admin-surface);
+  color: var(--admin-ink-2);
+  border: 1px solid var(--admin-border-input);
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s ease-in-out;
   font-family: inherit;
+  transition: all 0.15s ease;
 }
 
 .membersDashboardPage .syncSalaryBtn:hover:not(:disabled) {
-  background: #dcfce7;
-  border-color: #86efac;
-  color: #065f46;
+  background-color: var(--admin-surface-alt);
+  border-color: var(--admin-muted);
+  color: var(--admin-ink);
 }
 
 .membersDashboardPage .syncSalaryBtn:disabled {
@@ -107,33 +123,43 @@
   cursor: not-allowed;
 }
 
+.membersDashboardPage .syncSalaryBtn:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+
 .membersDashboardPage .addMemberBtn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 18px;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  gap: 6px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 18px;
+  background-color: var(--admin-accent);
   color: #ffffff;
-  border: 1px solid #047857;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 0.88rem;
+  border: 1px solid var(--admin-accent);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
-  transition: all 0.15s ease-in-out;
   font-family: inherit;
+  transition: background-color 0.15s ease;
 }
 
 .membersDashboardPage .addMemberBtn:hover {
-  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
-  transform: translateY(-1px);
+  background-color: var(--admin-accent-dark);
+  border-color: var(--admin-accent-dark);
+}
+
+.membersDashboardPage .addMemberBtn:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
 }
 
 .membersDashboardPage .headerText {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .membersDashboardPage .titleWithBadge {
@@ -144,34 +170,34 @@
 }
 
 .membersDashboardPage .headerText h1 {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.02em;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--admin-ink);
+  letter-spacing: -0.015em;
   margin: 0;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .membersDashboardPage .totalBadge {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
-  padding: 3px 10px;
+  background-color: var(--admin-accent-tint);
+  color: var(--admin-accent-dark);
+  border: 1px solid #bbf7d0;
+  padding: 2px 10px;
   border-radius: 9999px;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .membersDashboardPage .headerText p {
-  font-size: 0.92rem;
-  color: #64748b;
+  font-size: 14px;
+  color: var(--admin-muted);
   margin: 0;
   line-height: 1.5;
 }
 
 /* ========================================================================
-   Stats KPI Cards - Crisp Administrative Metrics
+   2. Stats Metric Grid
    ======================================================================== */
 
 .membersDashboardPage .statsGrid {
@@ -180,570 +206,415 @@
   gap: 16px;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .membersDashboardPage .statsGrid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 520px) {
   .membersDashboardPage .statsGrid {
     grid-template-columns: 1fr;
   }
 }
 
 .membersDashboardPage .statCard {
-  background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  background-color: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
   padding: 16px 20px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.2s ease-in-out;
-  position: relative;
-  overflow: hidden;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s ease;
 }
-
-.membersDashboardPage .statCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-}
-
-.membersDashboardPage .statCard.total::before { background: #0d9488; }
-.membersDashboardPage .statCard.admins::before { background: #7c3aed; }
-.membersDashboardPage .statCard.general::before { background: #0284c7; }
-.membersDashboardPage .statCard.subdistrict::before { background: #059669; }
 
 .membersDashboardPage .statCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
-  border-color: #cbd5e1;
+  border-color: var(--admin-border-input);
 }
 
 .membersDashboardPage .statCardInfo {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .membersDashboardPage .statLabel {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-muted);
 }
 
 .membersDashboardPage .statValue {
-  font-size: 1.45rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.02em;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--admin-ink);
   font-variant-numeric: tabular-nums;
-}
-
-.membersDashboardPage .statCardIcon {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.membersDashboardPage .statCardIcon.total {
-  background-color: #f0fdfa;
-  color: #0d9488;
-}
-
-.membersDashboardPage .statCardIcon.admins {
-  background-color: #f5f3ff;
-  color: #7c3aed;
-}
-
-.membersDashboardPage .statCardIcon.general {
-  background-color: #f0f9ff;
-  color: #0284c7;
-}
-
-.membersDashboardPage .statCardIcon.subdistrict {
-  background-color: #ecfdf5;
-  color: #059669;
+  line-height: 1.2;
 }
 
 /* ========================================================================
-   Alert Banners
+   3. Alerts (Alert Banners)
    ======================================================================== */
 
 .membersDashboardPage .dashboardAlert {
-  padding: 12px 18px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 0.9rem;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .membersDashboardPage .alertDanger {
-  background-color: #fff1f2;
-  color: #be123c;
-  border: 1px solid #fecdd3;
+  background-color: var(--admin-danger-tint);
+  color: var(--admin-danger);
+  border: 1px solid var(--admin-danger-border);
 }
 
 .membersDashboardPage .alertSuccess {
-  background-color: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background-color: var(--admin-accent-tint);
+  color: var(--admin-accent-dark);
+  border: 1px solid #bbf7d0;
 }
 
 .membersDashboardPage .alertCloseBtn {
-  margin-left: auto;
-  background: none;
+  background: transparent;
   border: none;
   color: inherit;
-  opacity: 0.7;
   cursor: pointer;
-  display: flex;
-  align-items: center;
   padding: 4px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
 }
 
 .membersDashboardPage .alertCloseBtn:hover {
   opacity: 1;
-  background-color: rgba(0, 0, 0, 0.05);
 }
 
 /* ========================================================================
-   Action & Filter Bar - Semantic Tablist & Search
+   4. Action Panel: Search & Role Filter Tabs
    ======================================================================== */
 
 .membersDashboardPage .actionPanel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 12px 16px;
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+  gap: 16px;
+}
+
+.membersDashboardPage .filterGroup {
+  background-color: var(--admin-row-divider);
+  padding: 4px;
+  border-radius: 8px;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.membersDashboardPage .filterTab {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 16px;
+  border: none;
+  background: transparent;
+  color: var(--admin-muted);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.membersDashboardPage .filterTab:hover {
+  color: var(--admin-ink);
+}
+
+.membersDashboardPage .filterTab.active {
+  background-color: var(--admin-surface);
+  color: var(--admin-ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.membersDashboardPage .filterTab:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+
+.membersDashboardPage .filterCount {
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background-color: rgba(0, 0, 0, 0.06);
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.membersDashboardPage .filterTab.active .filterCount {
+  background-color: var(--admin-accent-tint);
+  color: var(--admin-accent-dark);
 }
 
 .membersDashboardPage .searchWrapper {
   position: relative;
   flex: 1;
-  min-width: 280px;
-  display: flex;
-  align-items: center;
+  max-width: 380px;
+  min-width: 260px;
 }
 
 .membersDashboardPage .searchWrapper input {
   width: 100%;
-  height: 40px;
-  padding: 8px 36px 8px 38px;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 0.88rem;
-  font-weight: 500;
-  color: #0f172a;
-  background-color: #f8fafc;
-  outline: none;
-  transition: all 0.15s ease-in-out;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 36px 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border-input);
+  background-color: var(--admin-surface);
+  color: var(--admin-ink);
+  font-size: 14px;
   font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.membersDashboardPage .searchWrapper input::placeholder {
+  color: var(--admin-muted);
 }
 
 .membersDashboardPage .searchWrapper input:focus {
-  border-color: #059669;
-  background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
-}
-
-.membersDashboardPage .searchIcon {
-  position: absolute;
-  left: 12px;
-  color: #64748b;
-  pointer-events: none;
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
 }
 
 .membersDashboardPage .clearSearchBtn {
   position: absolute;
   right: 10px;
-  background: #e2e8f0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
   border: none;
-  color: #64748b;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--admin-muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
 }
 
 .membersDashboardPage .clearSearchBtn:hover {
-  background: #cbd5e1;
-  color: #0f172a;
+  color: var(--admin-ink);
 }
 
-.membersDashboardPage .filterGroup {
-  display: inline-flex;
-  gap: 4px;
-  background: #f1f5f9;
-  padding: 4px;
-  border-radius: 10px;
+@media (max-width: 768px) {
+  .membersDashboardPage .actionPanel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .membersDashboardPage .filterGroup {
+    width: 100%;
+  }
+  .membersDashboardPage .filterTab {
+    flex: 1;
+    justify-content: center;
+    padding: 0 8px;
+  }
+  .membersDashboardPage .searchWrapper {
+    max-width: 100%;
+  }
 }
 
-.membersDashboardPage .filterTab {
-  padding: 6px 14px;
-  border-radius: 8px;
-  background-color: transparent;
-  color: #64748b;
-  border: none;
-  font-weight: 600;
-  font-size: 0.82rem;
+/* ========================================================================
+   5. Data Table (Desktop & Responsive Table View)
+   ======================================================================== */
+
+.membersDashboardPage .tableCard {
+  background-color: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.membersDashboardPage .desktopTableContainer {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.membersDashboardPage .membersTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+  min-width: 900px;
+}
+
+.membersDashboardPage .membersTable thead {
+  background-color: var(--admin-surface-alt);
+  border-bottom: 1px solid var(--admin-row-divider);
+}
+
+.membersDashboardPage .membersTable th {
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--admin-muted);
+  text-align: left;
+  user-select: none;
+}
+
+.membersDashboardPage .membersTable th.sortableHeader {
   cursor: pointer;
-  transition: all 0.15s ease-in-out;
-  white-space: nowrap;
-  font-family: inherit;
+  transition: color 0.15s ease;
+}
+
+.membersDashboardPage .membersTable th.sortableHeader:hover {
+  color: var(--admin-ink);
+}
+
+.membersDashboardPage .headerFlex {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.membersDashboardPage .filterTab:hover {
-  color: #0f172a;
-  background: rgba(255, 255, 255, 0.6);
+.membersDashboardPage .sortIcon {
+  color: var(--admin-muted);
+  transition: color 0.15s ease;
 }
 
-.membersDashboardPage .filterTab.active {
-  background-color: #ffffff;
-  color: #0f172a;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+.membersDashboardPage .sortIconActive {
+  color: var(--admin-accent);
 }
 
-.membersDashboardPage .filterCount {
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: #64748b;
-  background: #e2e8f0;
-  padding: 1px 6px;
-  border-radius: 9999px;
-  line-height: 1.3;
-  font-variant-numeric: tabular-nums;
-}
-
-.membersDashboardPage .filterTab.active .filterCount {
-  color: #047857;
-  background: #d1fae5;
-}
-
-/* ========================================================================
-   Content Card & Zero-Scroll Desktop Table
-   ======================================================================== */
-
-.membersDashboardPage .tableCard {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  overflow: hidden;
-  width: 100%;
-}
-
-.membersDashboardPage .desktopTableContainer {
-  width: 100%;
-  overflow: hidden; /* Strict zero horizontal scroll */
-}
-
-.membersDashboardPage .membersTable {
-  width: 100%;
-  table-layout: fixed; /* Strictly divide columns to fit 100% */
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.membersDashboardPage .membersTable th {
-  background-color: #f8fafc;
-  color: #475569;
-  font-weight: 700;
-  font-size: 0.8rem;
-  padding: 14px 12px;
-  border-bottom: 2px solid #e2e8f0;
-  user-select: none;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.membersDashboardPage .sortIconInactive {
+  opacity: 0.4;
 }
 
 .membersDashboardPage .membersTable td {
-  padding: 12px 12px;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.86rem;
-  color: #334155;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--admin-row-divider);
+  color: var(--admin-ink);
   vertical-align: middle;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .membersDashboardPage .membersTable tr:last-child td {
   border-bottom: none;
 }
 
-.membersDashboardPage .membersTable tr.rowSelf td {
-  background-color: #f0fdf4;
-}
-
 .membersDashboardPage .membersTable tr:hover td {
-  background-color: #f8fafc;
+  background-color: #fbfcfb;
 }
 
-.membersDashboardPage .membersTable tr.rowSelf:hover td {
-  background-color: #ecfdf5;
+.membersDashboardPage .membersTable tr.rowSelf td {
+  background-color: var(--admin-accent-row);
 }
 
-.membersDashboardPage .sortableHeader {
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.membersDashboardPage .sortableHeader:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
-}
-
-.membersDashboardPage .headerFlex {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.membersDashboardPage .sortIcon {
-  opacity: 0.35;
-  flex-shrink: 0;
-}
-
-.membersDashboardPage .sortIconActive {
-  opacity: 1;
-  color: #059669;
-}
-
-/* Desktop Proportional Column Widths (Sum = 100%) */
+/* Column Specific Widths & Layout */
 .membersDashboardPage .col-id {
-  width: 44px;
+  width: 50px;
   text-align: center;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.membersDashboardPage .indexBadge {
+  font-size: 13px;
+  color: var(--admin-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .membersDashboardPage .col-member {
-  width: 27%;
+  min-width: 220px;
 }
 
-.membersDashboardPage .col-account {
-  width: 22%;
-}
-
-.membersDashboardPage .col-dept {
-  width: 18%;
-}
-
-.membersDashboardPage .col-salary {
-  width: 11%;
-  text-align: center;
-}
-
-.membersDashboardPage .col-role {
-  width: 10%;
-  text-align: center;
-}
-
-.membersDashboardPage .col-actions {
-  width: 12%;
-  text-align: center;
-}
-
-/* Index Badge */
-.membersDashboardPage .indexBadge {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #94a3b8;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Member Details with Avatar */
 .membersDashboardPage .memberPersonnelCell {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.membersDashboardPage .tableAvatarWrap {
-  border-radius: 50%;
-  overflow: hidden;
-  background: #f1f5f9;
-  border: 1.5px solid #e2e8f0;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.membersDashboardPage .tableAvatarImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.membersDashboardPage .tableAvatarFallback {
-  border-radius: 50%;
-  background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
-  color: #ffffff;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  user-select: none;
-  letter-spacing: -0.02em;
-}
-
-.membersDashboardPage .memberDetails {
-  display: flex;
   flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
+  gap: 2px;
 }
 
 .membersDashboardPage .memberNameRow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  overflow: hidden;
+  gap: 8px;
 }
 
 .membersDashboardPage .memberName {
-  font-weight: 700;
-  color: #0f172a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.88rem;
-}
-
-.membersDashboardPage .selfTag {
-  background: #dcfce7;
-  color: #15803d;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-  flex-shrink: 0;
-  border: 1px solid #bbf7d0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--admin-ink);
 }
 
 .membersDashboardPage .memberPosition {
-  font-size: 0.78rem;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 1px;
+  font-size: 13px;
+  color: var(--admin-muted);
 }
 
-/* Account Info */
+.membersDashboardPage .selfTag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: var(--admin-accent-tint);
+  color: var(--admin-accent-dark);
+  padding: 1px 6px;
+  border-radius: 4px;
+  line-height: 1.3;
+}
+
+.membersDashboardPage .col-account {
+  min-width: 200px;
+}
+
 .membersDashboardPage .accountCell {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  overflow: hidden;
-  font-size: 0.82rem;
-}
-
-.membersDashboardPage .accountUsername,
-.membersDashboardPage .accountEmail {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .membersDashboardPage .accountUsername {
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--admin-ink-2);
+  font-variant-numeric: tabular-nums;
 }
 
 .membersDashboardPage .accountEmail {
-  color: #64748b;
-  font-size: 0.78rem;
+  font-size: 13px;
+  color: var(--admin-muted);
 }
 
-.membersDashboardPage .accountIcon {
-  flex-shrink: 0;
-  color: #94a3b8;
-}
-
-.membersDashboardPage .truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.membersDashboardPage .col-dept {
+  min-width: 180px;
 }
 
 .membersDashboardPage .deptText {
-  color: #334155;
-  font-weight: 500;
+  font-size: 14px;
+  color: var(--admin-ink-2);
 }
 
-/* Salary Binding Status Badge */
-.membersDashboardPage .salaryBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  white-space: nowrap;
+.membersDashboardPage .col-role {
+  width: 100px;
 }
 
-.membersDashboardPage .salaryBadge.linked {
-  background-color: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
-}
-
-.membersDashboardPage .salaryBadge.unlinked {
-  background-color: #f8fafc;
-  color: #94a3b8;
-  border: 1px solid #e2e8f0;
-}
-
-/* Role Badges */
 .membersDashboardPage .roleBadge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 9999px;
-  font-size: 0.74rem;
-  font-weight: 700;
-  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .membersDashboardPage .roleBadge.admin {
@@ -752,415 +623,217 @@
   border: 1px solid #ddd6fe;
 }
 
-.membersDashboardPage .roleBadge.member {
-  background-color: #f0f9ff;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
-}
-
 .membersDashboardPage .roleBadge.subdistrict {
-  background-color: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
+  background-color: #f0fdfa;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
 }
 
-/* Action Buttons */
+.membersDashboardPage .roleBadge.member {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.membersDashboardPage .col-actions {
+  width: 120px;
+  text-align: right;
+  padding-right: 18px;
+}
+
 .membersDashboardPage .memberActions {
-  display: flex;
-  justify-content: center;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .membersDashboardPage .actionBtn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s ease-in-out;
-  font-family: inherit;
-  font-weight: 600;
-  font-size: 0.8rem;
 }
 
 .membersDashboardPage .editBtn {
-  background-color: #ecfdf5;
-  color: #047857;
-  border-color: #a7f3d0;
-  padding: 0 10px;
+  background-color: var(--admin-surface);
+  border: 1px solid var(--admin-border-input);
+  color: var(--admin-ink-2);
 }
 
 .membersDashboardPage .editBtn:hover {
-  background-color: #059669;
-  color: #ffffff;
-  border-color: #059669;
-  transform: translateY(-1px);
+  background-color: var(--admin-surface-alt);
+  border-color: var(--admin-muted);
+  color: var(--admin-ink);
+}
+
+.membersDashboardPage .editBtn:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
 }
 
 .membersDashboardPage .deleteBtn {
-  width: 32px;
-  background-color: #fff1f2;
-  color: #e11d48;
-  border-color: #fecdd3;
-  padding: 0;
+  background-color: var(--admin-danger-tint);
+  border: 1px solid var(--admin-danger-border);
+  color: var(--admin-danger);
 }
 
-.membersDashboardPage .deleteBtn:not(:disabled):hover {
-  background-color: #e11d48;
-  color: #ffffff;
-  border-color: #e11d48;
-  transform: translateY(-1px);
+.membersDashboardPage .deleteBtn:hover:not(:disabled) {
+  background-color: #fed7d7;
+  color: #991b1b;
 }
 
 .membersDashboardPage .deleteBtn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+  border-color: #e2e8f0;
+  background-color: #f1f5f9;
+  color: #94a3b8;
 }
 
-/* ========================================================================
-   Mobile / Tablet Responsive Cards View
-   ======================================================================== */
-
-.membersDashboardPage .mobileCardsContainer {
-  display: none;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px;
+.membersDashboardPage .deleteBtn:focus-visible {
+  outline: 2px solid var(--admin-danger);
+  outline-offset: 2px;
 }
 
-@media (max-width: 860px) {
-  .membersDashboardPage .desktopTableContainer {
-    display: none;
-  }
-  .membersDashboardPage .mobileCardsContainer {
-    display: flex;
-  }
-}
-
-.membersDashboardPage .memberCardItem {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
-}
-
-.membersDashboardPage .memberCardItem.cardSelf {
-  background-color: #f0fdf4;
-  border-color: #bbf7d0;
-}
-
-.membersDashboardPage .cardTopRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.membersDashboardPage .cardProfileWrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  overflow: hidden;
-}
-
-.membersDashboardPage .cardProfileInfo {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.membersDashboardPage .cardNameRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.membersDashboardPage .cardMemberName {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: #0f172a;
-}
-
-.membersDashboardPage .cardPositionText {
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.membersDashboardPage .cardBadgesRow {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.membersDashboardPage .cardDetailsGrid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.membersDashboardPage .cardDetailRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.82rem;
-}
-
-.membersDashboardPage .cardDetailLabel {
-  font-weight: 600;
-  color: #64748b;
-  min-width: 65px;
-}
-
-.membersDashboardPage .cardDetailValue {
-  color: #1e293b;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.membersDashboardPage .cardActionRow {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.membersDashboardPage .mobileEditBtn {
-  flex: 1;
-  height: 44px; /* Touch target minimum */
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
-  border-radius: 10px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.membersDashboardPage .mobileEditBtn:active {
-  background: #059669;
-  color: #ffffff;
-}
-
-.membersDashboardPage .mobileDeleteBtn {
-  width: 44px; /* Touch target minimum */
-  height: 44px;
-  background: #fff1f2;
-  color: #e11d48;
-  border: 1px solid #fecdd3;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.membersDashboardPage .mobileDeleteBtn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-/* ========================================================================
-   Loading & Empty States
-   ======================================================================== */
-
-.membersDashboardPage .loadingContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  color: #64748b;
-  gap: 14px;
-}
-
-.membersDashboardPage .spinner {
-  animation: spin 1s linear infinite;
-  color: #059669;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
+/* Loading & Empty States */
+.membersDashboardPage .loadingContainer,
 .membersDashboardPage .emptyState {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  padding: 64px 20px;
+  text-align: center;
+  background-color: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-}
-
-.membersDashboardPage .emptyIcon {
-  color: #cbd5e1;
-  margin-bottom: 12px;
+  gap: 12px;
+  color: var(--admin-muted);
 }
 
 .membersDashboardPage .emptyState h3 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--admin-ink);
+  margin: 0;
 }
 
 .membersDashboardPage .emptyState p {
-  font-size: 0.9rem;
-  color: #64748b;
+  font-size: 14px;
   margin: 0;
 }
 
 .membersDashboardPage .clearFilterBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 14px;
-  padding: 8px 16px;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  margin-top: 8px;
+  height: 38px;
+  padding: 0 16px;
   border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  background-color: var(--admin-surface);
+  border: 1px solid var(--admin-border-input);
+  color: var(--admin-ink);
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.15s ease;
 }
 
 .membersDashboardPage .clearFilterBtn:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background-color: var(--admin-surface-alt);
 }
 
 /* ========================================================================
-   Modal Dialog - Clean Hospital Clinical Card
+   6. Modal Dialogs (Create & Edit Member)
    ======================================================================== */
 
 .membersDashboardPage .modalOverlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background-color: rgba(20, 32, 26, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
-  padding: 16px;
+  padding: 20px;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
 }
 
-.membersDashboardPage .premiumModal {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
+.membersDashboardPage .modalCard {
+  background-color: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
   width: 100%;
-  max-width: 720px;
-  max-height: 94vh;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
-  overflow: hidden;
+  max-width: 640px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  animation: modalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes modalScaleIn {
-  from { opacity: 0; transform: scale(0.97) translateY(8px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  overflow: hidden;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
 }
 
 .membersDashboardPage .modalHeader {
-  padding: 18px 24px;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  padding: 20px 24px;
   display: flex;
-  align-items: center;
-  gap: 14px;
-  position: relative;
-  flex-shrink: 0;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--admin-row-divider);
+  gap: 16px;
 }
 
-.membersDashboardPage .headerIconContainer {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.membersDashboardPage .modalHeaderTitles {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
-
-.membersDashboardPage .modalHeader h2 {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #ffffff;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.membersDashboardPage .modalHeaderTitles h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--admin-ink);
+  margin: 0 0 4px 0;
+  line-height: 1.3;
 }
 
 .membersDashboardPage .headerSubtitle {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  color: var(--admin-muted);
   margin: 0;
 }
 
 .membersDashboardPage .closeBtn {
-  margin-left: auto;
-  background: rgba(255, 255, 255, 0.15);
+  background: transparent;
   border: none;
-  color: #ffffff;
+  color: var(--admin-muted);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
-  transition: all 0.15s;
-  display: flex;
+  padding: 4px;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  border-radius: 6px;
 }
 
 .membersDashboardPage .closeBtn:hover {
-  background-color: rgba(255, 255, 255, 0.28);
+  color: var(--admin-ink);
+}
+
+.membersDashboardPage .closeBtn:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+
+.membersDashboardPage .modalAlert {
+  margin: 16px 24px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .membersDashboardPage .modalForm {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
-.membersDashboardPage .compactModalBody {
+.membersDashboardPage .modalBody {
   padding: 20px 24px;
   overflow-y: auto;
 }
@@ -1168,7 +841,7 @@
 .membersDashboardPage .modalFormGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 16px;
+  gap: 16px;
 }
 
 .membersDashboardPage .col-span-2 {
@@ -1176,178 +849,132 @@
 }
 
 .membersDashboardPage .modalSubSectionHeader {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #047857;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  padding: 6px 12px;
-  border-radius: 8px;
-  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-ink-2);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--admin-row-divider);
+  margin-top: 8px;
+}
+
+.membersDashboardPage .modalSubSectionHeader:first-child {
+  margin-top: 0;
 }
 
 .membersDashboardPage .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .membersDashboardPage .formGroup label {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #475569;
-}
-
-.membersDashboardPage .inputWrapper input,
-.membersDashboardPage .selectWrapper select {
-  width: 100%;
-  height: 40px;
-  padding: 8px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 0.88rem;
+  font-size: 13px;
   font-weight: 500;
-  color: #0f172a;
-  background-color: #f8fafc;
-  outline: none;
-  transition: all 0.15s ease-in-out;
-  font-family: inherit;
+  color: var(--admin-muted);
 }
 
-.membersDashboardPage .inputWrapper input:focus,
-.membersDashboardPage .selectWrapper select:focus {
-  border-color: #059669;
-  background-color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+.membersDashboardPage .formGroup input,
+.membersDashboardPage .formGroup select {
+  height: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border-input);
+  background-color: var(--admin-surface);
+  color: var(--admin-ink);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.membersDashboardPage .formGroup input:focus,
+.membersDashboardPage .formGroup select:focus {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+
+.membersDashboardPage .formGroup input::placeholder {
+  color: var(--admin-muted);
 }
 
 .membersDashboardPage .inputHint {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  margin-top: 2px;
+  font-size: 12px;
+  color: var(--admin-muted);
 }
 
-.membersDashboardPage .compactModalFooter {
-  padding: 14px 24px;
-  border-top: 1px solid #e2e8f0;
-  background-color: #f8fafc;
+.membersDashboardPage .modalFooter {
+  padding: 16px 24px;
+  border-top: 1px solid var(--admin-row-divider);
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  flex-shrink: 0;
+  background-color: var(--admin-surface-alt);
 }
 
 .membersDashboardPage .cancelBtn {
-  padding: 8px 18px;
-  border-radius: 10px;
-  border: 1px solid #cbd5e1;
-  background-color: #ffffff;
-  color: #475569;
-  font-weight: 600;
-  font-size: 0.88rem;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background-color: var(--admin-surface);
+  border: 1px solid var(--admin-border-input);
+  color: var(--admin-ink-2);
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s ease;
 }
 
 .membersDashboardPage .cancelBtn:hover:not(:disabled) {
-  background-color: #f1f5f9;
-  color: #0f172a;
+  background-color: var(--admin-surface-alt);
+  color: var(--admin-ink);
+}
+
+.membersDashboardPage .cancelBtn:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
 }
 
 .membersDashboardPage .saveBtn {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  background-color: var(--admin-accent);
+  border: 1px solid var(--admin-accent);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 20px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 0.88rem;
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.2);
-  transition: all 0.15s ease-in-out;
-  font-family: inherit;
+  gap: 8px;
+  transition: background-color 0.15s ease;
 }
 
 .membersDashboardPage .saveBtn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+  background-color: var(--admin-accent-dark);
 }
 
-.membersDashboardPage .modalAlert {
-  margin: 12px 24px 0 24px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.82rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.membersDashboardPage .saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.membersDashboardPage .modalAlert.alertDanger {
-  background-color: #fff1f2;
-  color: #be123c;
-  border: 1px solid #fecdd3;
+.membersDashboardPage .saveBtn:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
 }
 
-/* ========================================================================
-   Mobile Media Query Adjustments
-   ======================================================================== */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
 
-@media (max-width: 768px) {
-  .membersDashboardPage {
-    padding: 20px 12px 60px;
-  }
-  .membersDashboardPage .pageHeader {
-    padding: 18px 16px;
-  }
-  .membersDashboardPage .pageHeaderTop {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .membersDashboardPage .headerActions {
-    width: 100%;
-    flex-direction: column;
-  }
-  .membersDashboardPage .addMemberBtn,
-  .membersDashboardPage .syncSalaryBtn {
-    width: 100%;
-    justify-content: center;
-  }
-  .membersDashboardPage .actionPanel {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 12px;
-  }
-  .membersDashboardPage .searchWrapper {
-    width: 100%;
-    min-width: unset;
-  }
-  .membersDashboardPage .filterGroup {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    text-align: center;
-  }
-  .membersDashboardPage .filterTab {
-    justify-content: center;
-    padding: 6px 4px;
-    font-size: 0.75rem;
-  }
-  .membersDashboardPage .modalFormGrid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  .membersDashboardPage .col-span-2 {
-    grid-column: span 1;
-  }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
