@@ -654,6 +654,12 @@
   border: 1px dashed var(--border);
 }
 
+.kpiStatusPill.dueSoon {
+  background: var(--status-bg);
+  color: var(--status-ink);
+  border: 1px solid #FCD34D;
+}
+
 /* Type Badge per design.md (HA / ยุทธศาสตร์) */
 .kpiTypeBadge {
   display: inline-flex;

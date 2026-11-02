@@ -347,7 +347,16 @@ export class KpiService {
       params.push(searchTerm, searchTerm, searchTerm, searchTerm)
     }
 
-    sql += ' ORDER BY i.display_order ASC, i.id ASC'
+    sql += ` ORDER BY 
+      CASE 
+        WHEN i.sequence IS NULL OR TRIM(i.sequence) = '' THEN 2
+        WHEN TRIM(i.sequence) REGEXP '^[0-9]' THEN 0
+        ELSE 1
+      END ASC,
+      CAST(i.sequence AS UNSIGNED) ASC,
+      i.sequence ASC,
+      i.display_order ASC,
+      i.id ASC`
 
     const rows = await executor(sql, params)
 

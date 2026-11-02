@@ -433,20 +433,11 @@ export class EquipmentBorrowService {
         throw new Error(`ไม่พบวัสดุรหัส ${id}`)
       }
 
-      const usedCount = await this.db.equipmentBorrowItem.count({ where: { materialId: id } })
-      if (usedCount > 0) {
-        const updated = await this.db.hospitalMaterial.update({
-          where: { id },
-          data: { isActive: false },
-        })
-        await logAudit(
-          'UPDATE',
-          'hospital_materials',
-          JSON.stringify({ materialId: id, name: existing.name, action: 'DEACTIVATE' }),
-          { username: actor.username || 'system' }
-        )
-        return updated
-      }
+      // Detach referencing borrow items to maintain borrow history without foreign key violations
+      await this.db.equipmentBorrowItem.updateMany({
+        where: { materialId: id },
+        data: { materialId: null },
+      })
 
       await this.db.hospitalMaterial.delete({ where: { id } })
       await logAudit(
@@ -464,21 +455,8 @@ export class EquipmentBorrowService {
     }
     const existing = existingRows[0]
 
-    const usedRows = await this.queryExecutor('SELECT COUNT(*) as cnt FROM equipment_borrow_items WHERE material_id = ?', [id])
-    const usedCount = Number(usedRows[0]?.cnt || 0)
-
-    if (usedCount > 0) {
-      await this.queryExecutor('UPDATE hospital_materials SET is_active = 0, updated_at = NOW() WHERE id = ?', [id])
-      await logAudit(
-        'UPDATE',
-        'hospital_materials',
-        JSON.stringify({ materialId: id, name: existing.name, action: 'DEACTIVATE' }),
-        { username: actor.username || 'system' }
-      )
-      const rows = await this.queryExecutor('SELECT * FROM hospital_materials WHERE id = ?', [id])
-      return mapDbRowToMaterial(rows[0])
-    }
-
+    // Detach referencing borrow items to maintain borrow history without foreign key violations
+    await this.queryExecutor('UPDATE equipment_borrow_items SET material_id = NULL WHERE material_id = ?', [id])
     await this.queryExecutor('DELETE FROM hospital_materials WHERE id = ?', [id])
     await logAudit(
       'DELETE',

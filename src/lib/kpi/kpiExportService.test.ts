@@ -159,4 +159,42 @@ describe('KpiExportService', () => {
     expect(sheet?.getCell('A9').value).toBe('3')
     expect(sheet?.getCell('L9').value).toBe('ยังไม่บันทึกผล')
   })
+
+  it('filters by onlyDue when onlyDue is true', async () => {
+    const mockExecutor = vi.fn().mockImplementation(async (sql) => {
+      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
+        return [{ id: 3, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด 2570' }]
+      }
+      if (sql.includes('FROM kpi_indicators i')) {
+        return [
+          {
+            id: 1,
+            frequency: 'รายเดือน',
+            title: 'ตัวชี้วัดรายเดือน',
+            category: 'หมวดที่ 1',
+            displayOrder: 1,
+          },
+          {
+            id: 2,
+            frequency: 'รายปี',
+            title: 'ตัวชี้วัดรายปี',
+            category: 'หมวดที่ 1',
+            displayOrder: 2,
+          },
+        ]
+      }
+      return []
+    })
+
+    const currentDate = new Date('2026-11-02T10:00:00Z')
+    const result = await KpiExportService.exportToExcel({
+      topicId: 3,
+      fiscalYear: '2570',
+      onlyDue: true,
+      currentDate,
+    }, mockExecutor)
+
+    expect(result.totalCount).toBe(1)
+    expect(result.filename).toContain('KPI_Report_Due_2570_THIP-70.xlsx')
+  })
 })

@@ -37,12 +37,14 @@ export async function GET(req: NextRequest) {
     const topicId = parseInt(topicIdStr, 10)
     const periodKey = searchParams.get('periodKey') || undefined
     const category = searchParams.get('category') || undefined
+    const onlyDue = searchParams.get('onlyDue') === 'true' || searchParams.get('scope') === 'DUE'
 
     const exportResult = await KpiExportService.exportToExcel({
       topicId,
       fiscalYear,
       periodKey,
       category,
+      onlyDue,
     })
 
     // Log export audit
@@ -53,6 +55,7 @@ export async function GET(req: NextRequest) {
         action: 'EXPORT_EXCEL',
         topicId,
         fiscalYear,
+        onlyDue,
         totalExported: exportResult.totalCount,
         passCount: exportResult.passCount,
         failCount: exportResult.failCount,

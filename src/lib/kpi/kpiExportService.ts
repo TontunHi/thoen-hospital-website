@@ -1,12 +1,15 @@
 import ExcelJS from 'exceljs'
 import { queryMemberDb } from '@/lib/memberDb'
 import { KpiService, KpiIndicatorItem, QueryExecutor } from './kpiService'
+import { checkIndicatorDueStatus } from './kpiTimeUtils'
 
 export interface KpiExportOptions {
   topicId: number
   fiscalYear: string
   periodKey?: string
   category?: string
+  onlyDue?: boolean
+  currentDate?: Date
 }
 
 export interface KpiExportResult {
@@ -296,7 +299,7 @@ export class KpiExportService {
     options: KpiExportOptions,
     executor: QueryExecutor = queryMemberDb
   ): Promise<KpiExportResult> {
-    const { topicId, fiscalYear, periodKey, category } = options
+    const { topicId, fiscalYear, periodKey, category, onlyDue, currentDate } = options
 
     // 1. Fetch Topic Info
     const topicRows = await executor(
@@ -311,7 +314,7 @@ export class KpiExportService {
     }
 
     // 2. Fetch all indicators with latest entry for the topic and fiscal year
-    const indicators: KpiIndicatorItem[] = await KpiService.getIndicators(
+    let indicators: KpiIndicatorItem[] = await KpiService.getIndicators(
       {
         topicId,
         fiscalYear,
@@ -320,6 +323,12 @@ export class KpiExportService {
       },
       executor
     )
+
+    if (onlyDue) {
+      indicators = indicators.filter(ind =>
+        checkIndicatorDueStatus(ind.frequency, fiscalYear, currentDate).isDue
+      )
+    }
 
     // 3. Calculate summary statistics
     const totalCount = indicators.length
@@ -365,7 +374,7 @@ export class KpiExportService {
           fitToHeight: 0,
         },
       })
-      renderWorksheetData(wsAll, indicators, topic, fiscalYear, 'ตัวชี้วัดทั้งหมด')
+      renderWorksheetData(wsAll, indicators, topic, fiscalYear, onlyDue ? 'ตัวชี้วัดที่ถึงเวลา' : 'ตัวชี้วัดทั้งหมด')
 
       // Secondary Sheet: กลุ่มยุทธศาสตร์ (133 ข้อ)
       const strategyIndicators = indicators.filter(i => 
@@ -410,7 +419,9 @@ export class KpiExportService {
 
     const sanitizedTopicCode = topic.code.replace(/[^a-zA-Z0-9_-]/g, '_')
     let filename = `KPI_Report_${fiscalYear}_${sanitizedTopicCode}.xlsx`
-    if (category && category !== 'ALL') {
+    if (onlyDue) {
+      filename = `KPI_Report_Due_${fiscalYear}_${sanitizedTopicCode}.xlsx`
+    } else if (category && category !== 'ALL') {
       const catClean = category.replace(/[^a-zA-Z0-9_\u0E00-\u0E7F-]/g, '_').substring(0, 25)
       filename = `KPI_Report_${fiscalYear}_${catClean}.xlsx`
     }

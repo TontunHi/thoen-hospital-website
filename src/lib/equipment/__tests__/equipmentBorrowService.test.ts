@@ -726,5 +726,27 @@ describe('EquipmentBorrowService', () => {
       )
       expect(updateCalls.length).toBe(0)
     })
+
+    it('deleteMaterial permanently deletes material and detaches borrow items in Zero-DB', async () => {
+      const mockQueryExecutor = vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT * FROM hospital_materials WHERE id = ?')) {
+          return Promise.resolve([{ id: 99, name: 'กระดานไวท์บอร์ด' }])
+        }
+        return Promise.resolve([])
+      })
+
+      const customService = new EquipmentBorrowService(null, mockQueryExecutor)
+      const res = await customService.deleteMaterial(99, actor)
+
+      expect(res).toEqual({ success: true })
+      expect(mockQueryExecutor).toHaveBeenCalledWith(
+        'UPDATE equipment_borrow_items SET material_id = NULL WHERE material_id = ?',
+        [99]
+      )
+      expect(mockQueryExecutor).toHaveBeenCalledWith(
+        'DELETE FROM hospital_materials WHERE id = ?',
+        [99]
+      )
+    })
   })
 })

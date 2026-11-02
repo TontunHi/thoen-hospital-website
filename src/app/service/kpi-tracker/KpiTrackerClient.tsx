@@ -18,7 +18,6 @@ import {
   RefreshCw,
   X,
   Calculator,
-  User,
   AlertTriangle,
   Building2,
   ShieldCheck,
@@ -33,7 +32,7 @@ import {
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
-import { getPeriodsForFrequency, checkPeriodStatus } from '@/lib/kpi/kpiTimeUtils'
+import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
 interface CurrentUser {
@@ -77,7 +76,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL')
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'ALL' | 'MY'>('ALL')
+  const [activeTab, setActiveTab] = useState<'ALL' | 'MY' | 'DUE'>('ALL')
+  const [sortField, setSortField] = useState<'sequence' | 'title' | 'frequency' | 'status'>('sequence')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -97,6 +98,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const [answerModalOpen, setAnswerModalOpen] = useState<boolean>(false)
   const [editIndicatorModalOpen, setEditIndicatorModalOpen] = useState<boolean>(false)
   const [importModalOpen, setImportModalOpen] = useState<boolean>(false)
+  const [exportModalOpen, setExportModalOpen] = useState<boolean>(false)
+  const [exportScope, setExportScope] = useState<'ALL' | 'DUE'>('ALL')
   const [activeIndicator, setActiveIndicator] = useState<KpiIndicatorItem | null>(null)
   const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false)
 
@@ -251,10 +254,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     if (!isUserResponsible(ind)) return false
 
     // 3. Must be within unlocked reporting window
-    const periods = getPeriodsForFrequency(ind.frequency)
-    const currentPeriod = periods[0]
-    const windowLock = checkPeriodStatus(ind.frequency, currentPeriod.key, selectedYear)
-    return windowLock.isOpen
+    const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
+    return dueStatus.isDueNow
   }, [isKpiManager, isUserResponsible, selectedYear])
 
   // Check if current user is allowed to edit indicator definitions (Admin & Manage KPI)
@@ -292,9 +293,14 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     }
   }, [indicators, stats])
 
-  // Filtered Indicators
+  // Count of indicators due now or within 5 days
+  const dueIndicatorsCount = useMemo(() => {
+    return indicators.filter(ind => checkIndicatorDueStatus(ind.frequency, selectedYear).isDue).length
+  }, [indicators, selectedYear])
+
+  // Filtered & Sorted Indicators (Default sorted by sequence number)
   const displayedIndicators = useMemo(() => {
-    return indicators.filter(ind => {
+    const filtered = indicators.filter(ind => {
       if (selectedCategory !== 'ALL' && ind.category !== selectedCategory) {
         return false
       }
@@ -305,6 +311,12 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         const userName = currentUser.name || currentUser.username
         const resp = ind.responsibleName || ''
         if (!resp.includes(userName) && !userName.includes(resp)) {
+          return false
+        }
+      }
+      if (activeTab === 'DUE') {
+        const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
+        if (!dueStatus.isDue) {
           return false
         }
       }
@@ -328,7 +340,37 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       }
       return true
     })
-  }, [indicators, selectedCategory, selectedFrequency, activeTab, selectedStatus, debouncedSearch, currentUser])
+
+    return filtered.sort((a, b) => {
+      if (sortField === 'sequence') {
+        const seqA = (a.sequence || '').trim()
+        const seqB = (b.sequence || '').trim()
+        if (!seqA && !seqB) {
+          return (a.displayOrder - b.displayOrder || a.id - b.id) * (sortOrder === 'asc' ? 1 : -1)
+        }
+        if (!seqA) return 1
+        if (!seqB) return -1
+        const cmp = seqA.localeCompare(seqB, undefined, { numeric: true, sensitivity: 'base' })
+        if (cmp !== 0) return sortOrder === 'asc' ? cmp : -cmp
+        return (a.displayOrder - b.displayOrder || a.id - b.id) * (sortOrder === 'asc' ? 1 : -1)
+      }
+      if (sortField === 'title') {
+        const cmp = a.title.localeCompare(b.title, 'th')
+        return sortOrder === 'asc' ? cmp : -cmp
+      }
+      if (sortField === 'frequency') {
+        const cmp = a.frequency.localeCompare(b.frequency, 'th')
+        return sortOrder === 'asc' ? cmp : -cmp
+      }
+      if (sortField === 'status') {
+        const stA = a.currentEntry?.status || 'PENDING'
+        const stB = b.currentEntry?.status || 'PENDING'
+        const cmp = stA.localeCompare(stB)
+        return sortOrder === 'asc' ? cmp : -cmp
+      }
+      return 0
+    })
+  }, [indicators, selectedCategory, selectedFrequency, activeTab, selectedStatus, debouncedSearch, currentUser, sortField, sortOrder])
 
   // Calculation for Answer Modal (if numerator and denominator exist)
   const computedPercentage = useMemo(() => {
@@ -367,8 +409,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   // Open Answer Modal
   const handleOpenAnswer = (ind: KpiIndicatorItem) => {
     setActiveIndicator(ind)
-    const periods = getPeriodsForFrequency(ind.frequency)
-    const defaultPeriod = periods[0]
+    const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
+    const defaultPeriod = dueStatus.relevantPeriod
     setFormPeriodKey(defaultPeriod.key)
     setFormPeriodLabel(defaultPeriod.label)
 
@@ -766,7 +808,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     currentUser.permissions?.includes('view_all_kpi')
   )
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (scope: 'ALL' | 'DUE' = exportScope) => {
     if (!selectedTopicId) {
       alert('กรุณาเลือกชุดตัวชี้วัดที่ต้องการส่งออก')
       return
@@ -778,6 +820,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         topicId: String(selectedTopicId),
         fiscalYear: selectedYear,
       })
+      if (scope === 'DUE') {
+        exportParams.set('onlyDue', 'true')
+      }
       if (selectedCategory && selectedCategory !== 'ALL') {
         exportParams.set('category', selectedCategory)
       }
@@ -810,6 +855,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(downloadUrl)
+      setExportModalOpen(false)
     } catch (err: any) {
       alert('เกิดข้อผิดพลาดในการส่งออกไฟล์: ' + err.message)
     } finally {
@@ -818,10 +864,17 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   }
 
   // Helper to render clinical status badge per design.md
-  const renderStatusBadge = (ind: KpiIndicatorItem, entry: any, isLocked: boolean, windowLock: any) => {
+  const renderStatusBadge = (ind: KpiIndicatorItem, entry: any, isLocked: boolean, dueStatus: IndicatorDueStatus) => {
     if (isLocked) {
+      if (dueStatus.isDueSoon) {
+        return (
+          <span className="kpiStatusPill dueSoon" title={dueStatus.message}>
+            <Clock size={12} /> อีก {dueStatus.daysUntil} วันถึงรอบ
+          </span>
+        )
+      }
       return (
-        <span className="kpiStatusPill locked" title={windowLock?.message || 'ยังไม่ถึงรอบรายงาน'}>
+        <span className="kpiStatusPill locked" title={dueStatus.message}>
           <Lock size={12} /> ยังไม่ถึงรอบ
         </span>
       )
@@ -858,6 +911,15 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     )
   }
 
+  const handleSort = (field: 'sequence' | 'title' | 'frequency' | 'status') => {
+    if (sortField === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
+
   return (
     <div className="kpiPage">
       <div className="kpiWrapper">
@@ -871,13 +933,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
             <span className="kpiBreadcrumbSeparator">/</span>
             <span className="kpiBreadcrumbCurrent">ติดตามตัวชี้วัด</span>
           </nav>
-          <div className="kpiUserBadge">
-            <User size={14} />
-            <span>
-              ผู้ใช้งาน: <strong>{currentUser.name}</strong>{' '}
-              ({currentUser.isAdmin ? 'ผู้ดูแลระบบ (Admin)' : isKpiManager ? 'ผู้ดูแลระบบตัวชี้วัด / ศูนย์คุณภาพ' : currentUser.role})
-            </span>
-          </div>
+
         </div>
 
         {/* 1. Header per design.md */}
@@ -893,7 +949,10 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
             <button 
               type="button"
               className="kpiBtn kpiBtnSecondary"
-              onClick={handleExportExcel}
+              onClick={() => {
+                setExportScope(activeTab === 'DUE' ? 'DUE' : 'ALL')
+                setExportModalOpen(true)
+              }}
               disabled={exporting || loading || !selectedTopicId}
               title="ส่งออกรายงานตัวชี้วัดเป็นไฟล์ Excel (.xlsx)"
             >
@@ -1101,6 +1160,13 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
               >
                 ที่ฉันรับผิดชอบ
               </button>
+              <button
+                type="button"
+                className={`kpiTabPill ${activeTab === 'DUE' ? 'active' : ''}`}
+                onClick={() => setActiveTab('DUE')}
+              >
+                ตัวที่ถึงเวลา ({dueIndicatorsCount})
+              </button>
             </div>
           </div>
         </section>
@@ -1145,12 +1211,56 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
               <div className="kpiGridTable" role="table" aria-label="ตารางติดตามตัวชี้วัด">
                 {/* Header row per design.md Section 5 */}
                 <div className="kpiGridHead" role="row">
-                  <div role="columnheader">ลำดับ</div>
-                  <div role="columnheader">ตัวชี้วัด</div>
-                  <div role="columnheader">ความถี่</div>
+                  <div
+                    role="columnheader"
+                    aria-sort={sortField === 'sequence' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => handleSort('sequence')}
+                    style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="คลิกเพื่อเรียงลำดับตามเลขลำดับ (น้อยไปมาก / มากไปน้อย)"
+                  >
+                    ลำดับ
+                    <span style={{ fontSize: '11px', opacity: sortField === 'sequence' ? 1 : 0.4 }}>
+                      {sortField === 'sequence' ? (sortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                    </span>
+                  </div>
+                  <div
+                    role="columnheader"
+                    aria-sort={sortField === 'title' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => handleSort('title')}
+                    style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="คลิกเพื่อเรียงลำดับตามชื่อตัวชี้วัด"
+                  >
+                    ตัวชี้วัด
+                    <span style={{ fontSize: '11px', opacity: sortField === 'title' ? 1 : 0.4 }}>
+                      {sortField === 'title' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                    </span>
+                  </div>
+                  <div
+                    role="columnheader"
+                    aria-sort={sortField === 'frequency' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => handleSort('frequency')}
+                    style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="คลิกเพื่อเรียงลำดับตามความถี่"
+                  >
+                    ความถี่
+                    <span style={{ fontSize: '11px', opacity: sortField === 'frequency' ? 1 : 0.4 }}>
+                      {sortField === 'frequency' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                    </span>
+                  </div>
                   <div role="columnheader">เป้าหมาย</div>
                   <div role="columnheader">ผู้รับผิดชอบ</div>
-                  <div role="columnheader">สถานะ</div>
+                  <div
+                    role="columnheader"
+                    aria-sort={sortField === 'status' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => handleSort('status')}
+                    style={{ cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="คลิกเพื่อเรียงลำดับตามสถานะ"
+                  >
+                    สถานะ
+                    <span style={{ fontSize: '11px', opacity: sortField === 'status' ? 1 : 0.4 }}>
+                      {sortField === 'status' ? (sortOrder === 'asc' ? '▲' : '▼') : ''}
+                    </span>
+                  </div>
                   <div role="columnheader">ประเภท</div>
                   <div role="columnheader" style={{ textAlign: 'right' }}>จัดการ</div>
                 </div>
@@ -1158,10 +1268,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                 {/* Data rows per design.md Section 5 */}
                 {displayedIndicators.map((ind, idx) => {
                   const entry = ind.currentEntry
-                  const periods = getPeriodsForFrequency(ind.frequency)
-                  const currentPeriod = periods[0]
-                  const windowLock = checkPeriodStatus(ind.frequency, currentPeriod?.key || '', selectedYear)
-                  const isLocked = !windowLock.isOpen && !isKpiManager
+                  const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
+                  const isLocked = !dueStatus.isDueNow && !isKpiManager
                   const userCanAnswer = canAnswerIndicator(ind)
                   const userCanEdit = canEditIndicator(ind)
                   const userCanDelete = canDeleteIndicator(ind)
@@ -1178,7 +1286,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                           <span className="kpiColSeq">#{ind.sequence || idx + 1}</span>
                           <span className="kpiTypeBadge">{ind.indicatorType || 'HA'}</span>
                         </div>
-                        <div>{renderStatusBadge(ind, entry, isLocked, windowLock)}</div>
+                        <div>{renderStatusBadge(ind, entry, isLocked, dueStatus)}</div>
                       </div>
 
                       {/* Col 1: ลำดับ (56px) */}
@@ -1235,7 +1343,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
 
                       {/* Col 6: สถานะ (130px) */}
                       <div className="kpiColStatus desktopOnly" role="cell">
-                        {renderStatusBadge(ind, entry, isLocked, windowLock)}
+                        {renderStatusBadge(ind, entry, isLocked, dueStatus)}
                       </div>
 
                       {/* Col 7: ประเภท (90px) */}
@@ -1755,6 +1863,123 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                 >
                   <Check size={16} />
                   {saving ? 'กำลังบันทึก...' : (isCreatingNew ? 'เพิ่มตัวชี้วัด' : 'บันทึกการแก้ไข')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL 4: EXPORT EXCEL SELECTION MODAL ── */}
+        {exportModalOpen && (
+          <div className="kpiModalOverlay" onClick={() => !exporting && setExportModalOpen(false)}>
+            <div className="kpiModalCard" style={{ maxWidth: '490px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+              <div className="kpiModalHeader">
+                <div>
+                  <div className="kpiModalPreTitle">ดาวน์โหลดข้อมูลตัวชี้วัด</div>
+                  <h2>เลือกชุดข้อมูลส่งออก Excel (.xlsx)</h2>
+                </div>
+                <button 
+                  type="button"
+                  className="kpiModalClose" 
+                  onClick={() => !exporting && setExportModalOpen(false)} 
+                  aria-label="ปิดหน้าต่าง"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="kpiModalBody" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <p style={{ fontSize: '0.875rem', color: 'var(--ink-muted)' }}>
+                  เลือกชุดข้อมูลตัวชี้วัดสำหรับปีงบประมาณ <strong>{selectedYear}</strong>:
+                </p>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    border: exportScope === 'ALL' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                    background: exportScope === 'ALL' ? 'var(--row-hover)' : 'var(--surface)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="exportScope"
+                    value="ALL"
+                    checked={exportScope === 'ALL'}
+                    onChange={() => setExportScope('ALL')}
+                    style={{ marginTop: '3px', cursor: 'pointer' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600, color: 'var(--ink)' }}>
+                      <span>ตัวชี้วัดทั้งหมด</span>
+                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'var(--waiting-bg)', color: 'var(--ink-muted)' }}>
+                        {indicators.length} รายการ
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '3px' }}>
+                      ส่งออกตัวชี้วัดทั้งหมดในชุดข้อมูล ไม่ว่าจะถึงรอบแล้วหรือไม่
+                    </div>
+                  </div>
+                </label>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    border: exportScope === 'DUE' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                    background: exportScope === 'DUE' ? 'var(--row-hover)' : 'var(--surface)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="exportScope"
+                    value="DUE"
+                    checked={exportScope === 'DUE'}
+                    onChange={() => setExportScope('DUE')}
+                    style={{ marginTop: '3px', cursor: 'pointer' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600, color: 'var(--ink)' }}>
+                      <span>ตัวที่ถึงเวลา</span>
+                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'var(--status-bg)', color: 'var(--status-ink)', fontWeight: 600 }}>
+                        {dueIndicatorsCount} รายการ
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '3px' }}>
+                      ส่งออกเฉพาะตัวชี้วัดที่ถึงรอบตอบแล้ว ณ ปัจจุบัน หรือจะถึงรอบใน 5 วัน
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              <div className="kpiModalFooter">
+                <button
+                  type="button"
+                  className="kpiBtn kpiBtnSecondary"
+                  onClick={() => setExportModalOpen(false)}
+                  disabled={exporting}
+                >
+                  <X size={16} />
+                  <span>ยกเลิก</span>
+                </button>
+                <button
+                  type="button"
+                  className="kpiBtn kpiBtnPrimary"
+                  onClick={() => handleExportExcel(exportScope)}
+                  disabled={exporting}
+                >
+                  <FileSpreadsheet size={16} />
+                  <span>{exporting ? 'กำลังส่งออก Excel...' : 'ส่งออกไฟล์ Excel'}</span>
                 </button>
               </div>
             </div>

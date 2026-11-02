@@ -139,3 +139,85 @@ export function checkPeriodStatus(
     message,
   }
 }
+
+export interface IndicatorDueStatus {
+  isDue: boolean
+  isDueNow: boolean
+  isDueSoon: boolean
+  daysUntil?: number
+  relevantPeriod: PeriodDefinition
+  unlockDate: Date
+  unlockDateFormatted: string
+  message: string
+}
+
+/**
+ * Checks whether an indicator is due for reporting right now or within the next `daysAhead` days (default 5 days).
+ */
+export function checkIndicatorDueStatus(
+  frequency: string,
+  fiscalYearBe: string | number,
+  currentDate = new Date(),
+  daysAhead = 5
+): IndicatorDueStatus {
+  // shortcut: frequency uses predefined calendar quarters and months; custom fiscal period overrides can be added if needed
+  const periods = getPeriodsForFrequency(frequency)
+  const startYearCe = getFiscalStartYearCe(fiscalYearBe)
+
+  const periodsWithDates = periods.map(period => {
+    const unlockYearCe = startYearCe + period.unlockYearOffset
+    const unlockDate = new Date(Date.UTC(unlockYearCe, period.unlockMonth - 1, period.unlockDay, 0, 0, 0))
+    const diffMs = unlockDate.getTime() - currentDate.getTime()
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+    const isOpen = currentDate.getTime() >= unlockDate.getTime()
+    const unlockDateFormatted = `${period.unlockDay}/${period.unlockMonth}/${unlockYearCe + 543}`
+    return {
+      period,
+      unlockYearCe,
+      unlockDate,
+      diffDays,
+      isOpen,
+      unlockDateFormatted,
+    }
+  })
+
+  const dueSoon = periodsWithDates.find(p => !p.isOpen && p.diffDays > 0 && p.diffDays <= daysAhead)
+  const openPeriods = periodsWithDates.filter(p => p.isOpen)
+
+  if (dueSoon) {
+    return {
+      isDue: true,
+      isDueNow: openPeriods.length > 0,
+      isDueSoon: true,
+      daysUntil: dueSoon.diffDays,
+      relevantPeriod: dueSoon.period,
+      unlockDate: dueSoon.unlockDate,
+      unlockDateFormatted: dueSoon.unlockDateFormatted,
+      message: `อีก ${dueSoon.diffDays} วันจะถึงรอบบันทึก (เปิด ${dueSoon.unlockDateFormatted})`,
+    }
+  }
+
+  if (openPeriods.length > 0) {
+    const latestOpen = openPeriods[openPeriods.length - 1]
+    return {
+      isDue: true,
+      isDueNow: true,
+      isDueSoon: false,
+      relevantPeriod: latestOpen.period,
+      unlockDate: latestOpen.unlockDate,
+      unlockDateFormatted: latestOpen.unlockDateFormatted,
+      message: 'เปิดให้บันทึกข้อมูลแล้ว',
+    }
+  }
+
+  const firstUpcoming = periodsWithDates[0]
+  return {
+    isDue: false,
+    isDueNow: false,
+    isDueSoon: false,
+    relevantPeriod: firstUpcoming.period,
+    unlockDate: firstUpcoming.unlockDate,
+    unlockDateFormatted: firstUpcoming.unlockDateFormatted,
+    message: `ยังไม่ถึงรอบบันทึก (เปิดให้บันทึกตั้งแต่ ${firstUpcoming.unlockDateFormatted} เป็นต้นไป)`,
+  }
+}

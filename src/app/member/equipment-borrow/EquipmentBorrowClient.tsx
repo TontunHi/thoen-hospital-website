@@ -30,6 +30,7 @@ import {
   FolderOpen,
   Eye,
   Building2,
+  Power,
 } from 'lucide-react'
 import { getInitials } from '@/lib/formatters'
 import './equipment-borrow.css'
@@ -208,6 +209,7 @@ export default function EquipmentBorrowClient({
     unit: 'ชิ้น',
     location: '',
     notes: '',
+    isActive: true,
   })
 
   // Auto-dismiss alert notifications
@@ -716,16 +718,40 @@ export default function EquipmentBorrowClient({
     }
   }
 
+  // Admin Toggle Material Active/Inactive
+  const handleToggleMaterialActive = async (id: number, currentActive: boolean, name: string) => {
+    const nextState = !currentActive
+    const actionText = nextState ? 'เปิดใช้งาน' : 'ปิดใช้งาน'
+    if (!confirm(`ต้องการ${actionText}วัสดุ "${name}" หรือไม่?`)) return
+    try {
+      const res = await fetch(`/api/member/equipment-borrow/materials/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: nextState }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setSuccessMsg(`${actionText}วัสดุสำเร็จ`)
+        fetchInventory()
+        refreshStats()
+      } else {
+        setErrorMsg(json.error || `ไม่สามารถ${actionText}วัสดุได้`)
+      }
+    } catch {
+      setErrorMsg(`เกิดข้อผิดพลาดในการ${actionText}`)
+    }
+  }
+
   // Admin Delete Material
   const handleDeleteMaterial = async (id: number, name: string) => {
-    if (!confirm(`ต้องการลบวัสดุ "${name}" ใช่หรือไม่?`)) return
+    if (!confirm(`ต้องการลบวัสดุ "${name}" ออกจากระบบถาวรหรือไม่?\n(ระบบจะลบข้อมูลวัสดุออกจากคลังอย่างถาวร)`)) return
     try {
       const res = await fetch(`/api/member/equipment-borrow/materials/${id}`, {
         method: 'DELETE',
       })
       const json = await res.json()
       if (json.success) {
-        setSuccessMsg('ลบข้อมูลวัสดุสำเร็จ')
+        setSuccessMsg('ลบวัสดุออกจากระบบสำเร็จ')
         fetchInventory()
         refreshStats()
       } else {
@@ -1485,6 +1511,7 @@ export default function EquipmentBorrowClient({
                     unit: 'ชิ้น',
                     location: '',
                     notes: '',
+                    isActive: true,
                   })
                   setMaterialModalMode('create')
                 }}
@@ -1541,11 +1568,28 @@ export default function EquipmentBorrowClient({
                       </td>
                       <td>{m.location || '-'}</td>
                       <td>
-                        {m.isActive ? (
-                          <span style={{ color: '#16a34a', fontSize: '0.85rem' }}>เปิดใช้งาน</span>
-                        ) : (
-                          <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>ปิดใช้งาน</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleMaterialActive(m.id, m.isActive, m.name)}
+                          style={{
+                            cursor: 'pointer',
+                            background: m.isActive ? '#dcfce7' : '#f1f5f9',
+                            color: m.isActive ? '#15803d' : '#64748b',
+                            border: `1px solid ${m.isActive ? '#bbf7d0' : '#cbd5e1'}`,
+                            borderRadius: '999px',
+                            padding: '3px 10px',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title={m.isActive ? 'คลิกเพื่อปิดใช้งาน' : 'คลิกเพื่อเปิดใช้งาน'}
+                        >
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.isActive ? '#16a34a' : '#94a3b8' }} />
+                          {m.isActive ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}
+                        </button>
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
@@ -1560,6 +1604,7 @@ export default function EquipmentBorrowClient({
                                 unit: m.unit,
                                 location: m.location || '',
                                 notes: m.notes || '',
+                                isActive: m.isActive,
                               })
                               setMaterialModalMode('edit')
                             }}
@@ -1568,6 +1613,14 @@ export default function EquipmentBorrowClient({
                             title="แก้ไข"
                           >
                             <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleToggleMaterialActive(m.id, m.isActive, m.name)}
+                            className="secondaryButton"
+                            style={{ padding: '0.4rem 0.6rem', color: m.isActive ? '#b45309' : '#15803d' }}
+                            title={m.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                          >
+                            <Power size={14} />
                           </button>
                           <button
                             onClick={() => handleDeleteMaterial(m.id, m.name)}
@@ -2051,6 +2104,20 @@ export default function EquipmentBorrowClient({
                     onChange={(e) => setMaterialForm({ ...materialForm, notes: e.target.value })}
                   />
                 </div>
+
+                {materialModalMode === 'edit' && (
+                  <div className="formGroup">
+                    <label>สถานะการใช้งาน</label>
+                    <select
+                      className="formControl"
+                      value={materialForm.isActive ? 'ACTIVE' : 'INACTIVE'}
+                      onChange={(e) => setMaterialForm({ ...materialForm, isActive: e.target.value === 'ACTIVE' })}
+                    >
+                      <option value="ACTIVE">เปิดใช้งาน (พร้อมให้ยืม/เบิก)</option>
+                      <option value="INACTIVE">ปิดใช้งาน (ระงับการยืม/เบิกชั่วคราว)</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="modalFooter">

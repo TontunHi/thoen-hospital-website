@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { KpiService } from '@/lib/kpi/kpiService'
-import { checkPeriodStatus, getPeriodsForFrequency } from '@/lib/kpi/kpiTimeUtils'
+import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus } from '@/lib/kpi/kpiTimeUtils'
 
 // Mock audit logging
 vi.mock('@/lib/audit', () => ({
@@ -27,6 +27,37 @@ describe('KpiTimeUtils', () => {
 
     const unlocked = checkPeriodStatus('ราย 6 เดือน', 'H1', '2570', onDate)
     expect(unlocked.isOpen).toBe(true)
+  })
+
+  it('calculates due status right now and 5 days in advance accurately', () => {
+    // Monthly (รายเดือน): M01 (Oct) unlocks on 2026-11-01
+    // On 2026-11-02, M01 is due now
+    const nov2 = new Date('2026-11-02T10:00:00Z')
+    const monthlyNov2 = checkIndicatorDueStatus('รายเดือน', '2570', nov2)
+    expect(monthlyNov2.isDue).toBe(true)
+    expect(monthlyNov2.isDueNow).toBe(true)
+    expect(monthlyNov2.relevantPeriod.key).toBe('M01')
+
+    // Quarterly (รายไตรมาส): Q1 unlocks on 2027-01-01
+    // On 2026-11-02, Q1 is 60 days away -> not due
+    const quarterlyNov2 = checkIndicatorDueStatus('รายไตรมาส', '2570', nov2)
+    expect(quarterlyNov2.isDue).toBe(false)
+    expect(quarterlyNov2.isDueNow).toBe(false)
+
+    // On 2026-12-28 (4 days before 2027-01-01), Q1 is due within 5 days!
+    const dec28 = new Date('2026-12-28T10:00:00Z')
+    const quarterlyDec28 = checkIndicatorDueStatus('รายไตรมาส', '2570', dec28)
+    expect(quarterlyDec28.isDue).toBe(true)
+    expect(quarterlyDec28.isDueSoon).toBe(true)
+    expect(quarterlyDec28.daysUntil).toBe(4)
+    expect(quarterlyDec28.relevantPeriod.key).toBe('Q1')
+
+    // On 2027-01-01 (exact open date), Q1 is unlocked and due now
+    const jan1 = new Date('2027-01-01T00:00:00Z')
+    const quarterlyJan1 = checkIndicatorDueStatus('รายไตรมาส', '2570', jan1)
+    expect(quarterlyJan1.isDue).toBe(true)
+    expect(quarterlyJan1.isDueNow).toBe(true)
+    expect(quarterlyJan1.relevantPeriod.key).toBe('Q1')
   })
 })
 
@@ -193,5 +224,18 @@ describe('KpiService with Mock QueryExecutor', () => {
     // Test Delete
     await KpiService.deleteIndicator(201, 'Admin', mockExecutor)
     expect(deletedId).toBe(201)
+  })
+
+  it('orders indicators by sequence number in getIndicators SQL query', async () => {
+    let capturedSql = ''
+    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
+      capturedSql = sql
+      return []
+    })
+
+    await KpiService.getIndicators({ topicId: 1 }, mockExecutor)
+    expect(capturedSql).toContain('ORDER BY')
+    expect(capturedSql).toContain('i.sequence')
+    expect(capturedSql).toContain('CAST(i.sequence AS UNSIGNED) ASC')
   })
 })
