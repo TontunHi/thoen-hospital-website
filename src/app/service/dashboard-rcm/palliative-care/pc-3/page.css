@@ -1,6 +1,6 @@
 /* ==========================================================================
    Palliative Care PC.3 Dashboard Styles
-   Vibrant, Calm, Hospital-Grade Semantic UI
+   Hospital-Grade Semantic UI aligned with PC.1 & Thoen Hospital UI Brief
    ========================================================================== */
 
 :root {
@@ -39,10 +39,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  width: 100%;
-  color: var(--pc-ink);
-  font-family: 'IBM Plex Sans Thai', system-ui, -apple-system, sans-serif;
-  line-height: 1.6;
+  padding: 1.5rem;
+  max-width: 100%;
 }
 
 /* Sub-tabs for switching between PC.1 and PC.3 */
@@ -94,79 +92,63 @@
   color: #ffffff;
 }
 
-/* 1. Header Card */
+/* 1. Header */
 .pc3-header {
-  background: var(--pc-surface);
-  border: 1px solid var(--pc-border);
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
   justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 1rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.pc3-back-link {
-  display: inline-block;
-  font-size: 0.875rem;
-  color: var(--pc-accent);
-  text-decoration: none;
-  font-weight: 600;
-  margin-bottom: 0.35rem;
-  transition: color 0.15s ease;
-}
-
-.pc3-back-link:hover {
-  text-decoration: underline;
-  color: var(--pc-accent-dark);
 }
 
 .pc3-title-wrap {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
   flex-wrap: wrap;
 }
 
 .pc3-title {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--pc-ink);
   margin: 0;
-  line-height: 1.3;
+  letter-spacing: -0.02em;
 }
 
 .pc3-badge {
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  background: #059669;
+  color: #ffffff;
+  font-size: 0.75rem;
   font-weight: 700;
-  padding: 3px 10px;
-  background: #ecfdf5;
-  color: #047857;
   border-radius: 6px;
-  border: 1px solid #a7f3d0;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
 }
 
 .pc3-desc {
   font-size: 0.875rem;
   color: var(--pc-muted);
-  margin: 0.35rem 0 0 0;
+  margin: 0;
+  max-width: 950px;
 }
 
 .pc3-header-actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 /* Action Buttons */
 .pc3-btn-primary {
-  min-height: 44px;
-  padding: 0 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  min-height: 42px;
   background: #059669;
   color: #ffffff;
   border: 1px solid #059669;
@@ -174,114 +156,101 @@
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
   transition: all 0.15s ease;
 }
 
 .pc3-btn-primary:hover:not(:disabled) {
   background: #047857;
   border-color: #047857;
-  box-shadow: 0 2px 4px rgba(4, 120, 87, 0.25);
 }
 
 .pc3-btn-primary:disabled {
-  opacity: 0.55;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .pc3-btn-secondary {
-  min-height: 44px;
-  padding: 0 1.1rem;
-  background: var(--pc-surface);
-  color: var(--pc-ink-2);
-  border: 1px solid var(--pc-border-input);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  min-height: 42px;
+  background: #ffffff;
+  color: var(--pc-ink);
+  border: 1px solid var(--pc-border);
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   transition: all 0.15s ease;
 }
 
 .pc3-btn-secondary:hover:not(:disabled) {
-  background: var(--pc-surface-alt);
-  border-color: var(--pc-muted);
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .pc3-btn-secondary:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* 2. Vibrant Metric Cards Bar */
+/* 2. Metric Cards Bar */
 .pc3-metric-bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
 }
 
 .pc3-metric-card {
-  background: var(--pc-surface);
+  background: #ffffff;
   border: 1px solid var(--pc-border);
-  border-radius: 12px;
-  padding: 1rem 1.15rem;
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .pc3-metric-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .pc3-card-total {
-  background: #f8fafc;
-  border-color: #cbd5e1;
   border-top: 3px solid #3b82f6;
+  background: #f8fafc;
 }
 
 .pc3-card-acp {
-  background: #f0fdfa;
-  border-color: #99f6e4;
   border-top: 3px solid #0d9488;
+  background: #f0fdfa;
 }
 
 .pc3-card-opioid {
-  background: #faf5ff;
-  border-color: #e9d5ff;
   border-top: 3px solid #9333ea;
+  background: #faf5ff;
 }
 
 .pc3-card-z515 {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
   border-top: 3px solid #16a34a;
+  background: #f0fdf4;
 }
 
 .pc3-card-noz515 {
-  background: #fffbeb;
-  border-color: #fde68a;
   border-top: 3px solid #f59e0b;
+  background: #fffbeb;
 }
 
 .pc3-card-paid {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
   border-top: 3px solid #059669;
+  background: #ecfdf5;
 }
 
 .pc3-card-death {
-  background: #fff1f2;
-  border-color: #fecdd3;
   border-top: 3px solid #e11d48;
+  background: #fff1f2;
 }
 
 .pc3-metric-label {
@@ -327,12 +296,12 @@
   color: #047857 !important;
 }
 
-/* 3. Toolbar & Filters Card */
+/* 3. Toolbar & Filters */
 .pc3-toolbar {
-  background: var(--pc-surface);
+  background: #ffffff;
   border: 1px solid var(--pc-border);
   border-radius: 12px;
-  padding: 1.1rem 1.25rem;
+  padding: 1rem 1.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -341,28 +310,25 @@
 
 .pc3-toolbar-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
-/* Segmented Date Mode Track */
 .pc3-segmented-track {
   display: inline-flex;
-  background: #e2e8f0;
+  background: #f1f5f9;
   padding: 3px;
   border-radius: 8px;
-  gap: 2px;
 }
 
 .pc3-segmented-btn {
-  min-height: 38px;
-  padding: 0 1rem;
-  border: none;
-  background: transparent;
-  color: #475569;
-  font-size: 0.85rem;
+  padding: 6px 14px;
+  font-size: 0.8125rem;
   font-weight: 600;
+  color: var(--pc-muted);
+  background: transparent;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -370,107 +336,81 @@
 
 .pc3-segmented-btn.is-active {
   background: #ffffff;
-  color: #047857;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .pc3-input-date,
 .pc3-select {
-  min-height: 44px;
-  padding: 0 0.85rem;
-  border: 1px solid var(--pc-border-input);
-  border-radius: 8px;
-  font-size: 0.875rem;
+  min-height: 38px;
+  padding: 0 0.75rem;
+  font-size: 0.85rem;
   color: var(--pc-ink);
-  background: var(--pc-surface);
-  font-family: inherit;
-  font-weight: 500;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.pc3-input-date:focus,
-.pc3-select:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
-}
-
-/* Search input */
-.pc3-search-input {
-  min-height: 44px;
-  padding: 0 0.85rem;
-  border: 1px solid var(--pc-border-input);
-  border-radius: 8px;
-  font-size: 0.875rem;
-  color: var(--pc-ink);
-  background: var(--pc-surface);
-  font-family: inherit;
-  flex: 1 1 240px;
-  min-width: 200px;
+  background: #ffffff;
+  border: 1px solid var(--pc-border);
+  border-radius: 6px;
   outline: none;
   transition: border-color 0.15s ease;
 }
 
+.pc3-input-date:focus,
+.pc3-select:focus,
 .pc3-search-input:focus {
   border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15);
 }
 
-/* Checkbox label */
+.pc3-search-input {
+  flex: 1;
+  min-width: 260px;
+  min-height: 38px;
+  padding: 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--pc-ink);
+  background: #ffffff;
+  border: 1px solid var(--pc-border);
+  border-radius: 6px;
+  outline: none;
+}
+
 .pc3-checkbox-label {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  padding: 0 0.85rem;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0 0.75rem;
   border: 1px solid #a7f3d0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #ecfdf5;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: #065f46;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.15s ease;
 }
 
-.pc3-checkbox-label:hover {
-  background: #d1fae5;
-}
-
-.pc3-checkbox-label input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
-  accent-color: #059669;
-  cursor: pointer;
-}
-
-/* 4. Vivid Legend Bar */
+/* 4. Legend */
 .pc3-legend {
-  background: #ffffff;
-  border: 1px solid var(--pc-border);
-  border-radius: 10px;
-  padding: 0.75rem 1.25rem;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  flex-wrap: wrap;
   gap: 1rem;
   font-size: 0.8125rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  padding: 0.25rem 0.25rem;
 }
 
 .pc3-legend-title {
   font-weight: 700;
   color: var(--pc-ink);
-  margin-right: 0.25rem;
 }
 
 .pc3-legend-pill {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
@@ -493,8 +433,8 @@
 }
 
 .pc3-legend-dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   display: inline-block;
 }
@@ -513,13 +453,13 @@
 
 /* 5. Data Table */
 .pc3-table-card {
-  background: var(--pc-surface);
+  background: #ffffff;
   border: 1px solid var(--pc-border);
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .pc3-table-scroll {
@@ -531,8 +471,8 @@
 .pc3-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
-  text-align: left;
+  font-size: 0.85rem;
+  text-align: center;
 }
 
 .pc3-table thead th {
@@ -540,10 +480,11 @@
   color: #475569;
   font-weight: 700;
   font-size: 0.8125rem;
-  padding: 0.75rem 0.8rem;
+  padding: 0.75rem 0.75rem;
   border-bottom: 2px solid var(--pc-border);
   border-right: 1px solid var(--pc-row-divider);
   white-space: nowrap;
+  text-align: center;
 }
 
 .pc3-table thead th:last-child {
@@ -567,20 +508,25 @@
 .pc3-table tbody tr {
   border-bottom: 1px solid var(--pc-row-divider);
   transition: background-color 0.1s ease;
-  min-height: 48px;
+  min-height: 44px;
+}
+
+.pc3-table tbody tr:hover {
+  background-color: var(--pc-row-divider);
 }
 
 .pc3-table tbody td {
-  padding: 0.75rem 0.8rem;
+  padding: 0.75rem 0.75rem;
   vertical-align: middle;
   border-right: 1px solid var(--pc-row-divider);
+  text-align: center;
 }
 
 .pc3-table tbody td:last-child {
   border-right: none;
 }
 
-/* Vibrant Row Highlights (1 สี = 1 ความหมาย) with Left Indicator Border */
+/* Row Highlights */
 .pc3-row-paid {
   background-color: #ecfdf5 !important;
   box-shadow: inset 4px 0 0 #10b981;
@@ -608,14 +554,10 @@
   background-color: #fef3c7 !important;
 }
 
-.pc3-table tbody tr:hover:not(.pc3-row-paid):not(.pc3-row-death):not(.pc3-row-warn) {
-  background-color: #f8fafc;
-}
-
 /* Status Badges */
 .pc3-tag {
   display: inline-block;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -650,7 +592,7 @@
 /* Tabular Numbers */
 .pc3-num {
   font-variant-numeric: tabular-nums;
-  font-family: 'IBM Plex Mono', monospace, sans-serif;
+  white-space: nowrap;
 }
 
 /* Pagination Footer */
@@ -663,18 +605,24 @@
   background: #f8fafc;
   border-top: 1px solid var(--pc-border);
   gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--pc-muted);
+}
+
+.pc3-page-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .pc3-page-btn {
-  min-height: 36px;
-  min-width: 36px;
-  padding: 0 0.75rem;
-  background: var(--pc-surface);
-  border: 1px solid var(--pc-border-input);
-  border-radius: 6px;
-  font-size: 0.85rem;
+  padding: 4px 10px;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--pc-ink-2);
+  border: 1px solid var(--pc-border);
+  background: #ffffff;
+  color: var(--pc-ink);
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -683,12 +631,12 @@
 }
 
 .pc3-page-btn:hover:not(:disabled) {
-  background: #e2e8f0;
-  border-color: var(--pc-muted);
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .pc3-page-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 

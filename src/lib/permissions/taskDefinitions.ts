@@ -481,4 +481,41 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
       },
     ],
   },
+  {
+    id: 'PALLIATIVE_CARE_REGISTRY',
+    name: 'งานทะเบียน Palliative Care',
+    shortName: 'ทะเบียน Palliative',
+    category: 'workflow',
+    categoryLabel: 'งานบริการ & กล่องงาน',
+    description: 'ระบบบันทึกและติดตามทะเบียนผู้ป่วย Palliative Care, การติดตามเยี่ยมบ้าน 1-6 ครั้ง, ข้อมูลการเสียชีวิต และสถานะการเบิกจ่ายชดเชย e-Claim',
+    iconName: 'HeartPulse',
+    badgeColor: '#059669',
+    roles: [
+      {
+        roleType: 'view',
+        label: 'ผู้ดูข้อมูลทะเบียน Palliative Care (View)',
+        shortLabel: 'ดูทะเบียน Palliative',
+        description: 'สามารถเปิดดูรายชื่อผู้ป่วย ค้นหา ดูข้อมูลการขึ้นทะเบียน ประวัติการเยี่ยม และสถานะการเคลมได้',
+        permissionKey: 'view_palliative_registry',
+        allowedActions: ['เปิดดูรายชื่อและข้อมูลทะเบียน Palliative Care', 'ค้นหาและกรองข้อมูลผู้ป่วย', 'ดูรายละเอียดประวัติการเยี่ยม'],
+      },
+      {
+        roleType: 'edit',
+        label: 'เจ้าหน้าที่บันทึกข้อมูล Palliative Care (Edit)',
+        shortLabel: 'บันทึก/แก้ไขทะเบียน',
+        description: 'สามารถเพิ่มผู้ป่วยใหม่เข้าสู่ทะเบียน บันทึกวันและผลการเยี่ยมครั้งที่ 1-6 อัปเดตข้อมูลการเสียชีวิต และสถานะการเคลม',
+        permissionKey: 'edit_palliative_registry',
+        allowedActions: ['เพิ่มผู้ป่วยใหม่เข้าทะเบียน', 'บันทึกวันและสถานะการเยี่ยมครั้งที่ 1-6', 'บันทึกข้อมูลและวันที่เสียชีวิต', 'อัปเดตสถานะการเคลมและผลลัพธ์'],
+      },
+      {
+        roleType: 'manage',
+        label: 'ผู้ดูแลระบบทะเบียน Palliative Care (Manage)',
+        shortLabel: 'ผู้ดูแลระบบทะเบียน',
+        description: 'หัวหน้างานหรือผู้ดูแลระบบ สามารถจัดการข้อมูลทั้งหมด ลบเคสผู้ป่วย ส่งออกไฟล์ Excel (.xlsx) และจัดการสิทธิ์',
+        permissionKey: 'manage_palliative_registry',
+        allowedActions: ['ลบข้อมูลเคสผู้ป่วย', 'ส่งออกข้อมูลทะเบียนทั้งหมดเป็น Excel', 'แก้ไขข้อมูลทุกส่วนในระบบ', 'จัดการการตั้งค่าและสิทธิ์'],
+      },
+    ],
+  },
 ]
+

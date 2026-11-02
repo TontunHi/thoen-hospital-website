@@ -264,7 +264,7 @@ export default function PalliativeCarePc1Client() {
 
   return (
     <div className="pc1-container">
-      {/* Header Card */}
+      {/* Header */}
       <div className="pc1-header">
         <div>
           <div className="pc1-title-wrap">
@@ -541,10 +541,10 @@ export default function PalliativeCarePc1Client() {
                 <th colSpan={6} className="pc1-th-group-op">หัตถการ</th>
                 <th rowSpan={2}>รายการ</th>
                 <th rowSpan={2}>เลข Rep</th>
-                <th rowSpan={2} style={{ textAlign: 'right' }}>เงินชดเชย</th>
+                <th rowSpan={2}>เงินชดเชย</th>
                 <th rowSpan={2}>TransactionType</th>
                 <th rowSpan={2}>Invoice</th>
-                <th rowSpan={2} style={{ textAlign: 'right' }}>ชดเชย Invoice</th>
+                <th rowSpan={2}>ชดเชย Invoice</th>
                 <th rowSpan={2}>Subfund</th>
                 <th rowSpan={2}>หมายเหตุ</th>
                 <th rowSpan={2} style={{ textAlign: 'center' }}>รายละเอียด</th>
@@ -623,12 +623,12 @@ export default function PalliativeCarePc1Client() {
 
                     <td>{item.listname}</td>
                     <td className="pc1-num">{item.rep || '-'}</td>
-                    <td className="pc1-num" style={{ textAlign: 'right', fontWeight: 600, color: item.compensated > 0 ? '#059669' : 'inherit' }}>
+                    <td className="pc1-num" style={{ fontWeight: 600, color: item.compensated > 0 ? '#059669' : 'inherit' }}>
                       {item.compensated > 0 ? item.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-'}
                     </td>
                     <td>{item.transaction_type || '-'}</td>
                     <td className="pc1-num">{item.invoice || '-'}</td>
-                    <td className="pc1-num" style={{ textAlign: 'right' }}>
+                    <td className="pc1-num">
                       {item.invoice_compensated > 0 ? item.invoice_compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '-'}
                     </td>
                     <td>{item.subfund || '-'}</td>

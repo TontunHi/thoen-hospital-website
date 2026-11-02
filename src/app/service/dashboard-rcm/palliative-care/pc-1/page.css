@@ -365,7 +365,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
-  text-align: left;
+  text-align: center;
 }
 
 .pc1-table thead th {
@@ -377,6 +377,7 @@
   border-bottom: 2px solid var(--pc1-border);
   border-right: 1px solid var(--pc1-row-divider);
   white-space: nowrap;
+  text-align: center;
 }
 
 .pc1-th-group-dx {
@@ -406,6 +407,7 @@
   padding: 0.75rem 0.75rem;
   vertical-align: middle;
   border-right: 1px solid var(--pc1-row-divider);
+  text-align: center;
 }
 
 .pc1-row-paid {

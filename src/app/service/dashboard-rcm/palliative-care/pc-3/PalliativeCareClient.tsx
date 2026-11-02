@@ -277,7 +277,7 @@ export default function PalliativeCareClient() {
 
   return (
     <div className="pc3-container">
-      {/* 1. Header Card */}
+      {/* 1. Header */}
       <div className="pc3-header">
         <div>
           <div className="pc3-title-wrap">
@@ -631,7 +631,7 @@ export default function PalliativeCareClient() {
                 <th rowSpan={2} style={{ textAlign: 'center' }}>Z515</th>
                 <th rowSpan={2}>ErrorName</th>
                 <th rowSpan={2} style={{ textAlign: 'center' }}>จ่ายแล้ว</th>
-                <th rowSpan={2} style={{ textAlign: 'right' }}>เงินชดเชย</th>
+                <th rowSpan={2}>เงินชดเชย</th>
                 <th rowSpan={2}>Rep / Invoice</th>
                 <th rowSpan={2}>E-Claim No</th>
                 <th rowSpan={2}>วันที่ส่งเคลม</th>
@@ -735,7 +735,7 @@ export default function PalliativeCareClient() {
                       )}
                     </td>
                     {/* เงินชดเชย */}
-                    <td className="pc3-num" style={{ textAlign: 'right', fontWeight: item.compensated > 0 ? 700 : 400 }}>
+                    <td className="pc3-num" style={{ fontWeight: item.compensated > 0 ? 700 : 400 }}>
                       {item.compensated > 0
                         ? item.compensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })
                         : '-'}
@@ -774,7 +774,7 @@ export default function PalliativeCareClient() {
             {Math.min(currentPage * pageSize, items.length)} จากทั้งหมด {items.length.toLocaleString()} รายการ
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div className="pc3-page-btns">
             <button
               type="button"
               className="pc3-page-btn"

@@ -37,10 +37,11 @@ describe('DashboardRcmShell Component', () => {
     expect(screen.getByText('สรุปรายรับจาก Invoice')).toBeInTheDocument()
     expect(screen.getByText('End Of Life')).toBeInTheDocument()
     expect(screen.getByText('ตามกลุ่มโรค')).toBeInTheDocument()
+    expect(screen.getByText('ทะเบียน Palliative Care')).toBeInTheDocument()
 
     // Check breadcrumbs and content
     expect(screen.getByTestId('test-content')).toBeInTheDocument()
-    expect(screen.getByText('เชื่อมต่อ HOSxP สด')).toBeInTheDocument()
+    expect(screen.getByText('← หน้าบริการ')).toBeInTheDocument()
   })
 
   it('toggles collapse state and persists to localStorage', () => {

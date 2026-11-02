@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   TrendingUp,
   HeartHandshake,
+  HeartPulse,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -95,6 +96,12 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         label: 'ตามกลุ่มโรค',
         badge: 'PC.3',
         icon: HeartHandshake,
+      },
+      {
+        href: '/service/dashboard-rcm/palliative-care/registry',
+        label: 'ทะเบียน Palliative Care',
+        badge: 'ทะเบียน',
+        icon: HeartPulse,
       },
     ],
   },
@@ -286,10 +293,6 @@ export default function DashboardRcmShell({
           </div>
 
           <div className="rcm-topbar-right">
-            <span className="rcm-env-badge">
-              <span className="rcm-live-dot" />
-              เชื่อมต่อ HOSxP สด
-            </span>
             <Link
               href="/service"
               className="rcm-topbar-return-btn desktop-only"

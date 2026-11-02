@@ -52,6 +52,9 @@ export type MemberPermission =
   | 'view_all_kpi'
   | 'manage_events'
   | 'view_events'
+  | 'view_palliative_registry'
+  | 'edit_palliative_registry'
+  | 'manage_palliative_registry'
 
 export interface MemberDto {
   id: number
