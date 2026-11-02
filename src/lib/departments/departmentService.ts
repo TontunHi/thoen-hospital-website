@@ -1,5 +1,6 @@
 import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
+import { resolvePublicProfilePath } from './departmentImageUtils'
 import { z } from 'zod'
 
 export interface DepartmentGroupNode {
@@ -301,9 +302,9 @@ export class DepartmentService {
     const cleanPosition = input.position.trim()
     const role = input.role === 'leader' ? 'leader' : 'member'
     const orderIndex = input.orderIndex ?? 0
-    const imagePath = input.imagePath?.trim() || null
-    const phone = input.phone?.trim() || null
     const memberId = input.memberId && input.memberId > 0 ? input.memberId : null
+    const imagePath = await resolvePublicProfilePath(input.imagePath?.trim() || null, memberId)
+    const phone = input.phone?.trim() || null
 
     const res: any = await this.queryExecutor(
       `INSERT INTO department_members (group_id, name, position, role, order_index, image_path, phone, member_id)
@@ -357,8 +358,9 @@ export class DepartmentService {
       params.push(input.orderIndex)
     }
     if (input.imagePath !== undefined) {
+      const resolvedImg = await resolvePublicProfilePath(input.imagePath?.trim() || null, input.memberId)
       updates.push('image_path = ?')
-      params.push(input.imagePath?.trim() || null)
+      params.push(resolvedImg)
     }
     if (input.phone !== undefined) {
       updates.push('phone = ?')

@@ -197,4 +197,53 @@ describe('KpiExportService', () => {
     expect(result.totalCount).toBe(1)
     expect(result.filename).toContain('KPI_Report_Due_2570_THIP-70.xlsx')
   })
+
+  it('excludes indicators that are already answered in the due round when onlyDue is true', async () => {
+    const mockExecutor = vi.fn().mockImplementation(async (sql) => {
+      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
+        return [{ id: 3, fiscalYear: '2570', code: 'THIP-70', title: 'ตัวชี้วัด 2570' }]
+      }
+      if (sql.includes('FROM kpi_indicators i')) {
+        return [
+          {
+            id: 1,
+            frequency: 'รายเดือน',
+            title: 'ตัวชี้วัดรายเดือน ตอบแล้วในรอบ ต.ค. (M01)',
+            category: 'หมวดที่ 1',
+            displayOrder: 1,
+            entryId: 101,
+            entryPeriodKey: 'M01',
+            entryStatus: 'PASS',
+            entryResultValue: '90.00',
+          },
+          {
+            id: 2,
+            frequency: 'รายเดือน',
+            title: 'ตัวชี้วัดรายเดือน ยังไม่ได้ตอบรอบ ต.ค. (M01)',
+            category: 'หมวดที่ 1',
+            displayOrder: 2,
+          },
+        ]
+      }
+      return []
+    })
+
+    // In Nov 2026, M01 is due
+    const currentDate = new Date('2026-11-02T10:00:00Z')
+    const result = await KpiExportService.exportToExcel({
+      topicId: 3,
+      fiscalYear: '2570',
+      onlyDue: true,
+      currentDate,
+    }, mockExecutor)
+
+    // Indicator 1 is already answered in M01, so only Indicator 2 should be in the export
+    expect(result.totalCount).toBe(1)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(result.buffer as any)
+    const sheet = wb.getWorksheet('รายงานตัวชี้วัด')
+    expect(result.totalCount).toBe(1)
+    expect(sheet?.getCell('G7').value).toBe('ตัวชี้วัดรายเดือน ยังไม่ได้ตอบรอบ ต.ค. (M01)')
+  })
+
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { KpiService } from '@/lib/kpi/kpiService'
-import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus } from '@/lib/kpi/kpiTimeUtils'
+import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, isIndicatorAnsweredForPeriod } from '@/lib/kpi/kpiTimeUtils'
 
 // Mock audit logging
 vi.mock('@/lib/audit', () => ({
@@ -238,4 +238,120 @@ describe('KpiService with Mock QueryExecutor', () => {
     expect(capturedSql).toContain('i.sequence')
     expect(capturedSql).toContain('CAST(i.sequence AS UNSIGNED) ASC')
   })
+
+  it('identifies whether an indicator is answered for a specific period', () => {
+    // 1. No entries
+    expect(isIndicatorAnsweredForPeriod({}, 'M01')).toBe(false)
+
+    // 2. Unanswered / pending entry
+    expect(isIndicatorAnsweredForPeriod({
+      currentEntry: { periodKey: 'M01', status: 'PENDING', resultValue: null, resultText: null }
+    }, 'M01')).toBe(false)
+
+    // 3. 'ไม่มีรายงาน' text
+    expect(isIndicatorAnsweredForPeriod({
+      currentEntry: { periodKey: 'M01', status: 'WAITING_TARGET', resultValue: null, resultText: 'ไม่มีรายงาน' }
+    }, 'M01')).toBe(false)
+
+    // 4. Entry for a different period (M01 answered, checking M02)
+    expect(isIndicatorAnsweredForPeriod({
+      currentEntry: { periodKey: 'M01', status: 'PASS', resultValue: 90, resultText: null }
+    }, 'M02')).toBe(false)
+
+    // 5. Answered with numeric result (PASS/FAIL)
+    expect(isIndicatorAnsweredForPeriod({
+      currentEntry: { periodKey: 'M01', status: 'PASS', resultValue: 90, resultText: null }
+    }, 'M01')).toBe(true)
+
+    // 6. Answered with text in entries array
+    expect(isIndicatorAnsweredForPeriod({
+      entries: [
+        { periodKey: 'M01', status: 'PASS', resultValue: 90 },
+        { periodKey: 'M02', status: 'WAITING_TARGET', resultText: 'ดำเนินการเรียบร้อย' }
+      ]
+    }, 'M02')).toBe(true)
+  })
+
+  it('groups multiple period entry rows by indicator id and populates entries array', async () => {
+    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM kpi_indicators i')) {
+        return [
+          {
+            id: 10,
+            topicId: 1,
+            sequence: '1',
+            category: 'หมวด 1',
+            subcategory: null,
+            code: 'M-01',
+            oldCode: null,
+            frequency: 'รายเดือน',
+            title: 'ตัวชี้วัดรายเดือน',
+            numeratorName: null,
+            denominatorName: null,
+            targetRaw: '>= 80%',
+            targetOperator: '>=',
+            targetValue: '80.0000',
+            targetUnit: '%',
+            responsibleName: 'นิศานาถ',
+            indicatorType: 'HA',
+            displayOrder: 1,
+            entryId: 501,
+            entryPeriodKey: 'M01',
+            entryPeriodLabel: 'ตุลาคม',
+            entryNumeratorValue: null,
+            entryDenominatorValue: null,
+            entryResultValue: '85.00',
+            entryResultText: null,
+            entryStatus: 'PASS',
+            entryNote: null,
+            entryRecordedById: 1,
+            entryRecordedByName: 'Admin',
+            entryRecordedAt: '2026-11-01',
+            entryUpdatedAt: '2026-11-01',
+          },
+          {
+            id: 10,
+            topicId: 1,
+            sequence: '1',
+            category: 'หมวด 1',
+            subcategory: null,
+            code: 'M-01',
+            oldCode: null,
+            frequency: 'รายเดือน',
+            title: 'ตัวชี้วัดรายเดือน',
+            numeratorName: null,
+            denominatorName: null,
+            targetRaw: '>= 80%',
+            targetOperator: '>=',
+            targetValue: '80.0000',
+            targetUnit: '%',
+            responsibleName: 'นิศานาถ',
+            indicatorType: 'HA',
+            displayOrder: 1,
+            entryId: 502,
+            entryPeriodKey: 'M02',
+            entryPeriodLabel: 'พฤศจิกายน',
+            entryNumeratorValue: null,
+            entryDenominatorValue: null,
+            entryResultValue: '75.00',
+            entryResultText: null,
+            entryStatus: 'FAIL',
+            entryNote: null,
+            entryRecordedById: 1,
+            entryRecordedByName: 'Admin',
+            entryRecordedAt: '2026-12-01',
+            entryUpdatedAt: '2026-12-01',
+          }
+        ]
+      }
+      return []
+    })
+
+    const indicators = await KpiService.getIndicators({ topicId: 1, fiscalYear: '2570' }, mockExecutor)
+    expect(indicators).toHaveLength(1)
+    expect(indicators[0].id).toBe(10)
+    expect(indicators[0].entries).toHaveLength(2)
+    expect(indicators[0].entries?.map(e => e.periodKey)).toEqual(['M01', 'M02'])
+  })
+
 })

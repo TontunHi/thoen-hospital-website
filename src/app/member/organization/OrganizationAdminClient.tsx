@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Users,
   FolderPlus,
@@ -27,8 +27,10 @@ import {
   FolderTree,
   Filter,
   CheckCircle2,
-  UserCheck
+  UserCheck,
+  Crop
 } from 'lucide-react'
+import ImageCropModal from '@/components/ui/ImageCropModal'
 import Link from 'next/link'
 import { getInitials } from '@/lib/formatters'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -150,7 +152,12 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
   const [searchMemberQuery, setSearchMemberQuery] = useState('')
   const [searchMemberResults, setSearchMemberResults] = useState<SystemMemberSearchResult[]>([])
   const [searchingMembers, setSearchingMembers] = useState(false)
+  const isSelectingMemberRef = useRef(false)
+  const autocompleteContainerRef = useRef<HTMLDivElement>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false)
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  const [cropFileName, setCropFileName] = useState('staff-photo.png')
 
   // Confirm delete dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -245,36 +252,90 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     }
   }, [selectedGroup?.id])
 
+  // Close autocomplete dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        autocompleteContainerRef.current &&
+        !autocompleteContainerRef.current.contains(e.target as Node)
+      ) {
+        setSearchMemberResults([])
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   // System member search debounced
   useEffect(() => {
+    // If query updated via autocomplete selection, do not re-fetch & keep results closed
+    if (isSelectingMemberRef.current) {
+      isSelectingMemberRef.current = false
+      setSearchMemberResults([])
+      return
+    }
+
     if (!searchMemberQuery.trim() || searchMemberQuery.trim().length < 2) {
       setSearchMemberResults([])
       return
     }
 
+    const abortController = new AbortController()
+
     const timer = setTimeout(async () => {
       try {
         setSearchingMembers(true)
-        const res = await fetch(`/api/departments/members/search-system?q=${encodeURIComponent(searchMemberQuery)}`)
+        const res = await fetch(
+          `/api/departments/members/search-system?q=${encodeURIComponent(searchMemberQuery)}`,
+          { signal: abortController.signal }
+        )
         const json = await res.json()
-        if (json.success) {
+        if (!abortController.signal.aborted && json.success) {
           setSearchMemberResults(json.data || [])
         }
-      } catch {
-        // Ignore search error
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          // Ignore search error
+        }
       } finally {
-        setSearchingMembers(false)
+        if (!abortController.signal.aborted) {
+          setSearchingMembers(false)
+        }
       }
     }, 250)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      abortController.abort()
+    }
   }, [searchMemberQuery])
 
-  // Photo upload
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Photo selection & Crop modal trigger
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp']
+    if (!allowedMimes.includes(file.type)) {
+      addToast('รองรับเฉพาะไฟล์รูปภาพ JPG, PNG หรือ WebP เท่านั้น', 'error')
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(file)
+    setImageToCrop(objectUrl)
+    setCropFileName(file.name || 'staff-photo.png')
+    setIsCropModalOpen(true)
+    e.target.value = ''
+  }
+
+  const handleEditCurrentPhoto = () => {
+    if (!memberFormData.imagePath) return
+    setImageToCrop(memberFormData.imagePath)
+    setCropFileName(`${memberFormData.name || 'staff'}.png`)
+    setIsCropModalOpen(true)
+  }
+
+  const handleSaveCroppedPhoto = async (file: File) => {
     try {
       setIsUploadingPhoto(true)
       const formData = new FormData()
@@ -287,7 +348,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
       const json = await res.json()
       if (json.success && json.data?.url) {
         setMemberFormData((prev) => ({ ...prev, imagePath: json.data.url }))
-        addToast('อัปโหลดรูปภาพสำเร็จ', 'success')
+        addToast('อัปโหลดและตัดครอบรูปภาพสำเร็จ', 'success')
       } else {
         addToast(json.error || 'อัปโหลดรูปภาพไม่สำเร็จ', 'error')
       }
@@ -977,6 +1038,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                           imagePath: '',
                           memberId: null
                         })
+                        isSelectingMemberRef.current = false
+                        setSearchMemberResults([])
                         setSearchMemberQuery('')
                         setIsMemberModalOpen(true)
                       }}
@@ -1376,7 +1439,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                     {/* Left Column: Member Search (if create) + Photo Upload */}
                     <div className="modalSectionCol">
                       {memberModalMode === 'create' && (
-                        <div className="formGroup autocompleteContainer">
+                        <div className="formGroup autocompleteContainer" ref={autocompleteContainerRef}>
                           <label className="formLabel">
                             ดึงข้อมูลจากบัญชีบุคลากร (ทางเลือก)
                           </label>
@@ -1384,23 +1447,62 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                             <input
                               type="text"
                               className="formInput"
-                              style={{ width: '100%', paddingLeft: '34px', fontSize: '0.85rem' }}
+                              style={{
+                                width: '100%',
+                                paddingLeft: '34px',
+                                paddingRight: searchMemberQuery ? '34px' : '10px',
+                                fontSize: '0.85rem'
+                              }}
                               placeholder="ค้นชื่อ หรือ แผนก..."
                               value={searchMemberQuery}
-                              onChange={(e) => setSearchMemberQuery(e.target.value)}
+                              onChange={(e) => {
+                                isSelectingMemberRef.current = false
+                                setSearchMemberQuery(e.target.value)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                  setSearchMemberResults([])
+                                }
+                              }}
                             />
                             <Search
                               size={15}
                               className="text-slate-400"
                               style={{ position: 'absolute', left: '10px', top: '12px' }}
                             />
-                            {searchingMembers && (
+                            {searchingMembers ? (
                               <Loader2
                                 size={15}
                                 className="animate-spin text-emerald-700"
                                 style={{ position: 'absolute', right: '10px', top: '12px' }}
                               />
-                            )}
+                            ) : searchMemberQuery ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  isSelectingMemberRef.current = false
+                                  setSearchMemberQuery('')
+                                  setSearchMemberResults([])
+                                }}
+                                aria-label="ล้างคำค้นหา"
+                                style={{
+                                  position: 'absolute',
+                                  right: '10px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'var(--admin-slate-muted)'
+                                }}
+                              >
+                                <X size={14} />
+                              </button>
+                            ) : null}
                           </div>
 
                           {searchMemberResults.length > 0 && (
@@ -1410,6 +1512,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                   key={s.id}
                                   className="autocompleteItem"
                                   onClick={() => {
+                                    isSelectingMemberRef.current = true
                                     setMemberFormData({
                                       ...memberFormData,
                                       name: s.name,
@@ -1423,7 +1526,14 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                   }}
                                 >
                                   {s.profilePath ? (
-                                    <img src={s.profilePath} alt={s.name} className="autocompleteAvatar" />
+                                    <img
+                                      src={s.profilePath}
+                                      alt={s.name}
+                                      className="autocompleteAvatar"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none'
+                                      }}
+                                    />
                                   ) : (
                                     <div className="autocompleteAvatarFallback">
                                       {getInitials(s.name)}
@@ -1451,6 +1561,9 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                               src={memberFormData.imagePath}
                               alt="Preview"
                               className="photoPreview"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
                             />
                           ) : (
                             <div className="avatarFallback photoPreviewFallback">
@@ -1461,23 +1574,43 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                           <div className="photoUploadActions">
                             <label className="btn btnSecondary btnSmall uploadBtnLabel">
                               <Upload size={14} />
-                              <span>{isUploadingPhoto ? 'กำลังอัปโหลด...' : 'เลือกรูปถ่าย (JPG, PNG)'}</span>
+                              <span>{isUploadingPhoto ? 'กำลังอัปโหลด...' : memberFormData.imagePath ? 'เปลี่ยนรูปถ่าย (JPG, PNG)' : 'เลือกรูปถ่าย (JPG, PNG)'}</span>
                               <input
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp"
-                                onChange={handlePhotoUpload}
+                                onChange={handlePhotoSelect}
                                 disabled={isUploadingPhoto}
                                 style={{ display: 'none' }}
                               />
                             </label>
                             {memberFormData.imagePath && (
-                              <button
-                                type="button"
-                                className="iconBtnCompact danger"
-                                onClick={() => setMemberFormData({ ...memberFormData, imagePath: '' })}
-                              >
-                                <Trash2 size={12} /> ลบรูปภาพ
-                              </button>
+                              <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                                <button
+                                  type="button"
+                                  className="btn btnSecondary btnSmall"
+                                  onClick={handleEditCurrentPhoto}
+                                  style={{
+                                    flex: 1,
+                                    fontSize: '0.75rem',
+                                    padding: '5px 8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <Crop size={12} color="#2563EB" />
+                                  <span>Crop / ตัดครอบรูป</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="iconBtnCompact danger"
+                                  onClick={() => setMemberFormData({ ...memberFormData, imagePath: '' })}
+                                  title="ลบรูปภาพ"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1599,6 +1732,23 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               </form>
             </div>
           </div>
+        )}
+
+        {/* Image Crop & Background Removal Modal */}
+        {isCropModalOpen && imageToCrop && (
+          <ImageCropModal
+            isOpen={isCropModalOpen}
+            imageSrc={imageToCrop}
+            title="ตัดครอบรูปถ่ายบุคลากร (Crop Staff Photo)"
+            subtitle="ปรับสัดส่วนภาพและเลือกตำแหน่งที่ต้องการแสดงผล"
+            initialAspectRatio={3 / 4}
+            fileName={cropFileName}
+            onClose={() => {
+              setIsCropModalOpen(false)
+              setImageToCrop(null)
+            }}
+            onSave={handleSaveCroppedPhoto}
+          />
         )}
 
         {/* Confirm Dialog */}

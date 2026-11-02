@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { resolvePublicProfilePath } from '@/lib/departments/departmentImageUtils'
 
 export async function GET(request: Request) {
   try {
@@ -24,15 +25,22 @@ export async function GET(request: Request) {
       [kw, kw, kw]
     )
 
+    const data = await Promise.all(
+      rows.map(async (r: any) => {
+        const publicProfile = await resolvePublicProfilePath(r.profilePath, Number(r.id))
+        return {
+          id: Number(r.id),
+          name: r.name ? String(r.name).trim() : '',
+          position: r.position ? String(r.position).trim() : '',
+          department: r.department ? String(r.department).trim() : '',
+          profilePath: publicProfile
+        }
+      })
+    )
+
     return NextResponse.json({
       success: true,
-      data: rows.map((r: any) => ({
-        id: Number(r.id),
-        name: r.name ? String(r.name).trim() : '',
-        position: r.position ? String(r.position).trim() : '',
-        department: r.department ? String(r.department).trim() : '',
-        profilePath: r.profilePath ? String(r.profilePath).trim() : null
-      }))
+      data
     })
   } catch (error: any) {
     return NextResponse.json(

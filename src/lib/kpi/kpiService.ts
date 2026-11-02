@@ -1,6 +1,6 @@
 import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
-import { checkPeriodStatus, getPeriodsForFrequency } from './kpiTimeUtils'
+import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus } from './kpiTimeUtils'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 
@@ -360,43 +360,75 @@ export class KpiService {
 
     const rows = await executor(sql, params)
 
-    return rows.map(r => ({
-      id: r.id,
-      topicId: r.topicId,
-      sequence: r.sequence,
-      category: r.category,
-      subcategory: r.subcategory,
-      code: r.code,
-      oldCode: r.oldCode,
-      frequency: r.frequency,
-      title: r.title,
-      numeratorName: r.numeratorName,
-      denominatorName: r.denominatorName,
-      targetRaw: r.targetRaw,
-      targetOperator: r.targetOperator,
-      targetValue: r.targetValue !== null ? parseFloat(r.targetValue) : null,
-      targetUnit: r.targetUnit,
-      responsibleName: r.responsibleName,
-      indicatorType: r.indicatorType,
-      displayOrder: r.displayOrder,
-      currentEntry: r.entryId ? {
-        id: r.entryId,
-        indicatorId: r.id,
-        fiscalYear: filters.fiscalYear || '',
-        periodKey: r.entryPeriodKey,
-        periodLabel: cleanPeriodLabel(r.entryPeriodLabel, r.entryPeriodKey, r.frequency),
-        numeratorValue: r.entryNumeratorValue !== null ? parseFloat(r.entryNumeratorValue) : null,
-        denominatorValue: r.entryDenominatorValue !== null ? parseFloat(r.entryDenominatorValue) : null,
-        resultValue: r.entryResultValue !== null ? parseFloat(r.entryResultValue) : null,
-        resultText: r.entryResultText,
-        status: r.entryStatus,
-        note: r.entryNote,
-        recordedById: r.entryRecordedById ?? null,
-        recordedByName: cleanAuthorName(r.entryRecordedByName),
-        recordedAt: r.entryRecordedAt,
-        updatedAt: r.entryUpdatedAt,
-      } : null,
-    }))
+    const indicatorMap = new Map<number, KpiIndicatorItem>()
+
+    for (const r of rows) {
+      let ind = indicatorMap.get(r.id)
+      if (!ind) {
+        ind = {
+          id: r.id,
+          topicId: r.topicId,
+          sequence: r.sequence,
+          category: r.category,
+          subcategory: r.subcategory,
+          code: r.code,
+          oldCode: r.oldCode,
+          frequency: r.frequency,
+          title: r.title,
+          numeratorName: r.numeratorName,
+          denominatorName: r.denominatorName,
+          targetRaw: r.targetRaw,
+          targetOperator: r.targetOperator,
+          targetValue: r.targetValue !== null ? parseFloat(r.targetValue) : null,
+          targetUnit: r.targetUnit,
+          responsibleName: r.responsibleName,
+          indicatorType: r.indicatorType,
+          displayOrder: r.displayOrder,
+          entries: [],
+          currentEntry: null,
+        }
+        indicatorMap.set(r.id, ind)
+      }
+
+      if (r.entryId) {
+        const entryItem: KpiEntryItem = {
+          id: r.entryId,
+          indicatorId: r.id,
+          fiscalYear: filters.fiscalYear || '',
+          periodKey: r.entryPeriodKey,
+          periodLabel: cleanPeriodLabel(r.entryPeriodLabel, r.entryPeriodKey, r.frequency),
+          numeratorValue: r.entryNumeratorValue !== null ? parseFloat(r.entryNumeratorValue) : null,
+          denominatorValue: r.entryDenominatorValue !== null ? parseFloat(r.entryDenominatorValue) : null,
+          resultValue: r.entryResultValue !== null ? parseFloat(r.entryResultValue) : null,
+          resultText: r.entryResultText,
+          status: r.entryStatus,
+          note: r.entryNote,
+          recordedById: r.entryRecordedById ?? null,
+          recordedByName: cleanAuthorName(r.entryRecordedByName),
+          recordedAt: r.entryRecordedAt,
+          updatedAt: r.entryUpdatedAt,
+        }
+        if (!ind.entries!.some(e => e.id === entryItem.id)) {
+          ind.entries!.push(entryItem)
+        }
+      }
+    }
+
+    for (const ind of indicatorMap.values()) {
+      if (!ind.entries || ind.entries.length === 0) {
+        ind.currentEntry = null
+        continue
+      }
+      if (filters.periodKey) {
+        ind.currentEntry = ind.entries.find(e => e.periodKey === filters.periodKey) || null
+      } else {
+        const due = checkIndicatorDueStatus(ind.frequency, filters.fiscalYear || '2570')
+        const dueEntry = ind.entries.find(e => e.periodKey === due.relevantPeriod.key)
+        ind.currentEntry = dueEntry || ind.entries[ind.entries.length - 1]
+      }
+    }
+
+    return Array.from(indicatorMap.values())
   }
 
   /**

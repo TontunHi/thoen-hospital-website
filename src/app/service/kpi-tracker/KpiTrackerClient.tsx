@@ -32,7 +32,7 @@ import {
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
-import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus } from '@/lib/kpi/kpiTimeUtils'
+import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
 interface CurrentUser {
@@ -293,9 +293,13 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     }
   }, [indicators, stats])
 
-  // Count of indicators due now or within 5 days
+  // Count of indicators due now or within 5 days (excluding those already answered for this round)
   const dueIndicatorsCount = useMemo(() => {
-    return indicators.filter(ind => checkIndicatorDueStatus(ind.frequency, selectedYear).isDue).length
+    return indicators.filter(ind => {
+      const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
+      if (!dueStatus.isDue) return false
+      return !isIndicatorAnsweredForPeriod(ind, dueStatus.relevantPeriod.key)
+    }).length
   }, [indicators, selectedYear])
 
   // Filtered & Sorted Indicators (Default sorted by sequence number)
@@ -317,6 +321,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       if (activeTab === 'DUE') {
         const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
         if (!dueStatus.isDue) {
+          return false
+        }
+        if (isIndicatorAnsweredForPeriod(ind, dueStatus.relevantPeriod.key)) {
           return false
         }
       }
@@ -1956,7 +1963,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                       </span>
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '3px' }}>
-                      ส่งออกเฉพาะตัวชี้วัดที่ถึงรอบตอบแล้ว ณ ปัจจุบัน หรือจะถึงรอบใน 5 วัน
+                      ส่งออกเฉพาะตัวชี้วัดที่ถึงรอบตอบแล้ว ณ ปัจจุบัน หรือจะถึงรอบใน 5 วัน (ที่ยังไม่ได้ตอบในรอบนั้น)
                     </div>
                   </div>
                 </label>

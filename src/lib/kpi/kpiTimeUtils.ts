@@ -221,3 +221,47 @@ export function checkIndicatorDueStatus(
     message: `ยังไม่ถึงรอบบันทึก (เปิดให้บันทึกตั้งแต่ ${firstUpcoming.unlockDateFormatted} เป็นต้นไป)`,
   }
 }
+
+export interface IndicatorAnswerableEntry {
+  periodKey?: string
+  resultValue?: number | null
+  resultText?: string | null
+  status?: string | null
+}
+
+export interface IndicatorWithEntries {
+  currentEntry?: IndicatorAnswerableEntry | null
+  entries?: IndicatorAnswerableEntry[]
+}
+
+/**
+ * Checks whether an indicator has already been answered for a given reporting period.
+ */
+export function isIndicatorAnsweredForPeriod(
+  ind: IndicatorWithEntries,
+  periodKey?: string
+): boolean {
+  if (!periodKey) return false
+
+  // 1. Check in entries list if present
+  if (ind.entries && ind.entries.length > 0) {
+    const entry = ind.entries.find(e => e.periodKey === periodKey)
+    if (entry) {
+      const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
+      const hasText = Boolean(entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
+      const isNotPending = Boolean(entry.status && entry.status !== 'PENDING')
+      return (hasValue || hasText) && isNotPending
+    }
+  }
+
+  // 2. Fallback to currentEntry if it matches this periodKey
+  if (ind.currentEntry && ind.currentEntry.periodKey === periodKey) {
+    const entry = ind.currentEntry
+    const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
+    const hasText = Boolean(entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
+    const isNotPending = Boolean(entry.status && entry.status !== 'PENDING')
+    return (hasValue || hasText) && isNotPending
+  }
+
+  return false
+}

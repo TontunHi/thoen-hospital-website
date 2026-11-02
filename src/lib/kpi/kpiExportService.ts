@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { queryMemberDb } from '@/lib/memberDb'
 import { KpiService, KpiIndicatorItem, QueryExecutor } from './kpiService'
-import { checkIndicatorDueStatus } from './kpiTimeUtils'
+import { checkIndicatorDueStatus, isIndicatorAnsweredForPeriod } from './kpiTimeUtils'
 
 export interface KpiExportOptions {
   topicId: number
@@ -325,9 +325,11 @@ export class KpiExportService {
     )
 
     if (onlyDue) {
-      indicators = indicators.filter(ind =>
-        checkIndicatorDueStatus(ind.frequency, fiscalYear, currentDate).isDue
-      )
+      indicators = indicators.filter(ind => {
+        const dueStatus = checkIndicatorDueStatus(ind.frequency, fiscalYear, currentDate)
+        if (!dueStatus.isDue) return false
+        return !isIndicatorAnsweredForPeriod(ind, dueStatus.relevantPeriod.key)
+      })
     }
 
     // 3. Calculate summary statistics

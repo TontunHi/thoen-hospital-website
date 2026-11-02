@@ -5,12 +5,21 @@ import { PATCH as reorderGroups } from '../groups/reorder/route'
 import { GET as getMembers, POST as createMember } from '../members/route'
 import { PATCH as reorderMembers } from '../members/reorder/route'
 import { GET as getPublicOrgChart } from '../public/route'
+import { GET as searchSystemMembers } from '../members/search-system/route'
+import { queryMemberDb } from '@/lib/memberDb'
+import { resolvePublicProfilePath } from '@/lib/departments/departmentImageUtils'
 import { GET as searchPublicStaff } from '../public/search/route'
 import { departmentService } from '@/lib/departments/departmentService'
 import * as memberAuth from '@/lib/memberAuth'
 import { NextResponse } from 'next/server'
 
 vi.mock('@/lib/departments/departmentService')
+vi.mock('@/lib/memberDb', () => ({
+  queryMemberDb: vi.fn(),
+}))
+vi.mock('@/lib/departments/departmentImageUtils', () => ({
+  resolvePublicProfilePath: vi.fn((p, id) => Promise.resolve(p ? `/uploads/org-chart/member-${id}.jpg` : null)),
+}))
 vi.mock('@/lib/memberAuth')
 vi.mock('@/lib/audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined)
@@ -148,6 +157,20 @@ describe('Department API Routes', () => {
       const data = await res.json()
       expect(data.success).toBe(true)
       expect(data.data.id).toBe(99)
+    })
+
+    it('GET /api/departments/members/search-system returns resolved public profilePath for members', async () => {
+      vi.mocked(memberAuth.requireMemberApi).mockResolvedValueOnce({ member: adminMember } as any)
+      vi.mocked(queryMemberDb).mockResolvedValueOnce([
+        { id: 1, name: 'พว.สมหญิง รักดี', position: 'พยาบาลวิชาชีพ', department: 'กลุ่มงานการพยาบาล', profilePath: 'storage/som_nurse/profile.jpg' }
+      ] as any)
+
+      const req = new Request('http://localhost/api/departments/members/search-system?q=สมหญิง')
+      const res = await searchSystemMembers(req)
+      expect(res.status).toBe(200)
+      const data = await res.json()
+      expect(data.success).toBe(true)
+      expect(data.data[0].profilePath).toBe('/uploads/org-chart/member-1.jpg')
     })
 
     it('PATCH /api/departments/members/reorder reorders successfully', async () => {
