@@ -91,7 +91,7 @@ export class ApiGatewayClient {
   constructor(config?: ApiGatewayConfig) {
     this.baseUrl = (config?.baseUrl || process.env.API_GATEWAY_URL || 'http://192.168.1.208:8443').replace(/\/+$/, '')
     this.apiKey = config?.apiKey || process.env.API_GATEWAY_KEY || 'thoen_gw_sec_7a8b9c2d1e0f3456'
-    this.timeoutMs = config?.timeoutMs || (process.env.API_GATEWAY_TIMEOUT_MS ? parseInt(process.env.API_GATEWAY_TIMEOUT_MS, 10) : 8000)
+    this.timeoutMs = config?.timeoutMs || (process.env.API_GATEWAY_TIMEOUT_MS ? parseInt(process.env.API_GATEWAY_TIMEOUT_MS, 10) : 30000)
     this.fetchFn = config?.fetchFn || fetch
   }
 
@@ -215,8 +215,12 @@ export class ApiGatewayClient {
     /**
      * Executes a read-only SELECT query against the HOSxP MySQL database.
      */
-    query: async <T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> => {
-      const res = await this.post<{ data: T[]; count: number }>('/api/v1/clinical/query', { sql, params })
+    query: async <T = Record<string, unknown>>(
+      sql: string,
+      params: unknown[] = [],
+      options?: RequestOptions
+    ): Promise<T[]> => {
+      const res = await this.post<{ data: T[]; count: number }>('/api/v1/clinical/query', { sql, params }, options)
       return Array.isArray(res) ? res : res.data || []
     },
 
@@ -397,6 +401,23 @@ export class ApiGatewayClient {
         pageSize: number
         dateType?: 'bill_date' | 'admdate'
       }>(`/api/v1/clinical/rcm/invoice-details${qs}`)
+    },
+
+    getRcmPalliativeReport: (params?: {
+      startDate?: string
+      endDate?: string
+      ucOnly?: boolean
+      filterType?: 'ALL' | 'Chronic' | 'Opioid' | 'Death'
+      search?: string
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.endDate) q.set('endDate', params.endDate)
+      if (params?.ucOnly) q.set('ucOnly', 'true')
+      if (params?.filterType) q.set('filterType', params.filterType)
+      if (params?.search) q.set('search', params.search)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<any>(`/api/v1/clinical/rcm/palliative-care${qs}`)
     }
   }
 

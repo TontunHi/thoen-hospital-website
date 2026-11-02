@@ -1463,6 +1463,189 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
 
 
 
+// 1.16 RCM Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด
+fastify.get('/api/v1/clinical/rcm/palliative-care', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'รายชื่อผู้ป่วย Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด',
+    querystring: {
+      type: 'object',
+      properties: {
+        startDate: { type: 'string' },
+        endDate: { type: 'string' },
+        ucOnly: { type: 'string' },
+        filterType: { type: 'string', enum: ['ALL', 'Chronic', 'Opioid', 'Death'] },
+        search: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { startDate = '', endDate = '', ucOnly = 'false', filterType = 'ALL', search = '' } = req.query || {}
+  try {
+    const ds1 = startDate || new Date().toISOString().slice(0, 10)
+    const ds2 = endDate || ds1
+
+    const sql = `
+      SELECT 
+        o.vn,
+        IFNULL(pt.cid, '') AS cid,
+        o.hn,
+        CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+        DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+        IFNULL(cc.AuthenCode, '') AS authencode,
+        IFNULL(o.pttype, '') AS pttype,
+        IFNULL(ptt.hipdata_code, '') AS inscl,
+        IFNULL(ptt.name, o.pttype) AS pttypename,
+        CONCAT(IFNULL(pt.addrpart,''), ' ม.', IFNULL(pt.moopart,''), ' ', IFNULL(pt.road,'')) AS address,
+        COALESCE(NULLIF(pt.mobile_phone_number,''), NULLIF(pt.informtel,''), '') AS tel,
+        IFNULL(s.cc, '') AS cc,
+        IFNULL(k.department, o.main_dep) AS room,
+        IFNULL(sp.name, o.spclty) AS spclty,
+        CONCAT_WS(',', v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5) AS Diag,
+        CONCAT_WS(',', v.op0, v.op1, v.op2, v.op3, v.op4, v.op5) AS Oper,
+        IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'Z515', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Z515,
+        IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'B2[0-4]|^C|D[0-4]|I5|I6|J44|K704|K717|K72|N185', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Dx,
+        IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'Z718', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Z718,
+        IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^C|D3[7-9]|D4', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Cancer,
+        IF(GROUP_CONCAT(DISTINCT IF(d.nhso_adp_code REGEXP '^M', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Drug,
+        IFNULL(pt.death, 'N') AS death,
+        DATE_FORMAT(pt.deathday, '%Y-%m-%d') AS death_date,
+        IF(e.hn IS NULL, ' ', 'Y') AS OK,
+        IFNULL(e.PallativeCare, 0) AS compensated,
+        CONCAT_WS('#', e.rep, e.id) AS rep_invoice,
+        CONCAT_WS('#', m.eclaim_no, m.id) AS eclaim_no,
+        m.senddate,
+        CASE 
+          WHEN m.status IS NOT NULL THEN CONCAT(m.status, ' :: ', IFNULL(ecs.name, m.status))
+          ELSE '- :: ยังไม่ได้ส่ง'
+        END AS status_Eclaim,
+        IFNULL(m.filename_send, '') AS filename_send
+      FROM ovst o
+      LEFT JOIN patient pt ON pt.hn = o.hn
+      LEFT JOIN vn_stat v ON v.vn = o.vn 
+      JOIN ovstdiag dx ON dx.vn = o.vn
+      LEFT JOIN opdscreen s ON s.vn = o.vn
+      LEFT JOIN opitemrece oo ON oo.vn = o.vn 
+      LEFT JOIN drugitems d ON d.icode = oo.icode
+      LEFT JOIN pttype ptt ON ptt.pttype = o.pttype 
+      LEFT JOIN kskdepartment k ON k.depcode = o.main_dep
+      LEFT JOIN spclty sp ON sp.spclty = o.spclty
+      LEFT JOIN rcmdb.repeclaim e ON e.hn = o.hn AND e.PallativeCare > 0
+      LEFT JOIN (
+        SELECT 
+          m.opdseq AS vn,
+          MAX(m.eclaim_no) AS eclaim_no,
+          SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT IF(m.status='4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+          SUBSTRING_INDEX(GROUP_CONCAT(m.maininscl ORDER BY m.eclaim_no DESC), ',', 1) AS maininscl,
+          SUBSTRING_INDEX(GROUP_CONCAT(m.status ORDER BY m.eclaim_no DESC), ',', 1) AS status,
+          SUBSTRING_INDEX(GROUP_CONCAT(m.code_id ORDER BY m.eclaim_no DESC), ',', 1) AS errorcode,
+          SUBSTRING_INDEX(GROUP_CONCAT(m.tran_id ORDER BY m.eclaim_no DESC), ',', 1) AS id,
+          SUBSTRING_INDEX(GROUP_CONCAT(UCASE(m.filename_send) ORDER BY m.eclaim_no DESC), ',', 1) AS filename_send,
+          SUBSTRING_INDEX(GROUP_CONCAT(pp.child_dob ORDER BY m.eclaim_no DESC), ',', 1) AS vstdate,
+          SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(m.date_send, m.filename_send) ORDER BY m.eclaim_no DESC), ',', 1) AS senddate
+        FROM eclaimdb.m_registerdata m
+        JOIN eclaimdb.m_ppcom pp ON pp.eclaim_no = m.eclaim_no 
+        WHERE pp.itemname REGEXP '30001'
+          AND m.person_type = '1'
+          AND m.opdseq IS NOT NULL
+        GROUP BY m.opdseq
+      ) m ON m.vn = o.vn
+      LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+      LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+      WHERE o.vstdate BETWEEN ? AND ?
+        AND IFNULL(o.pttype, '') NOT IN ('H1', '35', '36')
+        AND dx.icd10 REGEXP 'B2[0-4]|^C|D[0-4]|I5|I6|J44|K704|K717|K72|N185|Z515|Z718'
+      GROUP BY o.vn
+      HAVING Dx = 'Y'
+      ORDER BY o.hn ASC
+    `;
+    const [rawRows] = await hosPool.query(sql, [ds1, ds2])
+
+    let mapped = (rawRows || []).map((r, idx) => {
+      const z515 = String(r.Z515 || '').trim()
+      const errorName = !z515 ? 'ไม่พบรหัส Z515' : ''
+      let formattedSendDate = null
+      if (r.senddate) {
+        const rawDate = String(r.senddate).trim()
+        const match = rawDate.match(/(\d{4})(\d{2})(\d{2})/)
+        if (match) formattedSendDate = `${match[1]}-${match[2]}-${match[3]}`
+        else formattedSendDate = rawDate
+      }
+      return {
+        no: idx + 1,
+        vn: String(r.vn || ''),
+        cid: String(r.cid || ''),
+        hn: String(r.hn || ''),
+        ptname: String(r.ptname || '').trim(),
+        vstdate: String(r.vstdate || ''),
+        authencode: String(r.authencode || '').trim(),
+        pttype: String(r.pttype || '').trim(),
+        inscl: String(r.inscl || '').trim(),
+        pttypename: String(r.pttypename || '').trim(),
+        address: String(r.address || '').trim(),
+        tel: String(r.tel || '').trim(),
+        cc: String(r.cc || '').trim(),
+        room: String(r.room || '').trim(),
+        spclty: String(r.spclty || '').trim(),
+        diag: String(r.Diag || ''),
+        oper: String(r.Oper || ''),
+        z515,
+        dx: String(r.Dx || '').trim(),
+        z718: String(r.Z718 || '').trim(),
+        cancer: String(r.Cancer || '').trim(),
+        drug: String(r.Drug || '').trim(),
+        death: String(r.death || 'N').trim(),
+        death_date: r.death_date ? String(r.death_date) : null,
+        ok: String(r.OK || ' ').trim(),
+        compensated: Number(r.compensated || 0),
+        rep_invoice: String(r.rep_invoice || '').trim(),
+        eclaim_no: String(r.eclaim_no || '').trim(),
+        senddate: formattedSendDate,
+        status_eclaim: String(r.status_Eclaim || '').trim(),
+        filename_send: String(r.filename_send || '').trim(),
+        error_name: errorName
+      }
+    })
+
+    mapped = mapped.filter(i => !['H1', '35', '36'].includes(i.pttype))
+    if (ucOnly === 'true') mapped = mapped.filter(i => i.inscl === 'UCS')
+    if (filterType === 'Chronic') mapped = mapped.filter(i => i.z718 === 'Y' && i.dx === 'Y')
+    else if (filterType === 'Opioid') mapped = mapped.filter(i => i.cancer === 'Y' && i.drug === 'Y')
+    else if (filterType === 'Death') mapped = mapped.filter(i => i.death === 'Y')
+
+    if (search && search.trim()) {
+      const s = search.trim().toLowerCase()
+      mapped = mapped.filter(i => i.hn.toLowerCase().includes(s) || i.ptname.toLowerCase().includes(s) || i.cid.includes(s) || i.vn.includes(s) || i.diag.toLowerCase().includes(s))
+    }
+
+    mapped.forEach((item, i) => { item.no = i + 1 })
+    const uniquePatients = new Set(mapped.map(i => i.hn))
+
+    const summary = {
+      totalVisits: mapped.length,
+      totalPatients: uniquePatients.size,
+      advanceCarePlanCount: mapped.filter(i => i.z718 === 'Y' && i.dx === 'Y').length,
+      opioidCount: mapped.filter(i => i.cancer === 'Y' && i.drug === 'Y').length,
+      hasZ515Count: mapped.filter(i => i.z515 === 'Y').length,
+      missingZ515Count: mapped.filter(i => !i.z515).length,
+      paidCount: mapped.filter(i => i.ok === 'Y').length,
+      totalCompensated: mapped.reduce((sum, i) => sum + i.compensated, 0),
+      deceasedCount: mapped.filter(i => i.death === 'Y').length
+    }
+
+    return {
+      success: true,
+      ds1,
+      ds2,
+      summary,
+      items: mapped
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+
 // ==================================================================
 // SECTION 2: Salary Database Services (192.168.1.4)
 // ==================================================================

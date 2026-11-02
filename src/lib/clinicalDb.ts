@@ -54,15 +54,19 @@ export function getClinicalPool(): mysql.Pool {
   return pool
 }
 
-import { apiGateway } from '@/lib/apiGateway'
+import { apiGateway, RequestOptions } from '@/lib/apiGateway'
 
 /**
  * Execute clinical queries via the Thoen Unified API Gateway.
  * Fully decoupled from direct MySQL database connections (Zero-DB Architecture).
  * Strict fail-closed: Throws GatewayUnavailableError if the Gateway is down.
  */
-export async function queryClinicalDb<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  return apiGateway.clinical.query<T>(sql, params)
+export async function queryClinicalDb<T = any>(
+  sql: string,
+  params: any[] = [],
+  options?: RequestOptions
+): Promise<T[]> {
+  return apiGateway.clinical.query<T>(sql, params, options)
 }
 
 

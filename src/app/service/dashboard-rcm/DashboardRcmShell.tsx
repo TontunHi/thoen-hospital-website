@@ -15,6 +15,7 @@ import {
   X,
   ArrowLeft,
   TrendingUp,
+  HeartHandshake,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -76,6 +77,24 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         label: 'สรุปรายรับจาก Invoice',
         badge: '5.2.2.1',
         icon: ReceiptText,
+      },
+    ],
+  },
+  {
+    id: 'palliative-care',
+    title: 'Palliative Care',
+    items: [
+      {
+        href: '/service/dashboard-rcm/palliative-care/pc-1',
+        label: 'End Of Life',
+        badge: 'PC.1',
+        icon: HeartHandshake,
+      },
+      {
+        href: '/service/dashboard-rcm/palliative-care/pc-3',
+        label: 'ตามกลุ่มโรค',
+        badge: 'PC.3',
+        icon: HeartHandshake,
       },
     ],
   },

@@ -3,7 +3,7 @@ import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData } from '@/lib/cache'
 
 
-export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
+export type QueryExecutor = (sql: string, params?: any[], options?: any) => Promise<any[]>
 
 // ── 0. Fiscal Date Range & Domain Types ──────────────────────
 
@@ -499,6 +499,153 @@ export interface InvoiceDetailResult {
  * to leverage the indexed `YYMM` column on `rcmdb.repeclaim`.
  * Supports lookbackMonths to catch statements where service occurred in preceding months.
  */
+
+// ── Palliative Care Domain Interfaces ──────────────────────
+
+export interface PalliativeCareItem {
+  no: number
+  vn: string
+  cid: string
+  hn: string
+  ptname: string
+  vstdate: string
+  authencode: string
+  pttype: string
+  inscl: string
+  pttypename: string
+  address: string
+  tel: string
+  cc: string
+  room: string
+  spclty: string
+  diag: string
+  oper: string
+  z515: string // 'Y' | ''
+  dx: string   // 'Y' | ''
+  z718: string // 'Y' | ''
+  cancer: string // 'Y' | ''
+  drug: string   // 'Y' | ''
+  death: string  // 'Y' | 'N'
+  death_date: string | null
+  ok: string     // 'Y' | ' ' (Paid)
+  compensated: number
+  rep_invoice: string
+  eclaim_no: string
+  senddate: string | null
+  status_eclaim: string
+  filename_send: string
+  error_name: string // 'ไม่พบรหัส Z515' when z515 is empty
+}
+
+export interface PalliativeCareSummary {
+  totalVisits: number
+  totalPatients: number
+  advanceCarePlanCount: number // Z718='Y' & Dx='Y'
+  opioidCount: number          // Cancer='Y' & Drug='Y'
+  hasZ515Count: number         // Z515='Y'
+  missingZ515Count: number     // Z515=''
+  paidCount: number            // OK='Y'
+  totalCompensated: number     // sum(compensated)
+  deceasedCount: number        // death='Y'
+}
+
+export const BASE_COMPENSATION_OPTIONS = [750, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000]
+
+export interface PalliativeCareReportParams {
+  startDate?: string
+  endDate?: string
+  ds1?: string
+  ds2?: string
+  ucOnly?: boolean
+  hasRepInvoice?: boolean
+  compensated?: number[] | string
+  paidStatus?: 'ALL' | 'PAID' | 'UNPAID'
+  deathStatus?: 'ALL' | 'Y' | 'N'
+  hn?: string
+  filterType?: 'ALL' | 'Chronic' | 'Opioid' | 'Death'
+  search?: string
+}
+
+export interface PalliativeCareResult {
+  ds1: string
+  ds2: string
+  ucOnly: boolean
+  hasRepInvoice: boolean
+  compensated?: number[] | string
+  paidStatus?: 'ALL' | 'PAID' | 'UNPAID'
+  deathStatus?: 'ALL' | 'Y' | 'N'
+  hn?: string
+  filterType: 'ALL' | 'Chronic' | 'Opioid' | 'Death'
+  summary: PalliativeCareSummary
+  items: PalliativeCareItem[]
+  availableCompensations: number[]
+}
+
+export interface PalliativeCarePc1Item {
+  no: number
+  vn: string
+  cid: string
+  hn: string
+  ptname: string
+  age: number
+  nation: string
+  vstdate: string
+  vsttime: string
+  authencode: string
+  pttypename: string
+  department: string
+  clinic: string
+  pdx: string | null
+  dx0: string | null
+  dx1: string | null
+  dx2: string | null
+  dx3: string | null
+  dx4: string | null
+  dx5: string | null
+  op0: string | null
+  op1: string | null
+  op2: string | null
+  op3: string | null
+  op4: string | null
+  op5: string | null
+  listname: string
+  rep: string | null
+  compensated: number
+  transaction_type: string | null
+  invoice: string | null
+  invoice_compensated: number
+  resource: string | null
+  subfund: string | null
+  remark: string | null
+  projectcode: string | null
+}
+
+export interface PalliativeCarePc1Summary {
+  totalVisits: number
+  totalPatients: number
+  paidCount: number
+  unpaidCount: number
+  totalCompensated: number
+  totalInvoiceCompensated: number
+}
+
+export interface PalliativeCarePc1ReportParams {
+  startDate?: string
+  endDate?: string
+  ds1?: string
+  ds2?: string
+  search?: string
+  paidStatus?: 'ALL' | 'PAID' | 'UNPAID'
+}
+
+export interface PalliativeCarePc1Result {
+  ds1: string
+  ds2: string
+  paidStatus?: 'ALL' | 'PAID' | 'UNPAID'
+  summary: PalliativeCarePc1Summary
+  items: PalliativeCarePc1Item[]
+}
+
 export function dateRangeToYymmList(ds1: string, ds2: string, lookbackMonths = 0): string[] {
   const d1 = new Date(ds1)
   const d2 = new Date(ds2)
@@ -1906,5 +2053,452 @@ export class RcmDashboardService {
       items,
     }
   }
+
+  /**
+   * Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด
+   */
+  static async getPalliativeCareReport(
+    params: PalliativeCareReportParams = {},
+    executor: QueryExecutor = queryClinicalDb
+  ): Promise<PalliativeCareResult> {
+    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const ucOnly = params.ucOnly !== undefined ? Boolean(params.ucOnly) : true
+    const hasRepInvoice = params.hasRepInvoice !== undefined ? Boolean(params.hasRepInvoice) : false
+    const paidStatus = params.paidStatus || 'ALL'
+    const deathStatus = params.deathStatus || 'ALL'
+    const hnFilter = (params.hn || '').trim().toLowerCase()
+    const compensatedExpr = typeof params.compensated === 'string' ? params.compensated.trim() : ''
+    let compensatedFilterNums: number[] = []
+    if (Array.isArray(params.compensated)) {
+      compensatedFilterNums = params.compensated.map(Number).filter((n) => !isNaN(n))
+    } else if (
+      compensatedExpr &&
+      !compensatedExpr.startsWith('>') &&
+      !compensatedExpr.startsWith('<') &&
+      !compensatedExpr.startsWith('=') &&
+      compensatedExpr !== 'ALL' &&
+      compensatedExpr !== 'PAID'
+    ) {
+      compensatedFilterNums = compensatedExpr
+        .split(',')
+        .map((s) => Number(s.trim()))
+        .filter((n) => !isNaN(n))
+    }
+    const filterType = params.filterType || 'ALL'
+    const search = (params.search || '').trim().toLowerCase()
+
+    const cacheKey = `rcm-palliative-care-${ds1}-${ds2}`
+
+    const rawRows = await getCachedData(
+      cacheKey,
+      async () => {
+        const sql = `
+          SELECT 
+            o.vn,
+            IFNULL(pt.cid, '') AS cid,
+            o.hn,
+            CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+            IFNULL(cc.AuthenCode, '') AS authencode,
+            IFNULL(o.pttype, '') AS pttype,
+            IFNULL(ptt.hipdata_code, '') AS inscl,
+            IFNULL(ptt.name, o.pttype) AS pttypename,
+            CONCAT(IFNULL(pt.addrpart,''), ' ม.', IFNULL(pt.moopart,''), ' ', IFNULL(pt.road,'')) AS address,
+            COALESCE(NULLIF(pt.mobile_phone_number,''), NULLIF(pt.informtel,''), '') AS tel,
+            IFNULL(s.cc, '') AS cc,
+            IFNULL(k.department, o.main_dep) AS room,
+            IFNULL(sp.name, o.spclty) AS spclty,
+            CONCAT_WS(',', v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5) AS Diag,
+            CONCAT_WS(',', v.op0, v.op1, v.op2, v.op3, v.op4, v.op5) AS Oper,
+            IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'Z515', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Z515,
+            IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'B2[0-4]|^C|D[0-4]|I5|I6|J44|K704|K717|K72|N185', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Dx,
+            IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'Z718', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Z718,
+            IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^C|D3[7-9]|D4', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Cancer,
+            IFNULL(dr.Drug, '') AS Drug,
+            IFNULL(pt.death, 'N') AS death,
+            DATE_FORMAT(pt.deathday, '%Y-%m-%d') AS death_date,
+            IF(e.hn IS NULL, ' ', 'Y') AS OK,
+            IFNULL(e.PallativeCare, 0) AS compensated,
+            CONCAT_WS('#', e.rep, e.id) AS rep_invoice,
+            CONCAT_WS('#', m.eclaim_no, m.id) AS eclaim_no,
+            m.senddate,
+            CASE 
+              WHEN m.status IS NOT NULL THEN CONCAT(m.status, ' :: ', IFNULL(ecs.name, m.status))
+              ELSE '- :: ยังไม่ได้ส่ง'
+            END AS status_Eclaim,
+            IFNULL(m.filename_send, '') AS filename_send
+          FROM ovst o
+          LEFT JOIN patient pt ON pt.hn = o.hn
+          LEFT JOIN vn_stat v ON v.vn = o.vn 
+          JOIN ovstdiag dx ON dx.vn = o.vn
+          LEFT JOIN opdscreen s ON s.vn = o.vn
+          LEFT JOIN (
+            SELECT DISTINCT oo.vn, 'Y' AS Drug
+            FROM opitemrece oo
+            JOIN drugitems d ON d.icode = oo.icode
+            WHERE d.nhso_adp_code REGEXP '^M'
+              AND oo.vstdate BETWEEN ? AND ?
+          ) dr ON dr.vn = o.vn
+          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype 
+          LEFT JOIN kskdepartment k ON k.depcode = o.main_dep
+          LEFT JOIN spclty sp ON sp.spclty = o.spclty
+          LEFT JOIN (
+            SELECT hn, MAX(PallativeCare) AS PallativeCare, MAX(rep) AS rep, MAX(id) AS id
+            FROM rcmdb.repeclaim
+            WHERE PallativeCare > 0
+            GROUP BY hn
+          ) e ON e.hn = o.hn
+          LEFT JOIN (
+            SELECT 
+              m.opdseq AS vn,
+              MAX(m.eclaim_no) AS eclaim_no,
+              SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT IF(m.status='4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+              SUBSTRING_INDEX(GROUP_CONCAT(m.maininscl ORDER BY m.eclaim_no DESC), ',', 1) AS maininscl,
+              SUBSTRING_INDEX(GROUP_CONCAT(m.status ORDER BY m.eclaim_no DESC), ',', 1) AS status,
+              SUBSTRING_INDEX(GROUP_CONCAT(m.code_id ORDER BY m.eclaim_no DESC), ',', 1) AS errorcode,
+              SUBSTRING_INDEX(GROUP_CONCAT(m.tran_id ORDER BY m.eclaim_no DESC), ',', 1) AS id,
+              SUBSTRING_INDEX(GROUP_CONCAT(UCASE(m.filename_send) ORDER BY m.eclaim_no DESC), ',', 1) AS filename_send,
+              SUBSTRING_INDEX(GROUP_CONCAT(pp.child_dob ORDER BY m.eclaim_no DESC), ',', 1) AS vstdate,
+              SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(m.date_send, m.filename_send) ORDER BY m.eclaim_no DESC), ',', 1) AS senddate
+            FROM eclaimdb.m_registerdata m
+            JOIN eclaimdb.m_ppcom pp ON pp.eclaim_no = m.eclaim_no 
+            WHERE pp.itemname REGEXP '30001'
+              AND m.person_type = '1'
+              AND m.opdseq IS NOT NULL
+            GROUP BY m.opdseq
+          ) m ON m.vn = o.vn
+          LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          WHERE o.vstdate BETWEEN ? AND ?
+            AND IFNULL(o.pttype, '') NOT IN ('H1', '35', '36')
+            AND dx.icd10 REGEXP 'B2[0-4]|^C|D[0-4]|I5|I6|J44|K704|K717|K72|N185|Z515|Z718'
+          GROUP BY o.vn
+          HAVING Dx = 'Y'
+          ORDER BY o.hn ASC
+        `
+        return (await executor(sql, [ds1, ds2, ds1, ds2], { timeoutMs: 120000 })) as any[]
+      },
+      300000 // Cache TTL 5 minutes (300 seconds)
+    )
+
+    // Format & map rows
+    let mapped: PalliativeCareItem[] = (rawRows || []).map((r, idx) => {
+      const z515 = String(r.Z515 || '').trim()
+      const errorName = !z515 ? 'ไม่พบรหัส Z515' : ''
+      let formattedSendDate: string | null = null
+      if (r.senddate) {
+        const rawDate = String(r.senddate).trim()
+        const match = rawDate.match(/(\d{4})(\d{2})(\d{2})/)
+        if (match) {
+          formattedSendDate = `${match[1]}-${match[2]}-${match[3]}`
+        } else {
+          formattedSendDate = rawDate
+        }
+      }
+
+      return {
+        no: idx + 1,
+        vn: String(r.vn || ''),
+        cid: String(r.cid || ''),
+        hn: String(r.hn || ''),
+        ptname: String(r.ptname || '').trim(),
+        vstdate: String(r.vstdate || ''),
+        authencode: String(r.authencode || '').trim(),
+        pttype: String(r.pttype || '').trim(),
+        inscl: String(r.inscl || '').trim(),
+        pttypename: String(r.pttypename || '').trim(),
+        address: String(r.address || '').trim(),
+        tel: String(r.tel || '').trim(),
+        cc: String(r.cc || '').trim(),
+        room: String(r.room || '').trim(),
+        spclty: String(r.spclty || '').trim(),
+        diag: String(r.Diag || ''),
+        oper: String(r.Oper || ''),
+        z515,
+        dx: String(r.Dx || '').trim(),
+        z718: String(r.Z718 || '').trim(),
+        cancer: String(r.Cancer || '').trim(),
+        drug: String(r.Drug || '').trim(),
+        death: String(r.death || 'N').trim(),
+        death_date: r.death_date ? String(r.death_date) : null,
+        ok: String(r.OK || ' ').trim(),
+        compensated: Number(r.compensated || 0),
+        rep_invoice: String(r.rep_invoice || '').trim(),
+        eclaim_no: String(r.eclaim_no || '').trim(),
+        senddate: formattedSendDate,
+        status_eclaim: String(r.status_Eclaim || '').trim(),
+        filename_send: String(r.filename_send || '').trim(),
+        error_name: errorName,
+      }
+    })
+
+    // Apply interactive filters
+    // Exclude H1, 35, 36
+    mapped = mapped.filter((item) => !['H1', '35', '36'].includes(item.pttype))
+
+    if (ucOnly) {
+      mapped = mapped.filter((item) => item.inscl === 'UCS')
+    }
+
+    if (hasRepInvoice) {
+      mapped = mapped.filter((item) => Boolean(item.rep_invoice && item.rep_invoice.trim() !== ''))
+    }
+
+    if (compensatedFilterNums.length > 0) {
+      mapped = mapped.filter((item) => compensatedFilterNums.includes(item.compensated))
+    } else if (compensatedExpr && compensatedExpr !== 'ALL') {
+      if (compensatedExpr === '0') {
+        mapped = mapped.filter((item) => item.compensated === 0)
+      } else if (compensatedExpr === 'PAID' || compensatedExpr === '>0') {
+        mapped = mapped.filter((item) => item.compensated > 0 || item.ok === 'Y')
+      } else if (compensatedExpr.startsWith('>=')) {
+        const t = Number(compensatedExpr.slice(2).trim())
+        if (!isNaN(t)) mapped = mapped.filter((item) => item.compensated >= t)
+      } else if (compensatedExpr.startsWith('>')) {
+        const t = Number(compensatedExpr.slice(1).trim())
+        if (!isNaN(t)) mapped = mapped.filter((item) => item.compensated > t)
+      } else if (compensatedExpr.startsWith('<=')) {
+        const t = Number(compensatedExpr.slice(2).trim())
+        if (!isNaN(t)) mapped = mapped.filter((item) => item.compensated <= t)
+      } else if (compensatedExpr.startsWith('<')) {
+        const t = Number(compensatedExpr.slice(1).trim())
+        if (!isNaN(t)) mapped = mapped.filter((item) => item.compensated < t)
+      } else if (compensatedExpr.startsWith('=')) {
+        const t = Number(compensatedExpr.slice(1).trim())
+        if (!isNaN(t)) mapped = mapped.filter((item) => item.compensated === t)
+      }
+    }
+
+    if (paidStatus === 'PAID') {
+      mapped = mapped.filter((item) => item.ok === 'Y' || item.compensated > 0)
+    } else if (paidStatus === 'UNPAID') {
+      mapped = mapped.filter((item) => item.ok !== 'Y' && item.compensated === 0)
+    }
+
+    if (deathStatus === 'Y') {
+      mapped = mapped.filter((item) => item.death === 'Y')
+    } else if (deathStatus === 'N') {
+      mapped = mapped.filter((item) => item.death === 'N')
+    }
+
+    if (hnFilter) {
+      mapped = mapped.filter((item) => item.hn.toLowerCase().includes(hnFilter))
+    }
+
+    if (filterType === 'Chronic') {
+      mapped = mapped.filter((item) => item.z718 === 'Y' && item.dx === 'Y')
+    } else if (filterType === 'Opioid') {
+      mapped = mapped.filter((item) => item.cancer === 'Y' && item.drug === 'Y')
+    } else if (filterType === 'Death') {
+      mapped = mapped.filter((item) => item.death === 'Y')
+    }
+
+    if (search) {
+      mapped = mapped.filter(
+        (item) =>
+          item.hn.toLowerCase().includes(search) ||
+          item.ptname.toLowerCase().includes(search) ||
+          item.cid.includes(search) ||
+          item.vn.includes(search) ||
+          item.diag.toLowerCase().includes(search)
+      )
+    }
+
+    // Re-index row numbers
+    mapped.forEach((item, i) => {
+      item.no = i + 1
+    })
+
+    const uniquePatients = new Set(mapped.map((item) => item.hn))
+
+    const dbCompensations = (rawRows || [])
+      .map((r) => Number(r.compensated || 0))
+      .filter((val) => val > 0)
+    const availableCompensations = Array.from(
+      new Set([...BASE_COMPENSATION_OPTIONS, ...dbCompensations])
+    ).sort((a, b) => a - b)
+
+    const summary: PalliativeCareSummary = {
+      totalVisits: mapped.length,
+      totalPatients: uniquePatients.size,
+      advanceCarePlanCount: mapped.filter((item) => item.z718 === 'Y' && item.dx === 'Y').length,
+      opioidCount: mapped.filter((item) => item.cancer === 'Y' && item.drug === 'Y').length,
+      hasZ515Count: mapped.filter((item) => item.z515 === 'Y').length,
+      missingZ515Count: mapped.filter((item) => !item.z515).length,
+      paidCount: mapped.filter((item) => item.ok === 'Y').length,
+      totalCompensated: mapped.reduce((sum, item) => sum + item.compensated, 0),
+      deceasedCount: mapped.filter((item) => item.death === 'Y').length,
+    }
+
+    return {
+      ds1,
+      ds2,
+      ucOnly,
+      hasRepInvoice,
+      compensated: params.compensated,
+      paidStatus,
+      deathStatus,
+      hn: hnFilter,
+      filterType,
+      summary,
+      items: mapped,
+      availableCompensations,
+    }
+  }
+
+  /**
+   * Palliative Care End Of Life (PC.1)
+   * บริการ Palliative Care End Of Life ตามรหัส ADP 30001
+   */
+  static async getPalliativeCarePc1Report(
+    params: PalliativeCarePc1ReportParams = {},
+    executor: QueryExecutor = queryClinicalDb
+  ): Promise<PalliativeCarePc1Result> {
+    const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
+    const paidStatus = params.paidStatus || 'ALL'
+    const search = (params.search || '').trim().toLowerCase()
+
+    const cacheKey = `rcm-palliative-care-pc1-${ds1}-${ds2}`
+
+    const rawRows = await getCachedData(
+      cacheKey,
+      async () => {
+        const sql = `
+          SELECT 
+            o.vn,
+            IFNULL(pt.cid, '') AS cid,
+            o.hn,
+            CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+            TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate) AS age,
+            IFNULL(n.name, IFNULL(pt.nationality, '')) AS nation,
+            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
+            IFNULL(cc.AuthenCode, '') AS authencode,
+            IFNULL(ptt.name, o.pttype) AS pttypename,
+            IFNULL(k.department, o.main_dep) AS department,
+            IFNULL(sp.name, o.spclty) AS clinic,
+            v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
+            v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
+            dd.listname,
+            rd.rep,
+            IFNULL(rd.compensated, 0) AS compensated,
+            rd.TransactionType AS transaction_type,
+            re.rep AS invoice,
+            IFNULL(re.compensated, 0) AS invoice_compensated,
+            re.resource,
+            rd.subfund,
+            rd.remark,
+            rd.projectcode
+          FROM ovst o
+          JOIN (
+            SELECT 
+              oo.vn,
+              GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, d.strength) SEPARATOR ', ') AS listname
+            FROM opitemrece oo
+            JOIN s_drugitems d ON d.icode = oo.icode
+            WHERE oo.vstdate BETWEEN ? AND ?
+              AND d.nhso_adp_code IN ('30001')
+            GROUP BY oo.vn
+          ) dd ON dd.vn = o.vn
+          LEFT JOIN patient pt ON pt.hn = o.hn
+          LEFT JOIN vn_stat v ON v.vn = o.vn
+          LEFT JOIN nationality n ON n.nationality = pt.nationality
+          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+          LEFT JOIN kskdepartment k ON k.depcode = o.main_dep
+          LEFT JOIN spclty sp ON sp.spclty = o.spclty
+          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN rcmdb.repdata rd ON rd.vn = o.vn
+          LEFT JOIN rcmdb.repeclaim re ON re.vn = o.vn
+          WHERE o.vstdate BETWEEN ? AND ?
+          GROUP BY o.vn
+          ORDER BY o.hn ASC, o.vn ASC
+        `
+        return (await executor(sql, [ds1, ds2, ds1, ds2], { timeoutMs: 120000 })) as any[]
+      },
+      300000 // Cache TTL 5 minutes
+    )
+
+    let mapped: PalliativeCarePc1Item[] = (rawRows || []).map((r, idx) => ({
+      no: idx + 1,
+      vn: String(r.vn || ''),
+      cid: String(r.cid || ''),
+      hn: String(r.hn || ''),
+      ptname: String(r.ptname || '').trim(),
+      age: Number(r.age || 0),
+      nation: String(r.nation || 'ไทย').trim(),
+      vstdate: String(r.vstdate || ''),
+      vsttime: String(r.vsttime || ''),
+      authencode: String(r.authencode || ''),
+      pttypename: String(r.pttypename || ''),
+      department: String(r.department || ''),
+      clinic: String(r.clinic || ''),
+      pdx: r.pdx ? String(r.pdx) : null,
+      dx0: r.dx0 ? String(r.dx0) : null,
+      dx1: r.dx1 ? String(r.dx1) : null,
+      dx2: r.dx2 ? String(r.dx2) : null,
+      dx3: r.dx3 ? String(r.dx3) : null,
+      dx4: r.dx4 ? String(r.dx4) : null,
+      dx5: r.dx5 ? String(r.dx5) : null,
+      op0: r.op0 ? String(r.op0) : null,
+      op1: r.op1 ? String(r.op1) : null,
+      op2: r.op2 ? String(r.op2) : null,
+      op3: r.op3 ? String(r.op3) : null,
+      op4: r.op4 ? String(r.op4) : null,
+      op5: r.op5 ? String(r.op5) : null,
+      listname: String(r.listname || ''),
+      rep: r.rep ? String(r.rep) : null,
+      compensated: Number(r.compensated || 0),
+      transaction_type: r.transaction_type ? String(r.transaction_type) : null,
+      invoice: r.invoice ? String(r.invoice) : null,
+      invoice_compensated: Number(r.invoice_compensated || 0),
+      resource: r.resource ? String(r.resource) : null,
+      subfund: r.subfund ? String(r.subfund) : null,
+      remark: r.remark ? String(r.remark) : null,
+      projectcode: r.projectcode ? String(r.projectcode) : null,
+    }))
+
+    if (paidStatus === 'PAID') {
+      mapped = mapped.filter((item) => item.compensated > 0)
+    } else if (paidStatus === 'UNPAID') {
+      mapped = mapped.filter((item) => item.compensated === 0)
+    }
+
+    if (search) {
+      mapped = mapped.filter(
+        (item) =>
+          item.hn.toLowerCase().includes(search) ||
+          item.ptname.toLowerCase().includes(search) ||
+          item.cid.includes(search) ||
+          item.vn.includes(search) ||
+          (item.pdx && item.pdx.toLowerCase().includes(search)) ||
+          item.listname.toLowerCase().includes(search)
+      )
+    }
+
+    // Re-index row numbers
+    mapped.forEach((item, i) => {
+      item.no = i + 1
+    })
+
+    const uniquePatients = new Set(mapped.map((item) => item.hn))
+
+    const summary: PalliativeCarePc1Summary = {
+      totalVisits: mapped.length,
+      totalPatients: uniquePatients.size,
+      paidCount: mapped.filter((item) => item.compensated > 0).length,
+      unpaidCount: mapped.filter((item) => item.compensated === 0).length,
+      totalCompensated: mapped.reduce((sum, item) => sum + item.compensated, 0),
+      totalInvoiceCompensated: mapped.reduce((sum, item) => sum + item.invoice_compensated, 0),
+    }
+
+    return {
+      ds1,
+      ds2,
+      paidStatus,
+      summary,
+      items: mapped,
+    }
+  }
+
 }
 
