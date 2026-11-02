@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "b72cc602f3ae807dfaa7c32094cf01b3156c1f66",
-  "generatedAt": "2026-11-01T09:46:16.535Z",
+  "gitCommitHash": "54c405180e5cd024d8df99a50a538e8646dd794d",
+  "generatedAt": "2026-11-02T05:55:12.586Z",
   "files": {
     ".agents/skills/audit-logging/SKILL.md": {
       "filePath": ".agents/skills/audit-logging/SKILL.md",
@@ -245,12 +245,12 @@
     },
     "README.md": {
       "filePath": "README.md",
-      "contentHash": "70d1b86ef80a94645c29bddace91732a1863c20140c2fee0dfa12f37cfcf01ae",
+      "contentHash": "c97f1759953b40277eb4c48d842f26b13862e39fc6657913478d86249f23c295",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 266,
+      "totalLines": 208,
       "hasStructuralAnalysis": false
     },
     "docs/ZERO_DB_GATEWAY_PLAN.md": {
@@ -3518,7 +3518,7 @@
     },
     "src/app/api/departments/members/search-system/route.ts": {
       "filePath": "src/app/api/departments/members/search-system/route.ts",
-      "contentHash": "6e6eb2796adf812525323572720c6c10d4e79160bf68bf9b7cb754869617b88b",
+      "contentHash": "6a4bea2ab4d27181f2038e62699a67102642b3bfccbff1f71cb9e9149783e4b6",
       "functions": [
         {
           "name": "GET",
@@ -3526,7 +3526,7 @@
             "request"
           ],
           "exported": true,
-          "lineCount": 39
+          "lineCount": 46
         }
       ],
       "classes": [],
@@ -3548,12 +3548,18 @@
           "specifiers": [
             "queryMemberDb"
           ]
+        },
+        {
+          "source": "@/lib/departments/departmentImageUtils",
+          "specifiers": [
+            "resolvePublicProfilePath"
+          ]
         }
       ],
       "exports": [
         "GET"
       ],
-      "totalLines": 44,
+      "totalLines": 52,
       "hasStructuralAnalysis": true
     },
     "src/app/api/departments/members/upload/route.ts": {
@@ -4273,7 +4279,7 @@
     },
     "src/app/api/kpi/export/route.ts": {
       "filePath": "src/app/api/kpi/export/route.ts",
-      "contentHash": "e502f873b62588644bcd641e79d2eeab37f845df68fac1696957bf5d5b111520",
+      "contentHash": "977c00582d48f9f9f2fd58408e3bb357454c301ca6af2d2d763312d447352a23",
       "functions": [
         {
           "name": "GET",
@@ -4281,7 +4287,7 @@
             "req"
           ],
           "exported": true,
-          "lineCount": 75
+          "lineCount": 78
         }
       ],
       "classes": [],
@@ -4315,7 +4321,7 @@
       "exports": [
         "GET"
       ],
-      "totalLines": 81,
+      "totalLines": 84,
       "hasStructuralAnalysis": true
     },
     "src/app/api/kpi/import/route.ts": {
@@ -11947,7 +11953,7 @@
     },
     "src/app/member/equipment-borrow/EquipmentBorrowClient.tsx": {
       "filePath": "src/app/member/equipment-borrow/EquipmentBorrowClient.tsx",
-      "contentHash": "4e5efa1f8e02b9d1658b7279bf6ab53599ddef6838a7dee0dc3ea4292fc9adbd",
+      "contentHash": "27b8f5028b43a614298c0db432fb2406bf41c863af667cc90a00cd348bf2046e",
       "functions": [
         {
           "name": "EquipmentBorrowClient",
@@ -11955,7 +11961,7 @@
             "{\r\n  initialStats,\r\n  currentUser,\r\n}"
           ],
           "exported": true,
-          "lineCount": 2177
+          "lineCount": 2243
         }
       ],
       "classes": [],
@@ -12006,7 +12012,8 @@
             "SlidersHorizontal",
             "FolderOpen",
             "Eye",
-            "Building2"
+            "Building2",
+            "Power"
           ]
         },
         {
@@ -12023,7 +12030,7 @@
       "exports": [
         "EquipmentBorrowClient"
       ],
-      "totalLines": 2318,
+      "totalLines": 2385,
       "hasStructuralAnalysis": true
     },
     "src/app/member/equipment-borrow/equipment-borrow.css": {
@@ -14680,7 +14687,7 @@
     },
     "src/app/member/organization/OrganizationAdminClient.tsx": {
       "filePath": "src/app/member/organization/OrganizationAdminClient.tsx",
-      "contentHash": "da89a8873bd168cbdf447d0ad744ebdb8a957299b1626764b778b8e769ed5611",
+      "contentHash": "0f6eac6d0f7aee334b1d56ce00fa292ae3041c23604fcf9792a9ca514fef6f4b",
       "functions": [
         {
           "name": "findGroupName",
@@ -14718,7 +14725,7 @@
             "{ currentAdmin }"
           ],
           "exported": true,
-          "lineCount": 1518
+          "lineCount": 1666
         }
       ],
       "classes": [],
@@ -14729,7 +14736,8 @@
             "React",
             "useState",
             "useEffect",
-            "useMemo"
+            "useMemo",
+            "useRef"
           ]
         },
         {
@@ -14760,7 +14768,14 @@
             "FolderTree",
             "Filter",
             "CheckCircle2",
-            "UserCheck"
+            "UserCheck",
+            "Crop"
+          ]
+        },
+        {
+          "source": "@/components/ui/ImageCropModal",
+          "specifiers": [
+            "ImageCropModal"
           ]
         },
         {
@@ -14796,7 +14811,7 @@
       "exports": [
         "OrganizationAdminClient"
       ],
-      "totalLines": 1627,
+      "totalLines": 1777,
       "hasStructuralAnalysis": true
     },
     "src/app/member/organization/page.css": {
@@ -19907,7 +19922,7 @@
     },
     "src/app/service/kpi-tracker/KpiTrackerClient.tsx": {
       "filePath": "src/app/service/kpi-tracker/KpiTrackerClient.tsx",
-      "contentHash": "1e51f62b1d296c714b7cdf5f1270d93bfe9aff39e352750b7d7dae64c2259223",
+      "contentHash": "168ef8e5399aea1bbca635e46c709d17f9e3bc8331599efba97a73eb99c25aef",
       "functions": [
         {
           "name": "formatThaiDate",
@@ -19924,7 +19939,7 @@
             "{ currentUser }"
           ],
           "exported": true,
-          "lineCount": 1948
+          "lineCount": 2181
         }
       ],
       "classes": [],
@@ -19963,7 +19978,6 @@
             "RefreshCw",
             "X",
             "Calculator",
-            "User",
             "AlertTriangle",
             "Building2",
             "ShieldCheck",
@@ -20001,7 +20015,10 @@
           "source": "@/lib/kpi/kpiTimeUtils",
           "specifiers": [
             "getPeriodsForFrequency",
-            "checkPeriodStatus"
+            "checkPeriodStatus",
+            "checkIndicatorDueStatus",
+            "IndicatorDueStatus",
+            "isIndicatorAnsweredForPeriod"
           ]
         },
         {
@@ -20012,17 +20029,17 @@
       "exports": [
         "KpiTrackerClient"
       ],
-      "totalLines": 2012,
+      "totalLines": 2244,
       "hasStructuralAnalysis": true
     },
     "src/app/service/kpi-tracker/kpi-tracker.css": {
       "filePath": "src/app/service/kpi-tracker/kpi-tracker.css",
-      "contentHash": "9392130f01b546db1687093f66f7aae47a238d36f2ee75612e79bfb8b8ab65dc",
+      "contentHash": "e7d8ce67256fc660bd3c623a8e4252dbfff579fc2313dfbed07ada2a0c27adfd",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 1421,
+      "totalLines": 1427,
       "hasStructuralAnalysis": false
     },
     "src/app/service/kpi-tracker/page.tsx": {
@@ -23607,7 +23624,7 @@
     },
     "src/lib/departments/departmentService.ts": {
       "filePath": "src/lib/departments/departmentService.ts",
-      "contentHash": "f90a5149019434ae459c1408b8833823f9b1568f37002b17b1591df61b44f9f1",
+      "contentHash": "a8d5445ed91bc37dd5112b26ef255f48550c61c26e1c5f3bc940c00695416a01",
       "functions": [],
       "classes": [
         {
@@ -23630,7 +23647,7 @@
           ],
           "properties": [],
           "exported": true,
-          "lineCount": 459
+          "lineCount": 460
         }
       ],
       "imports": [
@@ -23647,6 +23664,12 @@
           ]
         },
         {
+          "source": "./departmentImageUtils",
+          "specifiers": [
+            "resolvePublicProfilePath"
+          ]
+        },
+        {
           "source": "zod",
           "specifiers": [
             "z"
@@ -23657,12 +23680,12 @@
         "DepartmentService",
         "departmentService"
       ],
-      "totalLines": 526,
+      "totalLines": 528,
       "hasStructuralAnalysis": true
     },
     "src/lib/equipment/equipmentBorrowService.ts": {
       "filePath": "src/lib/equipment/equipmentBorrowService.ts",
-      "contentHash": "037ba1332aa5048f7ce29ca3f388561ede3d403c6f56b723e112dbf96e1d431a",
+      "contentHash": "9ecdd472edf77470ef9fd653072a85a1a2b8294ebaa327d45e1888c60eb75eaa",
       "functions": [
         {
           "name": "mapDbRowToMaterial",
@@ -23716,7 +23739,7 @@
           ],
           "properties": [],
           "exported": true,
-          "lineCount": 2026
+          "lineCount": 2004
         }
       ],
       "imports": [
@@ -23749,7 +23772,7 @@
         "EquipmentBorrowService",
         "equipmentBorrowService"
       ],
-      "totalLines": 2183,
+      "totalLines": 2161,
       "hasStructuralAnalysis": true
     },
     "src/lib/events/eventLeaderboardService.ts": {
@@ -24305,7 +24328,7 @@
     },
     "src/lib/kpi/kpiExportService.ts": {
       "filePath": "src/lib/kpi/kpiExportService.ts",
-      "contentHash": "847dd894931d7a1f9273220a1d11a4a9c9d19f07824f2302d9291ad36c2f5592",
+      "contentHash": "e7026238a0a0a43caabaf4807d16fe704959444dd081d3aaa2e6dedc9b2d59b9",
       "functions": [
         {
           "name": "formatThaiDateFull",
@@ -24346,7 +24369,7 @@
           ],
           "properties": [],
           "exported": true,
-          "lineCount": 137
+          "lineCount": 147
         }
       ],
       "imports": [
@@ -24369,17 +24392,24 @@
             "KpiIndicatorItem",
             "QueryExecutor"
           ]
+        },
+        {
+          "source": "./kpiTimeUtils",
+          "specifiers": [
+            "checkIndicatorDueStatus",
+            "isIndicatorAnsweredForPeriod"
+          ]
         }
       ],
       "exports": [
         "KpiExportService"
       ],
-      "totalLines": 428,
+      "totalLines": 441,
       "hasStructuralAnalysis": true
     },
     "src/lib/kpi/kpiService.ts": {
       "filePath": "src/lib/kpi/kpiService.ts",
-      "contentHash": "577e600696c15deaf60f130aed8932dfe0c89327cf70f26f4766846ef2888efd",
+      "contentHash": "bc37dcf041874c4db94f7f06da1e2f09024e2697e709d01143ebae46ba91c7d8",
       "functions": [
         {
           "name": "cleanPeriodLabel",
@@ -24422,7 +24452,7 @@
           ],
           "properties": [],
           "exported": true,
-          "lineCount": 791
+          "lineCount": 832
         }
       ],
       "imports": [
@@ -24442,7 +24472,8 @@
           "source": "./kpiTimeUtils",
           "specifiers": [
             "checkPeriodStatus",
-            "getPeriodsForFrequency"
+            "getPeriodsForFrequency",
+            "checkIndicatorDueStatus"
           ]
         }
       ],
@@ -24451,12 +24482,12 @@
         "cleanAuthorName",
         "KpiService"
       ],
-      "totalLines": 933,
+      "totalLines": 974,
       "hasStructuralAnalysis": true
     },
     "src/lib/kpi/kpiTimeUtils.ts": {
       "filePath": "src/lib/kpi/kpiTimeUtils.ts",
-      "contentHash": "9e2a1b5731ef4956aa1080081e73f51310debe60d657c73a6c98a5cfcd99f091",
+      "contentHash": "303488c4d2ed55c4cf481bcfb9b2dd8da51bf7995e4aaa67e1a349a921fa962a",
       "functions": [
         {
           "name": "getPeriodsForFrequency",
@@ -24487,6 +24518,28 @@
           "returnType": "{ isOpen: boolean; unlockDate: Date; unlockDateFormatted: string; message: string }",
           "exported": true,
           "lineCount": 27
+        },
+        {
+          "name": "checkIndicatorDueStatus",
+          "params": [
+            "frequency",
+            "fiscalYearBe",
+            "currentDate",
+            "daysAhead"
+          ],
+          "returnType": "IndicatorDueStatus",
+          "exported": true,
+          "lineCount": 67
+        },
+        {
+          "name": "isIndicatorAnsweredForPeriod",
+          "params": [
+            "ind",
+            "periodKey"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 28
         }
       ],
       "classes": [],
@@ -24495,9 +24548,11 @@
         "FREQUENCY_PERIODS",
         "getPeriodsForFrequency",
         "getFiscalStartYearCe",
-        "checkPeriodStatus"
+        "checkPeriodStatus",
+        "checkIndicatorDueStatus",
+        "isIndicatorAnsweredForPeriod"
       ],
-      "totalLines": 142,
+      "totalLines": 268,
       "hasStructuralAnalysis": true
     },
     "src/lib/logger.ts": {
@@ -26615,6 +26670,138 @@
       "exports": [],
       "totalLines": 23,
       "hasStructuralAnalysis": false
+    },
+    "src/components/ui/ImageCropModal.module.css": {
+      "filePath": "src/components/ui/ImageCropModal.module.css",
+      "contentHash": "86760e3cc1a269481ef34cf2c522132a4e3b435ebbf5ec3fe87b8c0751dbca99",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 485,
+      "hasStructuralAnalysis": false
+    },
+    "src/components/ui/ImageCropModal.tsx": {
+      "filePath": "src/components/ui/ImageCropModal.tsx",
+      "contentHash": "b774e7ebc7e73096e226828e8464dd13bc5e433c30e5f42ce8035447d85ce2cb",
+      "functions": [
+        {
+          "name": "computeImageLayout",
+          "params": [
+            "viewportW",
+            "viewportH",
+            "img",
+            "rotation",
+            "zoom"
+          ],
+          "returnType": "ImageLayout",
+          "exported": false,
+          "lineCount": 32
+        },
+        {
+          "name": "getCropScreenRect",
+          "params": [
+            "layout",
+            "crop"
+          ],
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "hitTestCrop",
+          "params": [
+            "mx",
+            "my",
+            "cropRect"
+          ],
+          "returnType": "DragType | null",
+          "exported": false,
+          "lineCount": 51
+        },
+        {
+          "name": "ImageCropModal",
+          "params": [
+            "{\n  isOpen,\n  imageSrc,\n  title = 'ตัดครอบรูปถ่ายบุคลากร (Crop Staff Photo)',\n  subtitle = 'ปรับสัดส่วนภาพและเลือกตำแหน่งที่ต้องการแสดงผลบนเว็บไซต์',\n  initialAspectRatio = 3 / 4,\n  fileName = 'staff-photo.png',\n  onClose,\n  onSave\n}"
+          ],
+          "exported": true,
+          "lineCount": 774
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "React",
+            "useState",
+            "useEffect",
+            "useRef",
+            "useCallback"
+          ]
+        },
+        {
+          "source": "lucide-react",
+          "specifiers": [
+            "X",
+            "CropIcon",
+            "RotateCw",
+            "FlipHorizontal",
+            "ZoomIn",
+            "ZoomOut",
+            "Check",
+            "ResetIcon",
+            "Loader2",
+            "Move"
+          ]
+        },
+        {
+          "source": "./ImageCropModal.module.css",
+          "specifiers": [
+            "styles"
+          ]
+        }
+      ],
+      "exports": [
+        "ImageCropModal"
+      ],
+      "totalLines": 919,
+      "hasStructuralAnalysis": true
+    },
+    "src/lib/departments/departmentImageUtils.ts": {
+      "filePath": "src/lib/departments/departmentImageUtils.ts",
+      "contentHash": "640d9a096219719a40f7d45b3ccdbf2afe56c0f7c31c2b3b3f1bfe3d3042f8e7",
+      "functions": [
+        {
+          "name": "resolvePublicProfilePath",
+          "params": [
+            "rawPath",
+            "memberId"
+          ],
+          "returnType": "Promise<string | null>",
+          "exported": true,
+          "lineCount": 32
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "path",
+          "specifiers": [
+            "path"
+          ]
+        },
+        {
+          "source": "@/lib/storage/documentStorage",
+          "specifiers": [
+            "DocumentStorage"
+          ]
+        }
+      ],
+      "exports": [
+        "resolvePublicProfilePath"
+      ],
+      "totalLines": 43,
+      "hasStructuralAnalysis": true
     }
   }
 }
