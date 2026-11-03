@@ -160,4 +160,46 @@ describe('PalliativeRegistryClient Component', () => {
       })
     }
   })
+
+  it('highlights death cells with death color theme when death information exists', async () => {
+    const mockDeceasedData = {
+      ...mockData,
+      items: [
+        {
+          ...mockData.items[0],
+          id: 2,
+          hn: '000999',
+          patientName: 'นายผู้ล่วงลับ ทดสอบ',
+          deathDate: '2026-10-15',
+          deathEntryStatus: 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ',
+        },
+      ],
+    }
+
+    vi.mocked(global.fetch).mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockDeceasedData),
+      } as any)
+    )
+
+    const { container } = render(<PalliativeRegistryClient userRole="admin" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นายผู้ล่วงลับ ทดสอบ')).toBeInTheDocument()
+    })
+
+    // Check that pcr-cell-death class is applied to the death cells
+    const deathCells = container.querySelectorAll('.pcr-cell-death')
+    expect(deathCells.length).toBeGreaterThanOrEqual(2)
+
+    // Check that the death input contains the death date
+    const deathInput = container.querySelector('.pcr-death-input') as HTMLInputElement
+    expect(deathInput).toBeDefined()
+    expect(deathInput.value).toBe('2026-10-15')
+
+    // Check that row has pcr-row-death class
+    const deathRow = container.querySelector('.pcr-row-death')
+    expect(deathRow).toBeDefined()
+  })
 })

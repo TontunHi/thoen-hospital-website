@@ -520,6 +520,60 @@
   border: 1px solid var(--pc-border);
 }
 
+/* ────────────────────────────────────────────────────────────
+   Deceased Patient Highlighting (สีของเสียชีวิต - Rose / Pink)
+   1 สี = 1 ความหมาย: สีชมพูสำหรับผู้ป่วยเสียชีวิต
+   ──────────────────────────────────────────────────────────── */
+.pcr-cell-death {
+  background-color: #fff1f2 !important;
+  color: #9f1239 !important;
+  border-color: #fecdd3 !important;
+}
+
+.pcr-table tbody tr:hover .pcr-cell-death {
+  background-color: #ffe4e6 !important;
+}
+
+.pcr-death-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #ffe4e6;
+  color: #9f1239;
+  border: 1px solid #f43f5e;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pcr-death-input {
+  background-color: #ffffff !important;
+  border-color: #f43f5e !important;
+  color: #9f1239 !important;
+  font-weight: 600;
+}
+
+.pcr-death-input:focus {
+  border-color: #be123c !important;
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.25) !important;
+}
+
+.pcr-death-select {
+  border-color: #f43f5e !important;
+  font-weight: 700;
+}
+
+.pcr-row-death {
+  border-left: 3.5px solid #f43f5e;
+}
+
+.pcr-row-death:hover {
+  background-color: #fff9f9 !important;
+}
+
 /* 8. Google Sheets Inline Editing Cells */
 .pcr-sheet-cell {
   position: relative;

@@ -257,21 +257,23 @@ function EditableDeathCell({
   isSavedDate,
   isSavedStatus,
 }: EditableDeathCellProps) {
-  const date = item.deathDate || ''
-  const status = item.deathEntryStatus || ''
+  const date = (item.deathDate || '').trim()
+  const status = (item.deathEntryStatus || '').trim()
+  const hasDeathInfo = Boolean(date || status)
   const isDone = status === 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ' || status === 'ลงข้อมูลแล้ว'
-  const badgeClass = isDone ? 'pcr-tag-rose' : status ? 'pcr-tag-amber' : 'pcr-tag-neutral'
+  const badgeClass = isDone || hasDeathInfo ? 'pcr-tag-rose' : status ? 'pcr-tag-amber' : 'pcr-tag-neutral'
 
   return (
     <>
       <td
-        style={{ fontSize: '0.8rem', minWidth: 85 }}
-        className={isSavedDate ? 'just-saved' : ''}
+        style={{ fontSize: '0.8rem', minWidth: 95 }}
+        className={`${isSavedDate ? 'just-saved' : ''} ${hasDeathInfo ? 'pcr-cell-death' : ''}`}
+        title={hasDeathInfo ? `ผู้ป่วยเสียชีวิต: ${date || 'มีข้อมูลการเสียชีวิต'}` : undefined}
       >
         {canEdit ? (
           <input
             type="text"
-            className="pcr-sheet-date-input"
+            className={`pcr-sheet-date-input ${hasDeathInfo ? 'pcr-death-input' : ''}`}
             placeholder="วว/ดด/ปปปป"
             defaultValue={date}
             key={`${item.id}-death-${date}`}
@@ -285,14 +287,18 @@ function EditableDeathCell({
             }}
             title="วันที่เสียชีวิต (Enter เพื่อบันทึก)"
           />
+        ) : date ? (
+          <span className="pcr-death-chip">{date}</span>
         ) : (
-          date || '-'
+          '-'
         )}
       </td>
-      <td className={isSavedStatus ? 'just-saved' : ''}>
+      <td
+        className={`${isSavedStatus ? 'just-saved' : ''} ${hasDeathInfo ? 'pcr-cell-death' : ''}`}
+      >
         {canEdit ? (
           <select
-            className={`pcr-sheet-select pcr-tag ${badgeClass}`}
+            className={`pcr-sheet-select pcr-tag ${badgeClass} ${hasDeathInfo ? 'pcr-death-select' : ''}`}
             value={status}
             onChange={(e) => onSaveStatus(e.target.value)}
             title="คลิกเพื่อเลือกสถานะการลงข้อมูลเสียชีวิต"
@@ -934,8 +940,9 @@ export default function PalliativeRegistryClient({
               ) : (
                 items.map((item, idx) => {
                   const rowNum = (page - 1) * 50 + idx + 1
+                  const hasDeathInfo = Boolean(item.deathDate?.trim() || item.deathEntryStatus?.trim())
                   return (
-                    <tr key={item.id}>
+                    <tr key={item.id} className={hasDeathInfo ? 'pcr-row-death' : ''}>
                       <td style={{ color: 'var(--pc-muted)', fontWeight: 600 }}>{rowNum}</td>
                       <td
                         style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--pc-ink)' }}
