@@ -574,6 +574,63 @@
   background-color: #fff9f9 !important;
 }
 
+/* ────────────────────────────────────────────────────────────
+   Unified Visit Cell & Rep Compensation Styling
+   ──────────────────────────────────────────────────────────── */
+.pcr-visit-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 105px;
+  padding: 2px;
+}
+
+.pcr-rep-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.pcr-rep-paid {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #10b981;
+}
+
+.pcr-rep-pending {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.pcr-rep-amount {
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.pcr-remark-badge {
+  display: inline-block;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #fff1f2;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+  cursor: help;
+}
+
 /* 8. Google Sheets Inline Editing Cells */
 .pcr-sheet-cell {
   position: relative;
