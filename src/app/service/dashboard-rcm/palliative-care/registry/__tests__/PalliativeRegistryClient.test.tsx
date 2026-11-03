@@ -102,4 +102,62 @@ describe('PalliativeRegistryClient Component', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('การเยี่ยมครั้งที่ 1')).toBeInTheDocument()
   })
+
+  it('allows inline cell editing like Google Sheets on click and saves on Enter', async () => {
+    render(<PalliativeRegistryClient userRole="admin" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นางจันทนา ตันมา')).toBeInTheDocument()
+    })
+
+    // Click to start editing cell
+    const nameCell = screen.getByText('นางจันทนา ตันมา')
+    fireEvent.click(nameCell)
+
+    // Input appears
+    const input = screen.getByDisplayValue('นางจันทนา ตันมา')
+    expect(input).toBeInTheDocument()
+
+    // Change value and press Enter
+    fireEvent.change(input, { target: { value: 'นางจันทนา ตันมา (แก้ไขด่วน)' } })
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
+
+    // Verify PUT request dispatched
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/service/dashboard-rcm/palliative-care/registry/1'),
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ patientName: 'นางจันทนา ตันมา (แก้ไขด่วน)' }),
+        })
+      )
+    })
+  })
+
+  it('allows changing dropdown status directly in table cell and auto-saves', async () => {
+    render(<PalliativeRegistryClient userRole="admin" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นางจันทนา ตันมา')).toBeInTheDocument()
+    })
+
+    const selects = screen.getAllByRole('combobox')
+    // Find the registration status select within the table
+    const regSelect = selects.find((s) => (s as HTMLSelectElement).value === 'ดำเนินการเรียบร้อย')
+    expect(regSelect).toBeDefined()
+
+    if (regSelect) {
+      fireEvent.change(regSelect, { target: { value: 'ยังไม่ได้ดำเนินการ' } })
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/service/dashboard-rcm/palliative-care/registry/1'),
+          expect.objectContaining({
+            method: 'PUT',
+            body: JSON.stringify({ registrationStatus: 'ยังไม่ได้ดำเนินการ' }),
+          })
+        )
+      })
+    }
+  })
 })

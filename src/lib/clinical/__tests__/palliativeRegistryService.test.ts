@@ -1,15 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/prisma', () => {
+vi.mock('@/lib/apiGateway', () => {
   return {
-    prisma: {
-      palliativeCareRegistry: {
-        findMany: vi.fn(),
-        findUnique: vi.fn(),
-        count: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
+    apiGateway: {
+      app: {
+        getPalliativeRegistries: vi.fn(),
+        getPalliativeRegistryById: vi.fn(),
+        createPalliativeRegistry: vi.fn(),
+        updatePalliativeRegistry: vi.fn(),
+        deletePalliativeRegistry: vi.fn(),
       },
     },
   }
@@ -28,7 +27,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 import { PalliativeRegistryService } from '../palliativeRegistryService'
-import { prisma } from '@/lib/prisma'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 
 describe('PalliativeRegistryService', () => {
@@ -36,30 +35,41 @@ describe('PalliativeRegistryService', () => {
     vi.clearAllMocks()
   })
 
-  it('lists registries with filters and computes correct stats', async () => {
-    const mockItems = [
-      {
-        id: 1,
-        hn: '000206',
-        patientName: 'นางจันทนา ตันมา',
-        registrationStatus: 'ดำเนินการเรียบร้อย',
-        claimStatus: 'ลงข้อมูล',
-        claimResult: 'ได้เงิน',
+  it('lists registries with filters and returns stats from gateway', async () => {
+    const mockResponse = {
+      items: [
+        {
+          id: 1,
+          hn: '000206',
+          patientName: 'นางจันทนา ตันมา',
+          registrationStatus: 'ดำเนินการเรียบร้อย',
+          claimStatus: 'ลงข้อมูล',
+          claimResult: 'ได้เงิน',
+        },
+        {
+          id: 2,
+          hn: '000555',
+          patientName: 'นายสมคิด ใจดี',
+          registrationStatus: 'ยังไม่ได้ดำเนินการ',
+          claimStatus: 'ยังไม่ได้ลงข้อมูล',
+          claimResult: 'ติด C / Deny',
+        },
+      ],
+      total: 2,
+      page: 1,
+      limit: 10,
+      totalPages: 1,
+      stats: {
+        total: 2,
+        registered: 1,
+        pendingRegistration: 1,
+        claimed: 1,
+        paid: 1,
+        deny: 1,
       },
-      {
-        id: 2,
-        hn: '000555',
-        patientName: 'นายสมคิด ใจดี',
-        registrationStatus: 'ยังไม่ได้ดำเนินการ',
-        claimStatus: 'ยังไม่ได้ลงข้อมูล',
-        claimResult: 'ติด C / Deny',
-      },
-    ]
+    }
 
-    vi.mocked((prisma as any).palliativeCareRegistry.findMany)
-      .mockResolvedValueOnce(mockItems as any) // items
-      .mockResolvedValueOnce(mockItems as any) // allStats
-    vi.mocked((prisma as any).palliativeCareRegistry.count).mockResolvedValue(2)
+    vi.mocked(apiGateway.app.getPalliativeRegistries).mockResolvedValue(mockResponse as any)
 
     const result = await PalliativeRegistryService.listRegistries({
       search: 'จันทนา',
@@ -73,9 +83,16 @@ describe('PalliativeRegistryService', () => {
     expect(result.stats.pendingRegistration).toBe(1)
     expect(result.stats.paid).toBe(1)
     expect(result.stats.deny).toBe(1)
+    expect(apiGateway.app.getPalliativeRegistries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        search: 'จันทนา',
+        page: 1,
+        limit: 10,
+      })
+    )
   })
 
-  it('creates registry record and logs audit', async () => {
+  it('creates registry record via gateway and logs audit', async () => {
     const mockCreated = {
       id: 10,
       hn: '000206',
@@ -86,7 +103,8 @@ describe('PalliativeRegistryService', () => {
       registrationStatus: 'ดำเนินการเรียบร้อย',
     }
 
-    vi.mocked((prisma as any).palliativeCareRegistry.create).mockResolvedValue(mockCreated as any)
+    vi.mocked(apiGateway.app.createPalliativeRegistry).mockResolvedValue({ insertId: 10 } as any)
+    vi.mocked(apiGateway.app.getPalliativeRegistryById).mockResolvedValue({ data: mockCreated } as any)
 
     const result = await PalliativeRegistryService.createRegistry(
       {
@@ -102,6 +120,7 @@ describe('PalliativeRegistryService', () => {
 
     expect(result.id).toBe(10)
     expect(result.hn).toBe('000206')
+    expect(apiGateway.app.createPalliativeRegistry).toHaveBeenCalled()
     expect(logAudit).toHaveBeenCalledWith(
       'CREATE',
       'palliative_care_registries',
@@ -109,7 +128,7 @@ describe('PalliativeRegistryService', () => {
     )
   })
 
-  it('updates registry record and logs audit', async () => {
+  it('updates registry record via gateway and logs audit', async () => {
     const mockUpdated = {
       id: 10,
       hn: '000206',
@@ -118,7 +137,8 @@ describe('PalliativeRegistryService', () => {
       visit1Status: 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ',
     }
 
-    vi.mocked((prisma as any).palliativeCareRegistry.update).mockResolvedValue(mockUpdated as any)
+    vi.mocked(apiGateway.app.updatePalliativeRegistry).mockResolvedValue({ affectedRows: 1 } as any)
+    vi.mocked(apiGateway.app.getPalliativeRegistryById).mockResolvedValue({ data: mockUpdated } as any)
 
     const result = await PalliativeRegistryService.updateRegistry(
       10,
@@ -130,6 +150,14 @@ describe('PalliativeRegistryService', () => {
     )
 
     expect(result.visit1Status).toBe('เยี่ยมแล้ว+ลงข้อมูลเสร็จ')
+    expect(apiGateway.app.updatePalliativeRegistry).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({
+        visit1Date: '2/11/2026',
+        visit1Status: 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ',
+        updatedBy: 'nurse_user',
+      })
+    )
     expect(logAudit).toHaveBeenCalledWith(
       'UPDATE',
       'palliative_care_registries',
@@ -137,15 +165,16 @@ describe('PalliativeRegistryService', () => {
     )
   })
 
-  it('deletes registry record and logs audit', async () => {
-    vi.mocked((prisma as any).palliativeCareRegistry.findUnique).mockResolvedValue({
-      hn: '000206',
+  it('deletes registry record via gateway and logs audit', async () => {
+    vi.mocked(apiGateway.app.getPalliativeRegistryById).mockResolvedValue({
+      data: { id: 10, hn: '000206' },
     } as any)
-    vi.mocked((prisma as any).palliativeCareRegistry.delete).mockResolvedValue({ id: 10 } as any)
+    vi.mocked(apiGateway.app.deletePalliativeRegistry).mockResolvedValue({ message: 'Deleted' } as any)
 
     const result = await PalliativeRegistryService.deleteRegistry(10, 'admin_user')
 
     expect(result.success).toBe(true)
+    expect(apiGateway.app.deletePalliativeRegistry).toHaveBeenCalledWith(10)
     expect(logAudit).toHaveBeenCalledWith(
       'DELETE',
       'palliative_care_registries',

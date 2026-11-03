@@ -5,6 +5,7 @@ import {
   PalliativeCarePc1Item,
   PalliativeCarePc1Summary,
 } from '@/lib/clinical/rcmDashboardService'
+import { VnDetailModal } from '../components/VnDetailModal'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -77,6 +78,7 @@ export default function PalliativeCarePc1Client() {
 
   // Selected row for detail modal
   const [selectedItem, setSelectedItem] = useState<PalliativeCarePc1Item | null>(null)
+  const [selectedVn, setSelectedVn] = useState<string | null>(null)
 
   // Handle Date Mode Changes
   const handleModeChange = (mode: 'custom' | 'monthly' | 'fiscal') => {
@@ -213,9 +215,9 @@ export default function PalliativeCarePc1Client() {
 
     const rows = items.map((r) => [
       r.no,
-      `"${r.vn}"`,
-      `"\t${r.cid}"`, // Tab prefix to preserve 13 digits in Excel
-      `"${r.hn}"`,
+      `="${r.vn}"`,
+      `="${r.cid}"`,
+      `="${r.hn}"`,
       `"${r.ptname}"`,
       r.age,
       `"${r.nation}"`,
@@ -587,7 +589,16 @@ export default function PalliativeCarePc1Client() {
                     <td className="pc1-num" style={{ textAlign: 'center', color: 'var(--pc1-muted)' }}>
                       {item.no}
                     </td>
-                    <td className="pc1-num" style={{ fontWeight: 600 }}>{item.vn}</td>
+                    <td className="pc1-num">
+                      <button
+                        type="button"
+                        className="pc1-vn-link"
+                        onClick={() => setSelectedVn(item.vn)}
+                        title={`คลิกเพื่อดูรายละเอียดการรับบริการ VN: ${item.vn} (opdscreen, ovstdiag, opitemrece)`}
+                      >
+                        {item.vn}
+                      </button>
+                    </td>
                     <td className="pc1-num">{item.hn}</td>
                     {/* CID 13 หลักเต็ม ไม่ mask */}
                     <td className="pc1-num">{item.cid || '-'}</td>

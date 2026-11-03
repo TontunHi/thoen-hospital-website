@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { PalliativeCareItem, PalliativeCareSummary } from '@/lib/clinical/rcmDashboardService'
+import { VnDetailModal } from '../components/VnDetailModal'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -83,6 +84,7 @@ export default function PalliativeCareClient() {
 
   // Selected row for detail modal
   const [selectedItem, setSelectedItem] = useState<PalliativeCareItem | null>(null)
+  const [selectedVn, setSelectedVn] = useState<string | null>(null)
 
   // Handle Date Mode Changes
   const handleModeChange = (mode: 'custom' | 'monthly' | 'fiscal') => {
@@ -223,9 +225,9 @@ export default function PalliativeCareClient() {
 
     const rows = items.map((r) => [
       r.no,
-      `"${r.vn}"`,
-      `"${r.hn}"`,
-      `"${r.cid}"`,
+      `="${r.vn}"`,
+      `="${r.hn}"`,
+      `="${r.cid}"`,
       `"${r.ptname}"`,
       `"${r.vstdate}"`,
       `"${r.authencode}"`,
@@ -665,7 +667,16 @@ export default function PalliativeCareClient() {
                     <td className="pc3-num" style={{ textAlign: 'center', color: 'var(--pc-muted)' }}>
                       {item.no}
                     </td>
-                    <td className="pc3-num" style={{ fontWeight: 600 }}>{item.vn}</td>
+                    <td className="pc3-num">
+                      <button
+                        type="button"
+                        className="pc3-vn-link"
+                        onClick={() => setSelectedVn(item.vn)}
+                        title={`คลิกเพื่อดูรายละเอียดการรับบริการ VN: ${item.vn} (opdscreen, ovstdiag, opitemrece)`}
+                      >
+                        {item.vn}
+                      </button>
+                    </td>
                     <td className="pc3-num">{item.hn}</td>
                     {/* เลขบัตรประชาชน แสดงเต็ม 13 หลัก ไม่ mask */}
                     <td className="pc3-num">{item.cid || '-'}</td>
@@ -819,6 +830,9 @@ export default function PalliativeCareClient() {
           </div>
         </div>
       </div>
+
+      {/* VN Clinical Detail Modal (opdscreen, ovstdiag, opitemrece) */}
+      <VnDetailModal vn={selectedVn} onClose={() => setSelectedVn(null)} />
 
       {/* 7. Detail Modal */}
       {selectedItem && (

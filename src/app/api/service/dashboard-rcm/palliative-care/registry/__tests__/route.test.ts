@@ -26,7 +26,7 @@ describe('Palliative Care Registry API Route', () => {
   })
 
   it('GET returns 401 when unauthenticated', async () => {
-    vi.mocked(getAuthenticatedMember).mockResolvedValue(null)
+    vi.mocked(getAuthenticatedMember).mockResolvedValue(null as any)
 
     const req = new NextRequest('http://localhost:3000/api/service/dashboard-rcm/palliative-care/registry')
     const res = await GET(req)

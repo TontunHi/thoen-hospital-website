@@ -1,21 +1,17 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import {
-  HeartPulse,
-  Plus,
-  Search,
   Download,
   Edit2,
   Trash2,
   X,
   RefreshCw,
   AlertCircle,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock,
-  Calendar,
+  Check,
 } from 'lucide-react'
 import { PalliativeRegistryItem, RegistryStats } from '@/lib/clinical/palliativeRegistryService'
 import './page.css'
@@ -37,6 +33,285 @@ const VISIT_STATUS_OPTIONS = [
   'เยี่ยมแล้วยังไม่ได้ลงข้อมูล',
   'เยี่ยมแล้ว+ลงข้อมูลเสร็จ',
 ]
+
+interface EditableTextCellProps {
+  value: string | null | undefined
+  placeholder?: string
+  canEdit: boolean
+  isEditing: boolean
+  onStartEdit: () => void
+  onSave: (val: string) => void
+  onCancel: () => void
+  className?: string
+  style?: React.CSSProperties
+}
+
+function EditableTextCell({
+  value,
+  placeholder = '-',
+  canEdit,
+  isEditing,
+  onStartEdit,
+  onSave,
+  onCancel,
+  className = '',
+  style = {},
+}: EditableTextCellProps) {
+  const [temp, setTemp] = useState(value || '')
+
+  useEffect(() => {
+    setTemp(value || '')
+  }, [value, isEditing])
+
+  if (!canEdit) {
+    return <span style={style}>{value || placeholder}</span>
+  }
+
+  if (isEditing) {
+    return (
+      <input
+        type="text"
+        className="pcr-sheet-input"
+        value={temp}
+        onChange={(e) => setTemp(e.target.value)}
+        onBlur={() => {
+          if (temp.trim() !== (value || '').trim()) {
+            onSave(temp.trim())
+          } else {
+            onCancel()
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            onSave(temp.trim())
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            onCancel()
+          }
+        }}
+        autoFocus
+      />
+    )
+  }
+
+  return (
+    <div
+      className={`pcr-sheet-cell ${className}`}
+      style={{ minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', ...style }}
+      onClick={onStartEdit}
+      title="คลิกเพื่อแก้ไข (Google Sheets Mode)"
+    >
+      <span>{value || placeholder}</span>
+    </div>
+  )
+}
+
+interface EditableSelectCellProps {
+  value: string | null | undefined
+  options: Array<{ value: string; label: string }>
+  canEdit: boolean
+  onSave: (val: string) => void
+  badgeClassFn?: (val: string) => string
+}
+
+function EditableSelectCell({
+  value,
+  options,
+  canEdit,
+  onSave,
+  badgeClassFn,
+}: EditableSelectCellProps) {
+  const currentVal = value || options[0]?.value || ''
+
+  if (!canEdit) {
+    return (
+      <span className={`pcr-tag ${badgeClassFn ? badgeClassFn(currentVal) : 'pcr-tag-neutral'}`}>
+        {currentVal || '-'}
+      </span>
+    )
+  }
+
+  const badgeClass = badgeClassFn ? badgeClassFn(currentVal) : 'pcr-tag-neutral'
+
+  return (
+    <select
+      className={`pcr-sheet-select pcr-tag ${badgeClass}`}
+      value={currentVal}
+      onChange={(e) => onSave(e.target.value)}
+      title="คลิกเพื่อเลือกเปลี่ยนสถานะทันที"
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value} style={{ background: '#fff', color: '#14201a' }}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+interface EditableVisitCellProps {
+  item: PalliativeRegistryItem
+  visitNum: number
+  canEdit: boolean
+  onSaveDate: (val: string) => void
+  onSaveStatus: (val: string) => void
+}
+
+function EditableVisitCell({
+  item,
+  visitNum,
+  canEdit,
+  onSaveDate,
+  onSaveStatus,
+}: EditableVisitCellProps) {
+  const date = (item as any)[`visit${visitNum}Date`] || ''
+  const status = (item as any)[`visit${visitNum}Status`] || 'ยังไม่ได้เยี่ยม'
+  const isDone = status === 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ'
+  const isPending = status === 'เยี่ยมแล้วยังไม่ได้ลงข้อมูล'
+  const badgeClass = isDone ? 'pcr-tag-teal' : isPending ? 'pcr-tag-amber' : 'pcr-tag-neutral'
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 95 }}>
+      {canEdit ? (
+        <input
+          type="text"
+          className="pcr-sheet-date-input"
+          placeholder="วว/ดด/ปปปป"
+          defaultValue={date}
+          key={`${item.id}-v${visitNum}-${date}`}
+          onBlur={(e) => {
+            if (e.target.value.trim() !== date.trim()) {
+              onSaveDate(e.target.value.trim())
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.currentTarget.blur()
+            }
+          }}
+          title="วันที่เยี่ยม (Enter เพื่อบันทึก)"
+        />
+      ) : (
+        date && <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{date}</div>
+      )}
+
+      {canEdit ? (
+        <select
+          className={`pcr-sheet-select pcr-tag ${badgeClass}`}
+          value={status}
+          onChange={(e) => onSaveStatus(e.target.value)}
+          title="คลิกเพื่อเปลี่ยนสถานะการเยี่ยม"
+        >
+          {VISIT_STATUS_OPTIONS.map((opt) => (
+            <option key={opt} value={opt} style={{ background: '#fff', color: '#14201a' }}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span className={`pcr-tag ${badgeClass}`}>{status}</span>
+      )}
+    </div>
+  )
+}
+
+const REGISTRATION_STATUS_OPTIONS = [
+  { value: 'ดำเนินการเรียบร้อย', label: 'ดำเนินการเรียบร้อย' },
+  { value: 'ยังไม่ได้ดำเนินการ', label: 'ยังไม่ได้ดำเนินการ' },
+]
+
+const CLAIM_STATUS_OPTIONS = [
+  { value: 'ยังไม่ได้ลงข้อมูล', label: 'ยังไม่ได้ลงข้อมูล' },
+  { value: 'ลงข้อมูล', label: 'ลงข้อมูล' },
+]
+
+const CLAIM_RESULT_OPTIONS = [
+  { value: '', label: '- ไม่ระบุ -' },
+  { value: 'ส่งเคลมแล้ว', label: 'ส่งเคลมแล้ว' },
+  { value: 'ได้เงิน', label: 'ได้เงิน' },
+  { value: 'ติด C / Deny', label: 'ติด C / Deny' },
+]
+
+const DEATH_STATUS_OPTIONS = [
+  { value: '', label: '- ไม่ระบุ -' },
+  { value: 'ยังไม่ได้เยี่ยม', label: 'ยังไม่ได้เยี่ยม' },
+  { value: 'เยี่ยมแล้วยังไม่ได้ลงข้อมูล', label: 'เยี่ยมแล้วยังไม่ได้ลงข้อมูล' },
+  { value: 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ', label: 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ' },
+]
+
+interface EditableDeathCellProps {
+  item: PalliativeRegistryItem
+  canEdit: boolean
+  onSaveDate: (val: string) => void
+  onSaveStatus: (val: string) => void
+  isSavedDate?: boolean
+  isSavedStatus?: boolean
+}
+
+function EditableDeathCell({
+  item,
+  canEdit,
+  onSaveDate,
+  onSaveStatus,
+  isSavedDate,
+  isSavedStatus,
+}: EditableDeathCellProps) {
+  const date = item.deathDate || ''
+  const status = item.deathEntryStatus || ''
+  const isDone = status === 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ' || status === 'ลงข้อมูลแล้ว'
+  const badgeClass = isDone ? 'pcr-tag-rose' : status ? 'pcr-tag-amber' : 'pcr-tag-neutral'
+
+  return (
+    <>
+      <td
+        style={{ fontSize: '0.8rem', minWidth: 85 }}
+        className={isSavedDate ? 'just-saved' : ''}
+      >
+        {canEdit ? (
+          <input
+            type="text"
+            className="pcr-sheet-date-input"
+            placeholder="วว/ดด/ปปปป"
+            defaultValue={date}
+            key={`${item.id}-death-${date}`}
+            onBlur={(e) => {
+              if (e.target.value.trim() !== date.trim()) {
+                onSaveDate(e.target.value.trim())
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+            }}
+            title="วันที่เสียชีวิต (Enter เพื่อบันทึก)"
+          />
+        ) : (
+          date || '-'
+        )}
+      </td>
+      <td className={isSavedStatus ? 'just-saved' : ''}>
+        {canEdit ? (
+          <select
+            className={`pcr-sheet-select pcr-tag ${badgeClass}`}
+            value={status}
+            onChange={(e) => onSaveStatus(e.target.value)}
+            title="คลิกเพื่อเลือกสถานะการลงข้อมูลเสียชีวิต"
+          >
+            {DEATH_STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value} style={{ background: '#fff', color: '#14201a' }}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        ) : status ? (
+          <span className={`pcr-tag ${badgeClass}`}>{status}</span>
+        ) : (
+          '-'
+        )}
+      </td>
+    </>
+  )
+}
 
 export default function PalliativeRegistryClient({
   userRole = 'staff',
@@ -93,6 +368,54 @@ export default function PalliativeRegistryClient({
   // Delete confirmation
   const [deletingItem, setDeletingItem] = useState<PalliativeRegistryItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Google Sheets Inline Edit States
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('saved')
+  const [justSavedCell, setJustSavedCell] = useState<{ id: number; field: string } | null>(null)
+  const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null)
+
+  // Handle Google Sheets Inline Cell Save (Instant Auto-save)
+  const handleCellSave = async (id: number, field: string, value: any) => {
+    // 1. Optimistic UI update
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    )
+    setEditingCell(null)
+    setSaveStatus('saving')
+    setJustSavedCell({ id, field })
+
+    try {
+      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/registry/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'บันทึกข้อมูลไม่สำเร็จ')
+      }
+
+      setSaveStatus('saved')
+
+      // Quietly update stats in background without table re-render
+      fetch('/api/service/dashboard-rcm/palliative-care/registry?limit=1')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.stats) setStats(d.stats)
+        })
+        .catch(() => {})
+    } catch (err: any) {
+      setSaveStatus('error')
+      alert(err?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
+      fetchData() // Revert to server truth
+    } finally {
+      setTimeout(() => {
+        setJustSavedCell((current) =>
+          current?.id === id && current?.field === field ? null : current
+        )
+      }, 1500)
+    }
+  }
 
   // Fetch list
   const fetchData = useCallback(async () => {
@@ -310,8 +633,17 @@ export default function PalliativeRegistryClient({
     URL.revokeObjectURL(url)
   }
 
+  const canEdit = permissions.canEdit || permissions.canManage
+
   return (
     <div className="pcr-container">
+      {/* 0. Back link */}
+      <div>
+        <Link href="/service/dashboard-rcm/palliative-care/pc-1" className="pcr-back-link">
+          ← กลับแดชบอร์ด Palliative Care
+        </Link>
+      </div>
+
       {/* 1. Header */}
       <div className="pcr-header">
         <div>
@@ -325,153 +657,184 @@ export default function PalliativeRegistryClient({
         </div>
 
         <div className="pcr-header-actions">
+          <div className={`pcr-sheets-bar ${saveStatus}`} title="ระบบบันทึกอัตโนมัติแบบ Google Sheets">
+            {saveStatus === 'saving' ? (
+              <>
+                <RefreshCw size={13} className="animate-spin" />
+                <span>กำลังบันทึกอัตโนมัติ...</span>
+              </>
+            ) : saveStatus === 'error' ? (
+              <>
+                <AlertCircle size={13} />
+                <span>บันทึกไม่สำเร็จ</span>
+              </>
+            ) : (
+              <>
+                <Check size={13} />
+                <span>บันทึกการเปลี่ยนแปลงทั้งหมดแล้ว</span>
+              </>
+            )}
+          </div>
+
           <button
             type="button"
             className="pcr-btn pcr-btn-secondary"
             onClick={handleExportCSV}
             title="ส่งออกไฟล์ Excel / CSV"
           >
-            <Download size={16} />
+            <Download size={15} />
             ส่งออก Excel
           </button>
 
-          {(permissions.canEdit || permissions.canManage) && (
+          {canEdit && (
             <button
               type="button"
               className="pcr-btn pcr-btn-primary"
               onClick={() => setIsAddModalOpen(true)}
             >
-              <Plus size={16} />
               + เพิ่มทะเบียนผู้ป่วย
             </button>
           )}
         </div>
       </div>
 
-      {/* 2. Stats Grid */}
-      <div className="pcr-stats-grid">
-        <div className="pcr-stat-card">
-          <span className="pcr-stat-label">ผู้ป่วยในทะเบียนทั้งหมด</span>
-          <span className="pcr-stat-value">{stats.total.toLocaleString()}</span>
+      {/* 2. Sub-navigation Tabs */}
+      <div className="pcr-tabs-bar">
+        <Link href="/service/dashboard-rcm/palliative-care/pc-1" className="pcr-tab-link">
+          <span className="pcr-tab-badge">PC.1</span>
+          <span>End Of Life (ADP 30001)</span>
+        </Link>
+        <Link href="/service/dashboard-rcm/palliative-care/pc-3" className="pcr-tab-link">
+          <span className="pcr-tab-badge">PC.3</span>
+          <span>รายงานจำแนกตามกลุ่มโรค</span>
+        </Link>
+        <Link href="/service/dashboard-rcm/palliative-care/registry" className="pcr-tab-link is-active">
+          <span className="pcr-tab-badge">PC.Reg</span>
+          <span>ทะเบียนผู้ป่วย & เยี่ยมบ้าน</span>
+        </Link>
+      </div>
+
+      {/* 3. Consolidated Executive Metric Strip */}
+      <div className="pcr-metric-strip">
+        <div className="pcr-metric-cell">
+          <span className="pcr-metric-label">ผู้ป่วยในทะเบียนทั้งหมด</span>
+          <span className="pcr-metric-val">
+            {stats.total.toLocaleString()}
+            <span className="pcr-metric-unit">คน</span>
+          </span>
         </div>
-        <div className="pcr-stat-card pcr-stat-registered">
-          <span className="pcr-stat-label">ดำเนินการเรียบร้อย</span>
-          <span className="pcr-stat-value" style={{ color: '#059669' }}>
+        <div className="pcr-metric-cell">
+          <span className="pcr-metric-label">ดำเนินการเรียบร้อย</span>
+          <span className="pcr-metric-val" style={{ color: 'var(--pc-teal-text)' }}>
             {stats.registered.toLocaleString()}
+            <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
-        <div className="pcr-stat-card pcr-stat-pending">
-          <span className="pcr-stat-label">ยังไม่ได้ดำเนินการ</span>
-          <span className="pcr-stat-value" style={{ color: '#d97706' }}>
+        <div className="pcr-metric-cell">
+          <span className="pcr-metric-label">ยังไม่ได้ดำเนินการ</span>
+          <span className="pcr-metric-val" style={{ color: 'var(--pc-amber-text)' }}>
             {stats.pendingRegistration.toLocaleString()}
+            <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
-        <div className="pcr-stat-card pcr-stat-claimed">
-          <span className="pcr-stat-label">ลงข้อมูล/ส่งเคลม</span>
-          <span className="pcr-stat-value" style={{ color: '#0284c7' }}>
+        <div className="pcr-metric-cell">
+          <span className="pcr-metric-label">ลงข้อมูล/ส่งเคลม</span>
+          <span className="pcr-metric-val" style={{ color: 'var(--pc-blue-text)' }}>
             {stats.claimed.toLocaleString()}
+            <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
-        <div className="pcr-stat-card pcr-stat-paid">
-          <span className="pcr-stat-label">ได้เงิน (ชดเชยแล้ว)</span>
-          <span className="pcr-stat-value" style={{ color: '#10b981' }}>
+        <div className="pcr-metric-cell">
+          <span className="pcr-metric-label">ได้เงิน (ชดเชยแล้ว)</span>
+          <span className="pcr-metric-val" style={{ color: 'var(--pc-teal-text)' }}>
             {stats.paid.toLocaleString()}
+            <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
-        <div className="pcr-stat-card pcr-stat-deny">
-          <span className="pcr-stat-label">ติด C / Deny</span>
-          <span className="pcr-stat-value" style={{ color: '#ef4444' }}>
+        <div className="pcr-metric-cell">
+          <span className="pcr-metric-label">ติด C / Deny</span>
+          <span className="pcr-metric-val" style={{ color: 'var(--pc-rose-text)' }}>
             {stats.deny.toLocaleString()}
+            <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
       </div>
 
-      {/* 3. Toolbar & Filters */}
+      {/* 4. Toolbar & Filters */}
       <div className="pcr-toolbar">
-        <div className="pcr-toolbar-row">
-          <div style={{ position: 'relative', flex: 1, minWidth: 260 }}>
-            <input
-              type="text"
-              className="pcr-search-input"
-              style={{ width: '100%', paddingLeft: '2.25rem' }}
-              placeholder="ค้นหา HN, ชื่อ-สกุลผู้ป่วย, รหัสโรค ICD-10..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setPage(1)
-              }}
-            />
-            <Search
-              size={16}
-              style={{
-                position: 'absolute',
-                left: '0.85rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#94a3b8',
-              }}
-            />
-          </div>
+        <input
+          type="search"
+          className="pcr-search-input"
+          placeholder="ค้นหา HN, ชื่อผู้ป่วย, รหัสโรค ICD-10..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            setPage(1)
+          }}
+          aria-label="ค้นหาผู้ป่วยในทะเบียน"
+        />
 
-          <select
-            className="pcr-select"
-            value={filterRegStatus}
-            onChange={(e) => {
-              setFilterRegStatus(e.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="ALL">สถานะขึ้นทะเบียน: ทั้งหมด</option>
-            <option value="ดำเนินการเรียบร้อย">ดำเนินการเรียบร้อย</option>
-            <option value="ยังไม่ได้ดำเนินการ">ยังไม่ได้ดำเนินการ</option>
-          </select>
+        <select
+          className="pcr-select"
+          value={filterRegStatus}
+          onChange={(e) => {
+            setFilterRegStatus(e.target.value)
+            setPage(1)
+          }}
+          aria-label="กรองสถานะการขึ้นทะเบียน"
+        >
+          <option value="ALL">สถานะขึ้นทะเบียน: ทั้งหมด</option>
+          <option value="ดำเนินการเรียบร้อย">ดำเนินการเรียบร้อย</option>
+          <option value="ยังไม่ได้ดำเนินการ">ยังไม่ได้ดำเนินการ</option>
+        </select>
 
-          <select
-            className="pcr-select"
-            value={filterClaimStatus}
-            onChange={(e) => {
-              setFilterClaimStatus(e.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="ALL">สถานะเคลม: ทั้งหมด</option>
-            <option value="ยังไม่ได้ลงข้อมูล">ยังไม่ได้ลงข้อมูล</option>
-            <option value="ลงข้อมูล">ลงข้อมูล</option>
-          </select>
+        <select
+          className="pcr-select"
+          value={filterClaimStatus}
+          onChange={(e) => {
+            setFilterClaimStatus(e.target.value)
+            setPage(1)
+          }}
+          aria-label="กรองสถานะการเคลม"
+        >
+          <option value="ALL">สถานะเคลม: ทั้งหมด</option>
+          <option value="ยังไม่ได้ลงข้อมูล">ยังไม่ได้ลงข้อมูล</option>
+          <option value="ลงข้อมูล">ลงข้อมูล</option>
+        </select>
 
-          <select
-            className="pcr-select"
-            value={filterClaimResult}
-            onChange={(e) => {
-              setFilterClaimResult(e.target.value)
-              setPage(1)
-            }}
-          >
-            <option value="ALL">ผลลัพธ์เคลม: ทั้งหมด</option>
-            <option value="ส่งเคลมแล้ว">ส่งเคลมแล้ว</option>
-            <option value="ได้เงิน">ได้เงิน</option>
-            <option value="ติด C / Deny">ติด C / Deny</option>
-          </select>
+        <select
+          className="pcr-select"
+          value={filterClaimResult}
+          onChange={(e) => {
+            setFilterClaimResult(e.target.value)
+            setPage(1)
+          }}
+          aria-label="กรองผลลัพธ์การเคลม"
+        >
+          <option value="ALL">ผลลัพธ์เคลม: ทั้งหมด</option>
+          <option value="ส่งเคลมแล้ว">ส่งเคลมแล้ว</option>
+          <option value="ได้เงิน">ได้เงิน</option>
+          <option value="ติด C / Deny">ติด C / Deny</option>
+        </select>
 
-          <button
-            type="button"
-            className="pcr-btn pcr-btn-secondary"
-            onClick={fetchData}
-            title="รีเฟรชข้อมูล"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-            รีเฟรช
-          </button>
-        </div>
+        <button
+          type="button"
+          className="pcr-btn pcr-btn-secondary"
+          onClick={fetchData}
+          title="รีเฟรชข้อมูล"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          รีเฟรช
+        </button>
       </div>
 
       {/* Error alert */}
       {error && (
         <div
           style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#991b1b',
+            background: 'var(--pc-rose-bg)',
+            border: '1px solid var(--pc-rose-border)',
+            color: 'var(--pc-rose-text)',
             padding: '0.75rem 1rem',
             borderRadius: 8,
             display: 'flex',
@@ -485,46 +848,87 @@ export default function PalliativeRegistryClient({
         </div>
       )}
 
-      {/* 4. Table Card */}
+      {/* 5. Legend & Spreadsheet Mode Bar */}
+      <div className="pcr-legend-bar">
+        <div className="pcr-guide-hint">
+          <span>โหมดสเปรดชีต: คลิกที่ช่องข้อความเพื่อแก้ไข (Enter บันทึก) หรือเลือกสถานะจากตัวเลือก ระบบจะบันทึกอัตโนมัติ</span>
+        </div>
+        <div className="pcr-legend-items">
+          <span className="pcr-legend-chip pcr-tag-teal">เขียว: เรียบร้อย / ได้เงิน</span>
+          <span className="pcr-legend-chip pcr-tag-amber">ส้ม: ยังไม่ได้ดำเนินการ / รอ</span>
+          <span className="pcr-legend-chip pcr-tag-blue">ฟ้า: ลงข้อมูล / ส่งเคลม</span>
+          <span className="pcr-legend-chip pcr-tag-rose">ชมพู: ติด C / เสียชีวิต</span>
+        </div>
+      </div>
+
+      {/* 6. Data Table */}
       <div className="pcr-table-card">
         <div className="pcr-table-scroll">
           <table className="pcr-table">
             <thead>
+              {/* Grouped Header Row 1 */}
               <tr>
-                <th style={{ width: 45 }}>ลำดับ</th>
-                <th>HN</th>
-                <th>ชื่อ-สกุลผู้ป่วย</th>
-                <th>ที่อยู่</th>
-                <th>เบอร์โทรผู้ป่วย/ญาติ</th>
-                <th>ICD10 รหัสโรคหลัก</th>
-                <th>ICD 10 รหัส Palliative</th>
-                <th>Project code</th>
-                <th>การขึ้นทะเบียน</th>
-                <th>วันเยี่ยม 1 / สถานะ</th>
-                <th>วันเยี่ยม 2 / สถานะ</th>
-                <th>วันเยี่ยม 3 / สถานะ</th>
-                <th>วันเยี่ยม 4 / สถานะ</th>
-                <th>วันเยี่ยม 5 / สถานะ</th>
-                <th>วันเยี่ยม 6 / สถานะ</th>
-                <th>วันที่เสียชีวิต</th>
-                <th>การลงข้อมูลเสียชีวิต</th>
-                <th>สถานะการเคลม</th>
-                <th>ผลลัพธ์</th>
-                {(permissions.canEdit || permissions.canManage) && <th>จัดการ</th>}
+                <th colSpan={5} className="pcr-th-group">ข้อมูลผู้ป่วย</th>
+                <th colSpan={3} className="pcr-th-group">การวินิจฉัยและโครงการ</th>
+                <th colSpan={1} className="pcr-th-group">การขึ้นทะเบียน</th>
+                <th colSpan={6} className="pcr-th-group">ติดตามเยี่ยมบ้าน (ครั้งที่ 1 - 6)</th>
+                <th colSpan={2} className="pcr-th-group">ข้อมูลเสียชีวิต</th>
+                <th colSpan={2} className="pcr-th-group">การเบิกจ่ายชดเชย (e-Claim)</th>
+                {canEdit && <th colSpan={1} className="pcr-th-group">จัดการ</th>}
+              </tr>
+
+              {/* Sub Header Row 2 */}
+              <tr>
+                <th className="pcr-th-sub" style={{ width: 45 }}>ลำดับ</th>
+                <th className="pcr-th-sub">HN</th>
+                <th className="pcr-th-sub">ชื่อ-สกุลผู้ป่วย</th>
+                <th className="pcr-th-sub">ที่อยู่</th>
+                <th className="pcr-th-sub">เบอร์โทร</th>
+                <th className="pcr-th-sub">ICD10 โรคหลัก</th>
+                <th className="pcr-th-sub">ICD 10 Palliative</th>
+                <th className="pcr-th-sub">Project code</th>
+                <th className="pcr-th-sub">การขึ้นทะเบียน</th>
+                <th className="pcr-th-sub">เยี่ยม 1</th>
+                <th className="pcr-th-sub">เยี่ยม 2</th>
+                <th className="pcr-th-sub">เยี่ยม 3</th>
+                <th className="pcr-th-sub">เยี่ยม 4</th>
+                <th className="pcr-th-sub">เยี่ยม 5</th>
+                <th className="pcr-th-sub">เยี่ยม 6</th>
+                <th className="pcr-th-sub">วันที่เสียชีวิต</th>
+                <th className="pcr-th-sub">การลงข้อมูล</th>
+                <th className="pcr-th-sub">สถานะเคลม</th>
+                <th className="pcr-th-sub">ผลลัพธ์</th>
+                {canEdit && <th className="pcr-th-sub">จัดการ</th>}
               </tr>
             </thead>
             <tbody>
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={20} style={{ padding: '2.5rem', color: '#64748b' }}>
-                    <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.5rem' }} />
+                  <td colSpan={canEdit ? 20 : 19} style={{ padding: '2.5rem', color: 'var(--pc-muted)' }}>
+                    <RefreshCw size={20} className="animate-spin" style={{ margin: '0 auto 0.5rem' }} />
                     กำลังโหลดข้อมูลทะเบียน...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={20} style={{ padding: '2.5rem', color: '#64748b' }}>
-                    ไม่พบข้อมูลทะเบียนผู้ป่วยตามเงื่อนไขที่เลือก
+                  <td colSpan={canEdit ? 20 : 19} style={{ padding: '2.5rem', color: 'var(--pc-muted)' }}>
+                    <div>ไม่พบข้อมูลทะเบียนผู้ป่วยตามเงื่อนไขที่เลือก</div>
+                    {(search || filterRegStatus !== 'ALL' || filterClaimStatus !== 'ALL' || filterClaimResult !== 'ALL') && (
+                      <button
+                        type="button"
+                        className="pcr-btn pcr-btn-secondary"
+                        style={{ marginTop: '0.75rem', minHeight: 32, padding: '4px 12px' }}
+                        onClick={() => {
+                          setSearch('')
+                          setFilterRegStatus('ALL')
+                          setFilterClaimStatus('ALL')
+                          setFilterClaimResult('ALL')
+                          setPage(1)
+                        }}
+                      >
+                        ล้างตัวกรองทั้งหมด
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -532,134 +936,193 @@ export default function PalliativeRegistryClient({
                   const rowNum = (page - 1) * 50 + idx + 1
                   return (
                     <tr key={item.id}>
-                      <td style={{ color: '#64748b', fontWeight: 600 }}>{rowNum}</td>
-                      <td style={{ fontWeight: 700, fontFamily: 'monospace', color: '#0f172a' }}>
-                        {item.hn}
+                      <td style={{ color: 'var(--pc-muted)', fontWeight: 600 }}>{rowNum}</td>
+                      <td
+                        style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--pc-ink)' }}
+                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'hn' ? 'just-saved' : ''}
+                      >
+                        <EditableTextCell
+                          value={item.hn}
+                          canEdit={canEdit}
+                          isEditing={editingCell?.id === item.id && editingCell?.field === 'hn'}
+                          onStartEdit={() => setEditingCell({ id: item.id, field: 'hn' })}
+                          onSave={(val) => handleCellSave(item.id, 'hn', val)}
+                          onCancel={() => setEditingCell(null)}
+                          style={{ fontFamily: 'monospace', fontWeight: 700 }}
+                        />
                       </td>
-                      <td style={{ fontWeight: 600, minWidth: 140 }}>{item.patientName}</td>
-                      <td style={{ maxWidth: 200, fontSize: '0.8rem', color: '#475569' }}>
-                        {item.address || '-'}
+                      <td
+                        style={{ fontWeight: 600, minWidth: 135 }}
+                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'patientName' ? 'just-saved' : ''}
+                      >
+                        <EditableTextCell
+                          value={item.patientName}
+                          canEdit={canEdit}
+                          isEditing={editingCell?.id === item.id && editingCell?.field === 'patientName'}
+                          onStartEdit={() => setEditingCell({ id: item.id, field: 'patientName' })}
+                          onSave={(val) => handleCellSave(item.id, 'patientName', val)}
+                          onCancel={() => setEditingCell(null)}
+                          style={{ fontWeight: 600 }}
+                        />
                       </td>
-                      <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                        {item.phone || '-'}
+                      <td
+                        style={{ maxWidth: 190, fontSize: '0.8rem', color: 'var(--pc-ink-2)' }}
+                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'address' ? 'just-saved' : ''}
+                      >
+                        <EditableTextCell
+                          value={item.address}
+                          canEdit={canEdit}
+                          isEditing={editingCell?.id === item.id && editingCell?.field === 'address'}
+                          onStartEdit={() => setEditingCell({ id: item.id, field: 'address' })}
+                          onSave={(val) => handleCellSave(item.id, 'address', val)}
+                          onCancel={() => setEditingCell(null)}
+                        />
                       </td>
-                      <td style={{ fontWeight: 600, color: '#0369a1' }}>
-                        {item.icd10Principal || '-'}
+                      <td
+                        style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'phone' ? 'just-saved' : ''}
+                      >
+                        <EditableTextCell
+                          value={item.phone}
+                          canEdit={canEdit}
+                          isEditing={editingCell?.id === item.id && editingCell?.field === 'phone'}
+                          onStartEdit={() => setEditingCell({ id: item.id, field: 'phone' })}
+                          onSave={(val) => handleCellSave(item.id, 'phone', val)}
+                          onCancel={() => setEditingCell(null)}
+                        />
                       </td>
-                      <td style={{ fontSize: '0.75rem', maxWidth: 180, color: '#475569' }}>
-                        {item.icd10Palliative || '-'}
+                      <td
+                        style={{ fontWeight: 600, color: 'var(--pc-blue-text)' }}
+                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'icd10Principal' ? 'just-saved' : ''}
+                      >
+                        <EditableTextCell
+                          value={item.icd10Principal}
+                          canEdit={canEdit}
+                          isEditing={editingCell?.id === item.id && editingCell?.field === 'icd10Principal'}
+                          onStartEdit={() => setEditingCell({ id: item.id, field: 'icd10Principal' })}
+                          onSave={(val) => handleCellSave(item.id, 'icd10Principal', val)}
+                          onCancel={() => setEditingCell(null)}
+                          style={{ fontWeight: 600, color: 'var(--pc-blue-text)' }}
+                        />
                       </td>
-                      <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                        {item.projectCode || '-'}
+                      <td
+                        style={{ fontSize: '0.75rem', maxWidth: 180, color: 'var(--pc-ink-2)' }}
+                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'icd10Palliative' ? 'just-saved' : ''}
+                      >
+                        <EditableTextCell
+                          value={item.icd10Palliative}
+                          canEdit={canEdit}
+                          isEditing={editingCell?.id === item.id && editingCell?.field === 'icd10Palliative'}
+                          onStartEdit={() => setEditingCell({ id: item.id, field: 'icd10Palliative' })}
+                          onSave={(val) => handleCellSave(item.id, 'icd10Palliative', val)}
+                          onCancel={() => setEditingCell(null)}
+                          style={{ fontSize: '0.75rem' }}
+                        />
                       </td>
-                      <td>
-                        <span
-                          className={`pcr-tag ${
-                            item.registrationStatus === 'ดำเนินการเรียบร้อย'
-                              ? 'pcr-tag-success'
-                              : 'pcr-tag-warning'
-                          }`}
-                        >
-                          {item.registrationStatus}
-                        </span>
+                      <td
+                        style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'projectCode' ? 'just-saved' : ''}
+                      >
+                        <EditableTextCell
+                          value={item.projectCode}
+                          canEdit={canEdit}
+                          isEditing={editingCell?.id === item.id && editingCell?.field === 'projectCode'}
+                          onStartEdit={() => setEditingCell({ id: item.id, field: 'projectCode' })}
+                          onSave={(val) => handleCellSave(item.id, 'projectCode', val)}
+                          onCancel={() => setEditingCell(null)}
+                        />
+                      </td>
+                      <td className={justSavedCell?.id === item.id && justSavedCell?.field === 'registrationStatus' ? 'just-saved' : ''}>
+                        <EditableSelectCell
+                          value={item.registrationStatus}
+                          options={REGISTRATION_STATUS_OPTIONS}
+                          canEdit={canEdit}
+                          onSave={(val) => handleCellSave(item.id, 'registrationStatus', val)}
+                          badgeClassFn={(val) => (val === 'ดำเนินการเรียบร้อย' ? 'pcr-tag-teal' : 'pcr-tag-amber')}
+                        />
                       </td>
 
                       {/* Visits 1 - 6 */}
                       {[1, 2, 3, 4, 5, 6].map((num) => {
-                        const date = (item as any)[`visit${num}Date`]
-                        const status = (item as any)[`visit${num}Status`] || 'ยังไม่ได้เยี่ยม'
-                        const isDone = status === 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ'
-                        const isPending = status === 'เยี่ยมแล้วยังไม่ได้ลงข้อมูล'
+                        const isSaved =
+                          justSavedCell?.id === item.id &&
+                          (justSavedCell?.field === `visit${num}Date` || justSavedCell?.field === `visit${num}Status`)
 
                         return (
-                          <td key={num} style={{ fontSize: '0.75rem', minWidth: 100 }}>
-                            {date ? (
-                              <div style={{ fontWeight: 600, marginBottom: 2 }}>{date}</div>
-                            ) : null}
-                            <span
-                              className={`pcr-tag ${
-                                isDone
-                                  ? 'pcr-tag-success'
-                                  : isPending
-                                  ? 'pcr-tag-warning'
-                                  : 'pcr-tag-neutral'
-                              }`}
-                            >
-                              {status}
-                            </span>
+                          <td key={num} className={isSaved ? 'just-saved' : ''} style={{ fontSize: '0.75rem', minWidth: 95 }}>
+                            <EditableVisitCell
+                              item={item}
+                              visitNum={num}
+                              canEdit={canEdit}
+                              onSaveDate={(val) => handleCellSave(item.id, `visit${num}Date`, val)}
+                              onSaveStatus={(val) => handleCellSave(item.id, `visit${num}Status`, val)}
+                            />
                           </td>
                         )
                       })}
 
                       {/* Death Date & Entry */}
-                      <td style={{ fontSize: '0.8rem' }}>{item.deathDate || '-'}</td>
-                      <td>
-                        {item.deathEntryStatus ? (
-                          <span
-                            className={`pcr-tag ${
-                              item.deathEntryStatus === 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ'
-                                ? 'pcr-tag-danger'
-                                : 'pcr-tag-warning'
-                            }`}
-                          >
-                            {item.deathEntryStatus}
-                          </span>
-                        ) : (
-                          '-'
-                        )}
-                      </td>
+                      <EditableDeathCell
+                        item={item}
+                        canEdit={canEdit}
+                        onSaveDate={(val) => handleCellSave(item.id, 'deathDate', val)}
+                        onSaveStatus={(val) => handleCellSave(item.id, 'deathEntryStatus', val)}
+                        isSavedDate={justSavedCell?.id === item.id && justSavedCell?.field === 'deathDate'}
+                        isSavedStatus={justSavedCell?.id === item.id && justSavedCell?.field === 'deathEntryStatus'}
+                      />
 
                       {/* Claim Status & Result */}
-                      <td>
-                        <span
-                          className={`pcr-tag ${
-                            item.claimStatus === 'ลงข้อมูล' ? 'pcr-tag-info' : 'pcr-tag-neutral'
-                          }`}
-                        >
-                          {item.claimStatus}
-                        </span>
+                      <td className={justSavedCell?.id === item.id && justSavedCell?.field === 'claimStatus' ? 'just-saved' : ''}>
+                        <EditableSelectCell
+                          value={item.claimStatus}
+                          options={CLAIM_STATUS_OPTIONS}
+                          canEdit={canEdit}
+                          onSave={(val) => handleCellSave(item.id, 'claimStatus', val)}
+                          badgeClassFn={(val) => (val === 'ลงข้อมูล' ? 'pcr-tag-blue' : 'pcr-tag-neutral')}
+                        />
                       </td>
-                      <td>
-                        {item.claimResult ? (
-                          <span
-                            className={`pcr-tag ${
-                              item.claimResult === 'ได้เงิน'
-                                ? 'pcr-tag-success'
-                                : item.claimResult === 'ติด C / Deny'
-                                ? 'pcr-tag-danger'
-                                : 'pcr-tag-info'
-                            }`}
-                          >
-                            {item.claimResult}
-                          </span>
-                        ) : (
-                          '-'
-                        )}
+                      <td className={justSavedCell?.id === item.id && justSavedCell?.field === 'claimResult' ? 'just-saved' : ''}>
+                        <EditableSelectCell
+                          value={item.claimResult}
+                          options={CLAIM_RESULT_OPTIONS}
+                          canEdit={canEdit}
+                          onSave={(val) => handleCellSave(item.id, 'claimResult', val)}
+                          badgeClassFn={(val) =>
+                            val === 'ได้เงิน'
+                              ? 'pcr-tag-teal'
+                              : val === 'ติด C / Deny'
+                              ? 'pcr-tag-rose'
+                              : val
+                              ? 'pcr-tag-blue'
+                              : 'pcr-tag-neutral'
+                          }
+                        />
                       </td>
 
                       {/* Actions */}
-                      {(permissions.canEdit || permissions.canManage) && (
+                      {canEdit && (
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
                             <button
                               type="button"
                               className="pcr-btn pcr-btn-secondary"
-                              style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                              style={{ padding: '3px 8px', fontSize: '0.75rem', minHeight: 30 }}
                               onClick={() => handleOpenEdit(item)}
                               title="แก้ไข / บันทึกการเยี่ยม"
                             >
-                              <Edit2 size={13} />
+                              <Edit2 size={12} />
                               แก้ไข
                             </button>
                             {permissions.canManage && (
                               <button
                                 type="button"
                                 className="pcr-btn pcr-btn-danger"
-                                style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                                style={{ padding: '3px 8px', fontSize: '0.75rem', minHeight: 30 }}
                                 onClick={() => setDeletingItem(item)}
                                 title="ลบเคส"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={12} />
+                                ลบ
                               </button>
                             )}
                           </div>
@@ -673,7 +1136,7 @@ export default function PalliativeRegistryClient({
           </table>
         </div>
 
-        {/* Pagination */}
+        {/* 7. Pagination */}
         <div className="pcr-pagination">
           <div>
             แสดง {items.length} จาก {totalCount} รายการ (หน้า {page} / {totalPages})
@@ -682,22 +1145,22 @@ export default function PalliativeRegistryClient({
             <button
               type="button"
               className="pcr-btn pcr-btn-secondary"
-              style={{ padding: '4px 8px' }}
+              style={{ padding: '4px 10px', minHeight: 32 }}
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
               ก่อนหน้า
             </button>
             <button
               type="button"
               className="pcr-btn pcr-btn-secondary"
-              style={{ padding: '4px 8px' }}
+              style={{ padding: '4px 10px', minHeight: 32 }}
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
               ถัดไป
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
         </div>
@@ -715,8 +1178,9 @@ export default function PalliativeRegistryClient({
                 type="button"
                 className="pcr-modal-close-btn"
                 onClick={() => setIsAddModalOpen(false)}
+                aria-label="ปิดหน้าต่าง"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
@@ -725,9 +1189,9 @@ export default function PalliativeRegistryClient({
                 {addError && (
                   <div
                     style={{
-                      background: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      color: '#991b1b',
+                      background: 'var(--pc-rose-bg)',
+                      border: '1px solid var(--pc-rose-border)',
+                      color: 'var(--pc-rose-text)',
                       padding: '0.65rem 0.85rem',
                       borderRadius: 6,
                       fontSize: '0.85rem',
@@ -845,15 +1309,15 @@ export default function PalliativeRegistryClient({
 
                 <div
                   style={{
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    color: '#166534',
+                    background: 'var(--pc-teal-bg)',
+                    border: '1px solid var(--pc-teal-border)',
+                    color: 'var(--pc-teal-text)',
                     padding: '0.75rem 1rem',
                     borderRadius: 8,
                     fontSize: '0.8125rem',
                   }}
                 >
-                  💡 <strong>หมายเหตุ:</strong> บันทึกข้อมูลแรกรับผู้ป่วยเรียบร้อยแล้ว ท่านสามารถกลับมาอัปเดตวันและสถานะการเยี่ยมบ้านครั้งที่ 1-6, วันที่เสียชีวิต และผลการเคลม ได้ในปุ่ม <strong>"แก้ไข"</strong> ในตารางภายหลัง
+                  หมายเหตุ: เมื่อบันทึกข้อมูลแรกรับผู้ป่วยเรียบร้อยแล้ว ท่านสามารถกลับมาอัปเดตวันและสถานะการเยี่ยมบ้านครั้งที่ 1-6, วันที่เสียชีวิต และผลการเคลม ได้ในตารางโดยตรง หรือกดปุ่ม <strong>&quot;แก้ไข&quot;</strong>
                 </div>
               </div>
 
@@ -898,8 +1362,9 @@ export default function PalliativeRegistryClient({
                 type="button"
                 className="pcr-modal-close-btn"
                 onClick={() => setEditingItem(null)}
+                aria-label="ปิดหน้าต่าง"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
@@ -908,9 +1373,9 @@ export default function PalliativeRegistryClient({
                 {editError && (
                   <div
                     style={{
-                      background: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      color: '#991b1b',
+                      background: 'var(--pc-rose-bg)',
+                      border: '1px solid var(--pc-rose-border)',
+                      color: 'var(--pc-rose-text)',
                       padding: '0.65rem 0.85rem',
                       borderRadius: 6,
                       fontSize: '0.85rem',
@@ -1016,21 +1481,21 @@ export default function PalliativeRegistryClient({
                         <div
                           key={num}
                           style={{
-                            border: '1px solid #e2e8f0',
+                            border: '1px solid var(--pc-border)',
                             borderRadius: 8,
                             padding: '0.75rem',
-                            background: '#f8fafc',
+                            background: 'var(--pc-surface-alt)',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '0.5rem',
                           }}
                         >
-                          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0f172a' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--pc-ink)' }}>
                             การเยี่ยมครั้งที่ {num}
                           </div>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.75rem', color: '#64748b' }}>วันเยี่ยม</label>
+                              <label style={{ fontSize: '0.75rem', color: 'var(--pc-muted)' }}>วันเยี่ยม</label>
                               <input
                                 type="text"
                                 className="pcr-input"
@@ -1042,7 +1507,7 @@ export default function PalliativeRegistryClient({
                               />
                             </div>
                             <div style={{ flex: 1.2 }}>
-                              <label style={{ fontSize: '0.75rem', color: '#64748b' }}>สถานะการเยี่ยม</label>
+                              <label style={{ fontSize: '0.75rem', color: 'var(--pc-muted)' }}>สถานะการเยี่ยม</label>
                               <select
                                 className="pcr-select"
                                 style={{ width: '100%' }}
@@ -1156,22 +1621,23 @@ export default function PalliativeRegistryClient({
         <div className="pcr-modal-backdrop" onClick={() => setDeletingItem(null)}>
           <div className="pcr-modal-card" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
             <div className="pcr-modal-header">
-              <h2 className="pcr-modal-title" style={{ color: '#b91c1c' }}>
+              <h2 className="pcr-modal-title" style={{ color: 'var(--pc-rose-text)' }}>
                 ยืนยันการลบเคสผู้ป่วย
               </h2>
               <button
                 type="button"
                 className="pcr-modal-close-btn"
                 onClick={() => setDeletingItem(null)}
+                aria-label="ปิดหน้าต่าง"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
             <div className="pcr-modal-body">
-              <p style={{ margin: 0, fontSize: '0.9rem', color: '#334155' }}>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--pc-ink)' }}>
                 คุณต้องการลบข้อมูลทะเบียนผู้ป่วย <strong>{deletingItem.patientName}</strong> (HN: {deletingItem.hn}) ออกจากระบบใช่หรือไม่?
               </p>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#991b1b' }}>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--pc-rose-text)' }}>
                 * การกระทำนี้ไม่สามารถย้อนกลับได้ และจะถูกบันทึกในระบบ Audit Log
               </p>
             </div>
@@ -1186,10 +1652,10 @@ export default function PalliativeRegistryClient({
               <button
                 type="button"
                 className="pcr-btn pcr-btn-danger"
-                style={{ background: '#dc2626', color: '#fff' }}
                 disabled={isDeleting}
                 onClick={handleDeleteConfirm}
               >
+                <Trash2 size={15} />
                 {isDeleting ? 'กำลังลบ...' : 'ยืนยันลบ'}
               </button>
             </div>

@@ -651,6 +651,56 @@ export class ApiGatewayClient {
     // ── Member Registrations ──
     getRegistrations: () => {
       return this.get<Array<Record<string, unknown>>>('/api/v1/app/registrations')
+    },
+
+    // ── Palliative Care Registry ──
+    getPalliativeRegistries: (params?: {
+      search?: string
+      registrationStatus?: string
+      claimStatus?: string
+      claimResult?: string
+      page?: number
+      limit?: number
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.search) q.set('search', params.search)
+      if (params?.registrationStatus) q.set('registrationStatus', params.registrationStatus)
+      if (params?.claimStatus) q.set('claimStatus', params.claimStatus)
+      if (params?.claimResult) q.set('claimResult', params.claimResult)
+      if (params?.page) q.set('page', String(params.page))
+      if (params?.limit) q.set('limit', String(params.limit))
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<{
+        items: Array<any>
+        total: number
+        page: number
+        limit: number
+        totalPages: number
+        stats: {
+          total: number
+          registered: number
+          pendingRegistration: number
+          claimed: number
+          paid: number
+          deny: number
+        }
+      }>(`/api/v1/app/palliative-care/registries${qs}`)
+    },
+
+    getPalliativeRegistryById: (id: string | number) => {
+      return this.get<Record<string, unknown>>(`/api/v1/app/palliative-care/registries/${id}`)
+    },
+
+    createPalliativeRegistry: (record: Record<string, unknown>) => {
+      return this.post<{ insertId: number }>('/api/v1/app/palliative-care/registries', record)
+    },
+
+    updatePalliativeRegistry: (id: string | number, updates: Record<string, unknown>) => {
+      return this.put<{ affectedRows: number }>(`/api/v1/app/palliative-care/registries/${id}`, updates)
+    },
+
+    deletePalliativeRegistry: (id: string | number) => {
+      return this.delete<{ message: string }>(`/api/v1/app/palliative-care/registries/${id}`)
     }
   }
 

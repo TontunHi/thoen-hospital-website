@@ -646,6 +646,90 @@ export interface PalliativeCarePc1Result {
   items: PalliativeCarePc1Item[]
 }
 
+// ── VN Clinical Details Domain Interfaces ──────────────────────
+
+export interface VnScreenData {
+  bw: number | null
+  height: number | null
+  bmi: number | null
+  bps: number | null
+  bpd: number | null
+  pulse: number | null
+  rr: number | null
+  temperature: number | null
+  spo2: number | null
+  fbs: number | null
+  cc: string | null
+  hpi: string | null
+  pmh: string | null
+  pe: string | null
+  screen_dep: string | null
+  screen_dep_name: string | null
+  symptom: string | null
+}
+
+export interface VnDiagItem {
+  icd10: string
+  icd_name: string
+  diagtype: string
+  diagtype_name: string
+  doctor_name: string | null
+}
+
+export type VnOrderCategoryGroup = 'DRUG' | 'LAB' | 'XRAY' | 'PROCEDURE_SERVICE' | 'SUPPLY' | 'OTHER'
+
+export interface VnOrderItem {
+  icode: string
+  item_name: string
+  strength: string | null
+  units: string | null
+  qty: number
+  unitprice: number
+  sum_price: number
+  paidst: string
+  paidst_name: string
+  income_code: string
+  income_name: string
+  category_group: VnOrderCategoryGroup
+  drugusage_text: string
+}
+
+export interface VnOrderCategorySummary {
+  category_group: VnOrderCategoryGroup
+  title: string
+  total_price: number
+  item_count: number
+  items: VnOrderItem[]
+}
+
+export interface VnClinicalDetailsHeader {
+  vn: string
+  hn: string
+  cid: string
+  ptname: string
+  age: number
+  sex: string
+  vstdate: string
+  vsttime: string
+  pttypename: string
+  department: string
+  clinic: string
+}
+
+export interface VnClinicalDetails {
+  header: VnClinicalDetailsHeader
+  screen: VnScreenData | null
+  diagnoses: VnDiagItem[]
+  orders: {
+    items: VnOrderItem[]
+    categories: VnOrderCategorySummary[]
+    total_price: number
+    total_items: number
+    total_paid: number
+    total_claim: number
+  }
+}
+
 export function dateRangeToYymmList(ds1: string, ds2: string, lookbackMonths = 0): string[] {
   const d1 = new Date(ds1)
   const d2 = new Date(ds2)
@@ -2497,6 +2581,240 @@ export class RcmDashboardService {
       paidStatus,
       summary,
       items: mapped,
+    }
+  }
+
+  /**
+   * Retrieves comprehensive clinical details for a single visit (VN),
+   * including opdscreen (vitals, CC, HPI, PMH, PE), ovstdiag (diagnoses & physicians),
+   * and opitemrece (itemized medications, labs, imaging, nursing & services grouped by category).
+   */
+  static async getVnClinicalDetails(
+    vn: string,
+    executor: QueryExecutor = queryClinicalDb
+  ): Promise<VnClinicalDetails | null> {
+    const cleanVn = (vn || '').trim()
+    if (!cleanVn) return null
+
+    const headerSql = `
+      SELECT 
+        o.vn, o.hn, IFNULL(pt.cid, '') AS cid,
+        CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+        CASE WHEN pt.sex = '1' THEN 'ชาย' WHEN pt.sex = '2' THEN 'หญิง' ELSE IFNULL(pt.sex, '-') END AS sex,
+        IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
+        DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+        IFNULL(o.vsttime, '') AS vsttime,
+        IFNULL(p.name, IFNULL(o.pttype, '')) AS pttypename,
+        IFNULL(k.department, IFNULL(o.main_dep, '')) AS department,
+        IFNULL(s.name, IFNULL(o.spclty, '')) AS clinic
+      FROM ovst o
+      LEFT JOIN patient pt ON pt.hn = o.hn
+      LEFT JOIN pttype p ON p.pttype = o.pttype
+      LEFT JOIN kskdepartment k ON k.depcode = o.main_dep
+      LEFT JOIN spclty s ON s.spclty = o.spclty
+      WHERE o.vn = ?
+      LIMIT 1;
+    `
+
+    const screenSql = `
+      SELECT 
+        s.bw, s.height, s.bmi, s.bps, s.bpd, s.pulse, s.rr, s.temperature, s.spo2, s.fbs,
+        s.cc, s.hpi, s.pmh, s.pe, s.screen_dep,
+        IFNULL(k.department, s.screen_dep) AS screen_dep_name,
+        s.symptom
+      FROM opdscreen s
+      LEFT JOIN kskdepartment k ON k.depcode = s.screen_dep
+      WHERE s.vn = ?
+      LIMIT 1;
+    `
+
+    const diagSql = `
+      SELECT 
+        d.icd10,
+        IFNULL(i.name, d.icd10) AS icd_name,
+        IFNULL(d.diagtype, '') AS diagtype,
+        IFNULL(dt.name, CASE d.diagtype 
+          WHEN '1' THEN 'PRINCIPLE DX (การวินิจฉัยโรคหลัก)' 
+          WHEN '2' THEN 'CO-MORBIDITY (การวินิจฉัยโรคร่วม)' 
+          WHEN '3' THEN 'COMPLICATION (ภาวะแทรกซ้อน)' 
+          WHEN '4' THEN 'OTHER (การวินิจฉัยอื่นๆ)' 
+          WHEN '5' THEN 'EXTERNAL CAUSE (สาเหตุภายนอก)' 
+          ELSE 'ไม่ระบุประเภท' END) AS diagtype_name,
+        IFNULL(doc.name, '') AS doctor_name
+      FROM ovstdiag d
+      LEFT JOIN icd101 i ON i.code = d.icd10
+      LEFT JOIN diagtype dt ON dt.diagtype = d.diagtype
+      LEFT JOIN doctor doc ON doc.code = d.doctor
+      WHERE d.vn = ?
+      ORDER BY d.diagtype ASC, d.ovst_diag_id ASC;
+    `
+
+    const orderSql = `
+      SELECT 
+        o.icode,
+        COALESCE(d.name, nd.name, o.icode) AS item_name,
+        d.strength,
+        d.units,
+        IFNULL(o.qty, 0) AS qty,
+        IFNULL(o.unitprice, 0) AS unitprice,
+        IFNULL(o.sum_price, 0) AS sum_price,
+        IFNULL(o.paidst, '') AS paidst,
+        IFNULL(pst.name, CASE o.paidst 
+          WHEN '01' THEN 'ชำระเองเบิกได้' 
+          WHEN '02' THEN 'ลูกหนี้สิทธิ' 
+          WHEN '03' THEN 'ชำระเองเบิกไม่ได้' 
+          WHEN '00' THEN 'ค้างชำระ' 
+          ELSE o.paidst END) AS paidst_name,
+        IFNULL(o.income, '') AS income_code,
+        IFNULL(inc.name, '') AS income_name,
+        CONCAT_WS(' ', du.name1, du.name2, du.name3, sp.name1, sp.name2, sp.name3) AS drugusage_text,
+        IF(d.icode IS NOT NULL, 1, 0) AS is_drug
+      FROM opitemrece o
+      LEFT JOIN s_drugitems d ON d.icode = o.icode
+      LEFT JOIN nondrugitems nd ON nd.icode = o.icode
+      LEFT JOIN paidst pst ON pst.paidst = o.paidst
+      LEFT JOIN income inc ON inc.income = o.income
+      LEFT JOIN drugusage du ON du.drugusage = o.drugusage
+      LEFT JOIN sp_use sp ON sp.sp_use = o.sp_use
+      WHERE o.vn = ?
+      ORDER BY o.income ASC, o.item_no ASC, o.icode ASC;
+    `
+
+    const [headerRows, screenRows, diagRows, orderRows] = await Promise.all([
+      executor(headerSql, [cleanVn]),
+      executor(screenSql, [cleanVn]),
+      executor(diagSql, [cleanVn]),
+      executor(orderSql, [cleanVn]),
+    ])
+
+    if (!headerRows || headerRows.length === 0) {
+      return null
+    }
+
+    const h = headerRows[0]
+    const header: VnClinicalDetailsHeader = {
+      vn: String(h.vn || cleanVn),
+      hn: String(h.hn || ''),
+      cid: String(h.cid || ''),
+      ptname: String(h.ptname || '').trim(),
+      age: Number(h.age || 0),
+      sex: String(h.sex || '-'),
+      vstdate: String(h.vstdate || ''),
+      vsttime: String(h.vsttime || ''),
+      pttypename: String(h.pttypename || ''),
+      department: String(h.department || ''),
+      clinic: String(h.clinic || ''),
+    }
+
+    let screen: VnScreenData | null = null
+    if (screenRows && screenRows.length > 0) {
+      const s = screenRows[0]
+      screen = {
+        bw: s.bw != null ? Number(s.bw) : null,
+        height: s.height != null ? Number(s.height) : null,
+        bmi: s.bmi != null ? Number(s.bmi) : null,
+        bps: s.bps != null ? Number(s.bps) : null,
+        bpd: s.bpd != null ? Number(s.bpd) : null,
+        pulse: s.pulse != null ? Number(s.pulse) : null,
+        rr: s.rr != null ? Number(s.rr) : null,
+        temperature: s.temperature != null ? Number(s.temperature) : null,
+        spo2: s.spo2 != null ? Number(s.spo2) : null,
+        fbs: s.fbs != null ? Number(s.fbs) : null,
+        cc: s.cc ? String(s.cc).trim() : null,
+        hpi: s.hpi ? String(s.hpi).trim() : null,
+        pmh: s.pmh ? String(s.pmh).trim() : null,
+        pe: s.pe ? String(s.pe).trim() : null,
+        screen_dep: s.screen_dep ? String(s.screen_dep) : null,
+        screen_dep_name: s.screen_dep_name ? String(s.screen_dep_name).trim() : null,
+        symptom: s.symptom ? String(s.symptom).trim() : null,
+      }
+    }
+
+    const diagnoses: VnDiagItem[] = (diagRows || []).map((d: any) => ({
+      icd10: String(d.icd10 || ''),
+      icd_name: String(d.icd_name || ''),
+      diagtype: String(d.diagtype || ''),
+      diagtype_name: String(d.diagtype_name || ''),
+      doctor_name: d.doctor_name ? String(d.doctor_name).trim() : null,
+    }))
+
+    const orderItems: VnOrderItem[] = (orderRows || []).map((o: any) => {
+      const inc = String(o.income_code || '')
+      const isDrug = Boolean(o.is_drug)
+
+      let categoryGroup: VnOrderCategoryGroup = 'OTHER'
+      if (isDrug || ['03', '85', '86', '90', '91'].includes(inc)) {
+        categoryGroup = 'DRUG'
+      } else if (['05', '26', '27', '28', '93', '94'].includes(inc)) {
+        categoryGroup = 'LAB'
+      } else if (['04', '06', '87', '95'].includes(inc)) {
+        categoryGroup = 'XRAY'
+      } else if (['11', '12', '13', '14', '16', '20', '45', '71', '76', '77', '78', '98', '99', '36', '37'].includes(inc)) {
+        categoryGroup = 'PROCEDURE_SERVICE'
+      } else if (['18', '19', '24', '30', '31', '89', '92', '97'].includes(inc)) {
+        categoryGroup = 'SUPPLY'
+      }
+
+      return {
+        icode: String(o.icode || ''),
+        item_name: String(o.item_name || ''),
+        strength: o.strength ? String(o.strength).trim() : null,
+        units: o.units ? String(o.units).trim() : null,
+        qty: Number(o.qty || 0),
+        unitprice: Number(o.unitprice || 0),
+        sum_price: Number(o.sum_price || 0),
+        paidst: String(o.paidst || ''),
+        paidst_name: String(o.paidst_name || ''),
+        income_code: inc,
+        income_name: String(o.income_name || ''),
+        category_group: categoryGroup,
+        drugusage_text: String(o.drugusage_text || '').trim(),
+      }
+    })
+
+    const categoryDefinitions: { group: VnOrderCategoryGroup; title: string }[] = [
+      { group: 'DRUG', title: 'ยาและเวชภัณฑ์ยา' },
+      { group: 'LAB', title: 'การตรวจชันสูตรทางห้องปฏิบัติการ (LAB)' },
+      { group: 'XRAY', title: 'เอกซเรย์และการตรวจรังสี (X-Ray)' },
+      { group: 'PROCEDURE_SERVICE', title: 'หัตถการและค่าบริการทางการพยาบาล / การแพทย์' },
+      { group: 'SUPPLY', title: 'อุปกรณ์และเวชภัณฑ์มิใช่ยา' },
+      { group: 'OTHER', title: 'ค่าบริการอื่นๆ' },
+    ]
+
+    const categories: VnOrderCategorySummary[] = categoryDefinitions
+      .map((def) => {
+        const groupItems = orderItems.filter((i) => i.category_group === def.group)
+        return {
+          category_group: def.group,
+          title: def.title,
+          total_price: groupItems.reduce((acc, curr) => acc + curr.sum_price, 0),
+          item_count: groupItems.length,
+          items: groupItems,
+        }
+      })
+      .filter((cat) => cat.item_count > 0)
+
+    const totalPrice = orderItems.reduce((sum, item) => sum + item.sum_price, 0)
+    const totalItems = orderItems.reduce((sum, item) => sum + item.qty, 0)
+    const totalPaid = orderItems
+      .filter((i) => ['01', '03'].includes(i.paidst))
+      .reduce((sum, item) => sum + item.sum_price, 0)
+    const totalClaim = orderItems
+      .filter((i) => i.paidst === '02')
+      .reduce((sum, item) => sum + item.sum_price, 0)
+
+    return {
+      header,
+      screen,
+      diagnoses,
+      orders: {
+        items: orderItems,
+        categories,
+        total_price: totalPrice,
+        total_items: totalItems,
+        total_paid: totalPaid,
+        total_claim: totalClaim,
+      },
     }
   }
 
