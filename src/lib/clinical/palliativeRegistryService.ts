@@ -366,17 +366,24 @@ export class PalliativeRegistryService {
       icd10Palliative?: string | null
       projectCode?: string | null
       registrationStatus?: string
+      registeredDate?: string | null
       visit1Date?: string | null
+      visit1Remark?: string | null
       visit1Status?: string | null
       visit2Date?: string | null
+      visit2Remark?: string | null
       visit2Status?: string | null
       visit3Date?: string | null
+      visit3Remark?: string | null
       visit3Status?: string | null
       visit4Date?: string | null
+      visit4Remark?: string | null
       visit4Status?: string | null
       visit5Date?: string | null
+      visit5Remark?: string | null
       visit5Status?: string | null
       visit6Date?: string | null
+      visit6Remark?: string | null
       visit6Status?: string | null
       deathDate?: string | null
       deathEntryStatus?: string | null
@@ -394,18 +401,25 @@ export class PalliativeRegistryService {
       icd10Palliative: data.icd10Palliative?.trim() || 'OPD (Z515 +Z718+Z636(เยี่ยมบ้าน) ใน Cormorbidประเภท 2)',
       projectCode: data.projectCode?.trim() || '30001, cONS01ลงทุกเคส',
       registrationStatus: data.registrationStatus || 'ยังไม่ได้ดำเนินการ',
+      registeredDate: data.registeredDate || null,
       visit1Date: data.visit1Date || null,
-      visit1Status: data.visit1Status || 'ยังไม่ได้เยี่ยม',
+      visit1Remark: (data as any).visit1Remark || data.visit1Status || null,
+      visit1Status: (data as any).visit1Remark || data.visit1Status || null,
       visit2Date: data.visit2Date || null,
-      visit2Status: data.visit2Status || 'ยังไม่ได้เยี่ยม',
+      visit2Remark: (data as any).visit2Remark || data.visit2Status || null,
+      visit2Status: (data as any).visit2Remark || data.visit2Status || null,
       visit3Date: data.visit3Date || null,
-      visit3Status: data.visit3Status || 'ยังไม่ได้เยี่ยม',
+      visit3Remark: (data as any).visit3Remark || data.visit3Status || null,
+      visit3Status: (data as any).visit3Remark || data.visit3Status || null,
       visit4Date: data.visit4Date || null,
-      visit4Status: data.visit4Status || 'ยังไม่ได้เยี่ยม',
+      visit4Remark: (data as any).visit4Remark || data.visit4Status || null,
+      visit4Status: (data as any).visit4Remark || data.visit4Status || null,
       visit5Date: data.visit5Date || null,
-      visit5Status: data.visit5Status || 'ยังไม่ได้เยี่ยม',
+      visit5Remark: (data as any).visit5Remark || data.visit5Status || null,
+      visit5Status: (data as any).visit5Remark || data.visit5Status || null,
       visit6Date: data.visit6Date || null,
-      visit6Status: data.visit6Status || 'ยังไม่ได้เยี่ยม',
+      visit6Remark: (data as any).visit6Remark || data.visit6Status || null,
+      visit6Status: (data as any).visit6Remark || data.visit6Status || null,
       deathDate: data.deathDate || null,
       deathEntryStatus: data.deathEntryStatus || null,
       claimStatus: data.claimStatus || 'ยังไม่ได้ลงข้อมูล',
@@ -455,6 +469,9 @@ export class PalliativeRegistryService {
     for (let v = 1; v <= 6; v++) {
       if (updateData[`visit${v}Remark`] !== undefined && updateData[`visit${v}Status`] === undefined) {
         updateData[`visit${v}Status`] = updateData[`visit${v}Remark`]
+      }
+      if (updateData[`visit${v}Status`] !== undefined && updateData[`visit${v}Remark`] === undefined) {
+        updateData[`visit${v}Remark`] = updateData[`visit${v}Status`]
       }
     }
 
