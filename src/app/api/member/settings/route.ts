@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { logAudit } from '@/lib/audit'
 
 export async function GET() {
   try {
@@ -16,8 +17,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { error } = await requireMemberApi({ requiredRole: 'admin' })
-    if (error) return error
+    const { member, error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error || !member) return error
 
     const body = await request.json()
     
@@ -30,6 +31,13 @@ export async function POST(request: Request) {
         [key, body[key]?.toString() || '', body[key]?.toString() || '']
       )
     }
+
+    await logAudit(
+      'UPDATE_SETTINGS',
+      'member_system_settings',
+      `Admin updated system settings (${Object.keys(body).join(', ')})`,
+      { username: member.username, email: member.email }
+    )
 
     return NextResponse.json({ success: true, message: 'บันทึกการตั้งค่าเรียบร้อยแล้ว' })
   } catch (error) {

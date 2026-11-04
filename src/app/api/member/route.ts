@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { logAudit, maskAuditIdentifier } from '@/lib/audit'
 
 // GET: Retrieve all members (admin only)
 export async function GET() {
@@ -93,6 +94,13 @@ export async function PUT(request: Request) {
        ]
      )
 
+    await logAudit(
+      'UPDATE',
+      'members',
+      `Admin updated member ID ${id} (${maskAuditIdentifier(username.trim())}): role=${finalRole}`,
+      { username: member.username, email: member.email }
+    )
+
     return NextResponse.json({ success: true, message: 'แก้ไขข้อมูลสมาชิกเรียบร้อยแล้ว' })
   } catch (error: any) {
     console.error('Update member error:', error)
@@ -116,15 +124,22 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ไม่พบ ID สมาชิกที่จะลบ' }, { status: 400 })
     }
 
+    const targetUser = await queryMemberDb('SELECT username FROM members WHERE id = ?', [id])
+    const targetUsername = targetUser && targetUser.length > 0 ? targetUser[0].username : null
+
     // Prevent admin from deleting themselves
-    if (member.username) {
-      const targetUser = await queryMemberDb('SELECT username FROM members WHERE id = ?', [id])
-      if (targetUser && targetUser.length > 0 && targetUser[0].username === member.username) {
-        return NextResponse.json({ error: 'ไม่สามารถลบบัญชีของตัวเองได้' }, { status: 400 })
-      }
+    if (member.username && targetUsername === member.username) {
+      return NextResponse.json({ error: 'ไม่สามารถลบบัญชีของตัวเองได้' }, { status: 400 })
     }
 
     await queryMemberDb('DELETE FROM members WHERE id = ?', [id])
+
+    await logAudit(
+      'DELETE',
+      'members',
+      `Admin deleted member ID ${id} (${maskAuditIdentifier(targetUsername || id)})`,
+      { username: member.username, email: member.email }
+    )
 
     return NextResponse.json({ success: true, message: 'ลบสมาชิกเรียบร้อยแล้ว' })
   } catch (error: any) {
@@ -139,8 +154,8 @@ export async function DELETE(request: Request) {
 // POST: Create a new member (admin only)
 export async function POST(request: Request) {
   try {
-    const { error } = await requireMemberApi({ requiredRole: 'admin' })
-    if (error) return error
+    const { member, error } = await requireMemberApi({ requiredRole: 'admin' })
+    if (error || !member) return error
 
     const body = await request.json()
     const { username, email, name, department, position, salary_user, salary_pass, role } = body
@@ -186,6 +201,13 @@ export async function POST(request: Request) {
         salary_pass ? salary_pass.trim() : null,
         role
       ]
+    )
+
+    await logAudit(
+      'CREATE',
+      'members',
+      `Admin created new member: ${maskAuditIdentifier(username.trim())} (role: ${role}, department: ${department ? department.trim() : '-'})`,
+      { username: member.username, email: member.email }
     )
 
     return NextResponse.json({ success: true, message: 'เพิ่มสมาชิกใหม่เรียบร้อยแล้ว' })

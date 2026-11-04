@@ -26,35 +26,7 @@ function cleanExpiredCompletedExchanges() {
   }
 }
 
-function getBaseUrl(request: Request): string {
-  // 1. Explicitly configured public domain (e.g. https://thlp.moph.go.th)
-  if (
-    process.env.NEXT_PUBLIC_SITE_URL &&
-    process.env.NEXT_PUBLIC_SITE_URL !== 'undefined' &&
-    process.env.NEXT_PUBLIC_SITE_URL.trim() !== ''
-  ) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '')
-  }
-
-  // 2. Reverse proxy forwarded headers
-  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host')
-  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
-  if (forwardedHost && !forwardedHost.includes('localhost') && !forwardedHost.includes('127.0.0.1')) {
-    return `${forwardedProto}://${forwardedHost}`
-  }
-
-  // 3. Request URL origin fallback (dev / test environments)
-  try {
-    const origin = new URL(request.url).origin
-    if (origin && origin !== 'null') {
-      return origin
-    }
-  } catch {
-    // fallback below
-  }
-
-  return 'http://localhost:3000'
-}
+import { getSafeBaseUrl } from '@/lib/auth/urlHelper'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -63,7 +35,7 @@ export async function GET(request: Request) {
   const thaidError = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
 
-  const baseUrl = getBaseUrl(request)
+  const baseUrl = getSafeBaseUrl(request)
 
   // Special branch: Event QR Check-in via ThaID
   if (state && state.startsWith('evt_')) {

@@ -9,37 +9,11 @@ import {
   verifyMophOAuthState,
   NotAProviderError,
 } from '@/lib/providerIdAuth'
+import { getSafeBaseUrl } from '@/lib/auth/urlHelper'
 
 export const dynamic = 'force-dynamic'
 
 const authService = new MemberAuthService()
-
-function getBaseUrl(request: Request): string {
-  if (
-    process.env.NEXT_PUBLIC_SITE_URL &&
-    process.env.NEXT_PUBLIC_SITE_URL !== 'undefined' &&
-    process.env.NEXT_PUBLIC_SITE_URL.trim() !== ''
-  ) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '')
-  }
-
-  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host')
-  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
-  if (forwardedHost && !forwardedHost.includes('localhost') && !forwardedHost.includes('127.0.0.1')) {
-    return `${forwardedProto}://${forwardedHost}`
-  }
-
-  try {
-    const origin = new URL(request.url).origin
-    if (origin && origin !== 'null') {
-      return origin
-    }
-  } catch {
-    // fallback
-  }
-
-  return 'http://localhost:3000'
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -48,7 +22,7 @@ export async function GET(request: Request) {
   const oauthError = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
 
-  const baseUrl = getBaseUrl(request)
+  const baseUrl = getSafeBaseUrl(request)
   const isHealthId = state?.startsWith('hid_')
   const serviceLabel = isHealthId ? 'Health ID' : 'Provider ID'
   const errorParamPrefix = isHealthId ? 'health_id' : 'provider_id'

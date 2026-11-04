@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { logAudit } from '@/lib/audit'
 import fs from 'fs'
 import path from 'path'
 
@@ -78,9 +79,19 @@ export async function POST(request: Request) {
 
     const { imageBase64 } = await request.json()
 
-    if (!imageBase64 || !imageBase64.startsWith('data:image/png;base64,')) {
+    if (!imageBase64 || typeof imageBase64 !== 'string' || !imageBase64.startsWith('data:image/png;base64,')) {
       return NextResponse.json(
         { error: 'รูปแบบไฟล์ลายเซ็นไม่ถูกต้อง' },
+        { status: 400 }
+      )
+    }
+
+    // Limit base64 string length to avoid memory exhaustion (approx 2MB binary = ~2.8MB base64)
+    const MAX_SIGNATURE_SIZE_BYTES = 2 * 1024 * 1024 // 2MB
+    const MAX_BASE64_LENGTH = Math.ceil((MAX_SIGNATURE_SIZE_BYTES * 4) / 3) + 100
+    if (imageBase64.length > MAX_BASE64_LENGTH) {
+      return NextResponse.json(
+        { error: 'ขนาดไฟล์ลายเซ็นต้องไม่เกิน 2MB' },
         { status: 400 }
       )
     }
@@ -88,6 +99,22 @@ export async function POST(request: Request) {
     // Extract Base64 data
     const base64Data = imageBase64.replace(/^data:image\/png;base64,/, '')
     const buffer = Buffer.from(base64Data, 'base64')
+
+    if (buffer.length > MAX_SIGNATURE_SIZE_BYTES) {
+      return NextResponse.json(
+        { error: 'ขนาดไฟล์ลายเซ็นต้องไม่เกิน 2MB' },
+        { status: 400 }
+      )
+    }
+
+    // Verify PNG Magic Bytes: 89 50 4E 47 0D 0A 1A 0A
+    const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    if (buffer.length < 8 || !buffer.subarray(0, 8).equals(PNG_MAGIC)) {
+      return NextResponse.json(
+        { error: 'ไฟล์ลายเซ็นไม่ใช่รูปภาพ PNG ที่ถูกต้อง' },
+        { status: 400 }
+      )
+    }
 
     // Generate directory based on username (safe for OS filename)
     const safeUsername = session.username.replace(/[^a-zA-Z0-9_-]/g, '_')
@@ -109,6 +136,14 @@ export async function POST(request: Request) {
     await queryMemberDb(
       'UPDATE members SET signature_path = ? WHERE username = ?',
       [relativePath, session.username]
+    )
+
+    // Audit log
+    await logAudit(
+      'UPDATE',
+      'members',
+      'บันทึกหรืออัปเดตลายเซ็นอิเล็กทรอนิกส์ (E-Signature)',
+      { username: session.username, email: session.email }
     )
 
     return NextResponse.json({

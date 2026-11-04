@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
+import { logAudit } from '@/lib/audit'
 import { DocumentStorage, StorageValidationError, sanitizeName } from '@/lib/storage/documentStorage'
 
 export async function POST(request: Request) {
@@ -36,6 +37,13 @@ export async function POST(request: Request) {
     await queryMemberDb(
       'UPDATE members SET profile_path = ? WHERE username = ?',
       [relativePath, member.username]
+    )
+
+    await logAudit(
+      'UPDATE',
+      'members',
+      'อัปเดตรูปภาพโปรไฟล์ผู้ใช้งาน (Profile Picture)',
+      { username: member.username, email: member.email }
     )
 
     return NextResponse.json({
