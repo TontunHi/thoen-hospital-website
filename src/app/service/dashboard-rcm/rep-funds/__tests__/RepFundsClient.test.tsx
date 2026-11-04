@@ -52,6 +52,10 @@ const mockSummaryResponse = {
   availableFunds: [
     { key: 'IPCS,OTCS', label: 'ข้าราชการ (IPCS,OTCS) (14)', count: 14 },
   ],
+  availableErrorCodes: [
+    { code: '179', count: 12 },
+    { code: '305', count: 5 },
+  ],
 }
 
 const mockCasesResponse = {
@@ -138,7 +142,7 @@ describe('RepFundsClient Component (3.1.1 Live Data)', () => {
     render(<RepFundsClient />)
 
     expect(screen.getByText('3.1.1 ข้อมูล Rep แต่ละกองทุน')).toBeInTheDocument()
-    expect(screen.getByText(/ตรวจสอบข้อมูลการชดเชยรายบุคคล/)).toBeInTheDocument()
+    expect(screen.getByText(/รวมหลาย Rep และหลาย HN ในที่เดียว/)).toBeInTheDocument()
     expect(screen.getByText('ค่ารักษาพยาบาลจริงรวม')).toBeInTheDocument()
     expect(screen.getByText('ยอดเงินชดเชย สปสช. รวม')).toBeInTheDocument()
 
@@ -159,48 +163,36 @@ describe('RepFundsClient Component (3.1.1 Live Data)', () => {
     fireEvent.submit(form)
 
     await waitFor(() => {
-      expect(screen.getByText(/691000204/)).toBeInTheDocument()
+      expect(screen.getAllByText(/691000204/).length).toBeGreaterThan(0)
       expect(screen.getAllByText(/นาย กฤษฎา สาริวงค์/).length).toBeGreaterThan(0)
       expect(screen.getByText(/3,621.62 บาท/)).toBeInTheDocument()
-      expect(screen.getByText(/ชดเชยครบ \(117%\)/)).toBeInTheDocument()
+      expect(screen.getAllByText(/ได้รับชดเชย/).length).toBeGreaterThan(0)
     })
   })
 
-  it('switches to Rep statements tab and displays Rep list', async () => {
+  it('renders multi-Rep and multi-HN statements in Rep view and clicking a row opens case detail modal without button', async () => {
     render(<RepFundsClient />)
 
+    // Verify Rep statements view is active and displays multiple Reps and HNs directly in table
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /มุมมองตามใบแจ้งผล REP/ })).toBeInTheDocument()
+      expect(screen.getAllByText('691000204').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('0142232').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('นาย กฤษฎา สาริวงค์').length).toBeGreaterThan(0)
     })
 
-    const repsTab = screen.getByRole('tab', { name: /มุมมองตามใบแจ้งผล REP/ })
-    fireEvent.click(repsTab)
+    // Verify there are no "ดูคนไข้" or "ดูเคส" buttons in the table
+    expect(screen.queryByRole('button', { name: /ดูคนไข้/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /ดูเคส/ })).not.toBeInTheDocument()
 
+    // Click directly on the row to view detail
+    const caseRow = screen.getByText('นาย กฤษฎา สาริวงค์').closest('tr')!
+    fireEvent.click(caseRow)
+
+    // Modal opens showing single case detail
     await waitFor(() => {
-      expect(screen.getByText('691000204')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /ดูคนไข้/ })).toBeInTheDocument()
-    })
-  })
-
-  it('opens case drilldown modal and shows patient name and compensation amount', async () => {
-    render(<RepFundsClient />)
-
-    await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /ดูเคส/ }).length).toBeGreaterThan(0)
-    })
-
-    const viewCasesBtn = screen.getAllByRole('button', { name: /ดูเคส/ })[0]
-    fireEvent.click(viewCasesBtn)
-
-    // Modal opens
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-
-    // Patient details inside modal
-    await waitFor(() => {
-      expect(screen.getByText('นาย กฤษฎา สาริวงค์')).toBeInTheDocument()
-      expect(screen.getByText('0142232')).toBeInTheDocument()
-      expect(screen.getByText('3,621.62')).toBeInTheDocument()
-      expect(screen.getByText('ชดเชยครบ 100%')).toBeInTheDocument()
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText(/รายละเอียดเคส: นาย กฤษฎา สาริวงค์/)).toBeInTheDocument()
+      expect(screen.getAllByText('3,621.62 บาท').length).toBeGreaterThan(0)
     })
 
     // Close modal
@@ -208,5 +200,80 @@ describe('RepFundsClient Component (3.1.1 Live Data)', () => {
     fireEvent.click(closeBtns[0])
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('switches to Fund Matrix tab and clicking a fund row opens fund cases modal', async () => {
+    render(<RepFundsClient />)
+
+    const fundsTab = screen.getByRole('tab', { name: /มุมมองตามกองทุน/ })
+    fireEvent.click(fundsTab)
+
+    await waitFor(() => {
+      expect(screen.getByText('ข้าราชการ (IPCS,OTCS)')).toBeInTheDocument()
+    })
+
+    // Verify no "ดูเคส" button in Fund Matrix
+    expect(screen.queryByRole('button', { name: /ดูเคส/ })).not.toBeInTheDocument()
+
+    // Click on fund row to open cases
+    const fundRow = screen.getByText('ข้าราชการ (IPCS,OTCS)').closest('tr')!
+    fireEvent.click(fundRow)
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText(/รายชื่อคนไข้: ข้าราชการ \(IPCS,OTCS\)/)).toBeInTheDocument()
+    })
+
+    // Close modal
+    const closeBtns = screen.getAllByRole('button', { name: /ปิดหน้าต่าง/ })
+    fireEvent.click(closeBtns[0])
+  })
+
+  it('orders filters logically from broad to specific: Year, Fund, Dept, Status, Search', async () => {
+    render(<RepFundsClient />)
+
+    // Check all filters exist
+    const yearSelect = screen.getByLabelText(/1\. เลือกปีงบประมาณ/)
+    const fundSelect = screen.getByLabelText(/2\. เลือกกองทุนหลัก/)
+    const deptSelect = screen.getByLabelText(/4\. เลือกแผนกบริการ/)
+    const statusSelect = screen.getByLabelText(/5\. เลือกสถานะการชดเชย/)
+    const searchInput = screen.getByLabelText(/6\. ค้นหาเลข Rep/)
+
+    expect(yearSelect).toBeInTheDocument()
+    expect(fundSelect).toBeInTheDocument()
+    expect(deptSelect).toBeInTheDocument()
+    expect(statusSelect).toBeInTheDocument()
+    expect(searchInput).toBeInTheDocument()
+
+    // Verify error code select filter is removed
+    expect(screen.queryByLabelText(/เลือกรหัส Error Code/)).not.toBeInTheDocument()
+
+    // Test changing department and status filters
+    await waitFor(() => {
+      fireEvent.change(deptSelect, { target: { value: 'IP' } })
+      fireEvent.change(statusSelect, { target: { value: 'paid' } })
+    })
+
+    expect(deptSelect).toHaveValue('IP')
+    expect(statusSelect).toHaveValue('paid')
+  })
+
+  it('toggles patient claim lookup section visibility', async () => {
+    render(<RepFundsClient />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /ค้นหารายคนไข้/ })).toBeInTheDocument()
+    })
+
+    const toggleBtn = screen.getByRole('button', { name: /ค้นหารายคนไข้/ })
+
+    // Click to open
+    fireEvent.click(toggleBtn)
+    expect(screen.getByRole('button', { name: /ซ่อนการค้นหา/ })).toBeInTheDocument()
+
+    // Click to collapse
+    const collapseBtn = screen.getByRole('button', { name: /ซ่อนการค้นหา/ })
+    fireEvent.click(collapseBtn)
+    expect(screen.getByRole('button', { name: /ค้นหารายคนไข้/ })).toBeInTheDocument()
   })
 })

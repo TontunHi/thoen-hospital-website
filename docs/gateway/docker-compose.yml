@@ -1,0 +1,19 @@
+services:
+  api-gateway:
+    build: .
+    container_name: thoen-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./server.js:/app/server.js
+      - ./routes:/app/routes
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

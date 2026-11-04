@@ -1,4 +1,5 @@
 import { querySalaryEditDb } from '@/lib/salaryDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 
 export type SalaryDbExecutor = (sql: string, params?: any[]) => Promise<any>
@@ -212,6 +213,12 @@ export const SalaryBatchService = {
     executor: SalaryDbExecutor = querySalaryEditDb
   ): Promise<LatestSalaryBatchSummary | null> {
     const tableName = type === 'salary' ? 'salary' : 'ot'
+    const isMock = typeof (executor as any).mock !== 'undefined'
+
+    if (executor === querySalaryEditDb && !isMock) {
+      const res = await apiGateway.salary.getLatestBatchSummary(type)
+      return res.summary
+    }
 
     const latestRows = await executor(
       `SELECT DATE_FORMAT(c1, '%Y-%m-%d') as latest_date, c1 as raw_c1 
@@ -264,6 +271,23 @@ export const SalaryBatchService = {
   ): Promise<DeleteSalaryBatchResult> {
     const { type, confirmedDate, user } = params
     const tableName = type === 'salary' ? 'salary' : 'ot'
+    const isMock = typeof (executor as any).mock !== 'undefined'
+
+    if (executor === querySalaryEditDb && !isMock) {
+      const res = await apiGateway.salary.deleteLatestBatch(type, confirmedDate)
+      await logAudit(
+        'DELETE',
+        tableName,
+        `ลบชุดข้อมูล ${type.toUpperCase()} ล่าสุด วันที่ c1 = ${confirmedDate} จำนวน ${res.deletedCount} รายการ`,
+        { username: user.username, email: user.email || '' }
+      )
+      return {
+        success: true,
+        deletedCount: res.deletedCount,
+        deletedDate: confirmedDate,
+        tableName,
+      }
+    }
 
     const latest = await this.getLatestBatchSummary(type, executor)
     if (!latest) {

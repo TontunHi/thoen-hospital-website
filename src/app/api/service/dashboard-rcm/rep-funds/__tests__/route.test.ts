@@ -83,6 +83,7 @@ describe('GET /api/service/dashboard-rcm/rep-funds', () => {
       repList: [],
       availableYears: ['2570', '2569'],
       availableFunds: [],
+      availableErrorCodes: [],
     })
 
     const req = new Request('http://localhost:3000/api/service/dashboard-rcm/rep-funds?fiscalYear=2570')

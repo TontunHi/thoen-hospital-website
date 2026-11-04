@@ -173,15 +173,15 @@ describe('PalliativeCarePc1Client Component', () => {
     })
   })
 
-  it('opens detail modal on click', async () => {
+  it('opens detail modal on row click', async () => {
     render(<PalliativeCarePc1Client />)
 
     await waitFor(() => {
       expect(screen.getByText('นางจันทนา ตันมา')).toBeInTheDocument()
     })
 
-    const infoButtons = screen.getAllByTitle('ดูรายละเอียดผู้ป่วย')
-    fireEvent.click(infoButtons[0])
+    const patientRow = screen.getByText('นางจันทนา ตันมา').closest('tr')!
+    fireEvent.click(patientRow)
 
     await waitFor(() => {
       expect(screen.getByText(/รายละเอียดผู้ป่วย: นางจันทนา ตันมา/)).toBeInTheDocument()

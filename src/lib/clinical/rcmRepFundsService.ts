@@ -74,6 +74,7 @@ export interface RepFundsSummaryResult {
   repList: RepStatementSummary[]
   availableYears: string[]
   availableFunds: Array<{ key: string; label: string; count: number }>
+  availableErrorCodes: Array<{ code: string; count: number }>
 }
 
 export interface RepFundsSummaryParams {
@@ -81,6 +82,8 @@ export interface RepFundsSummaryParams {
   department?: 'ALL' | 'OP' | 'IP'
   fund?: string
   subFund?: string
+  status?: string
+  errorCode?: string
   search?: string
 }
 
@@ -91,6 +94,9 @@ export interface RepCasesParams {
   department?: 'ALL' | 'OP' | 'IP'
   fiscalYear?: string
   hn?: string
+  status?: string
+  errorCode?: string
+  search?: string
   limit?: number
   offset?: number
 }
@@ -231,10 +237,28 @@ export class RcmRepFundsService {
       queryParams.push(subFund)
     }
 
+    if (params.status && params.status !== 'ALL') {
+      if (params.status === 'paid' || params.status === 'compensated') {
+        whereClauses.push('Compensated > 0')
+      } else if (params.status === 'denied' || params.status === 'zero') {
+        whereClauses.push('(Compensated = 0 OR Compensated IS NULL)')
+      } else if (params.status === 'appeal') {
+        whereClauses.push("(Appeal = 'Y' OR (Compensated < Income AND Compensated > 0))")
+      } else if (params.status === 'has_error') {
+        whereClauses.push('(ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0)')
+      }
+    }
+
+    if (params.errorCode && params.errorCode !== 'ALL') {
+      whereClauses.push('(ErrorCode = ? OR ErrorCode LIKE ?)')
+      const cleanErr = params.errorCode.trim()
+      queryParams.push(cleanErr, `%${cleanErr}%`)
+    }
+
     if (search) {
-      whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ?)')
+      whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ? OR ErrorCode LIKE ?)')
       const s = `%${search}%`
-      queryParams.push(s, s, s, s, s)
+      queryParams.push(s, s, s, s, s, s)
     }
 
     const whereSql = whereClauses.join(' AND ')
@@ -370,12 +394,35 @@ export class RcmRepFundsService {
       count: Number(r.cnt || 0),
     }))
 
+    // 5. Distinct Available Error Codes in selected fiscal year
+    const availableErrorCodesSql = `
+      SELECT 
+        ErrorCode as code,
+        COUNT(*) as cnt
+      FROM rcmdb.repdata
+      WHERE YearBudget = ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0
+      GROUP BY ErrorCode
+      ORDER BY cnt DESC
+      LIMIT 50
+    `
+    let availableErrorCodes: Array<{ code: string; count: number }> = []
+    try {
+      const errRows = await apiGateway.clinical.query<any>(availableErrorCodesSql, [fiscalYear])
+      availableErrorCodes = errRows.map((r) => ({
+        code: String(r.code),
+        count: Number(r.cnt || 0),
+      }))
+    } catch {
+      availableErrorCodes = []
+    }
+
     return {
       metrics,
       fundGroups,
       repList,
       availableYears,
       availableFunds,
+      availableErrorCodes,
     }
   }
 
@@ -403,8 +450,22 @@ export class RcmRepFundsService {
     }
 
     if (params.fund && params.fund !== 'ALL') {
-      whereClauses.push('Fund = ?')
-      queryParams.push(params.fund)
+      if (['UCS', 'OFC', 'SSS', 'LGO', 'STP'].includes(params.fund)) {
+        if (params.fund === 'OFC') {
+          whereClauses.push("(Fund LIKE '%CS%' OR Fund LIKE '%OFC%')")
+        } else if (params.fund === 'LGO') {
+          whereClauses.push("(Fund LIKE '%LG%' OR Fund LIKE '%LGO%')")
+        } else if (params.fund === 'SSS') {
+          whereClauses.push("(Fund LIKE '%SSS%' OR Fund LIKE '%SS%')")
+        } else if (params.fund === 'STP') {
+          whereClauses.push("Fund LIKE '%STP%'")
+        } else if (params.fund === 'UCS') {
+          whereClauses.push("(Fund LIKE '%UC%' OR Fund LIKE 'IP0%' OR Fund LIKE 'OP0%' OR Fund LIKE 'HC%' OR Fund LIKE 'DM%' OR Fund LIKE 'AE%')")
+        }
+      } else {
+        whereClauses.push('Fund = ?')
+        queryParams.push(params.fund)
+      }
     }
 
     if (params.subFund && params.subFund !== 'ALL') {
@@ -412,10 +473,34 @@ export class RcmRepFundsService {
       queryParams.push(params.subFund)
     }
 
+    if (params.status && params.status !== 'ALL') {
+      if (params.status === 'paid' || params.status === 'compensated') {
+        whereClauses.push('Compensated > 0')
+      } else if (params.status === 'denied' || params.status === 'zero') {
+        whereClauses.push('(Compensated = 0 OR Compensated IS NULL)')
+      } else if (params.status === 'appeal') {
+        whereClauses.push("(Appeal = 'Y' OR (Compensated < Income AND Compensated > 0))")
+      } else if (params.status === 'has_error') {
+        whereClauses.push('(ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0)')
+      }
+    }
+
+    if (params.errorCode && params.errorCode !== 'ALL') {
+      whereClauses.push('(ErrorCode = ? OR ErrorCode LIKE ?)')
+      const cleanErr = params.errorCode.trim()
+      queryParams.push(cleanErr, `%${cleanErr}%`)
+    }
+
     if (params.hn) {
       whereClauses.push('(HN = ? OR HN LIKE ?)')
       const cleanHn = params.hn.trim()
       queryParams.push(cleanHn, `%${cleanHn}`)
+    }
+
+    if (params.search && params.search.trim()) {
+      whereClauses.push('(Rep LIKE ? OR Fund LIKE ? OR SubFund LIKE ? OR PtName LIKE ? OR HN LIKE ? OR ErrorCode LIKE ?)')
+      const s = `%${params.search.trim()}%`
+      queryParams.push(s, s, s, s, s, s)
     }
 
     if (whereClauses.length === 0) {
@@ -450,10 +535,10 @@ export class RcmRepFundsService {
       let status: 'paid' | 'appeal' | 'denied' = 'paid'
       if (r.Appeal === 'Y') {
         status = 'appeal'
-      } else if (compensated === 0 && income > 0) {
+      } else if (compensated === 0 || compensated === null) {
         status = 'denied'
-      } else if (compensated < income) {
-        status = 'appeal'
+      } else if (compensated > 0) {
+        status = 'paid'
       }
 
       const sDate = r.AdmDate || r.DchDate
@@ -535,10 +620,10 @@ export class RcmRepFundsService {
       let status: 'paid' | 'appeal' | 'denied' = 'paid'
       if (r.Appeal === 'Y') {
         status = 'appeal'
-      } else if (compensated === 0 && income > 0) {
+      } else if (compensated === 0 || compensated === null) {
         status = 'denied'
-      } else if (compensated < income) {
-        status = 'appeal'
+      } else if (compensated > 0) {
+        status = 'paid'
       }
 
       const sDate = r.AdmDate || r.DchDate

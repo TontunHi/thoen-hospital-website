@@ -513,4 +513,28 @@ describe('PalliativeRegistryClient Component', () => {
 
     expect(screen.getByText('การเยี่ยมครั้งที่ 9')).toBeInTheDocument()
   })
+
+  it('automatically opens Add Patient modal and looks up patient demographics when addHn query param is present', async () => {
+    delete (window as any).location
+    window.location = new URL('http://localhost/service/dashboard-rcm/palliative-care/registry?addHn=0074679') as any
+
+    render(<PalliativeRegistryClient userRole="admin" />)
+
+    // The modal should open automatically
+    await waitFor(() => {
+      expect(screen.getByText('+ เพิ่มทะเบียนผู้ป่วย Palliative Care')).toBeInTheDocument()
+    })
+
+    // HN should be set in input
+    const hnInput = screen.getByPlaceholderText('เช่น 000206') as HTMLInputElement
+    expect(hnInput.value).toBe('0074679')
+
+    // The patient data should be fetched and pre-populated
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('นายประสิทธิ์ ทดสอบ')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('100 ม.1 ต.ล้อมแรด')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('0812345678')).toBeInTheDocument()
+      expect(screen.getByText(/พบใน HOSxP คลินิก Palliative Care/)).toBeInTheDocument()
+    })
+  })
 })

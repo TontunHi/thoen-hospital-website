@@ -7,6 +7,7 @@ vi.mock('@/lib/apiGateway', () => {
         query: vi.fn(),
         getPalliativeRegistries: vi.fn(),
         getPalliativeRegistryById: vi.fn(),
+        getPalliativeRegistryByHn: vi.fn(),
         createPalliativeRegistry: vi.fn(),
         updatePalliativeRegistry: vi.fn(),
         deletePalliativeRegistry: vi.fn(),
@@ -305,9 +306,10 @@ describe('PalliativeRegistryService', () => {
   })
 
   it('throws error when creating duplicate patient in registry', async () => {
-    vi.mocked(apiGateway.app.query).mockResolvedValueOnce([
-      { id: 15, hn: '0000034', patient_name: 'นายธนวัตน์ จักรบุตร' },
-    ] as any)
+    vi.mocked(apiGateway.app.getPalliativeRegistryByHn).mockResolvedValueOnce({
+      exists: true,
+      data: { id: 15, hn: '0000034', patientName: 'นายธนวัตน์ จักรบุตร' },
+    } as any)
 
     await expect(
       PalliativeRegistryService.createRegistry({

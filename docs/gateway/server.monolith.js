@@ -1,0 +1,3214 @@
+import Fastify from 'fastify'
+import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
+import fastifySwagger from '@fastify/swagger'
+import fastifySwaggerUi from '@fastify/swagger-ui'
+import mysql from 'mysql2/promise'
+import 'dotenv/config'
+
+const fastify = Fastify({
+  logger: { level: 'info' }
+})
+
+await fastify.register(cors, { origin: true })
+await fastify.register(rateLimit, { max: 600, timeWindow: '1 minute' })
+
+// ------------------------------------------------------------------
+// Swagger / OpenAPI Documentation
+// ------------------------------------------------------------------
+await fastify.register(fastifySwagger, {
+  openapi: {
+    info: {
+      title: 'Thoen Hospital Unified API Gateway',
+      description: 'ระบบศูนย์กลางเชื่อมต่อข้อมูลโรงพยาบาลเถิน (HOSxP, Salary, และ Website Application) ปลอดภัย ได้มาตรฐาน พร้อม In-Memory Caching',
+      version: '1.0.0'
+    },
+    servers: [
+      { url: '/', description: 'Current Gateway Server' }
+    ],
+    components: {
+      securitySchemes: {
+        ApiKeyAuth: {
+          type: 'apiKey',
+          name: 'x-api-key',
+          in: 'header',
+          description: 'กรุณาระบุ x-api-key ที่ได้รับมอบหมายเพื่อยืนยันสิทธิ์การใช้งาน'
+        }
+      }
+    },
+    security: [{ ApiKeyAuth: [] }]
+  }
+})
+
+await fastify.register(fastifySwaggerUi, {
+  routePrefix: '/docs',
+  uiConfig: {
+    docExpansion: 'list',
+    deepLinking: false
+  },
+  staticCSP: false
+})
+
+// ------------------------------------------------------------------
+// Database Connection Pools (3 Databases)
+// ------------------------------------------------------------------
+
+function getRequiredEnv(key) {
+  const val = process.env[key]
+  if (!val || typeof val !== 'string' || !val.trim()) {
+    throw new Error(`CRITICAL CONFIG ERROR: Required environment variable "${key}" is missing or empty in .env`)
+  }
+  return val.trim()
+}
+
+const hosPool = mysql.createPool({
+  host: process.env.HOSXP_DB_HOST || '192.168.1.4',
+  port: parseInt(process.env.HOSXP_DB_PORT || '3306', 10),
+  user: process.env.HOSXP_DB_USER || 'guest',
+  password: getRequiredEnv('HOSXP_DB_PASSWORD'),
+  database: process.env.HOSXP_DB_NAME || 'hos',
+  charset: process.env.HOSXP_DB_CHARSET || 'tis620',
+  connectionLimit: 25,
+  waitForConnections: true,
+  queueLimit: 0,
+  connectTimeout: 5000
+})
+
+const salaryPool = mysql.createPool({
+  host: process.env.SALARY_DB_HOST || '192.168.1.4',
+  port: parseInt(process.env.SALARY_DB_PORT || '3306', 10),
+  user: process.env.SALARY_DB_USER || 'guest',
+  password: getRequiredEnv('SALARY_DB_PASSWORD'),
+  database: process.env.SALARY_DB_NAME || 'salary',
+  charset: process.env.SALARY_DB_CHARSET || 'tis620',
+  connectionLimit: 15,
+  waitForConnections: true,
+  queueLimit: 0,
+  connectTimeout: 5000
+})
+
+const salaryEditPool = mysql.createPool({
+  host: process.env.SALARY_EDIT_DB_HOST || '192.168.1.4',
+  port: parseInt(process.env.SALARY_EDIT_DB_PORT || '3306', 10),
+  user: process.env.SALARY_EDIT_DB_USER || 'salary',
+  password: getRequiredEnv('SALARY_EDIT_DB_PASSWORD'),
+  database: process.env.SALARY_EDIT_DB_NAME || 'salary',
+  charset: process.env.SALARY_EDIT_DB_CHARSET || 'tis620',
+  connectionLimit: 10,
+  waitForConnections: true,
+  queueLimit: 0,
+  connectTimeout: 5000
+})
+
+const appPool = mysql.createPool({
+  host: process.env.APP_DB_HOST || '192.168.1.7',
+  port: parseInt(process.env.APP_DB_PORT || '3306', 10),
+  user: process.env.APP_DB_USER || 'prnew',
+  password: getRequiredEnv('APP_DB_PASSWORD'),
+  database: process.env.APP_DB_NAME || 'thoen_hospital_website',
+  charset: 'utf8mb4',
+  timezone: '+07:00',
+  dateStrings: true,
+  connectionLimit: 25,
+  waitForConnections: true,
+  queueLimit: 0,
+  connectTimeout: 5000
+})
+
+// Ensure utf8mb4 on every acquired connection to bypass MariaDB global init_connect='SET NAMES tis620'
+appPool.on('connection', (conn) => {
+  conn.query('SET NAMES utf8mb4', () => {})
+})
+
+// ------------------------------------------------------------------
+// GTW (Gotowin) Database Connection Pool (Lazy Loaded - Zero Hardcode)
+// ------------------------------------------------------------------
+let gtwPool = null
+function getGtwPool() {
+  if (!gtwPool) {
+    const host = process.env.GTW_DB_HOST
+    const port = parseInt(process.env.GTW_DB_PORT || '15301', 10)
+    const user = process.env.GTW_DB_USER
+    const password = process.env.GTW_DB_PASSWORD
+    const database = process.env.GTW_DB_NAME
+    if (!host || !user || !password || !database) {
+      throw new Error('GTW Database is not configured: Missing GTW_DB_HOST, GTW_DB_USER, GTW_DB_PASSWORD, or GTW_DB_NAME in gateway .env')
+    }
+    gtwPool = mysql.createPool({
+      host,
+      port,
+      user,
+      password,
+      database,
+      charset: process.env.GTW_DB_CHARSET || 'utf8mb4',
+      connectionLimit: 5,
+      waitForConnections: true,
+      queueLimit: 0,
+      connectTimeout: 5000
+    })
+  }
+  return gtwPool
+}
+
+
+
+// In-Memory Short-Lived Caching
+const cache = new Map()
+function getCached(key, ttlMs, fetcher) {
+  const now = Date.now()
+  const hit = cache.get(key)
+  if (hit && hit.expiresAt > now) return Promise.resolve(hit.data)
+  return fetcher().then(data => {
+    cache.set(key, { data, expiresAt: now + ttlMs })
+    if (cache.size > 500) {
+      for (const [k, v] of cache.entries()) {
+        if (v.expiresAt <= now) cache.delete(k)
+      }
+    }
+    return data
+  })
+}
+
+// Authentication Security Hook
+const API_KEY = getRequiredEnv('GATEWAY_API_KEY')
+fastify.addHook('onRequest', async (req, reply) => {
+  if (req.url === '/health' || req.url === '/' || req.url.startsWith('/docs')) return
+  const clientKey = req.headers['x-api-key'] || req.query?.apiKey
+  if (!clientKey || clientKey !== API_KEY) {
+    reply.code(401).send({ success: false, error: 'Unauthorized: Invalid or missing x-api-key' })
+  }
+})
+
+// ==================================================================
+// SECTION 0: Health & Audit
+// ==================================================================
+fastify.get('/health', {
+  schema: {
+    tags: ['0. Health & Monitoring'],
+    summary: 'ตรวจสอบสถานะและความเร็ว Latency ของทั้ง 3 ฐานข้อมูล'
+  }
+}, async (req, reply) => {
+  try {
+    const t0 = Date.now(); await hosPool.query('SELECT 1'); const hosMs = Date.now() - t0
+    const t1 = Date.now(); await salaryPool.query('SELECT 1'); const salMs = Date.now() - t1
+    const t2 = Date.now(); await appPool.query('SELECT 1'); const appMs = Date.now() - t2
+    return {
+      status: 'UP',
+      service: 'Thoen Hospital Unified API Gateway',
+      databases: {
+        hosxp: { host: '192.168.1.4:3306', database: 'hos', connected: true, latencyMs: hosMs },
+        salary: { host: '192.168.1.4:3306', database: 'salary', connected: true, latencyMs: salMs },
+        website: { host: '192.168.1.7:3306', database: 'thoen_hospital_website', connected: true, latencyMs: appMs }
+      },
+      uptime: process.uptime()
+    }
+  } catch (err) {
+    reply.code(503); return { status: 'DOWN', error: err.message }
+  }
+})
+
+fastify.post('/api/v1/audit/log', {
+  schema: {
+    tags: ['0. Health & Monitoring'],
+    summary: 'บันทึกประวัติการทำรายการความปลอดภัย (Audit Log)',
+    body: {
+      type: 'object',
+      required: ['actionType'],
+      properties: {
+        actionType: { type: 'string', description: 'ประเภทการกระทำ เช่น AUTH_LOGIN, VIEW_PHI, EDIT_MEMBER' },
+        targetTable: { type: 'string', description: 'ชื่อตารางเป้าหมาย' },
+        actionDetails: { type: 'string', description: 'รายละเอียด' },
+        username: { type: 'string' },
+        email: { type: 'string' },
+        ipAddress: { type: 'string' },
+        userAgent: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { actionType, targetTable = '', actionDetails = '', username = 'system', email = '', ipAddress = '', userAgent = '' } = req.body || {}
+  try {
+    const [result] = await appPool.query(
+      'INSERT INTO audit_logs (action_type, target_table, action_details, username, email, ip_address, user_agent, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
+      [actionType, targetTable, actionDetails, username, email, ipAddress, userAgent]
+    )
+    return { success: true, logId: result.insertId }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// ==================================================================
+// SECTION 1: HOSxP Clinical Services (192.168.1.4)
+// ==================================================================
+
+// 1.1 ER Status & TV Mode
+fastify.get('/api/v1/clinical/er/status', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'สถานะห้องฉุกเฉินและระดับคัดกรอง Triage (รองรับ TV Mode)',
+    querystring: {
+      type: 'object',
+      properties: {
+        mode: { type: 'string', description: 'ใส่ "tv" เพื่อดึงรายชื่อคนไข้จริงสำหรับจอทีวี' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const isTvMode = req.query?.mode === 'tv'
+  try {
+    const data = await getCached(`er-status-${isTvMode ? 'tv' : 'summary'}`, 8000, async () => {
+      const [levels] = await hosPool.query(`
+        SELECT eel.er_emergency_level_id, eel.er_emergency_level_name, count(er.vn) as total
+        FROM er_emergency_level eel
+        LEFT JOIN er_regist er ON eel.er_emergency_level_id = er.er_emergency_level_id 
+          AND er.vstdate = CURRENT_DATE 
+          AND (er.er_leave_status_id IS NULL OR er.er_leave_status_id = '')
+        GROUP BY eel.er_emergency_level_id, eel.er_emergency_level_name
+        ORDER BY eel.er_emergency_level_id
+      `)
+      let activePatients = []
+      if (isTvMode) {
+        const [patients] = await hosPool.query(`
+          SELECT pt.hn, er.vn, concat(coalesce(pt.pname, ''), coalesce(pt.fname, ''), ' ', coalesce(pt.lname, '')) as ptname,
+            YEAR(current_date)-YEAR(pt.birthday) as age, i.bedno, time(er.enter_er_time) as enter_time,
+            er.er_list, eel.er_emergency_level_name, er.er_emergency_level_id, er.observe, edt.name as dch_type_name
+          FROM er_regist er 
+          LEFT JOIN vn_stat vn ON er.vn = vn.vn 
+          LEFT JOIN patient pt ON vn.hn = pt.hn 
+          LEFT JOIN er_emergency_level eel ON er.er_emergency_level_id = eel.er_emergency_level_id 
+          LEFT JOIN er_dch_type edt ON er.er_dch_type = edt.er_dch_type 
+          LEFT JOIN an_stat an ON er.vn = an.vn 
+          LEFT JOIN iptadm i ON an.an = i.an  
+          WHERE er.vstdate = CURRENT_DATE 
+            AND (er.er_leave_status_id IS NULL OR er.er_leave_status_id = '')
+          ORDER BY er.enter_er_time DESC
+        `)
+        activePatients = patients
+      }
+      return { levels, activePatients, timestamp: new Date().toISOString() }
+    })
+    return { success: true, data }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.2 IPD Ward Bed Occupancy
+fastify.get('/api/v1/clinical/ipd/occupancy', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'อัตราการครองเตียงผู้ป่วยในรายตึก (IPD Wards Occupancy)'
+  }
+}, async (req, reply) => {
+  try {
+    const data = await getCached('ipd-occupancy', 10000, async () => {
+      const sql = `
+        SELECT w.ward, w.name as ward_name, w.shortname, count(i.an) as admitted_patients
+        FROM ward w LEFT JOIN ipt i ON w.ward = i.ward AND i.dchdate IS NULL
+        GROUP BY w.ward, w.name, w.shortname ORDER BY w.ward
+      `
+      const [rows] = await hosPool.query(sql)
+      return rows
+    })
+    return { success: true, data }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.3 IPD Ward Roster
+fastify.get('/api/v1/clinical/ipd/ward-roster', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'รายชื่อผู้ป่วยที่นอนพักรักษาตัวในหอผู้ป่วยใน (Grouped by Ward & Bed)'
+  }
+}, async (req, reply) => {
+  try {
+    const sql = `
+      SELECT pt.hn, TRIM(CONCAT(COALESCE(pt.pname, ''), ' ', COALESCE(pt.fname, ''))) AS ptname,
+        TIMESTAMPDIFF(YEAR, pt.birthday, CURRENT_DATE()) AS age,
+        DATE_FORMAT(an.regdate, '%Y-%m-%d') AS regdate,
+        DATEDIFF(CURRENT_DATE(), an.regdate) AS admit_days,
+        p.bedno, an.ward
+      FROM an_stat an
+      LEFT OUTER JOIN patient pt ON an.hn = pt.hn
+      LEFT OUTER JOIN iptadm p ON an.an = p.an
+      WHERE an.dchdate IS NULL AND an.ward IN ('02', '04', '05', '06', '09')
+      ORDER BY p.bedno ASC
+    `
+    const [rows] = await hosPool.query(sql)
+    return { success: true, totalPatients: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.4 Appointments Search
+fastify.get('/api/v1/clinical/appointments', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ค้นหารายการนัดหมายแพทย์ (ตามวันที่, HN, หรือเลขบัตรประชาชน)',
+    querystring: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'วันที่นัด (YYYY-MM-DD)' },
+        hn: { type: 'string', description: 'เลขประจำตัวผู้ป่วย HN' },
+        cid: { type: 'string', description: 'เลขประจำตัวประชาชน 13 หลัก' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { date = '', hn = '', cid = '' } = req.query || {}
+  try {
+    let sql = `
+      SELECT o.hn, concat(pt.pname, pt.fname, ' ', pt.lname) as ptname, pt.cid,
+        o.vstdate, o.nextdate, o.nexttime, k.department, o.app_user, o.app_cause
+      FROM oapp o LEFT JOIN patient pt ON o.hn = pt.hn LEFT JOIN kskdepartment k ON o.depcode = k.depcode WHERE 1=1
+    `
+    const params = []
+    if (hn) { sql += ' AND o.hn = ?'; params.push(hn) }
+    else if (cid) { sql += ' AND pt.cid = ?'; params.push(cid) }
+    else if (date) { sql += ' AND o.nextdate = ?'; params.push(date) }
+    else { sql += ' AND o.nextdate = CURRENT_DATE' }
+    sql += ' ORDER BY o.nexttime ASC, o.hn ASC LIMIT 300'
+    const [rows] = await hosPool.query(sql, params)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.5 Appointment Mismatches
+fastify.get('/api/v1/clinical/appointments/mismatches', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ตรวจสอบรายการนัดในห้องตรวจที่ปิดใช้งานแล้ว'
+  }
+}, async (req, reply) => {
+  try {
+    const sql = `
+      SELECT o.hn, o.vstdate, o.nextdate, k.department, o.app_user
+      FROM oapp o LEFT OUTER JOIN kskdepartment k ON o.depcode = k.depcode
+      WHERE o.nextdate > CURRENT_DATE AND (k.depcode_active IS NULL OR k.depcode_active = '')
+      ORDER BY o.app_user
+    `
+    const [rows] = await hosPool.query(sql)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.6 Lab Tracker Orders
+fastify.get('/api/v1/clinical/lab/tracker', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ติดตามสถานะคำสั่งตรวจแล็บประจำวัน (Lab Orders Tracker)',
+    querystring: {
+      type: 'object',
+      properties: {
+        date: { type: 'string' },
+        vn: { type: 'string' },
+        hn: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { date = '', vn = '', hn = '' } = req.query || {}
+  try {
+    let sql = `
+      SELECT lh.lab_order_number, lh.vn, lh.hn, lh.order_date, lh.order_time,
+        lh.receive_date, lh.receive_time, lh.report_date, lh.report_time, lh.order_department, d.name as doctor_name
+      FROM lab_head lh LEFT JOIN doctor d ON lh.doctor_code = d.code WHERE 1=1
+    `
+    const params = []
+    if (vn) { sql += ' AND lh.vn = ?'; params.push(vn) }
+    else if (hn) { sql += ' AND lh.hn = ?'; params.push(hn) }
+    else { sql += ' AND lh.order_date = ?'; params.push(date || new Date().toISOString().slice(0, 10)) }
+    sql += ' ORDER BY lh.order_time DESC LIMIT 200'
+    const [rows] = await hosPool.query(sql, params)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.7 Lab Tracker Detail by HN
+fastify.get('/api/v1/clinical/lab/detail/:hn', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ดึงรายละเอียดผลแล็บประจำวันของคนไข้ (Reported & Pending)',
+    params: {
+      type: 'object',
+      properties: { hn: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { hn } = req.params
+  try {
+    const reportedSql = `
+      SELECT lh.hn, concat(pt.pname, pt.fname, ' ', pt.lname) as ptname,
+        l.lab_items_name, lo.lab_order_result, lh.form_name, l.lab_items_normal_value 
+      FROM lab_head lh 
+      LEFT JOIN lab_order lo ON lh.lab_order_number=lo.lab_order_number 
+      LEFT JOIN lab_items l ON lo.lab_items_code=l.lab_items_code 
+      LEFT JOIN patient pt ON lh.hn=pt.hn 
+      WHERE lh.hn = ? AND lh.order_date = CURRENT_DATE() AND lo.confirm = 'Y'
+    `
+    const pendingSql = `
+      SELECT lh.hn, concat(pt.pname, pt.fname, ' ', pt.lname) as ptname,
+        l.lab_items_name, l.items_is_outlab, lh.form_name, l.lab_items_normal_value 
+      FROM lab_head lh 
+      LEFT JOIN lab_order lo ON lh.lab_order_number=lo.lab_order_number 
+      LEFT JOIN lab_items l ON lo.lab_items_code=l.lab_items_code 
+      LEFT JOIN patient pt ON lh.hn=pt.hn 
+      WHERE lh.hn = ? AND lh.order_date = CURRENT_DATE() AND lo.confirm = 'N' AND lh.report_date is null
+    `
+    const [reportedRows] = await hosPool.query(reportedSql, [hn])
+    const [pendingRows] = await hosPool.query(pendingSql, [hn])
+    return {
+      success: true,
+      hn,
+      reported: reportedRows,
+      pending: pendingRows
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.8 Drug Dispensing Status Queue (Paid & Printed)
+fastify.get('/api/v1/clinical/drugs/status', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'สถานะคิวจ่ายยาผู้ป่วยนอกห้องยา (รอจัดยา vs กำลังจัดยา)'
+  }
+}, async (req, reply) => {
+  try {
+    const data = await getCached('drug-dispense-status', 10000, async () => {
+      const queryPaid = `
+        SELECT pt.hn, TRIM(CONCAT(COALESCE(pt.pname, ''), COALESCE(pt.fname, ''), ' ', COALESCE(pt.lname, ''))) AS ptname,
+          TIME_FORMAT(st.service7, '%H:%i:%s') AS service_time,
+          TIMEDIFF(CURRENT_TIME(), st.service7) AS timelast,
+          COALESCE(k.department, 'ไม่ระบุ') AS department
+        FROM opitemrece o
+        LEFT JOIN patient pt ON o.hn = pt.hn
+        LEFT JOIN service_time st ON o.vn = st.vn
+        LEFT JOIN kskdepartment k ON o.dep_code = k.depcode
+        WHERE o.vstdate = CURRENT_DATE() AND o.icode LIKE '1%' AND (st.service6 IS NULL AND st.service7 IS NOT NULL)
+        GROUP BY o.hn, pt.pname, pt.fname, pt.lname, st.service7, k.department
+        ORDER BY TIMEDIFF(CURRENT_TIME(), st.service7) DESC LIMIT 50
+      `
+      const queryPrinted = `
+        SELECT pt.hn, TRIM(CONCAT(COALESCE(pt.pname, ''), COALESCE(pt.fname, ''), ' ', COALESCE(pt.lname, ''))) AS ptname,
+          TIME_FORMAT(st.service6, '%H:%i:%s') AS service_time,
+          TIMEDIFF(CURRENT_TIME(), st.service6) AS timelast
+        FROM opitemrece o
+        LEFT JOIN patient pt ON o.hn = pt.hn
+        LEFT JOIN service_time st ON o.vn = st.vn
+        WHERE o.vstdate = CURRENT_DATE() AND o.icode LIKE '1%' AND (st.service6 IS NOT NULL AND st.service8 IS NULL)
+        GROUP BY o.hn, pt.pname, pt.fname, pt.lname, st.service6
+        ORDER BY TIMEDIFF(CURRENT_TIME(), st.service6) DESC LIMIT 50
+      `
+      const [paid] = await hosPool.query(queryPaid)
+      const [printed] = await hosPool.query(queryPrinted)
+      return { paid, printed, updatedAt: new Date().toISOString() }
+    })
+    return { success: true, data }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.9 Loratadine Dispensing Monitor
+fastify.get('/api/v1/clinical/drugs/loratadine', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ติดตามการจ่ายยาลอราทาดีน (Loratadine Monitor)',
+    querystring: {
+      type: 'object',
+      properties: {
+        age: { type: 'string', default: 'adult', description: '"adult" หรือ "all"' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { age = 'adult' } = req.query || {}
+  try {
+    let ageClause = ''
+    if (age === 'adult') ageClause = 'AND (YEAR(o.vstdate) - YEAR(p.birthday)) > 19'
+    const sql = `
+      SELECT o.hn, YEAR(o.vstdate) - YEAR(p.birthday) AS age,
+        CONCAT(p.pname, p.fname, ' ', p.lname) AS fullname,
+        IF(o.vn IS NULL, 'IPD', 'OPD') AS status,
+        o.vstdate, o.rxdate, TIME_FORMAT(o.rxtime, '%H:%i:%s') AS rxtime, o.qty,
+        COALESCE(d.name, 'ไม่ระบุ') AS doctor_name, COALESCE(k.department, 'ไม่ระบุ') AS department
+      FROM opitemrece o
+      LEFT JOIN patient p ON o.hn = p.hn
+      LEFT JOIN doctor d ON o.doctor = d.code
+      LEFT JOIN kskdepartment k ON o.dep_code = k.depcode
+      WHERE o.icode = '1460211' AND o.vstdate = CURDATE() ${ageClause}
+      ORDER BY o.rxtime DESC LIMIT 200
+    `
+    const [rows] = await hosPool.query(sql)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.10 RCM OPD Department Summary
+fastify.get('/api/v1/clinical/rcm/opd-dept-summary', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'รายงานผู้ป่วยนอกแยกตามแผนก (RCM OPD Summary)',
+    querystring: {
+      type: 'object',
+      properties: {
+        startDate: { type: 'string' },
+        endDate: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { startDate = '', endDate = '' } = req.query || {}
+  try {
+    const ds1 = startDate || new Date().toISOString().slice(0, 10)
+    const ds2 = endDate || ds1
+    const sql = `
+      SELECT k.department, count(v.vn) as total_visits, count(distinct v.hn) as total_patients
+      FROM ovst v
+      LEFT JOIN kskdepartment k ON v.cur_dep = k.depcode
+      WHERE v.vstdate BETWEEN ? AND ?
+      GROUP BY k.department
+      ORDER BY total_visits DESC
+    `
+    const [rows] = await hosPool.query(sql, [ds1, ds2])
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.11 RCM IPD Department AdjRW Summary
+fastify.get('/api/v1/clinical/rcm/ipd-dept-adjrw', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'รายงานผู้ป่วยใน ค่าน้ำหนักสัมพัทธ์ AdjRW และ CMI (RCM IPD AdjRW)',
+    querystring: {
+      type: 'object',
+      properties: {
+        startDate: { type: 'string' },
+        endDate: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { startDate = '', endDate = '' } = req.query || {}
+  try {
+    const ds1 = startDate || new Date().toISOString().slice(0, 10)
+    const ds2 = endDate || ds1
+    const sql = `
+      SELECT w.name as ward_name, count(i.an) as total_admissions,
+        round(sum(coalesce(i.adjrw, 0)), 4) as total_adjrw,
+        round(avg(coalesce(i.adjrw, 0)), 4) as cmi
+      FROM ipt i
+      LEFT JOIN ward w ON i.ward = w.ward
+      WHERE i.dchdate BETWEEN ? AND ?
+      GROUP BY w.name
+      ORDER BY total_admissions DESC
+    `
+    const [rows] = await hosPool.query(sql, [ds1, ds2])
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+
+// ------------------------------------------------------------------
+// 1.12 TB Chest X-Ray Screening Tracker (ระบบติดตามการทำ CXR ในกลุ่มผู้ป่วย TB)
+// ------------------------------------------------------------------
+function getHospitalStatus(chw, amp, tmb, moo) {
+  if (chw !== '52' || amp !== '08') return '\u0e2d\u0e22\u0e39\u0e48\u0e15\u0e48\u0e32\u0e07\u0e2d\u0e33\u0e40\u0e20\u0e2d/\u0e15\u0e48\u0e32\u0e07\u0e08\u0e31\u0e07\u0e2b\u0e27\u0e31\u0e14';
+  const m = String(moo || '').padStart(2, '0');
+  if (tmb === '01') {
+    if (['01','06','07','08','12','13'].includes(m)) return '\u0e23\u0e1e.\u0e40\u0e16\u0e34\u0e19';
+    if (['02','03','04','05','09','10','11','14'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e40\u0e14\u0e48\u0e19\u0e41\u0e01\u0e49\u0e27';
+  }
+  if (tmb === '02') {
+    if (['01','04','05','06'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e40\u0e14\u0e48\u0e19\u0e0a\u0e31\u0e22';
+    if (['02','03','07','08'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e41\u0e21\u0e48\u0e27\u0e30\u0e2b\u0e25\u0e27\u0e07';
+  }
+  if (tmb === '03') {
+    if (['01','02','05','07','08'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e41\u0e21\u0e48\u0e1b\u0e30\u0e2b\u0e25\u0e27\u0e07';
+    if (['03','04','06','09','10'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e17\u0e48\u0e32\u0e21\u0e30\u0e40\u0e01\u0e27\u0e4b\u0e19';
+  }
+  if (tmb === '04') {
+    if (['01','02','05','06','09'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e41\u0e21\u0e48\u0e21\u0e2d\u0e01\u0e01\u0e25\u0e32\u0e07';
+    if (['03','04','07','08','10'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e01\u0e38\u0e48\u0e21\u0e40\u0e19\u0e34\u0e49\u0e07';
+  }
+  if (tmb === '05') {
+    if (['01','08','14'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e2b\u0e19\u0e2d\u0e07\u0e2b\u0e2d\u0e22';
+    if (['04','06','10','11'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e1b\u0e32\u0e07\u0e2d\u0e49\u0e32';
+    if (['02','03','12'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e2a\u0e30\u0e40\u0e25\u0e35\u0e22\u0e21\u0e2b\u0e27\u0e32\u0e19';
+    if (['05','09','13'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e2b\u0e2d\u0e23\u0e1a';
+    if (['07'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e17\u0e48\u0e32\u0e40\u0e01\u0e27\u0e35\u0e22\u0e19';
+  }
+  if (tmb === '06') {
+    if (['01','02','03','04','08','09','11','12'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e2b\u0e49\u0e27\u0e22\u0e41\u0e01\u0e49\u0e27';
+    if (['05','06','07','10'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e19\u0e32\u0e40\u0e1a\u0e35\u0e49\u0e22\u0e2b\u0e25\u0e27\u0e07';
+  }
+  if (tmb === '07') {
+    if (['01','02','06','08','09','10','11'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e41\u0e21\u0e48\u0e16\u0e2d\u0e14';
+    if (['03','04','05','07','12','13'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e19\u0e32\u0e1a\u0e49\u0e32\u0e19\u0e44\u0e23\u0e48';
+  }
+  if (tmb === '08') {
+    if (['01','02','03','04','05','08','10','13'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e14\u0e2d\u0e19\u0e41\u0e01\u0e49\u0e27';
+    if (['06','07','09','11','12','14'].includes(m)) return '\u0e23\u0e1e.\u0e2a\u0e15.\u0e27\u0e31\u0e07\u0e2b\u0e34\u0e19';
+  }
+  return '\u0e2d\u0e22\u0e39\u0e48\u0e15\u0e48\u0e32\u0e07\u0e2d\u0e33\u0e40\u0e20\u0e2d/\u0e15\u0e48\u0e32\u0e07\u0e08\u0e31\u0e07\u0e2b\u0e27\u0e31\u0e14';
+}
+
+// 1.12 TB Chest X-Ray Screening Tracker
+fastify.get('/api/v1/clinical/tb/cxr-tracker', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'TB Chest X-Ray Screening Tracker',
+    description: 'Track TB screening and CXR status with filters',
+    querystring: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['all', 'done', 'missing'], default: 'all' },
+        startDate: { type: 'string', default: '2026-10-01' },
+        hospcode: { type: 'string' },
+        search: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { status = 'all', startDate = '2026-10-01', hospcode, search } = req.query || {}
+  const conn = await hosPool.getConnection()
+  try {
+    const queryParams = [startDate]
+    let whereClauses = []
+
+    if (status === 'done') {
+      whereClauses.push('xr.report_date IS NOT NULL')
+    } else if (status === 'missing') {
+      whereClauses.push('xr.report_date IS NULL')
+    }
+
+    if (search && search.trim()) {
+      const s = `%${search.trim()}%`
+      whereClauses.push('(c.cid LIKE ? OR hp.hn LIKE ? OR hp.fname LIKE ? OR hp.lname LIKE ?)')
+      queryParams.push(s, s, s, s)
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
+
+    const sql = `
+SELECT 
+  c.id,
+  c.risk_type,
+  hp.pname AS title,
+  hp.fname AS fname,
+  hp.lname AS lname,
+  c.cid,
+  IF(hp.sex=1,"M","F") AS gender,
+  CONCAT(YEAR(hp.birthday),DATE_FORMAT(hp.birthday,"%m%d")) AS born,
+  hp.addrpart AS addr,
+  hp.moopart AS mu,
+  hp.chwpart,
+  hp.amppart,
+  hp.tmbpart,
+  hp.moopart,
+  pv.name AS province_id,
+  ap.name AS amphur_id,
+  tb.name AS tambol_id,
+  tb.full_name AS full_name,
+  ec.emp_citizenship_name AS people_type,
+  c.race_id,
+  hp.hn,
+  p.name AS inccl_id,
+  c.contact_date,
+  c.symptom_screen,
+  CONCAT(YEAR(xr.report_date),DATE_FORMAT(xr.report_date,"%m%d")) AS cxr_date,
+  IF(xr.report_date IS NOT NULL, 'DONE', 'MISSING') AS cxr_status,
+  c.cxr_result,
+  c.cxr_abnormal_result,
+  c.dx,
+  c.icd10,
+  c.hba1c,
+  c.immunno_discase,
+  c.b24,
+  c.b24_ch,
+  c.note,
+  YEAR(CURDATE())-YEAR(hp.birthday) AS age
+FROM CID.cid_link_tb c
+LEFT JOIN patient hp ON c.cid=hp.cid
+LEFT JOIN emp_citizenship ec ON hp.citizenship=ec.emp_citizenship_id
+LEFT JOIN pttype p ON hp.pttype=p.pttype
+LEFT JOIN thaiaddress pv ON pv.chwpart=hp.chwpart AND pv.codetype=1
+LEFT JOIN thaiaddress ap ON ap.chwpart=hp.chwpart AND ap.amppart=hp.amppart AND ap.codetype=2
+LEFT JOIN thaiaddress tb ON tb.chwpart=hp.chwpart AND tb.amppart=hp.amppart AND tb.tmbpart=hp.tmbpart AND tb.codetype=3
+LEFT JOIN (
+    SELECT hn, MAX(report_date) AS report_date
+    FROM xray_report
+    WHERE xray_items_code IN ('48','49','139','142','205','208')
+      AND confirm='Y'
+      AND report_date >= ?
+    GROUP BY hn
+) xr ON xr.hn = hp.hn
+${whereSql}
+ORDER BY c.id ASC
+    `
+    const [rawRows] = await conn.query(sql, queryParams)
+
+    let doneCount = 0
+    let missingCount = 0
+    const statusBreakdown = {}
+    const filteredRows = []
+
+    const targetHospcode = hospcode ? hospcode.trim() : null
+
+    for (const r of rawRows) {
+      const st = getHospitalStatus(r.chwpart, r.amppart, r.tmbpart, r.moopart)
+      const home = `${r.addr || ''} \u0e2b\u0e21\u0e39\u0e48\u0e17\u0e35\u0e48 ${r.mu || ''} ${r.full_name || ''}`.trim()
+
+      if (r.cxr_status === 'DONE') doneCount++
+      else missingCount++
+      statusBreakdown[st] = (statusBreakdown[st] || 0) + 1
+
+      if (!targetHospcode || st === targetHospcode) {
+        filteredRows.push({
+          ...r,
+          status: st,
+          home
+        })
+      }
+    }
+
+    const total = rawRows.length
+    const coveragePercentage = total > 0 ? parseFloat(((doneCount / total) * 100).toFixed(1)) : 0
+
+    return {
+      success: true,
+      data: {
+        count: filteredRows.length,
+        summary: {
+          total,
+          doneCount,
+          missingCount,
+          coveragePercentage,
+          statusBreakdown
+        },
+        items: filteredRows
+      }
+    }
+  } catch (err) {
+    reply.code(500)
+    return { success: false, error: err.message }
+  } finally {
+    conn.release()
+  }
+})
+
+// 1.13 Universal Read-Only Query for HOSxP
+fastify.post('/api/v1/clinical/query', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'Universal Read-Only Query สำหรับดึงตารางใดก็ได้ใน HOSxP (เฉพาะ SELECT)',
+    body: {
+      type: 'object',
+      required: ['sql'],
+      properties: {
+        sql: { type: 'string', description: 'คำสั่ง SELECT SQL' },
+        params: { type: 'array', description: 'พารามิเตอร์ binding ป้องกัน SQL Injection' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { sql, params = [] } = req.body || {}
+  if (!sql || typeof sql !== 'string') { reply.code(400); return { success: false, error: 'SQL query required' } }
+  const trimmed = sql.trim().toUpperCase()
+  if (!trimmed.startsWith('SELECT') && !trimmed.startsWith('EXPLAIN') && !trimmed.startsWith('SHOW')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Only SELECT/EXPLAIN queries allowed' }
+  }
+  if (/;\s*\S/.test(sql)) {
+    reply.code(403); return { success: false, error: 'Forbidden: Multi-statements not allowed' }
+  }
+  try {
+    const [rows] = await hosPool.query(sql, params)
+    return { success: true, count: Array.isArray(rows) ? rows.length : 1, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.13 Outreach Screening Visit Verification (Check Medical Record & Today Visit)
+fastify.post('/api/v1/clinical/screening/verify-visits', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'ตรวจสอบเวชระเบียนและสถานะการเปิด Visit สำหรับระบบคัดกรองตรวจนอกพื้นที่ (Screening Queue)',
+    description: 'รับรายการเลขประจำตัวประชาชน (CIDs) เพื่อตรวจสอบว่ามีประวัติในเวชระเบียน (patient) หรือไม่ และมีประวัติการเปิด Visit วันนี้ (vn_stat where vstdate = CURRENT_DATE) หรือไม่ พร้อมส่งคืนสถานะ (NO_RECORD, WAITING, VISIT_OPENED), HN, และ VN',
+    body: {
+      type: 'object',
+      required: ['cids'],
+      properties: {
+        cids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'รายการเลขประจำตัวประชาชน 13 หลัก'
+        }
+      }
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          count: { type: 'integer' },
+          data: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                cid: { type: 'string' },
+                hn: { type: 'string' },
+                vn: { type: 'string' },
+                hasPatientRecord: { type: 'boolean' },
+                hasVisitToday: { type: 'boolean' },
+                status: { type: 'string', enum: ['NO_RECORD', 'WAITING', 'VISIT_OPENED'] }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { cids = [] } = req.body || {}
+  if (!Array.isArray(cids)) {
+    reply.code(400); return { success: false, error: 'cids array required' }
+  }
+  const cleanCids = Array.from(new Set(cids.map((c) => String(c || '').trim()).filter(Boolean)))
+  if (cleanCids.length === 0) {
+    return { success: true, count: 0, data: [] }
+  }
+
+  try {
+    const results = []
+    const chunkSize = 50
+    for (let i = 0; i < cleanCids.length; i += chunkSize) {
+      const chunk = cleanCids.slice(i, i + chunkSize)
+      const placeholders = chunk.map(() => '?').join(', ')
+      const sql = `
+        SELECT 
+          p.cid,
+          MAX(p.hn) AS hn,
+          MAX(v.vn) AS vn
+        FROM patient p
+        LEFT JOIN vn_stat v ON v.hn = p.hn AND v.vstdate = CURRENT_DATE()
+        WHERE p.cid IN (${placeholders})
+        GROUP BY p.cid
+      `
+      const [rows] = await hosPool.query(sql, chunk)
+      const rowMap = new Map()
+      for (const row of rows || []) {
+        const rowCid = String(row.cid || '').trim()
+        if (rowCid) {
+          rowMap.set(rowCid, {
+            hn: row.hn ? String(row.hn).trim() : null,
+            vn: row.vn ? String(row.vn).trim() : null
+          })
+        }
+      }
+
+      for (const cid of chunk) {
+        const found = rowMap.get(cid)
+        if (!found) {
+          results.push({
+            cid,
+            hn: undefined,
+            vn: undefined,
+            hasPatientRecord: false,
+            hasVisitToday: false,
+            status: 'NO_RECORD'
+          })
+        } else if (found.vn) {
+          results.push({
+            cid,
+            hn: found.hn,
+            vn: found.vn,
+            hasPatientRecord: true,
+            hasVisitToday: true,
+            status: 'VISIT_OPENED'
+          })
+        } else {
+          results.push({
+            cid,
+            hn: found.hn,
+            vn: undefined,
+            hasPatientRecord: true,
+            hasVisitToday: false,
+            status: 'WAITING'
+          })
+        }
+      }
+    }
+
+    return { success: true, count: results.length, data: results }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.14 RCM Invoice Summary (5.2.2.1 รายงานสรุปรายรับจาก Invoice e-Claim)
+fastify.get('/api/v1/clinical/rcm/invoice-summary', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: '5.2.2.1 รายงานสรุปรายรับจาก Invoice (e-Claim) เปรียบเทียบลูกหนี้และเงินชดเชย',
+    description: 'รายงานเปรียบเทียบลูกหนี้ค่ารักษาพยาบาล HOSxP กับยอดเงินชดเชยที่ สปสช./กองทุน จ่ายจริง จำแนกตามกลุ่มสิทธิ e-Claim (OPD/IPD)',
+    querystring: {
+      type: 'object',
+      properties: {
+        department: { type: 'string', enum: ['OP', 'IP'], default: 'OP', description: 'ประเภทผู้ป่วย OP (ผู้ป่วยนอก) หรือ IP (ผู้ป่วยใน)' },
+        startDate: { type: 'string', description: 'วันที่เริ่มต้นค้นหา Statement (YYYY-MM-DD)' },
+        endDate: { type: 'string', description: 'วันที่สิ้นสุดค้นหา Statement (YYYY-MM-DD)' },
+        dateType: { type: 'string', enum: ['bill_date', 'admdate'], default: 'bill_date', description: 'กรองตามวันที่ bill_date (วันที่ออก Invoice) หรือ admdate (วันที่รับบริการ)' }
+      }
+    },
+    response: {
+      200: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          count: { type: 'integer' },
+          data: {
+            type: 'object',
+            properties: {
+              department: { type: 'string' },
+              ds1: { type: 'string' },
+              ds2: { type: 'string' },
+              dateType: { type: 'string' },
+              items: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'string' },
+                    name: { type: 'string' },
+                    visit: { type: 'number' },
+                    receipt: { type: 'number' },
+                    compensated: { type: 'number' },
+                    down: { type: 'number' },
+                    up: { type: 'number' },
+                    debit: { type: 'number' }
+                  }
+                }
+              },
+              grandTotal: {
+                type: 'object',
+                properties: {
+                  visit: { type: 'number' },
+                  receipt: { type: 'number' },
+                  compensated: { type: 'number' },
+                  down: { type: 'number' },
+                  up: { type: 'number' },
+                  debit: { type: 'number' }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { department = 'OP', startDate = '', endDate = '', dateType = 'bill_date' } = req.query || {}
+  const dept = department === 'IP' ? 'IP' : 'OP'
+  const dateCol = dateType === 'admdate' ? 'admdate' : 'bill_date'
+  const ds1 = startDate || new Date().toISOString().slice(0, 10)
+  const ds2 = endDate || ds1
+  const filterStart = dateType === 'admdate' ? `${ds1} 00:00:00` : ds1
+  const filterEnd = dateType === 'admdate' ? `${ds2} 23:59:59` : ds2
+
+  try {
+    let query = ''
+    const queryParams = [filterStart, filterEnd]
+
+    if (dept === 'OP') {
+      query = `
+        SELECT 
+          COALESCE(t.pttype_eclaim_id, 'UNKNOWN') as code,
+          COALESCE(a.name, 'ไม่ระบุกลุ่มสิทธิ e-Claim') as name,
+          t.visit,
+          t.receipt,
+          t.compensated,
+          t.down,
+          t.up,
+          t.debit
+        FROM (
+          SELECT 
+            ptt.pttype_eclaim_id,
+            COUNT(t.vn) as visit,
+            ROUND(SUM(t.receipt), 2) as receipt,
+            ROUND(SUM(t.compensated), 2) as compensated,
+            ROUND(SUM(t.down), 2) as down,
+            ROUND(SUM(t.up), 2) as up,
+            ROUND(SUM(t.debit), 2) as debit
+          FROM (
+            SELECT 
+              t.vn,
+              o.pttype,
+              SUM(t.compensated) as compensated,
+              SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)) as receipt,
+              v.income - v.rcpt_money as debit,
+              CASE 
+                WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+                WHEN SUM(t.compensated) - (v.income - v.rcpt_money) > 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+                ELSE 0 
+              END as down,
+              CASE
+                WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+                WHEN SUM(t.compensated) - (v.income - v.rcpt_money) < 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+                ELSE 0 
+              END as up
+            FROM rcmdb.repeclaim t
+            LEFT JOIN hos.ovst o ON o.vn = t.vn
+            LEFT JOIN hos.vn_stat v ON v.vn = o.vn
+            WHERE t.department = 'OP'
+              AND t.${dateCol} BETWEEN ? AND ?
+            GROUP BY t.vn, o.pttype, v.income, v.rcpt_money
+          ) t
+          LEFT JOIN hos.pttype ptt ON ptt.pttype = t.pttype
+          GROUP BY ptt.pttype_eclaim_id
+        ) t
+        LEFT JOIN hos.pttype_eclaim a ON a.code = t.pttype_eclaim_id
+        WHERE t.visit > 0
+        ORDER BY t.visit DESC, code ASC;
+      `
+    } else {
+      query = `
+        SELECT 
+          COALESCE(t.pttype_eclaim_id, 'UNKNOWN') as code,
+          COALESCE(a.name, 'ไม่ระบุกลุ่มสิทธิ e-Claim') as name,
+          t.visit,
+          t.receipt,
+          t.compensated,
+          t.down,
+          t.up,
+          t.debit
+        FROM (
+          SELECT 
+            ptt.pttype_eclaim_id,
+            COUNT(t.an) as visit,
+            ROUND(SUM(t.receipt), 2) as receipt,
+            ROUND(SUM(t.compensated), 2) as compensated,
+            ROUND(SUM(t.down), 2) as down,
+            ROUND(SUM(t.up), 2) as up,
+            ROUND(SUM(t.debit), 2) as debit
+          FROM (
+            SELECT 
+              t.an,
+              i.pttype,
+              SUM(t.compensated) as compensated,
+              SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)) as receipt,
+              a.income - a.rcpt_money as debit,
+              CASE 
+                WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+                WHEN SUM(t.compensated) - (a.income - a.rcpt_money) > 0 THEN SUM(t.compensated) - (a.income - a.rcpt_money)
+                ELSE 0 
+              END as down,
+              CASE
+                WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+                WHEN SUM(t.compensated) - (a.income - a.rcpt_money) < 0 THEN SUM(t.compensated) - (a.income - a.rcpt_money)
+                ELSE 0 
+              END as up
+            FROM rcmdb.repeclaim t
+            LEFT JOIN hos.ipt i ON i.an = t.an
+            LEFT JOIN hos.an_stat a ON a.an = i.an
+            WHERE t.department = 'IP'
+              AND t.${dateCol} BETWEEN ? AND ?
+            GROUP BY t.an, i.pttype, a.income, a.rcpt_money
+          ) t
+          LEFT JOIN hos.pttype ptt ON ptt.pttype = t.pttype
+          GROUP BY ptt.pttype_eclaim_id
+        ) t
+        LEFT JOIN hos.pttype_eclaim a ON a.code = t.pttype_eclaim_id
+        WHERE t.visit > 0
+        ORDER BY t.visit DESC, code ASC;
+      `
+    }
+
+    const [rows] = await hosPool.query(query, queryParams)
+
+    let grandVisit = 0
+    let grandReceipt = 0
+    let grandCompensated = 0
+    let grandDown = 0
+    let grandUp = 0
+    let grandDebit = 0
+
+    const items = (rows || []).map((r) => {
+      const visit = Number(r.visit || 0)
+      const receipt = Number(r.receipt || 0)
+      const compensated = Number(r.compensated || 0)
+      const down = Number(r.down || 0)
+      const up = Number(r.up || 0)
+      const debit = Number(r.debit || 0)
+
+      grandVisit += visit
+      grandReceipt += receipt
+      grandCompensated += compensated
+      grandDown += down
+      grandUp += up
+      grandDebit += debit
+
+      return {
+        code: String(r.code || ''),
+        name: String(r.name || ''),
+        visit,
+        receipt: Math.round(receipt * 100) / 100,
+        compensated: Math.round(compensated * 100) / 100,
+        down: Math.round(down * 100) / 100,
+        up: Math.round(up * 100) / 100,
+        debit: Math.round(debit * 100) / 100,
+      }
+    })
+
+    return {
+      success: true,
+      count: items.length,
+      data: {
+        department: dept,
+        ds1,
+        ds2,
+        dateType,
+        items,
+        grandTotal: {
+          visit: grandVisit,
+          receipt: Math.round(grandReceipt * 100) / 100,
+          compensated: Math.round(grandCompensated * 100) / 100,
+          down: Math.round(grandDown * 100) / 100,
+          up: Math.round(grandUp * 100) / 100,
+          debit: Math.round(grandDebit * 100) / 100,
+        }
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 1.15 RCM Invoice Patient Details (5.2.2.1 รายชื่อผู้ป่วยและรายละเอียดการชดเชย Invoice)
+fastify.get('/api/v1/clinical/rcm/invoice-details', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: '5.2.2.1 รายชื่อผู้ป่วยและรายละเอียดการชดเชย Invoice (Drill-down Patient List)',
+    description: 'ดึงรายชื่อผู้ป่วย ข้อมูลการชดเชยราย Visit/Invoice พร้อมหมวดกองทุนย่อยและผลต่างลูกหนี้',
+    querystring: {
+      type: 'object',
+      properties: {
+        department: { type: 'string', enum: ['OP', 'IP'], default: 'OP' },
+        startDate: { type: 'string' },
+        endDate: { type: 'string' },
+        pttype: { type: 'string', description: 'รหัสกลุ่มสิทธิ e-Claim (เช่น UCS, SSS, OFC)' },
+        search: { type: 'string', description: 'คำค้นหา HN, VN, AN, ชื่อ, CID, REP, Bill' },
+        page: { type: 'integer', default: 1 },
+        pageSize: { type: 'integer', default: 50 },
+        exportAll: { type: 'boolean', default: false },
+        dateType: { type: 'string', enum: ['bill_date', 'admdate'], default: 'bill_date', description: 'กรองตามวันที่ bill_date หรือ admdate' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const {
+    department = 'OP',
+    startDate = '',
+    endDate = '',
+    pttype = '',
+    search = '',
+    page = 1,
+    pageSize = 50,
+    exportAll = false,
+    dateType = 'bill_date'
+  } = req.query || {}
+
+  const dept = department === 'IP' ? 'IP' : 'OP'
+  const dateCol = dateType === 'admdate' ? 'admdate' : 'bill_date'
+  const ds1 = startDate || new Date().toISOString().slice(0, 10)
+  const ds2 = endDate || ds1
+  const filterStart = dateType === 'admdate' ? `${ds1} 00:00:00` : ds1
+  const filterEnd = dateType === 'admdate' ? `${ds2} 23:59:59` : ds2
+  const cleanPttype = String(pttype || '').trim()
+  const cleanSearch = String(search || '').trim()
+  const pageNum = Math.max(1, Number(page || 1))
+  const limitNum = exportAll ? 10000 : Math.max(1, Math.min(200, Number(pageSize || 50)))
+  const offsetNum = (pageNum - 1) * limitNum
+
+  const pttypeClause = cleanPttype ? 'AND ptt.pttype_eclaim_id = ?' : ''
+  let searchClause = ''
+  const searchParams = []
+
+  if (cleanSearch) {
+    searchClause = `AND (
+      t.hn LIKE ? OR 
+      ${dept === 'OP' ? 't.vn' : 't.an'} LIKE ? OR 
+      t.ptname LIKE ? OR 
+      t.pid LIKE ? OR 
+      t.rep LIKE ? OR 
+      t.bill LIKE ?
+    )`
+    const s = `%${cleanSearch}%`
+    searchParams.push(s, s, s, s, s, s)
+  }
+
+  try {
+    // 1. Count query
+    let countSql = ''
+    const countParams = [filterStart, filterEnd]
+    if (cleanPttype) countParams.push(cleanPttype)
+    if (cleanSearch) countParams.push(...searchParams)
+
+    if (dept === 'OP') {
+      countSql = `
+        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.vn) as total
+        FROM rcmdb.repeclaim t
+        LEFT JOIN hos.ovst o ON o.vn = t.vn
+        LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
+        WHERE t.department = 'OP'
+          AND t.${dateCol} BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause};
+      `
+    } else {
+      countSql = `
+        SELECT STRAIGHT_JOIN COUNT(DISTINCT t.an) as total
+        FROM rcmdb.repeclaim t
+        LEFT JOIN hos.ipt i ON i.an = t.an
+        LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
+        WHERE t.department = 'IP'
+          AND t.${dateCol} BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause};
+      `
+    }
+
+    const [countRows] = await hosPool.query(countSql, countParams)
+    const totalCount = Number(countRows?.[0]?.total || 0)
+    const totalPages = Math.ceil(totalCount / limitNum) || 1
+
+    // 2. Data rows query
+    let dataSql = ''
+    const dataParams = [filterStart, filterEnd]
+    if (cleanPttype) dataParams.push(cleanPttype)
+    if (cleanSearch) dataParams.push(...searchParams)
+    dataParams.push(limitNum, offsetNum)
+
+    if (dept === 'OP') {
+      dataSql = `
+        SELECT STRAIGHT_JOIN 
+          t.vn as vnOrAn,
+          t.pid as cid,
+          t.hn,
+          t.ptname,
+          DATE_FORMAT(t.admdate, '%d/%m/%Y') as vstdate,
+          DATE_FORMAT(t.admdate, '%H:%i:%s') as vsttime,
+          o.pttype,
+          ptt.pttype_eclaim_id,
+          ROUND(SUM(t.compensated), 2) as compensated,
+          ROUND(SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)), 2) as fund_money,
+          ROUND(v.income, 2) as income_hosxp,
+          ROUND(v.rcpt_money, 2) as rcpt_money,
+          ROUND(v.income - v.rcpt_money, 2) as debit_hosxp,
+          ROUND(SUM(t.hc), 2) as hc,
+          ROUND(SUM(t.ae), 2) as ae,
+          ROUND(SUM(t.inst), 2) as inst,
+          ROUND(SUM(t.op), 2) as op,
+          ROUND(SUM(t.ip), 2) as ip,
+          ROUND(SUM(t.drug), 2) as drug,
+          ROUND(SUM(t.dmis), 2) as dmis,
+          ROUND(CASE 
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (v.income - v.rcpt_money) > 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+            ELSE 0 
+          END, 2) as down,
+          ROUND(CASE
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (v.income - v.rcpt_money) < 0 THEN SUM(t.compensated) - (v.income - v.rcpt_money)
+            ELSE 0 
+          END, 2) as up,
+          GROUP_CONCAT(DISTINCT t.rep ORDER BY t.rep SEPARATOR ', ') as rep,
+          GROUP_CONCAT(DISTINCT t.bill ORDER BY t.rep SEPARATOR ', ') as bill,
+          GROUP_CONCAT(DISTINCT DATE_FORMAT(t.bill_date, '%d/%m/%Y') ORDER BY t.rep SEPARATOR ', ') as billdate
+        FROM rcmdb.repeclaim t
+        LEFT JOIN hos.ovst o ON o.vn = t.vn
+        LEFT JOIN hos.vn_stat v ON v.vn = o.vn
+        LEFT JOIN hos.pttype ptt ON ptt.pttype = o.pttype
+        WHERE t.department = 'OP'
+          AND t.${dateCol} BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause}
+        GROUP BY t.vn, t.pid, t.hn, t.ptname, t.admdate, o.pttype, ptt.pttype_eclaim_id, v.income, v.rcpt_money
+        ORDER BY t.hn ASC, t.vn ASC
+        LIMIT ? OFFSET ?;
+      `
+    } else {
+      dataSql = `
+        SELECT STRAIGHT_JOIN 
+          t.an as vnOrAn,
+          t.pid as cid,
+          t.hn,
+          t.ptname,
+          DATE_FORMAT(t.admdate, '%d/%m/%Y') as admdate,
+          DATE_FORMAT(i.dchdate, '%d/%m/%Y') as dchdate,
+          i.pttype,
+          ptt.pttype_eclaim_id,
+          ROUND(SUM(t.compensated), 2) as compensated,
+          ROUND(SUM(t.hc + t.inst + t.ae + t.inst + t.drug + t.dmis + COALESCE(t.ontop, 0) + IF(t.fund IS NOT NULL, t.op, 0) + IF(t.fund IS NOT NULL, t.ip, 0)), 2) as fund_money,
+          ROUND(a.income, 2) as income_hosxp,
+          ROUND(a.rcpt_money, 2) as rcpt_money,
+          ROUND(a.income - a.rcpt_money, 2) as debit_hosxp,
+          ROUND(SUM(t.hc), 2) as hc,
+          ROUND(SUM(t.ae), 2) as ae,
+          ROUND(SUM(t.inst), 2) as inst,
+          ROUND(SUM(t.op), 2) as op,
+          ROUND(SUM(t.ip), 2) as ip,
+          ROUND(SUM(t.drug), 2) as drug,
+          ROUND(SUM(t.dmis), 2) as dmis,
+          ROUND(CASE 
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (a.income - a.rcpt_money) > 0 THEN SUM(t.compensated) - (a.income - a.rcpt_money)
+            ELSE 0 
+          END, 2) as down,
+          ROUND(CASE
+            WHEN IFNULL(SUM(t.compensated), 0) = 0 THEN 0
+            WHEN SUM(t.compensated) - (a.income - a.rcpt_money) < 0 THEN SUM(t.compensated) - (a.income - a.rcpt_money)
+            ELSE 0 
+          END, 2) as up,
+          GROUP_CONCAT(DISTINCT t.rep ORDER BY t.rep SEPARATOR ', ') as rep,
+          GROUP_CONCAT(DISTINCT t.bill ORDER BY t.rep SEPARATOR ', ') as bill,
+          GROUP_CONCAT(DISTINCT DATE_FORMAT(t.bill_date, '%d/%m/%Y') ORDER BY t.rep SEPARATOR ', ') as billdate
+        FROM rcmdb.repeclaim t
+        LEFT JOIN hos.ipt i ON i.an = t.an
+        LEFT JOIN hos.an_stat a ON a.an = i.an
+        LEFT JOIN hos.pttype ptt ON ptt.pttype = i.pttype
+        WHERE t.department = 'IP'
+          AND t.${dateCol} BETWEEN ? AND ?
+          ${pttypeClause}
+          ${searchClause}
+        GROUP BY t.an, t.pid, t.hn, t.ptname, t.admdate, i.dchdate, i.pttype, ptt.pttype_eclaim_id, a.income, a.rcpt_money
+        ORDER BY t.an ASC
+        LIMIT ? OFFSET ?;
+      `
+    }
+
+    const [rows] = await hosPool.query(dataSql, dataParams)
+
+    const items = (rows || []).map((r, idx) => ({
+      no: offsetNum + idx + 1,
+      vnOrAn: String(r.vnOrAn || ''),
+      cid: String(r.cid || ''),
+      hn: String(r.hn || ''),
+      ptname: String(r.ptname || ''),
+      vstdate: r.vstdate ? String(r.vstdate) : undefined,
+      vsttime: r.vsttime ? String(r.vsttime) : undefined,
+      admdate: r.admdate ? String(r.admdate) : undefined,
+      dchdate: r.dchdate ? String(r.dchdate) : undefined,
+      pttype: String(r.pttype || ''),
+      pttype_eclaim_id: String(r.pttype_eclaim_id || ''),
+      compensated: Number(r.compensated || 0),
+      fund_money: Number(r.fund_money || 0),
+      income_hosxp: Number(r.income_hosxp || 0),
+      rcpt_money: Number(r.rcpt_money || 0),
+      debit_hosxp: Number(r.debit_hosxp || 0),
+      hc: Number(r.hc || 0),
+      ae: Number(r.ae || 0),
+      inst: Number(r.inst || 0),
+      op: Number(r.op || 0),
+      ip: Number(r.ip || 0),
+      drug: Number(r.drug || 0),
+      dmis: Number(r.dmis || 0),
+      down: Number(r.down || 0),
+      up: Number(r.up || 0),
+      rep: String(r.rep || ''),
+      bill: String(r.bill || ''),
+      billdate: String(r.billdate || ''),
+    }))
+
+    return {
+      success: true,
+      count: items.length,
+      totalCount,
+      totalPages,
+      page: pageNum,
+      pageSize: limitNum,
+      dateType,
+      data: {
+        items,
+        totalCount,
+        totalPages,
+        page: pageNum,
+        pageSize: limitNum,
+        dateType
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+
+
+// 1.16 RCM Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด
+fastify.get('/api/v1/clinical/rcm/palliative-care', {
+  schema: {
+    tags: ['1. Clinical Services (HOSxP)'],
+    summary: 'รายชื่อผู้ป่วย Palliative Care ตามกลุ่มโรคที่กรมการแพทย์กำหนด',
+    querystring: {
+      type: 'object',
+      properties: {
+        startDate: { type: 'string' },
+        endDate: { type: 'string' },
+        ucOnly: { type: 'string' },
+        filterType: { type: 'string', enum: ['ALL', 'Chronic', 'Opioid', 'Death'] },
+        search: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { startDate = '', endDate = '', ucOnly = 'false', filterType = 'ALL', search = '' } = req.query || {}
+  try {
+    const ds1 = startDate || new Date().toISOString().slice(0, 10)
+    const ds2 = endDate || ds1
+
+    const sql = `
+      SELECT 
+        o.vn,
+        IFNULL(pt.cid, '') AS cid,
+        o.hn,
+        CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+        DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+        IFNULL(cc.AuthenCode, '') AS authencode,
+        IFNULL(o.pttype, '') AS pttype,
+        IFNULL(ptt.hipdata_code, '') AS inscl,
+        IFNULL(ptt.name, o.pttype) AS pttypename,
+        CONCAT(IFNULL(pt.addrpart,''), ' ม.', IFNULL(pt.moopart,''), ' ', IFNULL(pt.road,'')) AS address,
+        COALESCE(NULLIF(pt.mobile_phone_number,''), NULLIF(pt.informtel,''), '') AS tel,
+        IFNULL(s.cc, '') AS cc,
+        IFNULL(k.department, o.main_dep) AS room,
+        IFNULL(sp.name, o.spclty) AS spclty,
+        CONCAT_WS(',', v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5) AS Diag,
+        CONCAT_WS(',', v.op0, v.op1, v.op2, v.op3, v.op4, v.op5) AS Oper,
+        IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'Z515', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Z515,
+        IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'B2[0-4]|^C|D[0-4]|I5|I6|J44|K704|K717|K72|N185', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Dx,
+        IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP 'Z718', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Z718,
+        IF(GROUP_CONCAT(DISTINCT IF(dx.icd10 REGEXP '^C|D3[7-9]|D4', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Cancer,
+        IF(GROUP_CONCAT(DISTINCT IF(d.nhso_adp_code REGEXP '^M', 'Y', NULL)) IS NOT NULL, 'Y', '') AS Drug,
+        IFNULL(pt.death, 'N') AS death,
+        DATE_FORMAT(pt.deathday, '%Y-%m-%d') AS death_date,
+        IF(e.hn IS NULL, ' ', 'Y') AS OK,
+        IFNULL(e.PallativeCare, 0) AS compensated,
+        CONCAT_WS('#', e.rep, e.id) AS rep_invoice,
+        CONCAT_WS('#', m.eclaim_no, m.id) AS eclaim_no,
+        m.senddate,
+        CASE 
+          WHEN m.status IS NOT NULL THEN CONCAT(m.status, ' :: ', IFNULL(ecs.name, m.status))
+          ELSE '- :: ยังไม่ได้ส่ง'
+        END AS status_Eclaim,
+        IFNULL(m.filename_send, '') AS filename_send
+      FROM ovst o
+      LEFT JOIN patient pt ON pt.hn = o.hn
+      LEFT JOIN vn_stat v ON v.vn = o.vn 
+      JOIN ovstdiag dx ON dx.vn = o.vn
+      LEFT JOIN opdscreen s ON s.vn = o.vn
+      LEFT JOIN opitemrece oo ON oo.vn = o.vn 
+      LEFT JOIN drugitems d ON d.icode = oo.icode
+      LEFT JOIN pttype ptt ON ptt.pttype = o.pttype 
+      LEFT JOIN kskdepartment k ON k.depcode = o.main_dep
+      LEFT JOIN spclty sp ON sp.spclty = o.spclty
+      LEFT JOIN rcmdb.repeclaim e ON e.hn = o.hn AND e.PallativeCare > 0
+      LEFT JOIN (
+        SELECT 
+          m.opdseq AS vn,
+          MAX(m.eclaim_no) AS eclaim_no,
+          SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT IF(m.status='4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+          SUBSTRING_INDEX(GROUP_CONCAT(m.maininscl ORDER BY m.eclaim_no DESC), ',', 1) AS maininscl,
+          SUBSTRING_INDEX(GROUP_CONCAT(m.status ORDER BY m.eclaim_no DESC), ',', 1) AS status,
+          SUBSTRING_INDEX(GROUP_CONCAT(m.code_id ORDER BY m.eclaim_no DESC), ',', 1) AS errorcode,
+          SUBSTRING_INDEX(GROUP_CONCAT(m.tran_id ORDER BY m.eclaim_no DESC), ',', 1) AS id,
+          SUBSTRING_INDEX(GROUP_CONCAT(UCASE(m.filename_send) ORDER BY m.eclaim_no DESC), ',', 1) AS filename_send,
+          SUBSTRING_INDEX(GROUP_CONCAT(pp.child_dob ORDER BY m.eclaim_no DESC), ',', 1) AS vstdate,
+          SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(m.date_send, m.filename_send) ORDER BY m.eclaim_no DESC), ',', 1) AS senddate
+        FROM eclaimdb.m_registerdata m
+        JOIN eclaimdb.m_ppcom pp ON pp.eclaim_no = m.eclaim_no 
+        WHERE pp.itemname REGEXP '30001'
+          AND m.person_type = '1'
+          AND m.opdseq IS NOT NULL
+        GROUP BY m.opdseq
+      ) m ON m.vn = o.vn
+      LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+      LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+      WHERE o.vstdate BETWEEN ? AND ?
+        AND IFNULL(o.pttype, '') NOT IN ('H1', '35', '36')
+        AND dx.icd10 REGEXP 'B2[0-4]|^C|D[0-4]|I5|I6|J44|K704|K717|K72|N185|Z515|Z718'
+      GROUP BY o.vn
+      HAVING Dx = 'Y'
+      ORDER BY o.hn ASC
+    `;
+    const [rawRows] = await hosPool.query(sql, [ds1, ds2])
+
+    let mapped = (rawRows || []).map((r, idx) => {
+      const z515 = String(r.Z515 || '').trim()
+      const errorName = !z515 ? 'ไม่พบรหัส Z515' : ''
+      let formattedSendDate = null
+      if (r.senddate) {
+        const rawDate = String(r.senddate).trim()
+        const match = rawDate.match(/(\d{4})(\d{2})(\d{2})/)
+        if (match) formattedSendDate = `${match[1]}-${match[2]}-${match[3]}`
+        else formattedSendDate = rawDate
+      }
+      return {
+        no: idx + 1,
+        vn: String(r.vn || ''),
+        cid: String(r.cid || ''),
+        hn: String(r.hn || ''),
+        ptname: String(r.ptname || '').trim(),
+        vstdate: String(r.vstdate || ''),
+        authencode: String(r.authencode || '').trim(),
+        pttype: String(r.pttype || '').trim(),
+        inscl: String(r.inscl || '').trim(),
+        pttypename: String(r.pttypename || '').trim(),
+        address: String(r.address || '').trim(),
+        tel: String(r.tel || '').trim(),
+        cc: String(r.cc || '').trim(),
+        room: String(r.room || '').trim(),
+        spclty: String(r.spclty || '').trim(),
+        diag: String(r.Diag || ''),
+        oper: String(r.Oper || ''),
+        z515,
+        dx: String(r.Dx || '').trim(),
+        z718: String(r.Z718 || '').trim(),
+        cancer: String(r.Cancer || '').trim(),
+        drug: String(r.Drug || '').trim(),
+        death: String(r.death || 'N').trim(),
+        death_date: r.death_date ? String(r.death_date) : null,
+        ok: String(r.OK || ' ').trim(),
+        compensated: Number(r.compensated || 0),
+        rep_invoice: String(r.rep_invoice || '').trim(),
+        eclaim_no: String(r.eclaim_no || '').trim(),
+        senddate: formattedSendDate,
+        status_eclaim: String(r.status_Eclaim || '').trim(),
+        filename_send: String(r.filename_send || '').trim(),
+        error_name: errorName
+      }
+    })
+
+    mapped = mapped.filter(i => !['H1', '35', '36'].includes(i.pttype))
+    if (ucOnly === 'true') mapped = mapped.filter(i => i.inscl === 'UCS')
+    if (filterType === 'Chronic') mapped = mapped.filter(i => i.z718 === 'Y' && i.dx === 'Y')
+    else if (filterType === 'Opioid') mapped = mapped.filter(i => i.cancer === 'Y' && i.drug === 'Y')
+    else if (filterType === 'Death') mapped = mapped.filter(i => i.death === 'Y')
+
+    if (search && search.trim()) {
+      const s = search.trim().toLowerCase()
+      mapped = mapped.filter(i => i.hn.toLowerCase().includes(s) || i.ptname.toLowerCase().includes(s) || i.cid.includes(s) || i.vn.includes(s) || i.diag.toLowerCase().includes(s))
+    }
+
+    mapped.forEach((item, i) => { item.no = i + 1 })
+    const uniquePatients = new Set(mapped.map(i => i.hn))
+
+    const summary = {
+      totalVisits: mapped.length,
+      totalPatients: uniquePatients.size,
+      advanceCarePlanCount: mapped.filter(i => i.z718 === 'Y' && i.dx === 'Y').length,
+      opioidCount: mapped.filter(i => i.cancer === 'Y' && i.drug === 'Y').length,
+      hasZ515Count: mapped.filter(i => i.z515 === 'Y').length,
+      missingZ515Count: mapped.filter(i => !i.z515).length,
+      paidCount: mapped.filter(i => i.ok === 'Y').length,
+      totalCompensated: mapped.reduce((sum, i) => sum + i.compensated, 0),
+      deceasedCount: mapped.filter(i => i.death === 'Y').length
+    }
+
+    return {
+      success: true,
+      ds1,
+      ds2,
+      summary,
+      items: mapped
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+
+// ==================================================================
+// SECTION 2: Salary Database Services (192.168.1.4)
+// ==================================================================
+
+// 2.1 Verify Login
+fastify.post('/api/v1/salary/verify-login', {
+  schema: {
+    tags: ['2. Salary Services'],
+    summary: 'ตรวจสอบสิทธิ์การเข้าสู่ระบบเงินเดือน (username & password)',
+    body: {
+      type: 'object',
+      required: ['username', 'password'],
+      properties: {
+        username: { type: 'string' },
+        password: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { username, password } = req.body || {}
+  if (!username || !password) { reply.code(400); return { success: false, error: 'Username and password required' } }
+  try {
+    const [rows] = await salaryPool.query(
+      'SELECT id, user_name, name, status FROM username WHERE user_name = ? AND user_pass = ? LIMIT 1',
+      [username, password]
+    )
+    if (rows.length === 0) {
+      reply.code(401); return { success: false, error: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง' }
+    }
+    return { success: true, user: { username: rows[0].user_name, name: rows[0].name, status: rows[0].status } }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 2.2 Get Slips
+fastify.get('/api/v1/salary/records/:username', {
+  schema: {
+    tags: ['2. Salary Services'],
+    summary: 'ดึงประวัติสลิปเงินเดือนและค่าล่วงเวลา (OT) ตามเลขบัตรประชาชน',
+    params: {
+      type: 'object',
+      properties: { username: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { username } = req.params
+  try {
+    const [salaryRows] = await salaryPool.query('SELECT * FROM salary WHERE c2 = ? ORDER BY c1 DESC', [username])
+    const [otRows] = await salaryPool.query('SELECT * FROM ot WHERE c2 = ? ORDER BY c1 DESC', [username])
+    return { success: true, username, salaryCount: salaryRows.length, otCount: otRows.length, data: { salary: salaryRows, ot: otRows } }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 2.3 Periods
+fastify.get('/api/v1/salary/periods', {
+  schema: {
+    tags: ['2. Salary Services'],
+    summary: 'ดึงรายการรอบการจ่ายเงินเดือน (datein)'
+  }
+}, async (req, reply) => {
+  try {
+    const [rows] = await salaryPool.query("SELECT id, type, DATE_FORMAT(datein, '%Y-%m-%d') as datein, notesalary FROM datein ORDER BY datein DESC, id DESC LIMIT 24")
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/salary/periods', {
+  schema: {
+    tags: ['2. Salary Services'],
+    summary: 'สร้างรอบการจ่ายเงินเดือนใหม่ (สำหรับเจ้าหน้าที่การเงิน)',
+    body: {
+      type: 'object',
+      required: ['datein', 'notesalary'],
+      properties: {
+        type: { type: 'string', default: '1' },
+        datein: { type: 'string', description: 'YYYY-MM-DD' },
+        notesalary: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { type, datein, notesalary } = req.body || {}
+  if (!datein || !notesalary) { reply.code(400); return { success: false, error: 'datein and notesalary required' } }
+  try {
+    const [result] = await salaryEditPool.query('INSERT INTO datein (type, datein, notesalary) VALUES (?, ?, ?)', [type || '1', datein, notesalary])
+    return { success: true, insertId: result.insertId }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.delete('/api/v1/salary/periods/:id', {
+  schema: {
+    tags: ['2. Salary Services'],
+    summary: 'ลบรอบการจ่ายเงินเดือน',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    await salaryEditPool.query('DELETE FROM datein WHERE id = ?', [id])
+    return { success: true, deletedId: id }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 2.4 Batch Upload Salary/OT
+fastify.post('/api/v1/salary/upload-batch', {
+  schema: {
+    tags: ['2. Salary Services'],
+    summary: 'อัปโหลดชุดข้อมูลเงินเดือน/OT แบบหลายแถว (สำหรับงานการเงิน)',
+    body: {
+      type: 'object',
+      required: ['targetTable', 'rows'],
+      properties: {
+        targetTable: { type: 'string', enum: ['salary', 'ot'] },
+        rows: { type: 'array' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { targetTable, rows } = req.body || {}
+  if (!['salary', 'ot'].includes(targetTable) || !Array.isArray(rows) || rows.length === 0) {
+    reply.code(400); return { success: false, error: 'Invalid payload' }
+  }
+  try {
+    let insertedCount = 0
+    for (const row of rows) {
+      const keys = Object.keys(row)
+      const values = Object.values(row)
+      const placeholders = keys.map(() => '?').join(', ')
+      const sql = `INSERT INTO ${targetTable} (${keys.join(', ')}) VALUES (${placeholders})`
+      await salaryEditPool.query(sql, values)
+      insertedCount++
+    }
+    return { success: true, insertedCount }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/salary/query', {
+  schema: {
+    tags: ['2. Salary Services'],
+    summary: 'Universal Read-Only Query สำหรับฐานข้อมูล salary'
+  }
+}, async (req, reply) => {
+  const { sql, params = [] } = req.body || {}
+  if (!sql || typeof sql !== 'string') { reply.code(400); return { success: false, error: 'SQL query required' } }
+  const trimmed = sql.trim().toUpperCase()
+  if (!trimmed.startsWith('SELECT') && !trimmed.startsWith('EXPLAIN') && !trimmed.startsWith('SHOW')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Only SELECT/EXPLAIN queries allowed' }
+  }
+  try {
+    const [rows] = await salaryPool.query(sql, params)
+    return { success: true, count: Array.isArray(rows) ? rows.length : 1, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 2.7 Parameterized Execute for Salary DB (INSERT / UPDATE / DELETE)
+fastify.post('/api/v1/salary/execute', {
+  schema: {
+    tags: ['2. Salary Services'],
+    summary: 'Universal Parameterized Execute สำหรับฐานข้อมูล salary (INSERT / UPDATE / DELETE)',
+    body: {
+      type: 'object',
+      required: ['sql'],
+      properties: {
+        sql: { type: 'string', description: 'คำสั่ง INSERT, UPDATE หรือ DELETE' },
+        params: { type: 'array', description: 'พารามิเตอร์ binding' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { sql, params = [] } = req.body || {}
+  if (!sql || typeof sql !== 'string') { reply.code(400); return { success: false, error: 'SQL query required' } }
+  if (sql.includes(';')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Multi-statements / semicolons are not allowed' }
+  }
+  const trimmed = sql.trim().toUpperCase()
+  const forbiddenKeywords = ['DROP ', 'TRUNCATE ', 'ALTER ', 'GRANT ', 'REVOKE ', 'CREATE USER']
+  if (forbiddenKeywords.some(kw => trimmed.includes(kw))) {
+    reply.code(403); return { success: false, error: 'Forbidden: DDL operations are not allowed' }
+  }
+  if (!trimmed.startsWith('INSERT') && !trimmed.startsWith('UPDATE') && !trimmed.startsWith('DELETE')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Only INSERT/UPDATE/DELETE queries allowed' }
+  }
+  try {
+    const [res] = await salaryEditPool.query(sql, params)
+    return {
+      success: true,
+      affectedRows: res.affectedRows,
+      insertId: res.insertId || null
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// ==================================================================
+// SECTION 3: Members & Staff Management (192.168.1.7)
+// ==================================================================
+
+
+// 3.1 List Members
+fastify.get('/api/v1/app/members', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'ดึงรายชื่อสมาชิก/บุคลากรทั้งหมด'
+  }
+}, async (req, reply) => {
+  try {
+    const [rows] = await appPool.query(
+      "SELECT id, username, email, name, department, position, salary_user, role, created_at, updated_at FROM members ORDER BY created_at DESC"
+    )
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 3.2 Get Member by ID
+fastify.get('/api/v1/app/members/:id', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'ดึงข้อมูลสมาชิกรายบุคคลตาม ID',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [rows] = await appPool.query(
+      "SELECT id, username, email, name, department, position, salary_user, role, created_at, updated_at FROM members WHERE id = ? LIMIT 1",
+      [id]
+    )
+    if (rows.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบสมาชิก' }
+    }
+    return { success: true, data: rows[0] }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 3.3 Create Member
+fastify.post('/api/v1/app/members', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'เพิ่มสมาชิกใหม่เข้าสู่ระบบ',
+    body: {
+      type: 'object',
+      required: ['username', 'email', 'role'],
+      properties: {
+        username: { type: 'string' },
+        email: { type: 'string' },
+        name: { type: 'string' },
+        department: { type: 'string' },
+        position: { type: 'string' },
+        role: { type: 'string', enum: ['member', 'admin', 'subdistrict'], default: 'member' },
+        salary_user: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { username, email, name = null, department = null, position = null, role = 'member', salary_user = null } = req.body || {}
+  try {
+    const [dup] = await appPool.query('SELECT id FROM members WHERE username = ? OR email = ? LIMIT 1', [username, email])
+    if (dup.length > 0) {
+      reply.code(400); return { success: false, error: 'ชื่อผู้ใช้งานหรืออีเมลนี้มีอยู่ในระบบแล้ว' }
+    }
+    const [res] = await appPool.query(
+      'INSERT INTO members (username, email, name, department, position, role, salary_user, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [username.trim(), email.trim(), name, department, position, role, salary_user]
+    )
+    return { success: true, insertId: res.insertId }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 3.4 Update Member
+fastify.put('/api/v1/app/members/:id', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'แก้ไขข้อมูลสมาชิก (Edit Member)',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      properties: {
+        username: { type: 'string' },
+        email: { type: 'string' },
+        name: { type: 'string' },
+        department: { type: 'string' },
+        position: { type: 'string' },
+        role: { type: 'string', enum: ['member', 'admin', 'subdistrict'] },
+        salary_user: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const { username, email, name, department, position, role, salary_user } = req.body || {}
+  try {
+    const [existing] = await appPool.query('SELECT id FROM members WHERE id = ? LIMIT 1', [id])
+    if (existing.length === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบสมาชิกที่ต้องการแก้ไข' }
+    }
+    if (username || email) {
+      const [dup] = await appPool.query('SELECT id FROM members WHERE (username = ? OR email = ?) AND id != ? LIMIT 1', [username || '', email || '', id])
+      if (dup.length > 0) {
+        reply.code(400); return { success: false, error: 'ชื่อผู้ใช้งานหรืออีเมลนี้มีอยู่ในระบบแล้ว' }
+      }
+    }
+    await appPool.query(
+      `UPDATE members 
+       SET username = COALESCE(?, username), email = COALESCE(?, email), name = COALESCE(?, name),
+           department = COALESCE(?, department), position = COALESCE(?, position),
+           role = COALESCE(?, role), salary_user = COALESCE(?, salary_user), updated_at = NOW()
+       WHERE id = ?`,
+      [username, email, name, department, position, role, salary_user, id]
+    )
+    return { success: true, message: 'แก้ไขข้อมูลสมาชิกสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 3.5 Delete Member
+fastify.delete('/api/v1/app/members/:id', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'ลบสมาชิกออกจากระบบ (Delete Member)',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [res] = await appPool.query('DELETE FROM members WHERE id = ?', [id])
+    if (res.affectedRows === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบสมาชิกที่จะลบ' }
+    }
+    return { success: true, message: 'ลบสมาชิกเรียบร้อยแล้ว' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 3.6 Member Permissions
+fastify.get('/api/v1/app/members/:id/permissions', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'ดึงรายการสิทธิ์เฉพาะบุคคลของสมาชิก',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [rows] = await appPool.query('SELECT permission_key, created_at, created_by FROM member_permissions WHERE member_id = ?', [id])
+    return { success: true, memberId: id, permissions: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/app/members/:id/permissions', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'มอบสิทธิ์เฉพาะบุคคลให้แก่สมาชิก',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      required: ['permissionKey'],
+      properties: {
+        permissionKey: { type: 'string' },
+        createdBy: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const { permissionKey, createdBy = 'admin' } = req.body || {}
+  try {
+    await appPool.query(
+      'INSERT INTO member_permissions (member_id, permission_key, created_by, created_at) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE created_by = ?',
+      [id, permissionKey, createdBy, createdBy]
+    )
+    return { success: true, message: 'มอบสิทธิ์สำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.delete('/api/v1/app/members/:id/permissions/:key', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'เพิกถอนสิทธิ์เฉพาะบุคคลของสมาชิก',
+    params: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        key: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id, key } = req.params
+  try {
+    await appPool.query('DELETE FROM member_permissions WHERE member_id = ? AND permission_key = ?', [id, key])
+    return { success: true, message: 'เพิกถอนสิทธิ์สำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// ==================================================================
+// SECTION 4: Website Core Application (CMS, News, Slides, Assets, Tasks)
+// ==================================================================
+
+// 4.1 News List & Create
+fastify.get('/api/v1/app/news', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการข่าวสาร/ประชาสัมพันธ์ (มีแคช 30 วิ)',
+    querystring: {
+      type: 'object',
+      properties: {
+        category: { type: 'string' },
+        limit: { type: 'string', default: '10' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { category = '', limit = '10' } = req.query || {}
+  try {
+    const cacheKey = `app-news-${category}-${limit}`
+    const data = await getCached(cacheKey, 30000, async () => {
+      let sql = 'SELECT id, title, slug, category, view_count, created_at FROM news'
+      const params = []
+      if (category) { sql += ' WHERE category = ?'; params.push(category) }
+      sql += ' ORDER BY created_at DESC LIMIT ?'; params.push(parseInt(limit, 10))
+      const [rows] = await appPool.query(sql, params)
+      return rows
+    })
+    return { success: true, count: data.length, data }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/app/news', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'สร้างข่าวสาร/กิจกรรมใหม่',
+    body: {
+      type: 'object',
+      required: ['title', 'slug', 'category', 'startDate', 'endDate'],
+      properties: {
+        title: { type: 'string' },
+        slug: { type: 'string' },
+        category: { type: 'string' },
+        youtubeLink: { type: 'string' },
+        startDate: { type: 'string', description: 'YYYY-MM-DD HH:mm:ss' },
+        endDate: { type: 'string', description: 'YYYY-MM-DD HH:mm:ss' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { title, slug, category, youtubeLink = null, startDate, endDate } = req.body || {}
+  try {
+    const [res] = await appPool.query(
+      'INSERT INTO news (title, slug, category, youtube_link, start_date, end_date, view_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, NOW(), NOW())',
+      [title, slug, category, youtubeLink, startDate, endDate]
+    )
+    return { success: true, insertId: res.insertId }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.2 News Detail & Update & Delete
+fastify.get('/api/v1/app/news/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายละเอียดข่าวสารตาม ID (พร้อมอัปเดตยอดวิวอัตโนมัติ)',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [rows] = await appPool.query('SELECT * FROM news WHERE id = ? LIMIT 1', [id])
+    if (rows.length === 0) { reply.code(404); return { success: false, error: 'ไม่พบข่าว' } }
+    appPool.query('UPDATE news SET view_count = view_count + 1 WHERE id = ?', [id]).catch(() => {})
+    const [attachments] = await appPool.query('SELECT id, file_path, file_type, original_name FROM attachments WHERE news_id = ?', [id])
+    return { success: true, data: { ...rows[0], attachments } }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.put('/api/v1/app/news/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แก้ไขข้อมูลข่าวสาร',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    },
+    body: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        category: { type: 'string' },
+        youtubeLink: { type: 'string' },
+        startDate: { type: 'string' },
+        endDate: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  const { title, category, youtubeLink, startDate, endDate } = req.body || {}
+  try {
+    await appPool.query(
+      `UPDATE news SET 
+         title = COALESCE(?, title),
+         category = COALESCE(?, category),
+         youtube_link = COALESCE(?, youtube_link),
+         start_date = COALESCE(?, start_date),
+         end_date = COALESCE(?, end_date),
+         updated_at = NOW()
+       WHERE id = ?`,
+      [title, category, youtubeLink, startDate, endDate, id]
+    )
+    return { success: true, message: 'แก้ไขข่าวสารสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.delete('/api/v1/app/news/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบข่าวสารและไฟล์แนบ',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    await appPool.query('DELETE FROM attachments WHERE news_id = ?', [id])
+    await appPool.query('DELETE FROM news WHERE id = ?', [id])
+    return { success: true, message: 'ลบข่าวสารสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.3 Hero Slides
+fastify.get('/api/v1/app/slides', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงแบนเนอร์สไลด์หน้าแรก (มีแคช 60 วิ)'
+  }
+}, async (req, reply) => {
+  try {
+    const data = await getCached('app-slides', 60000, async () => {
+      const [rows] = await appPool.query('SELECT id, title, image_path, link_url, display_order, duration FROM hero_slides ORDER BY display_order ASC')
+      return rows
+    })
+    return { success: true, count: data.length, data }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/app/slides', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'เพิ่มภาพสไลด์แบนเนอร์ใหม่',
+    body: {
+      type: 'object',
+      required: ['imagePath', 'startDate', 'endDate'],
+      properties: {
+        title: { type: 'string' },
+        imagePath: { type: 'string' },
+        linkUrl: { type: 'string' },
+        displayOrder: { type: 'integer', default: 0 },
+        duration: { type: 'integer', default: 6 },
+        startDate: { type: 'string' },
+        endDate: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { title = '', imagePath, linkUrl = '', displayOrder = 0, duration = 6, startDate, endDate } = req.body || {}
+  try {
+    const [res] = await appPool.query(
+      'INSERT INTO hero_slides (title, image_path, link_url, display_order, duration, start_date, end_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [title, imagePath, linkUrl, displayOrder, duration, startDate, endDate]
+    )
+    return { success: true, insertId: res.insertId }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.delete('/api/v1/app/slides/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบภาพสไลด์แบนเนอร์',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    await appPool.query('DELETE FROM hero_slides WHERE id = ?', [id])
+    return { success: true, message: 'ลบสไลด์สำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.4 Hospital Assets
+fastify.get('/api/v1/app/assets', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ค้นหาทะเบียนครุภัณฑ์โรงพยาบาล',
+    querystring: {
+      type: 'object',
+      properties: {
+        search: { type: 'string' },
+        category: { type: 'string' },
+        limit: { type: 'string', default: '50' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { search = '', category = '', limit = '50' } = req.query || {}
+  try {
+    let sql = 'SELECT id, article_num, fsn_num, name, category, brand, model, location_full_name, status, is_loanable FROM hospital_assets WHERE 1=1'
+    const params = []
+    if (search) { sql += ' AND (article_num LIKE ? OR name LIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
+    if (category) { sql += ' AND category = ?'; params.push(category) }
+    sql += ' ORDER BY id DESC LIMIT ?'; params.push(parseInt(limit, 10))
+    const [rows] = await appPool.query(sql, params)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.5 Hospital Events
+fastify.get('/api/v1/app/events', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการปฏิทินกิจกรรมโรงพยาบาล'
+  }
+}, async (req, reply) => {
+  try {
+    const [rows] = await appPool.query(
+      'SELECT id, title, location, banner_url, event_start_date, event_end_date, status, fiscal_year FROM hospital_events ORDER BY event_start_date DESC LIMIT 30'
+    )
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+
+// 4.5.1 Event Attachments (Media, Documents, Notes)
+fastify.get('/api/v1/app/events/:id/attachments', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการเอกสาร รูปภาพ และบันทึกข้อความของกิจกรรม (Event Attachments)',
+    params: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer', description: 'Event ID' }
+      },
+      required: ['id']
+    }
+  }
+}, async (req, reply) => {
+  try {
+    const eventId = Number(req.params.id)
+    const [rows] = await appPool.query(
+      `SELECT a.id, a.event_id, a.attachment_type, a.title, a.file_path, a.file_type,
+              a.file_size, a.text_content, a.uploaded_by_member_id, a.display_order,
+              a.created_at, a.updated_at,
+              m.name AS uploader_name, m.department AS uploader_dept
+       FROM event_attachments a
+       LEFT JOIN members m ON a.uploaded_by_member_id = m.id
+       WHERE a.event_id = ?
+       ORDER BY a.display_order ASC, a.created_at DESC`,
+      [eventId]
+    )
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/app/events/:id/attachments', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'แนบเอกสาร รูปภาพ หรือข้อความสรุปสำหรับกิจกรรม (Add Event Attachment)',
+    params: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer', description: 'Event ID' }
+      },
+      required: ['id']
+    },
+    body: {
+      type: 'object',
+      required: ['attachment_type', 'title'],
+      properties: {
+        attachment_type: { type: 'string', enum: ['IMAGE', 'DOCUMENT', 'NOTE'], description: 'ประเภทสิ่งที่แนบ' },
+        title: { type: 'string', description: 'ชื่อไฟล์/หัวข้อบันทึก' },
+        file_path: { type: 'string', nullable: true, description: 'Path ไฟล์บน Server' },
+        file_type: { type: 'string', nullable: true, description: 'MIME type' },
+        file_size: { type: 'integer', nullable: true, description: 'ขนาดไฟล์ bytes' },
+        text_content: { type: 'string', nullable: true, description: 'เนื้อหาข้อความกรณีเป็น NOTE' },
+        uploaded_by_member_id: { type: 'integer', nullable: true, description: 'Member ID ผู้แนบ' },
+        display_order: { type: 'integer', default: 0 }
+      }
+    }
+  }
+}, async (req, reply) => {
+  try {
+    const eventId = Number(req.params.id)
+    const { attachment_type, title, file_path, file_type, file_size, text_content, uploaded_by_member_id, display_order } = req.body
+    const [res] = await appPool.query(
+      `INSERT INTO event_attachments (
+        event_id, attachment_type, title, file_path, file_type, file_size, text_content, uploaded_by_member_id, display_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [eventId, attachment_type, title, file_path || null, file_type || null, file_size || null, text_content || null, uploaded_by_member_id || null, display_order || 0]
+    )
+    return { success: true, insertId: res.insertId, message: 'แนบเอกสาร/รูปภาพสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.delete('/api/v1/app/events/:id/attachments/:attachmentId', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบเอกสารหรือรูปภาพของกิจกรรม (Delete Event Attachment)',
+    params: {
+      type: 'object',
+      properties: {
+        id: { type: 'integer', description: 'Event ID' },
+        attachmentId: { type: 'integer', description: 'Attachment ID' }
+      },
+      required: ['id', 'attachmentId']
+    }
+  }
+}, async (req, reply) => {
+  try {
+    const eventId = Number(req.params.id)
+    const attachmentId = Number(req.params.attachmentId)
+    const [res] = await appPool.query(
+      'DELETE FROM event_attachments WHERE id = ? AND event_id = ?',
+      [attachmentId, eventId]
+    )
+    return { success: true, affectedRows: res.affectedRows, message: 'ลบไฟล์แนบสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+
+// 4.6 Inbox Tasks (Workflows & Repairs)
+fastify.get('/api/v1/app/tasks', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการงานสารบรรณ/งานซ่อม/คำขอยืมอุปกรณ์ (Task Inbox)',
+    querystring: {
+      type: 'object',
+      properties: {
+        type: { type: 'string' },
+        status: { type: 'string' },
+        limit: { type: 'string', default: '30' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { type = '', status = '', limit = '30' } = req.query || {}
+  try {
+    let sql = 'SELECT id, task_no, task_type, title, urgency, status, requester_name, requester_dept, current_step_no, created_at FROM inbox_tasks WHERE 1=1'
+    const params = []
+    if (type) { sql += ' AND task_type = ?'; params.push(type) }
+    if (status) { sql += ' AND status = ?'; params.push(status) }
+    sql += ' ORDER BY created_at DESC LIMIT ?'; params.push(parseInt(limit, 10))
+    const [rows] = await appPool.query(sql, params)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.7 Contact Messages
+fastify.get('/api/v1/app/contact-messages', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงข้อความติดต่อจากประชาชนหน้าเว็บไซต์'
+  }
+}, async (req, reply) => {
+  try {
+    const [rows] = await appPool.query('SELECT id, name, email, phone, message, is_read, created_at FROM contact_messages ORDER BY created_at DESC LIMIT 50')
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+fastify.post('/api/v1/app/contact-messages', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ส่งข้อความติดต่อสอบถามจากประชาชน',
+    body: {
+      type: 'object',
+      required: ['name', 'email', 'message'],
+      properties: {
+        name: { type: 'string' },
+        email: { type: 'string' },
+        phone: { type: 'string' },
+        message: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { name, email, phone = '', message } = req.body || {}
+  try {
+    const [res] = await appPool.query('INSERT INTO contact_messages (name, email, phone, message, is_read, created_at) VALUES (?, ?, ?, ?, 0, NOW())', [name, email, phone, message])
+    return { success: true, messageId: res.insertId }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.8 Member Registration Requests
+fastify.get('/api/v1/app/registrations', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงคำขอสมัครสมาชิกใหม่ของบุคลากร (รอการตรวจสอบ)'
+  }
+}, async (req, reply) => {
+  try {
+    const [rows] = await appPool.query('SELECT * FROM member_registrations ORDER BY created_at DESC LIMIT 50')
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.9 Palliative Care Registry Services
+let visitsTableEnsured = false
+async function ensureVisitsTable() {
+  if (visitsTableEnsured) return
+  try {
+    await appPool.query(`
+      CREATE TABLE IF NOT EXISTS palliative_care_registry_visits (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        registry_id INT NOT NULL,
+        visit_no INT NOT NULL,
+        visit_date VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_pcrv_registry_id (registry_id),
+        INDEX idx_pcrv_visit_date (visit_date),
+        UNIQUE KEY uq_pcrv_reg_visit (registry_id, visit_no),
+        CONSTRAINT fk_pcrv_registry FOREIGN KEY (registry_id) REFERENCES palliative_care_registries(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `)
+    const [cntRows] = await appPool.query('SELECT COUNT(*) AS total FROM palliative_care_registry_visits')
+    if (cntRows && Number(cntRows[0]?.total || 0) === 0) {
+      const [regs] = await appPool.query(`
+        SELECT id, visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date
+        FROM palliative_care_registries
+      `)
+      for (const r of regs) {
+        for (let v = 1; v <= 6; v++) {
+          const vd = r[`visit_${v}_date`]
+          if (vd && String(vd).trim()) {
+            await appPool.query(`
+              INSERT INTO palliative_care_registry_visits (registry_id, visit_no, visit_date)
+              VALUES (?, ?, ?)
+              ON DUPLICATE KEY UPDATE visit_date = VALUES(visit_date)
+            `, [r.id, v, String(vd).trim()]).catch(() => {})
+          }
+        }
+      }
+    }
+    visitsTableEnsured = true
+  } catch (err) {
+    logger.warn({ err }, 'ensureVisitsTable notice')
+  }
+}
+
+  fastify.get('/api/v1/app/palliative-care/registries', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'ดึงรายชื่อและสถิติทะเบียนผู้ป่วย Palliative Care พร้อมระบบค้นหาและแบ่งหน้า',
+      querystring: {
+        type: 'object',
+        properties: {
+          search: { type: 'string' },
+          registrationStatus: { type: 'string' },
+          page: { type: 'integer', default: 1 },
+          limit: { type: 'integer', default: 50 }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { search, registrationStatus, page = 1, limit = 50 } = req.query || {}
+    try {
+      await ensureVisitsTable().catch(() => {})
+
+      const conditions = []
+      const params = []
+
+      if (search && search.trim()) {
+        const term = `%${search.trim()}%`
+        conditions.push('(hn LIKE ? OR patient_name LIKE ? OR icd10_principal LIKE ? OR phone LIKE ?)')
+        params.push(term, term, term, term)
+      }
+
+      if (registrationStatus && registrationStatus !== 'ALL') {
+        conditions.push('registration_status = ?')
+        params.push(registrationStatus)
+      }
+
+      const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+      const pageNum = Math.max(1, parseInt(page, 10) || 1)
+      const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50))
+      const offset = (pageNum - 1) * limitNum
+
+      const [rows, countRows, statsRows] = await Promise.all([
+        appPool.query(
+          `SELECT id, hn, patient_name AS patientName, address, phone,
+                  icd10_principal AS icd10Principal, icd10_palliative AS icd10Palliative,
+                  project_code AS projectCode, registration_status AS registrationStatus,
+                  registered_date AS registeredDate,
+                  visit_1_date AS visit1Date,
+                  visit_2_date AS visit2Date,
+                  visit_3_date AS visit3Date,
+                  visit_4_date AS visit4Date,
+                  visit_5_date AS visit5Date,
+                  visit_6_date AS visit6Date,
+                  death_date AS deathDate,
+                  created_by AS createdBy, updated_by AS updatedBy,
+                  created_at AS createdAt, updated_at AS updatedAt
+           FROM palliative_care_registries
+           ${whereSql}
+           ORDER BY created_at DESC
+           LIMIT ? OFFSET ?`,
+          [...params, limitNum, offset]
+        ).then(([r]) => r),
+        appPool.query(
+          `SELECT COUNT(*) AS total FROM palliative_care_registries ${whereSql}`,
+          params
+        ).then(([r]) => r[0]?.total || 0),
+        appPool.query(
+          `SELECT
+             COUNT(*) AS total,
+             COUNT(CASE WHEN registration_status = 'ดำเนินการเรียบร้อย' OR registered_date IS NOT NULL THEN 1 END) AS registered,
+             COUNT(CASE WHEN (registration_status = 'ยังไม่ได้ดำเนินการ' OR registration_status IS NULL) AND registered_date IS NULL THEN 1 END) AS pendingRegistration,
+             0 AS claimed,
+             0 AS paid,
+             0 AS deny
+           FROM palliative_care_registries`
+        ).then(([r]) => r[0] || {})
+      ])
+
+      if (rows && rows.length > 0) {
+        const ids = rows.map((r) => r.id)
+        try {
+          const [visitRows] = await appPool.query(
+            `SELECT id, registry_id AS registryId, visit_no AS visitNo, visit_date AS visitDate
+             FROM palliative_care_registry_visits
+             WHERE registry_id IN (${ids.map(() => '?').join(',')})
+             ORDER BY visit_no ASC`,
+            ids
+          )
+          const visitsByRegId = new Map()
+          for (const v of visitRows) {
+            if (!visitsByRegId.has(v.registryId)) visitsByRegId.set(v.registryId, [])
+            visitsByRegId.get(v.registryId).push({ id: v.id, visitNo: v.visitNo, visitDate: v.visitDate })
+          }
+          for (const row of rows) {
+            if (visitsByRegId.has(row.id)) {
+              row.visits = visitsByRegId.get(row.id)
+            } else {
+              row.visits = []
+              for (let v = 1; v <= 6; v++) {
+                const vd = row[`visit${v}Date`]
+                if (vd && String(vd).trim()) {
+                  row.visits.push({ visitNo: v, visitDate: String(vd).trim() })
+                }
+              }
+            }
+          }
+        } catch {
+          for (const row of rows) {
+            row.visits = []
+            for (let v = 1; v <= 6; v++) {
+              const vd = row[`visit${v}Date`]
+              if (vd && String(vd).trim()) {
+                row.visits.push({ visitNo: v, visitDate: String(vd).trim() })
+              }
+            }
+          }
+        }
+      }
+
+      const total = Number(countRows || 0)
+      const stats = {
+        total: Number(statsRows.total || 0),
+        registered: Number(statsRows.registered || 0),
+        pendingRegistration: Number(statsRows.pendingRegistration || 0),
+        claimed: Number(statsRows.claimed || 0),
+        paid: Number(statsRows.paid || 0),
+        deny: Number(statsRows.deny || 0)
+      }
+
+      return {
+        success: true,
+        items: rows,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        stats
+      }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  fastify.get('/api/v1/app/palliative-care/registries/:id', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'ดึงข้อมูลผู้ป่วย Palliative Care รายบุคคลตาม ID',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } }
+      }
+    }
+  }, async (req, reply) => {
+    const { id } = req.params
+    try {
+      await ensureVisitsTable().catch(() => {})
+      const [rows] = await appPool.query(
+        `SELECT id, hn, patient_name AS patientName, address, phone,
+                icd10_principal AS icd10Principal, icd10_palliative AS icd10Palliative,
+                project_code AS projectCode, registration_status AS registrationStatus,
+                registered_date AS registeredDate,
+                visit_1_date AS visit1Date,
+                visit_2_date AS visit2Date,
+                visit_3_date AS visit3Date,
+                visit_4_date AS visit4Date,
+                visit_5_date AS visit5Date,
+                visit_6_date AS visit6Date,
+                death_date AS deathDate,
+                created_by AS createdBy, updated_by AS updatedBy,
+                created_at AS createdAt, updated_at AS updatedAt
+         FROM palliative_care_registries
+         WHERE id = ? LIMIT 1`,
+        [id]
+      )
+      if (rows.length === 0) {
+        reply.code(404); return { success: false, error: 'ไม่พบข้อมูลทะเบียนผู้ป่วย' }
+      }
+      const item = rows[0]
+      try {
+        const [visitRows] = await appPool.query(
+          `SELECT id, registry_id AS registryId, visit_no AS visitNo, visit_date AS visitDate
+           FROM palliative_care_registry_visits
+           WHERE registry_id = ?
+           ORDER BY visit_no ASC`,
+          [id]
+        )
+        if (visitRows && visitRows.length > 0) {
+          item.visits = visitRows.map((v) => ({ id: v.id, visitNo: v.visitNo, visitDate: v.visitDate }))
+        } else {
+          item.visits = []
+          for (let v = 1; v <= 6; v++) {
+            const vd = item[`visit${v}Date`]
+            if (vd && String(vd).trim()) {
+              item.visits.push({ visitNo: v, visitDate: String(vd).trim() })
+            }
+          }
+        }
+      } catch {
+        item.visits = []
+        for (let v = 1; v <= 6; v++) {
+          const vd = item[`visit${v}Date`]
+          if (vd && String(vd).trim()) {
+            item.visits.push({ visitNo: v, visitDate: String(vd).trim() })
+          }
+        }
+      }
+      return { success: true, data: item }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  fastify.post('/api/v1/app/palliative-care/registries', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'ลงทะเบียนผู้ป่วย Palliative Care ใหม่',
+      body: {
+        type: 'object',
+        required: ['hn', 'patientName'],
+        properties: {
+          hn: { type: 'string' },
+          patientName: { type: 'string' },
+          address: { type: ['string', 'null'] },
+          phone: { type: ['string', 'null'] },
+          icd10Principal: { type: ['string', 'null'] },
+          icd10Palliative: { type: ['string', 'null'] },
+          projectCode: { type: ['string', 'null'] },
+          registrationStatus: { type: 'string' },
+          registeredDate: { type: ['string', 'null'] },
+          visit1Date: { type: ['string', 'null'] },
+          visit2Date: { type: ['string', 'null'] },
+          visit3Date: { type: ['string', 'null'] },
+          visit4Date: { type: ['string', 'null'] },
+          visit5Date: { type: ['string', 'null'] },
+          visit6Date: { type: ['string', 'null'] },
+          deathDate: { type: ['string', 'null'] },
+          createdBy: { type: ['string', 'null'] },
+          visits: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                visitNo: { type: 'integer' },
+                visitDate: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    let {
+      hn, patientName, address = null, phone = null,
+      icd10Principal = null, icd10Palliative = null, projectCode = null,
+      registrationStatus = 'ยังไม่ได้ดำเนินการ',
+      registeredDate = null,
+      visit1Date = null,
+      visit2Date = null,
+      visit3Date = null,
+      visit4Date = null,
+      visit5Date = null,
+      visit6Date = null,
+      deathDate = null,
+      createdBy = null,
+      visits = null
+    } = req.body || {}
+
+    if (!hn || !patientName) {
+      reply.code(400); return { success: false, error: 'กรุณาระบุ HN และชื่อ-สกุลผู้ป่วย' }
+    }
+
+    if (Array.isArray(visits)) {
+      const vMap = new Map()
+      visits.forEach((v) => {
+        if (v && v.visitNo && v.visitDate) vMap.set(Number(v.visitNo), String(v.visitDate).trim())
+      })
+      visit1Date = vMap.get(1) || null
+      visit2Date = vMap.get(2) || null
+      visit3Date = vMap.get(3) || null
+      visit4Date = vMap.get(4) || null
+      visit5Date = vMap.get(5) || null
+      visit6Date = vMap.get(6) || null
+    }
+
+    try {
+      const [res] = await appPool.query(
+        `INSERT INTO palliative_care_registries (
+          hn, patient_name, address, phone, icd10_principal, icd10_palliative, project_code,
+          registration_status, registered_date,
+          visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date,
+          death_date,
+          created_by, updated_by, created_at, updated_at
+        ) VALUES (
+          ?, ?, ?, ?, ?, ?, ?,
+          ?, ?,
+          ?, ?, ?, ?, ?, ?,
+          ?,
+          ?, ?, NOW(), NOW()
+        )`,
+        [
+          hn.trim(), patientName.trim(), address, phone, icd10Principal, icd10Palliative, projectCode,
+          registrationStatus, registeredDate,
+          visit1Date, visit2Date, visit3Date, visit4Date, visit5Date, visit6Date,
+          deathDate,
+          createdBy, createdBy
+        ]
+      )
+      const insertId = res.insertId
+      await ensureVisitsTable().catch(() => {})
+      if (Array.isArray(visits) && visits.length > 0) {
+        for (const v of visits) {
+          if (v && v.visitNo && v.visitDate && String(v.visitDate).trim()) {
+            await appPool.query(
+              'INSERT INTO palliative_care_registry_visits (registry_id, visit_no, visit_date) VALUES (?, ?, ?)',
+              [insertId, Number(v.visitNo), String(v.visitDate).trim()]
+            ).catch(() => {})
+          }
+        }
+      } else {
+        for (let v = 1; v <= 6; v++) {
+          const vd = req.body[`visit${v}Date`]
+          if (vd && String(vd).trim()) {
+            await appPool.query(
+              'INSERT INTO palliative_care_registry_visits (registry_id, visit_no, visit_date) VALUES (?, ?, ?)',
+              [insertId, v, String(vd).trim()]
+            ).catch(() => {})
+          }
+        }
+      }
+      return { success: true, insertId }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  fastify.put('/api/v1/app/palliative-care/registries/:id', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'แก้ไขข้อมูลผู้ป่วย Palliative Care ตาม ID',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } }
+      }
+    }
+  }, async (req, reply) => {
+    const { id } = req.params
+    const body = req.body || {}
+
+    if (Array.isArray(body.visits)) {
+      const vMap = new Map()
+      body.visits.forEach((v) => {
+        if (v && v.visitNo && v.visitDate) vMap.set(Number(v.visitNo), String(v.visitDate).trim())
+      })
+      body.visit1Date = vMap.get(1) || null
+      body.visit2Date = vMap.get(2) || null
+      body.visit3Date = vMap.get(3) || null
+      body.visit4Date = vMap.get(4) || null
+      body.visit5Date = vMap.get(5) || null
+      body.visit6Date = vMap.get(6) || null
+    }
+
+    const fieldMap = {
+      patientName: 'patient_name',
+      address: 'address',
+      phone: 'phone',
+      icd10Principal: 'icd10_principal',
+      icd10Palliative: 'icd10_palliative',
+      projectCode: 'project_code',
+      registrationStatus: 'registration_status',
+      registeredDate: 'registered_date',
+      visit1Date: 'visit_1_date',
+      visit2Date: 'visit_2_date',
+      visit3Date: 'visit_3_date',
+      visit4Date: 'visit_4_date',
+      visit5Date: 'visit_5_date',
+      visit6Date: 'visit_6_date',
+      deathDate: 'death_date',
+      updatedBy: 'updated_by'
+    }
+
+    const updates = []
+    const params = []
+    for (const [key, col] of Object.entries(fieldMap)) {
+      if (body[key] !== undefined) {
+        updates.push(`${col} = ?`)
+        params.push(body[key])
+      }
+    }
+
+    if (updates.length === 0 && !Array.isArray(body.visits)) {
+      reply.code(400); return { success: false, error: 'ไม่มีข้อมูลที่ต้องการอัปเดต' }
+    }
+
+    try {
+      let affectedRows = 0
+      if (updates.length > 0) {
+        updates.push('updated_at = NOW()')
+        params.push(id)
+        const [res] = await appPool.query(
+          `UPDATE palliative_care_registries SET ${updates.join(', ')} WHERE id = ?`,
+          params
+        )
+        affectedRows = res.affectedRows
+      }
+
+      if (Array.isArray(body.visits)) {
+        await ensureVisitsTable().catch(() => {})
+        await appPool.query('DELETE FROM palliative_care_registry_visits WHERE registry_id = ?', [id])
+        for (const v of body.visits) {
+          if (v && v.visitNo && v.visitDate && String(v.visitDate).trim()) {
+            await appPool.query(
+              'INSERT INTO palliative_care_registry_visits (registry_id, visit_no, visit_date) VALUES (?, ?, ?)',
+              [id, Number(v.visitNo), String(v.visitDate).trim()]
+            )
+          }
+        }
+      }
+
+      return { success: true, affectedRows }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  fastify.delete('/api/v1/app/palliative-care/registries/:id', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ลบข้อมูลผู้ป่วย Palliative Care ตาม ID',
+    params: {
+      type: 'object',
+      properties: { id: { type: 'string' } }
+    }
+  }
+}, async (req, reply) => {
+  const { id } = req.params
+  try {
+    const [res] = await appPool.query('DELETE FROM palliative_care_registries WHERE id = ?', [id])
+    if (res.affectedRows === 0) {
+      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลที่ต้องการลบ' }
+    }
+    return { success: true, message: 'ลบข้อมูลสำเร็จ' }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.10 Universal Read-Only Query for Website DB
+fastify.post('/api/v1/app/query', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'Universal Read-Only Query สำหรับฐานข้อมูล thoen_hospital_website (เฉพาะ SELECT)'
+  }
+}, async (req, reply) => {
+  const { sql, params = [] } = req.body || {}
+  if (!sql || typeof sql !== 'string') { reply.code(400); return { success: false, error: 'SQL query required' } }
+  const trimmed = sql.trim().toUpperCase()
+  if (!trimmed.startsWith('SELECT') && !trimmed.startsWith('EXPLAIN') && !trimmed.startsWith('SHOW')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Only SELECT/EXPLAIN queries allowed' }
+  }
+  try {
+    const [rows] = await appPool.query(sql, params)
+    return { success: true, count: Array.isArray(rows) ? rows.length : 1, data: rows }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.10 Universal Parameterized Execute (INSERT / UPDATE / DELETE)
+fastify.post('/api/v1/app/execute', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'Universal Parameterized Execute สำหรับคำสั่งแก้ไขข้อมูล (INSERT / UPDATE / DELETE)',
+    body: {
+      type: 'object',
+      required: ['sql'],
+      properties: {
+        sql: { type: 'string', description: 'คำสั่ง INSERT, UPDATE หรือ DELETE' },
+        params: { type: 'array', description: 'พารามิเตอร์ binding' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { sql, params = [] } = req.body || {}
+  if (!sql || typeof sql !== 'string') { reply.code(400); return { success: false, error: 'SQL query required' } }
+  if (sql.includes(';')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Multi-statements / semicolons are not allowed' }
+  }
+  const trimmed = sql.trim().toUpperCase()
+  const forbiddenKeywords = ['DROP ', 'TRUNCATE ', 'ALTER ', 'GRANT ', 'REVOKE ', 'CREATE USER']
+  if (forbiddenKeywords.some(kw => trimmed.includes(kw))) {
+    reply.code(403); return { success: false, error: 'Forbidden: DDL operations are not allowed' }
+  }
+  if (!trimmed.startsWith('INSERT') && !trimmed.startsWith('UPDATE') && !trimmed.startsWith('DELETE')) {
+    reply.code(403); return { success: false, error: 'Forbidden: Only INSERT/UPDATE/DELETE queries allowed' }
+  }
+  try {
+    const [res] = await appPool.query(sql, params)
+    return {
+      success: true,
+      affectedRows: res.affectedRows,
+      insertId: res.insertId || null
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.11 Universal Interactive Transaction for Multi-step Operations
+fastify.post('/api/v1/app/transaction', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'Universal Transaction สำหรับคำสั่งหลายรายการที่ต้องทำพร้อมกันแบบ Atomic (Rollback อัตโนมัติเมื่อผิดพลาด)',
+    body: {
+      type: 'object',
+      required: ['statements'],
+      properties: {
+        statements: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['sql'],
+            properties: {
+              sql: { type: 'string' },
+              params: { type: 'array' }
+            }
+          }
+        }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { statements } = req.body || {}
+  if (!Array.isArray(statements) || statements.length === 0) {
+    reply.code(400); return { success: false, error: 'Statements array required' }
+  }
+  const connection = await appPool.getConnection()
+  try {
+    await connection.beginTransaction()
+    const results = []
+    for (const stmt of statements) {
+      const [res] = await connection.query(stmt.sql, stmt.params || [])
+      results.push({ affectedRows: res.affectedRows, insertId: res.insertId || null })
+    }
+    await connection.commit()
+    return { success: true, count: results.length, results }
+  } catch (err) {
+    await connection.rollback()
+    reply.code(500); return { success: false, error: err.message }
+  } finally {
+    connection.release()
+  }
+})
+
+
+// ==================================================================
+// SECTION 5: GTW (Gotowin) Integration Services
+// ==================================================================
+fastify.get('/api/v1/gtw/articles', {
+  schema: {
+    tags: ['5. GTW Integration Services'],
+    summary: 'ดึงข้อมูลครุภัณฑ์จากฐานข้อมูล Gotowin (GTW Articles)',
+    querystring: {
+      type: 'object',
+      properties: {
+        limit: { type: 'integer' },
+        offset: { type: 'integer' },
+        since: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  try {
+    const pool = getGtwPool()
+    const { limit, offset, since } = req.query || {}
+    let sql = `
+      SELECT 
+        a.ARTICLE_ID,
+        a.ARTICLE_NUM,
+        COALESCE(a.SUP_FSN, s.SUP_FSN_NUM) as SUP_FSN,
+        a.ARTICLE_NAME,
+        a.ARTICLE_MODELS,
+        a.SERIAL_NO,
+        a.RECEIVE_DATE,
+        a.INS_START_DATE,
+        a.INS_END_DATE,
+        a.EXPIRE_DATE,
+        a.PRICE_PER_UNIT,
+        a.VENDOR_ID,
+        a.DOC_NO_NUM,
+        a.DEP_SUB_SUB_NAME,
+        a.LOCATEDEPT,
+        a.STATUS_ID,
+        a.STATUS_DELETE,
+        a.updated_at
+      FROM asset_article a
+      LEFT JOIN supplies s ON a.SUP_ID = s.ID
+      WHERE a.ARTICLE_NUM IS NOT NULL 
+        AND a.ARTICLE_NUM != ''
+        AND (a.STATUS_DELETE = 'false' OR a.STATUS_DELETE IS NULL)
+    `
+    const params = []
+    if (since) {
+      sql += ' AND a.updated_at >= ?'
+      params.push(since)
+    }
+    sql += ' ORDER BY a.ARTICLE_ID DESC'
+    if (limit) {
+      sql += ' LIMIT ?'
+      params.push(Number(limit))
+      if (offset) {
+        sql += ' OFFSET ?'
+        params.push(Number(offset))
+      }
+    }
+    const [rows] = await pool.query(sql, params)
+    return { success: true, count: rows.length, data: rows }
+  } catch (err) {
+    const status = err.message.includes('not configured') ? 503 : 500
+    reply.code(status)
+    return { success: false, error: err.message }
+  }
+})
+
+// ------------------------------------------------------------------
+// Start Server
+// ------------------------------------------------------------------
+const port = parseInt(process.env.PORT || '8443', 10)
+const host = process.env.HOST || '0.0.0.0'
+try {
+  await fastify.listen({ port, host })
+  console.log(`Thoen Unified API Gateway running on http://${host}:${port}`)
+} catch (err) {
+  fastify.log.error(err)
+  process.exit(1)
+}

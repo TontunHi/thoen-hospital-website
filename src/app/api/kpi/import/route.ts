@@ -141,52 +141,28 @@ export async function POST(req: NextRequest) {
       topicId = insertTopic.insertId
     }
 
-    // 2. Insert indicator rows via fast atomic transaction with SET NAMES utf8mb4
-    const statements: Array<{ sql: string; params?: any[] }> = [
-      { sql: 'SET NAMES utf8mb4' }
-    ]
+    // 2. Insert indicator rows via atomic batch import on Gateway
+    const kpiPayload = rowsToInsert.map((row, i) => ({
+      sequence: row.sequence ?? null,
+      category: row.category || 'ทั่วไป',
+      subcategory: row.subcategory ?? null,
+      code: row.code ?? null,
+      oldCode: row.oldCode ?? null,
+      frequency: row.frequency || 'ราย 6 เดือน',
+      title: row.title,
+      numeratorName: row.numeratorName ?? null,
+      denominatorName: row.denominatorName ?? null,
+      targetRaw: row.targetRaw ?? null,
+      targetOperator: row.targetOperator ?? null,
+      targetValue: row.targetValue ?? null,
+      targetUnit: row.targetUnit ?? null,
+      responsibleName: row.responsibleName ?? null,
+      indicatorType: row.indicatorType || 'HA',
+      displayOrder: i + 1
+    }))
 
-    for (let i = 0; i < rowsToInsert.length; i++) {
-      const row = rowsToInsert[i]
-      statements.push({
-        sql: `INSERT INTO kpi_indicators (
-          topic_id, sequence, category, subcategory, code, old_code,
-          frequency, title, numerator_name, denominator_name,
-          target_raw, target_operator, target_value, target_unit,
-          responsible_name, indicator_type, display_order
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        params: [
-          topicId,
-          row.sequence ?? null,
-          row.category || 'ทั่วไป',
-          row.subcategory ?? null,
-          row.code ?? null,
-          row.oldCode ?? null,
-          row.frequency || 'ราย 6 เดือน',
-          row.title,
-          row.numeratorName ?? null,
-          row.denominatorName ?? null,
-          row.targetRaw ?? null,
-          row.targetOperator ?? null,
-          row.targetValue ?? null,
-          row.targetUnit ?? null,
-          row.responsibleName ?? null,
-          row.indicatorType || 'HA',
-          i + 1
-        ]
-      })
-    }
-
-    const CHUNK_SIZE = 100
-    for (let c = 0; c < statements.length; c += CHUNK_SIZE) {
-      const chunk = statements.slice(c, c + CHUNK_SIZE)
-      if (c > 0) {
-        chunk.unshift({ sql: 'SET NAMES utf8mb4' })
-      }
-      await apiGateway.app.transaction(chunk)
-    }
-
-    const inserted = rowsToInsert.length
+    const batchRes = await apiGateway.app.importKpiBatch(topicId, kpiPayload)
+    const inserted = batchRes.insertedCount || rowsToInsert.length
 
     logAudit(
       'CREATE',

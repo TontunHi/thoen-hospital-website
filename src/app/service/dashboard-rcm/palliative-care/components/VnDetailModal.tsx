@@ -19,6 +19,96 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'screen' | 'diag' | 'orders'>('screen')
   const [selectedCategory, setSelectedCategory] = useState<VnOrderCategoryGroup | 'ALL'>('ALL')
+  const [isRegistering, setIsRegistering] = useState(false)
+  const [isRegisteredSuccess, setIsRegisteredSuccess] = useState(false)
+  const [popupNotice, setPopupNotice] = useState<{
+    type: 'success' | 'warning' | 'error'
+    title: string
+    message: string
+  } | null>(null)
+
+  // Direct register patient into Palliative Care registry without leaving page
+  const handleDirectRegister = async () => {
+    if (!data?.header?.hn || isRegistering || isRegisteredSuccess) return
+    const targetHn = data.header.hn.trim()
+    setIsRegistering(true)
+
+    try {
+      // 1. Lookup patient demographics and check existing registry status from HOSxP
+      const lookupRes = await fetch(
+        `/api/service/dashboard-rcm/palliative-care/registry/lookup-hn?hn=${encodeURIComponent(targetHn)}`
+      )
+      const lookupJson = await lookupRes.json()
+
+      if (!lookupRes.ok || !lookupJson.success || !lookupJson.data) {
+        setPopupNotice({
+          type: 'warning',
+          title: 'แจ้งเตือน',
+          message: lookupJson.error || 'ไม่พบข้อมูลผู้ป่วยในระบบ HOSxP',
+        })
+        return
+      }
+
+      const lookupData = lookupJson.data
+
+      // Check if already in registry
+      if (lookupData.isAlreadyInRegistry) {
+        setIsRegisteredSuccess(true)
+        setPopupNotice({
+          type: 'warning',
+          title: 'ผู้ป่วยมีในระบบแล้ว',
+          message: `ผู้ป่วยรายนี้ (HN: ${lookupData.hn} - ${lookupData.patientName}) มีอยู่ในระบบทะเบียน Palliative Care แล้ว ห้ามลงข้อมูลซ้ำ`,
+        })
+        return
+      }
+
+      // 2. Prepare payload
+      const pDx = data.diagnoses?.find((d) => d.diagtype === '1')?.icd10 || ''
+      const payload = {
+        hn: lookupData.hn,
+        patientName: lookupData.patientName || data.header.ptname || '-',
+        address: lookupData.address || '',
+        phone: lookupData.phone || '',
+        icd10Principal: lookupData.icd10Principal || pDx || '',
+        icd10Palliative: 'OPD (Z515 +Z718+Z636(เยี่ยมบ้าน) ใน Cormorbidประเภท 2)',
+        projectCode: '30001, Cons01',
+        registrationStatus: lookupData.isRegistered ? 'ดำเนินการเรียบร้อย' : 'ยังไม่ได้ดำเนินการ',
+        deathDate: lookupData.deathDate || null,
+      }
+
+      // 3. POST to save into registry
+      const saveRes = await fetch('/api/service/dashboard-rcm/palliative-care/registry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const saveJson = await saveRes.json()
+
+      if (!saveRes.ok || !saveJson.success) {
+        setPopupNotice({
+          type: 'error',
+          title: 'ไม่สามารถลงทะเบียนได้',
+          message: saveJson.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูลลงทะเบียน',
+        })
+        return
+      }
+
+      setIsRegisteredSuccess(true)
+      setPopupNotice({
+        type: 'success',
+        title: 'ลงทะเบียนสำเร็จ',
+        message: `เพิ่มข้อมูลผู้ป่วย ${payload.patientName} (HN: ${payload.hn}) เข้าสู่ระบบทะเบียน Palliative Care เรียบร้อยแล้ว`,
+      })
+    } catch (err: any) {
+      setPopupNotice({
+        type: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        message: err?.message || 'ไม่สามารถเชื่อมต่อระบบได้ กรุณาลองใหม่อีกครั้ง',
+      })
+    } finally {
+      setIsRegistering(false)
+    }
+  }
 
   // Fetch VN clinical details
   useEffect(() => {
@@ -62,12 +152,16 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose()
+        if (popupNotice) {
+          setPopupNotice(null)
+        } else {
+          onClose()
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+  }, [popupNotice, onClose])
 
   // Filtered orders
   const filteredOrders = useMemo(() => {
@@ -534,10 +628,54 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
 
         {/* Modal Footer */}
         <div className="vn-modal-footer">
+          <button
+            type="button"
+            className={`vn-btn-register ${isRegisteredSuccess ? 'is-success' : ''}`}
+            onClick={handleDirectRegister}
+            disabled={!data?.header?.hn || isRegistering || isRegisteredSuccess}
+            title={
+              isRegisteredSuccess
+                ? 'ลงทะเบียนผู้ป่วยรายนี้เรียบร้อยแล้ว'
+                : data?.header?.hn
+                ? `ดึงข้อมูลและบันทึกลงทะเบียน HN: ${data.header.hn} เข้าสู่ระบบทันที`
+                : 'กำลังโหลดข้อมูล...'
+            }
+          >
+            {isRegistering
+              ? 'กำลังลงทะเบียน...'
+              : isRegisteredSuccess
+              ? 'ลงทะเบียนแล้ว ✓'
+              : 'เพิ่มลงทะเบียน'}
+          </button>
           <button type="button" className="vn-btn-close" onClick={onClose}>
             ปิดหน้าต่าง
           </button>
         </div>
+
+        {/* Registration Alert Popup */}
+        {popupNotice && (
+          <div className="vn-popup-backdrop" role="alertdialog" aria-modal="true">
+            <div className="vn-popup-card">
+              <div className={`vn-popup-icon vn-popup-icon-${popupNotice.type}`}>
+                {popupNotice.type === 'success' && '✓'}
+                {popupNotice.type === 'warning' && 'ℹ'}
+                {popupNotice.type === 'error' && '✕'}
+              </div>
+              <h3 className="vn-popup-title">{popupNotice.title}</h3>
+              <p className="vn-popup-message">{popupNotice.message}</p>
+              <div className="vn-popup-actions">
+                <button
+                  type="button"
+                  className="vn-popup-btn"
+                  onClick={() => setPopupNotice(null)}
+                  autoFocus
+                >
+                  ตกลง
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

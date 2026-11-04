@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   Download,
   Edit2,
@@ -427,7 +428,7 @@ export default function PalliativeRegistryClient({
   const [editingCell, setEditingCell] = useState<{ id: number; field: string } | null>(null)
 
   // Auto lookup HN from HOSxP
-  const handleLookupHn = async (hnToSearch?: string) => {
+  const handleLookupHn = useCallback(async (hnToSearch?: string) => {
     const targetHn = (hnToSearch || addForm.hn).trim()
     if (!targetHn) return
 
@@ -495,7 +496,28 @@ export default function PalliativeRegistryClient({
     } finally {
       setIsLookingUpHn(false)
     }
-  }
+  }, [addForm.hn, items])
+
+  // Auto-open Add Modal and prefill/lookup if 'addHn' or 'hn' param is present in URL
+  const searchParams = useSearchParams()
+  const handledHnParamRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    let targetHn = searchParams?.get('addHn') || searchParams?.get('hn') || null
+    if (!targetHn && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      targetHn = urlParams.get('addHn') || urlParams.get('hn') || null
+    }
+
+    if (!targetHn) return
+    const trimmedHn = targetHn.trim()
+    if (!trimmedHn || handledHnParamRef.current === trimmedHn) return
+
+    handledHnParamRef.current = trimmedHn
+    setIsAddModalOpen(true)
+    setAddForm((prev) => ({ ...prev, hn: trimmedHn }))
+    handleLookupHn(trimmedHn)
+  }, [searchParams, handleLookupHn])
 
   // Handle Google Sheets Inline Cell Save (Instant Auto-save)
   const handleCellSave = async (id: number, field: string, value: any) => {

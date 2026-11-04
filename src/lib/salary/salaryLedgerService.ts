@@ -1,5 +1,6 @@
 import { queryMemberDb } from '@/lib/memberDb'
 import { querySalaryDb, querySalaryEditDb } from '@/lib/salaryDb'
+import { apiGateway } from '@/lib/apiGateway'
 
 export interface SalaryLedgerOptions {
   targetUsername: string
@@ -51,10 +52,21 @@ export class SalaryLedgerService {
     const salaryLookupId = targetMember?.salary_user || targetUsername
 
     // 2. Fetch salary and OT records
-    const [salaryRows, otRows] = await Promise.all([
-      this.salaryDb('SELECT * FROM salary WHERE c2 = ? ORDER BY c1 DESC', [salaryLookupId]),
-      this.salaryDb('SELECT * FROM ot WHERE c2 = ? ORDER BY c1 DESC', [salaryLookupId]),
-    ])
+    let salaryRows: any[] = []
+    let otRows: any[] = []
+
+    if (this.salaryDb === querySalaryDb) {
+      const records = await apiGateway.salary.getRecords(salaryLookupId)
+      salaryRows = records?.salary || []
+      otRows = records?.ot || []
+    } else {
+      const results = await Promise.all([
+        this.salaryDb('SELECT * FROM salary WHERE c2 = ? ORDER BY c1 DESC', [salaryLookupId]),
+        this.salaryDb('SELECT * FROM ot WHERE c2 = ? ORDER BY c1 DESC', [salaryLookupId]),
+      ])
+      salaryRows = results[0] || []
+      otRows = results[1] || []
+    }
 
     if ((!salaryRows || salaryRows.length === 0) && (!otRows || otRows.length === 0) && !targetMember) {
       return {
@@ -67,9 +79,13 @@ export class SalaryLedgerService {
     // 3. Calendar records for pay dates
     let calendarRows: any[] = []
     try {
-      calendarRows = await this.salaryEditDb(
-        'SELECT id, type, datein, notesalary FROM datein WHERE MONTH(datein) = MONTH(NOW()) AND YEAR(datein) = YEAR(NOW()) ORDER BY ABS(DAY(datein)) ASC'
-      )
+      if (this.salaryEditDb === querySalaryEditDb) {
+        calendarRows = await apiGateway.salary.getCalendar()
+      } else {
+        calendarRows = await this.salaryEditDb(
+          'SELECT id, type, datein, notesalary FROM datein WHERE MONTH(datein) = MONTH(NOW()) AND YEAR(datein) = YEAR(NOW()) ORDER BY ABS(DAY(datein)) ASC'
+        )
+      }
     } catch {
       calendarRows = []
     }

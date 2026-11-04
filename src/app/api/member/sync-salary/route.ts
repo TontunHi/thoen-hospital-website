@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server'
 import { requireMemberApi } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-import { querySalaryDb } from '@/lib/salaryDb'
+import { apiGateway } from '@/lib/apiGateway'
 
 export async function POST() {
   try {
     const { error } = await requireMemberApi({ requiredRole: 'admin' })
     if (error) return error
 
-    // Fetch credentials from the external Salary database
+    // Fetch credentials from the external Salary database via Gateway
     let salaryUsers: any[] = []
     try {
-      salaryUsers = await querySalaryDb('SELECT user_name, user_pass FROM username')
+      salaryUsers = await apiGateway.salary.getUsers()
     } catch (dbError: any) {
       console.error('External Salary DB fetch error:', dbError)
       return NextResponse.json(

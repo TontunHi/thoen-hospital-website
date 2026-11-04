@@ -26,12 +26,14 @@ export async function GET(request: Request) {
     const department = (searchParams.get('department') as 'ALL' | 'OP' | 'IP') || 'ALL'
     const fund = searchParams.get('fund') || undefined
     const subFund = searchParams.get('subFund') || undefined
+    const status = searchParams.get('status') || undefined
+    const errorCode = searchParams.get('errorCode') || undefined
     const search = searchParams.get('search') || undefined
 
     logThrottledAudit(
       'READ',
       'rep_funds',
-      `Viewed REP funds summary (FY: ${fiscalYear || 'default'}, dept: ${department})`,
+      `Viewed REP funds summary (FY: ${fiscalYear || 'default'}, dept: ${department}, status: ${status || 'all'})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'REP funds audit log failed'))
 
@@ -40,6 +42,8 @@ export async function GET(request: Request) {
       department,
       fund,
       subFund,
+      status,
+      errorCode,
       search,
     })
 

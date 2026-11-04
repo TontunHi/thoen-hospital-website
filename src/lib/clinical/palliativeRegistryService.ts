@@ -285,13 +285,10 @@ export class PalliativeRegistryService {
     let isAlreadyInRegistry = false
     let existingRegistryId: number | undefined
     try {
-      const existingRows = await apiGateway.app.query(
-        'SELECT id, hn, patient_name FROM palliative_care_registries WHERE hn = ? LIMIT 1',
-        [cleanHn]
-      )
-      if (existingRows && existingRows.length > 0) {
+      const existingRes = await apiGateway.app.getPalliativeRegistryByHn(cleanHn)
+      if (existingRes?.exists && existingRes.data) {
         isAlreadyInRegistry = true
-        existingRegistryId = Number(existingRows[0].id)
+        existingRegistryId = Number(existingRes.data.id)
       }
     } catch (err) {
       logger.warn({ err }, 'Failed to check existing registry for patient in lookup')
@@ -693,13 +690,10 @@ export class PalliativeRegistryService {
 
     // Defensive check: prevent duplicate registration of the same patient/admission
     try {
-      const existing = await apiGateway.app.query(
-        'SELECT id, hn, patient_name FROM palliative_care_registries WHERE hn = ? LIMIT 1',
-        [cleanHn]
-      )
-      if (existing && existing.length > 0) {
+      const existingRes = await apiGateway.app.getPalliativeRegistryByHn(cleanHn)
+      if (existingRes?.exists && existingRes.data) {
         throw new Error(
-          `ผู้ป่วยรายนี้ (HN: ${cleanHn} - ${existing[0].patient_name}) มีข้อมูลในทะเบียน Palliative Care แล้ว ห้ามลงข้อมูลซ้ำ`
+          `ผู้ป่วยรายนี้ (HN: ${cleanHn} - ${existingRes.data.patientName}) มีข้อมูลในทะเบียน Palliative Care แล้ว ห้ามลงข้อมูลซ้ำ`
         )
       }
     } catch (err: any) {

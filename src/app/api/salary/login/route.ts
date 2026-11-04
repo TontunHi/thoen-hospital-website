@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { querySalaryDb } from '@/lib/salaryDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { salaryLoginSchema } from '@/lib/schemas/salary'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { createSalarySession } from '@/lib/salaryAuth'
@@ -28,15 +28,20 @@ export async function POST(request: Request) {
     })
     if (!rateCheck.allowed) return rateCheck.response!
 
-    // Connect to external database and search for the user
-    // We select user_name, name (assuming column name is 'name' or similar) from 'username' table
-    let rows: any[] = []
+    // Connect to external database via Gateway and verify credentials
+    let authUser: { username: string; name: string } | null = null
     try {
-      rows = await querySalaryDb(
-        'SELECT user_name, name FROM username WHERE user_name = ? AND user_pass = ? LIMIT 1',
-        [username, password]
-      )
+      const res = await apiGateway.salary.verifyLogin(username, password)
+      if (res?.user) {
+        authUser = { username: res.user.username, name: res.user.name || res.user.username }
+      }
     } catch (dbError: any) {
+      if (dbError?.status === 401) {
+        return NextResponse.json(
+          { error: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง' },
+          { status: 401 }
+        )
+      }
       console.error('Salary DB Connection Error:', dbError)
       return NextResponse.json(
         { error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลระบบเงินเดือนได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง' },
@@ -44,14 +49,14 @@ export async function POST(request: Request) {
       )
     }
 
-    if (rows.length === 0) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง' },
         { status: 401 }
       )
     }
 
-    const user = rows[0]
+    const user = { user_name: authUser.username, name: authUser.name }
 
     // Set secure signed browser session cookie
     await createSalarySession(user.user_name, user.name || user.user_name)
@@ -112,13 +117,19 @@ export async function GET() {
     }
 
     // 3. Connect to external database and verify
-    let rows: any[] = []
+    let authUser: { username: string; name: string } | null = null
     try {
-      rows = await querySalaryDb(
-        'SELECT user_name, name FROM username WHERE user_name = ? AND user_pass = ? LIMIT 1',
-        [user.salary_user, user.salary_pass]
-      )
+      const res = await apiGateway.salary.verifyLogin(user.salary_user, user.salary_pass)
+      if (res?.user) {
+        authUser = { username: res.user.username, name: res.user.name || res.user.username }
+      }
     } catch (dbError: any) {
+      if (dbError?.status === 401) {
+        return NextResponse.json(
+          { error: 'รหัสผ่านระบบเงินเดือนไม่ถูกต้อง หรือระบบภายนอกมีการเปลี่ยนแปลงข้อมูล' },
+          { status: 401 }
+        )
+      }
       console.error('SSO Salary DB Connection Error:', dbError)
       return NextResponse.json(
         { error: 'ไม่สามารถเชื่อมต่อฐานข้อมูลระบบเงินเดือนได้ในขณะนี้' },
@@ -126,17 +137,15 @@ export async function GET() {
       )
     }
 
-    if (rows.length === 0) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'รหัสผ่านระบบเงินเดือนไม่ถูกต้อง หรือระบบภายนอกมีการเปลี่ยนแปลงข้อมูล' },
         { status: 401 }
       )
     }
 
-    const salaryUser = rows[0]
-
     // 4. Set secure signed browser session cookie for Salary portal
-    await createSalarySession(salaryUser.user_name, salaryUser.name || salaryUser.user_name)
+    await createSalarySession(authUser.username, authUser.name)
 
     // Log login event
     try {
@@ -144,7 +153,7 @@ export async function GET() {
       await logAudit(
         'LOGIN',
         'username',
-        `User ${salaryUser.user_name} logged in to Salary portal via SSO`,
+        `User ${authUser.username} logged in to Salary portal via SSO`,
         { username: memberSession.username, email: memberSession.email }
       )
     } catch (e) {}
@@ -153,7 +162,7 @@ export async function GET() {
       authenticated: true,
       hasSalaryCredentials: true,
       success: true,
-      name: salaryUser.name || salaryUser.user_name
+      name: authUser.name || authUser.username
     })
   } catch (error: any) {
     console.error('SSO auto-login general error:', error)

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { querySalaryDb, querySalaryEditDb } from '@/lib/salaryDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { verifySalarySession, destroySalarySession } from '@/lib/salaryAuth'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
@@ -49,14 +49,9 @@ export async function GET(request: Request) {
     let calendarRows: any[] = []
 
     try {
-      salaryRows = await querySalaryDb(
-        'SELECT * FROM salary WHERE c2 = ? ORDER BY c1 DESC',
-        [username]
-      )
-      otRows = await querySalaryDb(
-        'SELECT * FROM ot WHERE c2 = ? ORDER BY c1 DESC',
-        [username]
-      )
+      const records = await apiGateway.salary.getRecords(username)
+      salaryRows = records?.salary || []
+      otRows = records?.ot || []
     } catch (dbError: any) {
       console.error('Database connection/query failed:', dbError)
       return NextResponse.json(
@@ -66,9 +61,8 @@ export async function GET(request: Request) {
     }
 
     try {
-      calendarRows = await querySalaryEditDb(
-        "SELECT id, type, datein, notesalary FROM datein WHERE MONTH(datein) = MONTH(NOW()) AND YEAR(datein) = YEAR(NOW()) ORDER BY ABS(DAY(datein)) ASC"
-      )
+      const calRes = await apiGateway.salary.getCalendar()
+      calendarRows = calRes || []
     } catch (calErr: any) {
       console.warn('Calendar schedule fetch failed, continuing without calendar:', calErr)
     }

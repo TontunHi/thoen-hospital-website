@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-import { querySalaryDb, querySalaryEditDb } from '@/lib/salaryDb'
+import { apiGateway } from '@/lib/apiGateway'
 
 async function checkFinanceAccess() {
   const session = await verifyMemberSession()
@@ -43,10 +43,7 @@ export async function GET() {
       return NextResponse.json({ error: auth.error }, { status: auth.status })
     }
 
-    const periods = await querySalaryEditDb(
-      "SELECT id, type, DATE_FORMAT(datein, '%Y-%m-%d') as datein, notesalary FROM datein ORDER BY datein DESC, id DESC LIMIT 10"
-    )
-
+    const periods = await apiGateway.salary.getPeriods()
     return NextResponse.json({ success: true, periods })
   } catch (error: any) {
     console.error('Fetch salary periods error:', error)
@@ -68,10 +65,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'กรุณากรอกข้อมูลประเภทและวันที่ให้ครบถ้วน' }, { status: 400 })
     }
 
-    await querySalaryEditDb(
-      'INSERT INTO datein (type, datein, notesalary) VALUES (?, ?, ?)',
-      [type.toString(), datein, notesalary || null]
-    )
+    await apiGateway.salary.createPeriod({
+      type: type.toString(),
+      datein,
+      notesalary: notesalary || ''
+    })
 
     return NextResponse.json({ success: true, message: 'บันทึกรอบการจ่ายเงินสำเร็จ' })
   } catch (error: any) {
@@ -94,10 +92,11 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'กรุณากรอกข้อมูลรหัสรอบ ประเภท และวันที่ให้ครบถ้วน' }, { status: 400 })
     }
 
-    await querySalaryEditDb(
-      'UPDATE datein SET type = ?, datein = ?, notesalary = ? WHERE id = ?',
-      [type.toString(), datein, notesalary || null, id]
-    )
+    await apiGateway.salary.updatePeriod(id, {
+      type: type.toString(),
+      datein,
+      notesalary: notesalary || null
+    })
 
     return NextResponse.json({ success: true, message: 'แก้ไขรอบการจ่ายเงินสำเร็จ' })
   } catch (error: any) {
@@ -120,7 +119,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ไม่ระบุรหัสของรอบการจ่ายเงินที่ต้องการลบ' }, { status: 400 })
     }
 
-    await querySalaryEditDb('DELETE FROM datein WHERE id = ?', [id])
+    await apiGateway.salary.deletePeriod(id)
 
     return NextResponse.json({ success: true, message: 'ลบรอบการจ่ายเงินเรียบร้อยแล้ว' })
   } catch (error: any) {

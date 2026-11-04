@@ -200,8 +200,8 @@ export class ApiGatewayClient {
     return this.request<T>(path, 'PUT', body, options)
   }
 
-  public delete<T = unknown>(path: string, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, 'DELETE', undefined, options)
+  public delete<T = unknown>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>(path, 'DELETE', body, options)
   }
 
   public async health(): Promise<HealthResponse> {
@@ -445,16 +445,43 @@ export class ApiGatewayClient {
       )
     },
 
+    getCalendar: () => {
+      return this.get<Array<{ id: number; type: string; datein: string; notesalary: string | null }>>(
+        '/api/v1/salary/calendar'
+      )
+    },
+
     createPeriod: (period: { type?: string; datein: string; notesalary: string }) => {
       return this.post<{ insertId: number }>('/api/v1/salary/periods', period)
+    },
+
+    updatePeriod: (id: string | number, period: { type?: string; datein: string; notesalary?: string | null }) => {
+      return this.put<{ success: boolean; affectedRows: number }>(`/api/v1/salary/periods/${id}`, period)
     },
 
     deletePeriod: (id: string | number) => {
       return this.delete<{ deletedId: string }>(`/api/v1/salary/periods/${id}`)
     },
 
+    getUsers: () => {
+      return this.get<Array<{ user_name: string; user_pass: string }>>('/api/v1/salary/users')
+    },
+
     uploadBatch: (targetTable: 'salary' | 'ot', rows: Record<string, unknown>[]) => {
       return this.post<{ insertedCount: number }>('/api/v1/salary/upload-batch', { targetTable, rows })
+    },
+
+    getLatestBatchSummary: (type: 'salary' | 'ot') => {
+      return this.get<{ summary: { tableName: 'salary' | 'ot'; date: string; count: number } | null }>(
+        `/api/v1/salary/batch/summary/${type}`
+      )
+    },
+
+    deleteLatestBatch: (type: 'salary' | 'ot', confirmedDate: string) => {
+      return this.delete<{ deletedCount: number; deletedDate: string; tableName: 'salary' | 'ot' }>(
+        `/api/v1/salary/batch/latest/${type}`,
+        { confirmedDate }
+      )
     },
 
     query: async <T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> => {
@@ -689,6 +716,16 @@ export class ApiGatewayClient {
 
     getPalliativeRegistryById: (id: string | number) => {
       return this.get<Record<string, unknown>>(`/api/v1/app/palliative-care/registries/${id}`)
+    },
+
+    getPalliativeRegistryByHn: (hn: string) => {
+      return this.get<{ exists: boolean; data: { id: number; hn: string; patientName: string } | null }>(
+        `/api/v1/app/palliative-care/registries/by-hn/${encodeURIComponent(hn.trim())}`
+      )
+    },
+
+    importKpiBatch: (topicId: number, rows: Array<Record<string, unknown>>) => {
+      return this.post<{ insertedCount: number }>('/api/v1/app/kpi/import-batch', { topicId, rows })
     },
 
     createPalliativeRegistry: (record: Record<string, unknown>) => {

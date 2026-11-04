@@ -17,6 +17,22 @@ vi.mock('@/lib/clinicalDb', () => ({
   fetchAppointmentMismatches: () => mockFetchAppointmentMismatches(),
 }))
 
+const mockGetLatestBatchSummary = vi.fn().mockImplementation(() =>
+  Promise.resolve({ summary: { tableName: 'salary', date: '2026-09-01', count: 45 } })
+)
+const mockDeleteLatestBatch = vi.fn().mockImplementation(() =>
+  Promise.resolve({ success: true, deletedCount: 10, deletedDate: '2026-09-01', tableName: 'salary' })
+)
+
+vi.mock('@/lib/apiGateway', () => ({
+  apiGateway: {
+    salary: {
+      getLatestBatchSummary: (...args: any[]) => mockGetLatestBatchSummary(...args),
+      deleteLatestBatch: (...args: any[]) => mockDeleteLatestBatch(...args),
+    },
+  },
+}))
+
 vi.mock('@/lib/salaryDb', () => ({
   querySalaryEditDb: (...args: any[]) => mockQuerySalaryEditDb(...args),
 }))

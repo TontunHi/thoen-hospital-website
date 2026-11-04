@@ -28,13 +28,16 @@ export async function GET(request: Request) {
     const department = (searchParams.get('department') as 'ALL' | 'OP' | 'IP') || 'ALL'
     const fiscalYear = searchParams.get('fiscalYear') || undefined
     const hn = searchParams.get('hn') || undefined
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 200
+    const status = searchParams.get('status') || undefined
+    const errorCode = searchParams.get('errorCode') || undefined
+    const search = searchParams.get('search') || undefined
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 250
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!, 10) : 0
 
     logThrottledAudit(
       'READ',
       'rep_cases',
-      `Viewed patient cases for REP/Fund (rep: ${rep || 'none'}, fund: ${fund || 'none'})`,
+      `Viewed patient cases for REP/Fund (rep: ${rep || 'all'}, fund: ${fund || 'all'}, dept: ${department}, status: ${status || 'all'})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'REP cases audit log failed'))
 
@@ -45,6 +48,9 @@ export async function GET(request: Request) {
       department,
       fiscalYear,
       hn,
+      status,
+      errorCode,
+      search,
       limit,
       offset,
     })

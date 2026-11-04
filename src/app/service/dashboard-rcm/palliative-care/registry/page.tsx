@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
 import PalliativeRegistryClient from './PalliativeRegistryClient'
@@ -17,5 +18,15 @@ export default async function PalliativeRegistryPage() {
     redirect('/service')
   }
 
-  return <PalliativeRegistryClient userRole={session.role} username={session.username} />
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: '3rem 1.5rem', textAlign: 'center', color: '#64748b' }}>
+          กำลังโหลดทะเบียน Palliative Care...
+        </div>
+      }
+    >
+      <PalliativeRegistryClient userRole={session.role} username={session.username} />
+    </Suspense>
+  )
 }

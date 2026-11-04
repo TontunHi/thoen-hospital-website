@@ -549,7 +549,6 @@ export default function PalliativeCarePc1Client() {
                 <th rowSpan={2}>ชดเชย Invoice</th>
                 <th rowSpan={2}>Subfund</th>
                 <th rowSpan={2}>หมายเหตุ</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>รายละเอียด</th>
               </tr>
               <tr>
                 <th className="pc1-th-group-dx">PDX</th>
@@ -570,13 +569,13 @@ export default function PalliativeCarePc1Client() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={28} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--pc1-muted)' }}>
+                  <td colSpan={34} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--pc1-muted)' }}>
                     กำลังโหลดข้อมูล Palliative Care PC.1 จากระบบ...
                   </td>
                 </tr>
               ) : paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={28} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--pc1-muted)' }}>
+                  <td colSpan={34} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--pc1-muted)' }}>
                     ไม่พบข้อมูลผู้ป่วย Palliative Care End Of Life ในช่วงเวลาหรือเงื่อนไขที่เลือก
                   </td>
                 </tr>
@@ -584,7 +583,17 @@ export default function PalliativeCarePc1Client() {
                 paginatedItems.map((item) => (
                   <tr
                     key={item.vn}
-                    className={item.compensated > 0 ? 'pc1-row-paid' : ''}
+                    className={`pc1-table-row ${item.compensated > 0 ? 'pc1-row-paid' : ''}`}
+                    onClick={() => setSelectedItem(item)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setSelectedItem(item)
+                      }
+                    }}
+                    title="คลิกเพื่อดูรายละเอียดผู้ป่วย"
                   >
                     <td className="pc1-num" style={{ textAlign: 'center', color: 'var(--pc1-muted)' }}>
                       {item.no}
@@ -635,16 +644,6 @@ export default function PalliativeCarePc1Client() {
                     </td>
                     <td>{item.subfund || '-'}</td>
                     <td style={{ color: 'var(--pc1-muted)', fontSize: '0.8rem' }}>{item.remark || '-'}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        className="pc1-page-btn"
-                        onClick={() => setSelectedItem(item)}
-                        title="ดูรายละเอียดผู้ป่วย"
-                      >
-                        ดูข้อมูล
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}

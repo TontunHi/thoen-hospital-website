@@ -397,10 +397,16 @@
 .pc1-table tbody tr {
   border-bottom: 1px solid var(--pc1-row-divider);
   transition: background-color 0.1s ease;
+  cursor: pointer;
 }
 
 .pc1-table tbody tr:hover {
   background-color: var(--pc1-row-hover);
+}
+
+.pc1-table tbody tr:focus-visible {
+  outline: 2px solid var(--pc1-primary);
+  outline-offset: -2px;
 }
 
 .pc1-table tbody td {

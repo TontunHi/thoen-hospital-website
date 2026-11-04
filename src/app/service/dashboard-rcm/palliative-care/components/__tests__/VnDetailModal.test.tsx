@@ -115,11 +115,36 @@ describe('VnDetailModal', () => {
   const originalFetch = global.fetch
 
   beforeEach(() => {
-    global.fetch = vi.fn().mockImplementation((url: string) => {
+    global.fetch = vi.fn().mockImplementation((url: string, init?: any) => {
       if (url.includes('vn=691021131643')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve(mockVnData),
+        })
+      }
+      if (url.includes('/api/service/dashboard-rcm/palliative-care/registry/lookup-hn')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                hn: '0000206',
+                patientName: 'นางจันทนา ตันมา',
+                address: '205/1 ม.4 ต.เถินบุรี',
+                phone: '065-2488015',
+                icd10Principal: 'C548',
+                isRegistered: true,
+                registeredDate: '2026-10-19',
+                isAlreadyInRegistry: false,
+              },
+            }),
+        })
+      }
+      if (url.includes('/api/service/dashboard-rcm/palliative-care/registry') && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: { id: 99 } }),
         })
       }
       return Promise.resolve({
@@ -211,5 +236,96 @@ describe('VnDetailModal', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(handleClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('directly registers patient and shows popup alert on clicking \"เพิ่มลงทะเบียน\" without opening new tab', async () => {
+    render(<VnDetailModal vn="691021131643" onClose={vi.fn()} />)
+
+    // Wait for data to load
+    await waitFor(() => {
+      expect(screen.getByText('นางจันทนา ตันมา')).toBeInTheDocument()
+    })
+
+    const registerBtn = screen.getByRole('button', { name: /เพิ่มลงทะเบียน/i })
+    expect(registerBtn).toBeInTheDocument()
+    expect(registerBtn).not.toBeDisabled()
+
+    // Click register button
+    fireEvent.click(registerBtn)
+
+    // Popup alert should appear
+    await waitFor(() => {
+      expect(screen.getByText('ลงทะเบียนสำเร็จ')).toBeInTheDocument()
+      expect(
+        screen.getByText(/เพิ่มข้อมูลผู้ป่วย นางจันทนา ตันมา \(HN: 0000206\) เข้าสู่ระบบทะเบียน Palliative Care เรียบร้อยแล้ว/)
+      ).toBeInTheDocument()
+    })
+
+    // Verify lookup-hn was called with HN
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/service/dashboard-rcm/palliative-care/registry/lookup-hn?hn=0000206')
+    )
+
+    // Verify POST was called with patient demographics and preset codes
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/service/dashboard-rcm/palliative-care/registry',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('0000206'),
+      })
+    )
+
+    // Dismiss popup with "ตกลง" button
+    const okBtn = screen.getByRole('button', { name: 'ตกลง' })
+    fireEvent.click(okBtn)
+
+    expect(screen.queryByText('ลงทะเบียนสำเร็จ')).not.toBeInTheDocument()
+    // Button state should be updated to "ลงทะเบียนแล้ว ✓" and disabled
+    expect(screen.getByText(/ลงทะเบียนแล้ว ✓/i)).toBeInTheDocument()
+  })
+
+  it('shows duplicate warning popup if patient is already in registry', async () => {
+    // Mock lookup returning isAlreadyInRegistry: true
+    vi.mocked(global.fetch).mockImplementation(((url: string) => {
+      if (url.includes('vn=691021131643')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockVnData),
+        })
+      }
+      if (url.includes('/api/service/dashboard-rcm/palliative-care/registry/lookup-hn')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                hn: '0000206',
+                patientName: 'นางจันทนา ตันมา',
+                isAlreadyInRegistry: true,
+              },
+            }),
+        })
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ success: false, error: 'Not found' }),
+      })
+    }) as any)
+
+    render(<VnDetailModal vn="691021131643" onClose={vi.fn()} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นางจันทนา ตันมา')).toBeInTheDocument()
+    })
+
+    const registerBtn = screen.getByRole('button', { name: /เพิ่มลงทะเบียน/i })
+    fireEvent.click(registerBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('ผู้ป่วยมีในระบบแล้ว')).toBeInTheDocument()
+      expect(screen.getByText(/มีอยู่ในระบบทะเบียน Palliative Care แล้ว ห้ามลงข้อมูลซ้ำ/)).toBeInTheDocument()
+    })
   })
 })

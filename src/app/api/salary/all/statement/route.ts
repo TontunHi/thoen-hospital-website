@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession, checkPositionPermission } from '@/lib/memberAuth'
 import { queryMemberDb } from '@/lib/memberDb'
-import { querySalaryDb } from '@/lib/salaryDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { buildStatementData, StatementRange } from '@/lib/salary/salaryStatementService'
@@ -60,14 +60,9 @@ export async function GET(request: Request) {
     let otRows: any[] = []
 
     try {
-      salaryRows = await querySalaryDb(
-        'SELECT * FROM salary WHERE c2 = ? ORDER BY c1 DESC',
-        [salaryLookupId]
-      )
-      otRows = await querySalaryDb(
-        'SELECT * FROM ot WHERE c2 = ? ORDER BY c1 DESC',
-        [salaryLookupId]
-      )
+      const records = await apiGateway.salary.getRecords(salaryLookupId)
+      salaryRows = records?.salary || []
+      otRows = records?.ot || []
     } catch (dbError: any) {
       console.error('Failed to query salary database for statement:', dbError)
       return NextResponse.json(
