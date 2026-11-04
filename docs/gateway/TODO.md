@@ -88,12 +88,12 @@
 
 ---
 
-### [ ] Phase 3: ตรวจสอบความเสถียรและความปลอดภัยผ่าน Cloudflare Tunnel (ความสำคัญ: ปานกลาง)
+### [x] Phase 3: ตรวจสอบความเสถียรและความปลอดภัยผ่าน Cloudflare Tunnel (สถานะ: สำเร็จและผ่านการทดสอบ 100% ✅)
 * **เป้าหมาย:** ยืนยันความปลอดภัยและความถูกต้องเมื่อเว็บ Next.js สื่อสารกับ Gateway ผ่าน Cloudflare Tunnel (HTTPS)
-* **รายการที่ต้องตรวจสอบ:**
-  - [ ] ตรวจสอบว่า HTTP Header `x-api-key` ส่งผ่าน Tunnel ครบถ้วน ไม่ถูกตัดทอน
-  - [ ] ตั้งค่า Header `Cache-Control: no-store, private` บน Gateway เพื่อป้องกัน Cloudflare CDN แอบแคชข้อมูลส่วนบุคคล (PDPA/PHI)
-  - [ ] วัด Response Time และตรวจสอบการหลุดของ Connection ภายใต้คำขอปริมาณมาก (Stress Test เบื้องต้น)
+* **รายการที่ตรวจสอบแล้ว:**
+  - [x] ตรวจสอบว่า HTTP Header `x-api-key` ส่งผ่าน Tunnel ครบถ้วน ไม่ถูกตัดทอน (และ Reject 401 เมื่อไม่มี Key หรือ Key ไม่ถูกต้อง)
+  - [x] ตั้งค่า Header `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, private`, `Pragma: no-cache`, `Expires: 0`, `X-Content-Type-Options: nosniff` บน Gateway สำเร็จเรียบร้อย เพื่อป้องกัน Cloudflare CDN แอบแคชข้อมูลส่วนบุคคล (PDPA/PHI)
+  - [x] วัด Response Time และตรวจสอบการหลุดของ Connection ภายใต้คำขอปริมาณมาก (Stress Test 50 concurrent requests: สำเร็จ 100%, Min 4.1ms, Avg 21.1ms, Max 50.4ms)
 
 ---
 

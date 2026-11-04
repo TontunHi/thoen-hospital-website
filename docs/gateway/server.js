@@ -191,6 +191,17 @@ fastify.addHook('onRequest', async (req, reply) => {
 })
 
 // ------------------------------------------------------------------
+// Anti-Caching & Security Headers Hook (PDPA & Cloudflare Protection)
+// ------------------------------------------------------------------
+fastify.addHook('onSend', async (req, reply, payload) => {
+  reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, private')
+  reply.header('Pragma', 'no-cache')
+  reply.header('Expires', '0')
+  reply.header('X-Content-Type-Options', 'nosniff')
+  return payload
+})
+
+// ------------------------------------------------------------------
 // Register Route Plugins
 // ------------------------------------------------------------------
 const routeContext = {
