@@ -146,28 +146,39 @@ export default function Navbar() {
 
   // Check if member is logged in
   useEffect(() => {
+    // Instant client restore from sessionStorage to eliminate visual flickering on page navigation
+    try {
+      if (typeof window !== 'undefined' && !member) {
+        const cached = sessionStorage.getItem('thoen_member_brief');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.username) setMember(parsed);
+        }
+      }
+    } catch {}
+
     async function checkMember() {
       try {
         const res = await fetch(`/api/member/me?t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data.authenticated) {
+          if (data.authenticated && data.member) {
             setMember(data.member);
+            try { sessionStorage.setItem('thoen_member_brief', JSON.stringify(data.member)); } catch {}
           } else {
             setMember(null);
+            try { sessionStorage.removeItem('thoen_member_brief'); } catch {}
           }
         } else {
           setMember(null);
+          try { sessionStorage.removeItem('thoen_member_brief'); } catch {}
         }
       } catch (err) {
         console.error('Failed to verify member session in navbar:', err);
-        setMember(null);
       }
     }
 
-    if (pathname && !pathname.startsWith('/member/news') && !pathname.startsWith('/news-login') && !pathname.startsWith('/salary')) {
-      checkMember();
-    }
+    checkMember();
   }, [pathname]);
 
   // Lock body scroll when mobile menu is open
