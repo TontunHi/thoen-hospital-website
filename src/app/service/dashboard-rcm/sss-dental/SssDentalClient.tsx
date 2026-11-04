@@ -389,7 +389,7 @@ export default function SssDentalClient() {
                 >
                   {availableYears.map((y) => (
                     <option key={y} value={y}>
-                      พ.ศ. {y + 543} (ต.ค. {y + 542} - ก.ย. {y + 543})
+                      พ.ศ. {y + 543}
                     </option>
                   ))}
                 </select>

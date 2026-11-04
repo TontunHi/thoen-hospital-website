@@ -581,6 +581,8 @@
 .treeNodeAvatarWrap {
   position: relative;
   display: inline-block;
+  background-color: #FFFFFF;
+  border-radius: 50%;
 }
 
 .treeCrownBadge {
@@ -657,7 +659,7 @@
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--org-primary);
-  background-color: #F1F5F9;
+  background-color: #FFFFFF;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
@@ -716,6 +718,8 @@
 
 .treeMemberAvatarWrap {
   display: inline-block;
+  background-color: #FFFFFF;
+  border-radius: 50%;
 }
 
 .treeMemberAvatar {
@@ -724,7 +728,7 @@
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #E2E8F0;
-  background-color: #F8FAFC;
+  background-color: #FFFFFF;
 }
 
 .treeMemberAvatarFallback {
@@ -839,6 +843,8 @@
 .publicLeaderAvatarWrap {
   position: relative;
   flex-shrink: 0;
+  background-color: #FFFFFF;
+  border-radius: 50%;
 }
 
 .publicLeaderAvatar {
@@ -847,7 +853,7 @@
   border-radius: 50%;
   object-fit: cover;
   border: 2.5px solid var(--org-primary);
-  background-color: #E2E8F0;
+  background-color: #FFFFFF;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -998,6 +1004,8 @@
 
 .publicMemberAvatarWrap {
   flex-shrink: 0;
+  background-color: #FFFFFF;
+  border-radius: 50%;
 }
 
 .publicMemberAvatar {
@@ -1005,7 +1013,7 @@
   height: 48px;
   border-radius: 50%;
   object-fit: cover;
-  background-color: #E2E8F0;
+  background-color: #FFFFFF;
   border: 1.5px solid var(--org-border);
 }
 

@@ -777,6 +777,7 @@
 }
 
 .leaderCard {
+  background-color: #FFFFFF;
   background: linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 100%);
   border: 1.5px solid #86EFAC;
   border-radius: var(--admin-radius-md);
@@ -797,6 +798,8 @@
 .leaderAvatarWrap {
   position: relative;
   flex-shrink: 0;
+  background-color: #FFFFFF;
+  border-radius: 50%;
 }
 
 .leaderAvatar {
@@ -805,7 +808,7 @@
   border-radius: 50%;
   object-fit: cover;
   border: 2.5px solid var(--admin-primary);
-  background-color: #E2E8F0;
+  background-color: #FFFFFF;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
@@ -949,6 +952,8 @@
 
 .memberCardAvatarWrap {
   flex-shrink: 0;
+  background-color: #FFFFFF;
+  border-radius: 50%;
 }
 
 .memberAvatarSmall {
@@ -956,7 +961,7 @@
   height: 44px;
   border-radius: 50%;
   object-fit: cover;
-  background-color: #E2E8F0;
+  background-color: #FFFFFF;
   border: 1.5px solid var(--admin-border);
 }
 
@@ -1271,7 +1276,7 @@
   height: 34px;
   border-radius: 50%;
   object-fit: cover;
-  background: #E2E8F0;
+  background: #FFFFFF;
   flex-shrink: 0;
 }
 
@@ -1331,7 +1336,7 @@
   height: 80px;
   border-radius: 50%;
   object-fit: cover;
-  background-color: #E2E8F0;
+  background-color: #FFFFFF;
   border: 2px solid #FFFFFF;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }

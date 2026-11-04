@@ -290,6 +290,10 @@ export default function ImageCropModal({
     const ctx = offscreen.getContext('2d')
     if (!ctx) return null
 
+    // Fill solid white background for transparent images
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, effW, effH)
+
     ctx.translate(effW / 2, effH / 2)
     ctx.rotate((rot * Math.PI) / 180)
     ctx.scale(isFlipH ? -1 : 1, 1)
@@ -319,7 +323,8 @@ export default function ImageCropModal({
     if (circleCanvas) {
       const cCtx = circleCanvas.getContext('2d')
       if (cCtx) {
-        cCtx.clearRect(0, 0, circleCanvas.width, circleCanvas.height)
+        cCtx.fillStyle = '#FFFFFF'
+        cCtx.fillRect(0, 0, circleCanvas.width, circleCanvas.height)
         cCtx.drawImage(
           transformedCanvas,
           cropPxX,
@@ -339,7 +344,8 @@ export default function ImageCropModal({
     if (rectCanvas) {
       const rCtx = rectCanvas.getContext('2d')
       if (rCtx) {
-        rCtx.clearRect(0, 0, rectCanvas.width, rectCanvas.height)
+        rCtx.fillStyle = '#FFFFFF'
+        rCtx.fillRect(0, 0, rectCanvas.width, rectCanvas.height)
         rCtx.drawImage(
           transformedCanvas,
           cropPxX,
@@ -389,6 +395,11 @@ export default function ImageCropModal({
     const isSideways = rotation === 90 || rotation === 270
     const drawW = isSideways ? layout.displayH : layout.displayW
     const drawH = isSideways ? layout.displayW : layout.displayH
+
+    // Fill solid white background behind image for transparent/cutout photos
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH)
+
     ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH)
     ctx.restore()
 
@@ -723,6 +734,10 @@ export default function ImageCropModal({
 
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
+
+      // Fill white background for transparent images so that transparent PNGs don't turn black in JPEG or stay transparent
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(0, 0, outW, outH)
 
       ctx.drawImage(
         transformedCanvas,

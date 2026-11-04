@@ -279,7 +279,7 @@ export default function OpdClient() {
               }}
               className={`rcm-mode-btn ${dateMode === 'year' ? 'active' : ''}`}
             >
-              รายปีงบประมาณ (1 ต.ค. - 30 ก.ย.)
+              รายปีงบประมาณ
             </button>
           </div>
 

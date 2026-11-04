@@ -2,7 +2,7 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-:: เปลี่ยนไดเรกทอรีไปยัง Root ของโปรเจกต์
+:: ย้ายไปยังไดเรกทอรี Root ของโปรเจกต์
 cd /d "%~dp0\.."
 
 echo =================================================================
@@ -13,7 +13,7 @@ echo.
 :: -----------------------------------------------------------------
 :: ขั้นตอนที่ 1: เปิด Maintenance Mode
 :: -----------------------------------------------------------------
-echo [1/6] กำลังเปิดโหมดบำรุงรักษา (Maintenance Mode)...
+echo [1/5] กำลังเปิดโหมดบำรุงรักษา (Maintenance Mode)...
 echo maintenance > "maintenance.flag"
 echo maintenance > "public\maintenance.flag"
 echo      - สร้างไฟล์ maintenance.flag เรียบร้อย
@@ -21,17 +21,24 @@ echo      - ผู้ใช้งานภายนอกจะเห็นห�
 echo.
 
 :: -----------------------------------------------------------------
-:: ขั้นตอนที่ 2: หยุดการทำงานชั่วคราวของ PM2 (ถ้ากำลังรันอยู่)
+:: ขั้นตอนที่ 2: หยุด Service เดิมที่พอร์ต 6060 (ถ้ามี)
 :: -----------------------------------------------------------------
-echo [2/6] สั่งพักการทำงานชั่วคราวของ PM2...
-call npx pm2 stop thoen-hospital-website >nul 2>&1
-echo      - หยุด Service สำเร็จ (IIS จะแสดงหน้า Maintenance รองรับอัตโนมัติ)
+echo [2/5] หยุดโปรเซสเดิมที่ใช้งานพอร์ต 6060...
+powershell -NoProfile -Command ^
+    "$conns = Get-NetTCPConnection -LocalPort 6060 -ErrorAction SilentlyContinue; " ^
+    "if ($conns) { " ^
+    "  $pids = $conns | Select-Object -ExpandProperty OwningProcess -Unique; " ^
+    "  foreach ($p in $pids) { " ^
+    "    if ($p -gt 0) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } " ^
+    "  } " ^
+    "}"
+echo      - เคลียร์พอร์ต 6060 เรียบร้อย
 echo.
 
 :: -----------------------------------------------------------------
 :: ขั้นตอนที่ 3: ดึงโค้ดล่าสุดจาก Git และอัปเดต Dependencies
 :: -----------------------------------------------------------------
-echo [3/6] กำลังดึงโค้ดและอัปเดตแพ็กเกจ (Git pull & NPM install)...
+echo [3/5] กำลังดึงโค้ดและอัปเดตแพ็กเกจ (Git pull & NPM install)...
 git pull
 if %errorlevel% neq 0 (
     echo [ERROR] Git pull ล้มเหลว! อาจมี Merge Conflict
@@ -47,27 +54,9 @@ echo      - อัปเดตแพ็กเกจเรียบร้อย
 echo.
 
 :: -----------------------------------------------------------------
-:: ขั้นตอนที่ 4: ซิงค์ฐานข้อมูล Prisma (Generate & Push)
+:: ขั้นตอนที่ 4: คอมไพล์โปรเจกต์ Next.js สำหรับ Production
 :: -----------------------------------------------------------------
-echo [4/6] กำลังสร้าง Prisma Client และตรวจสอบฐานข้อมูล...
-call npx prisma generate
-if %errorlevel% neq 0 (
-    echo [ERROR] prisma generate ล้มเหลว!
-    goto ERROR_HANDLER
-)
-
-call npx prisma db push --skip-generate
-if %errorlevel% neq 0 (
-    echo [ERROR] prisma db push ล้มเหลว!
-    goto ERROR_HANDLER
-)
-echo      - ฐานข้อมูลพร้อมใช้งาน
-echo.
-
-:: -----------------------------------------------------------------
-:: ขั้นตอนที่ 5: คอมไพล์โปรเจกต์ Next.js สำหรับ Production
-:: -----------------------------------------------------------------
-echo [5/6] กำลังคอมไพล์โปรเจกต์ (Next.js Build)...
+echo [4/5] กำลังคอมไพล์โปรเจกต์ (Next.js Build)...
 call npm run build
 if %errorlevel% neq 0 (
     echo [ERROR] npm run build ล้มเหลว!
@@ -77,14 +66,10 @@ echo      - คอมไพล์โปรเจกต์สำเร็จ
 echo.
 
 :: -----------------------------------------------------------------
-:: ขั้นตอนที่ 6: เริ่มต้นระบบ PM2 และตรวจสอบสุขภาพระบบ (Health Check)
+:: ขั้นตอนที่ 5: เริ่มต้นระบบบนพอร์ต 6060 และตรวจสอบสถานะ (Health Check)
 :: -----------------------------------------------------------------
-echo [6/6] สั่งเริ่มระบบบน PM2 และตรวจสอบสถานะ (Health Check)...
-call npx pm2 start ecosystem.config.js
-if %errorlevel% neq 0 (
-    echo [WARN] pm2 start มีข้อผิดพลาด ลองสั่ง pm2 restart...
-    call npx pm2 restart thoen-hospital-website
-)
+echo [5/5] กำลังสตาร์ทเซิร์ฟเวอร์ที่พอร์ต 6060...
+start "Thoen Hospital Production Server (Port 6060)" /min cmd.exe /c "npm start -- -p 6060 -H 127.0.0.1"
 
 echo      - รอ Service บูตระบบและเช็ค Health Check ที่พอร์ต 6060...
 powershell -NoProfile -Command ^
@@ -138,8 +123,7 @@ echo เพื่อป้องกันไม่ให้ผู้ใช้ง
 echo.
 echo สิ่งที่ควรทำ:
 echo 1. ตรวจสอบ Error Log ด้านบน
-echo 2. ตรวจสอบ Log ของ PM2 ด้วยคำสั่ง: npx pm2 logs thoen-hospital-website
-echo 3. เมื่อแก้ไขปัญหาแล้ว ให้รัน scripts\deploy.bat ใหม่อีกครั้ง
+echo 2. เมื่อแก้ไขปัญหาแล้ว ให้รัน scripts\deploy.bat ใหม่อีกครั้ง
 echo    หรือหากต้องการปลดหน้า Maintenance เอง ให้รัน scripts\maintenance-off.bat
 echo =================================================================
 pause
