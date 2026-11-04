@@ -27,6 +27,7 @@ describe('DashboardRcmShell Component', () => {
     // Check category groups
     expect(screen.getAllByText('2.1 ผู้ป่วยนอก & ทันตกรรม').length).toBeGreaterThan(0)
     expect(screen.getByText('2.2 บริการผู้ป่วยใน')).toBeInTheDocument()
+    expect(screen.getByText('3.1 ข้อมูลการชดเชยค่าบริการ (REP)')).toBeInTheDocument()
     expect(screen.getByText('5.2 การเงิน & รายรับ')).toBeInTheDocument()
     expect(screen.getByText('Palliative Care')).toBeInTheDocument()
 
@@ -34,6 +35,7 @@ describe('DashboardRcmShell Component', () => {
     expect(screen.getAllByText('ประกันสังคมทำฟัน').length).toBeGreaterThan(0)
     expect(screen.getByText('OPD ตามสิทธิ์')).toBeInTheDocument()
     expect(screen.getByText('สรุปผู้ป่วยใน (IPD)')).toBeInTheDocument()
+    expect(screen.getByText('ข้อมูล Rep แต่ละกองทุน')).toBeInTheDocument()
     expect(screen.getByText('สรุปรายรับจาก Invoice')).toBeInTheDocument()
     expect(screen.getByText('End Of Life')).toBeInTheDocument()
     expect(screen.getByText('ตามกลุ่มโรค')).toBeInTheDocument()

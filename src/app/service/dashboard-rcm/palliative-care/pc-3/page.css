@@ -590,6 +590,36 @@
 }
 
 /* Tabular Numbers */
+
+.pc3-vn-link {
+  background: transparent;
+  border: none;
+  padding: 0.15rem 0.45rem;
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--pc-primary, #0d9488);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  display: inline-block;
+  line-height: 1.2;
+}
+
+.pc3-vn-link:hover {
+  color: var(--pc-teal-dark, #0f766e);
+  background-color: var(--pc-teal-bg, #f0fdfa);
+  text-decoration: none;
+}
+
+.pc3-vn-link:focus-visible {
+  outline: 2px solid var(--pc-primary, #0d9488);
+  outline-offset: 2px;
+}
+
 .pc3-num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

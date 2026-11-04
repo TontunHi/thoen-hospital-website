@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { OpdDepartmentSummaryItem } from '@/lib/clinical/rcmDashboardService'
+import { formatThaiDate } from '@/lib/formatters'
+import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import './page.css'
 
 const OpdChartCard = dynamic(() => import('./OpdChartCard'), {
@@ -257,7 +259,7 @@ export default function OpdClient() {
               onClick={() => setDateMode('custom')}
               className={`rcm-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
             >
-              📅 กำหนดเอง (วันถึงวัน)
+              กำหนดเอง (วันถึงวัน)
             </button>
             <button
               type="button"
@@ -267,7 +269,7 @@ export default function OpdClient() {
               }}
               className={`rcm-mode-btn ${dateMode === 'month' ? 'active' : ''}`}
             >
-              🗓️ รายเดือน ({currentCalYear + 543})
+              รายเดือน ({currentCalYear + 543})
             </button>
             <button
               type="button"
@@ -277,7 +279,7 @@ export default function OpdClient() {
               }}
               className={`rcm-mode-btn ${dateMode === 'year' ? 'active' : ''}`}
             >
-              📆 รายปีงบประมาณ (1 ต.ค. - 30 ก.ย.)
+              รายปีงบประมาณ (1 ต.ค. - 30 ก.ย.)
             </button>
           </div>
 
@@ -285,18 +287,18 @@ export default function OpdClient() {
           {dateMode === 'custom' && (
             <div className="rcm-date-inputs">
               <span>ตั้งแต่:</span>
-              <input
-                type="date"
+              <ThaiDatePicker
                 value={ds1}
-                onChange={(e) => setDs1(e.target.value)}
-                className="rcm-input"
+                onChange={setDs1}
+                maxDate={ds2}
+                aria-label="ตั้งแต่วันที่"
               />
               <span>ถึง:</span>
-              <input
-                type="date"
+              <ThaiDatePicker
                 value={ds2}
-                onChange={(e) => setDs2(e.target.value)}
-                className="rcm-input"
+                onChange={setDs2}
+                minDate={ds1}
+                aria-label="ถึงวันที่"
               />
               <button
                 type="button"
@@ -370,7 +372,7 @@ export default function OpdClient() {
         <div style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: '#475569', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Calendar size={14} style={{ color: '#059669' }} />
           <span>
-            ช่วงเวลาที่แสดง: <b>{ds1}</b> ถึง <b>{ds2}</b>
+            ช่วงเวลาที่แสดง: <b>{formatThaiDate(ds1)}</b> ถึง <b>{formatThaiDate(ds2)}</b>
           </span>
         </div>
       </div>

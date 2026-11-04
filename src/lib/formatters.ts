@@ -55,3 +55,79 @@ export function formatThaiBuddhistDateTime(dateVal: string | Date | null | undef
     return String(dateVal)
   }
 }
+
+export const THAI_MONTH_NAMES_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+]
+
+/**
+ * Format any Date, ISO string, SQL date string (YYYY-MM-DD), YYYYMMDD, or D/M/YYYY
+ * into standard Thai Buddhist format: "วัน เดือน ปี" เช่น "1 พ.ย. 2569"
+ */
+export function formatThaiDate(dateVal?: string | Date | null, fallback: string = '—'): string {
+  if (!dateVal) return fallback
+  try {
+    let year: number | null = null
+    let month: number | null = null // 1-12
+    let day: number | null = null
+
+    if (dateVal instanceof Date) {
+      if (isNaN(dateVal.getTime())) return fallback
+      year = dateVal.getFullYear()
+      month = dateVal.getMonth() + 1
+      day = dateVal.getDate()
+    } else if (typeof dateVal === 'string') {
+      const s = dateVal.trim()
+      if (!s || s === '-' || s === '—') return fallback
+
+      // 1. Check YYYY-MM-DD or YYYY/MM/DD (with optional time or T)
+      const ymdMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
+      if (ymdMatch) {
+        year = parseInt(ymdMatch[1], 10)
+        month = parseInt(ymdMatch[2], 10)
+        day = parseInt(ymdMatch[3], 10)
+      } else {
+        // 2. Check DD/MM/YYYY or D/M/YYYY
+        const dmyMatch = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
+        if (dmyMatch) {
+          day = parseInt(dmyMatch[1], 10)
+          month = parseInt(dmyMatch[2], 10)
+          year = parseInt(dmyMatch[3], 10)
+        } else if (/^\d{8}$/.test(s)) {
+          // 3. Check YYYYMMDD
+          year = parseInt(s.slice(0, 4), 10)
+          month = parseInt(s.slice(4, 6), 10)
+          day = parseInt(s.slice(6, 8), 10)
+        } else {
+          // 4. Fallback to Date parser
+          const parsed = new Date(s)
+          if (!isNaN(parsed.getTime())) {
+            year = parsed.getFullYear()
+            month = parsed.getMonth() + 1
+            day = parsed.getDate()
+          }
+        }
+      }
+    }
+
+    if (!year || !month || !day || month < 1 || month > 12) {
+      return typeof dateVal === 'string' ? dateVal : fallback
+    }
+
+    const beYear = year > 2400 ? year : year + 543
+    return `${day} ${THAI_MONTH_NAMES_SHORT[month - 1]} ${beYear}`
+  } catch {
+    return typeof dateVal === 'string' ? dateVal : fallback
+  }
+}
+
+/**
+ * Format date range into Thai Buddhist format: e.g. "1 ต.ค. 2569 ถึง 31 ต.ค. 2569"
+ */
+export function formatThaiDateRange(d1?: string | Date | null, d2?: string | Date | null, fallback: string = '—'): string {
+  if (!d1 && !d2) return fallback
+  if (d1 && !d2) return formatThaiDate(d1, fallback)
+  if (!d1 && d2) return formatThaiDate(d2, fallback)
+  return `${formatThaiDate(d1, fallback)} ถึง ${formatThaiDate(d2, fallback)}`
+}

@@ -190,7 +190,7 @@ describe('PalliativeCareClient PC.3 Component', () => {
       expect(screen.getByText(/รายละเอียดผู้ป่วย: นายธวัชชัย คำมา/)).toBeInTheDocument()
       expect(screen.getByText('มาตรวจตามนัด')).toBeInTheDocument()
       expect(screen.getAllByText('บัตรทอง ในเขต').length).toBeGreaterThan(1)
-      expect(screen.getAllByText('สถานะตาย').length).toBeGreaterThan(1)
+      expect(screen.getAllByText('สถานะการมีชีวิต').length).toBeGreaterThan(1)
     })
   })
 
@@ -198,13 +198,13 @@ describe('PalliativeCareClient PC.3 Component', () => {
     render(<PalliativeCareClient />)
 
     await waitFor(() => {
-      expect(screen.getByRole('columnheader', { name: 'สถานะตาย' })).toBeInTheDocument()
+      expect(screen.getByRole('columnheader', { name: 'สถานะการมีชีวิต' })).toBeInTheDocument()
       expect(screen.getByText('มีชีวิต')).toBeInTheDocument()
-      expect(screen.getAllByText(/เสียชีวิต.*2025-10-15/).length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText(/เสียชีวิต.*15 ต\.ค\. 2568/).length).toBeGreaterThanOrEqual(1)
     })
 
     // Filter dropdown for deathStatus
-    const deathSelect = screen.getByDisplayValue('สถานะตาย: ทั้งหมด')
+    const deathSelect = screen.getByDisplayValue('สถานะการมีชีวิต: ทั้งหมด')
     fireEvent.change(deathSelect, { target: { value: 'Y' } })
 
     await waitFor(() => {

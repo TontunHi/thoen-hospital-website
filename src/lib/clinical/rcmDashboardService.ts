@@ -2188,7 +2188,7 @@ export class RcmDashboardService {
             IFNULL(ptt.hipdata_code, '') AS inscl,
             IFNULL(ptt.name, o.pttype) AS pttypename,
             CONCAT(IFNULL(pt.addrpart,''), ' ม.', IFNULL(pt.moopart,''), ' ', IFNULL(pt.road,'')) AS address,
-            COALESCE(NULLIF(pt.mobile_phone_number,''), NULLIF(pt.informtel,''), '') AS tel,
+            COALESCE(NULLIF(TRIM(pt.mobile_phone_number),''), NULLIF(TRIM(pt.informtel),''), NULLIF(TRIM(pt.hometel),''), '') AS tel,
             IFNULL(s.cc, '') AS cc,
             IFNULL(k.department, o.main_dep) AS room,
             IFNULL(sp.name, o.spclty) AS spclty,

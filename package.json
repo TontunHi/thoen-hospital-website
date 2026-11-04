@@ -18,6 +18,9 @@
     "bot:appointment": "tsx scripts/appointmentMismatchBot.ts",
     "bot:repair": "tsx scripts/telegramRepairPollingBot.ts",
     "bot:ipd-chart": "tsx scripts/ipdChartNotificationBot.ts",
+    "maintenance:on": "scripts\\maintenance-on.bat",
+    "maintenance:off": "scripts\\maintenance-off.bat",
+    "deploy": "scripts\\deploy.bat",
     "card:bridge": "scripts\\smartcard-bridge.bat",
     "precommit": "lint-staged"
   },

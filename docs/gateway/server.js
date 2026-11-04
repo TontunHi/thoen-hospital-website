@@ -2537,329 +2537,471 @@ fastify.get('/api/v1/app/registrations', {
 })
 
 // 4.9 Palliative Care Registry Services
-fastify.get('/api/v1/app/palliative-care/registries', {
-  schema: {
-    tags: ['4. Website Application Services'],
-    summary: 'ดึงรายชื่อและสถิติทะเบียนผู้ป่วย Palliative Care พร้อมระบบค้นหาและแบ่งหน้า',
-    querystring: {
-      type: 'object',
-      properties: {
-        search: { type: 'string' },
-        registrationStatus: { type: 'string' },
-        claimStatus: { type: 'string' },
-        claimResult: { type: 'string' },
-        page: { type: 'integer', default: 1 },
-        limit: { type: 'integer', default: 50 }
+let visitsTableEnsured = false
+async function ensureVisitsTable() {
+  if (visitsTableEnsured) return
+  try {
+    await appPool.query(`
+      CREATE TABLE IF NOT EXISTS palliative_care_registry_visits (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        registry_id INT NOT NULL,
+        visit_no INT NOT NULL,
+        visit_date VARCHAR(20) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_pcrv_registry_id (registry_id),
+        INDEX idx_pcrv_visit_date (visit_date),
+        UNIQUE KEY uq_pcrv_reg_visit (registry_id, visit_no),
+        CONSTRAINT fk_pcrv_registry FOREIGN KEY (registry_id) REFERENCES palliative_care_registries(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `)
+    const [cntRows] = await appPool.query('SELECT COUNT(*) AS total FROM palliative_care_registry_visits')
+    if (cntRows && Number(cntRows[0]?.total || 0) === 0) {
+      const [regs] = await appPool.query(`
+        SELECT id, visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date
+        FROM palliative_care_registries
+      `)
+      for (const r of regs) {
+        for (let v = 1; v <= 6; v++) {
+          const vd = r[`visit_${v}_date`]
+          if (vd && String(vd).trim()) {
+            await appPool.query(`
+              INSERT INTO palliative_care_registry_visits (registry_id, visit_no, visit_date)
+              VALUES (?, ?, ?)
+              ON DUPLICATE KEY UPDATE visit_date = VALUES(visit_date)
+            `, [r.id, v, String(vd).trim()]).catch(() => {})
+          }
+        }
       }
     }
+    visitsTableEnsured = true
+  } catch (err) {
+    logger.warn({ err }, 'ensureVisitsTable notice')
   }
-}, async (req, reply) => {
-  const { search, registrationStatus, claimStatus, claimResult, page = 1, limit = 50 } = req.query || {}
-  try {
-    const conditions = []
-    const params = []
+}
 
-    if (search && search.trim()) {
-      const term = `%${search.trim()}%`
-      conditions.push('(hn LIKE ? OR patient_name LIKE ? OR icd10_principal LIKE ? OR phone LIKE ?)')
-      params.push(term, term, term, term)
+  fastify.get('/api/v1/app/palliative-care/registries', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'ดึงรายชื่อและสถิติทะเบียนผู้ป่วย Palliative Care พร้อมระบบค้นหาและแบ่งหน้า',
+      querystring: {
+        type: 'object',
+        properties: {
+          search: { type: 'string' },
+          registrationStatus: { type: 'string' },
+          page: { type: 'integer', default: 1 },
+          limit: { type: 'integer', default: 50 }
+        }
+      }
     }
+  }, async (req, reply) => {
+    const { search, registrationStatus, page = 1, limit = 50 } = req.query || {}
+    try {
+      await ensureVisitsTable().catch(() => {})
 
-    if (registrationStatus && registrationStatus !== 'ALL') {
-      conditions.push('registration_status = ?')
-      params.push(registrationStatus)
+      const conditions = []
+      const params = []
+
+      if (search && search.trim()) {
+        const term = `%${search.trim()}%`
+        conditions.push('(hn LIKE ? OR patient_name LIKE ? OR icd10_principal LIKE ? OR phone LIKE ?)')
+        params.push(term, term, term, term)
+      }
+
+      if (registrationStatus && registrationStatus !== 'ALL') {
+        conditions.push('registration_status = ?')
+        params.push(registrationStatus)
+      }
+
+      const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+      const pageNum = Math.max(1, parseInt(page, 10) || 1)
+      const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50))
+      const offset = (pageNum - 1) * limitNum
+
+      const [rows, countRows, statsRows] = await Promise.all([
+        appPool.query(
+          `SELECT id, hn, patient_name AS patientName, address, phone,
+                  icd10_principal AS icd10Principal, icd10_palliative AS icd10Palliative,
+                  project_code AS projectCode, registration_status AS registrationStatus,
+                  registered_date AS registeredDate,
+                  visit_1_date AS visit1Date,
+                  visit_2_date AS visit2Date,
+                  visit_3_date AS visit3Date,
+                  visit_4_date AS visit4Date,
+                  visit_5_date AS visit5Date,
+                  visit_6_date AS visit6Date,
+                  death_date AS deathDate,
+                  created_by AS createdBy, updated_by AS updatedBy,
+                  created_at AS createdAt, updated_at AS updatedAt
+           FROM palliative_care_registries
+           ${whereSql}
+           ORDER BY created_at DESC
+           LIMIT ? OFFSET ?`,
+          [...params, limitNum, offset]
+        ).then(([r]) => r),
+        appPool.query(
+          `SELECT COUNT(*) AS total FROM palliative_care_registries ${whereSql}`,
+          params
+        ).then(([r]) => r[0]?.total || 0),
+        appPool.query(
+          `SELECT
+             COUNT(*) AS total,
+             COUNT(CASE WHEN registration_status = 'ดำเนินการเรียบร้อย' OR registered_date IS NOT NULL THEN 1 END) AS registered,
+             COUNT(CASE WHEN (registration_status = 'ยังไม่ได้ดำเนินการ' OR registration_status IS NULL) AND registered_date IS NULL THEN 1 END) AS pendingRegistration,
+             0 AS claimed,
+             0 AS paid,
+             0 AS deny
+           FROM palliative_care_registries`
+        ).then(([r]) => r[0] || {})
+      ])
+
+      if (rows && rows.length > 0) {
+        const ids = rows.map((r) => r.id)
+        try {
+          const [visitRows] = await appPool.query(
+            `SELECT id, registry_id AS registryId, visit_no AS visitNo, visit_date AS visitDate
+             FROM palliative_care_registry_visits
+             WHERE registry_id IN (${ids.map(() => '?').join(',')})
+             ORDER BY visit_no ASC`,
+            ids
+          )
+          const visitsByRegId = new Map()
+          for (const v of visitRows) {
+            if (!visitsByRegId.has(v.registryId)) visitsByRegId.set(v.registryId, [])
+            visitsByRegId.get(v.registryId).push({ id: v.id, visitNo: v.visitNo, visitDate: v.visitDate })
+          }
+          for (const row of rows) {
+            if (visitsByRegId.has(row.id)) {
+              row.visits = visitsByRegId.get(row.id)
+            } else {
+              row.visits = []
+              for (let v = 1; v <= 6; v++) {
+                const vd = row[`visit${v}Date`]
+                if (vd && String(vd).trim()) {
+                  row.visits.push({ visitNo: v, visitDate: String(vd).trim() })
+                }
+              }
+            }
+          }
+        } catch {
+          for (const row of rows) {
+            row.visits = []
+            for (let v = 1; v <= 6; v++) {
+              const vd = row[`visit${v}Date`]
+              if (vd && String(vd).trim()) {
+                row.visits.push({ visitNo: v, visitDate: String(vd).trim() })
+              }
+            }
+          }
+        }
+      }
+
+      const total = Number(countRows || 0)
+      const stats = {
+        total: Number(statsRows.total || 0),
+        registered: Number(statsRows.registered || 0),
+        pendingRegistration: Number(statsRows.pendingRegistration || 0),
+        claimed: Number(statsRows.claimed || 0),
+        paid: Number(statsRows.paid || 0),
+        deny: Number(statsRows.deny || 0)
+      }
+
+      return {
+        success: true,
+        items: rows,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        stats
+      }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
     }
+  })
 
-    if (claimStatus && claimStatus !== 'ALL') {
-      conditions.push('claim_status = ?')
-      params.push(claimStatus)
+  fastify.get('/api/v1/app/palliative-care/registries/:id', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'ดึงข้อมูลผู้ป่วย Palliative Care รายบุคคลตาม ID',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } }
+      }
     }
-
-    if (claimResult && claimResult !== 'ALL') {
-      conditions.push('claim_result = ?')
-      params.push(claimResult)
-    }
-
-    const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-    const pageNum = Math.max(1, parseInt(page, 10) || 1)
-    const limitNum = Math.min(200, Math.max(1, parseInt(limit, 10) || 50))
-    const offset = (pageNum - 1) * limitNum
-
-    const [rows, countRows, statsRows] = await Promise.all([
-      appPool.query(
+  }, async (req, reply) => {
+    const { id } = req.params
+    try {
+      await ensureVisitsTable().catch(() => {})
+      const [rows] = await appPool.query(
         `SELECT id, hn, patient_name AS patientName, address, phone,
                 icd10_principal AS icd10Principal, icd10_palliative AS icd10Palliative,
                 project_code AS projectCode, registration_status AS registrationStatus,
                 registered_date AS registeredDate,
-                visit_1_date AS visit1Date, visit_1_remark AS visit1Remark, visit_1_remark AS visit1Status,
-                visit_2_date AS visit2Date, visit_2_remark AS visit2Remark, visit_2_remark AS visit2Status,
-                visit_3_date AS visit3Date, visit_3_remark AS visit3Remark, visit_3_remark AS visit3Status,
-                visit_4_date AS visit4Date, visit_4_remark AS visit4Remark, visit_4_remark AS visit4Status,
-                visit_5_date AS visit5Date, visit_5_remark AS visit5Remark, visit_5_remark AS visit5Status,
-                visit_6_date AS visit6Date, visit_6_remark AS visit6Remark, visit_6_remark AS visit6Status,
+                visit_1_date AS visit1Date,
+                visit_2_date AS visit2Date,
+                visit_3_date AS visit3Date,
+                visit_4_date AS visit4Date,
+                visit_5_date AS visit5Date,
+                visit_6_date AS visit6Date,
                 death_date AS deathDate,
                 created_by AS createdBy, updated_by AS updatedBy,
                 created_at AS createdAt, updated_at AS updatedAt
          FROM palliative_care_registries
-         ${whereSql}
-         ORDER BY created_at DESC
-         LIMIT ? OFFSET ?`,
-        [...params, limitNum, offset]
-      ).then(([r]) => r),
-      appPool.query(
-        `SELECT COUNT(*) AS total FROM palliative_care_registries ${whereSql}`,
-        params
-      ).then(([r]) => r[0]?.total || 0),
-      appPool.query(
-        `SELECT
-           COUNT(*) AS total,
-           COUNT(CASE WHEN registration_status = 'ดำเนินการเรียบร้อย' OR registered_date IS NOT NULL THEN 1 END) AS registered,
-           COUNT(CASE WHEN registration_status = 'ยังไม่ได้ดำเนินการ' AND registered_date IS NULL THEN 1 END) AS pendingRegistration,
-           0 AS claimed,
-           0 AS paid,
-           0 AS deny
-         FROM palliative_care_registries`
-      ).then(([r]) => r[0] || {})
-    ])
-
-    const total = Number(countRows || 0)
-    const stats = {
-      total: Number(statsRows.total || 0),
-      registered: Number(statsRows.registered || 0),
-      pendingRegistration: Number(statsRows.pendingRegistration || 0),
-      claimed: Number(statsRows.claimed || 0),
-      paid: Number(statsRows.paid || 0),
-      deny: Number(statsRows.deny || 0)
+         WHERE id = ? LIMIT 1`,
+        [id]
+      )
+      if (rows.length === 0) {
+        reply.code(404); return { success: false, error: 'ไม่พบข้อมูลทะเบียนผู้ป่วย' }
+      }
+      const item = rows[0]
+      try {
+        const [visitRows] = await appPool.query(
+          `SELECT id, registry_id AS registryId, visit_no AS visitNo, visit_date AS visitDate
+           FROM palliative_care_registry_visits
+           WHERE registry_id = ?
+           ORDER BY visit_no ASC`,
+          [id]
+        )
+        if (visitRows && visitRows.length > 0) {
+          item.visits = visitRows.map((v) => ({ id: v.id, visitNo: v.visitNo, visitDate: v.visitDate }))
+        } else {
+          item.visits = []
+          for (let v = 1; v <= 6; v++) {
+            const vd = item[`visit${v}Date`]
+            if (vd && String(vd).trim()) {
+              item.visits.push({ visitNo: v, visitDate: String(vd).trim() })
+            }
+          }
+        }
+      } catch {
+        item.visits = []
+        for (let v = 1; v <= 6; v++) {
+          const vd = item[`visit${v}Date`]
+          if (vd && String(vd).trim()) {
+            item.visits.push({ visitNo: v, visitDate: String(vd).trim() })
+          }
+        }
+      }
+      return { success: true, data: item }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
     }
+  })
 
-    return {
-      success: true,
-      items: rows,
-      total,
-      page: pageNum,
-      limit: limitNum,
-      totalPages: Math.ceil(total / limitNum) || 1,
-      stats
-    }
-  } catch (err) {
-    reply.code(500); return { success: false, error: err.message }
-  }
-})
-
-fastify.get('/api/v1/app/palliative-care/registries/:id', {
-  schema: {
-    tags: ['4. Website Application Services'],
-    summary: 'ดึงข้อมูลผู้ป่วย Palliative Care รายบุคคลตาม ID',
-    params: {
-      type: 'object',
-      properties: { id: { type: 'string' } }
-    }
-  }
-}, async (req, reply) => {
-  const { id } = req.params
-  try {
-    const [rows] = await appPool.query(
-      `SELECT id, hn, patient_name AS patientName, address, phone,
-              icd10_principal AS icd10Principal, icd10_palliative AS icd10Palliative,
-              project_code AS projectCode, registration_status AS registrationStatus,
-              registered_date AS registeredDate,
-              visit_1_date AS visit1Date, visit_1_remark AS visit1Remark, visit_1_remark AS visit1Status,
-              visit_2_date AS visit2Date, visit_2_remark AS visit2Remark, visit_2_remark AS visit2Status,
-              visit_3_date AS visit3Date, visit_3_remark AS visit3Remark, visit_3_remark AS visit3Status,
-              visit_4_date AS visit4Date, visit_4_remark AS visit4Remark, visit_4_remark AS visit4Status,
-              visit_5_date AS visit5Date, visit_5_remark AS visit5Remark, visit_5_remark AS visit5Status,
-              visit_6_date AS visit6Date, visit_6_remark AS visit6Remark, visit_6_remark AS visit6Status,
-              death_date AS deathDate,
-              created_by AS createdBy, updated_by AS updatedBy,
-              created_at AS createdAt, updated_at AS updatedAt
-       FROM palliative_care_registries
-       WHERE id = ? LIMIT 1`,
-      [id]
-    )
-    if (rows.length === 0) {
-      reply.code(404); return { success: false, error: 'ไม่พบข้อมูลทะเบียนผู้ป่วย' }
-    }
-    return { success: true, data: rows[0] }
-  } catch (err) {
-    reply.code(500); return { success: false, error: err.message }
-  }
-})
-
-fastify.post('/api/v1/app/palliative-care/registries', {
-  schema: {
-    tags: ['4. Website Application Services'],
-    summary: 'ลงทะเบียนผู้ป่วย Palliative Care ใหม่',
-    body: {
-      type: 'object',
-      required: ['hn', 'patientName'],
-      properties: {
-        hn: { type: 'string' },
-        patientName: { type: 'string' },
-        address: { type: ['string', 'null'] },
-        phone: { type: ['string', 'null'] },
-        icd10Principal: { type: ['string', 'null'] },
-        icd10Palliative: { type: ['string', 'null'] },
-        projectCode: { type: ['string', 'null'] },
-        registrationStatus: { type: 'string' },
-        registeredDate: { type: ['string', 'null'] },
-        visit1Date: { type: ['string', 'null'] },
-        visit1Remark: { type: ['string', 'null'] },
-        visit1Status: { type: ['string', 'null'] },
-        visit2Date: { type: ['string', 'null'] },
-        visit2Remark: { type: ['string', 'null'] },
-        visit2Status: { type: ['string', 'null'] },
-        visit3Date: { type: ['string', 'null'] },
-        visit3Remark: { type: ['string', 'null'] },
-        visit3Status: { type: ['string', 'null'] },
-        visit4Date: { type: ['string', 'null'] },
-        visit4Remark: { type: ['string', 'null'] },
-        visit4Status: { type: ['string', 'null'] },
-        visit5Date: { type: ['string', 'null'] },
-        visit5Remark: { type: ['string', 'null'] },
-        visit5Status: { type: ['string', 'null'] },
-        visit6Date: { type: ['string', 'null'] },
-        visit6Remark: { type: ['string', 'null'] },
-        visit6Status: { type: ['string', 'null'] },
-        deathDate: { type: ['string', 'null'] },
-        createdBy: { type: ['string', 'null'] }
+  fastify.post('/api/v1/app/palliative-care/registries', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'ลงทะเบียนผู้ป่วย Palliative Care ใหม่',
+      body: {
+        type: 'object',
+        required: ['hn', 'patientName'],
+        properties: {
+          hn: { type: 'string' },
+          patientName: { type: 'string' },
+          address: { type: ['string', 'null'] },
+          phone: { type: ['string', 'null'] },
+          icd10Principal: { type: ['string', 'null'] },
+          icd10Palliative: { type: ['string', 'null'] },
+          projectCode: { type: ['string', 'null'] },
+          registrationStatus: { type: 'string' },
+          registeredDate: { type: ['string', 'null'] },
+          visit1Date: { type: ['string', 'null'] },
+          visit2Date: { type: ['string', 'null'] },
+          visit3Date: { type: ['string', 'null'] },
+          visit4Date: { type: ['string', 'null'] },
+          visit5Date: { type: ['string', 'null'] },
+          visit6Date: { type: ['string', 'null'] },
+          deathDate: { type: ['string', 'null'] },
+          createdBy: { type: ['string', 'null'] },
+          visits: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                visitNo: { type: 'integer' },
+                visitDate: { type: 'string' }
+              }
+            }
+          }
+        }
       }
     }
-  }
-}, async (req, reply) => {
-  const {
-    hn, patientName, address = null, phone = null,
-    icd10Principal = null, icd10Palliative = null, projectCode = null,
-    registrationStatus = 'ยังไม่ได้ดำเนินการ',
-    registeredDate = null,
-    visit1Date = null, visit1Remark = null, visit1Status = null,
-    visit2Date = null, visit2Remark = null, visit2Status = null,
-    visit3Date = null, visit3Remark = null, visit3Status = null,
-    visit4Date = null, visit4Remark = null, visit4Status = null,
-    visit5Date = null, visit5Remark = null, visit5Status = null,
-    visit6Date = null, visit6Remark = null, visit6Status = null,
-    deathDate = null,
-    createdBy = null
-  } = req.body || {}
+  }, async (req, reply) => {
+    let {
+      hn, patientName, address = null, phone = null,
+      icd10Principal = null, icd10Palliative = null, projectCode = null,
+      registrationStatus = 'ยังไม่ได้ดำเนินการ',
+      registeredDate = null,
+      visit1Date = null,
+      visit2Date = null,
+      visit3Date = null,
+      visit4Date = null,
+      visit5Date = null,
+      visit6Date = null,
+      deathDate = null,
+      createdBy = null,
+      visits = null
+    } = req.body || {}
 
-  if (!hn || !patientName) {
-    reply.code(400); return { success: false, error: 'กรุณาระบุ HN และชื่อ-สกุลผู้ป่วย' }
-  }
-
-  try {
-    const [res] = await appPool.query(
-      `INSERT INTO palliative_care_registries (
-        hn, patient_name, address, phone, icd10_principal, icd10_palliative, project_code,
-        registration_status, registered_date,
-        visit_1_date, visit_1_remark,
-        visit_2_date, visit_2_remark,
-        visit_3_date, visit_3_remark,
-        visit_4_date, visit_4_remark,
-        visit_5_date, visit_5_remark,
-        visit_6_date, visit_6_remark,
-        death_date,
-        created_by, updated_by, created_at, updated_at
-      ) VALUES (
-        ?, ?, ?, ?, ?, ?, ?,
-        ?, ?,
-        ?, ?,
-        ?, ?,
-        ?, ?,
-        ?, ?,
-        ?, ?,
-        ?, ?,
-        ?,
-        ?, ?, NOW(), NOW()
-      )`,
-      [
-        hn.trim(), patientName.trim(), address, phone, icd10Principal, icd10Palliative, projectCode,
-        registrationStatus, registeredDate,
-        visit1Date, visit1Remark || visit1Status,
-        visit2Date, visit2Remark || visit2Status,
-        visit3Date, visit3Remark || visit3Status,
-        visit4Date, visit4Remark || visit4Status,
-        visit5Date, visit5Remark || visit5Status,
-        visit6Date, visit6Remark || visit6Status,
-        deathDate,
-        createdBy, createdBy
-      ]
-    )
-    return { success: true, insertId: res.insertId }
-  } catch (err) {
-    reply.code(500); return { success: false, error: err.message }
-  }
-})
-
-fastify.put('/api/v1/app/palliative-care/registries/:id', {
-  schema: {
-    tags: ['4. Website Application Services'],
-    summary: 'แก้ไขข้อมูลผู้ป่วย Palliative Care ตาม ID',
-    params: {
-      type: 'object',
-      properties: { id: { type: 'string' } }
+    if (!hn || !patientName) {
+      reply.code(400); return { success: false, error: 'กรุณาระบุ HN และชื่อ-สกุลผู้ป่วย' }
     }
-  }
-}, async (req, reply) => {
-  const { id } = req.params
-  const body = req.body || {}
-  const fieldMap = {
-    patientName: 'patient_name',
-    address: 'address',
-    phone: 'phone',
-    icd10Principal: 'icd10_principal',
-    icd10Palliative: 'icd10_palliative',
-    projectCode: 'project_code',
-    registrationStatus: 'registration_status',
-    registeredDate: 'registered_date',
-    visit1Date: 'visit_1_date',
-    visit1Remark: 'visit_1_remark',
-    visit1Status: 'visit_1_remark',
-    visit2Date: 'visit_2_date',
-    visit2Remark: 'visit_2_remark',
-    visit2Status: 'visit_2_remark',
-    visit3Date: 'visit_3_date',
-    visit3Remark: 'visit_3_remark',
-    visit3Status: 'visit_3_remark',
-    visit4Date: 'visit_4_date',
-    visit4Remark: 'visit_4_remark',
-    visit4Status: 'visit_4_remark',
-    visit5Date: 'visit_5_date',
-    visit5Remark: 'visit_5_remark',
-    visit5Status: 'visit_5_remark',
-    visit6Date: 'visit_6_date',
-    visit6Remark: 'visit_6_remark',
-    visit6Status: 'visit_6_remark',
-    deathDate: 'death_date',
-    updatedBy: 'updated_by'
-  }
 
-  const updates = []
-  const params = []
-  for (const [key, col] of Object.entries(fieldMap)) {
-    if (body[key] !== undefined) {
-      updates.push(`${col} = ?`)
-      params.push(body[key])
+    if (Array.isArray(visits)) {
+      const vMap = new Map()
+      visits.forEach((v) => {
+        if (v && v.visitNo && v.visitDate) vMap.set(Number(v.visitNo), String(v.visitDate).trim())
+      })
+      visit1Date = vMap.get(1) || null
+      visit2Date = vMap.get(2) || null
+      visit3Date = vMap.get(3) || null
+      visit4Date = vMap.get(4) || null
+      visit5Date = vMap.get(5) || null
+      visit6Date = vMap.get(6) || null
     }
-  }
 
-  if (updates.length === 0) {
-    reply.code(400); return { success: false, error: 'ไม่มีข้อมูลที่ต้องการอัปเดต' }
-  }
+    try {
+      const [res] = await appPool.query(
+        `INSERT INTO palliative_care_registries (
+          hn, patient_name, address, phone, icd10_principal, icd10_palliative, project_code,
+          registration_status, registered_date,
+          visit_1_date, visit_2_date, visit_3_date, visit_4_date, visit_5_date, visit_6_date,
+          death_date,
+          created_by, updated_by, created_at, updated_at
+        ) VALUES (
+          ?, ?, ?, ?, ?, ?, ?,
+          ?, ?,
+          ?, ?, ?, ?, ?, ?,
+          ?,
+          ?, ?, NOW(), NOW()
+        )`,
+        [
+          hn.trim(), patientName.trim(), address, phone, icd10Principal, icd10Palliative, projectCode,
+          registrationStatus, registeredDate,
+          visit1Date, visit2Date, visit3Date, visit4Date, visit5Date, visit6Date,
+          deathDate,
+          createdBy, createdBy
+        ]
+      )
+      const insertId = res.insertId
+      await ensureVisitsTable().catch(() => {})
+      if (Array.isArray(visits) && visits.length > 0) {
+        for (const v of visits) {
+          if (v && v.visitNo && v.visitDate && String(v.visitDate).trim()) {
+            await appPool.query(
+              'INSERT INTO palliative_care_registry_visits (registry_id, visit_no, visit_date) VALUES (?, ?, ?)',
+              [insertId, Number(v.visitNo), String(v.visitDate).trim()]
+            ).catch(() => {})
+          }
+        }
+      } else {
+        for (let v = 1; v <= 6; v++) {
+          const vd = req.body[`visit${v}Date`]
+          if (vd && String(vd).trim()) {
+            await appPool.query(
+              'INSERT INTO palliative_care_registry_visits (registry_id, visit_no, visit_date) VALUES (?, ?, ?)',
+              [insertId, v, String(vd).trim()]
+            ).catch(() => {})
+          }
+        }
+      }
+      return { success: true, insertId }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
 
-  updates.push('updated_at = NOW()')
-  params.push(id)
+  fastify.put('/api/v1/app/palliative-care/registries/:id', {
+    schema: {
+      tags: ['4. Website Application Services'],
+      summary: 'แก้ไขข้อมูลผู้ป่วย Palliative Care ตาม ID',
+      params: {
+        type: 'object',
+        properties: { id: { type: 'string' } }
+      }
+    }
+  }, async (req, reply) => {
+    const { id } = req.params
+    const body = req.body || {}
 
-  try {
-    const [res] = await appPool.query(
-      `UPDATE palliative_care_registries SET ${updates.join(', ')} WHERE id = ?`,
-      params
-    )
-    return { success: true, affectedRows: res.affectedRows }
-  } catch (err) {
-    reply.code(500); return { success: false, error: err.message }
-  }
-})
+    if (Array.isArray(body.visits)) {
+      const vMap = new Map()
+      body.visits.forEach((v) => {
+        if (v && v.visitNo && v.visitDate) vMap.set(Number(v.visitNo), String(v.visitDate).trim())
+      })
+      body.visit1Date = vMap.get(1) || null
+      body.visit2Date = vMap.get(2) || null
+      body.visit3Date = vMap.get(3) || null
+      body.visit4Date = vMap.get(4) || null
+      body.visit5Date = vMap.get(5) || null
+      body.visit6Date = vMap.get(6) || null
+    }
 
-fastify.delete('/api/v1/app/palliative-care/registries/:id', {
+    const fieldMap = {
+      patientName: 'patient_name',
+      address: 'address',
+      phone: 'phone',
+      icd10Principal: 'icd10_principal',
+      icd10Palliative: 'icd10_palliative',
+      projectCode: 'project_code',
+      registrationStatus: 'registration_status',
+      registeredDate: 'registered_date',
+      visit1Date: 'visit_1_date',
+      visit2Date: 'visit_2_date',
+      visit3Date: 'visit_3_date',
+      visit4Date: 'visit_4_date',
+      visit5Date: 'visit_5_date',
+      visit6Date: 'visit_6_date',
+      deathDate: 'death_date',
+      updatedBy: 'updated_by'
+    }
+
+    const updates = []
+    const params = []
+    for (const [key, col] of Object.entries(fieldMap)) {
+      if (body[key] !== undefined) {
+        updates.push(`${col} = ?`)
+        params.push(body[key])
+      }
+    }
+
+    if (updates.length === 0 && !Array.isArray(body.visits)) {
+      reply.code(400); return { success: false, error: 'ไม่มีข้อมูลที่ต้องการอัปเดต' }
+    }
+
+    try {
+      let affectedRows = 0
+      if (updates.length > 0) {
+        updates.push('updated_at = NOW()')
+        params.push(id)
+        const [res] = await appPool.query(
+          `UPDATE palliative_care_registries SET ${updates.join(', ')} WHERE id = ?`,
+          params
+        )
+        affectedRows = res.affectedRows
+      }
+
+      if (Array.isArray(body.visits)) {
+        await ensureVisitsTable().catch(() => {})
+        await appPool.query('DELETE FROM palliative_care_registry_visits WHERE registry_id = ?', [id])
+        for (const v of body.visits) {
+          if (v && v.visitNo && v.visitDate && String(v.visitDate).trim()) {
+            await appPool.query(
+              'INSERT INTO palliative_care_registry_visits (registry_id, visit_no, visit_date) VALUES (?, ?, ?)',
+              [id, Number(v.visitNo), String(v.visitDate).trim()]
+            )
+          }
+        }
+      }
+
+      return { success: true, affectedRows }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  fastify.delete('/api/v1/app/palliative-care/registries/:id', {
   schema: {
     tags: ['4. Website Application Services'],
     summary: 'ลบข้อมูลผู้ป่วย Palliative Care ตาม ID',

@@ -346,6 +346,7 @@
 }
 
 .pcr-select {
+  font-family: inherit;
   min-height: 42px;
   padding: 0 0.85rem;
   font-size: 0.85rem;
@@ -355,6 +356,13 @@
   border-radius: 8px;
   outline: none;
   cursor: pointer;
+  text-align: left;
+}
+
+.pcr-select option {
+  font-family: inherit;
+  text-align: left;
+  padding: 4px 8px;
 }
 
 /* 5. Legend & Spreadsheet Mode Bar */
@@ -471,6 +479,80 @@
   border-right: none;
 }
 
+/* ============================================================
+   Sticky Columns: Pinned left on horizontal scroll (Index + HN only)
+   Strictly adheres to hospital UI: subtle shadow, proper contrast
+   ============================================================ */
+.pcr-sticky-col-idx {
+  position: sticky;
+  left: 0;
+  width: 45px;
+  min-width: 45px;
+  max-width: 45px;
+  background-color: var(--pc-surface);
+  z-index: 5;
+  text-align: center;
+}
+
+th.pcr-sticky-col-idx {
+  background-color: var(--pc-surface-alt);
+  z-index: 10;
+  border-bottom: 2px solid var(--pc-border);
+}
+
+.pcr-sticky-col-hn {
+  position: sticky;
+  left: 45px;
+  width: 95px;
+  min-width: 95px;
+  background-color: var(--pc-surface);
+  z-index: 5;
+  box-shadow: 3px 0 6px -2px rgba(20, 32, 26, 0.1);
+  border-right: 1.5px solid var(--pc-border) !important;
+}
+
+th.pcr-sticky-col-hn {
+  background-color: var(--pc-surface-alt);
+  z-index: 10;
+  box-shadow: 3px 0 6px -2px rgba(20, 32, 26, 0.1);
+  border-right: 1.5px solid var(--pc-border) !important;
+  border-bottom: 2px solid var(--pc-border);
+}
+
+/* Hover background for sticky cells */
+.pcr-table tbody tr:hover td.pcr-sticky-col-idx,
+.pcr-table tbody tr:hover td.pcr-sticky-col-hn {
+  background-color: var(--pc-accent-row) !important;
+}
+
+/* Row semantic color backgrounds for sticky cells */
+.pcr-table tr.pcr-row-death td.pcr-sticky-col-idx,
+.pcr-table tr.pcr-row-death td.pcr-sticky-col-hn {
+  background-color: #fff1f2 !important;
+}
+.pcr-table tr.pcr-row-death:hover td.pcr-sticky-col-idx,
+.pcr-table tr.pcr-row-death:hover td.pcr-sticky-col-hn {
+  background-color: #ffe4e6 !important;
+}
+
+.pcr-table tr.pcr-row-paid td.pcr-sticky-col-idx,
+.pcr-table tr.pcr-row-paid td.pcr-sticky-col-hn {
+  background-color: #f0fdf4 !important;
+}
+.pcr-table tr.pcr-row-paid:hover td.pcr-sticky-col-idx,
+.pcr-table tr.pcr-row-paid:hover td.pcr-sticky-col-hn {
+  background-color: #dcfce7 !important;
+}
+
+.pcr-table tr.pcr-row-pending td.pcr-sticky-col-idx,
+.pcr-table tr.pcr-row-pending td.pcr-sticky-col-hn {
+  background-color: #fffdf5 !important;
+}
+.pcr-table tr.pcr-row-pending:hover td.pcr-sticky-col-idx,
+.pcr-table tr.pcr-row-pending:hover td.pcr-sticky-col-hn {
+  background-color: #fef3c7 !important;
+}
+
 /* 7. Semantic Tags / Badges (1 สี = 1 ความหมาย) */
 .pcr-tag {
   display: inline-block;
@@ -520,18 +602,72 @@
   border: 1px solid var(--pc-border);
 }
 
+.pcr-badge-an {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--pc-muted);
+  background: var(--pc-surface-alt);
+  border: 1px solid var(--pc-border);
+  padding: 1px 4px;
+  border-radius: 4px;
+  line-height: 1.2;
+  margin-top: 3px;
+}
+
 /* ────────────────────────────────────────────────────────────
-   Deceased Patient Highlighting (สีของเสียชีวิต - Rose / Pink)
-   1 สี = 1 ความหมาย: สีชมพูสำหรับผู้ป่วยเสียชีวิต
+   Full Record Row Highlighting (1 สี = 1 ความหมาย ไฮไลท์ทั้งแถว)
+   - สีชมพู: ผู้ป่วยเสียชีวิต (Death)
+   - สีเขียว: ได้รับเงินชดเชยแล้ว (Compensated / Paid)
+   - สีส้ม: ยังไม่ได้ดำเนินการ / รอผลชดเชย (Pending)
    ──────────────────────────────────────────────────────────── */
+
+/* 1. ชมพู: ผู้ป่วยเสียชีวิต */
+.pcr-row-death td {
+  background-color: #fff1f2 !important;
+  color: #881337 !important;
+}
+
+.pcr-row-death td:first-child {
+  border-left: 4px solid #f43f5e !important;
+}
+
+.pcr-row-death:hover td {
+  background-color: #ffe4e6 !important;
+}
+
+/* 2. เขียว: ได้รับเงินชดเชยแล้ว */
+.pcr-row-paid td {
+  background-color: #f0fdf4 !important;
+}
+
+.pcr-row-paid td:first-child {
+  border-left: 4px solid #10b981 !important;
+}
+
+.pcr-row-paid:hover td {
+  background-color: #dcfce7 !important;
+}
+
+/* 3. ส้ม: ยังไม่ได้ดำเนินการ / รอผลชดเชย */
+.pcr-row-pending td {
+  background-color: #fffdf5 !important;
+}
+
+.pcr-row-pending td:first-child {
+  border-left: 4px solid #f59e0b !important;
+}
+
+.pcr-row-pending:hover td {
+  background-color: #fef3c7 !important;
+}
+
 .pcr-cell-death {
   background-color: #fff1f2 !important;
   color: #9f1239 !important;
   border-color: #fecdd3 !important;
-}
-
-.pcr-table tbody tr:hover .pcr-cell-death {
-  background-color: #ffe4e6 !important;
 }
 
 .pcr-death-chip {
@@ -566,13 +702,7 @@
   font-weight: 700;
 }
 
-.pcr-row-death {
-  border-left: 3.5px solid #f43f5e;
-}
 
-.pcr-row-death:hover {
-  background-color: #fff9f9 !important;
-}
 
 /* ────────────────────────────────────────────────────────────
    Unified Visit Cell & Rep Compensation Styling
@@ -591,12 +721,28 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  padding: 2px 6px;
+  gap: 2px;
+  padding: 2px 7px;
   border-radius: 5px;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   line-height: 1.2;
   white-space: nowrap;
+  background: transparent;
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.pcr-rep-badge:hover {
+  filter: brightness(0.96);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.pcr-rep-badge:focus-visible {
+  outline: 2px solid var(--pc-teal);
+  outline-offset: 1px;
 }
 
 .pcr-rep-paid {
@@ -605,15 +751,51 @@
   border: 1px solid #10b981;
 }
 
+.pcr-rep-zero {
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.pcr-tag-slate {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
 .pcr-rep-pending {
   background: #fffbeb;
   color: #92400e;
   border: 1px solid #f59e0b;
+  cursor: default;
+}
+
+.pcr-rep-pending:hover {
+  filter: none;
+  box-shadow: none;
 }
 
 .pcr-rep-amount {
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.pcr-rep-detail {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: inherit;
+  opacity: 0.95;
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1px dashed currentColor;
+  text-align: center;
+  animation: pcrFadeIn 0.15s ease;
+}
+
+@keyframes pcrFadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 0.95; transform: translateY(0); }
 }
 
 .pcr-remark-badge {
@@ -745,12 +927,14 @@
 .pcr-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(20, 32, 26, 0.5);
+  background: rgba(20, 32, 26, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 1rem;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .pcr-modal-card {
@@ -758,12 +942,21 @@
   border-radius: 12px;
   width: 100%;
   max-width: 860px;
-  max-height: 90vh;
+  max-height: calc(100vh - 2.5rem);
+  height: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
   border: 1px solid var(--pc-border);
+}
+
+.pcr-modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pcr-modal-header {
@@ -773,6 +966,7 @@
   align-items: center;
   justify-content: space-between;
   background: var(--pc-surface-alt);
+  flex-shrink: 0;
 }
 
 .pcr-modal-title {
@@ -801,6 +995,10 @@
 .pcr-modal-body {
   padding: 1.25rem;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -814,6 +1012,7 @@
   justify-content: flex-end;
   gap: 0.75rem;
   background: var(--pc-surface-alt);
+  flex-shrink: 0;
 }
 
 /* Form Layout */
@@ -907,3 +1106,158 @@
   color: var(--pc-accent-dark);
   font-weight: 700;
 }
+
+/* ────────────────────────────────────────────────────────────
+   Table Action Buttons (Symbols instead of heavy SVG icons)
+   ──────────────────────────────────────────────────────────── */
+.pcr-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--pc-border-input);
+  background: var(--pc-surface);
+  color: var(--pc-ink);
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.pcr-action-btn:hover {
+  background: var(--pc-surface-alt);
+  color: var(--pc-accent);
+  border-color: var(--pc-accent);
+}
+
+.pcr-action-btn-delete {
+  color: var(--pc-rose-text);
+  border-color: var(--pc-rose-border);
+  background: var(--pc-surface);
+}
+
+.pcr-action-btn-delete:hover {
+  background: var(--pc-rose-bg);
+  color: #9f1239;
+  border-color: var(--pc-rose-text);
+}
+
+.pcr-symbol {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Edit Modal Enhancements (ui-style-brief)
+   ──────────────────────────────────────────────────────────── */
+.pcr-modal-patient-subtitle {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--pc-muted);
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.pcr-modal-patient-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  background: var(--pc-accent-tint);
+  color: var(--pc-accent);
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pcr-input-readonly {
+  background: var(--pc-surface-alt) !important;
+  color: var(--pc-ink-2) !important;
+  border-color: var(--pc-border) !important;
+  cursor: default !important;
+}
+
+.pcr-visit-edit-card {
+  border: 1px solid var(--pc-border);
+  border-radius: 8px;
+  padding: 0.85rem;
+  background: var(--pc-surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  transition: border-color 0.15s ease;
+}
+
+.pcr-visit-edit-card:hover {
+  border-color: var(--pc-border-input);
+}
+
+.pcr-visit-edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.pcr-visit-edit-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--pc-ink);
+}
+
+.pcr-form-section-death {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 0.85rem;
+}
+
+.pcr-more-visits-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+  padding: 2px 7px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--pc-accent);
+  background: var(--pc-accent-tint);
+  border: 1px solid var(--pc-accent);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.pcr-more-visits-badge:hover {
+  background: var(--pc-accent);
+  color: #ffffff;
+}
+
+.pcr-btn-delete-visit {
+  background: transparent;
+  border: 1px solid #fecdd3;
+  color: #e11d48;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pcr-btn-delete-visit:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+}
+

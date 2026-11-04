@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="30">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ระบบอยู่ระหว่างการปรับปรุง | โรงพยาบาลเถิน Thoen Hospital</title>
+  <link rel="icon" href="/images/common/logo-website.webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0D7446;
+      --primary-dark: #095C38;
+      --primary-light: #E8F5E9;
+      --primary-subtle: #F0FDF4;
+      --gray-50: #F8FAF9;
+      --gray-100: #F1F5F3;
+      --gray-200: #E2E8E4;
+      --gray-300: #C5CFC8;
+      --gray-500: #6B7B70;
+      --gray-600: #4E5E53;
+      --gray-700: #334237;
+      --gray-900: #111E14;
+      --warning: #B45309;
+      --warning-bg: #FEF3C7;
+      --warning-border: #FDE68A;
+      --font-family: 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Leelawadee UI', Tahoma, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: #FAFCFB;
+      color: var(--gray-900);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== ICONS (LUCIDE STYLE SVG) ===== */
+    .icon {
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+      stroke-width: 2;
+    }
+    .icon-sm {
+      width: 16px;
+      height: 16px;
+    }
+    .icon-md {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* ===== NAVBAR ===== */
+    .navbar {
+      height: 72px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+      display: flex;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .navbar-container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .logo-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: #FFFFFF;
+      padding: 2px;
+      width: 44px;
+      height: 44px;
+      box-shadow: 0 2px 8px rgba(13, 116, 70, 0.12);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      flex-shrink: 0;
+      box-sizing: border-box;
+    }
+
+    .logo-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      object-fit: contain;
+    }
+
+    .logo-fallback-icon {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+
+    .brand-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: -0.015em;
+    }
+
+    .brand-sub {
+      font-size: 0.75rem;
+      color: #64748b;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1.25rem;
+    }
+
+    .maintenance-card {
+      width: 100%;
+      max-width: 600px;
+      background: #FFFFFF;
+      border: 1px solid var(--gray-200);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px -2px rgba(13, 116, 70, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+      padding: 2.5rem 2rem;
+      text-align: center;
+    }
+
+    /* Hero Circle Icon */
+    .hero-icon-wrap {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1.25rem auto;
+      border-radius: 16px;
+      background: var(--primary-subtle);
+      border: 1px solid #BBF7D0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      box-shadow: 0 2px 8px rgba(13, 116, 70, 0.08);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--warning-bg);
+      color: var(--warning);
+      border: 1px solid var(--warning-border);
+      border-radius: 9999px;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--warning);
+      border-radius: 50%;
+      box-shadow: 0 0 0 rgba(180, 83, 9, 0.4);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.6);
+      }
+      70% {
+        box-shadow: 0 0 0 7px rgba(180, 83, 9, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(180, 83, 9, 0);
+      }
+    }
+
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 0.75rem;
+      line-height: 1.35;
+    }
+
+    .card-desc {
+      font-size: 1rem;
+      color: var(--gray-600);
+      margin-bottom: 1.75rem;
+      line-height: 1.7;
+    }
+
+    /* ===== REFRESH PANEL ===== */
+    .refresh-box {
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.75rem;
+      text-align: left;
+    }
+
+    .refresh-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      font-size: 0.875rem;
+      color: var(--gray-700);
+      font-weight: 500;
+    }
+
+    .refresh-header-title {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .countdown-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .countdown-num {
+      font-weight: 700;
+      color: var(--primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: var(--gray-200);
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      border-radius: 9999px;
+      animation: fillBar 30s linear forwards;
+    }
+
+    @keyframes fillBar {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+
+    .btn-refresh {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.65rem 1rem;
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: background-color 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn-refresh:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-refresh:focus-visible {
+      outline: 3px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    /* ===== EMERGENCY CONTACTS ===== */
+    .emergency-box {
+      background: var(--primary-subtle);
+      border: 1px solid #BBF7D0;
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: left;
+    }
+
+    .emergency-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-bottom: 0.65rem;
+    }
+
+    .emergency-list {
+      list-style: none;
+      font-size: 0.875rem;
+      color: var(--gray-700);
+    }
+
+    .emergency-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.45rem 0;
+      border-bottom: 1px dashed rgba(13, 116, 70, 0.15);
+    }
+
+    .emergency-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .emergency-label {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--gray-700);
+    }
+
+    .emergency-phone {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-decoration: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .emergency-phone:hover {
+      text-decoration: underline;
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.8125rem;
+      color: var(--gray-500);
+      border-top: 1px solid var(--gray-200);
+      background: #FFFFFF;
+    }
+
+    @media (max-width: 640px) {
+      .maintenance-card {
+        padding: 1.75rem 1.25rem;
+      }
+      .card-title {
+        font-size: 1.25rem;
+      }
+      .emergency-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <div class="navbar-container">
+      <div class="brand-logo">
+        <div class="logo-badge" title="โรงพยาบาลเถิน">
+          <img src="/images/common/logo-website.webp" alt="โลโก้โรงพยาบาลเถิน" class="logo-img" onerror="this.remove(); document.getElementById('logo-fallback-icon').style.display='flex';">
+          <div id="logo-fallback-icon" class="logo-fallback-icon" aria-label="ตราโรงพยาบาล">
+            <svg class="icon icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 6v12"/>
+              <path d="M6 12h12"/>
+            </svg>
+          </div>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">โรงพยาบาลเถิน</span>
+          <span class="brand-sub">Thoen Hospital, Lampang</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-wrap">
+    <div class="maintenance-card">
+      <!-- Hero Server Icon Badge -->
+      <div class="hero-icon-wrap" aria-hidden="true">
+        <svg class="icon icon-md" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="20" height="8" x="2" y="2" rx="2" ry="2"/>
+          <rect width="20" height="8" x="2" y="14" rx="2" ry="2"/>
+          <line x1="6" x2="6.01" y1="6" y2="6"/>
+          <line x1="6" x2="6.01" y1="18" y2="18"/>
+        </svg>
+      </div>
+
+      <div class="status-badge">
+        <span class="pulse-dot" aria-hidden="true"></span>
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>ระบบอยู่ระหว่างการปรับปรุงและอัปเดตข้อมูล</span>
+      </div>
+
+      <h1 class="card-title">กำลังปรับปรุงระบบชั่วคราว</h1>
+      <p class="card-desc">
+        ระบบสารสนเทศโรงพยาบาลเถินกำลังดำเนินการติดตั้งอัปเดตเวอร์ชันใหม่ เพื่อเพิ่มประสิทธิภาพในการให้บริการและความปลอดภัยของข้อมูล ระบบจะเปิดให้บริการตามปกติในเวลาอันสั้น ขออภัยในความไม่สะดวกเป็นอย่างยิ่ง
+      </p>
+
+      <!-- Auto-Refresh Progress -->
+      <div class="refresh-box">
+        <div class="refresh-header">
+          <div class="refresh-header-title">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M8 16H3v5"/>
+            </svg>
+            <span>ตรวจสอบสถานะอัตโนมัติ</span>
+          </div>
+          <div class="countdown-wrap">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>ในอีก <span class="countdown-num" id="countdown">30</span> วินาที</span>
+          </div>
+        </div>
+        <div class="progress-bar-bg" aria-hidden="true">
+          <div class="progress-bar-fill"></div>
+        </div>
+        <button type="button" class="btn-refresh" onclick="location.reload()">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 16h5v5"/>
+          </svg>
+          <span>ลองโหลดหน้าเว็บใหม่ทันที</span>
+        </button>
+      </div>
+
+      <!-- Emergency Contacts -->
+      <div class="emergency-box">
+        <h2 class="emergency-title">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+          </svg>
+          <span>กรณีติดต่อเร่งด่วนหรือเหตุฉุกเฉินทางการแพทย์</span>
+        </h2>
+        <ul class="emergency-list">
+          <li class="emergency-item">
+            <div class="emergency-label">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+              <span>สายด่วนอุบัติเหตุ-ฉุกเฉิน (24 ชม.)</span>
+            </div>
+            <a href="tel:1669" class="emergency-phone">โทร. 1669</a>
+          </li>
+          <li class="emergency-item">
+            <div class="emergency-label">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+                <path d="M6 12H4a2 2 0 0 0-2 2v8h4"/>
+                <path d="M18 9h2a2 2 0 0 1 2 2v11h-4"/>
+                <path d="M10 6h4"/>
+                <path d="M10 10h4"/>
+                <path d="M10 14h4"/>
+                <path d="M10 18h4"/>
+              </svg>
+              <span>โทรศัพท์โรงพยาบาลเถิน</span>
+            </div>
+            <a href="tel:054292275" class="emergency-phone">054-292275</a>
+          </li>
+          <li class="emergency-item">
+            <div class="emergency-label">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              <span>ที่อยู่</span>
+            </div>
+            <span>159 ม.7 ถ.พหลโยธิน ต.ล้อมแรด อ.เถิน จ.ลำปาง</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>© 2567-2569 โรงพยาบาลเถิน จังหวัดลำปาง | กระทรวงสาธารณสุข</p>
+  </footer>
+
+  <script>
+    let secondsLeft = 30;
+    const countdownEl = document.getElementById('countdown');
+    const timer = setInterval(() => {
+      secondsLeft -= 1;
+      if (countdownEl) {
+        countdownEl.textContent = secondsLeft > 0 ? secondsLeft : 0;
+      }
+      if (secondsLeft <= 0) {
+        clearInterval(timer);
+        location.reload();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

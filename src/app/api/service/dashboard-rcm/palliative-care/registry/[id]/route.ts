@@ -15,27 +15,20 @@ const updateSchema = z.object({
   registrationStatus: z.enum(['ยังไม่ได้ดำเนินการ', 'ดำเนินการเรียบร้อย']).optional(),
   registeredDate: z.string().optional().nullable(),
   visit1Date: z.string().optional().nullable(),
-  visit1Remark: z.string().optional().nullable(),
-  visit1Status: z.string().optional().nullable(),
   visit2Date: z.string().optional().nullable(),
-  visit2Remark: z.string().optional().nullable(),
-  visit2Status: z.string().optional().nullable(),
   visit3Date: z.string().optional().nullable(),
-  visit3Remark: z.string().optional().nullable(),
-  visit3Status: z.string().optional().nullable(),
   visit4Date: z.string().optional().nullable(),
-  visit4Remark: z.string().optional().nullable(),
-  visit4Status: z.string().optional().nullable(),
   visit5Date: z.string().optional().nullable(),
-  visit5Remark: z.string().optional().nullable(),
-  visit5Status: z.string().optional().nullable(),
   visit6Date: z.string().optional().nullable(),
-  visit6Remark: z.string().optional().nullable(),
-  visit6Status: z.string().optional().nullable(),
   deathDate: z.string().optional().nullable(),
-  deathEntryStatus: z.string().optional().nullable(),
-  claimStatus: z.enum(['ยังไม่ได้ลงข้อมูล', 'ลงข้อมูล']).optional(),
-  claimResult: z.string().optional().nullable(),
+  visits: z
+    .array(
+      z.object({
+        visitNo: z.number(),
+        visitDate: z.string(),
+      })
+    )
+    .optional(),
 })
 
 interface RouteParams {

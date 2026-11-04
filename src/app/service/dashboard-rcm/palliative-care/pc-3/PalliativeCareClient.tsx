@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { PalliativeCareItem, PalliativeCareSummary } from '@/lib/clinical/rcmDashboardService'
 import { VnDetailModal } from '../components/VnDetailModal'
+import { formatThaiDate } from '@/lib/formatters'
+import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import './page.css'
 
 const THAI_MONTHS = [
@@ -200,7 +202,7 @@ export default function PalliativeCareClient() {
       'รหัสสิทธิ',
       'กลุ่มสิทธิ',
       'ชื่อสิทธิการรักษา',
-      'สถานะตาย',
+      'สถานะการมีชีวิต',
       'วันที่เสียชีวิต',
       'จุดบริการ/ห้องตรวจ',
       'สาขา/แผนก',
@@ -412,18 +414,18 @@ export default function PalliativeCareClient() {
 
           {dateMode === 'custom' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <input
-                type="date"
-                className="pc3-input-date"
+              <ThaiDatePicker
                 value={ds1}
-                onChange={(e) => setDs1(e.target.value)}
+                onChange={setDs1}
+                maxDate={ds2}
+                aria-label="ตั้งแต่วันที่"
               />
               <span style={{ color: 'var(--pc-muted)', fontSize: '0.85rem' }}>ถึง</span>
-              <input
-                type="date"
-                className="pc3-input-date"
+              <ThaiDatePicker
                 value={ds2}
-                onChange={(e) => setDs2(e.target.value)}
+                onChange={setDs2}
+                minDate={ds1}
+                aria-label="ถึงวันที่"
               />
             </div>
           )}
@@ -455,7 +457,7 @@ export default function PalliativeCareClient() {
               </select>
 
               <span style={{ fontSize: '0.8rem', color: 'var(--pc-muted)' }}>
-                ({ds1} ถึง {ds2})
+                ({formatThaiDate(ds1)} ถึง {formatThaiDate(ds2)})
               </span>
             </div>
           )}
@@ -481,7 +483,7 @@ export default function PalliativeCareClient() {
           )}
         </div>
 
-        {/* Filters Row: Checkbox UC, สถานะตาย, เงินชดเชย, กลุ่มโรค, ค้นหา */}
+        {/* Filters Row: Checkbox UC, สถานะการมีชีวิต, เงินชดเชย, กลุ่มโรค, ค้นหา */}
         <div className="pc3-toolbar-row">
           <label className="pc3-checkbox-label">
             <input
@@ -492,15 +494,15 @@ export default function PalliativeCareClient() {
             <span>เฉพาะสิทธิ UC</span>
           </label>
 
-          {/* Filter สถานะตาย */}
+          {/* Filter สถานะการมีชีวิต */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--pc-muted)' }}>สถานะตาย:</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--pc-muted)' }}>สถานะการมีชีวิต:</span>
             <select
               className="pc3-select"
               value={deathStatus}
               onChange={(e) => setDeathStatus(e.target.value as 'ALL' | 'Y' | 'N')}
             >
-              <option value="ALL">สถานะตาย: ทั้งหมด</option>
+              <option value="ALL">สถานะการมีชีวิต: ทั้งหมด</option>
               <option value="N">เฉพาะผู้ป่วยมีชีวิต</option>
               <option value="Y">เฉพาะผู้ป่วยเสียชีวิต</option>
             </select>
@@ -622,7 +624,7 @@ export default function PalliativeCareClient() {
                 <th rowSpan={2}>Authen Code</th>
                 <th rowSpan={2} style={{ textAlign: 'center' }}>รหัสสิทธิ</th>
                 <th rowSpan={2}>ชื่อสิทธิการรักษา</th>
-                <th rowSpan={2} style={{ textAlign: 'center' }}>สถานะตาย</th>
+                <th rowSpan={2} style={{ textAlign: 'center' }}>สถานะการมีชีวิต</th>
                 <th rowSpan={2}>จุดบริการ / คลินิก</th>
                 <th rowSpan={2}>รหัสวินิจฉัย (Diag)</th>
                 <th rowSpan={2}>หัตถการ</th>
@@ -684,17 +686,17 @@ export default function PalliativeCareClient() {
                     <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>
                       {item.ptname}
                     </td>
-                    <td className="pc3-num">{item.vstdate}</td>
+                    <td className="pc3-num">{formatThaiDate(item.vstdate)}</td>
                     <td className="pc3-num">{item.authencode || '-'}</td>
                     <td className="pc3-num" style={{ textAlign: 'center' }}>
                       <span className="pc3-tag pc3-tag-ok">{item.pttype || item.inscl || '-'}</span>
                     </td>
                     <td style={{ fontWeight: 500 }}>{item.pttypename || '-'}</td>
-                    {/* สถานะตาย */}
+                    {/* สถานะการมีชีวิต */}
                     <td style={{ textAlign: 'center' }}>
                       {item.death === 'Y' ? (
-                        <span className="pc3-tag pc3-tag-death" title={item.death_date ? `วันที่เสียชีวิต: ${item.death_date}` : 'เสียชีวิต'}>
-                          เสียชีวิต{item.death_date ? ` (${item.death_date})` : ''}
+                        <span className="pc3-tag pc3-tag-death" title={item.death_date ? `วันเสียชีวิต: ${formatThaiDate(item.death_date)}` : 'เสียชีวิต'}>
+                          เสียชีวิต{item.death_date ? ` (${formatThaiDate(item.death_date)})` : ''}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--pc-paid-text)', fontSize: '0.8125rem', fontWeight: 600 }}>มีชีวิต</span>
@@ -753,7 +755,7 @@ export default function PalliativeCareClient() {
                     </td>
                     <td className="pc3-num">{item.rep_invoice || '-'}</td>
                     <td className="pc3-num">{item.eclaim_no || '-'}</td>
-                    <td className="pc3-num">{item.senddate || '-'}</td>
+                    <td className="pc3-num">{formatThaiDate(item.senddate)}</td>
                     <td>
                       <span className="pc3-tag">{item.status_eclaim}</span>
                     </td>
@@ -863,7 +865,7 @@ export default function PalliativeCareClient() {
               </div>
               <div>
                 <div className="pc3-field-label">วันที่รับบริการ</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.vstdate}</div>
+                <div className="pc3-field-val pc3-num">{formatThaiDate(selectedItem.vstdate)}</div>
               </div>
               <div>
                 <div className="pc3-field-label">Authen Code</div>
@@ -878,11 +880,11 @@ export default function PalliativeCareClient() {
                 <div className="pc3-field-val">{selectedItem.pttypename}</div>
               </div>
               <div>
-                <div className="pc3-field-label">สถานะตาย</div>
+                <div className="pc3-field-label">สถานะการมีชีวิต</div>
                 <div className="pc3-field-val">
                   {selectedItem.death === 'Y' ? (
                     <span style={{ color: 'var(--pc-risk-text)', fontWeight: 600 }}>
-                      เสียชีวิต{selectedItem.death_date ? ` (${selectedItem.death_date})` : ''}
+                      เสียชีวิต{selectedItem.death_date ? ` (${formatThaiDate(selectedItem.death_date)})` : ''}
                     </span>
                   ) : (
                     <span style={{ color: 'var(--pc-paid-text)', fontWeight: 600 }}>มีชีวิต</span>
@@ -941,7 +943,7 @@ export default function PalliativeCareClient() {
               </div>
               <div>
                 <div className="pc3-field-label">วันที่ส่งเคลม</div>
-                <div className="pc3-field-val pc3-num">{selectedItem.senddate || '-'}</div>
+                <div className="pc3-field-val pc3-num">{formatThaiDate(selectedItem.senddate)}</div>
               </div>
               <div>
                 <div className="pc3-field-label">สถานะ e-Claim</div>

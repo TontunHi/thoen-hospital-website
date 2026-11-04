@@ -5,37 +5,12 @@ import type {
   VnClinicalDetails,
   VnOrderCategoryGroup,
 } from '@/lib/clinical/rcmDashboardService'
+import { formatThaiDate } from '@/lib/formatters'
 import './VnDetailModal.css'
 
 interface VnDetailModalProps {
   vn: string | null
   onClose: () => void
-}
-
-function formatThaiDate(dateStr: string): string {
-  if (!dateStr) return '-'
-  try {
-    const [y, m, d] = dateStr.split('-').map(Number)
-    if (!y || !m || !d) return dateStr
-    const thaiMonths = [
-      '',
-      'ม.ค.',
-      'ก.พ.',
-      'มี.ค.',
-      'เม.ย.',
-      'พ.ค.',
-      'มิ.ย.',
-      'ก.ค.',
-      'ส.ค.',
-      'ก.ย.',
-      'ต.ค.',
-      'พ.ย.',
-      'ธ.ค.',
-    ]
-    return `${d} ${thaiMonths[m]} ${y + 543}`
-  } catch {
-    return dateStr
-  }
 }
 
 export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {

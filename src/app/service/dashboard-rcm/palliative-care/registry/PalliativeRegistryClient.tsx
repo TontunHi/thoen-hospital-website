@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Download,
@@ -14,7 +14,8 @@ import {
   Check,
   Search,
 } from 'lucide-react'
-import { PalliativeRegistryItem, RegistryStats } from '@/lib/clinical/palliativeRegistryService'
+import { PalliativeRegistryItem, RegistryStats, VisitRepItem } from '@/lib/clinical/palliativeRegistryService'
+import { formatThaiDate } from '@/lib/formatters'
 import './page.css'
 
 interface PalliativeRegistryClientProps {
@@ -23,7 +24,7 @@ interface PalliativeRegistryClientProps {
 }
 
 const PROJECT_CODE_PRESETS = [
-  '(30001, cONS01ลงทุกเคส )',
+  '30001, Cons01',
   'Eva001 เฉพาะกรณีปรับยา',
   'PALDS เฉพาะกรณีเคสที่มีแผล',
   'O2 เฉพาะกรณี Home Oxigen',
@@ -109,24 +110,101 @@ interface EditableVisitCellProps {
   onSaveDate: (val: string) => void
 }
 
+interface RepAmountBadgeProps {
+  rep?: string | null
+  compensated?: number | string | null
+  reason?: string | null
+  source?: string | null
+}
+
+export function RepAmountBadge({
+  rep,
+  compensated,
+  reason,
+  source,
+}: RepAmountBadgeProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [isCopied, setIsCopied] = useState(false)
+  const amount = Number(compensated || 0)
+  const isPaid = amount > 0
+  const amountStr = `${amount.toLocaleString()} ฿`
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const next = !isExpanded
+    setIsExpanded(next)
+
+    if (rep && next) {
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(rep).then(() => {
+            setIsCopied(true)
+            setTimeout(() => setIsCopied(false), 2000)
+          }).catch(() => {})
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={`pcr-rep-badge ${isPaid ? 'pcr-rep-paid' : 'pcr-rep-zero'}`}
+      onClick={handleClick}
+      title={
+        isExpanded
+          ? 'คลิกเพื่อย่อ'
+          : `เลขที่หนังสือ (Rep): ${rep || '-'}${reason ? `\nสาเหตุ: ${reason}` : ''}${source ? `\nแหล่งข้อมูล: ${source}` : ''}\n(คลิกเพื่อดูและคัดลอกเลข Rep)`
+      }
+      aria-expanded={isExpanded}
+    >
+      <span className="pcr-rep-amount">{amountStr}</span>
+      {isExpanded && (
+        <span className="pcr-rep-detail">
+          Rep: {rep || '-'}
+          {isCopied ? ' (คัดลอกแล้ว)' : ''}
+          {reason ? ` (${reason})` : ''}
+        </span>
+      )}
+    </button>
+  )
+}
+
 function EditableVisitCell({
   item,
   visitNum,
   canEdit,
   onSaveDate,
 }: EditableVisitCellProps) {
-  const date = (item as any)[`visit${visitNum}Date`] || ''
-  const rep = (item as any)[`visit${visitNum}Rep`] || ''
-  const compensated = (item as any)[`visit${visitNum}Compensated`]
-  const rawRemark = (item as any)[`visit${visitNum}Remark`] || (item as any)[`visit${visitNum}Status`] || ''
-  const isPresetStatus =
-    rawRemark === 'ยังไม่ได้เยี่ยม' ||
-    rawRemark === 'เยี่ยมแล้วยังไม่ได้ลงข้อมูล' ||
-    rawRemark === 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ'
-  const remark = isPresetStatus ? '' : rawRemark
+  const visitObj = item.visits?.find((v) => v.visitNo === visitNum)
+  const date = visitObj?.visitDate || (visitNum <= 6 ? (item as any)[`visit${visitNum}Date`] : '') || ''
+  const rep = visitObj?.rep || (visitNum <= 6 ? (item as any)[`visit${visitNum}Rep`] : '') || ''
+  const compensated =
+    visitObj !== undefined && visitObj.compensated !== undefined
+      ? visitObj.compensated
+      : visitNum <= 6
+        ? (item as any)[`visit${visitNum}Compensated`]
+        : 0
+  const reason = visitObj?.reason || (visitNum <= 6 ? (item as any)[`visit${visitNum}Reason`] : '') || ''
+  const repItems = (
+    Array.isArray(visitObj?.repItems)
+      ? visitObj?.repItems
+      : Array.isArray((item as any)[`visit${visitNum}RepItems`])
+        ? (item as any)[`visit${visitNum}RepItems`]
+        : []
+  ) as VisitRepItem[]
 
-  const hasComp = compensated !== undefined && compensated !== null && Number(compensated) > 0
-  const hasRep = Boolean(rep || hasComp)
+  // Pick latest Rep
+  const latestRep = repItems.length > 0 ? repItems[0] : null
+  const displayRep = latestRep?.rep || rep || ''
+  const displayComp = latestRep !== null ? latestRep.compensated : compensated
+  const displayReason = latestRep?.reason || reason || ''
+  const displaySource = latestRep?.source
+
+  const hasComp = displayComp !== undefined && displayComp !== null && Number(displayComp) > 0
+  const hasRep = Boolean(displayRep || hasComp)
 
   return (
     <div className="pcr-visit-card">
@@ -150,15 +228,17 @@ function EditableVisitCell({
           title={`วันที่เยี่ยมครั้งที่ ${visitNum} (Enter เพื่อบันทึก)`}
         />
       ) : (
-        date && <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{date}</div>
+        date && <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{formatThaiDate(date)}</div>
       )}
 
       {date ? (
         hasRep ? (
-          <div className="pcr-rep-badge pcr-rep-paid" title={`เลข Rep: ${rep || '-'}`}>
-            <span>Rep: {rep || '-'}</span>
-            <span className="pcr-rep-amount">{Number(compensated || 0).toLocaleString()} ฿</span>
-          </div>
+          <RepAmountBadge
+            rep={displayRep}
+            compensated={displayComp}
+            reason={displayReason}
+            source={displaySource}
+          />
         ) : (
           <span className="pcr-rep-badge pcr-rep-pending" title="ยังไม่พบข้อมูลในระบบชดเชย RCM">
             รอผลชดเชย
@@ -168,11 +248,11 @@ function EditableVisitCell({
         !canEdit && <span style={{ color: 'var(--pc-muted)', fontSize: '0.75rem' }}>-</span>
       )}
 
-      {remark ? (
-        <span className="pcr-remark-badge" title={`หมายเหตุ: ${remark}`}>
-          {remark}
+      {displayReason && !displayRep && (
+        <span className="pcr-remark-badge" title={`เหตุผล: ${displayReason}`}>
+          {displayReason}
         </span>
-      ) : null}
+      )}
     </div>
   )
 }
@@ -197,7 +277,7 @@ function EditableDeathCell({
     <td
       style={{ fontSize: '0.8rem', minWidth: 95 }}
       className={`${isSavedDate ? 'just-saved' : ''} ${isDeceased ? 'pcr-cell-death' : ''}`}
-      title={isDeceased ? `ผู้ป่วยเสียชีวิต: ${date}` : undefined}
+      title={isDeceased ? `ผู้ป่วยเสียชีวิต: ${formatThaiDate(date)}` : undefined}
     >
       {canEdit ? (
         <input
@@ -217,11 +297,54 @@ function EditableDeathCell({
           title="วันที่เสียชีวิต (Enter เพื่อบันทึก)"
         />
       ) : date ? (
-        <span className="pcr-death-chip">{date}</span>
+        <span className="pcr-death-chip">{formatThaiDate(date)}</span>
       ) : (
         '-'
       )}
     </td>
+  )
+}
+
+/**
+ * Calculates Thai Fiscal Year (ปีงบประมาณ พ.ศ.) from date string.
+ * Thai Fiscal Year runs from 1 October to 30 September of the following year.
+ * e.g., 2026-10-19 -> 2570
+ *       2026-07-04 -> 2569
+ *       05/04/2024 -> 2567
+ */
+export function calculateFiscalYear(dateStr?: string | null): number | null {
+  if (!dateStr || !dateStr.trim()) return null
+  const clean = dateStr.trim()
+
+  let year: number | null = null
+  let month: number | null = null
+
+  // 1. ISO format: YYYY-MM-DD or YYYY/MM/DD
+  const ymdMatch = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
+  if (ymdMatch) {
+    year = parseInt(ymdMatch[1], 10)
+    month = parseInt(ymdMatch[2], 10)
+  } else {
+    // 2. DMY format: D/M/YYYY or DD/MM/YYYY
+    const dmyMatch = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
+    if (dmyMatch) {
+      month = parseInt(dmyMatch[2], 10)
+      year = parseInt(dmyMatch[3], 10)
+    }
+  }
+
+  if (!year || !month) return null
+  if (year > 2400) year -= 543
+
+  const beYear = year + 543
+  return month >= 10 ? beYear + 1 : beYear
+}
+
+export function getItemFiscalYear(item: PalliativeRegistryItem): number | null {
+  return (
+    calculateFiscalYear(item.registeredDate) ||
+    calculateFiscalYear(item.visit1Date) ||
+    calculateFiscalYear(item.createdAt ? String(item.createdAt) : null)
   )
 }
 
@@ -249,7 +372,9 @@ export default function PalliativeRegistryClient({
 
   // Filter & Search states
   const [search, setSearch] = useState('')
+  const [filterFiscalYear, setFilterFiscalYear] = useState('ALL')
   const [filterRegStatus, setFilterRegStatus] = useState('ALL')
+  const [filterColor, setFilterColor] = useState('ALL')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -263,11 +388,12 @@ export default function PalliativeRegistryClient({
     phone: '',
     icd10Principal: '',
     icd10Palliative: 'OPD (Z515 +Z718+Z636(เยี่ยมบ้าน) ใน Cormorbidประเภท 2)',
-    projectCode: '(30001, cONS01ลงทุกเคส )',
+    projectCode: '30001, Cons01',
     registrationStatus: 'ยังไม่ได้ดำเนินการ',
     deathDate: '',
   })
   const [isLookingUpHn, setIsLookingUpHn] = useState(false)
+  const [isDuplicate, setIsDuplicate] = useState(false)
   const [lookupFeedback, setLookupFeedback] = useState<{
     type: 'success' | 'warning' | 'error'
     message: string
@@ -278,6 +404,16 @@ export default function PalliativeRegistryClient({
   // Modal 2: Edit / Follow-up Visits Modal
   const [editingItem, setEditingItem] = useState<PalliativeRegistryItem | null>(null)
   const [editForm, setEditForm] = useState<Partial<PalliativeRegistryItem>>({})
+  const [editVisits, setEditVisits] = useState<
+    Array<{
+      visitNo: number
+      visitDate: string
+      rep?: string | null
+      compensated?: number
+      reason?: string | null
+      repItems?: VisitRepItem[]
+    }>
+  >([])
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
@@ -318,20 +454,38 @@ export default function PalliativeRegistryClient({
         patientName: data.patientName || prev.patientName,
         address: data.address || prev.address,
         phone: data.phone || prev.phone,
+        icd10Principal: data.icd10Principal || prev.icd10Principal,
         registrationStatus: data.isRegistered ? 'ดำเนินการเรียบร้อย' : 'ยังไม่ได้ดำเนินการ',
         deathDate: data.deathDate || prev.deathDate,
       }))
 
-      if (data.isRegistered) {
+      // Check if patient or AN is already in registry
+      const alreadyInTable = items.some(
+        (it) => it.hn.trim() === String(data.hn).trim() || (data.an && it.an && it.an.trim() === String(data.an).trim())
+      )
+
+      if (data.isAlreadyInRegistry || alreadyInTable) {
+        setIsDuplicate(true)
+        const anText = data.an ? `AN: ${data.an} / ` : ''
         setLookupFeedback({
-          type: 'success',
-          message: `✓ พบใน HOSxP คลินิก 2423 (ขึ้นทะเบียนเมื่อ: ${data.registeredDate || '-'})`,
+          type: 'error',
+          message: `⚠️ ผู้ป่วยรายนี้ (${anText}HN: ${data.hn} - ${data.patientName}) มีอยู่ในระบบทะเบียนแล้ว ห้ามลงข้อมูลซ้ำ`,
         })
       } else {
-        setLookupFeedback({
-          type: 'warning',
-          message: `ℹ พบข้อมูลผู้ป่วยใน HOSxP แต่ยังไม่ได้ขึ้นทะเบียนคลินิก 2423 (สถานะ: ยังไม่ได้ดำเนินการ / รอ)`,
-        })
+        setIsDuplicate(false)
+        const anMsg = data.an ? ` | AN: ${data.an}` : ''
+        const dxMsg = data.icd10Principal ? ` | โรคหลัก: ${data.icd10Principal}` : ''
+        if (data.isRegistered) {
+          setLookupFeedback({
+            type: 'success',
+            message: `✓ พบใน HOSxP คลินิก Palliative Care (ขึ้นทะเบียน: ${formatThaiDate(data.registeredDate, '-')})${anMsg}${dxMsg}`,
+          })
+        } else {
+          setLookupFeedback({
+            type: 'warning',
+            message: `ℹ พบข้อมูลผู้ป่วยใน HOSxP (ยังไม่ได้ขึ้นทะเบียน Palliative Care)${anMsg}${dxMsg}`,
+          })
+        }
       }
     } catch (err: any) {
       setLookupFeedback({
@@ -386,6 +540,100 @@ export default function PalliativeRegistryClient({
     }
   }
 
+  // Handle Google Sheets Inline Visit Save (any visit 1..N)
+  const handleVisitSave = async (
+    item: PalliativeRegistryItem,
+    visitNum: number,
+    newDate: string
+  ) => {
+    const currentVisits = item.visits ? [...item.visits] : []
+    const existingIdx = currentVisits.findIndex((v) => v.visitNo === visitNum)
+    let nextVisits: Array<{
+      visitNo: number
+      visitDate: string
+      rep?: string | null
+      compensated?: number
+      reason?: string | null
+      repItems?: VisitRepItem[]
+    }>
+
+    if (newDate.trim()) {
+      if (existingIdx >= 0) {
+        nextVisits = currentVisits.map((v) =>
+          v.visitNo === visitNum ? { ...v, visitDate: newDate.trim() } : v
+        )
+      } else {
+        nextVisits = [...currentVisits, { visitNo: visitNum, visitDate: newDate.trim() }].sort(
+          (a, b) => a.visitNo - b.visitNo
+        )
+      }
+    } else {
+      if (existingIdx >= 0) {
+        nextVisits = currentVisits.filter((v) => v.visitNo !== visitNum)
+      } else {
+        nextVisits = currentVisits
+      }
+    }
+
+    const fieldKey = `visit${visitNum}Date`
+
+    // Optimistic UI update
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== item.id) return it
+        const updated: any = {
+          ...it,
+          visits: nextVisits,
+        }
+        if (visitNum <= 6) {
+          updated[fieldKey] = newDate.trim() || null
+        }
+        return updated
+      })
+    )
+    setSaveStatus('saving')
+    setJustSavedCell({ id: item.id, field: fieldKey })
+
+    try {
+      const payload: any = {
+        visits: nextVisits.map((v) => ({ visitNo: v.visitNo, visitDate: v.visitDate })),
+      }
+      if (visitNum <= 6) {
+        payload[fieldKey] = newDate.trim() || null
+      }
+
+      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/registry/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'บันทึกข้อมูลไม่สำเร็จ')
+      }
+
+      setSaveStatus('saved')
+
+      // Quietly update stats in background
+      fetch('/api/service/dashboard-rcm/palliative-care/registry?limit=1')
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.stats) setStats(d.stats)
+        })
+        .catch(() => {})
+    } catch (err: any) {
+      setSaveStatus('error')
+      alert(err?.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล')
+      fetchData() // Revert to server truth
+    } finally {
+      setTimeout(() => {
+        setJustSavedCell((current) =>
+          current?.id === item.id && current?.field === fieldKey ? null : current
+        )
+      }, 1500)
+    }
+  }
+
   // Fetch list
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -420,11 +668,214 @@ export default function PalliativeRegistryClient({
     fetchData()
   }, [fetchData])
 
+  // Active Thai Fiscal Year (e.g., Nov 2026 -> 2570)
+  const activeFiscalYear = useMemo(() => {
+    const now = new Date()
+    const ceYear = now.getFullYear()
+    const m = now.getMonth() + 1
+    const be = ceYear + 543
+    return m >= 10 ? be + 1 : be
+  }, [])
+
+  // Dynamic available fiscal years
+  const availableFiscalYears = useMemo(() => {
+    const years = new Set<number>()
+    // Include active year and past 2 years as standard presets
+    years.add(activeFiscalYear)
+    years.add(activeFiscalYear - 1)
+    years.add(activeFiscalYear - 2)
+
+    for (const item of items) {
+      const fy = getItemFiscalYear(item)
+      if (fy) years.add(fy)
+    }
+    return Array.from(years).sort((a, b) => b - a)
+  }, [items, activeFiscalYear])
+
+  // Items filtered by Fiscal Year first
+  const itemsInFiscalYear = useMemo(() => {
+    if (filterFiscalYear === 'ALL') return items
+    const targetFy = parseInt(filterFiscalYear, 10)
+    return items.filter((item) => getItemFiscalYear(item) === targetFy)
+  }, [items, filterFiscalYear])
+
+  // Active Metrics reflecting selected fiscal year
+  const activeMetrics = useMemo(() => {
+    let registered = 0
+    let pendingRegistration = 0
+    let paid = 0
+    let waitingComp = 0
+    let deceased = 0
+
+    for (const item of itemsInFiscalYear) {
+      const isDeceased = Boolean(item.deathDate?.trim())
+      if (isDeceased) {
+        deceased++
+      }
+
+      const isReg = Boolean(
+        item.registeredDate || item.registrationStatus === 'ดำเนินการเรียบร้อย'
+      )
+      if (isReg) {
+        registered++
+      } else {
+        pendingRegistration++
+      }
+
+      let hasPaid = false
+      for (let v = 1; v <= 6; v++) {
+        if (((item as any)[`visit${v}Compensated`] || 0) > 0) {
+          hasPaid = true
+          break
+        }
+      }
+
+      if (!isDeceased) {
+        if (hasPaid) {
+          paid++
+        } else {
+          waitingComp++
+        }
+      }
+    }
+
+    return {
+      total: itemsInFiscalYear.length,
+      registered,
+      pendingRegistration,
+      paid,
+      waitingComp,
+      deceased,
+    }
+  }, [itemsInFiscalYear])
+
+  // Color classification & counts (scoped to selected fiscal year)
+  const colorCounts = useMemo(() => {
+    let green = 0
+    let orange = 0
+    let orangeWaitingRep = 0
+    let pink = 0
+
+    for (const item of itemsInFiscalYear) {
+      const isDeceased = Boolean(item.deathDate?.trim())
+      if (isDeceased) {
+        pink++
+        continue
+      }
+      let hasComp = false
+      if (item.visits && item.visits.length > 0) {
+        for (const v of item.visits) {
+          if ((v.compensated || 0) > 0) {
+            hasComp = true
+            break
+          }
+        }
+      } else {
+        for (let v = 1; v <= 6; v++) {
+          if (((item as any)[`visit${v}Compensated`] || 0) > 0) {
+            hasComp = true
+            break
+          }
+        }
+      }
+      const isRegistered = Boolean(
+        item.registeredDate || item.registrationStatus === 'ดำเนินการเรียบร้อย'
+      )
+
+      if (hasComp) {
+        green++
+      } else {
+        orange++
+        if (isRegistered) {
+          orangeWaitingRep++
+        }
+      }
+    }
+
+    return { green, orange, orangeWaitingRep, pink }
+  }, [itemsInFiscalYear])
+
+  // Filtered items based on color conditions (scoped to fiscal year)
+  const displayedItems = useMemo(() => {
+    return itemsInFiscalYear.filter((item) => {
+      const isDeceased = Boolean(item.deathDate?.trim())
+      let hasComp = false
+      if (item.visits && item.visits.length > 0) {
+        for (const v of item.visits) {
+          if ((v.compensated || 0) > 0) {
+            hasComp = true
+            break
+          }
+        }
+      } else {
+        for (let v = 1; v <= 6; v++) {
+          if (((item as any)[`visit${v}Compensated`] || 0) > 0) {
+            hasComp = true
+            break
+          }
+        }
+      }
+      const isRegistered = Boolean(
+        item.registeredDate || item.registrationStatus === 'ดำเนินการเรียบร้อย'
+      )
+
+      if (filterColor === 'PINK') return isDeceased
+      if (filterColor === 'GREEN') return !isDeceased && hasComp
+      if (filterColor === 'ORANGE') return !isDeceased && !hasComp
+      if (filterColor === 'ORANGE_WAITING_REP') return !isDeceased && isRegistered && !hasComp
+      return true
+    })
+  }, [itemsInFiscalYear, filterColor])
+
+  // Dynamic maximum visits across displayed items (minimum 6)
+  const maxVisits = useMemo(() => {
+    let max = 6
+    for (const item of displayedItems) {
+      if (item.visits && item.visits.length > 0) {
+        for (const v of item.visits) {
+          if (
+            v.visitNo > max &&
+            (Boolean(v.visitDate?.trim()) || Boolean(v.rep) || (v.compensated ?? 0) > 0)
+          ) {
+            max = v.visitNo
+          }
+        }
+      }
+    }
+    return max
+  }, [displayedItems])
+
+  // Array of visit numbers [1..maxVisits]
+  const visitNumbers = useMemo(() => {
+    const list: number[] = []
+    for (let i = 1; i <= maxVisits; i++) {
+      list.push(i)
+    }
+    return list
+  }, [maxVisits])
+
+  // Lock background scrolling when any modal is open
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(isAddModalOpen || editingItem || deletingItem)
+    if (isAnyModalOpen) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = originalOverflow
+      }
+    }
+  }, [isAddModalOpen, editingItem, deletingItem])
+
   // Handle Add Form Submit
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!addForm.hn.trim()) {
       setAddError('กรุณาระบุ HN ผู้ป่วย')
+      return
+    }
+
+    if (isDuplicate) {
+      setAddError('ผู้ป่วยรายนี้มีข้อมูลในทะเบียนแล้ว ห้ามลงข้อมูลซ้ำ')
       return
     }
 
@@ -444,6 +895,7 @@ export default function PalliativeRegistryClient({
       }
 
       setIsAddModalOpen(false)
+      setIsDuplicate(false)
       setAddForm({
         hn: '',
         patientName: '',
@@ -451,7 +903,7 @@ export default function PalliativeRegistryClient({
         phone: '',
         icd10Principal: '',
         icd10Palliative: 'OPD (Z515 +Z718+Z636(เยี่ยมบ้าน) ใน Cormorbidประเภท 2)',
-        projectCode: '(30001, cONS01ลงทุกเคส )',
+        projectCode: '30001, Cons01',
         registrationStatus: 'ยังไม่ได้ดำเนินการ',
         deathDate: '',
       })
@@ -469,6 +921,61 @@ export default function PalliativeRegistryClient({
     setEditingItem(item)
     setEditForm({ ...item })
     setEditError(null)
+
+    const initialVisits: Array<{
+      visitNo: number
+      visitDate: string
+      rep?: string | null
+      compensated?: number
+      reason?: string | null
+      repItems?: VisitRepItem[]
+    }> = []
+
+    const existingVisits = item.visits && item.visits.length > 0 ? item.visits : []
+    const maxVisitNo = Math.max(6, ...existingVisits.map((v) => v.visitNo))
+
+    for (let v = 1; v <= maxVisitNo; v++) {
+      const found = existingVisits.find((ev) => ev.visitNo === v)
+      if (found) {
+        initialVisits.push({ ...found })
+      } else if (v <= 6) {
+        initialVisits.push({
+          visitNo: v,
+          visitDate: (item as any)[`visit${v}Date`] || '',
+          rep: (item as any)[`visit${v}Rep`] || null,
+          compensated: (item as any)[`visit${v}Compensated`] || 0,
+          reason: (item as any)[`visit${v}Reason`] || null,
+          repItems: (item as any)[`visit${v}RepItems`] || [],
+        })
+      } else {
+        initialVisits.push({
+          visitNo: v,
+          visitDate: '',
+        })
+      }
+    }
+    setEditVisits(initialVisits)
+  }
+
+  const handleVisitDateChange = (visitNo: number, value: string) => {
+    setEditVisits((prev) =>
+      prev.map((v) => (v.visitNo === visitNo ? { ...v, visitDate: value } : v))
+    )
+  }
+
+  const handleAddVisit = () => {
+    setEditVisits((prev) => {
+      const nextNo = prev.length + 1
+      return [...prev, { visitNo: nextNo, visitDate: '' }]
+    })
+  }
+
+  const handleRemoveVisit = (visitNo: number) => {
+    setEditVisits((prev) => {
+      if (visitNo <= 6) return prev
+      const filtered = prev.filter((v) => v.visitNo !== visitNo)
+      return filtered.map((v, idx) => ({ ...v, visitNo: idx + 1 }))
+    })
   }
 
   // Handle Edit Form Submit
@@ -480,10 +987,30 @@ export default function PalliativeRegistryClient({
     setEditError(null)
 
     try {
+      const visitsPayload = editVisits
+        .filter((v) => v.visitDate && v.visitDate.trim())
+        .map((v) => ({ visitNo: v.visitNo, visitDate: v.visitDate.trim() }))
+
+      const vMap = new Map<number, string>()
+      editVisits.forEach((v) => {
+        if (v.visitDate && v.visitDate.trim()) vMap.set(v.visitNo, v.visitDate.trim())
+      })
+
+      const submitData = {
+        ...editForm,
+        visit1Date: vMap.get(1) || null,
+        visit2Date: vMap.get(2) || null,
+        visit3Date: vMap.get(3) || null,
+        visit4Date: vMap.get(4) || null,
+        visit5Date: vMap.get(5) || null,
+        visit6Date: vMap.get(6) || null,
+        visits: visitsPayload,
+      }
+
       const res = await fetch(`/api/service/dashboard-rcm/palliative-care/registry/${editingItem.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(submitData),
       })
       const data = await res.json()
 
@@ -523,9 +1050,14 @@ export default function PalliativeRegistryClient({
 
   // Export CSV/Excel
   const handleExportCSV = () => {
-    if (items.length === 0) {
+    if (displayedItems.length === 0) {
       alert('ไม่มีข้อมูลสำหรับส่งออก')
       return
+    }
+
+    const visitHeaders: string[] = []
+    for (let n = 1; n <= maxVisits; n++) {
+      visitHeaders.push(`วันเยี่ยมครั้งที่ ${n}`, `Rep เยี่ยม ${n}`, `ชดเชย เยี่ยม ${n} (บาท)`)
     }
 
     const headers = [
@@ -537,32 +1069,9 @@ export default function PalliativeRegistryClient({
       'ICD10 รหัสโรคหลัก',
       'ICD 10 รหัส Palliative',
       'Project code Palliative',
-      'สถานะการขึ้นทะเบียน 2423',
-      'วันที่ขึ้นทะเบียน 2423',
-      'วันเยี่ยมครั้งที่ 1',
-      'Rep เยี่ยม 1',
-      'ชดเชย เยี่ยม 1 (บาท)',
-      'หมายเหตุ เยี่ยม 1',
-      'วันเยี่ยมครั้งที่ 2',
-      'Rep เยี่ยม 2',
-      'ชดเชย เยี่ยม 2 (บาท)',
-      'หมายเหตุ เยี่ยม 2',
-      'วันเยี่ยมครั้งที่ 3',
-      'Rep เยี่ยม 3',
-      'ชดเชย เยี่ยม 3 (บาท)',
-      'หมายเหตุ เยี่ยม 3',
-      'วันเยี่ยมครั้งที่ 4',
-      'Rep เยี่ยม 4',
-      'ชดเชย เยี่ยม 4 (บาท)',
-      'หมายเหตุ เยี่ยม 4',
-      'วันเยี่ยมครั้งที่ 5',
-      'Rep เยี่ยม 5',
-      'ชดเชย เยี่ยม 5 (บาท)',
-      'หมายเหตุ เยี่ยม 5',
-      'วันเยี่ยมครั้งที่ 6',
-      'Rep เยี่ยม 6',
-      'ชดเชย เยี่ยม 6 (บาท)',
-      'หมายเหตุ เยี่ยม 6',
+      'สถานะการขึ้นทะเบียน Palliative Care',
+      'วันที่ขึ้นทะเบียน Palliative Care',
+      ...visitHeaders,
       'วันที่เสียชีวิต',
     ]
 
@@ -572,50 +1081,74 @@ export default function PalliativeRegistryClient({
       return `"${str}"`
     }
 
-    const rows = items.map((item, idx) => [
-      idx + 1,
-      `="${item.hn}"`,
-      escapeCsv(item.patientName),
-      escapeCsv(item.address),
-      escapeCsv(item.phone),
-      escapeCsv(item.icd10Principal),
-      escapeCsv(item.icd10Palliative),
-      escapeCsv(item.projectCode),
-      escapeCsv(item.registeredDate ? 'ขึ้นทะเบียนแล้ว' : item.registrationStatus),
-      escapeCsv(item.registeredDate || ''),
-      escapeCsv(item.visit1Date || ''),
-      escapeCsv(item.visit1Rep || ''),
-      item.visit1Compensated ?? 0,
-      escapeCsv(item.visit1Remark || item.visit1Status || ''),
-      escapeCsv(item.visit2Date || ''),
-      escapeCsv(item.visit2Rep || ''),
-      item.visit2Compensated ?? 0,
-      escapeCsv(item.visit2Remark || item.visit2Status || ''),
-      escapeCsv(item.visit3Date || ''),
-      escapeCsv(item.visit3Rep || ''),
-      item.visit3Compensated ?? 0,
-      escapeCsv(item.visit3Remark || item.visit3Status || ''),
-      escapeCsv(item.visit4Date || ''),
-      escapeCsv(item.visit4Rep || ''),
-      item.visit4Compensated ?? 0,
-      escapeCsv(item.visit4Remark || item.visit4Status || ''),
-      escapeCsv(item.visit5Date || ''),
-      escapeCsv(item.visit5Rep || ''),
-      item.visit5Compensated ?? 0,
-      escapeCsv(item.visit5Remark || item.visit5Status || ''),
-      escapeCsv(item.visit6Date || ''),
-      escapeCsv(item.visit6Rep || ''),
-      item.visit6Compensated ?? 0,
-      escapeCsv(item.visit6Remark || item.visit6Status || ''),
-      escapeCsv(item.deathDate || ''),
-    ])
+    const formatVisitRep = (itemsList?: VisitRepItem[], fallbackRep?: string | null) => {
+      if (itemsList && itemsList.length > 0) {
+        return itemsList[0].rep
+      }
+      return fallbackRep || ''
+    }
+
+    const formatVisitComp = (itemsList?: VisitRepItem[], fallbackComp?: number | null) => {
+      if (itemsList && itemsList.length > 0) {
+        return itemsList[0].compensated
+      }
+      return fallbackComp ?? 0
+    }
+
+    const rows = displayedItems.map((item, idx) => {
+      const visitCols: any[] = []
+      for (let n = 1; n <= maxVisits; n++) {
+        const visitObj = item.visits?.find((v) => v.visitNo === n)
+        const date =
+          visitObj?.visitDate || (n <= 6 ? (item as any)[`visit${n}Date`] : '') || ''
+        const rep = visitObj?.rep || (n <= 6 ? (item as any)[`visit${n}Rep`] : '') || ''
+        const comp =
+          visitObj !== undefined && visitObj.compensated !== undefined
+            ? visitObj.compensated
+            : n <= 6
+              ? (item as any)[`visit${n}Compensated`]
+              : 0
+        const repItems = (
+          Array.isArray(visitObj?.repItems)
+            ? visitObj?.repItems
+            : Array.isArray((item as any)[`visit${n}RepItems`])
+              ? (item as any)[`visit${n}RepItems`]
+              : []
+        ) as VisitRepItem[]
+
+        const displayRep = formatVisitRep(repItems, rep)
+        const displayComp = formatVisitComp(repItems, comp)
+
+        visitCols.push(
+          escapeCsv(date),
+          escapeCsv(displayRep),
+          escapeCsv(displayComp)
+        )
+      }
+
+      return [
+        idx + 1,
+        `="${item.hn}"`,
+        escapeCsv(item.patientName),
+        escapeCsv(item.address),
+        escapeCsv(item.phone),
+        escapeCsv(item.icd10Principal),
+        escapeCsv(item.icd10Palliative),
+        escapeCsv(item.projectCode),
+        escapeCsv(item.registeredDate ? 'ขึ้นทะเบียนแล้ว' : item.registrationStatus),
+        escapeCsv(item.registeredDate || ''),
+        ...visitCols,
+        escapeCsv(item.deathDate || ''),
+      ]
+    })
 
     const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `Palliative_Care_Registry_${new Date().toISOString().slice(0, 10)}.csv`)
+    const fySuffix = filterFiscalYear !== 'ALL' ? `_FY${filterFiscalYear}` : ''
+    link.setAttribute('download', `Palliative_Care_Registry${fySuffix}_${new Date().toISOString().slice(0, 10)}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -641,7 +1174,7 @@ export default function PalliativeRegistryClient({
             <span className="pcr-badge">REGISTRY</span>
           </div>
           <p className="pcr-desc">
-            ระบบบันทึกและติดตามทะเบียนผู้ป่วย Palliative Care, ตรวจสอบคลินิก 2423 อัตโนมัติจาก HOSxP, ติดตามเยี่ยมบ้าน 1-6 และผลชดเชย Rep
+            ระบบบันทึกและติดตามทะเบียนผู้ป่วย Palliative Care, ตรวจสอบคลินิก Palliative Care อัตโนมัติจาก HOSxP, ติดตามเยี่ยมบ้าน 1-6 และผลชดเชย Rep
           </p>
         </div>
 
@@ -687,56 +1220,49 @@ export default function PalliativeRegistryClient({
         </div>
       </div>
 
-      {/* 2. Sub-navigation Tabs */}
-      <div className="pcr-tabs-bar">
-        <Link href="/service/dashboard-rcm/palliative-care/pc-1" className="pcr-tab-link">
-          <span className="pcr-tab-badge">PC.1</span>
-          <span>End Of Life (ADP 30001)</span>
-        </Link>
-        <Link href="/service/dashboard-rcm/palliative-care/pc-3" className="pcr-tab-link">
-          <span className="pcr-tab-badge">PC.3</span>
-          <span>รายงานจำแนกตามกลุ่มโรค</span>
-        </Link>
-        <Link href="/service/dashboard-rcm/palliative-care/registry" className="pcr-tab-link is-active">
-          <span className="pcr-tab-badge">PC.Reg</span>
-          <span>ทะเบียนผู้ป่วย & เยี่ยมบ้าน</span>
-        </Link>
-      </div>
-
       {/* 3. Consolidated Executive Metric Strip */}
       <div className="pcr-metric-strip">
         <div className="pcr-metric-cell">
-          <span className="pcr-metric-label">ผู้ป่วยในทะเบียนทั้งหมด</span>
+          <span className="pcr-metric-label">
+            ผู้ป่วยในทะเบียน{filterFiscalYear !== 'ALL' ? ` (ปีงบ ${filterFiscalYear})` : 'ทั้งหมด'}
+          </span>
           <span className="pcr-metric-val">
-            {stats.total.toLocaleString()}
+            {activeMetrics.total.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
         <div className="pcr-metric-cell">
-          <span className="pcr-metric-label">ขึ้นทะเบียน 2423 แล้ว</span>
+          <span className="pcr-metric-label">ขึ้นทะเบียน Palliative Care แล้ว</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-teal-text)' }}>
-            {stats.registered.toLocaleString()}
+            {activeMetrics.registered.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
         <div className="pcr-metric-cell">
-          <span className="pcr-metric-label">ยังไม่ได้ดำเนินการ / รอ</span>
+          <span className="pcr-metric-label">ยังไม่ขึ้นทะเบียน Palliative Care</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-amber-text)' }}>
-            {stats.pendingRegistration.toLocaleString()}
+            {activeMetrics.pendingRegistration.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
         <div className="pcr-metric-cell">
-          <span className="pcr-metric-label">ได้เงิน (ชดเชยแล้ว)</span>
+          <span className="pcr-metric-label">ได้รับเงินชดเชยแล้ว</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-teal-text)' }}>
-            {stats.paid.toLocaleString()}
+            {activeMetrics.paid.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
         <div className="pcr-metric-cell">
-          <span className="pcr-metric-label">ติด C / Deny</span>
+          <span className="pcr-metric-label">รอผลชดเชย</span>
+          <span className="pcr-metric-val" style={{ color: 'var(--pc-amber-text)' }}>
+            {activeMetrics.waitingComp.toLocaleString()}
+            <span className="pcr-metric-unit">คน</span>
+          </span>
+        </div>
+        <div className="pcr-metric-cell">
+          <span className="pcr-metric-label">ผู้ป่วยเสียชีวิต</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-rose-text)' }}>
-            {stats.deny.toLocaleString()}
+            {activeMetrics.deceased.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
         </div>
@@ -756,6 +1282,41 @@ export default function PalliativeRegistryClient({
           aria-label="ค้นหาผู้ป่วยในทะเบียน"
         />
 
+        {/* Fiscal Year Filter Dropdown */}
+        <select
+          className="pcr-select"
+          value={filterFiscalYear}
+          onChange={(e) => {
+            setFilterFiscalYear(e.target.value)
+            setPage(1)
+          }}
+          aria-label="เลือกปีงบประมาณ"
+        >
+          <option value="ALL">ปีงบประมาณ: ทั้งหมด</option>
+          {availableFiscalYears.map((fy) => (
+            <option key={fy} value={String(fy)}>
+              ปีงบประมาณ {fy}
+            </option>
+          ))}
+        </select>
+
+        {/* Compensation & Status Filter Dropdown (No color names, no decorative icons, uniform flush-left alignment) */}
+        <select
+          className="pcr-select"
+          value={filterColor}
+          onChange={(e) => {
+            setFilterColor(e.target.value)
+            setPage(1)
+          }}
+          aria-label="กรองสถานะเงินชดเชย"
+        >
+          <option value="ALL">สถานะเงินชดเชย: ทั้งหมด ({itemsInFiscalYear.length})</option>
+          <option value="GREEN">ได้รับเงินชดเชยแล้ว ({colorCounts.green})</option>
+          <option value="ORANGE">ยังไม่ได้รับเงินชดเชย ({colorCounts.orange})</option>
+          <option value="ORANGE_WAITING_REP">ขึ้นทะเบียนแล้ว แต่ยังรอเงินชดเชย ({colorCounts.orangeWaitingRep})</option>
+          <option value="PINK">ผู้ป่วยเสียชีวิต ({colorCounts.pink})</option>
+        </select>
+
         <select
           className="pcr-select"
           value={filterRegStatus}
@@ -765,7 +1326,7 @@ export default function PalliativeRegistryClient({
           }}
           aria-label="กรองสถานะการขึ้นทะเบียน"
         >
-          <option value="ALL">สถานะขึ้นทะเบียน 2423: ทั้งหมด</option>
+          <option value="ALL">สถานะขึ้นทะเบียน Palliative Care: ทั้งหมด</option>
           <option value="ดำเนินการเรียบร้อย">ขึ้นทะเบียนแล้ว</option>
           <option value="ยังไม่ได้ดำเนินการ">ยังไม่ได้ดำเนินการ / รอ</option>
         </select>
@@ -804,10 +1365,10 @@ export default function PalliativeRegistryClient({
       {/* 5. Legend & Spreadsheet Mode Bar */}
       <div className="pcr-legend-bar">
         <div className="pcr-guide-hint">
-          <span>โหมดสเปรดชีต: ดึงข้อมูลชื่อ/ที่อยู่/เบอร์โทรและสถานะคลินิก 2423 จาก HOSxP อัตโนมัติ | วันที่เยี่ยมและวันที่เสียชีวิตคลิกแก้ไขได้ทันที</span>
+          <span>โหมดสเปรดชีต: ดึงข้อมูลชื่อ/ที่อยู่/เบอร์โทรและสถานะคลินิก Palliative Care จาก HOSxP อัตโนมัติ | วันที่เยี่ยมและวันที่เสียชีวิตคลิกแก้ไขได้ทันที</span>
         </div>
         <div className="pcr-legend-items">
-          <span className="pcr-legend-chip pcr-tag-teal">เขียว: ขึ้นทะเบียน 2423 แล้ว / ได้เงินชดเชย</span>
+          <span className="pcr-legend-chip pcr-tag-teal">เขียว: ขึ้นทะเบียน Palliative Care แล้ว / ได้เงินชดเชย</span>
           <span className="pcr-legend-chip pcr-tag-amber">ส้ม: ยังไม่ได้ดำเนินการ / รอผลชดเชย</span>
           <span className="pcr-legend-chip pcr-tag-rose">ชมพู: ผู้ป่วยเสียชีวิต</span>
         </div>
@@ -820,18 +1381,18 @@ export default function PalliativeRegistryClient({
             <thead>
               {/* Grouped Header Row 1 */}
               <tr>
-                <th colSpan={5} className="pcr-th-group">ข้อมูลผู้ป่วย</th>
+                <th rowSpan={2} className="pcr-th-sub pcr-sticky-col-idx" style={{ width: 45 }}>ลำดับ</th>
+                <th rowSpan={2} className="pcr-th-sub pcr-sticky-col-hn">HN</th>
+                <th colSpan={3} className="pcr-th-group">ข้อมูลผู้ป่วย</th>
                 <th colSpan={3} className="pcr-th-group">การวินิจฉัยและโครงการ</th>
-                <th colSpan={1} className="pcr-th-group">การขึ้นทะเบียน 2423</th>
-                <th colSpan={6} className="pcr-th-group">ติดตามเยี่ยมบ้าน (ครั้งที่ 1 - 6)</th>
+                <th colSpan={1} className="pcr-th-group">การขึ้นทะเบียน Palliative Care</th>
+                <th colSpan={maxVisits} className="pcr-th-group">ติดตามเยี่ยมบ้าน (ครั้งที่ 1 - {maxVisits})</th>
                 <th colSpan={1} className="pcr-th-group">ข้อมูลเสียชีวิต</th>
-                {canEdit && <th colSpan={1} className="pcr-th-group">จัดการ</th>}
+                {canEdit && <th rowSpan={2} className="pcr-th-sub">จัดการ</th>}
               </tr>
 
               {/* Sub Header Row 2 */}
               <tr>
-                <th className="pcr-th-sub" style={{ width: 45 }}>ลำดับ</th>
-                <th className="pcr-th-sub">HN</th>
                 <th className="pcr-th-sub">ชื่อ-สกุลผู้ป่วย</th>
                 <th className="pcr-th-sub">ที่อยู่</th>
                 <th className="pcr-th-sub">เบอร์โทร</th>
@@ -839,29 +1400,27 @@ export default function PalliativeRegistryClient({
                 <th className="pcr-th-sub">ICD 10 Palliative</th>
                 <th className="pcr-th-sub">Project code</th>
                 <th className="pcr-th-sub">สถานะขึ้นทะเบียน</th>
-                <th className="pcr-th-sub">เยี่ยม 1</th>
-                <th className="pcr-th-sub">เยี่ยม 2</th>
-                <th className="pcr-th-sub">เยี่ยม 3</th>
-                <th className="pcr-th-sub">เยี่ยม 4</th>
-                <th className="pcr-th-sub">เยี่ยม 5</th>
-                <th className="pcr-th-sub">เยี่ยม 6</th>
+                {visitNumbers.map((n) => (
+                  <th key={n} className="pcr-th-sub">
+                    เยี่ยม {n}
+                  </th>
+                ))}
                 <th className="pcr-th-sub">วันที่เสียชีวิต</th>
-                {canEdit && <th className="pcr-th-sub">จัดการ</th>}
               </tr>
             </thead>
             <tbody>
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={canEdit ? 17 : 16} style={{ padding: '2.5rem', color: 'var(--pc-muted)' }}>
+                  <td colSpan={10 + maxVisits + (canEdit ? 1 : 0)} style={{ padding: '2.5rem', color: 'var(--pc-muted)' }}>
                     <RefreshCw size={20} className="animate-spin" style={{ margin: '0 auto 0.5rem' }} />
                     กำลังโหลดข้อมูลทะเบียน...
                   </td>
                 </tr>
-              ) : items.length === 0 ? (
+              ) : displayedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={canEdit ? 17 : 16} style={{ padding: '2.5rem', color: 'var(--pc-muted)' }}>
+                  <td colSpan={10 + maxVisits + (canEdit ? 1 : 0)} style={{ padding: '2.5rem', color: 'var(--pc-muted)' }}>
                     <div>ไม่พบข้อมูลทะเบียนผู้ป่วยตามเงื่อนไขที่เลือก</div>
-                    {(search || filterRegStatus !== 'ALL') && (
+                    {(search || filterRegStatus !== 'ALL' || filterColor !== 'ALL') && (
                       <button
                         type="button"
                         className="pcr-btn pcr-btn-secondary"
@@ -869,6 +1428,7 @@ export default function PalliativeRegistryClient({
                         onClick={() => {
                           setSearch('')
                           setFilterRegStatus('ALL')
+                          setFilterColor('ALL')
                           setPage(1)
                         }}
                       >
@@ -878,41 +1438,49 @@ export default function PalliativeRegistryClient({
                   </td>
                 </tr>
               ) : (
-                items.map((item, idx) => {
+                displayedItems.map((item, idx) => {
                   const rowNum = (page - 1) * 50 + idx + 1
                   const isDeceased = Boolean(item.deathDate?.trim())
+                  let hasComp = false
+                  if (item.visits && item.visits.length > 0) {
+                    for (const v of item.visits) {
+                      if ((v.compensated || 0) > 0) {
+                        hasComp = true
+                        break
+                      }
+                    }
+                  } else {
+                    for (let v = 1; v <= 6; v++) {
+                      if (((item as any)[`visit${v}Compensated`] || 0) > 0) {
+                        hasComp = true
+                        break
+                      }
+                    }
+                  }
+
                   const isRegistered = Boolean(item.registeredDate || item.registrationStatus === 'ดำเนินการเรียบร้อย')
 
+                  // 1 สี = 1 ความหมาย ไฮไลท์ทั้ง Record
+                  let rowColorClass = 'pcr-row-pending'
+                  if (isDeceased) {
+                    rowColorClass = 'pcr-row-death'
+                  } else if (hasComp) {
+                    rowColorClass = 'pcr-row-paid'
+                  }
+
                   return (
-                    <tr key={item.id} className={isDeceased ? 'pcr-row-death' : ''}>
-                      <td style={{ color: 'var(--pc-muted)', fontWeight: 600 }}>{rowNum}</td>
+                    <tr key={item.id} className={rowColorClass}>
+                      <td className="pcr-sticky-col-idx" style={{ color: 'var(--pc-muted)', fontWeight: 600 }}>{rowNum}</td>
                       <td
-                        style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--pc-ink)' }}
-                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'hn' ? 'just-saved' : ''}
+                        className="pcr-sticky-col-hn"
+                        style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--pc-ink)', whiteSpace: 'nowrap' }}
                       >
-                        <EditableTextCell
-                          value={item.hn}
-                          canEdit={canEdit}
-                          isEditing={editingCell?.id === item.id && editingCell?.field === 'hn'}
-                          onStartEdit={() => setEditingCell({ id: item.id, field: 'hn' })}
-                          onSave={(val) => handleCellSave(item.id, 'hn', val)}
-                          onCancel={() => setEditingCell(null)}
-                          style={{ fontFamily: 'monospace', fontWeight: 700 }}
-                        />
+                        {item.hn}
                       </td>
                       <td
-                        style={{ fontWeight: 600, minWidth: 135 }}
-                        className={justSavedCell?.id === item.id && justSavedCell?.field === 'patientName' ? 'just-saved' : ''}
+                        style={{ fontWeight: 600, minWidth: 135, textAlign: 'left' }}
                       >
-                        <EditableTextCell
-                          value={item.patientName}
-                          canEdit={canEdit}
-                          isEditing={editingCell?.id === item.id && editingCell?.field === 'patientName'}
-                          onStartEdit={() => setEditingCell({ id: item.id, field: 'patientName' })}
-                          onSave={(val) => handleCellSave(item.id, 'patientName', val)}
-                          onCancel={() => setEditingCell(null)}
-                          style={{ fontWeight: 600 }}
-                        />
+                        {item.patientName}
                       </td>
                       <td
                         style={{ maxWidth: 190, fontSize: '0.8rem', color: 'var(--pc-ink-2)' }}
@@ -982,13 +1550,13 @@ export default function PalliativeRegistryClient({
                         />
                       </td>
 
-                      {/* Clinic 2423 Registration Status */}
+                      {/* Clinic Palliative Care Registration Status */}
                       <td style={{ minWidth: 120 }}>
                         {item.registeredDate ? (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                             <span className="pcr-tag pcr-tag-teal">ขึ้นทะเบียนแล้ว</span>
                             <span style={{ fontSize: '0.7rem', color: 'var(--pc-teal-text)', fontWeight: 600 }}>
-                              {item.registeredDate}
+                              {formatThaiDate(item.registeredDate)}
                             </span>
                           </div>
                         ) : isRegistered ? (
@@ -998,8 +1566,8 @@ export default function PalliativeRegistryClient({
                         )}
                       </td>
 
-                      {/* Visits 1 - 6 */}
-                      {[1, 2, 3, 4, 5, 6].map((num) => {
+                      {/* Visits 1 - maxVisits */}
+                      {visitNumbers.map((num) => {
                         const isSaved =
                           justSavedCell?.id === item.id && justSavedCell?.field === `visit${num}Date`
 
@@ -1009,7 +1577,7 @@ export default function PalliativeRegistryClient({
                               item={item}
                               visitNum={num}
                               canEdit={canEdit}
-                              onSaveDate={(val) => handleCellSave(item.id, `visit${num}Date`, val)}
+                              onSaveDate={(val) => handleVisitSave(item, num, val)}
                             />
                           </td>
                         )
@@ -1029,24 +1597,22 @@ export default function PalliativeRegistryClient({
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
                             <button
                               type="button"
-                              className="pcr-btn pcr-btn-secondary"
-                              style={{ padding: '3px 8px', fontSize: '0.75rem', minHeight: 30 }}
+                              className="pcr-action-btn"
                               onClick={() => handleOpenEdit(item)}
                               title="แก้ไข / บันทึกการเยี่ยม"
+                              aria-label="แก้ไข / บันทึกการเยี่ยม"
                             >
-                              <Edit2 size={12} />
-                              แก้ไข
+                              <span className="pcr-symbol" aria-hidden="true">✎</span>
                             </button>
                             {permissions.canManage && (
                               <button
                                 type="button"
-                                className="pcr-btn pcr-btn-danger"
-                                style={{ padding: '3px 8px', fontSize: '0.75rem', minHeight: 30 }}
+                                className="pcr-action-btn pcr-action-btn-delete"
                                 onClick={() => setDeletingItem(item)}
                                 title="ลบเคส"
+                                aria-label="ลบเคส"
                               >
-                                <Trash2 size={12} />
-                                ลบ
+                                <span className="pcr-symbol" aria-hidden="true">✕</span>
                               </button>
                             )}
                           </div>
@@ -1063,7 +1629,17 @@ export default function PalliativeRegistryClient({
         {/* 7. Pagination */}
         <div className="pcr-pagination">
           <div>
-            แสดง {items.length} จาก {totalCount} รายการ (หน้า {page} / {totalPages})
+            {filterColor !== 'ALL'
+              ? `แสดง ${displayedItems.length} จาก ${items.length} รายการในหน้านี้ (สถานะ: ${
+                  filterColor === 'GREEN'
+                    ? 'ได้รับเงินชดเชยแล้ว'
+                    : filterColor === 'ORANGE'
+                      ? 'ยังไม่ได้รับเงินชดเชย'
+                      : filterColor === 'ORANGE_WAITING_REP'
+                        ? 'ขึ้นทะเบียนแล้ว แต่ยังรอเงินชดเชย'
+                        : 'ผู้ป่วยเสียชีวิต'
+                })`
+              : `แสดง ${displayedItems.length} จาก ${totalCount} รายการ (หน้า ${page} / ${totalPages})`}
           </div>
           <div className="pcr-page-btns">
             <button
@@ -1108,7 +1684,7 @@ export default function PalliativeRegistryClient({
               </button>
             </div>
 
-            <form onSubmit={handleAddSubmit}>
+            <form onSubmit={handleAddSubmit} className="pcr-modal-form">
               <div className="pcr-modal-body">
                 {addError && (
                   <div
@@ -1129,7 +1705,7 @@ export default function PalliativeRegistryClient({
                   <div className="pcr-form-section-title">ข้อมูลแรกรับผู้ป่วย (ดึงข้อมูลอัตโนมัติจาก HOSxP)</div>
                   <div className="pcr-form-grid">
                     <div className="pcr-form-group">
-                      <label className="pcr-form-label pcr-form-label-required">HN (หมายเลขผู้ป่วย)</label>
+                      <label className="pcr-form-label pcr-form-label-required">HN หรือ AN (หมายเลขผู้ป่วย / เลข admit)</label>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <input
                           type="text"
@@ -1137,7 +1713,28 @@ export default function PalliativeRegistryClient({
                           placeholder="เช่น 000206"
                           required
                           value={addForm.hn}
-                          onChange={(e) => setAddForm({ ...addForm, hn: e.target.value })}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            const norm = (h: string) => (/^\d+$/.test(h.trim()) ? h.trim().replace(/^0+/, '') : h.trim())
+                            const valNorm = norm(val)
+                            const alreadyInTable = Boolean(
+                              valNorm &&
+                                items.some(
+                                  (it) => norm(it.hn) === valNorm || (it.an && norm(it.an) === valNorm)
+                                )
+                            )
+                            if (alreadyInTable) {
+                              setIsDuplicate(true)
+                              setLookupFeedback({
+                                type: 'error',
+                                message: `⚠️ หมายเลขนี้มีอยู่ในทะเบียนแล้ว ห้ามลงข้อมูลซ้ำ`,
+                              })
+                            } else if (isDuplicate) {
+                              setIsDuplicate(false)
+                              setLookupFeedback(null)
+                            }
+                            setAddForm({ ...addForm, hn: val })
+                          }}
                           onBlur={() => {
                             if (addForm.hn.trim() && !addForm.patientName.trim()) {
                               handleLookupHn(addForm.hn)
@@ -1150,7 +1747,7 @@ export default function PalliativeRegistryClient({
                           style={{ minHeight: 40, whiteSpace: 'nowrap', padding: '0 12px' }}
                           onClick={() => handleLookupHn(addForm.hn)}
                           disabled={isLookingUpHn || !addForm.hn.trim()}
-                          title="ดึงชื่อ ที่อยู่ เบอร์โทร และสถานะคลินิก 2423 จาก HOSxP"
+                          title="ดึงชื่อ ที่อยู่ เบอร์โทร และสถานะคลินิก Palliative Care จาก HOSxP"
                         >
                           {isLookingUpHn ? (
                             <RefreshCw size={14} className="animate-spin" />
@@ -1214,56 +1811,13 @@ export default function PalliativeRegistryClient({
                     </div>
 
                     <div className="pcr-form-group">
-                      <label className="pcr-form-label">ICD10 รหัสโรคหลัก</label>
+                      <label className="pcr-form-label">ICD10 รหัสโรคหลัก (ดึงอัตโนมัติจาก AN ในคลินิก Palliative Care)</label>
                       <input
                         type="text"
                         className="pcr-input"
-                        placeholder="เช่น C548 CA corpus"
+                        placeholder="ดึงจาก AN ใน HOSxP อัตโนมัติ เช่น C541"
                         value={addForm.icd10Principal}
                         onChange={(e) => setAddForm({ ...addForm, icd10Principal: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="pcr-form-group">
-                      <label className="pcr-form-label">Project code Palliative</label>
-                      <input
-                        type="text"
-                        className="pcr-input"
-                        value={addForm.projectCode}
-                        onChange={(e) => setAddForm({ ...addForm, projectCode: e.target.value })}
-                      />
-                      <div className="pcr-chips">
-                        {PROJECT_CODE_PRESETS.map((preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            className={`pcr-chip ${addForm.projectCode === preset ? 'is-active' : ''}`}
-                            onClick={() => setAddForm({ ...addForm, projectCode: preset })}
-                          >
-                            {preset}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pcr-form-group">
-                      <label className="pcr-form-label">วันที่เสียชีวิต (ถ้ามี)</label>
-                      <input
-                        type="text"
-                        className="pcr-input"
-                        placeholder="วว/ดด/ปปปป หรือ เว้นว่างหากยังมีชีวิต"
-                        value={addForm.deathDate}
-                        onChange={(e) => setAddForm({ ...addForm, deathDate: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="pcr-form-group" style={{ gridColumn: 'span 2' }}>
-                      <label className="pcr-form-label">ICD 10 รหัส Palliative</label>
-                      <input
-                        type="text"
-                        className="pcr-input"
-                        value={addForm.icd10Palliative}
-                        onChange={(e) => setAddForm({ ...addForm, icd10Palliative: e.target.value })}
                       />
                     </div>
                   </div>
@@ -1279,7 +1833,7 @@ export default function PalliativeRegistryClient({
                     fontSize: '0.8125rem',
                   }}
                 >
-                  หมายเหตุ: สถานะขึ้นทะเบียนจะถูกตรวจสอบกับ <strong>คลินิก 2423 (Palliative care)</strong> ใน HOSxP อัตโนมัติ และข้อมูลการเยี่ยมบ้านครั้งที่ 1-6 พร้อมผลชดเชย Rep จะแสดงในตารางเมื่อบันทึกวันเยี่ยม
+                  หมายเหตุ: สถานะขึ้นทะเบียนจะถูกตรวจสอบกับ <strong>คลินิก Palliative Care</strong> ใน HOSxP อัตโนมัติ และข้อมูลการเยี่ยมบ้านครั้งที่ 1-6 พร้อมผลชดเชย Rep จะแสดงในตารางเมื่อบันทึกวันเยี่ยม
                 </div>
               </div>
 
@@ -1294,9 +1848,13 @@ export default function PalliativeRegistryClient({
                 <button
                   type="submit"
                   className="pcr-btn pcr-btn-primary"
-                  disabled={isSubmittingAdd}
+                  disabled={isSubmittingAdd || isDuplicate || !addForm.hn.trim()}
                 >
-                  {isSubmittingAdd ? 'กำลังบันทึก...' : 'บันทึกขึ้นทะเบียน'}
+                  {isSubmittingAdd
+                    ? 'กำลังบันทึก...'
+                    : isDuplicate
+                    ? 'มีข้อมูลในทะเบียนแล้ว (ห้ามลงซ้ำ)'
+                    : 'บันทึกขึ้นทะเบียน'}
                 </button>
               </div>
             </form>
@@ -1317,8 +1875,25 @@ export default function PalliativeRegistryClient({
             <div className="pcr-modal-header">
               <div>
                 <h2 className="pcr-modal-title">
-                  บันทึกข้อมูลและประวัติการเยี่ยม: {editingItem.patientName} (HN: {editingItem.hn})
+                  บันทึกข้อมูลและประวัติการเยี่ยม: {editingItem.patientName}
                 </h2>
+                <div className="pcr-modal-patient-subtitle">
+                  <span className="pcr-modal-patient-pill">HN: {editingItem.hn}</span>
+                  {editingItem.registeredDate ? (
+                    <span className="pcr-modal-patient-pill" style={{ color: 'var(--pc-teal-text)' }}>
+                      ขึ้นทะเบียน Palliative Care เมื่อ {formatThaiDate(editingItem.registeredDate)}
+                    </span>
+                  ) : (
+                    <span className="pcr-modal-patient-pill" style={{ color: 'var(--pc-amber-text)' }}>
+                      ยังไม่ขึ้นทะเบียน Palliative Care
+                    </span>
+                  )}
+                  {editingItem.deathDate && (
+                    <span className="pcr-modal-patient-pill" style={{ color: 'var(--pc-rose-text)', borderColor: 'var(--pc-rose-border)' }}>
+                      เสียชีวิตเมื่อ {formatThaiDate(editingItem.deathDate)}
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 type="button"
@@ -1330,7 +1905,7 @@ export default function PalliativeRegistryClient({
               </button>
             </div>
 
-            <form onSubmit={handleEditSubmit}>
+            <form onSubmit={handleEditSubmit} className="pcr-modal-form">
               <div className="pcr-modal-body">
                 {editError && (
                   <div
@@ -1349,24 +1924,28 @@ export default function PalliativeRegistryClient({
 
                 {/* Section A: Basic info */}
                 <div className="pcr-form-section">
-                  <div className="pcr-form-section-title">ข้อมูลผู้ป่วยและการขึ้นทะเบียน 2423</div>
+                  <div className="pcr-form-section-title">1. ข้อมูลผู้ป่วยและการขึ้นทะเบียนคลินิก Palliative Care</div>
                   <div className="pcr-form-grid">
                     <div className="pcr-form-group">
-                      <label className="pcr-form-label">HN</label>
+                      <label className="pcr-form-label">HN (ข้อมูลคงที่)</label>
                       <input
                         type="text"
-                        className="pcr-input"
+                        className="pcr-input pcr-input-readonly"
                         value={editForm.hn || ''}
-                        onChange={(e) => setEditForm({ ...editForm, hn: e.target.value })}
+                        readOnly
+                        disabled
+                        title="HN เป็นข้อมูลคงที่ ไม่สามารถแก้ไขได้"
                       />
                     </div>
                     <div className="pcr-form-group">
-                      <label className="pcr-form-label">ชื่อ-สกุลผู้ป่วย</label>
+                      <label className="pcr-form-label">ชื่อ-สกุลผู้ป่วย (ข้อมูลคงที่)</label>
                       <input
                         type="text"
-                        className="pcr-input"
+                        className="pcr-input pcr-input-readonly"
                         value={editForm.patientName || ''}
-                        onChange={(e) => setEditForm({ ...editForm, patientName: e.target.value })}
+                        readOnly
+                        disabled
+                        title="ชื่อ-สกุลผู้ป่วย เป็นข้อมูลคงที่ ไม่สามารถแก้ไขได้"
                       />
                     </div>
                     <div className="pcr-form-group" style={{ gridColumn: 'span 2' }}>
@@ -1383,12 +1962,13 @@ export default function PalliativeRegistryClient({
                       <input
                         type="text"
                         className="pcr-input"
+                        placeholder="เช่น 0812345678"
                         value={editForm.phone || ''}
                         onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                       />
                     </div>
                     <div className="pcr-form-group">
-                      <label className="pcr-form-label">ICD10 รหัสโรคหลัก</label>
+                      <label className="pcr-form-label">ICD-10 รหัสโรคหลัก</label>
                       <input
                         type="text"
                         className="pcr-input"
@@ -1397,11 +1977,11 @@ export default function PalliativeRegistryClient({
                       />
                     </div>
                     <div className="pcr-form-group">
-                      <label className="pcr-form-label">สถานะในคลินิก 2423 HOSxP</label>
+                      <label className="pcr-form-label">สถานะคลินิก Palliative Care ใน HOSxP</label>
                       <div style={{ minHeight: 40, display: 'flex', alignItems: 'center' }}>
                         {editingItem.registeredDate ? (
                           <span className="pcr-tag pcr-tag-teal">
-                            ขึ้นทะเบียนแล้ว (วันที่: {editingItem.registeredDate})
+                            ขึ้นทะเบียนแล้ว (วันที่: {formatThaiDate(editingItem.registeredDate)})
                           </span>
                         ) : (
                           <span className="pcr-tag pcr-tag-amber">
@@ -1420,7 +2000,7 @@ export default function PalliativeRegistryClient({
                       />
                     </div>
                     <div className="pcr-form-group" style={{ gridColumn: 'span 2' }}>
-                      <label className="pcr-form-label">ICD 10 รหัส Palliative</label>
+                      <label className="pcr-form-label">ICD-10 รหัส Palliative</label>
                       <input
                         type="text"
                         className="pcr-input"
@@ -1431,82 +2011,89 @@ export default function PalliativeRegistryClient({
                   </div>
                 </div>
 
-                {/* Section B: Visits 1 - 6 */}
+                {/* Section B: Visits */}
                 <div className="pcr-form-section">
-                  <div className="pcr-form-section-title">บันทึกการเยี่ยมบ้าน (ครั้งที่ 1 - 6) และเหตุผล/หมายเหตุ</div>
+                  <div className="pcr-form-section-title">2. บันทึกวันเยี่ยมบ้านและข้อมูลการชดเชย Rep (ขั้นต่ำ 6 ครั้ง)</div>
                   <div className="pcr-form-grid">
-                    {[1, 2, 3, 4, 5, 6].map((num) => {
-                      const dateKey = `visit${num}Date` as keyof PalliativeRegistryItem
-                      const statusKey = `visit${num}Status` as keyof PalliativeRegistryItem
-                      const rep = (editingItem as any)[`visit${num}Rep`]
-                      const comp = (editingItem as any)[`visit${num}Compensated`]
+                    {editVisits.map((v) => {
+                      const latestRep = v.repItems && v.repItems.length > 0 ? v.repItems[0] : null
+                      const displayRep = latestRep?.rep || v.rep || ''
+                      const displayComp = latestRep !== null ? latestRep.compensated : v.compensated
+                      const displayReason = latestRep?.reason || v.reason || ''
+                      const displaySource = latestRep?.source
 
                       return (
-                        <div
-                          key={num}
-                          style={{
-                            border: '1px solid var(--pc-border)',
-                            borderRadius: 8,
-                            padding: '0.75rem',
-                            background: 'var(--pc-surface-alt)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.5rem',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--pc-ink)' }}>
-                              การเยี่ยมครั้งที่ {num}
-                            </span>
-                            {rep ? (
-                              <span className="pcr-tag pcr-tag-teal" style={{ fontSize: '0.7rem' }}>
-                                Rep: {rep} ({Number(comp || 0).toLocaleString()} ฿)
+                        <div key={v.visitNo} className="pcr-visit-edit-card">
+                          <div className="pcr-visit-edit-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span className="pcr-visit-edit-title">
+                                การเยี่ยมครั้งที่ {v.visitNo}
                               </span>
+                              {v.visitNo > 6 && (
+                                <button
+                                  type="button"
+                                  className="pcr-btn-delete-visit"
+                                  onClick={() => handleRemoveVisit(v.visitNo)}
+                                  title={`ลบการเยี่ยมครั้งที่ ${v.visitNo}`}
+                                >
+                                  ✕ ลบครั้งนี้
+                                </button>
+                              )}
+                            </div>
+                            {displayRep || (displayComp !== undefined && displayComp !== null && Number(displayComp) > 0) ? (
+                              <RepAmountBadge
+                                rep={displayRep}
+                                compensated={displayComp}
+                                reason={displayReason}
+                                source={displaySource}
+                              />
+                            ) : v.visitDate ? (
+                              <span className="pcr-rep-badge pcr-rep-pending">รอผลชดเชย</span>
                             ) : null}
                           </div>
 
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.75rem', color: 'var(--pc-muted)' }}>วันเยี่ยม</label>
-                              <input
-                                type="text"
-                                className="pcr-input"
-                                placeholder="เช่น 2/11/2026"
-                                value={(editForm as any)[dateKey] || ''}
-                                onChange={(e) =>
-                                  setEditForm({ ...editForm, [dateKey]: e.target.value })
-                                }
-                              />
-                            </div>
-                            <div style={{ flex: 1.5 }}>
-                              <label style={{ fontSize: '0.75rem', color: 'var(--pc-muted)' }}>เหตุผล / หมายเหตุ</label>
-                              <input
-                                type="text"
-                                className="pcr-input"
-                                placeholder="ระบุเหตุผลหรือข้อความเพิ่มเติม"
-                                value={(editForm as any)[statusKey] || ''}
-                                onChange={(e) =>
-                                  setEditForm({ ...editForm, [statusKey]: e.target.value })
-                                }
-                              />
-                            </div>
+                          <div>
+                            <label className="pcr-form-label" style={{ fontSize: '0.75rem', marginBottom: '0.25rem' }}>
+                              วันเยี่ยม (วว/ดด/ปปปป พ.ศ.)
+                            </label>
+                            <input
+                              type="text"
+                              className="pcr-input"
+                              placeholder="เช่น 02/11/2569"
+                              value={v.visitDate || ''}
+                              onChange={(e) => handleVisitDateChange(v.visitNo, e.target.value)}
+                            />
                           </div>
                         </div>
                       )
                     })}
                   </div>
+
+                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-start' }}>
+                    <button
+                      type="button"
+                      className="pcr-btn pcr-btn-secondary"
+                      onClick={handleAddVisit}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                    >
+                      <span className="pcr-symbol" aria-hidden="true">+</span>
+                      เพิ่มการเยี่ยม (ครั้งที่ {editVisits.length + 1})
+                    </button>
+                  </div>
                 </div>
 
                 {/* Section C: Death Information */}
-                <div className="pcr-form-section">
-                  <div className="pcr-form-section-title">ข้อมูลการเสียชีวิต</div>
+                <div className={`pcr-form-section ${editForm.deathDate ? 'pcr-form-section-death' : ''}`}>
+                  <div className="pcr-form-section-title" style={{ color: editForm.deathDate ? 'var(--pc-rose-text)' : undefined }}>
+                    3. ข้อมูลการเสียชีวิต
+                  </div>
                   <div className="pcr-form-grid">
                     <div className="pcr-form-group">
-                      <label className="pcr-form-label">วันที่เสียชีวิต</label>
+                      <label className="pcr-form-label">วันที่เสียชีวิต (วว/ดด/ปปปป พ.ศ.)</label>
                       <input
                         type="text"
                         className="pcr-input"
-                        placeholder="เช่น 2/11/2026 (เว้นว่างหากยังมีชีวิต)"
+                        placeholder="เช่น 02/11/2569 (เว้นว่างหากยังมีชีวิต)"
                         value={editForm.deathDate || ''}
                         onChange={(e) => setEditForm({ ...editForm, deathDate: e.target.value })}
                       />
@@ -1528,7 +2115,7 @@ export default function PalliativeRegistryClient({
                   className="pcr-btn pcr-btn-primary"
                   disabled={isSubmittingEdit}
                 >
-                  {isSubmittingEdit ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
+                  {isSubmittingEdit ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
                 </button>
               </div>
             </form>
@@ -1575,7 +2162,7 @@ export default function PalliativeRegistryClient({
                 disabled={isDeleting}
                 onClick={handleDeleteConfirm}
               >
-                <Trash2 size={15} />
+                <span className="pcr-symbol" aria-hidden="true">✕</span>
                 {isDeleting ? 'กำลังลบ...' : 'ยืนยันลบ'}
               </button>
             </div>

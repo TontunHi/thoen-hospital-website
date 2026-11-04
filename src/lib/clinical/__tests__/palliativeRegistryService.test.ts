@@ -4,6 +4,7 @@ vi.mock('@/lib/apiGateway', () => {
   return {
     apiGateway: {
       app: {
+        query: vi.fn(),
         getPalliativeRegistries: vi.fn(),
         getPalliativeRegistryById: vi.fn(),
         createPalliativeRegistry: vi.fn(),
@@ -92,6 +93,81 @@ describe('PalliativeRegistryService', () => {
     )
   })
 
+  it('matches multiple Reps from repeclaim and falls back to repdata with separated amounts', async () => {
+    const mockResponse = {
+      items: [
+        {
+          id: 1,
+          hn: '0028792',
+          patientName: 'ผู้ป่วยทดสอบ เคส Rep ซ้อน',
+          registrationStatus: 'ยังไม่ได้ดำเนินการ',
+          visit1Date: '20/07/2026',
+        },
+        {
+          id: 2,
+          hn: '0001894',
+          patientName: 'ผู้ป่วยทดสอบ เคส Fallback repdata',
+          registrationStatus: 'ยังไม่ได้ดำเนินการ',
+          visit1Date: '2026-10-21',
+        },
+      ],
+      total: 2,
+      page: 1,
+      limit: 10,
+      totalPages: 1,
+      stats: { total: 2, registered: 0, pendingRegistration: 2, claimed: 0, paid: 0, deny: 0 },
+    }
+
+    vi.mocked(apiGateway.app.getPalliativeRegistries).mockResolvedValue(mockResponse as any)
+
+    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('FROM clinicmember')) {
+        return Promise.resolve([{ hn: '0028792', regdate: '2026-03-01' }])
+      }
+      if (sql.includes('FROM rcmdb.repeclaim')) {
+        return Promise.resolve([
+          { hn: '0028792', admdate: '2026-07-20', rep: '690700296', compensated: 0 },
+          { hn: '0028792', admdate: '2026-07-20', rep: '690900231', compensated: 822 },
+        ])
+      }
+      if (sql.includes('FROM rcmdb.repdata')) {
+        return Promise.resolve([
+          { hn: '0001894', admdate: '2026-10-21', rep: '691000217', compensated: 1000, errorcode: null, remark: null },
+        ])
+      }
+      return Promise.resolve([])
+    })
+
+    const result = await PalliativeRegistryService.listRegistries({}, mockExecutor)
+
+    expect(result.items).toHaveLength(2)
+
+    // Patient 1: 0028792 with 2 separate Reps from repeclaim -> selects latest Rep (690900231)
+    const pt1 = result.items[0]
+    expect(pt1.registrationStatus).toBe('ดำเนินการเรียบร้อย')
+    expect(pt1.registeredDate).toBe('2026-03-01')
+    expect(pt1.visit1RepItems).toHaveLength(1)
+    expect(pt1.visit1RepItems![0]).toEqual({
+      rep: '690900231',
+      compensated: 822,
+      source: 'repeclaim',
+    })
+    expect(pt1.visit1Rep).toBe('690900231')
+    expect(pt1.visit1Compensated).toBe(822)
+
+    // Patient 2: 0001894 with fallback from repdata
+    const pt2 = result.items[1]
+    expect(pt2.visit1RepItems).toHaveLength(1)
+    expect(pt2.visit1RepItems![0]).toEqual({
+      rep: '691000217',
+      compensated: 1000,
+      reason: null,
+      source: 'repdata',
+    })
+    expect(pt2.visit1Rep).toBe('691000217')
+    expect(pt2.visit1Compensated).toBe(1000)
+  })
+
   it('creates registry record via gateway and logs audit', async () => {
     const mockCreated = {
       id: 10,
@@ -134,7 +210,6 @@ describe('PalliativeRegistryService', () => {
       hn: '000206',
       patientName: 'นางจันทนา ตันมา',
       visit1Date: '2/11/2026',
-      visit1Status: 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ',
     }
 
     vi.mocked(apiGateway.app.updatePalliativeRegistry).mockResolvedValue({ affectedRows: 1 } as any)
@@ -144,17 +219,15 @@ describe('PalliativeRegistryService', () => {
       10,
       {
         visit1Date: '2/11/2026',
-        visit1Status: 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ',
       },
       'nurse_user'
     )
 
-    expect(result.visit1Status).toBe('เยี่ยมแล้ว+ลงข้อมูลเสร็จ')
+    expect(result.visit1Date).toBe('2/11/2026')
     expect(apiGateway.app.updatePalliativeRegistry).toHaveBeenCalledWith(
       10,
       expect.objectContaining({
         visit1Date: '2/11/2026',
-        visit1Status: 'เยี่ยมแล้ว+ลงข้อมูลเสร็จ',
         updatedBy: 'nurse_user',
       })
     )
@@ -180,5 +253,67 @@ describe('PalliativeRegistryService', () => {
       'palliative_care_registries',
       expect.stringContaining('10')
     )
+  })
+
+  it('looks up patient demographics, Clinic 2423 status and ICD10 principal diagnosis from AN', async () => {
+    const mockExecutor = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('FROM patient pt')) {
+        return Promise.resolve([
+          {
+            hn: '0000206',
+            ptname: 'นางจันทนา ตันมา',
+            address: '205/1 ม.04 ต.เถินบุรี',
+            phone: '0801209257',
+            death: 'N',
+            death_date: null,
+          },
+        ])
+      }
+      if (sql.includes('FROM clinicmember')) {
+        return Promise.resolve([
+          {
+            hn: '0000206',
+            clinic: '47',
+            regdate: '2026-11-02',
+            note: 'CA corpus',
+          },
+        ])
+      }
+      if (sql.includes('FROM an_stat a')) {
+        return Promise.resolve([
+          {
+            an: '670005964',
+            pdx: 'C541',
+            pdx_name: 'Malignant neoplasm of endometrium',
+            regdate: '2024-08-19',
+            all_dx: 'C541,I898',
+          },
+        ])
+      }
+      return Promise.resolve([])
+    })
+
+    const patient = await PalliativeRegistryService.lookupPatientByHn('0000206', mockExecutor)
+
+    expect(patient).not.toBeNull()
+    expect(patient?.hn).toBe('0000206')
+    expect(patient?.patientName).toBe('นางจันทนา ตันมา')
+    expect(patient?.isRegistered).toBe(true)
+    expect(patient?.registeredDate).toBe('2026-11-02')
+    expect(patient?.icd10Principal).toBe('C541')
+    expect(patient?.an).toBe('670005964')
+  })
+
+  it('throws error when creating duplicate patient in registry', async () => {
+    vi.mocked(apiGateway.app.query).mockResolvedValueOnce([
+      { id: 15, hn: '0000034', patient_name: 'นายธนวัตน์ จักรบุตร' },
+    ] as any)
+
+    await expect(
+      PalliativeRegistryService.createRegistry({
+        hn: '0000034',
+        patientName: 'นายธนวัตน์ จักรบุตร',
+      })
+    ).rejects.toThrow('ห้ามลงข้อมูลซ้ำ')
   })
 })

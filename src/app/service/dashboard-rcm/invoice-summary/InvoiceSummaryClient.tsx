@@ -30,6 +30,8 @@ import {
   InvoiceDetailItem,
   InvoiceDetailResult,
 } from '@/lib/clinical/rcmDashboardService'
+import { formatThaiDate } from '@/lib/formatters'
+import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import './page.css'
 
 const THAI_MONTH_NAMES = [
@@ -240,7 +242,7 @@ export default function InvoiceSummaryClient() {
       // Header row styling
       sheetSummary.mergeCells('A1:H1')
       const titleCell = sheetSummary.getCell('A1')
-      titleCell.value = `รายงานสรุปรายรับจาก Invoice (${department === 'OP' ? 'ผู้ป่วยนอก OPD' : 'ผู้ป่วยใน IPD'}) วันที่ ${ds1} ถึง ${ds2}`
+      titleCell.value = `รายงานสรุปรายรับจาก Invoice (${department === 'OP' ? 'ผู้ป่วยนอก OPD' : 'ผู้ป่วยใน IPD'}) วันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)}`
       titleCell.font = { name: 'Sarabun', size: 14, bold: true, color: { argb: 'FF0F172A' } }
       titleCell.alignment = { vertical: 'middle', horizontal: 'left' }
 
@@ -304,7 +306,7 @@ export default function InvoiceSummaryClient() {
 
       sheetDetail.mergeCells('A1:Y1')
       const detailTitleCell = sheetDetail.getCell('A1')
-      detailTitleCell.value = `รายชื่อผู้ป่วย รายรับ ${department} วันที่ ${ds1} ถึง ${ds2} ${selectedPttype ? `(สิทธิ: ${selectedPttype})` : '(ทุกสิทธิ)'}`
+      detailTitleCell.value = `รายชื่อผู้ป่วย รายรับ ${department} วันที่ ${formatThaiDate(ds1)} ถึง ${formatThaiDate(ds2)} ${selectedPttype ? `(สิทธิ: ${selectedPttype})` : '(ทุกสิทธิ)'}`
       detailTitleCell.font = { name: 'Sarabun', size: 14, bold: true, color: { argb: 'FF0F172A' } }
 
       sheetDetail.addRow([])
@@ -353,8 +355,8 @@ export default function InvoiceSummaryClient() {
           row.cid,
           row.hn,
           row.ptname,
-          row.vstdate || row.admdate || '',
-          row.vsttime || row.dchdate || '',
+          formatThaiDate(row.vstdate || row.admdate, ''),
+          department === 'OP' ? (row.vsttime || '') : formatThaiDate(row.dchdate, ''),
           row.compensated,
           row.fund_money,
           row.income_hosxp,
@@ -371,7 +373,7 @@ export default function InvoiceSummaryClient() {
           row.up,
           row.rep,
           row.bill,
-          row.billdate,
+          formatThaiDate(row.billdate, ''),
         ])
       })
 
@@ -685,20 +687,20 @@ export default function InvoiceSummaryClient() {
             <div className="invoice-custom-date-row">
               <div className="invoice-date-input-group">
                 <label>วันเริ่มต้น Statement:</label>
-                <input
-                  type="date"
+                <ThaiDatePicker
                   value={ds1}
-                  onChange={(e) => setDs1(e.target.value)}
-                  className="invoice-date-input"
+                  onChange={setDs1}
+                  maxDate={ds2}
+                  aria-label="วันเริ่มต้น Statement"
                 />
               </div>
               <div className="invoice-date-input-group">
                 <label>วันสิ้นสุด Statement:</label>
-                <input
-                  type="date"
+                <ThaiDatePicker
                   value={ds2}
-                  onChange={(e) => setDs2(e.target.value)}
-                  className="invoice-date-input"
+                  onChange={setDs2}
+                  minDate={ds1}
+                  aria-label="วันสิ้นสุด Statement"
                 />
               </div>
               <button
@@ -721,7 +723,7 @@ export default function InvoiceSummaryClient() {
           <div className="invoice-range-badge">
             <Calendar size={16} className="text-emerald-700" />
             <span>
-              ช่วงวันที่ค้นหา Statement: <b>{ds1}</b> ถึง <b>{ds2}</b>
+              ช่วงวันที่ค้นหา Statement: <b>{formatThaiDate(ds1)}</b> ถึง <b>{formatThaiDate(ds2)}</b>
             </span>
           </div>
 
@@ -1128,8 +1130,8 @@ export default function InvoiceSummaryClient() {
                       <td className="font-mono text-slate-600 font-semibold">{row.cid || '–'}</td>
                       <td className="font-mono text-slate-600">{row.hn}</td>
                       <td className="text-left font-medium text-slate-900">{row.ptname}</td>
-                      <td className="text-center font-mono text-slate-600">{row.vstdate || row.admdate || '–'}</td>
-                      <td className="text-center font-mono text-slate-500 cell-border-group-end">{row.vsttime || row.dchdate || '–'}</td>
+                      <td className="text-center font-mono text-slate-600">{formatThaiDate(row.vstdate || row.admdate)}</td>
+                      <td className="text-center font-mono text-slate-500 cell-border-group-end">{department === 'OP' ? (row.vsttime || '–') : formatThaiDate(row.dchdate)}</td>
                       <td className="text-right font-mono font-bold text-slate-900">
                         {row.compensated > 0 ? row.compensated.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '0.00'}
                       </td>
@@ -1160,7 +1162,7 @@ export default function InvoiceSummaryClient() {
                       </td>
                       <td className="text-center font-mono text-slate-700 text-xs">{row.rep || '–'}</td>
                       <td className="text-center font-mono text-slate-700 text-xs">{row.bill || '–'}</td>
-                      <td className="text-center font-mono text-slate-500 text-xs">{row.billdate || '–'}</td>
+                      <td className="text-center font-mono text-slate-500 text-xs">{formatThaiDate(row.billdate)}</td>
                     </tr>
                   )
                 })

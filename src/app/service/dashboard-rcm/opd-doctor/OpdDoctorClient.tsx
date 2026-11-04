@@ -20,6 +20,8 @@ import {
   PttypeOption,
   OpdDoctorSummaryResult,
 } from '@/lib/clinical/rcmDashboardService'
+import { formatThaiDate } from '@/lib/formatters'
+import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import '../sss-dental/page.css'
 import './page.css'
 
@@ -318,18 +320,18 @@ export default function OpdDoctorClient() {
           {dateMode === 'custom' && (
             <div className="rcm-date-inputs">
               <span>ตั้งแต่:</span>
-              <input
-                type="date"
+              <ThaiDatePicker
                 value={ds1}
-                onChange={(e) => setDs1(e.target.value)}
-                className="rcm-input"
+                onChange={setDs1}
+                maxDate={ds2}
+                aria-label="ตั้งแต่วันที่"
               />
               <span>ถึง:</span>
-              <input
-                type="date"
+              <ThaiDatePicker
                 value={ds2}
-                onChange={(e) => setDs2(e.target.value)}
-                className="rcm-input"
+                onChange={setDs2}
+                minDate={ds1}
+                aria-label="ถึงวันที่"
               />
             </div>
           )}
@@ -585,7 +587,7 @@ export default function OpdDoctorClient() {
             </h3>
           </div>
           <span style={{ fontSize: '0.8rem', color: '#334155', fontWeight: 600 }}>
-            ช่วงเวลา: {ds1} ถึง {ds2}
+            ช่วงเวลา: {formatThaiDate(ds1)} ถึง {formatThaiDate(ds2)}
           </span>
         </div>
 

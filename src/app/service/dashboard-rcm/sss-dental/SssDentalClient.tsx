@@ -20,6 +20,8 @@ import {
   Layers,
 } from 'lucide-react'
 import { DentalDoctorSummaryItem, SssDentalResult } from '@/lib/clinical/rcmDashboardService'
+import { formatThaiDate } from '@/lib/formatters'
+import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import './page.css'
 
 const THAI_MONTH_NAMES = [
@@ -418,20 +420,20 @@ export default function SssDentalClient() {
               <div className="dental-range-group">
                 <div className="dental-input-group">
                   <span className="dental-input-label">ตั้งแต่:</span>
-                  <input
-                    type="date"
+                  <ThaiDatePicker
                     value={ds1}
-                    onChange={(e) => setDs1(e.target.value)}
-                    className="dental-date-input"
+                    onChange={setDs1}
+                    maxDate={ds2}
+                    aria-label="ตั้งแต่วันที่"
                   />
                 </div>
                 <span className="dental-range-sep">ถึง</span>
                 <div className="dental-input-group">
-                  <input
-                    type="date"
+                  <ThaiDatePicker
                     value={ds2}
-                    onChange={(e) => setDs2(e.target.value)}
-                    className="dental-date-input"
+                    onChange={setDs2}
+                    minDate={ds1}
+                    aria-label="ถึงวันที่"
                   />
                 </div>
               </div>
@@ -572,7 +574,7 @@ export default function SssDentalClient() {
           <div className="dental-ledger-time">
             <Clock size={13} />
             <span>
-              ช่วงเวลา: <b>{ds1}</b> ถึง <b>{ds2}</b>
+              ช่วงเวลา: <b>{formatThaiDate(ds1)}</b> ถึง <b>{formatThaiDate(ds2)}</b>
             </span>
           </div>
         </div>

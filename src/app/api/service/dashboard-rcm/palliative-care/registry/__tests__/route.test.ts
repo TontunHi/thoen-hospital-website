@@ -138,4 +138,29 @@ describe('Palliative Care Registry API Route', () => {
     expect(json.success).toBe(true)
     expect(json.data.hn).toBe('000206')
   })
+
+  it('POST returns 409 when duplicate patient is registered', async () => {
+    vi.mocked(getAuthenticatedMember).mockResolvedValue({
+      isAdmin: true,
+      can: vi.fn().mockReturnValue(true),
+    } as any)
+
+    vi.mocked(PalliativeRegistryService.createRegistry).mockRejectedValue(
+      new Error('ผู้ป่วยรายนี้ (HN: 0000034) มีข้อมูลในทะเบียน Palliative Care แล้ว ห้ามลงข้อมูลซ้ำ')
+    )
+
+    const req = new NextRequest('http://localhost:3000/api/service/dashboard-rcm/palliative-care/registry', {
+      method: 'POST',
+      body: JSON.stringify({
+        hn: '0000034',
+        patientName: 'นายธนวัตน์ จักรบุตร',
+      }),
+    })
+    const res = await POST(req)
+    const json = await res.json()
+
+    expect(res.status).toBe(409)
+    expect(json.success).toBe(false)
+    expect(json.error).toContain('ห้ามลงข้อมูลซ้ำ')
+  })
 })

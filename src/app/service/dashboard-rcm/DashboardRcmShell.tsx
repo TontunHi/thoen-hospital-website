@@ -70,6 +70,18 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    id: 'rep-funds',
+    title: '3.1 ข้อมูลการชดเชยค่าบริการ (REP)',
+    items: [
+      {
+        href: '/service/dashboard-rcm/rep-funds',
+        label: 'ข้อมูล Rep แต่ละกองทุน',
+        badge: '3.1.1',
+        icon: ReceiptText,
+      },
+    ],
+  },
+  {
     id: 'finance',
     title: '5.2 การเงิน & รายรับ',
     items: [

@@ -74,6 +74,7 @@ describe('GET /api/service/dashboard-rcm/palliative-care/registry/lookup-hn', ()
 
     const mockPatient = {
       hn: '0000206',
+      an: '670005964',
       patientName: 'นางจันทนา ตันมา',
       address: '205/1 ม.04 ต.เถินบุรี',
       phone: '0801209257',
@@ -81,6 +82,7 @@ describe('GET /api/service/dashboard-rcm/palliative-care/registry/lookup-hn', ()
       deathDate: null,
       isRegistered: true,
       registeredDate: '2026-11-02',
+      icd10Principal: 'C541',
     }
 
     vi.mocked(PalliativeRegistryService.lookupPatientByHn).mockResolvedValue(mockPatient)
@@ -93,6 +95,7 @@ describe('GET /api/service/dashboard-rcm/palliative-care/registry/lookup-hn', ()
     expect(json.success).toBe(true)
     expect(json.data.patientName).toBe('นางจันทนา ตันมา')
     expect(json.data.isRegistered).toBe(true)
+    expect(json.data.icd10Principal).toBe('C541')
     expect(json.data.registeredDate).toBe('2026-11-02')
   })
 })
