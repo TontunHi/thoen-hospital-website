@@ -29,6 +29,7 @@ if (typeof dns.setDefaultResultOrder === 'function') {
 }
 
 import mysql from 'mysql2/promise'
+import { fetchAppointmentMismatches } from '../src/lib/clinicalDb'
 
 interface AppointmentMismatch {
   hn: string
@@ -99,9 +100,24 @@ async function callTelegram(method: string, payload: Record<string, any>, timeou
 }
 
 /**
- * Fetch mismatches from HOSxP Database
+ * Fetch mismatches using API Gateway (Zero-DB) with fallback to HOSxP MySQL if gateway is unreachable
  */
 async function fetchMismatchesFromDb(): Promise<AppointmentMismatch[]> {
+  // 1. Primary: Unified API Gateway (Zero-DB Architecture)
+  try {
+    const gatewayRecords = await fetchAppointmentMismatches()
+    return gatewayRecords.map((r) => ({
+      hn: r.hn,
+      department: r.department || 'ไม่ระบุห้องตรวจ',
+      vstdate: r.vstdate || '',
+      nextdate: r.nextdate || '',
+      appUser: r.appUser || 'ไม่ระบุชื่อผู้นัด',
+    }))
+  } catch (gwError: any) {
+    console.warn('⚠️ API Gateway fetch failed, falling back to direct HOSxP MySQL connection:', gwError?.message || gwError)
+  }
+
+  // 2. Secondary Fallback: Direct MySQL Socket
   const connection = await mysql.createConnection({
     host: process.env.APPOINT_DB_HOST || 'localhost',
     port: parseInt(process.env.APPOINT_DB_PORT || '3306', 10),
