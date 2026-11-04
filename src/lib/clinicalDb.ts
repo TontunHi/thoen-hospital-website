@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise'
+import { apiGateway, RequestOptions } from '@/lib/apiGateway'
 
 export interface ClinicalDbConfig {
   host: string
@@ -9,14 +9,9 @@ export interface ClinicalDbConfig {
   charset: string
 }
 
-let pool: mysql.Pool | null = null
-
 /**
  * Resolve HOSxP connection credentials with backward compatibility.
- * Priority:
- * 1. HOSXP_DB_* (New unified standard)
- * 2. APPOINT_DB_* (Legacy appointment DB)
- * 3. ER_DB_* (Legacy ER DB)
+ * (Preserved for legacy scripts and configuration reference)
  */
 export function getClinicalDbConfig(): ClinicalDbConfig {
   return {
@@ -33,30 +28,6 @@ export function getClinicalDbConfig(): ClinicalDbConfig {
 }
 
 /**
- * Returns a singleton connection pool for HOSxP.
- */
-export function getClinicalPool(): mysql.Pool {
-  if (!pool) {
-    const config = getClinicalDbConfig()
-    pool = mysql.createPool({
-      host: config.host,
-      port: config.port,
-      user: config.user,
-      password: config.password,
-      database: config.database,
-      charset: config.charset,
-      connectionLimit: 15,
-      waitForConnections: true,
-      queueLimit: 0,
-      connectTimeout: 5000,
-    })
-  }
-  return pool
-}
-
-import { apiGateway, RequestOptions } from '@/lib/apiGateway'
-
-/**
  * Execute clinical queries via the Thoen Unified API Gateway.
  * Fully decoupled from direct MySQL database connections (Zero-DB Architecture).
  * Strict fail-closed: Throws GatewayUnavailableError if the Gateway is down.
@@ -68,7 +39,6 @@ export async function queryClinicalDb<T = any>(
 ): Promise<T[]> {
   return apiGateway.clinical.query<T>(sql, params, options)
 }
-
 
 // -------------------------------------------------------------
 // Domain Queries (Deep Module Interface)
