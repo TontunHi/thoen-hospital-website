@@ -163,6 +163,7 @@ export default function ImageCropModal({
 
   // Saving state
   const [isSaving, setIsSaving] = useState<boolean>(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Canvas refs
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -215,17 +216,53 @@ export default function ImageCropModal({
     })
   }, [])
 
-  // Load original image
+  // Load original image safely
   useEffect(() => {
-    if (!isOpen || !imageSrc) return
+    if (!isOpen || !imageSrc) {
+      originalImageRef.current = null
+      setLoadError(null)
+      return
+    }
 
+    setLoadError(null)
     const img = new Image()
-    img.crossOrigin = 'anonymous'
+
+    // Only set crossOrigin for remote http(s) URLs, NEVER for blob: or data: URLs (prevents CORS security block in WebKit/Safari)
+    const isRemote = imageSrc.startsWith('http://') || imageSrc.startsWith('https://')
+    if (isRemote) {
+      img.crossOrigin = 'anonymous'
+    }
+
     img.onload = () => {
       originalImageRef.current = img
+      setLoadError(null)
       resetCropBox(img.naturalWidth, img.naturalHeight, initialAspectRatio, 0)
     }
+
+    img.onerror = () => {
+      // If remote image failed with crossOrigin, retry once without crossOrigin
+      if (isRemote && img.crossOrigin) {
+        const fallbackImg = new Image()
+        fallbackImg.onload = () => {
+          originalImageRef.current = fallbackImg
+          setLoadError(null)
+          resetCropBox(fallbackImg.naturalWidth, fallbackImg.naturalHeight, initialAspectRatio, 0)
+        }
+        fallbackImg.onerror = () => {
+          setLoadError('ไม่สามารถโหลดรูปภาพได้ กรุณาตรวจสอบไฟล์รูปภาพหรือเลือกรูปใหม่')
+        }
+        fallbackImg.src = imageSrc
+        return
+      }
+      setLoadError('ไม่สามารถโหลดรูปภาพได้ กรุณาตรวจสอบไฟล์รูปภาพหรือเลือกรูปใหม่')
+    }
+
     img.src = imageSrc
+
+    return () => {
+      img.onload = null
+      img.onerror = null
+    }
   }, [isOpen, imageSrc, initialAspectRatio, resetCropBox])
 
   // Change aspect ratio
@@ -643,7 +680,10 @@ export default function ImageCropModal({
   // Save & Apply cropped photo
   const handleSave = async () => {
     const img = originalImageRef.current
-    if (!img) return
+    if (!img) {
+      alert(loadError || 'กำลังเตรียมรูปภาพหรือรูปภาพยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่อีกครั้ง')
+      return
+    }
 
     try {
       setIsSaving(true)
@@ -659,11 +699,30 @@ export default function ImageCropModal({
       const cropPxW = Math.max(1, Math.round(crop.width * effW))
       const cropPxH = Math.max(1, Math.round(crop.height * effH))
 
+      // Cap maximum dimensions for avatar/staff photo (1000px max)
+      // This prevents massive 25MB uncompressed PNGs that crash mobile canvas or exceed server upload limits,
+      // while preserving crystal-clear sharpness for 300px retina displays.
+      const MAX_OUTPUT_DIM = 1000
+      let outW = cropPxW
+      let outH = cropPxH
+      if (outW > MAX_OUTPUT_DIM || outH > MAX_OUTPUT_DIM) {
+        if (outW >= outH) {
+          outH = Math.max(1, Math.round((outH * MAX_OUTPUT_DIM) / outW))
+          outW = MAX_OUTPUT_DIM
+        } else {
+          outW = Math.max(1, Math.round((outW * MAX_OUTPUT_DIM) / outH))
+          outH = MAX_OUTPUT_DIM
+        }
+      }
+
       const exportCanvas = document.createElement('canvas')
-      exportCanvas.width = cropPxW
-      exportCanvas.height = cropPxH
+      exportCanvas.width = outW
+      exportCanvas.height = outH
       const ctx = exportCanvas.getContext('2d')
       if (!ctx) throw new Error('Cannot create export context')
+
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
 
       ctx.drawImage(
         transformedCanvas,
@@ -673,15 +732,23 @@ export default function ImageCropModal({
         cropPxH,
         0,
         0,
-        cropPxW,
-        cropPxH
+        outW,
+        outH
       )
 
-      const blob = await new Promise<Blob | null>((res) => exportCanvas.toBlob(res, 'image/png'))
-      if (!blob) throw new Error('Failed to create export blob')
+      // Export as JPEG with 0.92 quality (or PNG if requested) to achieve 150KB - 300KB high quality
+      const isPngRequested = fileName.toLowerCase().endsWith('.png')
+      const exportMime = isPngRequested ? 'image/png' : 'image/jpeg'
+      const exportExt = isPngRequested ? '.png' : '.jpg'
 
-      const cleanFileName = fileName.replace(/\.[^/.]+$/, '') + '.png'
-      const file = new File([blob], cleanFileName, { type: 'image/png' })
+      const blob = await new Promise<Blob | null>((res) =>
+        exportCanvas.toBlob(res, exportMime, 0.92)
+      )
+      if (!blob) throw new Error('ไม่สามารถประมวลผลรูปภาพที่ตัดครอบได้')
+
+      const cleanBase = fileName.replace(/\.[^/.]+$/, '') || 'staff-photo'
+      const cleanFileName = `${cleanBase}${exportExt}`
+      const file = new File([blob], cleanFileName, { type: exportMime })
       const previewUrl = URL.createObjectURL(blob)
 
       await onSave(file, previewUrl)
@@ -723,6 +790,27 @@ export default function ImageCropModal({
           {/* Large Main Viewport */}
           <div className={styles.canvasViewport} ref={viewportRef}>
             <div className={styles.viewportPattern} />
+            {loadError && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: '#FEF2F2',
+                  color: '#DC2626',
+                  padding: '12px 18px',
+                  borderRadius: '8px',
+                  border: '1px solid #FCA5A5',
+                  fontSize: '0.85rem',
+                  zIndex: 10,
+                  textAlign: 'center',
+                  maxWidth: '85%'
+                }}
+              >
+                {loadError}
+              </div>
+            )}
             <canvas
               ref={canvasRef}
               className={styles.canvasElement}

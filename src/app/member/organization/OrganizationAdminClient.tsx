@@ -157,7 +157,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [isCropModalOpen, setIsCropModalOpen] = useState(false)
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
-  const [cropFileName, setCropFileName] = useState('staff-photo.png')
+  const [cropFileName, setCropFileName] = useState('staff-photo.jpg')
+  const [imgPreviewFailed, setImgPreviewFailed] = useState(false)
 
   // Confirm delete dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -315,24 +316,59 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     const file = e.target.files?.[0]
     if (!file) return
 
-    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp']
-    if (!allowedMimes.includes(file.type)) {
-      addToast('รองรับเฉพาะไฟล์รูปภาพ JPG, PNG หรือ WebP เท่านั้น', 'error')
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.jfif', '.heic', '.heif']
+    const allowedMimes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/pjpeg',
+      'image/jfif',
+      'image/png',
+      'image/x-png',
+      'image/webp',
+      'image/avif',
+      'image/heic',
+      'image/heif'
+    ]
+
+    const ext = file.name && file.name.includes('.')
+      ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
+      : ''
+    const isMimeValid = allowedMimes.includes(file.type?.toLowerCase())
+    const isExtValid = ext && allowedExts.includes(ext)
+
+    if (!isMimeValid && !isExtValid) {
+      addToast('รองรับเฉพาะไฟล์รูปภาพ JPG, PNG, WebP หรือ HEIC เท่านั้น', 'error')
+      e.target.value = ''
       return
+    }
+
+    if (imageToCrop && imageToCrop.startsWith('blob:')) {
+      URL.revokeObjectURL(imageToCrop)
     }
 
     const objectUrl = URL.createObjectURL(file)
     setImageToCrop(objectUrl)
-    setCropFileName(file.name || 'staff-photo.png')
+    setCropFileName(file.name || 'staff-photo.jpg')
     setIsCropModalOpen(true)
     e.target.value = ''
   }
 
   const handleEditCurrentPhoto = () => {
     if (!memberFormData.imagePath) return
+    if (imageToCrop && imageToCrop.startsWith('blob:')) {
+      URL.revokeObjectURL(imageToCrop)
+    }
     setImageToCrop(memberFormData.imagePath)
-    setCropFileName(`${memberFormData.name || 'staff'}.png`)
+    setCropFileName(`staff-${memberFormData.id || 'photo'}.jpg`)
     setIsCropModalOpen(true)
+  }
+
+  const handleCloseCropModal = () => {
+    if (imageToCrop && imageToCrop.startsWith('blob:')) {
+      URL.revokeObjectURL(imageToCrop)
+    }
+    setIsCropModalOpen(false)
+    setImageToCrop(null)
   }
 
   const handleSaveCroppedPhoto = async (file: File) => {
@@ -348,12 +384,18 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
       const json = await res.json()
       if (json.success && json.data?.url) {
         setMemberFormData((prev) => ({ ...prev, imagePath: json.data.url }))
+        setImgPreviewFailed(false)
         addToast('อัปโหลดและตัดครอบรูปภาพสำเร็จ', 'success')
       } else {
-        addToast(json.error || 'อัปโหลดรูปภาพไม่สำเร็จ', 'error')
+        const errMsg = json.error || 'อัปโหลดรูปภาพไม่สำเร็จ'
+        addToast(errMsg, 'error')
+        throw new Error(errMsg)
       }
-    } catch {
-      addToast('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ', 'error')
+    } catch (err: any) {
+      if (err?.message && !err.message.includes('อัปโหลดรูปภาพไม่สำเร็จ')) {
+        addToast(err.message, 'error')
+      }
+      throw err
     } finally {
       setIsUploadingPhoto(false)
     }
@@ -1041,6 +1083,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                         isSelectingMemberRef.current = false
                         setSearchMemberResults([])
                         setSearchMemberQuery('')
+                        setImgPreviewFailed(false)
                         setIsMemberModalOpen(true)
                       }}
                     >
@@ -1104,6 +1147,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                           memberId: null
                         })
                         setSearchMemberQuery('')
+                        setImgPreviewFailed(false)
                         setIsMemberModalOpen(true)
                       }}
                     >
@@ -1205,6 +1249,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                           imagePath: leader.imagePath || '',
                                           memberId: leader.memberId || null
                                         })
+                                        setImgPreviewFailed(false)
                                         setIsMemberModalOpen(true)
                                       }}
                                     >
@@ -1309,6 +1354,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                           imagePath: member.imagePath || '',
                                           memberId: member.memberId || null
                                         })
+                                        setImgPreviewFailed(false)
                                         setIsMemberModalOpen(true)
                                       }}
                                     >
@@ -1556,14 +1602,12 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                       <div className="formGroup">
                         <label className="formLabel">รูปถ่ายบุคลากร</label>
                         <div className="photoUploadArea">
-                          {memberFormData.imagePath ? (
+                          {memberFormData.imagePath && !imgPreviewFailed ? (
                             <img
                               src={memberFormData.imagePath}
                               alt="Preview"
                               className="photoPreview"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none'
-                              }}
+                              onError={() => setImgPreviewFailed(true)}
                             />
                           ) : (
                             <div className="avatarFallback photoPreviewFallback">
@@ -1574,10 +1618,10 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                           <div className="photoUploadActions">
                             <label className="btn btnSecondary btnSmall uploadBtnLabel">
                               <Upload size={14} />
-                              <span>{isUploadingPhoto ? 'กำลังอัปโหลด...' : memberFormData.imagePath ? 'เปลี่ยนรูปถ่าย (JPG, PNG)' : 'เลือกรูปถ่าย (JPG, PNG)'}</span>
+                              <span>{isUploadingPhoto ? 'กำลังอัปโหลด...' : memberFormData.imagePath ? 'เปลี่ยนรูปถ่าย (ตัดครอบ/Crop)' : 'เลือกรูปถ่าย (ตัดครอบ/Crop)'}</span>
                               <input
                                 type="file"
-                                accept="image/jpeg,image/png,image/webp"
+                                accept="image/jpeg,image/png,image/webp,image/jfif,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.jfif,.heic,.heif"
                                 onChange={handlePhotoSelect}
                                 disabled={isUploadingPhoto}
                                 style={{ display: 'none' }}
@@ -1605,7 +1649,10 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                 <button
                                   type="button"
                                   className="iconBtnCompact danger"
-                                  onClick={() => setMemberFormData({ ...memberFormData, imagePath: '' })}
+                                  onClick={() => {
+                                    setMemberFormData({ ...memberFormData, imagePath: '' })
+                                    setImgPreviewFailed(false)
+                                  }}
                                   title="ลบรูปภาพ"
                                 >
                                   <Trash2 size={12} />
@@ -1743,10 +1790,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
             subtitle="ปรับสัดส่วนภาพและเลือกตำแหน่งที่ต้องการแสดงผล"
             initialAspectRatio={3 / 4}
             fileName={cropFileName}
-            onClose={() => {
-              setIsCropModalOpen(false)
-              setImageToCrop(null)
-            }}
+            onClose={handleCloseCropModal}
             onSave={handleSaveCroppedPhoto}
           />
         )}
