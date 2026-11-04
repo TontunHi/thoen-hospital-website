@@ -5,35 +5,15 @@ import {
   Search, 
   RefreshCw, 
   Calendar, 
-  Eye, 
   ChevronLeft, 
   ChevronRight, 
-  Database, 
-  LogIn, 
-  LogOut, 
-  Settings, 
-  FileCode, 
-  Globe, 
   X, 
   AlertCircle, 
   ArrowLeft, 
   Download, 
-  Shield, 
-  ShieldCheck, 
-  HardDrive, 
-  Laptop, 
-  Smartphone, 
-  Tablet, 
-  Bot, 
   Copy, 
   Check, 
-  Clock, 
-  PlusCircle, 
-  Edit3, 
-  Trash2, 
-  Filter, 
-  Activity, 
-  Server 
+  Trash2
 } from 'lucide-react'
 import Link from 'next/link'
 import { parseUserAgent } from '@/lib/userAgentParser'
@@ -102,6 +82,12 @@ export default function AuditLogsClient() {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
+  // PDPA Cleanup Modal State
+  const [cleanupModalOpen, setCleanupModalOpen] = useState(false)
+  const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [cleanupChecking, setCleanupChecking] = useState(false)
+  const [expiredCount, setExpiredCount] = useState<number | null>(null)
+
   const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
     const id = Date.now().toString()
     setToasts((prev) => [...prev, { id, message, type }])
@@ -124,59 +110,71 @@ export default function AuditLogsClient() {
     }
   }
 
-  const fetchLogs = useCallback(async (currentPage = page, customFilters?: { search?: string; actionType?: string; startDate?: string; endDate?: string }) => {
-    setLoading(true)
-    setError(null)
+  const fetchStats = async () => {
     try {
-      const params = new URLSearchParams()
-      params.append('page', currentPage.toString())
-      params.append('limit', '25')
-      
+      setStatsLoading(true)
+      const res = await fetch('/api/admin/audit-logs/stats')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.stats) {
+          setStats(data.stats)
+        }
+      }
+    } catch (err) {
+      console.error('Fetch audit stats error:', err)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  const fetchLogs = useCallback(async (
+    targetPage = page,
+    customFilters?: { search?: string; actionType?: string; startDate?: string; endDate?: string }
+  ) => {
+    try {
+      setLoading(true)
+      setError(null)
+
       const s = customFilters?.search !== undefined ? customFilters.search : search
       const a = customFilters?.actionType !== undefined ? customFilters.actionType : actionType
       const sd = customFilters?.startDate !== undefined ? customFilters.startDate : startDate
       const ed = customFilters?.endDate !== undefined ? customFilters.endDate : endDate
+
+      const params = new URLSearchParams({
+        page: targetPage.toString(),
+        limit: '25'
+      })
 
       if (s) params.append('search', s)
       if (a) params.append('actionType', a)
       if (sd) params.append('startDate', sd)
       if (ed) params.append('endDate', ed)
 
-      const response = await fetch(`/api/admin/audit-logs?${params.toString()}`)
-      const data = await response.json()
+      const res = await fetch(`/api/admin/audit-logs?${params.toString()}`)
+      const data = await res.json()
 
-      if (response.ok && data.success) {
-        setLogs(data.logs || [])
-        setPagination(data.pagination || { page: currentPage, limit: 25, total: 0, totalPages: 1 })
-      } else {
-        setError(data.error || 'ไม่สามารถดึงข้อมูลประวัติการใช้งานได้')
+      if (!res.ok) {
+        throw new Error(data.error || 'ไม่สามารถโหลดประวัติการใช้งานได้')
       }
-    } catch (err) {
-      console.error(err)
-      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+
+      setLogs(data.logs || [])
+      setPagination(data.pagination || {
+        page: targetPage,
+        limit: 25,
+        total: 0,
+        totalPages: 1
+      })
+    } catch (err: any) {
+      console.error('Fetch logs error:', err)
+      setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
     } finally {
       setLoading(false)
     }
   }, [page, search, actionType, startDate, endDate])
 
-  const fetchStats = async () => {
-    setStatsLoading(true)
-    try {
-      const res = await fetch('/api/admin/audit-logs/stats')
-      const data = await res.json()
-      if (res.ok && data.success) {
-        setStats(data.stats)
-      }
-    } catch (err) {
-      console.error('Failed to load stats:', err)
-    } finally {
-      setStatsLoading(false)
-    }
-  }
-
   const handleExportCsv = async () => {
-    setExporting(true)
     try {
+      setExporting(true)
       const params = new URLSearchParams()
       if (search) params.append('search', search)
       if (actionType) params.append('actionType', actionType)
@@ -184,7 +182,9 @@ export default function AuditLogsClient() {
       if (endDate) params.append('endDate', endDate)
 
       const res = await fetch(`/api/admin/audit-logs/export?${params.toString()}`)
-      if (!res.ok) throw new Error('Export failed')
+      if (!res.ok) {
+        throw new Error('การดาวน์โหลดรายงานล้มเหลว')
+      }
 
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
@@ -193,14 +193,60 @@ export default function AuditLogsClient() {
       a.download = `audit_logs_${new Date().toISOString().slice(0, 10)}.csv`
       document.body.appendChild(a)
       a.click()
-      a.remove()
       window.URL.revokeObjectURL(url)
-      addToast('ส่งออกไฟล์รายงาน Audit Logs (UTF-8 BOM) เรียบร้อยแล้ว', 'success')
+      document.body.removeChild(a)
+
+      addToast('ส่งออกไฟล์รายงาน CSV สำเร็จแล้ว', 'success')
     } catch (err) {
       console.error('Export error:', err)
       addToast('ไม่สามารถส่งออกไฟล์รายงานได้ กรุณาลองใหม่อีกครั้ง', 'error')
     } finally {
       setExporting(false)
+    }
+  }
+
+  // Open Cleanup Confirmation Modal & Check Expired Count
+  const handleOpenCleanupModal = async () => {
+    setCleanupModalOpen(true)
+    setCleanupChecking(true)
+    try {
+      const res = await fetch('/api/admin/audit-logs/cleanup?days=90')
+      const data = await res.json()
+      if (data.success) {
+        setExpiredCount(data.expiredCount)
+      } else {
+        setExpiredCount(0)
+      }
+    } catch {
+      setExpiredCount(0)
+    } finally {
+      setCleanupChecking(false)
+    }
+  }
+
+  const handleExecuteCleanup = async () => {
+    try {
+      setCleanupLoading(true)
+      const res = await fetch('/api/admin/audit-logs/cleanup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retentionDays: 90 })
+      })
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'การล้างข้อมูลประวัติล้มเหลว')
+      }
+
+      addToast(data.message || 'ล้างประวัติเก่าเกิน 90 วันสำเร็จแล้ว', 'success')
+      setCleanupModalOpen(false)
+      fetchStats()
+      fetchLogs(1)
+    } catch (err: any) {
+      console.error('Execute cleanup error:', err)
+      addToast(err.message || 'เกิดข้อผิดพลาดในการล้างประวัติ', 'error')
+    } finally {
+      setCleanupLoading(false)
     }
   }
 
@@ -262,64 +308,26 @@ export default function AuditLogsClient() {
     addToast('อัปเดตข้อมูลล่าสุดเรียบร้อยแล้ว', 'info')
   }
 
+  // 1 color = 1 meaning, NO decorative icons inside badges
   const getActionBadge = (type: string) => {
-    switch (type.toUpperCase()) {
+    const t = type.toUpperCase()
+    switch (t) {
       case 'LOGIN':
-        return (
-          <span className="logBadge badgeLogin">
-            <LogIn size={13} className="badgeIcon" />
-            <span>LOGIN</span>
-          </span>
-        )
-      case 'LOGOUT':
-        return (
-          <span className="logBadge badgeLogout">
-            <LogOut size={13} className="badgeIcon" />
-            <span>LOGOUT</span>
-          </span>
-        )
+        return <span className="logBadge badgeLogin">LOGIN</span>
       case 'CREATE':
-        return (
-          <span className="logBadge badgeCreate">
-            <PlusCircle size={13} className="badgeIcon" />
-            <span>CREATE</span>
-          </span>
-        )
-      case 'UPDATE':
-        return (
-          <span className="logBadge badgeUpdate">
-            <Edit3 size={13} className="badgeIcon" />
-            <span>UPDATE</span>
-          </span>
-        )
+        return <span className="logBadge badgeCreate">CREATE</span>
       case 'READ':
-        return (
-          <span className="logBadge badgeRead">
-            <Eye size={13} className="badgeIcon" />
-            <span>READ</span>
-          </span>
-        )
-      case 'DELETE':
-        return (
-          <span className="logBadge badgeDelete">
-            <Trash2 size={13} className="badgeIcon" />
-            <span>DELETE</span>
-          </span>
-        )
+        return <span className="logBadge badgeRead">READ</span>
       case 'REQUEST':
-        return (
-          <span className="logBadge badgeRequest">
-            <Globe size={13} className="badgeIcon" />
-            <span>REQUEST</span>
-          </span>
-        )
+        return <span className="logBadge badgeRequest">REQUEST</span>
+      case 'UPDATE':
+        return <span className="logBadge badgeUpdate">UPDATE</span>
+      case 'DELETE':
+        return <span className="logBadge badgeDelete">DELETE</span>
+      case 'LOGOUT':
+        return <span className="logBadge badgeLogout">LOGOUT</span>
       case 'SYSTEM':
-        return (
-          <span className="logBadge badgeSystem">
-            <Settings size={13} className="badgeIcon" />
-            <span>SYSTEM</span>
-          </span>
-        )
+        return <span className="logBadge badgeSystem">SYSTEM</span>
       default:
         return <span className="logBadge badgeDefault">{type}</span>
     }
@@ -337,26 +345,18 @@ export default function AuditLogsClient() {
       case 'position_permissions': return 'ตั้งค่าสิทธิ์ (permissions)'
       case 'salary_slips': return 'สลิปเงินเดือน (salary_slips)'
       case 'inbox_tasks': return 'งานในกล่องข้อความ (inbox_tasks)'
+      case 'audit_logs': return 'บันทึกความปลอดภัย (audit_logs)'
       default: return table
     }
   }
 
   const getDeviceBadge = (uaString: string | null) => {
     const parsed = parseUserAgent(uaString)
-    const icon = parsed.deviceType === 'mobile' 
-      ? <Smartphone size={13} className="deviceIcon" />
-      : parsed.deviceType === 'tablet'
-      ? <Tablet size={13} className="deviceIcon" />
-      : parsed.deviceType === 'bot'
-      ? <Bot size={13} className="deviceIcon" />
-      : <Laptop size={13} className="deviceIcon" />
-
     const deviceName = parsed.deviceModel || parsed.os
     const tooltipText = `${parsed.os} • ${parsed.browser}\n${uaString || 'ไม่ระบุ User-Agent'}`
 
     return (
       <div className={`deviceBadge deviceBadge-${parsed.deviceType}`} title={tooltipText}>
-        {icon}
         <span className="deviceTextTruncate">
           <span className="deviceName">{deviceName}</span>
           <span className="deviceSeparator">•</span>
@@ -369,8 +369,6 @@ export default function AuditLogsClient() {
   const parseAuditDate = (dateStr: string): Date => {
     if (!dateStr) return new Date()
     let clean = dateStr.trim()
-    // Defensively handle timestamps: if it has trailing 'Z', it was serialized as UTC from local Thai DB.
-    // Replace 'Z' with '+07:00' to anchor it to Thailand timezone (UTC+7).
     if (clean.endsWith('Z')) {
       clean = clean.replace(/Z$/, '+07:00')
     } else if (!clean.includes('+') && !clean.includes('Z')) {
@@ -379,18 +377,19 @@ export default function AuditLogsClient() {
     return new Date(clean)
   }
 
+  // Thai Buddhist Year (พ.ศ.) format: e.g. "04 พ.ย. 2569 22:20:00"
   const formatDate = (dateStr: string) => {
     try {
       const date = parseAuditDate(dateStr)
-      return date.toLocaleString('th-TH', {
-        timeZone: 'Asia/Bangkok',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
+      const d = date.getDate().toString().padStart(2, '0')
+      const mNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+      const m = mNames[date.getMonth()]
+      let y = date.getFullYear()
+      if (y < 2400) y += 543
+      const hh = date.getHours().toString().padStart(2, '0')
+      const mm = date.getMinutes().toString().padStart(2, '0')
+      const ss = date.getSeconds().toString().padStart(2, '0')
+      return `${d} ${m} ${y} ${hh}:${mm}:${ss}`
     } catch {
       return dateStr
     }
@@ -434,6 +433,17 @@ export default function AuditLogsClient() {
               <span className="pulseDot" aria-hidden="true"></span>
               <span className="pulseText">บันทึกเรียลไทม์ Tier-1 Audit</span>
             </div>
+
+            <button 
+              type="button" 
+              className="btnCleanUpTrigger" 
+              onClick={handleOpenCleanupModal}
+              title="ล้างประวัติการใช้งานที่เก่ากว่า 90 วันตามเกณฑ์ PDPA"
+            >
+              <Trash2 size={14} />
+              <span>ล้างประวัติเก่าเกิน 90 วัน</span>
+            </button>
+
             <button 
               type="button" 
               className="refreshHeaderBtn" 
@@ -448,91 +458,76 @@ export default function AuditLogsClient() {
         </div>
 
         <div className="titleWrapper">
-          <div className="titleIcon" aria-hidden="true">
-            <ShieldCheck size={28} />
-          </div>
           <div className="titleText">
             <div className="titleRow">
               <h1>ระบบประวัติความปลอดภัยและ Audit Logs</h1>
               <span className="complianceBadge">PDPA & Hospital Security Standard</span>
             </div>
             <p className="subtitle">
-              ตรวจสอบและบันทึกประวัติการเข้าใช้งาน การสืบค้นข้อมูลสำคัญ (PHI/Salary) การเปลี่ยนแปลงสิทธิ และการดำเนินงาน CRUD ทั้งหมดของโรงพยาบาลเถิน
+              ตรวจสอบและบันทึกประวัติการเข้าใช้งาน การสืบค้นข้อมูลสำคัญ (PHI/Salary) การเปลี่ยนแปลงสิทธิ์ และการดำเนินงาน CRUD ทั้งหมดของโรงพยาบาลเถิน
             </p>
           </div>
         </div>
       </header>
 
-      {/* Stats Dashboard Cards */}
+      {/* Stats Dashboard Cards - Clean, No Decorative Icons, Tabular Numbers */}
       <section className="auditStatsGrid" aria-label="สถิติความปลอดภัย">
         <div className="statCard statCardTotal">
           <div className="statCardHeader">
-            <div className="statIconWrapper statIconTotal" aria-hidden="true">
-              <Database size={20} />
-            </div>
+            <span className="statLabel">บันทึกทั้งหมด (Total Logs)</span>
             <span className="statBadge">ระบบทั้งหมด</span>
           </div>
           <div className="statInfo">
-            <span className="statLabel">บันทึกทั้งหมด (Total Logs)</span>
-            <span className="statValue">
+            <span className="statValue tabular-nums">
               {statsLoading ? <span className="statSkeleton"></span> : (stats?.totalLogs ?? 0).toLocaleString()}
             </span>
-            <span className="statSubtext">
-              <Server size={12} /> ขนาดข้อมูลสะสม ~{stats?.sizeMb ?? 0} MB
+            <span className="statSubtext tabular-nums">
+              ขนาดข้อมูลสะสม ~{stats?.sizeMb ?? 0} MB
             </span>
           </div>
         </div>
 
         <div className="statCard statCardLogin">
           <div className="statCardHeader">
-            <div className="statIconWrapper statIconLogin" aria-hidden="true">
-              <LogIn size={20} />
-            </div>
+            <span className="statLabel">เข้าสู่ระบบวันนี้ (Logins Today)</span>
             <span className="statBadge statBadgeSuccess">วันนี้</span>
           </div>
           <div className="statInfo">
-            <span className="statLabel">เข้าสู่ระบบวันนี้ (Logins Today)</span>
-            <span className="statValue">
+            <span className="statValue tabular-nums">
               {statsLoading ? <span className="statSkeleton"></span> : `${(stats?.loginsToday ?? 0).toLocaleString()} ครั้ง`}
             </span>
             <span className="statSubtext">
-              <Activity size={12} /> ตรวจสอบกิจกรรมการยืนยันตัวตน
+              ตรวจสอบกิจกรรมการยืนยันตัวตน
             </span>
           </div>
         </div>
 
         <div className="statCard statCardRead">
           <div className="statCardHeader">
-            <div className="statIconWrapper statIconRead" aria-hidden="true">
-              <Shield size={20} />
-            </div>
-            <span className="statBadge statBadgePurple">Sensitive Access</span>
+            <span className="statLabel">เข้าดูข้อมูลสำคัญ (Reads Today)</span>
+            <span className="statBadge statBadgeInfo">Sensitive Access</span>
           </div>
           <div className="statInfo">
-            <span className="statLabel">เข้าดูข้อมูลสำคัญ (Reads Today)</span>
-            <span className="statValue">
+            <span className="statValue tabular-nums">
               {statsLoading ? <span className="statSkeleton"></span> : `${(stats?.readsToday ?? 0).toLocaleString()} ครั้ง`}
             </span>
             <span className="statSubtext">
-              <Eye size={12} /> เข้าถึงข้อมูลเงินเดือนและเวชระเบียน
+              เข้าถึงข้อมูลเงินเดือนและเวชระเบียน
             </span>
           </div>
         </div>
 
         <div className="statCard statCardRetention">
           <div className="statCardHeader">
-            <div className="statIconWrapper statIconRetention" aria-hidden="true">
-              <HardDrive size={20} />
-            </div>
-            <span className="statBadge statBadgeAmber">เกณฑ์ 90 วัน</span>
+            <span className="statLabel">อายุจัดเก็บข้อมูล (Retention)</span>
+            <span className="statBadge statBadgeWarning">เกณฑ์ 90 วัน</span>
           </div>
           <div className="statInfo">
-            <span className="statLabel">อายุจัดเก็บข้อมูล (Retention)</span>
-            <span className="statValue">
+            <span className="statValue tabular-nums">
               {statsLoading ? <span className="statSkeleton"></span> : `${stats?.retainedDays ?? 0} วัน`}
             </span>
             <span className="statSubtext">
-              <Clock size={12} /> จัดเก็บตามเกณฑ์ พ.ร.บ.ฯ คุ้มครองข้อมูล
+              จัดเก็บตามเกณฑ์ พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล
             </span>
           </div>
         </div>
@@ -544,7 +539,7 @@ export default function AuditLogsClient() {
           {/* Action Types Filter Chips */}
           <div className="actionChipsRow">
             <span className="chipsLabel">
-              <Filter size={14} /> ประเภทกิจกรรม:
+              ประเภทกิจกรรม:
             </span>
             <div className="chipsList" role="tablist" aria-label="กรองประเภทกิจกรรม">
               {[
@@ -606,10 +601,10 @@ export default function AuditLogsClient() {
               </div>
             </div>
 
-            {/* Quick Date Range Presets & Date Pickers */}
+            {/* Quick Date Range Presets */}
             <div className="filterField">
-              <label>ช่วงวันที่ด่วน</label>
-              <div className="datePresetsRow" role="group" aria-label="เลือกช่วงวันที่ด่วน">
+              <label>ช่วงวันด่วน</label>
+              <div className="datePresetsRow" role="group" aria-label="เลือกช่วงวันด่วน">
                 <button
                   type="button"
                   className={`presetBtn ${activeDatePreset === 'all' ? 'active' : ''}`}
@@ -745,7 +740,7 @@ export default function AuditLogsClient() {
         <div className="tableControlBar">
           <div className="tableTitle">
             <h3>รายการประวัติความปลอดภัย ({pagination.total.toLocaleString()} รายการ)</h3>
-            <span className="tableSubtitle">แสดงผลหน้าละ 25 รายการ • จัดเก็บตามเกณฑ์มาตรฐาน PDPA</span>
+            <span className="tableSubtitle">แสดงผลหน้าละ 25 รายการ • จัดเก็บตามเกณฑ์มาตรฐาน PDPA ขั้นต่ำ 90 วัน</span>
           </div>
         </div>
 
@@ -778,9 +773,6 @@ export default function AuditLogsClient() {
           </div>
         ) : logs.length === 0 ? (
           <div className="emptyState">
-            <div className="stateIconWrapper stateIconEmpty">
-              <Search size={32} />
-            </div>
             <h4>ไม่พบบันทึกประวัติการใช้งาน</h4>
             <p>ไม่มีรายการที่ตรงกับเงื่อนไขการค้นหา หรือยังไม่มีกิจกรรมในช่วงเวลาที่เลือก</p>
             {hasActiveFilters && (
@@ -792,7 +784,7 @@ export default function AuditLogsClient() {
           </div>
         ) : (
           <>
-            {/* Desktop Table View - Clean Proportions, Zero Horizontal Scroll */}
+            {/* Desktop Table View */}
             <div className="desktopTableContainer">
               <div className="tableWrapper">
                 <table className="logsTable">
@@ -816,7 +808,7 @@ export default function AuditLogsClient() {
                         <tr key={log.id} className="logRow">
                           <td className="timeCell">
                             <div className="timeCellWrapper">
-                              <span className="timePrimary">{formatDate(log.timestamp)}</span>
+                              <span className="timePrimary tabular-nums">{formatDate(log.timestamp)}</span>
                               {relative && <span className="timeRelative">{relative}</span>}
                             </div>
                           </td>
@@ -834,9 +826,6 @@ export default function AuditLogsClient() {
                               </div>
                             ) : (
                               <div className="guestUserDetails">
-                                <div className="guestAvatarCircle" aria-hidden="true">
-                                  <Globe size={13} />
-                                </div>
                                 <span className="guestText">Guest / System</span>
                               </div>
                             )}
@@ -855,7 +844,7 @@ export default function AuditLogsClient() {
                           <td className="ipCell">
                             {log.ip_address ? (
                               <div className="ipBadgeWrapper">
-                                <span className="ipText">{log.ip_address}</span>
+                                <span className="ipText tabular-nums">{log.ip_address}</span>
                                 {isLocal && <span className="lanBadge">LAN</span>}
                                 <button
                                   type="button"
@@ -888,7 +877,6 @@ export default function AuditLogsClient() {
                               title="ดูข้อมูลเจาะลึกความปลอดภัย"
                               aria-label={`ดูบันทึก #${log.id}`}
                             >
-                              <Eye size={14} />
                               <span>ดูบันทึก</span>
                             </button>
                           </td>
@@ -900,7 +888,7 @@ export default function AuditLogsClient() {
               </div>
             </div>
 
-            {/* Mobile / Tablet Responsive Cards View (No Horizontal Scroll) */}
+            {/* Mobile / Tablet Responsive Cards View */}
             <div className="mobileCardsContainer">
               {logs.map((log) => {
                 const relative = formatRelativeTime(log.timestamp)
@@ -911,10 +899,10 @@ export default function AuditLogsClient() {
                     <div className="mobileLogCardTop">
                       <div className="mobileActionWrap">
                         {getActionBadge(log.action_type)}
-                        <span className="mobileLogId">#{log.id}</span>
+                        <span className="mobileLogId tabular-nums">#{log.id}</span>
                       </div>
                       <div className="mobileTimeWrap">
-                        <span className="mobileTimePrimary">{formatDate(log.timestamp)}</span>
+                        <span className="mobileTimePrimary tabular-nums">{formatDate(log.timestamp)}</span>
                         {relative && <span className="mobileTimeRelative">{relative}</span>}
                       </div>
                     </div>
@@ -933,9 +921,6 @@ export default function AuditLogsClient() {
                           </div>
                         ) : (
                           <div className="guestUserDetails">
-                            <div className="guestAvatarCircle" aria-hidden="true">
-                              <Globe size={13} />
-                            </div>
                             <span className="guestText">Guest / System</span>
                           </div>
                         )}
@@ -949,7 +934,7 @@ export default function AuditLogsClient() {
                         <div className="mobileMetaItem">
                           <span className="mobileMetaLabel">IP:</span>
                           <span className="ipBadgeWrapper">
-                            <span className="ipText">{log.ip_address || '-'}</span>
+                            <span className="ipText tabular-nums">{log.ip_address || '-'}</span>
                             {isLocal && <span className="lanBadge">LAN</span>}
                             {log.ip_address && (
                               <button
@@ -980,7 +965,6 @@ export default function AuditLogsClient() {
                         className="mobileViewDetailBtn"
                         onClick={() => setSelectedLog(log)}
                       >
-                        <Eye size={15} />
                         <span>ดูบันทึกเจาะลึก</span>
                       </button>
                     </div>
@@ -991,7 +975,7 @@ export default function AuditLogsClient() {
 
             {/* Pagination Controls */}
             <div className="pagination">
-              <div className="paginationInfo">
+              <div className="paginationInfo tabular-nums">
                 แสดงผล <span>{logs.length}</span> จากทั้งหมด <span>{pagination.total.toLocaleString()}</span> รายการ
               </div>
               
@@ -1016,7 +1000,7 @@ export default function AuditLogsClient() {
                   <span>ก่อนหน้า</span>
                 </button>
                 
-                <div className="pageIndicator">
+                <div className="pageIndicator tabular-nums">
                   หน้า <strong>{page}</strong> จาก <strong>{pagination.totalPages || 1}</strong>
                 </div>
 
@@ -1050,14 +1034,9 @@ export default function AuditLogsClient() {
         <div className="modalOverlay" onClick={() => setSelectedLog(null)} role="dialog" aria-modal="true">
           <div className="modalContent" onClick={(e) => e.stopPropagation()}>
             <div className="modalHeader">
-              <div className="modalHeaderTitle">
-                <div className="modalHeaderIcon" aria-hidden="true">
-                  <ShieldCheck size={22} />
-                </div>
-                <div>
-                  <h3>รายละเอียดบันทึกความปลอดภัย</h3>
-                  <span className="modalHeaderSub">Audit Log Entry ID #{selectedLog.id}</span>
-                </div>
+              <div>
+                <h3>รายละเอียดบันทึกความปลอดภัย</h3>
+                <span className="modalHeaderSub tabular-nums">Audit Log Entry ID #{selectedLog.id}</span>
               </div>
               <button 
                 type="button"
@@ -1078,11 +1057,11 @@ export default function AuditLogsClient() {
                 </div>
                 <div className="modalSummaryItem">
                   <span className="summaryLabel">วัน-เวลาบันทึก (Timestamp)</span>
-                  <span className="summaryValue">{formatDate(selectedLog.timestamp)}</span>
+                  <span className="summaryValue tabular-nums">{formatDate(selectedLog.timestamp)}</span>
                 </div>
                 <div className="modalSummaryItem">
                   <span className="summaryLabel">สถานะเครือข่าย</span>
-                  <span className="summaryValue ipModalTag">
+                  <span className="summaryValue ipModalTag tabular-nums">
                     {selectedLog.ip_address || '-'} 
                     {isLocalIp(selectedLog.ip_address) && <span className="lanBadge">Internal LAN</span>}
                   </span>
@@ -1148,45 +1127,45 @@ export default function AuditLogsClient() {
                     <span className="detailLabel">User-Agent Header แบบเต็ม</span>
                     {selectedLog.user_agent && (
                       <button 
-                        type="button" 
-                        className="modalTextActionBtn"
-                        onClick={() => copyToClipboard(selectedLog.user_agent!, 'User-Agent')}
+                        type="button"
+                        className="textActionBtn"
+                        onClick={() => copyToClipboard(selectedLog.user_agent!, 'User-Agent Header')}
                       >
                         <Copy size={12} />
-                        <span>คัดลอก User-Agent</span>
+                        <span>คัดลอก</span>
                       </button>
                     )}
                   </div>
-                  <span className="detailValue userAgentText code">{selectedLog.user_agent || '-'}</span>
+                  <pre className="codeBlock">{selectedLog.user_agent || 'ไม่มีข้อมูล User-Agent'}</pre>
                 </div>
-              </div>
 
-              {/* Raw Action Details Viewer */}
-              <div className="detailDetails">
-                <div className="detailDetailsHeader">
-                  <div className="detailsHeaderTitle">
-                    <FileCode size={16} />
-                    <span>ข้อมูลเชิงเทคนิค / พารามิเตอร์ (Action Payload Details)</span>
+                <div className="detailItem fullWidth">
+                  <div className="detailHeaderWithAction">
+                    <span className="detailLabel">รายละเอียดการปฏิบัติงาน (Action Details)</span>
+                    {selectedLog.action_details && (
+                      <button 
+                        type="button"
+                        className="textActionBtn"
+                        onClick={() => copyToClipboard(selectedLog.action_details!, 'รายละเอียดการปฏิบัติงาน')}
+                      >
+                        <Copy size={12} />
+                        <span>คัดลอก</span>
+                      </button>
+                    )}
                   </div>
-                  {selectedLog.action_details && (
-                    <button 
-                      type="button" 
-                      className="modalCopyCodeBtn"
-                      onClick={() => copyToClipboard(selectedLog.action_details!, 'Action Details JSON')}
-                    >
-                      <Copy size={13} />
-                      <span>คัดลอก JSON</span>
-                    </button>
-                  )}
+                  <pre className="codeBlock actionDetailsPre">
+                    {selectedLog.action_details || 'ไม่มีรายละเอียดเพิ่มเติม'}
+                  </pre>
                 </div>
-                <pre className="detailDetailsContent">
-                  <code>{selectedLog.action_details || 'ไม่มีข้อมูลเชิงเทคนิคเพิ่มเติม (No payload details)'}</code>
-                </pre>
               </div>
             </div>
-            
+
             <div className="modalFooter">
-              <button type="button" className="btnSecondary" onClick={() => setSelectedLog(null)}>
+              <button 
+                type="button" 
+                className="btnSecondary" 
+                onClick={() => setSelectedLog(null)}
+              >
                 ปิดหน้าต่าง
               </button>
             </div>
@@ -1194,6 +1173,79 @@ export default function AuditLogsClient() {
         </div>
       )}
 
+      {/* PDPA Retention Cleanup Confirmation Modal */}
+      {cleanupModalOpen && (
+        <div className="modalOverlay" onClick={() => !cleanupLoading && setCleanupModalOpen(false)} role="dialog" aria-modal="true">
+          <div className="modalContent cleanupModalContent" onClick={(e) => e.stopPropagation()}>
+            <div className="modalHeader">
+              <div>
+                <h3>ล้างประวัติการใช้งานระบบ (PDPA Retention)</h3>
+                <span className="modalHeaderSub">เกณฑ์การจัดเก็บข้อมูลขั้นต่ำ 90 วันตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล</span>
+              </div>
+              <button 
+                type="button"
+                className="closeBtn" 
+                onClick={() => !cleanupLoading && setCleanupModalOpen(false)}
+                disabled={cleanupLoading}
+                aria-label="ปิดหน้าต่าง"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modalBody">
+              <div className="cleanupInfoBox">
+                <p className="cleanupWarningText">
+                  ระบบจะลบข้อมูลประวัติในตาราง <code>audit_logs</code> ที่มีอายุเก่ากว่า <strong>90 วัน</strong> ทั้งหมดออกจากฐานข้อมูล
+                </p>
+                <div className="cleanupCountSummary">
+                  <span className="cleanupCountLabel">จำนวนรายการที่เข้าเกณฑ์ล้างประวัติ:</span>
+                  <span className="cleanupCountValue tabular-nums">
+                    {cleanupChecking ? (
+                      <span className="statSkeleton"></span>
+                    ) : expiredCount !== null ? (
+                      `${expiredCount.toLocaleString()} รายการ`
+                    ) : (
+                      'พร้อมตรวจสอบ'
+                    )}
+                  </span>
+                </div>
+                <p className="cleanupNotice">
+                  หมายเหตุ: การดำเนินการนี้เป็นการลบถาวรเพื่อลดขนาดฐานข้อมูลตามมาตรฐานความปลอดภัย และระบบจะบันทึก Audit Log การล้างข้อมูลนี้ไว้เป็นหลักฐานโดยอัตโนมัติ
+                </p>
+              </div>
+            </div>
+
+            <div className="modalFooter">
+              <button 
+                type="button" 
+                className="btnSecondary" 
+                onClick={() => setCleanupModalOpen(false)}
+                disabled={cleanupLoading}
+              >
+                ยกเลิก
+              </button>
+              <button 
+                type="button" 
+                className="btnDanger"
+                onClick={handleExecuteCleanup}
+                disabled={cleanupLoading || cleanupChecking || expiredCount === 0}
+              >
+                {cleanupLoading ? (
+                  <>
+                    <RefreshCw size={15} className="animate-spin" />
+                    <span>กำลังดำเนินการ...</span>
+                  </>
+                ) : (
+                  <span>ยืนยันการล้างข้อมูล</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </>
   )
