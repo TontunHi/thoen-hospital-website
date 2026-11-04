@@ -1,73 +1,163 @@
 ---
 name: ssh-thlp
 description: >-
-  Connects to a remote server via SSH (prompts for SSH IP, User, Password at runtime)
-  to develop, deploy, and verify an internal API Gateway connecting to a backend database.
-  Trigger when user types /ssh-thlp or asks to build an internal SSH API gateway.
+  Connect to the Thoen Hospital API Gateway Proxmox VM (192.168.1.208) via SSH/Paramiko
+  to deploy, test, inspect logs, and manage Fastify Docker containers. Trigger when user types
+  /ssh-thlp, mentions the internal API gateway, or needs remote server deployment and debugging.
 ---
 
 # SSH Internal Gateway Assistant (`/ssh-thlp`)
 
-Develop, deploy, and manage an internal API Gateway directly on a remote server via SSH to bridge communications with internal databases.
-
-## Security & Operational Principles
-
-- **Zero Hardcoded Credentials:** Never store SSH or Database credentials in repository files, persistent configs, or commits. Always prompt the user at runtime.
-- **Paramiko Non-Interactive Execution:** Use temporary Python scripts utilizing `paramiko` placed in the scratch directory (`<appDataDir>\brain\<conversation-id>/scratch/`) to execute commands and transfer files without hanging on interactive TTY password prompts. Delete the scratch script immediately after execution.
-- **Least-Privilege & PDPA Compliance:** Never log plaintext passwords or unmasked PHI/PII in chat output or terminal logs.
+Operational standard and automation recipes for deploying, maintaining, and debugging the Thoen Hospital Internal API Gateway running on the Proxmox virtualized environment.
 
 ---
 
-## Workflow Steps
+## 1. Environment Profile
 
-### Step 1: Prompt for SSH Credentials
-When invoked via `/ssh-thlp`, prompt the user for:
-1. **SSH Host / IP**
-2. **SSH Port** (default: `22`)
-3. **SSH Username**
-4. **SSH Password**
+| Component | Target / Specification |
+| :--- | :--- |
+| **Host IP** | `192.168.1.208` (Port `22`) |
+| **OS** | Debian GNU/Linux (Proxmox VE Virtual Machine) |
+| **SSH User** | `thoen` (Password prompted at runtime) |
+| **Deploy Directory** | `/home/thoen/thoen-api-gateway` |
+| **Service Engine** | Docker Compose (`docker-compose.yml`) |
+| **Container Name** | `thoen-api-gateway` |
+| **Application Runtime** | Node.js (inside container) running **Fastify** |
+| **Internal Port** | `8443` (`http://127.0.0.1:8443` or `http://192.168.1.208:8443`) |
+| **Architecture** | Zero-Direct-DB from Next.js; all DB queries go through this Gateway |
 
-Do not proceed without these credentials.
+> [!IMPORTANT]
+> **Node.js is installed INSIDE the Docker container, NOT on the host OS bash.**
+> Any `node`, `npm`, or syntax check must be executed via `docker exec thoen-api-gateway node ...`.
 
-### Step 2: Test Connection & Inspect Environment
-1. Write a temporary Python script in `<appDataDir>\brain\<conversation-id>/scratch/ssh_exec.py` that connects using `paramiko`:
-   ```python
-   import paramiko, sys
+---
 
-   ssh = paramiko.SSHClient()
-   ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-   ssh.connect(hostname=HOST, port=PORT, username=USER, password=PASS, timeout=10)
-   stdin, stdout, stderr = ssh.exec_command("uname -a && which node python3 php pm2 systemctl 2>/dev/null")
-   print(stdout.read().decode())
-   ssh.close()
+## 2. Security & Execution Rules
+
+1. **Zero Hardcoded Credentials:** Never write SSH passwords or database credentials into repository files, persistent configs, or commits. Always prompt the user at runtime.
+2. **Scratch Paramiko Pattern:** Write temporary Python scripts into the scratch directory:
+   `<appDataDir>\brain\<conversation-id>\scratch\ssh_temp.py`.
+   Execute using:
+   ```powershell
+   cmd.exe /c "python <appDataDir>\brain\<conversation-id>\scratch\ssh_temp.py"
    ```
-2. Execute the script via `run_command` wrapped in `cmd.exe /c "python <scratch_path>"`.
-3. Verify connection and inspect installed runtimes (e.g., Node.js, Python 3, PHP, Process managers like PM2 or systemd).
-4. Remove the temporary script immediately:
-   `cmd.exe /c "del <scratch_path>"`
+   and immediately delete the scratch script upon completion.
+3. **Zero Downtime / Pre-flight Validation:** Always perform syntax checks on modified `.js` files *before* restarting Docker containers.
+4. **Anti-Cache & Audit Compliance:** Ensure all responses from endpoints pass `Cache-Control: no-store` and critical PHI endpoints log audit records.
 
-### Step 3: Prompt for Database & API Requirements
-Once connected and the remote runtime is confirmed, ask the user:
-1. **Database Type:** (e.g., MySQL / HOSxP, PostgreSQL, MSSQL, SQLite)
-2. **Database Connection:** Host/IP, Port, DB Name, DB User, DB Password
-3. **API Scope:** What endpoints or data payloads are required (e.g., REST endpoints, query filters, data format)
+---
 
-### Step 4: Develop & Upload Gateway Code
-1. Write the API code using the runtime best suited for the remote machine (e.g., Express.js, FastAPI, or Slim/PHP):
-   - Secure DB credentials in a `.env` file on the remote server with restricted permissions (`chmod 600 .env`).
-   - Implement structured error handling, connection pooling, and health check endpoint (`/health`).
-2. Transfer code files to the target remote directory using SFTP via a temporary Python paramiko script.
-3. Install necessary dependencies on the remote server (e.g., `npm install`, `pip install`, or `composer install`).
-4. Delete the temporary upload script from scratch.
+## 3. Operational Recipes
 
-### Step 5: Start & Verify Service
-1. Start the API Gateway on the remote server (via `pm2`, a `systemd` service, or background daemon process).
-2. Execute a verification test on the server (e.g., `curl -i http://127.0.0.1:<PORT>/health` and a sample DB query endpoint).
-3. Confirm that responses return expected JSON status and no database connection errors occur.
+### Recipe 1: Syntax & Pre-flight Check (Crucial before restart)
+Check code validity inside the container without stopping the service:
+```bash
+docker exec thoen-api-gateway node --check /app/server.js
+docker exec thoen-api-gateway node --check /app/routes/<plugin-name>.js
+```
 
-### Step 6: Handover & Clean Up
-1. Ensure all local temporary scratch files containing connection code are deleted.
-2. Provide the user with:
-   - Gateway status and base URL / Port on the remote machine.
-   - List of available API endpoints and request/response examples.
-   - Instructions for managing the process (e.g., `pm2 restart <name>` or `systemctl status <service>`).
+### Recipe 2: Fast Container Restart & Health Check
+Restart the container and verify operational status:
+```bash
+docker restart thoen-api-gateway && sleep 2 && curl -s http://127.0.0.1:8443/health
+```
+**Expected Health Response:**
+```json
+{"status":"ok","timestamp":"...","uptime":2}
+```
+
+### Recipe 3: Live Logs & Diagnostic Inspection
+Inspect live logs for runtime exceptions or database connection pool issues:
+```bash
+docker logs --tail 100 --timestamps thoen-api-gateway
+```
+Check container uptime and memory usage:
+```bash
+docker ps -f name=thoen-api-gateway
+docker stats --no-stream thoen-api-gateway
+```
+
+### Recipe 4: Deploy / SFTP File Sync
+When updating Gateway source code:
+1. Target remote directory: `/home/thoen/thoen-api-gateway/routes/` or `/home/thoen/thoen-api-gateway/server.js`.
+2. Keep mirrored backup or documentation in local `docs/gateway/`.
+3. Use SFTP via Paramiko to transfer files cleanly.
+4. Set permissions if needed (`chmod 644`).
+
+---
+
+## 4. Standard Paramiko Python Templates
+
+### A. Remote Command Runner Template
+Save to scratch, execute, and delete:
+```python
+import paramiko, sys
+
+HOST = "192.168.1.208"
+PORT = 22
+USER = "thoen"
+PASSWORD = sys.argv[1] # runtime prompt
+COMMAND = sys.argv[2]
+
+client = paramiko.SSHClient()
+client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+try:
+    client.connect(hostname=HOST, port=PORT, username=USER, password=PASSWORD, timeout=10)
+    stdin, stdout, stderr = client.exec_command(COMMAND)
+    out = stdout.read().decode("utf-8", errors="replace")
+    err = stderr.read().decode("utf-8", errors="replace")
+    print("STDOUT:\n", out)
+    if err:
+        print("STDERR:\n", err)
+finally:
+    client.close()
+```
+
+### B. Remote File Upload Template (SFTP)
+```python
+import paramiko, sys
+
+HOST = "192.168.1.208"
+PORT = 22
+USER = "thoen"
+PASSWORD = sys.argv[1]
+LOCAL_FILE = sys.argv[2]
+REMOTE_FILE = sys.argv[3]
+
+transport = paramiko.Transport((HOST, PORT))
+try:
+    transport.connect(username=USER, password=PASSWORD)
+    sftp = paramiko.SFTPClient.from_transport(transport)
+    sftp.put(LOCAL_FILE, REMOTE_FILE)
+    print(f"Uploaded {LOCAL_FILE} -> {REMOTE_FILE} successfully.")
+    sftp.close()
+finally:
+    transport.close()
+```
+
+---
+
+## 5. Gateway Plugin Inventory Reference
+
+All plugins are registered under `/home/thoen/thoen-api-gateway/routes/`:
+
+| Plugin File | Route Prefix | Purpose | Key Tables Accessed |
+| :--- | :--- | :--- | :--- |
+| `member.js` | `/api/member` | Member auth & profile | `opduser`, `doctor` |
+| `clinical.js` | `/api/clinical` | Lab tracker, ER, Loratadine | `lab_head`, `er_regist`, `ovst` |
+| `appointment.js`| `/api/appointment` | Check appointment date | `oapp` |
+| `checkup.js` | `/api/checkup` | Health checkup records | Checkup DB |
+| `salary.js` | `/api/salary` | Staff encrypted pay slips | External Salary DB |
+| `hospital.js` | `/api/hospital` | Bed census, wait queue, ER | `ipt`, `ovst`, `er_regist` |
+| `smart-refer.js`| `/api/smart-refer` | Refer out tracker | `referout` |
+| `queue.js` | `/api/queue` | Real-time queue monitor | `ovst_queue` |
+
+---
+
+## 6. Handover Checklist
+Before concluding an SSH session:
+- [ ] Syntax check verified without errors (`docker exec ... node --check`).
+- [ ] Container restarted cleanly (`docker restart thoen-api-gateway`).
+- [ ] `/health` returns `200 OK` with `"status":"ok"`.
+- [ ] Tested at least one functional endpoint with valid `x-api-key`.
+- [ ] All temporary scripts in `<appDataDir>\brain\<conversation-id>\scratch\` deleted.
