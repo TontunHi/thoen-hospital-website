@@ -71,7 +71,5 @@ next-env.d.ts
 .ua/tmp/
 .understand-anything/.trash-*/
 .understand-anything/intermediate/
-# maintenance flag
-maintenance.flag
-public/maintenance.flag
+
 
