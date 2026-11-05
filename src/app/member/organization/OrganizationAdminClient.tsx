@@ -2071,9 +2071,11 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           </div>
 
           {adminViewMode === 'diagram' && (
-            <div className="adminViewHint">
-              <Hand size={14} className="text-emerald-700" />
-              <span>Free View: ลากพื้นที่ว่างเพื่อเลื่อน และกดปุ่มบนการ์ดเพื่อจัดการได้ทันที</span>
+            <div className="adminViewHint" role="status">
+              <Hand size={14} className="adminViewHintIcon" />
+              <span>
+                <strong>Free View:</strong> ลากพื้นที่ว่างเพื่อเลื่อน และกดปุ่มบนการ์ดเพื่อจัดการได้ทันที
+              </span>
             </div>
           )}
         </div>
@@ -2148,6 +2150,11 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   <RotateCcw size={13} />
                   <span>รีเซ็ตมุมมอง</span>
                 </button>
+
+                <div className="adminDiagramScrollHint" title="คลิกค้างแล้วลากบนพื้นหลังเพื่อเลื่อนดูแผนผังได้อย่างอิสระ">
+                  <Hand size={13} className="text-emerald-700" />
+                  <span>ลากพื้นที่ว่างเพื่อเลื่อนดู (Free View)</span>
+                </div>
 
                 <div className="adminZoomControls">
                   <button
