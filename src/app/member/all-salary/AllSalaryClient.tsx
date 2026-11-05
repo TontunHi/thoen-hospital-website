@@ -201,6 +201,29 @@ export default function AllSalaryClient() {
     }
   }
 
+  // Format OT ฉ.11 from c11 and/or legacy c5
+  const getOtCh11Amount = (ot: any): string => {
+    if (!ot) return '0.00'
+    const parse = (val: any) => {
+      if (!val) return 0
+      const cleaned = String(val).replace(/,/g, '').trim()
+      if (!cleaned || cleaned === '-') return 0
+      const parsed = parseFloat(cleaned)
+      return isNaN(parsed) ? 0 : parsed
+    }
+    const val11 = parse(ot.c11)
+    const val5 = parse(ot.c5)
+    const sum = Math.round((val11 + val5) * 100) / 100
+    if (sum === 0) return '0.00'
+    if (val11 > 0 && val5 === 0 && typeof ot.c11 === 'string' && ot.c11.trim()) {
+      return ot.c11.trim()
+    }
+    if (val5 > 0 && val11 === 0 && typeof ot.c5 === 'string' && ot.c5.trim()) {
+      return ot.c5.trim()
+    }
+    return sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
+
   // -------------------------------------------------------------
   // Statement Fetch & Export Handlers
   // -------------------------------------------------------------
@@ -753,7 +776,7 @@ export default function AllSalaryClient() {
                       <span className="totalBadge earningBadge">+{otData.c15} บาท</span>
                     </div>
                     <ul className="itemList">
-                      <li><span>ฉ.11</span><strong>{otData.c5 || '0.00'}</strong></li>
+                      <li><span>ฉ.11</span><strong>{getOtCh11Amount(otData)}</strong></li>
                       <li><span>ค่าเวร / OT</span><strong>{otData.c6 || '0.00'}</strong></li>
                       <li><span>เบี้ยเลี้ยง / เงินชดเชย</span><strong>{otData.c7 || '0.00'}</strong></li>
                       <li><span>ค่าตอบแทนพิเศษ (P4P / พ.ต.ส.)</span><strong>{otData.c8 || '0.00'}</strong></li>

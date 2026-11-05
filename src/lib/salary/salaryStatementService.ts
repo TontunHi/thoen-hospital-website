@@ -291,7 +291,7 @@ export function buildStatementData(
     const salaryNet = parseSalaryAmount(s?.c26 || (salaryEarnings - salaryDeductions))
 
     const hasOt = !!ot
-    const otCh11 = parseSalaryAmount(ot?.c5)
+    const otCh11 = Math.round((parseSalaryAmount(ot?.c11) + parseSalaryAmount(ot?.c5)) * 100) / 100
     const otShift = parseSalaryAmount(ot?.c6)
     const otPerDiem = parseSalaryAmount(ot?.c7)
     const otSpecial = parseSalaryAmount(ot?.c8)
