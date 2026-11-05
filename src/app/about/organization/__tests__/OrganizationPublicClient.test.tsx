@@ -669,4 +669,122 @@ describe('OrganizationPublicClient Component', () => {
     // Modal should be closed
     expect(screen.queryByText('ข้อมูลบุคลากร')).toBeNull()
   })
+
+  it('selects department via quick dropdown and filters departments via search input', async () => {
+    const multiDeptChart = [
+      {
+        id: 1,
+        name: 'กลุ่มงานการแพทย์',
+        parentId: null,
+        orderIndex: 0,
+        members: [{ id: 11, groupId: 1, name: 'นพ.หมอหนึ่ง', position: 'แพทย์', role: 'member', orderIndex: 0, imagePath: null }],
+        children: []
+      },
+      {
+        id: 2,
+        name: 'กลุ่มงานการพยาบาล',
+        parentId: null,
+        orderIndex: 1,
+        members: [{ id: 21, groupId: 2, name: 'พว.พยาบาลหนึ่ง', position: 'พยาบาล', role: 'member', orderIndex: 0, imagePath: null }],
+        children: []
+      },
+      {
+        id: 3,
+        name: 'กลุ่มงานทันตกรรม',
+        parentId: null,
+        orderIndex: 2,
+        members: [{ id: 31, groupId: 3, name: 'ทพ.ทันตแพทย์หนึ่ง', position: 'ทันตแพทย์', role: 'member', orderIndex: 0, imagePath: null }],
+        children: []
+      }
+    ]
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/departments/public')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: multiDeptChart })
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: [] })
+      })
+    })
+
+    render(<OrganizationPublicClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นพ.หมอหนึ่ง')).toBeDefined()
+    })
+
+    // 1. Quick Dropdown Selector: switch to กลุ่มงานทันตกรรม
+    const select = screen.getByLabelText(/เลือกกลุ่มงาน/) as HTMLSelectElement
+    expect(select.value).toBe('1')
+
+    fireEvent.change(select, { target: { value: '3' } })
+    await waitFor(() => {
+      expect(screen.getByText('ทพ.ทันตแพทย์หนึ่ง')).toBeDefined()
+    })
+
+    // 2. Filter input: filter groups
+    const filterInput = screen.getByPlaceholderText('ค้นหากลุ่มงาน...') as HTMLInputElement
+    fireEvent.change(filterInput, { target: { value: 'ทันต' } })
+
+    // Tab buttons: 'กลุ่มงานทันตกรรม' should be visible, others filtered out
+    const deptTabs = document.querySelectorAll('.deptTabBtn')
+    expect(deptTabs.length).toBe(1)
+    expect(deptTabs[0].textContent).toContain('กลุ่มงานทันตกรรม')
+  })
+
+  it('supports free view canvas panning and reset view button', async () => {
+    const singleDeptChart = [
+      {
+        id: 1,
+        name: 'กลุ่มงานบริหารทั่วไป',
+        parentId: null,
+        orderIndex: 0,
+        members: [{ id: 1, groupId: 1, name: 'จนท.บริหาร', position: 'เจ้าหน้าที่', role: 'member', orderIndex: 0, imagePath: null }],
+        children: []
+      }
+    ]
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/departments/public')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: singleDeptChart })
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: [] })
+      })
+    })
+
+    render(<OrganizationPublicClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('จนท.บริหาร')).toBeDefined()
+    })
+
+    const scrollContainer = document.querySelector('.orgDiagramScroll') as HTMLElement
+    const canvas = document.querySelector('.orgDiagramCanvas') as HTMLElement
+    expect(scrollContainer).toBeDefined()
+    expect(canvas).toBeDefined()
+
+    // Simulate pointer drag pan on the background
+    fireEvent.pointerDown(scrollContainer, { clientX: 200, clientY: 200, button: 0 })
+    fireEvent.pointerMove(scrollContainer, { clientX: 260, clientY: 240 })
+    fireEvent.pointerUp(scrollContainer)
+
+    // Canvas style transform should reflect pan offset (dx = 60, dy = 40)
+    expect(canvas.style.transform).toContain('translate(60px, 40px)')
+
+    // Click Reset View button
+    const resetBtn = screen.getByRole('button', { name: 'จัดกึ่งกลาง' })
+    fireEvent.click(resetBtn)
+
+    // Canvas style transform should be back to translate(0px, 0px)
+    expect(canvas.style.transform).toContain('translate(0px, 0px)')
+  })
 })

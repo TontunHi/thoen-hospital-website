@@ -17,7 +17,11 @@ import {
   Building2,
   Crown,
   Layers,
-  GripVertical
+  GripVertical,
+  RotateCcw,
+  Hand,
+  ChevronDown,
+  ChevronLeft
 } from 'lucide-react'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import { getInitials } from '@/lib/formatters'
@@ -905,11 +909,89 @@ export default function OrganizationPublicClient() {
   // Member Detail Modal state
   const [selectedMember, setSelectedMember] = useState<{ member: PublicMember; groupName: string } | null>(null)
 
+  // Department Selector enhancements
+  const [isTabsWrapped, setIsTabsWrapped] = useState(true)
+  const [groupFilterQuery, setGroupFilterQuery] = useState('')
+  const tabNavRef = useRef<HTMLDivElement>(null)
+
+  // Free View (Pan & Zoom) canvas state
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const panStartRef = useRef<{ startX: number; startY: number; initialPanX: number; initialPanY: number } | null>(null)
+  const diagramScrollRef = useRef<HTMLDivElement>(null)
+
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const addToast = (message: string, type: ToastMessage['type'] = 'info') => {
     const id = `${Date.now()}-${Math.random()}`
     setToasts((prev) => [...prev, { id, message, type, duration: 3000 }])
+  }
+
+  // Scroll tabs horizontally
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (!tabNavRef.current) return
+    const amount = 300
+    tabNavRef.current.scrollBy({
+      left: direction === 'left' ? -amount : amount,
+      behavior: 'smooth'
+    })
+  }
+
+  // Free view handlers
+  const handleResetView = () => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
+    if (target.closest('.treeNodeCard') || target.closest('button') || target.closest('a')) {
+      return
+    }
+
+    setIsPanning(true)
+    panStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialPanX: pan.x,
+      initialPanY: pan.y
+    }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {}
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning || !panStartRef.current) return
+    const dx = e.clientX - panStartRef.current.startX
+    const dy = e.clientY - panStartRef.current.startY
+    setPan({
+      x: panStartRef.current.initialPanX + dx,
+      y: panStartRef.current.initialPanY + dy
+    })
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning) return
+    setIsPanning(false)
+    panStartRef.current = null
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {}
+  }
+
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      const delta = e.deltaY < 0 ? 0.08 : -0.08
+      setZoom((z) => Math.min(1.4, Math.max(0.5, Number((z + delta).toFixed(2)))))
+    } else {
+      setPan((p) => ({
+        x: p.x - e.deltaX,
+        y: p.y - e.deltaY
+      }))
+    }
   }
 
   // Check auth session to verify if logged in
@@ -1159,6 +1241,21 @@ export default function OrganizationPublicClient() {
     return countTotalSubUnits(selectedRoot)
   }, [selectedRoot])
 
+  const filteredOrgChart = useMemo(() => {
+    const q = groupFilterQuery.trim().toLowerCase()
+    if (!q) return orgChart
+    return orgChart.filter((g) => g.name.toLowerCase().includes(q))
+  }, [orgChart, groupFilterQuery])
+
+  useEffect(() => {
+    if (selectedRootId && tabNavRef.current) {
+      const activeBtn = tabNavRef.current.querySelector<HTMLButtonElement>('.deptTabBtn.active')
+      if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
+        activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      }
+    }
+  }, [selectedRootId])
+
   return (
     <OrgDragContext.Provider value={dragContextValue}>
       <div className="publicOrgPage">
@@ -1295,36 +1392,150 @@ export default function OrganizationPublicClient() {
                 </div>
               ) : (
                 <>
-                  {/* Department Selection Tabs */}
-                  <div className="deptTabsNav">
-                    {orgChart.map((root) => {
-                      const isActive = selectedRootId === root.id
-                      const itemKey = `root-group-${root.id}`
-                      const isDragging = canReorder && draggedItem?.type === 'group' && draggedItem.id === root.id
-                      const isDropTarget = canReorder && dragOverKey === itemKey
+                  {/* Department Selection Section */}
+                  <div className="deptTabsSection">
+                    <div className="deptSelectorBar">
+                      <div className="deptQuickSelectBlock">
+                        <label htmlFor="dept-select" className="deptSelectLabel">
+                          <Building2 size={16} className="text-emerald-700" />
+                          <span>เลือกกลุ่มงาน:</span>
+                        </label>
+                        <div className="deptSelectInputWrap">
+                          <select
+                            id="dept-select"
+                            className="deptSelectInput"
+                            value={selectedRoot?.id ?? ''}
+                            onChange={(e) => {
+                              const id = Number(e.target.value)
+                              setSelectedRootId(id)
+                              setZoom(1)
+                              setPan({ x: 0, y: 0 })
+                            }}
+                            aria-label="เลือกกลุ่มงาน"
+                          >
+                            {orgChart.map((root) => {
+                              const count = countTotalMembersInGroup(root)
+                              return (
+                                <option key={root.id} value={root.id}>
+                                  {root.name} ({count} ท่าน)
+                                </option>
+                              )
+                            })}
+                          </select>
+                          <ChevronDown size={14} className="deptSelectArrow" />
+                        </div>
+                      </div>
 
-                      return (
+                      <div className="deptSelectorControls">
+                        <div className="deptFilterWrap">
+                          <Search size={14} className="deptFilterIcon" />
+                          <input
+                            type="text"
+                            className="deptFilterField"
+                            placeholder="ค้นหากลุ่มงาน..."
+                            value={groupFilterQuery}
+                            onChange={(e) => setGroupFilterQuery(e.target.value)}
+                          />
+                          {groupFilterQuery && (
+                            <button
+                              type="button"
+                              className="deptFilterClear"
+                              onClick={() => setGroupFilterQuery('')}
+                              title="ล้างคำค้นหา"
+                              aria-label="ล้างคำค้นหา"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+
                         <button
-                          key={root.id}
                           type="button"
-                          className={`deptTabBtn ${isActive ? 'active' : ''} ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
-                          draggable={canReorder}
-                          onDragStart={canReorder ? (e) => handleDragStart({ type: 'group', id: root.id, parentId: null }, e) : undefined}
-                          onDragOver={canReorder ? (e) => handleDragOver(itemKey, { type: 'group', id: root.id, parentId: null }, e) : undefined}
-                          onDragLeave={canReorder ? handleDragLeave : undefined}
-                          onDrop={canReorder ? (e) => handleDrop({ type: 'group', id: root.id, parentId: null }, e) : undefined}
-                          onDragEnd={canReorder ? handleDragEnd : undefined}
-                          onClick={() => {
-                            setSelectedRootId(root.id)
-                            setZoom(1)
-                          }}
-                          title={canReorder ? 'คลิกเพื่อเลือก หรือลากเพื่อสลับลำดับกลุ่มงาน' : 'คลิกเพื่อเลือกกลุ่มงาน'}
+                          className={`deptLayoutToggleBtn ${isTabsWrapped ? 'active' : ''}`}
+                          onClick={() => setIsTabsWrapped(!isTabsWrapped)}
+                          title={isTabsWrapped ? 'สลับเป็นแถวเดียวเลื่อนได้' : 'แสดงกลุ่มงานทั้งหมด (หลายแถว)'}
                         >
-                          <Building2 size={15} />
-                          <span>{root.name}</span>
+                          <LayoutGrid size={14} />
+                          <span>{isTabsWrapped ? 'ย่อเป็นแถวเดียว' : 'แสดงทั้งหมด'}</span>
                         </button>
-                      )
-                    })}
+                      </div>
+                    </div>
+
+                    <div className="deptTabsNavWrapper">
+                      {!isTabsWrapped && (
+                        <button
+                          type="button"
+                          className="deptScrollArrowBtn left"
+                          onClick={() => scrollTabs('left')}
+                          title="เลื่อนไปทางซ้าย"
+                          aria-label="เลื่อนแถบกลุ่มงานไปทางซ้าย"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                      )}
+
+                      <div
+                        ref={tabNavRef}
+                        className={`deptTabsNav ${isTabsWrapped ? 'wrapped' : ''}`}
+                      >
+                        {filteredOrgChart.length === 0 ? (
+                          <div className="deptFilterEmpty">
+                            <span>ไม่พบกลุ่มงานที่ตรงกับ &ldquo;{groupFilterQuery}&rdquo;</span>
+                            <button
+                              type="button"
+                              className="deptFilterClearText"
+                              onClick={() => setGroupFilterQuery('')}
+                            >
+                              ล้างคำค้นหา
+                            </button>
+                          </div>
+                        ) : (
+                          filteredOrgChart.map((root) => {
+                            const isActive = selectedRoot?.id === root.id
+                            const itemKey = `root-group-${root.id}`
+                            const isDragging = canReorder && draggedItem?.type === 'group' && draggedItem.id === root.id
+                            const isDropTarget = canReorder && dragOverKey === itemKey
+                            const count = countTotalMembersInGroup(root)
+
+                            return (
+                              <button
+                                key={root.id}
+                                type="button"
+                                className={`deptTabBtn ${isActive ? 'active' : ''} ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
+                                draggable={canReorder}
+                                onDragStart={canReorder ? (e) => handleDragStart({ type: 'group', id: root.id, parentId: null }, e) : undefined}
+                                onDragOver={canReorder ? (e) => handleDragOver(itemKey, { type: 'group', id: root.id, parentId: null }, e) : undefined}
+                                onDragLeave={canReorder ? handleDragLeave : undefined}
+                                onDrop={canReorder ? (e) => handleDrop({ type: 'group', id: root.id, parentId: null }, e) : undefined}
+                                onDragEnd={canReorder ? handleDragEnd : undefined}
+                                onClick={() => {
+                                  setSelectedRootId(root.id)
+                                  setZoom(1)
+                                  setPan({ x: 0, y: 0 })
+                                }}
+                                title={canReorder ? 'คลิกเพื่อเลือก หรือลากเพื่อสลับลำดับกลุ่มงาน' : 'คลิกเพื่อเลือกกลุ่มงาน'}
+                              >
+                                <Building2 size={15} />
+                                <span>{root.name}</span>
+                                <span className="deptTabBadge">{count}</span>
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+
+                      {!isTabsWrapped && (
+                        <button
+                          type="button"
+                          className="deptScrollArrowBtn right"
+                          onClick={() => scrollTabs('right')}
+                          title="เลื่อนไปทางขวา"
+                          aria-label="เลื่อนแถบกลุ่มงานไปทางขวา"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Selected Department Display */}
@@ -1397,15 +1608,15 @@ export default function OrganizationPublicClient() {
                               </span>
                             )}
 
-                            <span className="diagramScrollHint">
-                              <MoveHorizontal size={14} /> เลื่อนเพื่อดูผังเพิ่มเติม
+                            <span className="diagramScrollHint" title="คลิกค้างแล้วลากบนพื้นหลังเพื่อเลื่อนดูแผนผังได้อย่างอิสระ">
+                              <Hand size={14} /> ลากพื้นหลังเพื่อเลื่อนดู (Free View)
                             </span>
                             <div className="zoomControls">
                               <button
                                 type="button"
                                 className="zoomBtn"
                                 title="ย่อขนาด"
-                                onClick={() => setZoom((z) => Math.max(0.6, Number((z - 0.1).toFixed(1))))}
+                                onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(1))))}
                                 aria-label="ย่อขนาด"
                               >
                                 <ZoomOut size={14} />
@@ -1422,10 +1633,19 @@ export default function OrganizationPublicClient() {
                                 type="button"
                                 className="zoomBtn"
                                 title="ขยายขนาด"
-                                onClick={() => setZoom((z) => Math.min(1.2, Number((z + 0.1).toFixed(1))))}
+                                onClick={() => setZoom((z) => Math.min(1.4, Number((z + 0.1).toFixed(1))))}
                                 aria-label="ขยายขนาด"
                               >
                                 <ZoomIn size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="zoomBtn"
+                                title="จัดกึ่งกลางและรีเซ็ตมุมมอง (Reset View)"
+                                onClick={handleResetView}
+                                aria-label="จัดกึ่งกลางและรีเซ็ตมุมมอง"
+                              >
+                                <RotateCcw size={14} />
                               </button>
                             </div>
                           </div>
@@ -1442,10 +1662,35 @@ export default function OrganizationPublicClient() {
                           VIEW MODE 1: VISUAL TREE DIAGRAM (CSS Tree with Connecting Lines)
                           ============================================================== */}
                       {viewMode === 'tree' ? (
-                        <div className="orgDiagramScroll">
+                        <div
+                          ref={diagramScrollRef}
+                          className={`orgDiagramScroll ${isPanning ? 'isPanning' : ''}`}
+                          onPointerDown={handlePointerDown}
+                          onPointerMove={handlePointerMove}
+                          onPointerUp={handlePointerUp}
+                          onPointerCancel={handlePointerUp}
+                          onWheel={handleWheel}
+                        >
+                          {/* Floating Reset/Center Quick Control Button when panned or zoomed */}
+                          {(pan.x !== 0 || pan.y !== 0 || zoom !== 1) && (
+                            <button
+                              type="button"
+                              className="canvasResetPill"
+                              onClick={handleResetView}
+                              title="จัดกึ่งกลางและรีเซ็ตขนาด (Reset View)"
+                            >
+                              <RotateCcw size={12} />
+                              <span>จัดกึ่งกลาง</span>
+                            </button>
+                          )}
+
                           <div
                             className="orgDiagramCanvas"
-                            style={{ transform: `scale(${zoom})` }}
+                            style={{
+                              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                              transformOrigin: 'top center',
+                              transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+                            }}
                           >
                             <div className="orgTree">
                               {/* Root Node Card (Head of Department) */}
