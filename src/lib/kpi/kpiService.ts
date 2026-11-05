@@ -420,11 +420,11 @@ export class KpiService {
         continue
       }
       if (filters.periodKey) {
-        ind.currentEntry = ind.entries.find(e => e.periodKey === filters.periodKey) || null
+        ind.currentEntry = ind.entries.find(e => e.periodKey === filters.periodKey || e.periodKey?.endsWith('-' + filters.periodKey)) || null
       } else {
         const due = checkIndicatorDueStatus(ind.frequency, filters.fiscalYear || '2570')
-        const dueEntry = ind.entries.find(e => e.periodKey === due.relevantPeriod.key)
-        ind.currentEntry = dueEntry || ind.entries[ind.entries.length - 1]
+        const dueEntry = ind.entries.find(e => e.periodKey === due.relevantPeriod.key || e.periodKey?.endsWith('-' + due.relevantPeriod.key))
+        ind.currentEntry = dueEntry || null
       }
     }
 

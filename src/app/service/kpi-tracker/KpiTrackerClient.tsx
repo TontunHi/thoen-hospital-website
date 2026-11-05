@@ -60,6 +60,57 @@ const formatThaiDate = (dateStr?: string | null): string => {
   }
 }
 
+const formatThaiDateTime = (dateStr?: string | null): string => {
+  if (!dateStr) return '-'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return '-'
+    const thaiDate = d.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+    const hours = String(d.getHours()).padStart(2, '0')
+    const mins = String(d.getMinutes()).padStart(2, '0')
+    return `${thaiDate} ${hours}:${mins} น.`
+  } catch {
+    return '-'
+  }
+}
+
+function matchesPeriodKey(entryKey?: string | null, targetKey?: string | null): boolean {
+  if (!entryKey || !targetKey) return false
+  if (entryKey === targetKey) return true
+  if (entryKey.endsWith('-' + targetKey) || entryKey.endsWith('_' + targetKey)) return true
+  if (targetKey.endsWith('-' + entryKey) || targetKey.endsWith('_' + entryKey)) return true
+  return false
+}
+
+function formatAnswerDisplay(
+  entry: any,
+  unit?: string | null
+): { main: string; sub?: string } | null {
+  if (!entry) return null
+  const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
+  const hasText = Boolean(entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
+
+  if (!hasValue && !hasText) return null
+
+  let main = ''
+  if (hasText) {
+    main = entry.resultText
+  } else if (hasValue) {
+    main = `${entry.resultValue}${unit || ''}`
+  }
+
+  let sub: string | undefined = undefined
+  if (entry.numeratorValue !== null && entry.denominatorValue !== null && entry.numeratorValue !== undefined && entry.denominatorValue !== undefined) {
+    sub = `(${entry.numeratorValue}/${entry.denominatorValue})`
+  }
+
+  return { main, sub }
+}
+
 export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) {
   // Topics & Fiscal Years
   const [fiscalYears, setFiscalYears] = useState<string[]>([])
@@ -272,30 +323,37 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     return isKpiManager
   }, [isKpiManager])
 
-  // Stats Summary per design.md (ทั้งหมด / ไม่มีรายงาน / ยังไม่ระบุสถานะ)
-  const statsSummary = useMemo(() => {
-    let total = indicators.length
-    let noReport = 0
-    let unspecified = 0
-
-    indicators.forEach(ind => {
-      const entry = ind.currentEntry
-      const status = entry?.status || 'PENDING'
-      const hasResult = Boolean(entry && (entry.resultValue !== null || (entry.resultText && entry.resultText.trim() !== '')))
-
-      if (!entry || !hasResult || entry.resultText === 'ไม่มีรายงาน' || status === 'PENDING') {
-        noReport++
-      } else if (status === 'WAITING_TARGET' || ind.targetValue === null || ind.targetValue === undefined) {
-        unspecified++
-      }
-    })
-
-    return {
-      total: total || (stats?.totalIndicators ?? 0),
-      noReport: total > 0 ? noReport : (stats?.totalPending ?? 0),
-      unspecified: total > 0 ? unspecified : (stats?.totalWaitingTarget ?? 0),
+  // Get active entry for current tracking period (only shows answer of current round, does not show old round answer)
+  const getActivePeriodEntry = useCallback((ind: KpiIndicatorItem): any => {
+    if (selectedPeriodKey !== 'ALL') {
+      const match = ind.entries?.find(e => matchesPeriodKey(e.periodKey, selectedPeriodKey))
+      if (match) return match
     }
-  }, [indicators, stats])
+    return ind.currentEntry || null
+  }, [selectedPeriodKey])
+
+  // Helper to determine indicator evaluated status consistently across badges, filters, and stats summary
+  const getIndicatorStatus = useCallback((ind: KpiIndicatorItem): 'PASS' | 'FAIL' | 'PENDING' | 'WAITING_TARGET' => {
+    const entry = getActivePeriodEntry(ind)
+    const hasResult = Boolean(
+      entry && (
+        entry.resultValue !== null ||
+        (entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
+      )
+    )
+
+    if (!entry || !hasResult || entry.resultText === 'ไม่มีรายงาน' || entry.status === 'PENDING') {
+      return 'PENDING'
+    }
+    if (entry.status === 'PASS') {
+      return 'PASS'
+    }
+    if (entry.status === 'FAIL') {
+      return 'FAIL'
+    }
+    return 'WAITING_TARGET'
+  }, [getActivePeriodEntry])
+
 
   // Count of indicators due now or within 5 days
   const dueIndicatorsCount = useMemo(() => {
@@ -462,10 +520,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         }
       }
       if (selectedStatus !== 'ALL') {
-        const status = ind.currentEntry?.status || 'PENDING'
-        if (selectedStatus === 'WAITING_TARGET') {
-          if (status !== 'WAITING_TARGET') return false
-        } else if (status !== selectedStatus) {
+        const indStatus = getIndicatorStatus(ind)
+        if (indStatus !== selectedStatus) {
           return false
         }
       }
@@ -514,14 +570,55 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         return sortOrder === 'asc' ? cmp : -cmp
       }
       if (sortField === 'status') {
-        const stA = a.currentEntry?.status || 'PENDING'
-        const stB = b.currentEntry?.status || 'PENDING'
+        const stA = getIndicatorStatus(a)
+        const stB = getIndicatorStatus(b)
         const cmp = stA.localeCompare(stB)
         return sortOrder === 'asc' ? cmp : -cmp
       }
       return 0
     })
-  }, [indicators, selectedCategories, selectedFrequency, activeTab, selectedStatus, selectedFilledStatus, selectedYear, debouncedSearch, currentUser, sortField, sortOrder])
+  }, [indicators, selectedCategories, selectedFrequency, activeTab, selectedStatus, selectedFilledStatus, selectedYear, debouncedSearch, currentUser, sortField, sortOrder, getIndicatorStatus])
+
+  // Check if any filter is currently applied
+  const hasActiveFilters = useMemo(() => {
+    return Boolean(
+      selectedCategories.length > 0 ||
+      selectedFrequency !== 'ALL' ||
+      selectedStatus !== 'ALL' ||
+      selectedFilledStatus !== 'ALL' ||
+      debouncedSearch.trim() ||
+      activeTab !== 'ALL'
+    )
+  }, [selectedCategories.length, selectedFrequency, selectedStatus, selectedFilledStatus, debouncedSearch, activeTab])
+
+  // Stats Summary per design.md (ทั้งหมด / ไม่มีรายงาน / ยังไม่ระบุสถานะ) - dynamically calculates based on active filters
+  const statsSummary = useMemo(() => {
+    if (loading && indicators.length === 0 && stats) {
+      return {
+        total: stats.totalIndicators ?? 0,
+        noReport: stats.totalPending ?? 0,
+        unspecified: stats.totalWaitingTarget ?? 0,
+      }
+    }
+
+    let noReport = 0
+    let unspecified = 0
+
+    displayedIndicators.forEach(ind => {
+      const indStatus = getIndicatorStatus(ind)
+      if (indStatus === 'PENDING') {
+        noReport++
+      } else if (indStatus === 'WAITING_TARGET') {
+        unspecified++
+      }
+    })
+
+    return {
+      total: displayedIndicators.length,
+      noReport,
+      unspecified,
+    }
+  }, [displayedIndicators, loading, indicators.length, stats, getIndicatorStatus])
 
   // Calculation for Answer Modal (if numerator and denominator exist)
   const computedPercentage = useMemo(() => {
@@ -565,7 +662,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     setFormPeriodKey(defaultPeriod.key)
     setFormPeriodLabel(defaultPeriod.label)
 
-    const entry = ind.entries?.find(e => e.periodKey === defaultPeriod.key) || ind.currentEntry
+    const entry = ind.entries?.find(e => matchesPeriodKey(e.periodKey, defaultPeriod.key)) || (ind.currentEntry && matchesPeriodKey(ind.currentEntry.periodKey, defaultPeriod.key) ? ind.currentEntry : null)
     if (entry) {
       setFormNumerator(entry.numeratorValue !== null ? String(entry.numeratorValue) : '')
       setFormDenominator(entry.denominatorValue !== null ? String(entry.denominatorValue) : '')
@@ -587,7 +684,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     setFormPeriodKey(period.key)
     setFormPeriodLabel(period.label)
 
-    const entry = activeIndicator.entries?.find(e => e.periodKey === period.key)
+    const entry = activeIndicator.entries?.find(e => matchesPeriodKey(e.periodKey, period.key)) || (activeIndicator.currentEntry && matchesPeriodKey(activeIndicator.currentEntry.periodKey, period.key) ? activeIndicator.currentEntry : null)
     if (entry) {
       setFormNumerator(entry.numeratorValue !== null ? String(entry.numeratorValue) : '')
       setFormDenominator(entry.denominatorValue !== null ? String(entry.denominatorValue) : '')
@@ -1031,7 +1128,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       )
     }
 
-    if (!entry || (entry.resultValue === null && !entry.resultText) || entry.resultText === 'ไม่มีรายงาน' || entry.status === 'PENDING') {
+    const evaluatedStatus = getIndicatorStatus(ind)
+
+    if (evaluatedStatus === 'PENDING') {
       return (
         <span className="kpiStatusPill noReport">
           ไม่มีรายงาน
@@ -1039,7 +1138,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       )
     }
 
-    if (entry.status === 'PASS') {
+    if (evaluatedStatus === 'PASS') {
       return (
         <span className="kpiStatusPill pass">
           <CheckCircle2 size={12} /> ผ่านเกณฑ์
@@ -1047,7 +1146,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       )
     }
 
-    if (entry.status === 'FAIL') {
+    if (evaluatedStatus === 'FAIL') {
       return (
         <span className="kpiStatusPill fail">
           <XCircle size={12} /> ไม่ผ่านเกณฑ์
@@ -1154,7 +1253,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
           <div className="kpiStatCard">
             <div className="kpiStatCardLabel">ทั้งหมด</div>
             <div className="kpiStatCardValue">{statsSummary.total}</div>
-            <div className="kpiStatCardFoot">ตัวชี้วัดที่ติดตามในปีนี้</div>
+            <div className="kpiStatCardFoot">
+              {hasActiveFilters ? 'ตัวชี้วัดตามตัวกรองที่เลือก' : 'ตัวชี้วัดที่ติดตามในปีนี้'}
+            </div>
           </div>
           <div className="kpiStatCard">
             <div className="kpiStatCardLabel">ไม่มีรายงาน</div>
@@ -1677,6 +1778,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     </span>
                   </div>
                   <div role="columnheader">เป้าหมาย</div>
+                  <div role="columnheader">ผลงาน</div>
                   <div role="columnheader">ผู้รับผิดชอบ</div>
                   <div
                     role="columnheader"
@@ -1696,7 +1798,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
 
                 {/* Data rows per design.md Section 5 */}
                 {displayedIndicators.map((ind, idx) => {
-                  const entry = ind.currentEntry
+                  const entry = getActivePeriodEntry(ind)
+                  const answerDisplay = formatAnswerDisplay(entry, ind.targetUnit)
                   const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
                   const isLocked = !dueStatus.isDueNow && !isKpiManager
                   const userCanAnswer = canAnswerIndicator(ind)
@@ -1749,38 +1852,56 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                           <label>เป้าหมาย</label>
                           <span>{targetText}</span>
                         </div>
-                        <div className="kpiMobileMetaItem" style={{ gridColumn: 'span 2' }}>
+                        <div className="kpiMobileMetaItem">
+                          <label>ผลงาน</label>
+                          <span className={answerDisplay ? 'kpiResultValue' : ''}>
+                            {answerDisplay ? `${answerDisplay.main} ${answerDisplay.sub || ''}`.trim() : '-'}
+                          </span>
+                        </div>
+                        <div className="kpiMobileMetaItem">
                           <label>ผู้รับผิดชอบ</label>
                           <span>{ind.responsibleName || '-'}</span>
                         </div>
                       </div>
 
-                      {/* Col 3: ความถี่ (110px) */}
+                      {/* Col 3: ความถี่ (96px) */}
                       <div className="kpiColFreq desktopOnly" role="cell">
                         {ind.frequency}
                       </div>
 
-                      {/* Col 4: เป้าหมาย (110px) */}
+                      {/* Col 4: เป้าหมาย (100px) */}
                       <div className="kpiColTarget desktopOnly" role="cell">
                         {targetText}
                       </div>
 
-                      {/* Col 5: ผู้รับผิดชอบ (130px) */}
+                      {/* Col 5: ผลงาน (104px) */}
+                      <div className="kpiColResult desktopOnly" role="cell">
+                        {answerDisplay ? (
+                          <div className="kpiResultBlock">
+                            <span className="kpiResultValue">{answerDisplay.main}</span>
+                            {answerDisplay.sub && <span className="kpiResultSub">{answerDisplay.sub}</span>}
+                          </div>
+                        ) : (
+                          <span className="kpiResultEmpty">-</span>
+                        )}
+                      </div>
+
+                      {/* Col 6: ผู้รับผิดชอบ (120px) */}
                       <div className="kpiColResp desktopOnly" role="cell">
                         {ind.responsibleName || '-'}
                       </div>
 
-                      {/* Col 6: สถานะ (130px) */}
+                      {/* Col 7: สถานะ (120px) */}
                       <div className="kpiColStatus desktopOnly" role="cell">
                         {renderStatusBadge(ind, entry, isLocked, dueStatus)}
                       </div>
 
-                      {/* Col 7: ประเภท (90px) */}
+                      {/* Col 8: ประเภท (76px) */}
                       <div className="kpiColType desktopOnly" role="cell">
                         <span className="kpiTypeBadge">{ind.indicatorType || 'HA'}</span>
                       </div>
 
-                      {/* Col 8: ปุ่ม (96px) */}
+                      {/* Col 9: ปุ่ม (96px) */}
                       <div className="kpiColAction" role="cell">
                         {userCanAnswer ? (
                           <button
@@ -1824,6 +1945,13 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                           </button>
                         )}
                       </div>
+
+                      {/* Timestamp at bottom-right */}
+                      {answerDisplay && (entry?.updatedAt || entry?.recordedAt) && (
+                        <div className="kpiRowTimestamp">
+                          ตอบเมื่อ {formatThaiDateTime(entry.updatedAt || entry.recordedAt)}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
