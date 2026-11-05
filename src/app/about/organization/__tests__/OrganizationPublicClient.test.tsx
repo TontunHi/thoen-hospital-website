@@ -787,4 +787,24 @@ describe('OrganizationPublicClient Component', () => {
     // Canvas style transform should be back to translate(0px, 0px)
     expect(canvas.style.transform).toContain('translate(0px, 0px)')
   })
+
+  it('renders sub-group without avatar icon or fake role when no leader is assigned', async () => {
+    render(<OrganizationPublicClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('งานอุบัติเหตุและฉุกเฉิน')).toBeDefined()
+      expect(screen.getByText('หน่วยรถพยาบาล EMS')).toBeDefined()
+    })
+
+    // Sub-unit cards for groups without designated leader should have .noLeaderUnit
+    const noLeaderCards = document.querySelectorAll('.treeNodeCard.subUnitNode.noLeaderUnit')
+    expect(noLeaderCards.length).toBeGreaterThanOrEqual(1)
+
+    // The sub-unit card should not display dummy role 'เจ้าหน้าที่ผู้ปฏิบัติงาน'
+    noLeaderCards.forEach((card) => {
+      expect(card.textContent).toContain('งานย่อย')
+      expect(card.textContent).not.toContain('เจ้าหน้าที่ผู้ปฏิบัติงาน')
+    })
+  })
 })
+

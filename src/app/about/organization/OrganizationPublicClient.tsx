@@ -394,7 +394,7 @@ function OrgTreeSubnode({
   return (
     <li>
       <div
-        className={`treeNodeCard subUnitNode ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
+        className={`treeNodeCard subUnitNode ${!leader ? 'noLeaderUnit' : ''} ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
         draggable={canReorder}
         onDragStart={canReorder ? (e) => dragCtx?.handleDragStart({ type: 'group', id: node.id, parentId: node.parentId }, e) : undefined}
         onDragOver={canReorder ? (e) => dragCtx?.handleDragOver(itemKey, { type: 'group', id: node.id, parentId: node.parentId }, e) : undefined}
@@ -404,8 +404,8 @@ function OrgTreeSubnode({
         onClick={() => {
           if (leader) dragCtx?.handleCardClick(leader, node.name)
         }}
-        role="button"
-        tabIndex={0}
+        role={leader ? "button" : undefined}
+        tabIndex={leader ? 0 : undefined}
         onKeyDown={(e) => {
           if ((e.key === 'Enter' || e.key === ' ') && leader) {
             e.preventDefault()
@@ -420,12 +420,11 @@ function OrgTreeSubnode({
             : (canReorder ? 'ลากเพื่อสลับตำแหน่งหน่วยงานย่อย' : undefined)
         }
       >
-        <span className="treeNodeGroupTag" title={node.name}>
-          {node.name}
-        </span>
-
         {leader ? (
           <>
+            <span className="treeNodeGroupTag" title={node.name}>
+              {node.name}
+            </span>
             <div className="treeNodeAvatarWrap">
               {leader.imagePath ? (
                 <img src={leader.imagePath} alt={leader.name} className="treeNodeAvatar" />
@@ -443,17 +442,17 @@ function OrgTreeSubnode({
             <span className="treeNodePosition" title={leader.position}>{leader.position}</span>
           </>
         ) : (
-          <>
-            <div
-              className="treeNodeAvatarFallback"
-              style={{ background: '#f1f5f9', color: '#94a3b8' }}
-            >
-              <User size={24} />
-            </div>
-            <span className="treeNodeName" style={{ color: '#64748b', fontSize: '0.85rem' }}>
-              เจ้าหน้าที่ผู้ปฏิบัติงาน
+          <div className="subUnitSimpleHeader">
+            <span className="subUnitSimpleBadge">งานย่อย</span>
+            <span className="subUnitSimpleTitle" title={node.name}>
+              {node.name}
             </span>
-          </>
+            {node.members.length > 0 && (
+              <span className="subUnitSimpleCount">
+                <Users size={12} /> {node.members.length} คน
+              </span>
+            )}
+          </div>
         )}
       </div>
 

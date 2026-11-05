@@ -908,6 +908,58 @@
   border-color: var(--org-accent-teal);
 }
 
+.treeNodeCard.subUnitNode.noLeaderUnit {
+  padding: 14px 16px;
+  min-height: 72px;
+  cursor: default;
+}
+
+.treeNodeCard.subUnitNode.noLeaderUnit[draggable="true"] {
+  cursor: grab;
+}
+
+.subUnitSimpleHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.subUnitSimpleBadge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0D9488;
+  background: #CCFBF1;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.subUnitSimpleTitle {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0F766E;
+  margin: 0;
+  line-height: 1.35;
+  text-align: center;
+  word-break: break-word;
+}
+
+.subUnitSimpleCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #64748B;
+  background: #F1F5F9;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  margin-top: 3px;
+  line-height: 1.2;
+}
+
 /* Group Name Tag on Top of Card */
 .treeNodeGroupTag {
   background: #F1F5F9;
