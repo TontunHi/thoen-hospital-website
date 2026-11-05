@@ -119,7 +119,8 @@ describe('OrganizationAdminClient Component', () => {
               success: true,
               data: [
                 { id: 1, name: 'หัวหน้ากลุ่มงาน / หัวหน้างาน', orderIndex: 0, isDefault: false },
-                { id: 2, name: 'เจ้าหน้าที่ผู้ปฏิบัติงาน', orderIndex: 1, isDefault: true }
+                { id: 2, name: 'รองหัวหน้ากลุ่มงาน / รองหัวหน้างาน', orderIndex: 1, isDefault: false },
+                { id: 3, name: 'เจ้าหน้าที่ผู้ปฏิบัติงาน', orderIndex: 2, isDefault: true }
               ]
             })
         })
@@ -315,5 +316,20 @@ describe('OrganizationAdminClient Component', () => {
     const confirmOverlay = document.querySelector('.confirm-overlay') as HTMLElement
     expect(confirmOverlay).toBeDefined()
     expect(confirmOverlay.style.zIndex).toBe('var(--z-modal-confirm, 20000)')
+  })
+
+  it('does not duplicate leader into deputy role section', async () => {
+    render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('พว.สมหญิง รักดี')).toBeDefined()
+    })
+
+    // Leader 'พว.สมหญิง รักดี' should appear exactly once
+    const occurrences = screen.getAllByText('พว.สมหญิง รักดี')
+    expect(occurrences.length).toBe(1)
+
+    // The deputy role section 'รองหัวหน้ากลุ่มงาน / รองหัวหน้างาน' has 0 members and should not be displayed
+    expect(screen.queryByText('รองหัวหน้ากลุ่มงาน / รองหัวหน้างาน')).toBeNull()
   })
 });

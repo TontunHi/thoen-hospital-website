@@ -1020,7 +1020,10 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
   // Dynamic role sections grouping
   const roleSections = useMemo(() => {
     if (roles.length === 0) {
-      const leaders = members.filter((m) => m.role === 'leader' || (m.role || '').includes('หัวหน้า'))
+      const leaders = members.filter((m) => {
+        const r = (m.role || '').toLowerCase().trim()
+        return r === 'leader' || (r.includes('หัวหน้า') && !r.includes('รอง') && !r.includes('ผู้ช่วย'))
+      })
       const regulars = members.filter((m) => !leaders.some((l) => l.id === m.id))
       return [
         { id: 1, name: 'หัวหน้ากลุ่มงาน / ผู้บริหาร', isLeader: true, orderIndex: 0, isDefault: false, members: leaders },
@@ -1033,32 +1036,80 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
       ? members.filter((m) => m.name.toLowerCase().includes(q) || m.position.toLowerCase().includes(q))
       : members
 
-    const matchedMemberIds = new Set<number>()
+    const membersByRoleId = new Map<number, DepartmentMember[]>()
+    roles.forEach((r) => membersByRoleId.set(r.id, []))
+    const otherMembers: DepartmentMember[] = []
+
+    const defaultRole = roles.find((r) => r.isDefault) || roles[roles.length - 1]
+    const topRole = roles[0]
+
+    // Assign each member to exactly ONE section
+    for (const m of visibleMembers) {
+      const mRole = (m.role || '').toLowerCase().trim()
+
+      // 1. Exact match with a role name
+      const exactRole = roles.find((r) => r.name.toLowerCase().trim() === mRole)
+      if (exactRole) {
+        membersByRoleId.get(exactRole.id)?.push(m)
+        continue
+      }
+
+      // 2. Legacy 'leader' -> ONLY top-level leader role (roles[0]), never deputy/staff
+      if (mRole === 'leader') {
+        if (topRole) {
+          membersByRoleId.get(topRole.id)?.push(m)
+        } else {
+          otherMembers.push(m)
+        }
+        continue
+      }
+
+      // 3. Legacy 'member' -> default role (or last role)
+      if (mRole === 'member') {
+        if (defaultRole) {
+          membersByRoleId.get(defaultRole.id)?.push(m)
+        } else {
+          otherMembers.push(m)
+        }
+        continue
+      }
+
+      // 4. Fuzzy fallback if role has keyword
+      if (mRole) {
+        if (mRole.includes('รอง')) {
+          const deputyRole = roles.find((r) => r.name.toLowerCase().includes('รอง'))
+          if (deputyRole) {
+            membersByRoleId.get(deputyRole.id)?.push(m)
+            continue
+          }
+        } else if (mRole.includes('หัวหน้า') && !mRole.includes('ผู้ช่วย')) {
+          const leaderRole = roles.find((r) => {
+            const name = r.name.toLowerCase()
+            return name.includes('หัวหน้า') && !name.includes('รอง') && !name.includes('ผู้ช่วย')
+          }) || topRole
+          if (leaderRole) {
+            membersByRoleId.get(leaderRole.id)?.push(m)
+            continue
+          }
+        }
+      }
+
+      // 5. Unmatched
+      otherMembers.push(m)
+    }
 
     const sections = roles.map((role, idx) => {
-      const isLeader = idx === 0 || role.name.toLowerCase().includes('หัวหน้า')
-      const roleMembers = visibleMembers.filter((m) => {
-        const mRole = (m.role || '').toLowerCase().trim()
-        const rName = role.name.toLowerCase().trim()
-        if (mRole === rName) return true
-        if (mRole === 'leader' && (rName.includes('หัวหน้า') || idx === 0)) return true
-        if (mRole === 'member' && (role.isDefault || idx === roles.length - 1)) return true
-        return false
-      })
-
-      roleMembers.forEach((m) => matchedMemberIds.add(m.id))
-
+      const isLeader = idx === 0 || (role.name.toLowerCase().includes('หัวหน้า') && !role.name.toLowerCase().includes('รอง') && !role.name.toLowerCase().includes('ผู้ช่วย'))
       return {
         id: role.id,
         name: role.name,
         isLeader,
         orderIndex: role.orderIndex,
         isDefault: role.isDefault,
-        members: roleMembers
+        members: membersByRoleId.get(role.id) || []
       }
     })
 
-    const otherMembers = visibleMembers.filter((m) => !matchedMemberIds.has(m.id))
     if (otherMembers.length > 0) {
       sections.push({
         id: 99999,
@@ -1075,7 +1126,12 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
 
   const leaderMembers = useMemo(() => {
     const firstSec = roleSections[0]
-    return firstSec && firstSec.isLeader ? firstSec.members : members.filter((m) => m.role === 'leader' || (m.role || '').includes('หัวหน้า'))
+    return firstSec && firstSec.isLeader
+      ? firstSec.members
+      : members.filter((m) => {
+          const r = (m.role || '').toLowerCase().trim()
+          return r === 'leader' || (r.includes('หัวหน้า') && !r.includes('รอง') && !r.includes('ผู้ช่วย'))
+        })
   }, [roleSections, members])
 
   const regularMembers = useMemo(() => {
@@ -2055,7 +2111,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                             memberFormData.role === r.name ||
                             (rIdx === 0 && memberFormData.role === 'leader') ||
                             (r.isDefault && memberFormData.role === 'member')
-                          const isLeader = rIdx === 0 || r.name.toLowerCase().includes('หัวหน้า')
+                          const isLeader = rIdx === 0 || (r.name.toLowerCase().includes('หัวหน้า') && !r.name.toLowerCase().includes('รอง') && !r.name.toLowerCase().includes('ผู้ช่วย'))
 
                           return (
                             <div
