@@ -543,7 +543,7 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
 
     // KPI-002 has no answer for this round -> shows '-' and does not have timestamp
     expect(screen.getByText('ตัวชี้วัดยังไม่มีรายงานผล')).toBeInTheDocument()
-    const kpi2Row = screen.getByText('ตัวชี้วัดยังไม่มีรายงานผล').closest('.kpiGridRow')!
+    const kpi2Row = screen.getByText('ตัวชี้วัดยังไม่มีรายงานผล').closest('.kpiGridRow')! as HTMLElement
     expect(within(kpi2Row).queryByText(/ตอบเมื่อ/)).not.toBeInTheDocument()
     expect(within(kpi2Row).getAllByText('ไม่มีรายงาน').length).toBeGreaterThanOrEqual(1)
   })
