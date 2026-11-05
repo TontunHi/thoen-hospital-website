@@ -27,7 +27,7 @@ export function ToastContainer({ toasts, onDismiss }: ToastProps) {
         position: 'fixed',
         bottom: '1.5rem',
         right: '1.5rem',
-        zIndex: 'var(--z-toast)',
+        zIndex: 'var(--z-toast, 30000)',
         display: 'flex',
         flexDirection: 'column',
         gap: '0.75rem',

@@ -225,8 +225,9 @@ a:hover {
   --z-sticky: 200;
   --z-fixed: 300;
   --z-overlay: 400;
-  --z-modal: 500;
-  --z-toast: 600;
+  --z-modal: 1000;
+  --z-modal-confirm: 20000;
+  --z-toast: 30000;
 
   /* Container */
   --container-max: 1200px;

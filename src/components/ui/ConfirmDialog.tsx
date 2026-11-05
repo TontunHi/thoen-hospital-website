@@ -11,6 +11,7 @@ interface ConfirmDialogProps {
   cancelText?: string
   type?: 'danger' | 'warning' | 'info' | 'success'
   loading?: boolean
+  zIndex?: number | string
   onConfirm: () => void | Promise<void>
   onCancel: () => void
 }
@@ -23,6 +24,7 @@ export default function ConfirmDialog({
   cancelText = 'ยกเลิก',
   type = 'warning',
   loading = false,
+  zIndex,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -87,7 +89,7 @@ export default function ConfirmDialog({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 'var(--z-modal)',
+        zIndex: zIndex ?? 'var(--z-modal-confirm, 20000)',
         padding: '1rem',
       }}
       onClick={(e) => {

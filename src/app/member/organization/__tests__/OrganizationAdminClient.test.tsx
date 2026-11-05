@@ -299,5 +299,21 @@ describe('OrganizationAdminClient Component', () => {
       expect(screen.getByText('หัวหน้ากลุ่มงาน / หัวหน้างาน')).toBeDefined()
       expect(screen.getByText('เจ้าหน้าที่ผู้ปฏิบัติงาน')).toBeDefined()
     })
+
+    // Click delete role button
+    const deleteRoleBtns = screen.getAllByTitle('ลบบทบาทนี้')
+    expect(deleteRoleBtns.length).toBeGreaterThanOrEqual(1)
+    fireEvent.click(deleteRoleBtns[0])
+
+    // Confirmation dialog must appear on top with danger confirm button
+    await waitFor(() => {
+      expect(screen.getByText('ยืนยันการลบบทบาท')).toBeDefined()
+      expect(screen.getByText('ยืนยันการลบ')).toBeDefined()
+      expect(screen.getByText('ยกเลิก')).toBeDefined()
+    })
+
+    const confirmOverlay = document.querySelector('.confirm-overlay') as HTMLElement
+    expect(confirmOverlay).toBeDefined()
+    expect(confirmOverlay.style.zIndex).toBe('var(--z-modal-confirm, 20000)')
   })
 });

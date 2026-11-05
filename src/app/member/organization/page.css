@@ -1111,6 +1111,10 @@
   padding: 20px;
 }
 
+.confirm-overlay {
+  z-index: 20000 !important;
+}
+
 .modalContent {
   background: #FFFFFF;
   border-radius: var(--admin-radius-lg);
