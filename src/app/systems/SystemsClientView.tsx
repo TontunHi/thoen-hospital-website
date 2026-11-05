@@ -111,6 +111,12 @@ export default function SystemsClientView() {
       isInternalRoute: true,
     },
     {
+      title: 'Dashboard สถานะการใช้งานระบบ E-office สป.สธ.',
+      desc: 'รายงานสรุปสถานะการใช้งานระบบสารบรรณอิเล็กทรอนิกส์ (E-office) ของหน่วยงานในสังกัด สป.สธ. (ส่วนภูมิภาค)',
+      link: '/systems/e-office-status',
+      isInternalRoute: true,
+    },
+    {
       title: 'Thoen Hospital Information Center',
       desc: 'ศูนย์รวมลิงก์ระบบสารสนเทศและบริการออนไลน์ภายในโรงพยาบาลเถิน สำหรับการบริหารจัดการและสืบค้นข้อมูล',
       link: 'https://lookerstudio.google.com/reporting/01017415-3211-40ef-82bf-79352eec89e9/page/p_h148a04ncd?s=n2d-Kx9Wqzs',
