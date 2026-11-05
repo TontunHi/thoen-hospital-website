@@ -427,6 +427,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
       target.closest('.adminTreeMemberCard') ||
       target.closest('.adminTreeAddDashedCard') ||
       target.closest('.adminTreeAddSubunitDashedCard') ||
+      target.closest('.adminDirectStaffBlock') ||
+      target.closest('.adminStaffBranchCardWrap') ||
       target.closest('button') ||
       target.closest('a') ||
       target.closest('input') ||
