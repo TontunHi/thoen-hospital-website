@@ -1618,17 +1618,965 @@
   border: 1px solid #FDE68A;
 }
 
-.roleEditInputWrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-}
-
 .roleItemActions {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
 }
+
+/* ========================================================================
+   13. VIEW SWITCHER & INTERACTIVE ORG DIAGRAM IN ADMIN
+   ======================================================================== */
+.orgViewSwitcherBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #FFFFFF;
+  padding: 10px 18px;
+  border-radius: var(--admin-radius-md);
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.orgViewModeToggle {
+  display: inline-flex;
+  background: #F1F5F9;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.viewModeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--admin-slate-body);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.viewModeBtn:hover {
+  color: var(--admin-slate-dark);
+}
+
+.viewModeBtn.active {
+  background: var(--admin-primary);
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(13, 116, 70, 0.25);
+}
+
+.orgViewHintText {
+  font-size: 0.8rem;
+  color: var(--admin-slate-muted);
+}
+
+/* Department Selection Bar for Admin Diagram */
+.adminDeptSelectorSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adminDeptSelectorBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #FFFFFF;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.adminDeptQuickSelectBlock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 260px;
+}
+
+.adminDeptSelectLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--admin-slate-dark);
+  white-space: nowrap;
+}
+
+.adminDeptSelectInputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 360px;
+}
+
+.adminDeptSelectInput {
+  width: 100%;
+  appearance: none;
+  background: #F8FAFC;
+  border: 1.5px solid var(--admin-border);
+  border-radius: 10px;
+  padding: 7px 32px 7px 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--admin-slate-dark);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.adminDeptSelectInput:hover {
+  background: #FFFFFF;
+  border-color: var(--admin-border-hover);
+}
+
+.adminDeptSelectInput:focus {
+  outline: none;
+  background: #FFFFFF;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+
+.adminDeptSelectArrow {
+  position: absolute;
+  right: 10px;
+  pointer-events: none;
+  color: var(--admin-slate-body);
+}
+
+.adminDeptSelectorControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.adminDeptFilterWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.adminDeptFilterIcon {
+  position: absolute;
+  left: 10px;
+  color: #94A3B8;
+  pointer-events: none;
+}
+
+.adminDeptFilterField {
+  background: #F8FAFC;
+  border: 1.5px solid var(--admin-border);
+  border-radius: 10px;
+  padding: 6px 28px 6px 30px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: var(--admin-slate-dark);
+  width: 160px;
+  transition: all 0.18s ease;
+}
+
+.adminDeptFilterField:focus {
+  outline: none;
+  width: 200px;
+  background: #FFFFFF;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+
+.adminDeptFilterClear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #94A3B8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.adminDeptTabsNavWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 6px;
+}
+
+.adminDeptTabsNav {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  transition: all 0.2s ease;
+}
+
+.adminDeptTabsNav.wrapped {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+.adminDeptTabBtn {
+  background: #FFFFFF;
+  border: 1.5px solid var(--admin-border);
+  border-radius: 9999px;
+  padding: 7px 14px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--admin-slate-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: inherit;
+}
+
+.adminDeptTabBtn:hover {
+  background: #F8FAFC;
+  border-color: var(--admin-border-hover);
+  color: var(--admin-slate-dark);
+  transform: translateY(-1px);
+}
+
+.adminDeptTabBtn.active {
+  background: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: #FFFFFF;
+  box-shadow: 0 3px 10px rgba(13, 116, 70, 0.28);
+}
+
+.adminDeptTabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #F1F5F9;
+  color: var(--admin-slate-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  line-height: 1.3;
+}
+
+.adminDeptTabBtn.active .adminDeptTabBadge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
+/* ========================================================================
+   14. ADMIN ORG DIAGRAM CANVAS & FREE VIEW
+   ======================================================================== */
+.adminDiagramCard {
+  background: #FFFFFF;
+  border-radius: var(--admin-radius-lg);
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-sm);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.adminDiagramToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.adminDiagramTitleBlock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adminDiagramTitleBlock h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--admin-slate-dark);
+  margin: 0;
+}
+
+.adminDiagramControlsRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.adminDensityControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F1F5F9;
+  padding: 2px 4px;
+  border-radius: 8px;
+}
+
+.adminDensityBtn {
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.785rem;
+  font-weight: 700;
+  color: var(--admin-slate-body);
+  cursor: pointer;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+
+.adminDensityBtn.active {
+  background: #FFFFFF;
+  color: var(--admin-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.adminZoomControls {
+  display: inline-flex;
+  align-items: center;
+  background: #F1F5F9;
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.adminZoomBtn {
+  background: transparent;
+  border: none;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: var(--admin-slate-body);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+
+.adminZoomBtn:hover {
+  background: #FFFFFF;
+  color: var(--admin-slate-dark);
+}
+
+.adminZoomText {
+  font-size: 0.785rem;
+  font-weight: 700;
+  padding: 0 6px;
+  color: var(--admin-slate-body);
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.adminDiagramScroll {
+  position: relative;
+  width: 100%;
+  min-height: 560px;
+  max-height: 820px;
+  overflow: hidden;
+  padding: 48px 24px 64px;
+  background-color: #F8FAFC;
+  background-image: radial-gradient(#CBD5E1 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+  border-radius: var(--admin-radius-md);
+  border: 1px solid var(--admin-border);
+  box-shadow: inset 0 2px 6px rgba(15, 23, 42, 0.03);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.adminDiagramScroll.isPanning {
+  cursor: grabbing !important;
+}
+
+.adminCanvasResetPill {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #FFFFFF;
+  border: 1.5px solid var(--admin-border);
+  border-radius: 9999px;
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--admin-slate-dark);
+  box-shadow: var(--admin-shadow-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.adminCanvasResetPill:hover {
+  background: #F1F5F9;
+  color: var(--admin-primary);
+  border-color: var(--admin-primary);
+  transform: translateY(-1px);
+}
+
+.adminDiagramCanvas {
+  position: relative;
+  width: fit-content;
+  min-width: fit-content;
+  margin: 0 auto;
+  transform-origin: top center;
+  will-change: transform;
+}
+
+/* ========================================================================
+   15. CSS TREE CONNECTING LINES FOR DIAGRAM
+   ======================================================================== */
+.adminOrgTree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.adminOrgTree ul {
+  display: flex;
+  justify-content: center;
+  padding-top: 32px;
+  position: relative;
+  transition: all 0.2s ease;
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+
+.adminOrgTree li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding: 32px 14px 0 14px;
+  transition: all 0.2s ease;
+}
+
+.adminOrgTree li::before,
+.adminOrgTree li::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  border-top: 2px solid #94A3B8;
+  width: 50%;
+  height: 32px;
+}
+
+.adminOrgTree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid #94A3B8;
+}
+
+.adminOrgTree li:only-child::after,
+.adminOrgTree li:only-child::before {
+  display: none;
+}
+
+.adminOrgTree li:only-child {
+  padding-top: 0;
+}
+
+.adminOrgTree li:first-child::before {
+  border: 0 none;
+}
+
+.adminOrgTree li:last-child::after {
+  border: 0 none;
+}
+
+.adminOrgTree li:first-child::after {
+  border-radius: 12px 0 0 0;
+}
+
+.adminOrgTree li:last-child::before {
+  border-right: 2px solid #94A3B8;
+  border-radius: 0 12px 0 0;
+}
+
+.adminOrgTree ul ul::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 2px solid #94A3B8;
+  width: 0;
+  height: 32px;
+}
+
+/* ========================================================================
+   16. ADMIN TREE NODE CARDS
+   ======================================================================== */
+.adminTreeNodeCard {
+  background: #FFFFFF;
+  border: 1.5px solid var(--admin-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 250px;
+  text-align: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 2;
+}
+
+.adminTreeNodeCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  border-color: var(--admin-primary);
+}
+
+.adminTreeNodeCard.rootNode {
+  border: 2px solid var(--admin-primary);
+  background: linear-gradient(180deg, #F0FDF4 0%, #FFFFFF 100%);
+  width: 280px;
+  padding: 16px 18px;
+  box-shadow: 0 8px 24px -4px rgba(13, 116, 70, 0.14);
+}
+
+.adminTreeNodeCard.subUnitNode {
+  border: 1.5px solid #0D9488;
+  background: linear-gradient(180deg, #F0FDFA 0%, #FFFFFF 100%);
+  width: 240px;
+  box-shadow: 0 6px 16px -3px rgba(13, 148, 136, 0.1);
+}
+
+.adminTreeNodeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 6px;
+}
+
+.adminTreeNodeGroupTag {
+  background: #F1F5F9;
+  color: #1E293B;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adminTreeNodeCard.rootNode .adminTreeNodeGroupTag {
+  background: var(--admin-primary);
+  color: #FFFFFF;
+}
+
+.adminTreeNodeCard.subUnitNode .adminTreeNodeGroupTag {
+  background: #0D9488;
+  color: #FFFFFF;
+}
+
+/* Admin Quick Action Pill on Node Header */
+.adminNodeQuickActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.adminNodeActionBtn {
+  background: #FFFFFF;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--admin-slate-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+
+.adminNodeActionBtn:hover {
+  background: var(--admin-primary-light);
+  color: var(--admin-primary);
+  border-color: var(--admin-primary);
+}
+
+.adminNodeActionBtn.primary {
+  background: var(--admin-primary);
+  color: #FFFFFF;
+  border-color: var(--admin-primary);
+}
+
+.adminNodeActionBtn.primary:hover {
+  background: var(--admin-primary-hover);
+}
+
+.adminNodeActionBtn.danger {
+  color: var(--admin-danger);
+}
+
+.adminNodeActionBtn.danger:hover {
+  background: var(--admin-danger-light);
+  border-color: var(--admin-danger);
+}
+
+/* Leader block inside node card */
+.adminNodeLeaderWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  position: relative;
+}
+
+.adminNodeLeaderAvatarWrap {
+  position: relative;
+  display: inline-block;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+}
+
+.adminNodeLeaderAvatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--admin-primary);
+  background-color: #FFFFFF;
+}
+
+.adminNodeLeaderFallback {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background-color: #D1FAE5;
+  color: #065F46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 800;
+  border: 2px solid var(--admin-primary);
+}
+
+.adminCrownBadge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #D97706;
+  color: #FFFFFF;
+  border: 2px solid #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.adminNodeLeaderName {
+  font-size: 0.925rem;
+  font-weight: 700;
+  color: var(--admin-slate-dark);
+  line-height: 1.25;
+}
+
+.adminNodeLeaderPosition {
+  font-size: 0.765rem;
+  color: var(--admin-slate-muted);
+  line-height: 1.3;
+}
+
+.adminLeaderActionsOverlay {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.adminMiniBtn {
+  background: #FFFFFF;
+  border: 1px solid var(--admin-border);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--admin-slate-body);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.12s;
+  font-family: inherit;
+}
+
+.adminMiniBtn:hover {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+}
+
+.adminMiniBtn.danger {
+  color: var(--admin-danger);
+}
+
+.adminMiniBtn.danger:hover {
+  background: var(--admin-danger-light);
+  border-color: var(--admin-danger);
+}
+
+/* Empty leader state */
+.adminNoLeaderCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: #F8FAFC;
+  border: 1px dashed var(--admin-border-hover);
+  border-radius: 10px;
+  width: 100%;
+}
+
+.adminNoLeaderText {
+  font-size: 0.775rem;
+  color: var(--admin-slate-muted);
+}
+
+/* ========================================================================
+   17. TIERED STAFF MEMBERS IN ADMIN DIAGRAM
+   ======================================================================== */
+.adminTieredStaffBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 14px;
+  width: 100%;
+}
+
+.adminTieredRow {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.adminTreeMemberCard {
+  background: #FFFFFF;
+  border: 1.5px solid var(--admin-border);
+  border-radius: 12px;
+  padding: 10px 10px 8px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 180px;
+  text-align: center;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 2;
+  cursor: grab;
+  user-select: none;
+}
+
+.adminTreeMemberCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  border-color: var(--admin-primary);
+}
+
+.adminTreeMemberCard.isDragging {
+  opacity: 0.38;
+  transform: scale(0.96);
+  border: 1.5px dashed var(--admin-primary);
+  background-color: var(--admin-primary-light);
+}
+
+.adminTreeMemberCard.isDropTarget {
+  border: 2px solid var(--admin-primary);
+  background-color: var(--admin-primary-light);
+  box-shadow: 0 0 0 3px var(--admin-primary-ring);
+}
+
+.adminTreeMemberAvatarWrap {
+  display: inline-block;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+}
+
+.adminTreeMemberAvatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #E2E8F0;
+  background-color: #FFFFFF;
+}
+
+.adminTreeMemberAvatarFallback {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background-color: #F1F5F9;
+  color: var(--admin-slate-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  font-weight: 800;
+  border: 2px solid #E2E8F0;
+}
+
+.adminTreeMemberBadge {
+  background-color: #F1F5F9;
+  color: #475569;
+  font-size: 0.685rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.adminTreeMemberBadge.deputy {
+  background-color: #E0F2FE;
+  color: #0369A1;
+}
+
+.adminTreeMemberName {
+  font-size: 0.835rem;
+  font-weight: 700;
+  color: var(--admin-slate-dark);
+  line-height: 1.2;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.adminTreeMemberPosition {
+  font-size: 0.725rem;
+  color: var(--admin-slate-muted);
+  line-height: 1.25;
+}
+
+.adminMemberCardActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* Quick Add Dashed Cards inside Diagram */
+.adminTreeAddDashedCard {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1.5px dashed var(--admin-border-hover);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 180px;
+  height: 100%;
+  min-height: 120px;
+  cursor: pointer;
+  color: var(--admin-slate-muted);
+  font-size: 0.825rem;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.adminTreeAddDashedCard:hover {
+  background: var(--admin-primary-light);
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+  transform: translateY(-2px);
+}
+
+.adminTreeAddSubunitDashedCard {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1.5px dashed var(--admin-border-hover);
+  border-radius: 14px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 220px;
+  cursor: pointer;
+  color: var(--admin-slate-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.adminTreeAddSubunitDashedCard:hover {
+  background: #F0FDFA;
+  border-color: #0D9488;
+  color: #0D9488;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .adminDeptSelectorBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .adminDeptQuickSelectBlock {
+    min-width: 100%;
+    width: 100%;
+  }
+  .adminDeptSelectInputWrap {
+    max-width: none;
+  }
+  .adminDiagramScroll {
+    min-height: 480px;
+    padding: 32px 12px 48px;
+  }
+}
+
 

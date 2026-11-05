@@ -27,25 +27,17 @@ import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
 import { getInitials } from '@/lib/formatters'
 import './page.css'
 
-interface PublicMember {
-  id: number
-  groupId: number
-  name: string
-  position: string
-  role: string
-  orderIndex: number
-  imagePath: string | null
-  groupName?: string
-}
+import {
+  OrgMember as PublicMember,
+  OrgGroupNode as PublicGroupNode,
+  countTotalMembersInGroup,
+  countTotalSubUnits,
+  swapMembersInTree,
+  swapGroupsInTree
+} from '@/lib/departments/orgTreeUtils'
 
-interface PublicGroupNode {
-  id: number
-  name: string
-  parentId: number | null
-  orderIndex: number
-  members: PublicMember[]
-  children: PublicGroupNode[]
-}
+export { swapMembersInTree, swapGroupsInTree }
+export type { PublicMember, PublicGroupNode }
 
 interface DragItemMember {
   type: 'member'
@@ -77,131 +69,6 @@ const OrgDragContext = createContext<OrgDragContextValue | null>(null)
 
 function useOrgDrag() {
   return useContext(OrgDragContext)
-}
-
-function countTotalMembersInGroup(node: PublicGroupNode): number {
-  let count = node.members.length
-  if (node.children && node.children.length > 0) {
-    for (const child of node.children) {
-      count += countTotalMembersInGroup(child)
-    }
-  }
-  return count
-}
-
-function countTotalSubUnits(node: PublicGroupNode): number {
-  let count = node.children ? node.children.length : 0
-  if (node.children && node.children.length > 0) {
-    for (const child of node.children) {
-      count += countTotalSubUnits(child)
-    }
-  }
-  return count
-}
-
-/**
- * Pure helper to swap two members inside the specified group in the org tree.
- */
-export function swapMembersInTree(
-  nodes: PublicGroupNode[],
-  groupId: number,
-  memberIdA: number,
-  memberIdB: number
-): { updatedNodes: PublicGroupNode[]; swappedGroup: PublicGroupNode | null } {
-  let swappedGroup: PublicGroupNode | null = null
-
-  function traverse(list: PublicGroupNode[]): PublicGroupNode[] {
-    return list.map((node) => {
-      let currentNode = node
-      if (node.id === groupId) {
-        const members = [...node.members]
-        const idxA = members.findIndex((m) => m.id === memberIdA)
-        const idxB = members.findIndex((m) => m.id === memberIdB)
-        if (idxA !== -1 && idxB !== -1) {
-          const temp = members[idxA]
-          members[idxA] = members[idxB]
-          members[idxB] = temp
-          const reordered = members.map((m, idx) => ({ ...m, orderIndex: idx }))
-          currentNode = { ...node, members: reordered }
-          swappedGroup = currentNode
-        }
-      }
-
-      if (currentNode.children && currentNode.children.length > 0) {
-        return {
-          ...currentNode,
-          children: traverse(currentNode.children)
-        }
-      }
-
-      return currentNode
-    })
-  }
-
-  const updatedNodes = traverse(nodes)
-  return { updatedNodes, swappedGroup }
-}
-
-/**
- * Pure helper to swap two sibling groups (or root tabs) in the org tree.
- */
-export function swapGroupsInTree(
-  nodes: PublicGroupNode[],
-  parentId: number | null,
-  groupIdA: number,
-  groupIdB: number
-): { updatedNodes: PublicGroupNode[]; swappedGroupIds: number[] | null } {
-  if (parentId === null) {
-    const idxA = nodes.findIndex((g) => g.id === groupIdA)
-    const idxB = nodes.findIndex((g) => g.id === groupIdB)
-    if (idxA === -1 || idxB === -1) return { updatedNodes: nodes, swappedGroupIds: null }
-
-    const next = [...nodes]
-    const temp = next[idxA]
-    next[idxA] = next[idxB]
-    next[idxB] = temp
-    const reordered = next.map((g, idx) => ({ ...g, orderIndex: idx }))
-    return {
-      updatedNodes: reordered,
-      swappedGroupIds: reordered.map((g) => g.id)
-    }
-  }
-
-  let swappedGroupIds: number[] | null = null
-
-  function traverse(list: PublicGroupNode[]): PublicGroupNode[] {
-    return list.map((node) => {
-      let currentNode = node
-      if (node.id === parentId && node.children && node.children.length > 0) {
-        const children = [...node.children]
-        const idxA = children.findIndex((c) => c.id === groupIdA)
-        const idxB = children.findIndex((c) => c.id === groupIdB)
-        if (idxA !== -1 && idxB !== -1) {
-          const temp = children[idxA]
-          children[idxA] = children[idxB]
-          children[idxB] = temp
-          const reordered = children.map((c, idx) => ({ ...c, orderIndex: idx }))
-          swappedGroupIds = reordered.map((c) => c.id)
-          currentNode = {
-            ...node,
-            children: reordered
-          }
-        }
-      }
-
-      if (currentNode.children && currentNode.children.length > 0) {
-        return {
-          ...currentNode,
-          children: traverse(currentNode.children)
-        }
-      }
-
-      return currentNode
-    })
-  }
-
-  const updatedNodes = traverse(nodes)
-  return { updatedNodes, swappedGroupIds }
 }
 
 /**
@@ -946,7 +813,15 @@ export default function OrganizationPublicClient() {
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return
     const target = e.target as HTMLElement
-    if (target.closest('.treeNodeCard') || target.closest('button') || target.closest('a')) {
+    if (
+      target.closest('.treeNodeCard') ||
+      target.closest('.treeMemberCard') ||
+      target.closest('.publicMemberCard') ||
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('input') ||
+      target.closest('select')
+    ) {
       return
     }
 

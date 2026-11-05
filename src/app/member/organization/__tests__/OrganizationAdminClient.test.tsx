@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import OrganizationAdminClient from '../OrganizationAdminClient'
 
 describe('OrganizationAdminClient Component', () => {
@@ -138,10 +138,15 @@ describe('OrganizationAdminClient Component', () => {
     }) as any
   })
 
-  it('renders admin workbench header and groups explorer', async () => {
+  it('renders admin view switcher and workbench', async () => {
     render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
 
     expect(screen.getByText('จัดการแผนผังและสมาชิกกลุ่มงาน')).toBeDefined()
+    expect(screen.getByText('มุมมองแผนผังองค์กร')).toBeDefined()
+    expect(screen.getByText('มุมมองรายการละเอียด')).toBeDefined()
+
+    // Switch to workbench mode
+    fireEvent.click(screen.getByText('มุมมองรายการละเอียด'))
     expect(screen.getByText('โครงสร้างกลุ่มงาน')).toBeDefined()
 
     await waitFor(() => {
@@ -175,8 +180,11 @@ describe('OrganizationAdminClient Component', () => {
     expect(screen.getByPlaceholderText(/เช่น ผู้อำนวยการโรงพยาบาล/i)).toBeDefined()
   })
 
-  it('filters group explorer by search query', async () => {
+  it('filters group explorer by search query in workbench mode', async () => {
     render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
+
+    // Switch to workbench mode
+    fireEvent.click(screen.getByText('มุมมองรายการละเอียด'))
 
     await waitFor(() => {
       expect(screen.getAllByText('กลุ่มงานการพยาบาล').length).toBeGreaterThanOrEqual(1)
@@ -331,5 +339,45 @@ describe('OrganizationAdminClient Component', () => {
 
     // The deputy role section 'รองหัวหน้ากลุ่มงาน / รองหัวหน้างาน' has 0 members and should not be displayed
     expect(screen.queryByText('รองหัวหน้ากลุ่มงาน / รองหัวหน้างาน')).toBeNull()
+  })
+
+  it('renders interactive visual diagram by default with zoom and reset controls', async () => {
+    render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('มุมมองแผนผังองค์กร')).toBeDefined()
+      expect(screen.getByText('รีเซ็ตมุมมอง')).toBeDefined()
+      expect(screen.getByText(/100%/)).toBeDefined()
+      expect(screen.getByText('กลุ่มงานหลัก')).toBeDefined()
+    })
+
+    // Check zoom button interaction
+    const zoomInBtn = screen.getByTitle(/Zoom in/i)
+    act(() => {
+      fireEvent.click(zoomInBtn)
+    })
+    expect(screen.getByText('110%')).toBeDefined()
+
+    const resetBtn = screen.getByText('รีเซ็ตมุมมอง')
+    act(() => {
+      fireEvent.click(resetBtn)
+    })
+    expect(screen.getByText('100%')).toBeDefined()
+  })
+
+  it('opens add sub-group modal directly from diagram quick action button', async () => {
+    render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
+
+    await waitFor(() => {
+      expect(screen.getByTitle('เพิ่มหน่วยงานย่อย')).toBeDefined()
+    })
+
+    const addSubGroupBtn = screen.getByTitle('เพิ่มหน่วยงานย่อย')
+    fireEvent.click(addSubGroupBtn)
+
+    await waitFor(() => {
+      expect(screen.getAllByText('เพิ่มงานย่อย').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getByPlaceholderText(/เช่น กลุ่มงานการพยาบาล/i)).toBeDefined()
+    })
   })
 });

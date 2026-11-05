@@ -29,13 +29,28 @@ import {
   CheckCircle2,
   UserCheck,
   Crop,
-  GripVertical
+  GripVertical,
+  Network,
+  RotateCcw,
+  Hand,
+  ZoomIn,
+  ZoomOut,
+  ChevronLeft
 } from 'lucide-react'
 import ImageCropModal from '@/components/ui/ImageCropModal'
 import Link from 'next/link'
 import { getInitials } from '@/lib/formatters'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
+import {
+  OrgMember,
+  OrgGroupNode,
+  countTotalMembersInGroup,
+  countTotalSubUnits,
+  swapMembersInTree,
+  swapGroupsInTree,
+  isLeaderRole
+} from '@/lib/departments/orgTreeUtils'
 import './page.css'
 
 interface DepartmentGroupNode {
@@ -79,6 +94,17 @@ function findGroupName(nodes: DepartmentGroupNode[], targetId: number): string |
     if (node.id === targetId) return node.name
     if (node.children && node.children.length > 0) {
       const found = findGroupName(node.children, targetId)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+function findGroupById(nodes: DepartmentGroupNode[], targetId: number): DepartmentGroupNode | null {
+  for (const node of nodes) {
+    if (node.id === targetId) return node
+    if (node.children && node.children.length > 0) {
+      const found = findGroupById(node.children, targetId)
       if (found) return found
     }
   }
@@ -199,6 +225,30 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     setToasts((prev) => [...prev, { id: String(Date.now()), message, type }])
   }
 
+  // View mode switcher: 'diagram' (ผังโครงสร้าง) or 'workbench' (รายการละเอียด)
+  const [adminViewMode, setAdminViewMode] = useState<'diagram' | 'workbench'>('diagram')
+
+  // Full Org Chart for diagram view
+  const [orgChart, setOrgChart] = useState<OrgGroupNode[]>([])
+  const [loadingChart, setLoadingChart] = useState(false)
+  const [selectedRootId, setSelectedRootId] = useState<number | null>(null)
+
+  // Diagram free-view state
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const panStartRef = useRef<{ startX: number; startY: number; initialPanX: number; initialPanY: number } | null>(null)
+  const diagramScrollRef = useRef<HTMLDivElement>(null)
+  const [membersPerRow, setMembersPerRow] = useState(4)
+  const [isTabsWrapped, setIsTabsWrapped] = useState(true)
+  const [deptFilterQuery, setDeptFilterQuery] = useState('')
+
+  // Drag-and-drop state in diagram
+  const [diagramDragItem, setDiagramDragItem] = useState<
+    { type: 'member'; id: number; groupId: number } | { type: 'group'; id: number; parentId: number | null } | null
+  >(null)
+  const [diagramDragOverKey, setDiagramDragOverKey] = useState<string | null>(null)
+
   // Fetch groups tree
   const loadGroups = async (selectGroupId?: number) => {
     try {
@@ -278,9 +328,29 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     }
   }
 
+  // Fetch complete org chart for visual diagram
+  const loadFullChart = async () => {
+    try {
+      setLoadingChart(true)
+      const res = await fetch('/api/departments/public')
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setOrgChart(json.data)
+        if (!selectedRootId && json.data.length > 0) {
+          setSelectedRootId(json.data[0].id)
+        }
+      }
+    } catch {
+      // Fallback handles building tree from groups and members
+    } finally {
+      setLoadingChart(false)
+    }
+  }
+
   useEffect(() => {
     loadGroups()
     loadRoles()
+    loadFullChart()
   }, [])
 
   useEffect(() => {
@@ -291,6 +361,245 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
       setMembers([])
     }
   }, [selectedGroup?.id])
+
+  // Fallback tree construction if orgChart is not yet fetched or empty
+  const effectiveOrgChart: OrgGroupNode[] = useMemo(() => {
+    if (orgChart.length > 0) return orgChart
+
+    const buildNode = (g: DepartmentGroupNode): OrgGroupNode => {
+      const gMembers: OrgMember[] =
+        selectedGroup?.id === g.id
+          ? members.map((m) => ({
+              id: m.id,
+              groupId: g.id,
+              name: m.name,
+              position: m.position,
+              role: m.role,
+              orderIndex: m.orderIndex,
+              imagePath: m.imagePath,
+              phone: m.phone,
+              memberId: m.memberId
+            }))
+          : []
+      return {
+        id: g.id,
+        name: g.name,
+        parentId: g.parentId,
+        orderIndex: g.orderIndex,
+        members: gMembers,
+        children: (g.children || []).map(buildNode)
+      }
+    }
+    return groups.map(buildNode)
+  }, [orgChart, groups, members, selectedGroup])
+
+  const selectedRoot = useMemo(() => {
+    if (selectedRootId) {
+      const found = effectiveOrgChart.find((g) => g.id === selectedRootId)
+      if (found) return found
+    }
+    return effectiveOrgChart[0] || null
+  }, [effectiveOrgChart, selectedRootId])
+
+  useEffect(() => {
+    if (!selectedRootId && effectiveOrgChart.length > 0) {
+      setSelectedRootId(effectiveOrgChart[0].id)
+    }
+  }, [effectiveOrgChart, selectedRootId])
+
+  const filteredDiagramChart = useMemo(() => {
+    const q = deptFilterQuery.trim().toLowerCase()
+    if (!q) return effectiveOrgChart
+    return effectiveOrgChart.filter((g) => g.name.toLowerCase().includes(q))
+  }, [effectiveOrgChart, deptFilterQuery])
+
+  // Diagram Free View handlers
+  const handleResetDiagramView = () => {
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
+  }
+
+  const handleDiagramPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    const target = e.target as HTMLElement
+    if (
+      target.closest('.adminTreeNodeCard') ||
+      target.closest('.adminTreeMemberCard') ||
+      target.closest('.adminTreeAddDashedCard') ||
+      target.closest('.adminTreeAddSubunitDashedCard') ||
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('input') ||
+      target.closest('select')
+    ) {
+      return
+    }
+
+    setIsPanning(true)
+    panStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialPanX: pan.x,
+      initialPanY: pan.y
+    }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {}
+  }
+
+  const handleDiagramPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning || !panStartRef.current) return
+    const dx = e.clientX - panStartRef.current.startX
+    const dy = e.clientY - panStartRef.current.startY
+    setPan({
+      x: panStartRef.current.initialPanX + dx,
+      y: panStartRef.current.initialPanY + dy
+    })
+  }
+
+  const handleDiagramPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning) return
+    setIsPanning(false)
+    panStartRef.current = null
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {}
+  }
+
+  const handleDiagramWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      const delta = e.deltaY < 0 ? 0.08 : -0.08
+      setZoom((z) => Math.min(1.4, Math.max(0.5, Number((z + delta).toFixed(2)))))
+    } else {
+      setPan((p) => ({
+        x: p.x - e.deltaX,
+        y: p.y - e.deltaY
+      }))
+    }
+  }
+
+  // Diagram modal triggers
+  const openCreateMemberForGroup = (groupId: number, groupName?: string, defaultRole?: string) => {
+    const foundGroup = findGroupById(groups, groupId)
+    if (foundGroup) {
+      setSelectedGroup(foundGroup)
+    }
+    setMemberModalMode('create')
+    const initialRole =
+      defaultRole ||
+      (roles.length > 0
+        ? (roles.find((r) => r.isDefault)?.name || roles[roles.length - 1].name)
+        : 'เจ้าหน้าที่ผู้ปฏิบัติงาน')
+
+    setMemberFormData({
+      name: '',
+      position: '',
+      role: initialRole,
+      phone: '',
+      imagePath: '',
+      memberId: null
+    })
+    isSelectingMemberRef.current = false
+    setSearchMemberResults([])
+    setSearchMemberQuery('')
+    setImgPreviewFailed(false)
+    setIsMemberModalOpen(true)
+  }
+
+  const openEditMember = (m: DepartmentMember | OrgMember) => {
+    const foundGroup = findGroupById(groups, m.groupId)
+    if (foundGroup) setSelectedGroup(foundGroup)
+
+    setMemberModalMode('edit')
+    setMemberFormData({
+      id: m.id,
+      name: m.name,
+      position: m.position,
+      role: m.role,
+      phone: m.phone || '',
+      imagePath: m.imagePath || '',
+      memberId: m.memberId || null
+    })
+    setImgPreviewFailed(false)
+    setIsMemberModalOpen(true)
+  }
+
+  const openCreateSubGroup = (parentId: number) => {
+    setGroupModalMode('create')
+    setGroupFormData({ name: '', parentId })
+    setIsGroupModalOpen(true)
+  }
+
+  const openEditGroup = (g: { id: number; name: string; parentId: number | null }) => {
+    setGroupModalMode('edit')
+    setGroupFormData({ id: g.id, name: g.name, parentId: g.parentId })
+    setIsGroupModalOpen(true)
+  }
+
+  // Diagram Member Drag & Drop reordering
+  const handleDiagramMemberDragStart = (memberId: number, groupId: number, e: React.DragEvent) => {
+    setDiagramDragItem({ type: 'member', id: memberId, groupId })
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(memberId))
+  }
+
+  const handleDiagramMemberDragOver = (memberId: number, groupId: number, e: React.DragEvent) => {
+    if (!diagramDragItem || diagramDragItem.type !== 'member') return
+    if (diagramDragItem.id === memberId || diagramDragItem.groupId !== groupId) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    const key = `member-${memberId}`
+    if (diagramDragOverKey !== key) {
+      setDiagramDragOverKey(key)
+    }
+  }
+
+  const handleDiagramMemberDragLeave = () => {
+    setDiagramDragOverKey(null)
+  }
+
+  const handleDiagramMemberDrop = (targetMemberId: number, groupId: number, e: React.DragEvent) => {
+    e.preventDefault()
+    if (!diagramDragItem || diagramDragItem.type !== 'member') return
+    if (diagramDragItem.id !== targetMemberId && diagramDragItem.groupId === groupId) {
+      handleSwapMembersInDiagram(diagramDragItem.id, targetMemberId, groupId)
+    }
+    setDiagramDragItem(null)
+    setDiagramDragOverKey(null)
+  }
+
+  const handleDiagramMemberDragEnd = () => {
+    setDiagramDragItem(null)
+    setDiagramDragOverKey(null)
+  }
+
+  const handleSwapMembersInDiagram = async (memberIdA: number, memberIdB: number, groupId: number) => {
+    const { updatedNodes, swappedGroup } = swapMembersInTree(effectiveOrgChart, groupId, memberIdA, memberIdB)
+    if (!swappedGroup) return
+
+    setOrgChart(updatedNodes)
+
+    try {
+      const res = await fetch('/api/departments/members/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId,
+          memberIds: swappedGroup.members.map((m) => m.id)
+        })
+      })
+      const json = await res.json().catch(() => null)
+      if (json && json.success) {
+        addToast(json.message || 'บันทึกลำดับสมาชิกสำเร็จ', 'success')
+        if (selectedGroup?.id === groupId) {
+          loadMembers(groupId)
+        }
+      }
+    } catch {
+      // Local state already updated smoothly
+    }
+  }
 
   // Close autocomplete dropdown when clicking outside
   useEffect(() => {
@@ -463,6 +772,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           addToast('สร้างกลุ่มงานสำเร็จ', 'success')
           setIsGroupModalOpen(false)
           loadGroups(json.data.id)
+          loadFullChart()
         } else {
           addToast(json.error || 'สร้างกลุ่มงานไม่สำเร็จ', 'error')
         }
@@ -479,6 +789,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           addToast('อัปเดตกลุ่มงานสำเร็จ', 'success')
           setIsGroupModalOpen(false)
           loadGroups(groupFormData.id)
+          loadFullChart()
         } else {
           addToast(json.error || 'อัปเดตกลุ่มงานไม่สำเร็จ', 'error')
         }
@@ -489,7 +800,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
   }
 
   // Delete Group
-  const handleDeleteGroup = (group: DepartmentGroupNode) => {
+  const handleDeleteGroup = (group: { id: number; name: string }) => {
     setConfirmDialog({
       isOpen: true,
       title: 'ยืนยันการลบกลุ่มงาน',
@@ -504,6 +815,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               setSelectedGroup(null)
             }
             loadGroups()
+            loadFullChart()
           } else {
             addToast(json.error || 'ไม่สามารถลบกลุ่มงานได้', 'error')
           }
@@ -543,6 +855,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           addToast('เพิ่มสมาชิกสำเร็จ', 'success')
           setIsMemberModalOpen(false)
           loadMembers(selectedGroup.id)
+          loadFullChart()
         } else {
           addToast(json.error || 'เพิ่มสมาชิกไม่สำเร็จ', 'error')
         }
@@ -564,6 +877,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           addToast('อัปเดตข้อมูลสมาชิกสำเร็จ', 'success')
           setIsMemberModalOpen(false)
           loadMembers(selectedGroup.id)
+          loadFullChart()
         } else {
           addToast(json.error || 'อัปเดตสมาชิกไม่สำเร็จ', 'error')
         }
@@ -574,7 +888,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
   }
 
   // Delete Member
-  const handleDeleteMember = (member: DepartmentMember) => {
+  const handleDeleteMember = (member: { id: number; name: string; groupId?: number }) => {
     setConfirmDialog({
       isOpen: true,
       title: 'ยืนยันการลบสมาชิก',
@@ -586,6 +900,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           if (json.success) {
             addToast('ลบสมาชิกสำเร็จ', 'success')
             if (selectedGroup) loadMembers(selectedGroup.id)
+            loadFullChart()
           } else {
             addToast(json.error || 'ไม่สามารถลบสมาชิกได้', 'error')
           }
@@ -1139,6 +1454,422 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     return members.filter((m) => !leaderSet.has(m.id))
   }, [members, leaderMembers])
 
+  // Diagram Render Helpers
+  const renderAdminMemberLeaf = (
+    member: OrgMember,
+    badge?: string,
+    groupId?: number,
+    groupName?: string
+  ) => {
+    const resolvedGroupId = groupId ?? member.groupId
+    const itemKey = `member-${member.id}`
+    const isDragging = diagramDragItem?.type === 'member' && diagramDragItem.id === member.id
+    const isDropTarget = diagramDragOverKey === itemKey
+    const showBadge = Boolean(badge && badge !== 'เจ้าหน้าที่' && badge !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน')
+    const isDeputy = badge?.includes('รอง')
+
+    return (
+      <li key={`staff-leaf-${member.id}`}>
+        <div
+          className={`adminTreeMemberCard ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
+          draggable={true}
+          onDragStart={(e) => handleDiagramMemberDragStart(member.id, resolvedGroupId, e)}
+          onDragOver={(e) => handleDiagramMemberDragOver(member.id, resolvedGroupId, e)}
+          onDragLeave={handleDiagramMemberDragLeave}
+          onDrop={(e) => handleDiagramMemberDrop(member.id, resolvedGroupId, e)}
+          onDragEnd={handleDiagramMemberDragEnd}
+          onClick={() => openEditMember(member)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              openEditMember(member)
+            }
+          }}
+          title="คลิกเพื่อแก้ไขข้อมูล หรือลากเพื่อสลับตำแหน่ง"
+        >
+          <div className="adminTreeMemberAvatarWrap">
+            {member.imagePath ? (
+              <img src={member.imagePath} alt={member.name} className="adminTreeMemberAvatar" />
+            ) : (
+              <div className="adminTreeMemberAvatarFallback">{getInitials(member.name)}</div>
+            )}
+          </div>
+          {showBadge && (
+            <span className={`adminTreeMemberBadge ${isDeputy ? 'deputy' : ''}`}>
+              {badge}
+            </span>
+          )}
+          <span className="adminTreeMemberName" title={member.name}>
+            {member.name}
+          </span>
+          <span className="adminTreeMemberPosition" title={member.position}>
+            {member.position}
+          </span>
+          <div className="adminMemberCardActions" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="adminMiniBtn"
+              title="แก้ไขข้อมูล"
+              onClick={() => openEditMember(member)}
+            >
+              <Edit2 size={12} />
+              <span>แก้ไข</span>
+            </button>
+            <button
+              type="button"
+              className="adminMiniBtn danger"
+              title="ลบบุคลากรออกจากกลุ่มงาน"
+              onClick={() => handleDeleteMember(member)}
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+        </div>
+      </li>
+    )
+  }
+
+  const renderAdminTieredStaff = (
+    staffMembers: OrgMember[],
+    perRow: number,
+    badge: string | undefined,
+    isNested: boolean,
+    groupId: number,
+    groupName?: string
+  ) => {
+    const rows: OrgMember[][] = []
+    for (let i = 0; i < staffMembers.length; i += perRow) {
+      rows.push(staffMembers.slice(i, i + perRow))
+    }
+
+    return (
+      <div className={`adminTieredStaffBlock ${isNested ? 'nested' : ''}`}>
+        {rows.map((rowMembers, rowIndex) => {
+          const isLastRow = rowIndex === rows.length - 1
+          return (
+            <ul key={`admin-row-${rowIndex}`} className="adminTieredRow">
+              {rowMembers.map((member) =>
+                renderAdminMemberLeaf(member, badge, groupId, groupName)
+              )}
+              {isLastRow && (
+                <li key="admin-add-card">
+                  <button
+                    type="button"
+                    className="adminTreeAddDashedCard"
+                    onClick={() => openCreateMemberForGroup(groupId, groupName, badge || 'เจ้าหน้าที่ผู้ปฏิบัติงาน')}
+                    title={`เพิ่มบุคลากร (${badge || 'เจ้าหน้าที่'})`}
+                  >
+                    <Plus size={16} />
+                    <span>เพิ่มบุคลากร</span>
+                  </button>
+                </li>
+              )}
+            </ul>
+          )
+        })}
+        {rows.length === 0 && (
+          <ul className="adminTieredRow">
+            <li key="admin-add-card-empty">
+              <button
+                type="button"
+                className="adminTreeAddDashedCard"
+                onClick={() => openCreateMemberForGroup(groupId, groupName, badge || 'เจ้าหน้าที่ผู้ปฏิบัติงาน')}
+                title={`เพิ่มบุคลากร (${badge || 'เจ้าหน้าที่'})`}
+              >
+                <Plus size={16} />
+                <span>เพิ่มบุคลากร ({badge || 'เจ้าหน้าที่'})</span>
+              </button>
+            </li>
+          </ul>
+        )}
+      </div>
+    )
+  }
+
+  const renderAdminSubnode = (node: OrgGroupNode, rowSize = 4) => {
+    const leader = node.members.find((m) => isLeaderRole(m.role)) || (node.members.length > 0 && node.members[0].role !== 'member' && node.members[0].role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน' ? node.members[0] : undefined)
+    const otherLeaders = node.members.filter((m) => m.id !== leader?.id && (isLeaderRole(m.role) || (m.role !== 'member' && m.role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน')))
+    const staff = node.members.filter((m) => m.id !== leader?.id && !otherLeaders.some((ol) => ol.id === m.id))
+    const children = node.children || []
+
+    return (
+      <li key={`subnode-${node.id}`} className="adminOrgTreeSubItem">
+        <div className="adminTreeNodeCard subUnitNode">
+          <div className="adminTreeNodeHeader">
+            <div className="adminTreeNodeTitleWrap">
+              <span className="adminTreeNodeGroupTag">งานย่อย</span>
+              <h3 className="adminTreeNodeTitle" title={node.name}>
+                {node.name}
+              </h3>
+            </div>
+            <div className="adminNodeQuickActions" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="adminNodeActionBtn primary"
+                onClick={() => openCreateMemberForGroup(node.id, node.name)}
+                title="เพิ่มสมาชิกเข้างานย่อยนี้"
+              >
+                <Plus size={11} />
+                <span>สมาชิก</span>
+              </button>
+              <button
+                type="button"
+                className="adminNodeActionBtn"
+                onClick={() => openCreateSubGroup(node.id)}
+                title="เพิ่มงานย่อยภายใต้งานนี้"
+              >
+                <Plus size={11} />
+                <span>งานย่อย</span>
+              </button>
+              <button
+                type="button"
+                className="adminNodeActionBtn"
+                onClick={() => openEditGroup(node)}
+                title="แก้ไขชื่องานย่อย"
+              >
+                <Edit2 size={11} />
+              </button>
+              <button
+                type="button"
+                className="adminNodeActionBtn danger"
+                onClick={() => handleDeleteGroup(node)}
+                title="ลบงานย่อย"
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
+          </div>
+
+          {leader ? (
+            <div className="adminNodeLeaderWrap">
+              <div className="adminNodeLeaderAvatarWrap">
+                {leader.imagePath ? (
+                  <img src={leader.imagePath} alt={leader.name} className="adminNodeLeaderAvatar" />
+                ) : (
+                  <div className="adminNodeLeaderFallback">{getInitials(leader.name)}</div>
+                )}
+                <span className="adminCrownBadge" title="หัวหน้างาน">
+                  <Crown size={11} />
+                </span>
+              </div>
+              <span className="adminNodeLeaderName">{leader.name}</span>
+              <span className="adminNodeLeaderPosition">{leader.position}</span>
+              <div className="adminLeaderActionsOverlay" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="adminMiniBtn"
+                  onClick={() => openEditMember(leader)}
+                  title="แก้ไขข้อมูล"
+                >
+                  <Edit2 size={11} />
+                  <span>แก้ไข</span>
+                </button>
+                <button
+                  type="button"
+                  className="adminMiniBtn danger"
+                  onClick={() => handleDeleteMember(leader)}
+                  title="ลบข้อมูลหัวหน้า"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="adminNoLeaderCard">
+              <span className="adminNoLeaderText">ยังไม่มีหัวหน้างาน</span>
+              <button
+                type="button"
+                className="adminNodeActionBtn primary"
+                onClick={() => openCreateMemberForGroup(node.id, node.name, 'หัวหน้างาน')}
+              >
+                <Plus size={11} />
+                <span>กำหนดหัวหน้า</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {otherLeaders.length > 0 && (
+          <div className="adminDeputyTier">
+            <ul className="adminTieredRow">
+              {otherLeaders.map((deputy) =>
+                renderAdminMemberLeaf(deputy, deputy.role, node.id, node.name)
+              )}
+            </ul>
+          </div>
+        )}
+
+        {renderAdminTieredStaff(staff, rowSize, 'เจ้าหน้าที่', true, node.id, node.name)}
+
+        {children.length > 0 && (
+          <ul className="adminOrgTreeSubRow">
+            {children.map((child) => renderAdminSubnode(child, rowSize))}
+            <li key="add-subunit-dashed-child" className="adminTreeAddSubunitDashedCardWrap">
+              <button
+                type="button"
+                className="adminTreeAddSubunitDashedCard"
+                onClick={() => openCreateSubGroup(node.id)}
+                title="เพิ่มงานย่อยภายใต้แผนกนี้"
+              >
+                <Plus size={16} />
+                <span>เพิ่มงานย่อย</span>
+              </button>
+            </li>
+          </ul>
+        )}
+      </li>
+    )
+  }
+
+  const renderAdminRootNode = (root: OrgGroupNode) => {
+    const leader = root.members.find((m) => isLeaderRole(m.role)) || (root.members.length > 0 && root.members[0].role !== 'member' && root.members[0].role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน' ? root.members[0] : undefined)
+    const otherLeaders = root.members.filter((m) => m.id !== leader?.id && (isLeaderRole(m.role) || (m.role !== 'member' && m.role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน')))
+    const staff = root.members.filter((m) => m.id !== leader?.id && !otherLeaders.some((ol) => ol.id === m.id))
+    const children = root.children || []
+
+    return (
+      <div className="adminOrgTree">
+        <div className="adminTreeNodeCard rootNode">
+          <div className="adminTreeNodeHeader">
+            <div className="adminTreeNodeTitleWrap">
+              <span className="adminTreeNodeGroupTag">กลุ่มงานหลัก</span>
+              <h2 className="adminTreeNodeTitle" title={root.name}>
+                {root.name}
+              </h2>
+            </div>
+            <div className="adminNodeQuickActions" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="adminNodeActionBtn primary"
+                onClick={() => openCreateMemberForGroup(root.id, root.name)}
+                title="เพิ่มสมาชิกเข้ากลุ่มงานหลัก"
+              >
+                <Plus size={12} />
+                <span>เพิ่มสมาชิก</span>
+              </button>
+              <button
+                type="button"
+                className="adminNodeActionBtn"
+                onClick={() => openCreateSubGroup(root.id)}
+                title="เพิ่มหน่วยงานย่อย"
+              >
+                <Plus size={12} />
+                <span>เพิ่มงานย่อย</span>
+              </button>
+              <button
+                type="button"
+                className="adminNodeActionBtn"
+                onClick={() => openEditGroup(root)}
+                title="แก้ไขชื่อกลุ่มงานหลัก"
+              >
+                <Edit2 size={12} />
+              </button>
+              <button
+                type="button"
+                className="adminNodeActionBtn danger"
+                onClick={() => handleDeleteGroup(root)}
+                title="ลบกลุ่มงานหลัก"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          </div>
+
+          {leader ? (
+            <div className="adminNodeLeaderWrap">
+              <div className="adminNodeLeaderAvatarWrap">
+                {leader.imagePath ? (
+                  <img src={leader.imagePath} alt={leader.name} className="adminNodeLeaderAvatar" />
+                ) : (
+                  <div className="adminNodeLeaderFallback">{getInitials(leader.name)}</div>
+                )}
+                <span className="adminCrownBadge" title="หัวหน้ากลุ่มงาน">
+                  <Crown size={11} />
+                </span>
+              </div>
+              <span className="adminNodeLeaderName">{leader.name}</span>
+              <span className="adminNodeLeaderPosition">{leader.position}</span>
+              <div className="adminLeaderActionsOverlay" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="adminMiniBtn"
+                  onClick={() => openEditMember(leader)}
+                  title="แก้ไขข้อมูล"
+                >
+                  <Edit2 size={11} />
+                  <span>แก้ไข</span>
+                </button>
+                <button
+                  type="button"
+                  className="adminMiniBtn danger"
+                  onClick={() => handleDeleteMember(leader)}
+                  title="ลบข้อมูลหัวหน้ากลุ่มงาน"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="adminNoLeaderCard">
+              <span className="adminNoLeaderText">ยังไม่มีหัวหน้ากลุ่มงาน</span>
+              <button
+                type="button"
+                className="adminNodeActionBtn primary"
+                onClick={() => openCreateMemberForGroup(root.id, root.name, 'หัวหน้ากลุ่มงาน')}
+              >
+                <Plus size={11} />
+                <span>กำหนดหัวหน้ากลุ่มงาน</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {otherLeaders.length > 0 && (
+          <div className="adminDeputyTier">
+            <ul className="adminTieredRow">
+              {otherLeaders.map((deputy) =>
+                renderAdminMemberLeaf(deputy, deputy.role, root.id, root.name)
+              )}
+            </ul>
+          </div>
+        )}
+
+        {renderAdminTieredStaff(staff, membersPerRow, 'เจ้าหน้าที่', false, root.id, root.name)}
+
+        {children.length > 0 ? (
+          <ul className="adminOrgTreeSubRow">
+            {children.map((child) => renderAdminSubnode(child, membersPerRow))}
+            <li key="add-subunit-dashed-root" className="adminTreeAddSubunitDashedCardWrap">
+              <button
+                type="button"
+                className="adminTreeAddSubunitDashedCard"
+                onClick={() => openCreateSubGroup(root.id)}
+                title="เพิ่มงานย่อยในกลุ่มงานนี้"
+              >
+                <Plus size={16} />
+                <span>เพิ่มงานย่อย</span>
+              </button>
+            </li>
+          </ul>
+        ) : (
+          <div className="adminTreeEmptySubunitPrompt" style={{ marginTop: '20px' }}>
+            <button
+              type="button"
+              className="adminTreeAddSubunitDashedCard"
+              onClick={() => openCreateSubGroup(root.id)}
+              title="เพิ่มงานย่อยในกลุ่มงานนี้"
+            >
+              <Plus size={16} />
+              <span>+ เพิ่มงานย่อยในกลุ่มงานนี้</span>
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="orgAdminPage">
       <div className="orgAdminContainer">
@@ -1249,8 +1980,165 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
           </div>
         </div>
 
-        {/* Workbench Split View */}
-        <div className="orgWorkbench">
+        {/* View Mode Switcher */}
+        <div className="orgViewSwitcherBar">
+          <div className="orgViewModeToggle" role="tablist" aria-label="สลับมุมมองการจัดการ">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={adminViewMode === 'diagram'}
+              className={`viewModeBtn ${adminViewMode === 'diagram' ? 'active' : ''}`}
+              onClick={() => setAdminViewMode('diagram')}
+            >
+              <Network size={16} />
+              <span>มุมมองแผนผังองค์กร</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={adminViewMode === 'workbench'}
+              className={`viewModeBtn ${adminViewMode === 'workbench' ? 'active' : ''}`}
+              onClick={() => setAdminViewMode('workbench')}
+            >
+              <FolderTree size={16} />
+              <span>มุมมองรายการละเอียด</span>
+            </button>
+          </div>
+
+          {adminViewMode === 'diagram' && (
+            <div className="adminViewHint">
+              <Hand size={14} className="text-emerald-700" />
+              <span>Free View: ลากพื้นที่ว่างเพื่อเลื่อน และกดปุ่มบนการ์ดเพื่อจัดการได้ทันที</span>
+            </div>
+          )}
+        </div>
+
+        {adminViewMode === 'diagram' ? (
+          <div className="adminDiagramSection">
+            {/* Department Selector Bar */}
+            <div className="adminDeptSelectorSection">
+              <div className="adminDeptSelectorBar">
+                <div className="adminDeptQuickSelectBlock">
+                  <span className="adminDeptSelectLabel">
+                    <Building2 size={15} />
+                    <span>เลือกกลุ่มงาน:</span>
+                  </span>
+                  <div className="adminDeptSelectInputWrap">
+                    <select
+                      className="adminDeptSelectInput"
+                      value={selectedRoot?.id || ''}
+                      onChange={(e) => {
+                        const id = Number(e.target.value)
+                        setSelectedRootId(id)
+                        const found = groups.find((g) => g.id === id)
+                        if (found) setSelectedGroup(found)
+                      }}
+                      aria-label="เลือกกลุ่มงานหลักที่ต้องการแสดงในแผนภาพ"
+                    >
+                      {effectiveOrgChart.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Wrapped Tabs */}
+                <div className="adminDeptTabsNav wrapped" role="tablist">
+                  {effectiveOrgChart.map((g) => {
+                    const isSelected = selectedRoot?.id === g.id
+                    const count = countTotalMembersInGroup(g)
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isSelected}
+                        className={`adminDeptTabBtn ${isSelected ? 'active' : ''}`}
+                        onClick={() => {
+                          setSelectedRootId(g.id)
+                          const found = groups.find((grp) => grp.id === g.id)
+                          if (found) setSelectedGroup(found)
+                        }}
+                      >
+                        <span className="adminDeptTabName">{g.name}</span>
+                        {count > 0 && <span className="adminDeptTabBadge">{count}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Diagram Card with Free View Canvas */}
+            <div className="adminDiagramCard">
+              <div className="adminDiagramToolbar">
+                <button
+                  type="button"
+                  className="adminCanvasResetPill"
+                  onClick={handleResetDiagramView}
+                  title="รีเซ็ตตำแหน่งแผนผังให้อยู่ตรงกลาง"
+                >
+                  <RotateCcw size={13} />
+                  <span>รีเซ็ตมุมมอง</span>
+                </button>
+
+                <div className="adminZoomControls">
+                  <button
+                    type="button"
+                    className="adminZoomBtn"
+                    onClick={() => setZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(2))))}
+                    aria-label="ย่อขนาด"
+                    title="ย่อขนาด (Zoom out)"
+                  >
+                    <ZoomOut size={14} />
+                  </button>
+                  <span className="adminZoomLevel">{Math.round(zoom * 100)}%</span>
+                  <button
+                    type="button"
+                    className="adminZoomBtn"
+                    onClick={() => setZoom((z) => Math.min(1.4, Number((z + 0.1).toFixed(2))))}
+                    aria-label="ขยายขนาด"
+                    title="ขยายขนาด (Zoom in)"
+                  >
+                    <ZoomIn size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div
+                className={`adminDiagramScroll ${isPanning ? 'isPanning' : ''}`}
+                onPointerDown={handleDiagramPointerDown}
+                onPointerMove={handleDiagramPointerMove}
+                onPointerUp={handleDiagramPointerUp}
+                onPointerCancel={handleDiagramPointerUp}
+                onWheel={handleDiagramWheel}
+              >
+                <div
+                  className="adminDiagramCanvas"
+                  style={{
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transformOrigin: 'top center'
+                  }}
+                >
+                  {selectedRoot ? (
+                    renderAdminRootNode(selectedRoot)
+                  ) : (
+                    <div className="emptyState">
+                      <div className="emptyStateIconCircle">
+                        <Building2 size={36} className="text-emerald-700" />
+                      </div>
+                      <span className="emptyStateTitle">ไม่พบข้อมูลกลุ่มงาน</span>
+                      <p>กรุณาสร้างกลุ่มงานหลักเพื่อเริ่มจัดโครงสร้าง</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="orgWorkbench">
           {/* Left Pane: Groups Explorer */}
           <aside className="orgGroupsPane">
             <div className="orgPaneHeader">
@@ -1734,6 +2622,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
             )}
           </main>
         </div>
+      )}
 
         {/* Group Add/Edit Modal */}
         {isGroupModalOpen && (
