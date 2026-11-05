@@ -58,6 +58,7 @@ interface DragItemGroup {
 type DragItem = DragItemMember | DragItemGroup
 
 interface OrgDragContextValue {
+  canReorder: boolean
   draggedItem: DragItem | null
   dragOverKey: string | null
   handleDragStart: (item: DragItem, e: React.DragEvent) => void
@@ -380,10 +381,11 @@ function OrgTreeMemberLeaf({
   groupName?: string
 }) {
   const dragCtx = useOrgDrag()
+  const canReorder = dragCtx?.canReorder ?? false
   const resolvedGroupId = groupId ?? member.groupId
   const itemKey = `member-${member.id}`
-  const isDragging = dragCtx?.draggedItem?.type === 'member' && dragCtx.draggedItem.id === member.id
-  const isDropTarget = dragCtx?.dragOverKey === itemKey
+  const isDragging = canReorder && dragCtx?.draggedItem?.type === 'member' && dragCtx.draggedItem.id === member.id
+  const isDropTarget = canReorder && dragCtx?.dragOverKey === itemKey
 
   const showBadge = Boolean(badge && badge !== 'เจ้าหน้าที่')
   const isDeputy = badge?.includes('รอง')
@@ -392,12 +394,12 @@ function OrgTreeMemberLeaf({
     <li>
       <div
         className={`treeMemberCard ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
-        draggable
-        onDragStart={(e) => dragCtx?.handleDragStart({ type: 'member', id: member.id, groupId: resolvedGroupId }, e)}
-        onDragOver={(e) => dragCtx?.handleDragOver(itemKey, { type: 'member', id: member.id, groupId: resolvedGroupId }, e)}
-        onDragLeave={dragCtx?.handleDragLeave}
-        onDrop={(e) => dragCtx?.handleDrop({ type: 'member', id: member.id, groupId: resolvedGroupId }, e)}
-        onDragEnd={dragCtx?.handleDragEnd}
+        draggable={canReorder}
+        onDragStart={canReorder ? (e) => dragCtx?.handleDragStart({ type: 'member', id: member.id, groupId: resolvedGroupId }, e) : undefined}
+        onDragOver={canReorder ? (e) => dragCtx?.handleDragOver(itemKey, { type: 'member', id: member.id, groupId: resolvedGroupId }, e) : undefined}
+        onDragLeave={canReorder ? dragCtx?.handleDragLeave : undefined}
+        onDrop={canReorder ? (e) => dragCtx?.handleDrop({ type: 'member', id: member.id, groupId: resolvedGroupId }, e) : undefined}
+        onDragEnd={canReorder ? dragCtx?.handleDragEnd : undefined}
         onClick={() => dragCtx?.handleCardClick(member, groupName)}
         role="button"
         tabIndex={0}
@@ -407,7 +409,7 @@ function OrgTreeMemberLeaf({
             dragCtx?.handleCardClick(member, groupName)
           }
         }}
-        title="คลิกเพื่อดูข้อมูล หรือลากเพื่อสลับตำแหน่ง"
+        title={canReorder ? 'คลิกเพื่อดูข้อมูล หรือลากเพื่อสลับตำแหน่ง' : 'คลิกเพื่อดูข้อมูล'}
       >
         <div className="treeMemberAvatarWrap">
           {member.imagePath ? (
@@ -502,9 +504,10 @@ function OrgTreeSubnode({
   membersPerRow?: number
 }) {
   const dragCtx = useOrgDrag()
+  const canReorder = dragCtx?.canReorder ?? false
   const itemKey = `sub-group-${node.id}`
-  const isDragging = dragCtx?.draggedItem?.type === 'group' && dragCtx.draggedItem.id === node.id
-  const isDropTarget = dragCtx?.dragOverKey === itemKey
+  const isDragging = canReorder && dragCtx?.draggedItem?.type === 'group' && dragCtx.draggedItem.id === node.id
+  const isDropTarget = canReorder && dragCtx?.dragOverKey === itemKey
 
   const leader = node.members.find((m) => m.role === 'leader')
   const otherLeaders = node.members.filter((m) => m.role === 'leader' && m.id !== leader?.id)
@@ -517,12 +520,12 @@ function OrgTreeSubnode({
     <li>
       <div
         className={`treeNodeCard subUnitNode ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
-        draggable
-        onDragStart={(e) => dragCtx?.handleDragStart({ type: 'group', id: node.id, parentId: node.parentId }, e)}
-        onDragOver={(e) => dragCtx?.handleDragOver(itemKey, { type: 'group', id: node.id, parentId: node.parentId }, e)}
-        onDragLeave={dragCtx?.handleDragLeave}
-        onDrop={(e) => dragCtx?.handleDrop({ type: 'group', id: node.id, parentId: node.parentId }, e)}
-        onDragEnd={dragCtx?.handleDragEnd}
+        draggable={canReorder}
+        onDragStart={canReorder ? (e) => dragCtx?.handleDragStart({ type: 'group', id: node.id, parentId: node.parentId }, e) : undefined}
+        onDragOver={canReorder ? (e) => dragCtx?.handleDragOver(itemKey, { type: 'group', id: node.id, parentId: node.parentId }, e) : undefined}
+        onDragLeave={canReorder ? dragCtx?.handleDragLeave : undefined}
+        onDrop={canReorder ? (e) => dragCtx?.handleDrop({ type: 'group', id: node.id, parentId: node.parentId }, e) : undefined}
+        onDragEnd={canReorder ? dragCtx?.handleDragEnd : undefined}
         onClick={() => {
           if (leader) dragCtx?.handleCardClick(leader, node.name)
         }}
@@ -534,7 +537,13 @@ function OrgTreeSubnode({
             dragCtx?.handleCardClick(leader, node.name)
           }
         }}
-        title={leader ? 'คลิกเพื่อดูข้อมูลหัวหน้างาน หรือลากเพื่อสลับตำแหน่งหน่วยงานย่อย' : 'ลากเพื่อสลับตำแหน่งหน่วยงานย่อย'}
+        title={
+          leader
+            ? (canReorder
+                ? 'คลิกเพื่อดูข้อมูลหัวหน้างาน หรือลากเพื่อสลับตำแหน่งหน่วยงานย่อย'
+                : 'คลิกเพื่อดูข้อมูลหัวหน้างาน')
+            : (canReorder ? 'ลากเพื่อสลับตำแหน่งหน่วยงานย่อย' : undefined)
+        }
       >
         <span className="treeNodeGroupTag" title={node.name}>
           {node.name}
@@ -638,19 +647,20 @@ function PublicDraggableMemberCard({
   groupName?: string
 }) {
   const dragCtx = useOrgDrag()
+  const canReorder = dragCtx?.canReorder ?? false
   const itemKey = `member-${member.id}`
-  const isDragging = dragCtx?.draggedItem?.type === 'member' && dragCtx.draggedItem.id === member.id
-  const isDropTarget = dragCtx?.dragOverKey === itemKey
+  const isDragging = canReorder && dragCtx?.draggedItem?.type === 'member' && dragCtx.draggedItem.id === member.id
+  const isDropTarget = canReorder && dragCtx?.dragOverKey === itemKey
 
   return (
     <div
       className={`publicMemberCard ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
-      draggable
-      onDragStart={(e) => dragCtx?.handleDragStart({ type: 'member', id: member.id, groupId }, e)}
-      onDragOver={(e) => dragCtx?.handleDragOver(itemKey, { type: 'member', id: member.id, groupId }, e)}
-      onDragLeave={dragCtx?.handleDragLeave}
-      onDrop={(e) => dragCtx?.handleDrop({ type: 'member', id: member.id, groupId }, e)}
-      onDragEnd={dragCtx?.handleDragEnd}
+      draggable={canReorder}
+      onDragStart={canReorder ? (e) => dragCtx?.handleDragStart({ type: 'member', id: member.id, groupId }, e) : undefined}
+      onDragOver={canReorder ? (e) => dragCtx?.handleDragOver(itemKey, { type: 'member', id: member.id, groupId }, e) : undefined}
+      onDragLeave={canReorder ? dragCtx?.handleDragLeave : undefined}
+      onDrop={canReorder ? (e) => dragCtx?.handleDrop({ type: 'member', id: member.id, groupId }, e) : undefined}
+      onDragEnd={canReorder ? dragCtx?.handleDragEnd : undefined}
       onClick={() => dragCtx?.handleCardClick(member, groupName)}
       role="button"
       tabIndex={0}
@@ -660,7 +670,7 @@ function PublicDraggableMemberCard({
           dragCtx?.handleCardClick(member, groupName)
         }
       }}
-      title="คลิกเพื่อดูข้อมูล หรือลากเพื่อสลับตำแหน่ง"
+      title={canReorder ? 'คลิกเพื่อดูข้อมูล หรือลากเพื่อสลับตำแหน่ง' : 'คลิกเพื่อดูข้อมูล'}
     >
       <div className="publicMemberAvatarWrap">
         {member.imagePath ? (
@@ -702,19 +712,20 @@ function PublicDraggableDeputyCard({
   badgeText?: string
 }) {
   const dragCtx = useOrgDrag()
+  const canReorder = dragCtx?.canReorder ?? false
   const itemKey = `member-${deputy.id}`
-  const isDragging = dragCtx?.draggedItem?.type === 'member' && dragCtx.draggedItem.id === deputy.id
-  const isDropTarget = dragCtx?.dragOverKey === itemKey
+  const isDragging = canReorder && dragCtx?.draggedItem?.type === 'member' && dragCtx.draggedItem.id === deputy.id
+  const isDropTarget = canReorder && dragCtx?.dragOverKey === itemKey
 
   return (
     <div
       className={`publicLeaderCard publicDeputyCard ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
-      draggable
-      onDragStart={(e) => dragCtx?.handleDragStart({ type: 'member', id: deputy.id, groupId }, e)}
-      onDragOver={(e) => dragCtx?.handleDragOver(itemKey, { type: 'member', id: deputy.id, groupId }, e)}
-      onDragLeave={dragCtx?.handleDragLeave}
-      onDrop={(e) => dragCtx?.handleDrop({ type: 'member', id: deputy.id, groupId }, e)}
-      onDragEnd={dragCtx?.handleDragEnd}
+      draggable={canReorder}
+      onDragStart={canReorder ? (e) => dragCtx?.handleDragStart({ type: 'member', id: deputy.id, groupId }, e) : undefined}
+      onDragOver={canReorder ? (e) => dragCtx?.handleDragOver(itemKey, { type: 'member', id: deputy.id, groupId }, e) : undefined}
+      onDragLeave={canReorder ? dragCtx?.handleDragLeave : undefined}
+      onDrop={canReorder ? (e) => dragCtx?.handleDrop({ type: 'member', id: deputy.id, groupId }, e) : undefined}
+      onDragEnd={canReorder ? dragCtx?.handleDragEnd : undefined}
       onClick={() => dragCtx?.handleCardClick(deputy, groupName)}
       role="button"
       tabIndex={0}
@@ -724,7 +735,7 @@ function PublicDraggableDeputyCard({
           dragCtx?.handleCardClick(deputy, groupName)
         }
       }}
-      title="คลิกเพื่อดูข้อมูล หรือลากเพื่อสลับตำแหน่ง"
+      title={canReorder ? 'คลิกเพื่อดูข้อมูล หรือลากเพื่อสลับตำแหน่ง' : 'คลิกเพื่อดูข้อมูล'}
     >
       <div className="publicLeaderAvatarWrap">
         {deputy.imagePath ? (
@@ -865,6 +876,9 @@ export default function OrganizationPublicClient() {
   const [selectedRootId, setSelectedRootId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Auth state: only logged in members/admins can drag to reorder
+  const [canReorder, setCanReorder] = useState(false)
+
   // View mode: 'tree' (Org Chart Diagram) vs 'cards' (Directory Cards View)
   const [viewMode, setViewMode] = useState<'tree' | 'cards'>('tree')
   const [zoom, setZoom] = useState<number>(1)
@@ -889,6 +903,26 @@ export default function OrganizationPublicClient() {
     const id = `${Date.now()}-${Math.random()}`
     setToasts((prev) => [...prev, { id, message, type, duration: 3000 }])
   }
+
+  // Check auth session to verify if logged in
+  useEffect(() => {
+    let isMounted = true
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/member/me')
+        const json = await res.json()
+        if (isMounted && json && json.authenticated) {
+          setCanReorder(true)
+        }
+      } catch {
+        // Not logged in or network failure -> keep canReorder as false
+      }
+    }
+    checkAuth()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // Fetch full org chart
   useEffect(() => {
@@ -1002,6 +1036,10 @@ export default function OrganizationPublicClient() {
   }
 
   const handleDragStart = (item: DragItem, e: React.DragEvent) => {
+    if (!canReorder) {
+      e.preventDefault()
+      return
+    }
     hasDraggedRef.current = true
     setDraggedItem(item)
     e.dataTransfer.effectAllowed = 'move'
@@ -1009,7 +1047,7 @@ export default function OrganizationPublicClient() {
   }
 
   const handleDragOver = (key: string, item: DragItem, e: React.DragEvent) => {
-    if (!draggedItem) return
+    if (!canReorder || !draggedItem) return
     if (draggedItem.type !== item.type) return
     if (draggedItem.id === item.id) return
 
@@ -1038,7 +1076,7 @@ export default function OrganizationPublicClient() {
 
   const handleDrop = (targetItem: DragItem, e: React.DragEvent) => {
     e.preventDefault()
-    if (!draggedItem) return
+    if (!canReorder || !draggedItem) return
 
     if (draggedItem.type === 'member' && targetItem.type === 'member') {
       if (draggedItem.id !== targetItem.id && draggedItem.groupId === targetItem.groupId) {
@@ -1072,6 +1110,7 @@ export default function OrganizationPublicClient() {
   }
 
   const dragContextValue: OrgDragContextValue = {
+    canReorder,
     draggedItem,
     dragOverKey,
     handleDragStart,
@@ -1245,25 +1284,25 @@ export default function OrganizationPublicClient() {
                     {orgChart.map((root) => {
                       const isActive = selectedRootId === root.id
                       const itemKey = `root-group-${root.id}`
-                      const isDragging = draggedItem?.type === 'group' && draggedItem.id === root.id
-                      const isDropTarget = dragOverKey === itemKey
+                      const isDragging = canReorder && draggedItem?.type === 'group' && draggedItem.id === root.id
+                      const isDropTarget = canReorder && dragOverKey === itemKey
 
                       return (
                         <button
                           key={root.id}
                           type="button"
                           className={`deptTabBtn ${isActive ? 'active' : ''} ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
-                          draggable
-                          onDragStart={(e) => handleDragStart({ type: 'group', id: root.id, parentId: null }, e)}
-                          onDragOver={(e) => handleDragOver(itemKey, { type: 'group', id: root.id, parentId: null }, e)}
-                          onDragLeave={handleDragLeave}
-                          onDrop={(e) => handleDrop({ type: 'group', id: root.id, parentId: null }, e)}
-                          onDragEnd={handleDragEnd}
+                          draggable={canReorder}
+                          onDragStart={canReorder ? (e) => handleDragStart({ type: 'group', id: root.id, parentId: null }, e) : undefined}
+                          onDragOver={canReorder ? (e) => handleDragOver(itemKey, { type: 'group', id: root.id, parentId: null }, e) : undefined}
+                          onDragLeave={canReorder ? handleDragLeave : undefined}
+                          onDrop={canReorder ? (e) => handleDrop({ type: 'group', id: root.id, parentId: null }, e) : undefined}
+                          onDragEnd={canReorder ? handleDragEnd : undefined}
                           onClick={() => {
                             setSelectedRootId(root.id)
                             setZoom(1)
                           }}
-                          title="คลิกเพื่อเลือก หรือลากเพื่อสลับลำดับกลุ่มงาน"
+                          title={canReorder ? 'คลิกเพื่อเลือก หรือลากเพื่อสลับลำดับกลุ่มงาน' : 'คลิกเพื่อเลือกกลุ่มงาน'}
                         >
                           <Building2 size={15} />
                           <span>{root.name}</span>
@@ -1336,9 +1375,11 @@ export default function OrganizationPublicClient() {
                               <span className="densityUnit">คน</span>
                             </div>
 
-                            <span className="diagramScrollHint" title="ลากการ์ดหรือแท็บเพื่อสลับตำแหน่ง">
-                              <GripVertical size={14} /> ลากเพื่อสลับตำแหน่ง
-                            </span>
+                            {canReorder && (
+                              <span className="diagramScrollHint" title="ลากการ์ดหรือแท็บเพื่อสลับตำแหน่ง">
+                                <GripVertical size={14} /> ลากเพื่อสลับตำแหน่ง
+                              </span>
+                            )}
 
                             <span className="diagramScrollHint">
                               <MoveHorizontal size={14} /> เลื่อนเพื่อดูผังเพิ่มเติม
@@ -1372,13 +1413,13 @@ export default function OrganizationPublicClient() {
                               </button>
                             </div>
                           </div>
-                        ) : (
+                        ) : canReorder ? (
                           <div className="diagramToolbar">
                             <span className="diagramScrollHint" title="ลากการ์ดเพื่อสลับตำแหน่ง">
                               <GripVertical size={14} /> ลากเพื่อสลับตำแหน่ง
                             </span>
                           </div>
-                        )}
+                        ) : null}
                       </div>
 
                       {/* ==============================================================

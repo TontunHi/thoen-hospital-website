@@ -10,7 +10,7 @@ const reorderSchema = z.object({
 
 export async function PATCH(request: Request) {
   try {
-    const { member, error } = await requireMemberApi({ requiredRole: 'admin' })
+    const { member, error } = await requireMemberApi()
     if (error || !member) return error
 
     const body = await request.json()

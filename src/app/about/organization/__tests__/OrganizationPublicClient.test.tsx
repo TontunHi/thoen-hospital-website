@@ -315,6 +315,12 @@ describe('OrganizationPublicClient Component', () => {
     ]
 
     const mockFetch = vi.fn().mockImplementation((url: string, options?: any) => {
+      if (url.includes('/api/member/me')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ authenticated: true, member: { id: 1, role: 'admin' } })
+        })
+      }
       if (url.includes('/api/departments/public')) {
         return Promise.resolve({
           ok: true,
@@ -342,8 +348,14 @@ describe('OrganizationPublicClient Component', () => {
       expect(screen.getByText('นพ.แพทย์ คนที่สอง')).toBeDefined()
     })
 
+    // Verify cards are draggable when logged in
     const card1 = screen.getByText('นพ.แพทย์ คนที่หนึ่ง').closest('.treeMemberCard')!
     const card2 = screen.getByText('นพ.แพทย์ คนที่สอง').closest('.treeMemberCard')!
+    expect(card1.getAttribute('draggable')).toBe('true')
+    expect(card2.getAttribute('draggable')).toBe('true')
+
+    // Drag hint should be visible for logged in user
+    expect(screen.getByText('ลากเพื่อสลับตำแหน่ง')).toBeDefined()
 
     const dataTransfer = {
       setData: vi.fn(),
@@ -381,6 +393,101 @@ describe('OrganizationPublicClient Component', () => {
     })
   })
 
+  it('disallows drag and reorder when user is not logged in (anonymous visitor)', async () => {
+    const mockChart = [
+      {
+        id: 10,
+        name: 'กลุ่มงานการแพทย์',
+        parentId: null,
+        orderIndex: 0,
+        members: [
+          {
+            id: 101,
+            groupId: 10,
+            name: 'นพ.แพทย์ คนที่หนึ่ง',
+            position: 'นายแพทย์ชำนาญการ',
+            role: 'member' as const,
+            orderIndex: 0,
+            imagePath: null
+          },
+          {
+            id: 102,
+            groupId: 10,
+            name: 'นพ.แพทย์ คนที่สอง',
+            position: 'นายแพทย์ปฏิบัติการ',
+            role: 'member' as const,
+            orderIndex: 1,
+            imagePath: null
+          }
+        ],
+        children: []
+      }
+    ]
+
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/member/me')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ authenticated: false, error: 'ไม่ได้เข้าสู่ระบบ' })
+        })
+      }
+      if (url.includes('/api/departments/public')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, data: mockChart })
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: [] })
+      })
+    })
+
+    global.fetch = mockFetch
+
+    render(<OrganizationPublicClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นพ.แพทย์ คนที่หนึ่ง')).toBeDefined()
+      expect(screen.getByText('นพ.แพทย์ คนที่สอง')).toBeDefined()
+    })
+
+    const card1 = screen.getByText('นพ.แพทย์ คนที่หนึ่ง').closest('.treeMemberCard')!
+    const card2 = screen.getByText('นพ.แพทย์ คนที่สอง').closest('.treeMemberCard')!
+
+    // Unauthenticated visitors should see draggable="false"
+    expect(card1.getAttribute('draggable')).toBe('false')
+    expect(card2.getAttribute('draggable')).toBe('false')
+
+    // Tooltip should be simple 'คลิกเพื่อดูข้อมูล' (no drag mention)
+    expect(card1.getAttribute('title')).toBe('คลิกเพื่อดูข้อมูล')
+
+    // Drag hint must NOT be displayed in toolbar
+    expect(screen.queryByText('ลากเพื่อสลับตำแหน่ง')).toBeNull()
+
+    const dataTransfer = {
+      setData: vi.fn(),
+      getData: vi.fn(),
+      effectAllowed: '',
+      dropEffect: ''
+    }
+
+    // Drag events should be inert
+    fireEvent.dragStart(card1, { dataTransfer })
+    expect(card1.className).not.toContain('isDragging')
+
+    fireEvent.dragOver(card2, { dataTransfer })
+    expect(card2.className).not.toContain('isDropTarget')
+
+    fireEvent.drop(card2, { dataTransfer })
+
+    // Reorder API must never be called
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      '/api/departments/members/reorder',
+      expect.anything()
+    )
+  })
+
   it('swaps department tabs when dragged and dropped onto each other and calls group reorder API', async () => {
     const mockChart = [
       {
@@ -402,6 +509,12 @@ describe('OrganizationPublicClient Component', () => {
     ]
 
     const mockFetch = vi.fn().mockImplementation((url: string, options?: any) => {
+      if (url.includes('/api/member/me')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ authenticated: true, member: { id: 1, role: 'admin' } })
+        })
+      }
       if (url.includes('/api/departments/public')) {
         return Promise.resolve({
           ok: true,

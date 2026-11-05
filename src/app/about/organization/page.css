@@ -620,6 +620,7 @@
   background: linear-gradient(180deg, #F0FDFA 0%, #FFFFFF 100%);
   width: 230px;
   box-shadow: 0 6px 16px -3px rgba(13, 148, 136, 0.1);
+  cursor: pointer;
 }
 
 .treeNodeCard.subUnitNode .treeNodeGroupTag {
@@ -708,6 +709,7 @@
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   z-index: 2;
+  cursor: pointer;
 }
 
 .treeMemberCard:hover {
