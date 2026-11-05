@@ -1,24 +1,23 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { 
-  Search, 
-  RefreshCw, 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight, 
-  X, 
-  AlertCircle, 
-  ArrowLeft, 
-  Download, 
-  Copy, 
-  Check, 
-  Trash2
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  Search,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  X,
+  ArrowLeft,
+  Download,
+  Copy,
+  Check,
 } from 'lucide-react'
 import Link from 'next/link'
 import { parseUserAgent } from '@/lib/userAgentParser'
 import { ToastContainer, ToastMessage } from '@/components/ui/Toast'
-import { getInitials as formatInitials } from '@/lib/formatters'
+import { formatThaiDate, THAI_MONTH_NAMES_SHORT } from '@/lib/formatters'
 
 interface AuditLog {
   id: number
@@ -51,8 +50,163 @@ interface AuditStats {
   changesToday: number
 }
 
-function getInitials(name: string): string {
-  return formatInitials(name, true)
+const ACTION_TABS = [
+  { id: '', label: 'ทั้งหมด', hint: 'แสดงกิจกรรมทุกประเภท' },
+  { id: 'LOGIN', label: 'LOGIN', hint: 'การเข้าสู่ระบบและยืนยันตัวตน' },
+  { id: 'READ', label: 'READ', hint: 'การเข้าดูข้อมูลสำคัญ (PHI / เงินเดือน)' },
+  { id: 'CREATE', label: 'CREATE', hint: 'การสร้างรายการข้อมูลใหม่' },
+  { id: 'UPDATE', label: 'UPDATE', hint: 'การแก้ไขข้อมูลหรือปรับสถานะ' },
+  { id: 'DELETE', label: 'DELETE', hint: 'การลบหรือยกเลิกข้อมูล' },
+  { id: 'LOGOUT', label: 'LOGOUT', hint: 'การออกจากระบบ' },
+  { id: 'REQUEST', label: 'REQUEST', hint: 'คำขอใช้งาน API และบริการ' },
+  { id: 'SYSTEM', label: 'SYSTEM', hint: 'การทำงานอัตโนมัติและการตั้งค่าระบบ' },
+] as const
+
+const TARGET_RESOURCE_MAP: Record<string, string> = {
+  members: 'ข้อมูลบุคลากร',
+  pr_requests: 'คำขอผลิตสื่อประชาสัมพันธ์',
+  approval_tickets: 'งานรออนุมัติ',
+  work_requests: 'ใบงานแจ้งซ่อม',
+  ita_blogs: 'เอกสารเผยแพร่ ITA',
+  ethics_documents: 'เอกสารชมรมจริยธรรม',
+  member_system_settings: 'ตั้งค่าระบบสมาชิก',
+  position_permissions: 'สิทธิ์ตามตำแหน่ง',
+  salary_slips: 'สลิปเงินเดือน',
+  salary_batches: 'งวดข้อมูลเงินเดือน',
+  inbox_tasks: 'กล่องงานและคำขอ',
+  audit_logs: 'บันทึกความปลอดภัย',
+  departments: 'โครงสร้างหน่วยงาน',
+  organization: 'ผังองค์กร',
+  equipment_borrow: 'ระบบยืม-คืนครุภัณฑ์',
+  equipment_items: 'ทะเบียนครุภัณฑ์',
+  equipment_requests: 'คำขอยืมครุภัณฑ์',
+  hospital_events: 'ปฏิทินกิจกรรมโรงพยาบาล',
+  kpi: 'ตัวชี้วัดองค์กร (KPI)',
+  kpi_records: 'ข้อมูลผลงาน KPI',
+  palliative_registry: 'ทะเบียนผู้ป่วยประคับประคอง',
+  screening: 'ข้อมูลคัดกรองสุขภาพ',
+  loratadine_dispense_log: 'ประวัติจ่ายยา Loratadine',
+  signatures: 'ลายเซ็นอิเล็กทรอนิกส์',
+  uploads: 'คลังไฟล์เอกสาร',
+  slides: 'แบนเนอร์หน้าแรก',
+  news: 'ข่าวประชาสัมพันธ์',
+  telegram: 'การแจ้งเตือน Telegram',
+}
+
+function getTargetInfo(table: string | null, actionType?: string): { label: string; raw: string | null } {
+  if (!table) {
+    if (actionType === 'LOGIN' || actionType === 'LOGOUT') {
+      return { label: 'ระบบยืนยันตัวตน', raw: null }
+    }
+    return { label: 'ระบบส่วนกลาง', raw: null }
+  }
+  const normalized = table.trim().toLowerCase()
+  const mapped = TARGET_RESOURCE_MAP[normalized]
+  if (mapped) {
+    return { label: mapped, raw: normalized }
+  }
+  return { label: table, raw: null }
+}
+
+function parseDetailsPayload(details: string | null): {
+  entries: Array<{ key: string; value: string }> | null
+  prettyJson: string | null
+  summary: string
+} {
+  if (!details || !details.trim()) {
+    return { entries: null, prettyJson: null, summary: 'ไม่มีรายละเอียดเพิ่มเติม' }
+  }
+
+  const trimmed = details.trim()
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const entries = Object.entries(parsed).map(([key, val]) => ({
+          key,
+          value:
+            val === null || val === undefined
+              ? '—'
+              : typeof val === 'object'
+              ? JSON.stringify(val)
+              : String(val),
+        }))
+        const summaryParts = entries.slice(0, 3).map((e) => `${e.key}: ${e.value}`)
+        return {
+          entries,
+          prettyJson: JSON.stringify(parsed, null, 2),
+          summary: summaryParts.join(' · ') || trimmed,
+        }
+      }
+      return {
+        entries: null,
+        prettyJson: JSON.stringify(parsed, null, 2),
+        summary: trimmed,
+      }
+    } catch {
+      // Plain string starting with bracket; fall through
+    }
+  }
+
+  return { entries: null, prettyJson: null, summary: trimmed }
+}
+
+function parseAuditDate(dateStr: string): Date {
+  if (!dateStr) return new Date()
+  let clean = dateStr.trim()
+  if (clean.endsWith('Z')) {
+    clean = clean.replace(/Z$/, '+07:00')
+  } else if (!clean.includes('+') && !clean.includes('Z')) {
+    clean = clean.replace(' ', 'T') + '+07:00'
+  }
+  return new Date(clean)
+}
+
+function formatSplitTimestamp(dateStr: string): { datePart: string; timePart: string; full: string } {
+  try {
+    const date = parseAuditDate(dateStr)
+    if (isNaN(date.getTime())) {
+      return { datePart: dateStr, timePart: '', full: dateStr }
+    }
+    const d = date.getDate().toString().padStart(2, '0')
+    const m = THAI_MONTH_NAMES_SHORT[date.getMonth()]
+    let y = date.getFullYear()
+    if (y < 2400) y += 543
+    const hh = date.getHours().toString().padStart(2, '0')
+    const mm = date.getMinutes().toString().padStart(2, '0')
+    const ss = date.getSeconds().toString().padStart(2, '0')
+    const datePart = `${d} ${m} ${y}`
+    const timePart = `${hh}:${mm}:${ss}`
+    return { datePart, timePart, full: `${datePart} ${timePart}` }
+  } catch {
+    return { datePart: dateStr, timePart: '', full: dateStr }
+  }
+}
+
+function formatRelativeTime(dateStr: string): string {
+  try {
+    const date = parseAuditDate(dateStr)
+    const diffSec = Math.floor((Date.now() - date.getTime()) / 1000)
+    if (diffSec < 0) return ''
+    if (diffSec < 60) return 'เมื่อสักครู่'
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} นาทีที่แล้ว`
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ชม. ที่แล้ว`
+    if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} วันที่แล้ว`
+    return ''
+  } catch {
+    return ''
+  }
+}
+
+function isLocalIp(ip: string | null): boolean {
+  if (!ip) return false
+  return (
+    ip === '127.0.0.1' ||
+    ip === '::1' ||
+    ip.startsWith('192.168.') ||
+    ip.startsWith('10.') ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)
+  )
 }
 
 export default function AuditLogsClient() {
@@ -62,34 +216,36 @@ export default function AuditLogsClient() {
   const [statsLoading, setStatsLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Filters
   const [search, setSearch] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
   const [actionType, setActionType] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [activeDatePreset, setActiveDatePreset] = useState<string>('all')
+  const [activeDatePreset, setActiveDatePreset] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all')
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
     limit: 25,
     total: 0,
-    totalPages: 1
+    totalPages: 1,
   })
 
-  // Selected Log for details modal
+  // Inspector Drawer & Cleanup Modal
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [toasts, setToasts] = useState<ToastMessage[]>([])
 
-  // PDPA Cleanup Modal State
   const [cleanupModalOpen, setCleanupModalOpen] = useState(false)
   const [cleanupLoading, setCleanupLoading] = useState(false)
   const [cleanupChecking, setCleanupChecking] = useState(false)
   const [expiredCount, setExpiredCount] = useState<number | null>(null)
 
+  const isFirstSearchEffect = useRef(true)
+
   const addToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
-    const id = Date.now().toString()
+    const id = Date.now().toString() + Math.random().toString(36).slice(2, 6)
     setToasts((prev) => [...prev, { id, message, type }])
   }
 
@@ -97,20 +253,20 @@ export default function AuditLogsClient() {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }
 
-  const copyToClipboard = async (text: string, fieldName: string, successMsg?: string) => {
+  const copyToClipboard = async (text: string, fieldKey: string, labelForToast: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopiedField(fieldName)
-      addToast(successMsg || `คัดลอก ${fieldName} เรียบร้อยแล้ว`, 'success')
+      setCopiedField(fieldKey)
+      addToast(`คัดลอก${labelForToast}เรียบร้อยแล้ว`, 'success')
       setTimeout(() => {
-        setCopiedField((prev) => (prev === fieldName ? null : prev))
+        setCopiedField((prev) => (prev === fieldKey ? null : prev))
       }, 2000)
     } catch {
       addToast('ไม่สามารถคัดลอกข้อความได้', 'error')
     }
   }
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setStatsLoading(true)
       const res = await fetch('/api/admin/audit-logs/stats')
@@ -125,58 +281,177 @@ export default function AuditLogsClient() {
     } finally {
       setStatsLoading(false)
     }
-  }
+  }, [])
 
-  const fetchLogs = useCallback(async (
-    targetPage = page,
-    customFilters?: { search?: string; actionType?: string; startDate?: string; endDate?: string }
-  ) => {
-    try {
-      setLoading(true)
-      setError(null)
+  const fetchLogs = useCallback(
+    async (
+      targetPage: number,
+      filters: { search: string; actionType: string; startDate: string; endDate: string }
+    ) => {
+      try {
+        setLoading(true)
+        setError(null)
 
-      const s = customFilters?.search !== undefined ? customFilters.search : search
-      const a = customFilters?.actionType !== undefined ? customFilters.actionType : actionType
-      const sd = customFilters?.startDate !== undefined ? customFilters.startDate : startDate
-      const ed = customFilters?.endDate !== undefined ? customFilters.endDate : endDate
+        const params = new URLSearchParams({
+          page: targetPage.toString(),
+          limit: '25',
+        })
 
-      const params = new URLSearchParams({
-        page: targetPage.toString(),
-        limit: '25'
-      })
+        if (filters.search) params.append('search', filters.search)
+        if (filters.actionType) params.append('actionType', filters.actionType)
+        if (filters.startDate) params.append('startDate', filters.startDate)
+        if (filters.endDate) params.append('endDate', filters.endDate)
 
-      if (s) params.append('search', s)
-      if (a) params.append('actionType', a)
-      if (sd) params.append('startDate', sd)
-      if (ed) params.append('endDate', ed)
+        const res = await fetch(`/api/admin/audit-logs?${params.toString()}`)
+        const data = await res.json()
 
-      const res = await fetch(`/api/admin/audit-logs?${params.toString()}`)
-      const data = await res.json()
+        if (!res.ok) {
+          throw new Error(data.error || 'ไม่สามารถโหลดประวัติการใช้งานได้')
+        }
 
-      if (!res.ok) {
-        throw new Error(data.error || 'ไม่สามารถโหลดประวัติการใช้งานได้')
+        setLogs(data.logs || [])
+        setPagination(
+          data.pagination || {
+            page: targetPage,
+            limit: 25,
+            total: 0,
+            totalPages: 1,
+          }
+        )
+      } catch (err: any) {
+        console.error('Fetch logs error:', err)
+        setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลประวัติการใช้งาน')
+      } finally {
+        setLoading(false)
+      }
+    },
+    []
+  )
+
+  // Debounce live search typing into appliedSearch
+  useEffect(() => {
+    if (isFirstSearchEffect.current) {
+      isFirstSearchEffect.current = false
+      return
+    }
+    const timer = setTimeout(() => {
+      setPage(1)
+      setAppliedSearch(search.trim())
+    }, 320)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  // Fetch logs whenever query state changes
+  useEffect(() => {
+    fetchLogs(page, {
+      search: appliedSearch,
+      actionType,
+      startDate,
+      endDate,
+    })
+  }, [page, appliedSearch, actionType, startDate, endDate, fetchLogs])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
+
+  // Keyboard navigation for Inspector Drawer & Cleanup Modal
+  useEffect(() => {
+    if (!selectedLog && !cleanupModalOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (cleanupModalOpen && !cleanupLoading) {
+          setCleanupModalOpen(false)
+        } else if (selectedLog) {
+          setSelectedLog(null)
+        }
+        return
       }
 
-      setLogs(data.logs || [])
-      setPagination(data.pagination || {
-        page: targetPage,
-        limit: 25,
-        total: 0,
-        totalPages: 1
-      })
-    } catch (err: any) {
-      console.error('Fetch logs error:', err)
-      setError(err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
-    } finally {
-      setLoading(false)
+      if (selectedLog && !cleanupModalOpen) {
+        const currentIdx = logs.findIndex((item) => item.id === selectedLog.id)
+        if (e.key === 'ArrowDown' && currentIdx >= 0 && currentIdx < logs.length - 1) {
+          e.preventDefault()
+          setSelectedLog(logs[currentIdx + 1])
+        } else if (e.key === 'ArrowUp' && currentIdx > 0) {
+          e.preventDefault()
+          setSelectedLog(logs[currentIdx - 1])
+        }
+      }
     }
-  }, [page, search, actionType, startDate, endDate])
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedLog, cleanupModalOpen, cleanupLoading, logs])
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = search.trim()
+    setPage(1)
+    if (trimmed === appliedSearch) {
+      fetchLogs(1, { search: trimmed, actionType, startDate, endDate })
+    } else {
+      setAppliedSearch(trimmed)
+    }
+  }
+
+  const handleDatePresetChange = (preset: 'all' | 'today' | '7days' | '30days' | 'custom') => {
+    setActiveDatePreset(preset)
+    if (preset === 'custom') return
+
+    const now = new Date()
+    let s = ''
+    let e = ''
+
+    const toLocalYmd = (d: Date) => {
+      const yr = d.getFullYear()
+      const mo = String(d.getMonth() + 1).padStart(2, '0')
+      const da = String(d.getDate()).padStart(2, '0')
+      return `${yr}-${mo}-${da}`
+    }
+
+    if (preset === 'today') {
+      s = toLocalYmd(now)
+      e = s
+    } else if (preset === '7days') {
+      const past = new Date(now)
+      past.setDate(now.getDate() - 7)
+      s = toLocalYmd(past)
+      e = toLocalYmd(now)
+    } else if (preset === '30days') {
+      const past = new Date(now)
+      past.setDate(now.getDate() - 30)
+      s = toLocalYmd(past)
+      e = toLocalYmd(now)
+    }
+
+    setStartDate(s)
+    setEndDate(e)
+    setPage(1)
+  }
+
+  const handleResetFilters = () => {
+    setSearch('')
+    setAppliedSearch('')
+    setActionType('')
+    setStartDate('')
+    setEndDate('')
+    setActiveDatePreset('all')
+    setPage(1)
+  }
+
+  const handleRefreshAll = () => {
+    fetchStats()
+    fetchLogs(page, { search: appliedSearch, actionType, startDate, endDate })
+    addToast('อัปเดตข้อมูลล่าสุดเรียบร้อยแล้ว', 'info')
+  }
 
   const handleExportCsv = async () => {
     try {
       setExporting(true)
       const params = new URLSearchParams()
-      if (search) params.append('search', search)
+      if (appliedSearch) params.append('search', appliedSearch)
       if (actionType) params.append('actionType', actionType)
       if (startDate) params.append('startDate', startDate)
       if (endDate) params.append('endDate', endDate)
@@ -205,18 +480,13 @@ export default function AuditLogsClient() {
     }
   }
 
-  // Open Cleanup Confirmation Modal & Check Expired Count
   const handleOpenCleanupModal = async () => {
     setCleanupModalOpen(true)
     setCleanupChecking(true)
     try {
       const res = await fetch('/api/admin/audit-logs/cleanup?days=90')
       const data = await res.json()
-      if (data.success) {
-        setExpiredCount(data.expiredCount)
-      } else {
-        setExpiredCount(0)
-      }
+      setExpiredCount(data.success ? data.expiredCount : 0)
     } catch {
       setExpiredCount(0)
     } finally {
@@ -230,7 +500,7 @@ export default function AuditLogsClient() {
       const res = await fetch('/api/admin/audit-logs/cleanup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ retentionDays: 90 })
+        body: JSON.stringify({ retentionDays: 90 }),
       })
       const data = await res.json()
 
@@ -241,7 +511,8 @@ export default function AuditLogsClient() {
       addToast(data.message || 'ล้างประวัติเก่าเกิน 90 วันสำเร็จแล้ว', 'success')
       setCleanupModalOpen(false)
       fetchStats()
-      fetchLogs(1)
+      setPage(1)
+      fetchLogs(1, { search: appliedSearch, actionType, startDate, endDate })
     } catch (err: any) {
       console.error('Execute cleanup error:', err)
       addToast(err.message || 'เกิดข้อผิดพลาดในการล้างประวัติ', 'error')
@@ -250,991 +521,895 @@ export default function AuditLogsClient() {
     }
   }
 
-  useEffect(() => {
-    fetchLogs(page)
-  }, [page, actionType, fetchLogs])
-
-  useEffect(() => {
-    fetchStats()
-  }, [])
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setPage(1)
-    fetchLogs(1)
-  }
-
-  const handleDatePresetChange = (preset: 'all' | 'today' | '7days' | '30days') => {
-    setActiveDatePreset(preset)
-    const now = new Date()
-    let s = ''
-    let e = ''
-
-    if (preset === 'today') {
-      const todayStr = now.toISOString().slice(0, 10)
-      s = todayStr
-      e = todayStr
-    } else if (preset === '7days') {
-      const past = new Date()
-      past.setDate(now.getDate() - 7)
-      s = past.toISOString().slice(0, 10)
-      e = now.toISOString().slice(0, 10)
-    } else if (preset === '30days') {
-      const past = new Date()
-      past.setDate(now.getDate() - 30)
-      s = past.toISOString().slice(0, 10)
-      e = now.toISOString().slice(0, 10)
-    }
-
-    setStartDate(s)
-    setEndDate(e)
-    setPage(1)
-    fetchLogs(1, { startDate: s, endDate: e })
-  }
-
-  const handleResetFilters = () => {
-    setSearch('')
-    setActionType('')
-    setStartDate('')
-    setEndDate('')
-    setActiveDatePreset('all')
-    setPage(1)
-    fetchLogs(1, { search: '', actionType: '', startDate: '', endDate: '' })
-  }
-
-  const handleRefreshAll = () => {
-    fetchStats()
-    fetchLogs(page)
-    addToast('อัปเดตข้อมูลล่าสุดเรียบร้อยแล้ว', 'info')
-  }
-
-  // 1 color = 1 meaning, NO decorative icons inside badges
+  // 1 color = 1 meaning, zero decorative icons
   const getActionBadge = (type: string) => {
-    const t = type.toUpperCase()
-    switch (t) {
-      case 'LOGIN':
-        return <span className="logBadge badgeLogin">LOGIN</span>
-      case 'CREATE':
-        return <span className="logBadge badgeCreate">CREATE</span>
-      case 'READ':
-        return <span className="logBadge badgeRead">READ</span>
-      case 'REQUEST':
-        return <span className="logBadge badgeRequest">REQUEST</span>
-      case 'UPDATE':
-        return <span className="logBadge badgeUpdate">UPDATE</span>
-      case 'DELETE':
-        return <span className="logBadge badgeDelete">DELETE</span>
-      case 'LOGOUT':
-        return <span className="logBadge badgeLogout">LOGOUT</span>
-      case 'SYSTEM':
-        return <span className="logBadge badgeSystem">SYSTEM</span>
-      default:
-        return <span className="logBadge badgeDefault">{type}</span>
+    const t = (type || '').toUpperCase()
+    if (t === 'LOGIN' || t === 'CREATE') {
+      return <span className="logBadge badgeSuccess">{t}</span>
     }
-  }
-
-  const getTargetTableName = (table: string | null) => {
-    if (!table) return '-'
-    switch (table.toLowerCase()) {
-      case 'members': return 'ข้อมูลบุคลากร (members)'
-      case 'pr_requests': return 'คำขอผลิตสื่อ PR (pr_requests)'
-      case 'approval_tickets': return 'งานรออนุมัติ (approval_tickets)'
-      case 'work_requests': return 'ใบงานช่าง (work_requests)'
-      case 'ita_blogs': return 'บทความ ITA (ita_blogs)'
-      case 'member_system_settings': return 'ตั้งค่าระบบ (settings)'
-      case 'position_permissions': return 'ตั้งค่าสิทธิ์ (permissions)'
-      case 'salary_slips': return 'สลิปเงินเดือน (salary_slips)'
-      case 'inbox_tasks': return 'งานในกล่องข้อความ (inbox_tasks)'
-      case 'audit_logs': return 'บันทึกความปลอดภัย (audit_logs)'
-      default: return table
+    if (t === 'READ' || t === 'REQUEST') {
+      return <span className="logBadge badgeInfo">{t}</span>
     }
-  }
-
-  const getDeviceBadge = (uaString: string | null) => {
-    const parsed = parseUserAgent(uaString)
-    const deviceName = parsed.deviceModel || parsed.os
-    const tooltipText = `${parsed.os} • ${parsed.browser}\n${uaString || 'ไม่ระบุ User-Agent'}`
-
-    return (
-      <div className={`deviceBadge deviceBadge-${parsed.deviceType}`} title={tooltipText}>
-        <span className="deviceTextTruncate">
-          <span className="deviceName">{deviceName}</span>
-          <span className="deviceSeparator">•</span>
-          <span className="browserName">{parsed.browser}</span>
-        </span>
-      </div>
-    )
-  }
-
-  const parseAuditDate = (dateStr: string): Date => {
-    if (!dateStr) return new Date()
-    let clean = dateStr.trim()
-    if (clean.endsWith('Z')) {
-      clean = clean.replace(/Z$/, '+07:00')
-    } else if (!clean.includes('+') && !clean.includes('Z')) {
-      clean = clean.replace(' ', 'T') + '+07:00'
+    if (t === 'UPDATE' || t.startsWith('UPDATE_') || t.startsWith('BATCH_UPDATE_')) {
+      return <span className="logBadge badgeWarning">{t}</span>
     }
-    return new Date(clean)
-  }
-
-  // Thai Buddhist Year (พ.ศ.) format: e.g. "04 พ.ย. 2569 22:20:00"
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = parseAuditDate(dateStr)
-      const d = date.getDate().toString().padStart(2, '0')
-      const mNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
-      const m = mNames[date.getMonth()]
-      let y = date.getFullYear()
-      if (y < 2400) y += 543
-      const hh = date.getHours().toString().padStart(2, '0')
-      const mm = date.getMinutes().toString().padStart(2, '0')
-      const ss = date.getSeconds().toString().padStart(2, '0')
-      return `${d} ${m} ${y} ${hh}:${mm}:${ss}`
-    } catch {
-      return dateStr
+    if (t === 'DELETE') {
+      return <span className="logBadge badgeDanger">{t}</span>
     }
+    return <span className="logBadge badgeNeutral">{t || 'SYSTEM'}</span>
   }
 
-  const formatRelativeTime = (dateStr: string) => {
-    try {
-      const date = parseAuditDate(dateStr)
-      const now = new Date()
-      const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-      if (diffSec < 60) return 'เมื่อสักครู่'
-      if (diffSec < 3600) return `${Math.floor(diffSec / 60)} นาทีที่แล้ว`
-      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ชม. ที่แล้ว`
-      if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} วันที่แล้ว`
-      return ''
-    } catch {
-      return ''
-    }
-  }
-
-  const isLocalIp = (ip: string | null) => {
-    if (!ip) return false
-    return ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')
-  }
-
-  const hasActiveFilters = Boolean(search || actionType || startDate || endDate)
+  const hasActiveFilters = Boolean(appliedSearch || search || actionType || startDate || endDate)
+  const selectedIndex = selectedLog ? logs.findIndex((l) => l.id === selectedLog.id) : -1
+  const selectedDetails = selectedLog ? parseDetailsPayload(selectedLog.action_details) : null
 
   return (
-    <>
-      {/* Header Bar */}
-      <header className="auditHeader">
-        <div className="auditHeaderTop">
-          <Link href="/member" className="backBtn">
-            <ArrowLeft size={16} />
-            <span>กลับไปศูนย์ควบคุมสมาชิก</span>
-          </Link>
-          
-          <div className="headerStatusBadges">
-            <div className="livePulseBadge" title="ระบบบันทึก Audit Logs ทำงานตลอด 24 ชั่วโมง">
-              <span className="pulseDot" aria-hidden="true"></span>
-              <span className="pulseText">บันทึกเรียลไทม์ Tier-1 Audit</span>
-            </div>
+    <div className="auditPageFlow">
+      {/* 1. Standalone Back Navigation */}
+      <nav className="topBreadcrumb" aria-label="การนำทางย้อนกลับ">
+        <Link href="/member" className="backLink">
+          <ArrowLeft size={16} aria-hidden="true" />
+          <span>กลับสู่ศูนย์ควบคุมสมาชิก</span>
+        </Link>
+      </nav>
 
-            <button 
-              type="button" 
-              className="btnCleanUpTrigger" 
-              onClick={handleOpenCleanupModal}
-              title="ล้างประวัติการใช้งานที่เก่ากว่า 90 วันตามเกณฑ์ PDPA"
-            >
-              <Trash2 size={14} />
-              <span>ล้างประวัติเก่าเกิน 90 วัน</span>
-            </button>
-
-            <button 
-              type="button" 
-              className="refreshHeaderBtn" 
-              onClick={handleRefreshAll}
-              disabled={loading || statsLoading}
-              title="รีเฟรชข้อมูลทั้งหมด"
-            >
-              <RefreshCw size={14} className={loading || statsLoading ? 'animate-spin' : ''} />
-              <span>อัปเดตข้อมูล</span>
-            </button>
-          </div>
+      {/* 2. Clean Focused Header Bar (1 Primary Action) */}
+      <header className="pageHeaderBar">
+        <div className="headerTitleBlock">
+          <h1>ระบบประวัติความปลอดภัยและ Audit Logs</h1>
+          <p className="headerSubtitle">
+            ตรวจสอบการยืนยันตัวตน การเข้าถึงข้อมูลสำคัญ (PHI / เงินเดือน) และการเปลี่ยนแปลงสิทธิ์ตามมาตรฐาน PDPA
+          </p>
         </div>
 
-        <div className="titleWrapper">
-          <div className="titleText">
-            <div className="titleRow">
-              <h1>ระบบประวัติความปลอดภัยและ Audit Logs</h1>
-              <span className="complianceBadge">PDPA & Hospital Security Standard</span>
-            </div>
-            <p className="subtitle">
-              ตรวจสอบและบันทึกประวัติการเข้าใช้งาน การสืบค้นข้อมูลสำคัญ (PHI/Salary) การเปลี่ยนแปลงสิทธิ์ และการดำเนินงาน CRUD ทั้งหมดของโรงพยาบาลเถิน
-            </p>
-          </div>
+        <div className="headerActions">
+          <button
+            type="button"
+            className="btnSecondary"
+            onClick={handleRefreshAll}
+            disabled={loading || statsLoading}
+            title="อัปเดตข้อมูลล่าสุด"
+          >
+            <RefreshCw size={15} className={loading || statsLoading ? 'spinIcon' : ''} aria-hidden="true" />
+            <span>รีเฟรชข้อมูล</span>
+          </button>
+
+          <button
+            type="button"
+            className="btnPrimary"
+            onClick={handleExportCsv}
+            disabled={loading || exporting}
+            title="ส่งออกรายการตามเงื่อนไขที่กรองเป็นไฟล์ CSV (รองรับ Excel ภาษาไทย)"
+          >
+            {exporting ? (
+              <RefreshCw size={16} className="spinIcon" aria-hidden="true" />
+            ) : (
+              <Download size={16} aria-hidden="true" />
+            )}
+            <span>{exporting ? 'กำลังส่งออก...' : 'ส่งออกรายงาน CSV'}</span>
+          </button>
         </div>
       </header>
 
-      {/* Stats Dashboard Cards - Clean, No Decorative Icons, Tabular Numbers */}
-      <section className="auditStatsGrid" aria-label="สถิติความปลอดภัย">
-        <div className="statCard statCardTotal">
-          <div className="statCardHeader">
-            <span className="statLabel">บันทึกทั้งหมด (Total Logs)</span>
-            <span className="statBadge">ระบบทั้งหมด</span>
-          </div>
-          <div className="statInfo">
-            <span className="statValue tabular-nums">
-              {statsLoading ? <span className="statSkeleton"></span> : (stats?.totalLogs ?? 0).toLocaleString()}
-            </span>
-            <span className="statSubtext tabular-nums">
-              ขนาดข้อมูลสะสม ~{stats?.sizeMb ?? 0} MB
-            </span>
-          </div>
-        </div>
-
-        <div className="statCard statCardLogin">
-          <div className="statCardHeader">
-            <span className="statLabel">เข้าสู่ระบบวันนี้ (Logins Today)</span>
-            <span className="statBadge statBadgeSuccess">วันนี้</span>
-          </div>
-          <div className="statInfo">
-            <span className="statValue tabular-nums">
-              {statsLoading ? <span className="statSkeleton"></span> : `${(stats?.loginsToday ?? 0).toLocaleString()} ครั้ง`}
-            </span>
-            <span className="statSubtext">
-              ตรวจสอบกิจกรรมการยืนยันตัวตน
-            </span>
+      {/* 3. Unified Telemetry Summary Bar (Replaces 4 scattered cards) */}
+      <section className="summaryLedgerBar" aria-label="สรุปสถิติบันทึกความปลอดภัย">
+        <div className="summaryMetric">
+          <span className="metricLabel">บันทึกสะสมทั้งหมด</span>
+          <div className="metricValueRow">
+            {statsLoading ? (
+              <span className="metricSkeleton" />
+            ) : (
+              <>
+                <strong className="metricNumber tabular-nums">
+                  {(stats?.totalLogs ?? 0).toLocaleString()}
+                </strong>
+                <span className="metricUnit tabular-nums">รายการ (~{stats?.sizeMb ?? 0} MB)</span>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="statCard statCardRead">
-          <div className="statCardHeader">
-            <span className="statLabel">เข้าดูข้อมูลสำคัญ (Reads Today)</span>
-            <span className="statBadge statBadgeInfo">Sensitive Access</span>
-          </div>
-          <div className="statInfo">
-            <span className="statValue tabular-nums">
-              {statsLoading ? <span className="statSkeleton"></span> : `${(stats?.readsToday ?? 0).toLocaleString()} ครั้ง`}
-            </span>
-            <span className="statSubtext">
-              เข้าถึงข้อมูลเงินเดือนและเวชระเบียน
-            </span>
+        <div className="summaryMetric">
+          <span className="metricLabel">เข้าสู่ระบบวันนี้</span>
+          <div className="metricValueRow">
+            {statsLoading ? (
+              <span className="metricSkeleton" />
+            ) : (
+              <strong className="metricNumber tabular-nums">
+                {(stats?.loginsToday ?? 0).toLocaleString()} ครั้ง
+              </strong>
+            )}
           </div>
         </div>
 
-        <div className="statCard statCardRetention">
-          <div className="statCardHeader">
-            <span className="statLabel">อายุจัดเก็บข้อมูล (Retention)</span>
-            <span className="statBadge statBadgeWarning">เกณฑ์ 90 วัน</span>
+        <div className="summaryMetric">
+          <span className="metricLabel">เข้าดูข้อมูลสำคัญวันนี้</span>
+          <div className="metricValueRow">
+            {statsLoading ? (
+              <span className="metricSkeleton" />
+            ) : (
+              <strong className="metricNumber tabular-nums">
+                {(stats?.readsToday ?? 0).toLocaleString()} ครั้ง
+              </strong>
+            )}
           </div>
-          <div className="statInfo">
-            <span className="statValue tabular-nums">
-              {statsLoading ? <span className="statSkeleton"></span> : `${stats?.retainedDays ?? 0} วัน`}
-            </span>
-            <span className="statSubtext">
-              จัดเก็บตามเกณฑ์ พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล
-            </span>
+        </div>
+
+        <div className="summaryMetric">
+          <span className="metricLabel">แก้ไขข้อมูลวันนี้</span>
+          <div className="metricValueRow">
+            {statsLoading ? (
+              <span className="metricSkeleton" />
+            ) : (
+              <strong className="metricNumber tabular-nums">
+                {(stats?.changesToday ?? 0).toLocaleString()} ครั้ง
+              </strong>
+            )}
+          </div>
+        </div>
+
+        <div className="summaryMetric summaryMetricRetention">
+          <div className="retentionHeaderRow">
+            <span className="metricLabel">อายุจัดเก็บข้อมูล (เกณฑ์ {stats?.policyRetentionDays ?? 90} วัน)</span>
+          </div>
+          <div className="retentionBottomRow">
+            {statsLoading ? (
+              <span className="metricSkeleton" />
+            ) : (
+              <strong className="metricNumber tabular-nums">{stats?.retainedDays ?? 0} วัน</strong>
+            )}
+            <button
+              type="button"
+              className="retentionCleanupLink"
+              onClick={handleOpenCleanupModal}
+              title="จัดการล้างประวัติเก่าเกินเกณฑ์ 90 วันตามมาตรฐาน PDPA"
+            >
+              ล้างประวัติเกิน 90 วัน
+            </button>
           </div>
         </div>
       </section>
 
-      {/* Filter & Search Bar */}
-      <section className="filterCard" aria-label="ตัวกรองและค้นหา">
-        <form onSubmit={handleSearchSubmit} className="filterForm">
-          {/* Action Types Filter Chips */}
-          <div className="actionChipsRow">
-            <span className="chipsLabel">
-              ประเภทกิจกรรม:
-            </span>
-            <div className="chipsList" role="tablist" aria-label="กรองประเภทกิจกรรม">
-              {[
-                { id: '', label: 'ทั้งหมด (All)' },
-                { id: 'LOGIN', label: 'LOGIN (เข้าสู่ระบบ)' },
-                { id: 'LOGOUT', label: 'LOGOUT (ออกจากระบบ)' },
-                { id: 'READ', label: 'READ (ดูข้อมูลสำคัญ)' },
-                { id: 'CREATE', label: 'CREATE (เพิ่มข้อมูล)' },
-                { id: 'UPDATE', label: 'UPDATE (แก้ไข)' },
-                { id: 'DELETE', label: 'DELETE (ลบ)' },
-                { id: 'REQUEST', label: 'REQUEST (API)' },
-                { id: 'SYSTEM', label: 'SYSTEM (ตั้งค่า)' }
-              ].map((chip) => (
-                <button
-                  key={chip.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={actionType === chip.id}
-                  className={`actionChip ${actionType === chip.id ? 'active' : ''}`}
-                  onClick={() => {
-                    setActionType(chip.id)
-                    setPage(1)
-                  }}
-                >
-                  {chip.label}
-                </button>
-              ))}
+      {/* 4. Unified Ledger Surface: Toolbar + Table */}
+      <section className="ledgerSurface" aria-label="ตารางประวัติความปลอดภัย">
+        {/* Toolbar */}
+        <div className="ledgerToolbar">
+          {/* Row 1: Action Type Tabs + Total Count */}
+          <div className="toolbarTopRow">
+            <div className="actionTabsScroll" role="tablist" aria-label="กรองประเภทกิจกรรม">
+              {ACTION_TABS.map((tab) => {
+                const isActive = actionType === tab.id
+                return (
+                  <button
+                    key={tab.id || 'ALL'}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    title={tab.hint}
+                    className={`actionTabBtn ${isActive ? 'active' : ''}`}
+                    onClick={() => {
+                      setActionType(tab.id)
+                      setPage(1)
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="toolbarResultCount tabular-nums" aria-live="polite">
+              พบข้อมูล <strong>{pagination.total.toLocaleString()}</strong> รายการ
             </div>
           </div>
 
-          <div className="filterGrid">
-            {/* Search Input */}
-            <div className="filterField flex-2">
-              <label htmlFor="audit-search">คำค้นหา (Keyword)</label>
-              <div className="inputWrapper">
-                <Search size={18} className="searchIcon" />
-                <input
-                  id="audit-search"
-                  type="text"
-                  placeholder="ค้นหาชื่อผู้ใช้, อีเมล, หมายเลข IP, ชื่อตาราง หรือรายละเอียด..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search && (
-                  <button 
-                    type="button" 
-                    className="clearInputBtn" 
-                    onClick={() => {
-                      setSearch('')
-                      setPage(1)
-                      fetchLogs(1, { search: '' })
-                    }}
-                    title="ล้างคำค้นหา"
-                    aria-label="ล้างคำค้นหา"
+          {/* Row 2: Live Search + Date Segmented Filter */}
+          <form onSubmit={handleSearchSubmit} className="toolbarControlsRow">
+            <div className="searchBoxWrapper">
+              <label htmlFor="audit-search" className="srOnly">
+                ค้นหาประวัติการใช้งาน
+              </label>
+              <Search size={17} className="searchInputIcon" aria-hidden="true" />
+              <input
+                id="audit-search"
+                type="search"
+                placeholder="ค้นหาชื่อผู้ใช้, อีเมล, หมายเลข IP, ตารางเป้าหมาย หรือรายละเอียด..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  type="button"
+                  className="searchClearBtn"
+                  onClick={() => {
+                    setSearch('')
+                    setAppliedSearch('')
+                    setPage(1)
+                  }}
+                  aria-label="ล้างคำค้นหา"
+                  title="ล้างคำค้นหา"
+                >
+                  <X size={15} aria-hidden="true" />
+                </button>
+              )}
+              <button type="submit" className="searchSubmitBtn">
+                ค้นหารายการ
+              </button>
+            </div>
+
+            <div className="dateControlGroup">
+              <div className="dateSegmented" role="group" aria-label="กรองตามช่วงเวลา">
+                {(
+                  [
+                    { id: 'all', label: 'ทั้งหมด' },
+                    { id: 'today', label: 'วันนี้' },
+                    { id: '7days', label: '7 วัน' },
+                    { id: '30days', label: '30 วัน' },
+                    { id: 'custom', label: 'ระบุวันที่' },
+                  ] as const
+                ).map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`segmentBtn ${activeDatePreset === preset.id ? 'active' : ''}`}
+                    onClick={() => handleDatePresetChange(preset.id)}
                   >
-                    <X size={14} />
+                    {preset.label}
                   </button>
-                )}
+                ))}
               </div>
             </div>
+          </form>
 
-            {/* Quick Date Range Presets */}
-            <div className="filterField">
-              <label>ช่วงวันด่วน</label>
-              <div className="datePresetsRow" role="group" aria-label="เลือกช่วงวันด่วน">
-                <button
-                  type="button"
-                  className={`presetBtn ${activeDatePreset === 'all' ? 'active' : ''}`}
-                  onClick={() => handleDatePresetChange('all')}
-                >
-                  ทั้งหมด
-                </button>
-                <button
-                  type="button"
-                  className={`presetBtn ${activeDatePreset === 'today' ? 'active' : ''}`}
-                  onClick={() => handleDatePresetChange('today')}
-                >
-                  วันนี้
-                </button>
-                <button
-                  type="button"
-                  className={`presetBtn ${activeDatePreset === '7days' ? 'active' : ''}`}
-                  onClick={() => handleDatePresetChange('7days')}
-                >
-                  7 วัน
-                </button>
-                <button
-                  type="button"
-                  className={`presetBtn ${activeDatePreset === '30days' ? 'active' : ''}`}
-                  onClick={() => handleDatePresetChange('30days')}
-                >
-                  30 วัน
-                </button>
-              </div>
-            </div>
-
-            {/* Start Date */}
-            <div className="filterField">
-              <label htmlFor="start-date">จากวันที่</label>
-              <div className="inputWrapper">
-                <Calendar size={18} className="dateIcon" />
+          {/* Expandable Custom Date Picker Row */}
+          {activeDatePreset === 'custom' && (
+            <div className="customDateRow">
+              <div className="dateFieldInline">
+                <label htmlFor="start-date">ตั้งแต่วันที่</label>
                 <input
                   id="start-date"
                   type="date"
                   value={startDate}
                   onChange={(e) => {
                     setStartDate(e.target.value)
-                    setActiveDatePreset('custom')
+                    setPage(1)
                   }}
                 />
               </div>
-            </div>
-
-            {/* End Date */}
-            <div className="filterField">
-              <label htmlFor="end-date">ถึงวันที่</label>
-              <div className="inputWrapper">
-                <Calendar size={18} className="dateIcon" />
+              <div className="dateFieldInline">
+                <label htmlFor="end-date">ถึงวันที่</label>
                 <input
                   id="end-date"
                   type="date"
                   value={endDate}
                   onChange={(e) => {
                     setEndDate(e.target.value)
-                    setActiveDatePreset('custom')
+                    setPage(1)
                   }}
                 />
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Action Buttons & Filter Summary */}
-          <div className="filterActions">
-            <div className="filterActiveStatus">
-              {hasActiveFilters ? (
-                <div className="activeFilterTags">
-                  <span className="activeFilterNote">
-                    ตัวกรองที่ใช้งาน:
+          {/* Active Filter Bar (only visible when filtering) */}
+          {hasActiveFilters && (
+            <div className="activeFiltersBar">
+              <div className="activePillsWrap">
+                <span className="activeFiltersPrefix">ตัวกรองที่เลือก:</span>
+                {appliedSearch && (
+                  <span className="activeFilterPill">
+                    คำค้น: &ldquo;{appliedSearch}&rdquo;
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('')
+                        setAppliedSearch('')
+                        setPage(1)
+                      }}
+                      aria-label="ลบตัวกรองคำค้นหา"
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
                   </span>
-                  {search && (
-                    <span className="filterTag">
-                      คำค้นหา: &ldquo;{search}&rdquo;
-                      <button type="button" onClick={() => { setSearch(''); fetchLogs(1, { search: '' }) }} aria-label="ลบตัวกรองคำค้นหา"><X size={12} /></button>
-                    </span>
-                  )}
-                  {actionType && (
-                    <span className="filterTag">
-                      ประเภท: {actionType}
-                      <button type="button" onClick={() => { setActionType(''); fetchLogs(1, { actionType: '' }) }} aria-label="ลบตัวกรองประเภท"><X size={12} /></button>
-                    </span>
-                  )}
-                  {(startDate || endDate) && (
-                    <span className="filterTag">
-                      วันที่: {startDate || '...'} ถึง {endDate || '...'}
-                      <button type="button" onClick={() => { setStartDate(''); setEndDate(''); setActiveDatePreset('all'); fetchLogs(1, { startDate: '', endDate: '' }) }} aria-label="ลบตัวกรองวันที่"><X size={12} /></button>
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <span className="inactiveFilterNote">แสดงข้อมูลประวัติการใช้งานทั้งหมดตามลำดับล่าสุด</span>
-              )}
-            </div>
-
-            <div className="filterButtonCluster">
-              {hasActiveFilters && (
-                <button type="button" className="btnSecondary" onClick={handleResetFilters} disabled={loading}>
-                  <RefreshCw size={15} />
-                  <span>ล้างตัวกรองทั้งหมด</span>
-                </button>
-              )}
-              
-              <button type="submit" className="btnPrimary" disabled={loading}>
-                <Search size={16} />
-                <span>ค้นหารายการ</span>
-              </button>
-
-              <button 
-                type="button" 
-                className="btnExport" 
-                onClick={handleExportCsv} 
-                disabled={loading || exporting}
-                title="ส่งออกรายการที่กรองเป็นไฟล์ CSV (รองรับ Excel UTF-8 BOM)"
-              >
-                {exporting ? (
-                  <RefreshCw size={16} className="animate-spin" />
-                ) : (
-                  <Download size={16} />
                 )}
-                <span>{exporting ? 'กำลังส่งออก...' : 'ส่งออกรายงาน CSV'}</span>
+                {actionType && (
+                  <span className="activeFilterPill">
+                    ประเภท: {actionType}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionType('')
+                        setPage(1)
+                      }}
+                      aria-label="ลบตัวกรองประเภท"
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </span>
+                )}
+                {(startDate || endDate) && (
+                  <span className="activeFilterPill">
+                    ช่วงวันที่: {startDate ? formatThaiDate(startDate) : 'เริ่มต้น'} –{' '}
+                    {endDate ? formatThaiDate(endDate) : 'ปัจจุบัน'}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStartDate('')
+                        setEndDate('')
+                        setActiveDatePreset('all')
+                        setPage(1)
+                      }}
+                      aria-label="ลบตัวกรองช่วงวันที่"
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </span>
+                )}
+              </div>
+
+              <button type="button" className="resetAllFiltersBtn" onClick={handleResetFilters}>
+                ล้างตัวกรองทั้งหมด
               </button>
             </div>
-          </div>
-        </form>
-      </section>
-
-      {/* Main Logs Table View */}
-      <section className="logsContainer" aria-label="ตารางประวัติการใช้งาน">
-        <div className="tableControlBar">
-          <div className="tableTitle">
-            <h3>รายการประวัติความปลอดภัย ({pagination.total.toLocaleString()} รายการ)</h3>
-            <span className="tableSubtitle">แสดงผลหน้าละ 25 รายการ • จัดเก็บตามเกณฑ์มาตรฐาน PDPA ขั้นต่ำ 90 วัน</span>
-          </div>
+          )}
         </div>
 
+        {/* Table Content / States */}
         {loading ? (
-          <div className="skeletonTableWrapper">
-            <div className="skeletonHeader"></div>
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="skeletonRow">
-                <div className="skeletonCell skeletonTime"></div>
-                <div className="skeletonCell skeletonUser"></div>
-                <div className="skeletonCell skeletonBadge"></div>
-                <div className="skeletonCell skeletonTarget"></div>
-                <div className="skeletonCell skeletonIp"></div>
-                <div className="skeletonCell skeletonDevice"></div>
-                <div className="skeletonCell skeletonBtn"></div>
+          <div className="skeletonLedger" aria-busy="true" aria-label="กำลังโหลดรายการ">
+            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+              <div key={i} className="skeletonLedgerRow">
+                <div className="skelBlock skelTime" />
+                <div className="skelBlock skelUser" />
+                <div className="skelBlock skelAction" />
+                <div className="skelBlock skelDetail" />
+                <div className="skelBlock skelNet" />
+                <div className="skelBlock skelBtn" />
               </div>
             ))}
           </div>
         ) : error ? (
-          <div className="errorState" role="alert">
-            <div className="stateIconWrapper stateIconError">
-              <AlertCircle size={32} />
-            </div>
-            <h4>เกิดข้อผิดพลาดในการโหลดข้อมูล</h4>
+          <div className="ledgerStateBox errorBox" role="alert">
+            <h3>ไม่สามารถโหลดข้อมูลบันทึกความปลอดภัยได้</h3>
             <p>{error}</p>
-            <button onClick={() => fetchLogs()} className="btnRetry" type="button">
-              <RefreshCw size={16} />
+            <button
+              type="button"
+              className="btnSecondary"
+              onClick={() => fetchLogs(page, { search: appliedSearch, actionType, startDate, endDate })}
+            >
+              <RefreshCw size={15} aria-hidden="true" />
               <span>ลองใหม่อีกครั้ง</span>
             </button>
           </div>
         ) : logs.length === 0 ? (
-          <div className="emptyState">
-            <h4>ไม่พบบันทึกประวัติการใช้งาน</h4>
-            <p>ไม่มีรายการที่ตรงกับเงื่อนไขการค้นหา หรือยังไม่มีกิจกรรมในช่วงเวลาที่เลือก</p>
-            {hasActiveFilters && (
-              <button onClick={handleResetFilters} className="btnSecondary" type="button">
-                <RefreshCw size={15} />
-                <span>ล้างตัวกรองเพื่อดูทั้งหมด</span>
-              </button>
+          <div className="ledgerStateBox emptyBox">
+            {hasActiveFilters ? (
+              <>
+                <h3>
+                  {appliedSearch
+                    ? `ไม่พบข้อมูลที่ตรงกับคำว่า "${appliedSearch}"`
+                    : 'ไม่พบบันทึกที่ตรงกับตัวกรองที่เลือก'}
+                </h3>
+                <p>ลองเปลี่ยนคำค้นหา ขยายช่วงเวลา หรือล้างตัวกรองเพื่อดูประวัติทั้งหมด</p>
+                <button type="button" className="btnSecondary" onClick={handleResetFilters}>
+                  ล้างตัวกรองทั้งหมด
+                </button>
+              </>
+            ) : (
+              <>
+                <h3>ยังไม่มีบันทึกประวัติความปลอดภัยในระบบ</h3>
+                <p>เมื่อมีการเข้าสู่ระบบหรือดำเนินงานเกี่ยวกับข้อมูลสำคัญ รายการจะปรากฏที่นี่โดยอัตโนมัติ</p>
+              </>
             )}
           </div>
         ) : (
           <>
-            {/* Desktop Table View */}
-            <div className="desktopTableContainer">
-              <div className="tableWrapper">
-                <table className="logsTable">
-                  <thead>
-                    <tr>
-                      <th scope="col" className="col-time">วัน-เวลา (Timestamp)</th>
-                      <th scope="col" className="col-user">ผู้ใช้งาน (Account)</th>
-                      <th scope="col" className="col-action">ประเภท (Action)</th>
-                      <th scope="col" className="col-target">เป้าหมาย (Target)</th>
-                      <th scope="col" className="col-ip">IP Address</th>
-                      <th scope="col" className="col-device">อุปกรณ์ / เบราว์เซอร์</th>
-                      <th scope="col" className="col-actions">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.map((log) => {
-                      const relative = formatRelativeTime(log.timestamp)
-                      const isLocal = isLocalIp(log.ip_address)
+            {/* Desktop Scannable Ledger Table */}
+            <div className="desktopLedgerWrap">
+              <table className="ledgerTable">
+                <thead>
+                  <tr>
+                    <th scope="col" className="colTime">วัน-เวลา (พ.ศ.)</th>
+                    <th scope="col" className="colActor">ผู้ใช้งาน</th>
+                    <th scope="col" className="colType">ประเภท</th>
+                    <th scope="col" className="colTarget">เป้าหมายและรายละเอียด</th>
+                    <th scope="col" className="colNetwork">เครือข่าย / อุปกรณ์</th>
+                    <th scope="col" className="colInspect">การตรวจสอบ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.map((log) => {
+                    const ts = formatSplitTimestamp(log.timestamp)
+                    const relative = formatRelativeTime(log.timestamp)
+                    const target = getTargetInfo(log.target_table, log.action_type)
+                    const detailPreview = parseDetailsPayload(log.action_details).summary
+                    const ua = parseUserAgent(log.user_agent)
+                    const isLocal = isLocalIp(log.ip_address)
+                    const isSelected = selectedLog?.id === log.id
 
-                      return (
-                        <tr key={log.id} className="logRow">
-                          <td className="timeCell">
-                            <div className="timeCellWrapper">
-                              <span className="timePrimary tabular-nums">{formatDate(log.timestamp)}</span>
-                              {relative && <span className="timeRelative">{relative}</span>}
+                    return (
+                      <tr
+                        key={log.id}
+                        className={`ledgerRow ${isSelected ? 'selected' : ''}`}
+                        onClick={() => setSelectedLog(log)}
+                      >
+                        <td className="cellTime">
+                          <span className="datePrimary tabular-nums">{ts.datePart}</span>
+                          <span className="timeSecondary tabular-nums">
+                            {ts.timePart}
+                            {relative ? ` · ${relative}` : ''}
+                          </span>
+                        </td>
+
+                        <td className="cellActor">
+                          {log.username ? (
+                            <div className="actorStack">
+                              <span className="actorName" title={log.username}>
+                                {log.username}
+                              </span>
+                              {log.email && (
+                                <span className="actorEmail" title={log.email}>
+                                  {log.email}
+                                </span>
+                              )}
                             </div>
-                          </td>
+                          ) : (
+                            <span className="actorSystem">ระบบอัตโนมัติ / ไม่ระบุตัวตน</span>
+                          )}
+                        </td>
 
-                          <td className="userCell">
-                            {log.username ? (
-                              <div className="userDetails">
-                                <div className="userAvatarCircle" aria-hidden="true">
-                                  <span>{getInitials(log.username)}</span>
-                                </div>
-                                <div className="userTextWrapper">
-                                  <span className="usernameText" title={log.username}>{log.username}</span>
-                                  {log.email && <span className="emailText" title={log.email}>{log.email}</span>}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="guestUserDetails">
-                                <span className="guestText">Guest / System</span>
-                              </div>
-                            )}
-                          </td>
+                        <td className="cellType">{getActionBadge(log.action_type)}</td>
 
-                          <td className="badgeCell">
-                            {getActionBadge(log.action_type)}
-                          </td>
+                        <td className="cellTarget">
+                          <div className="targetTitleLine">
+                            <span className="targetLabelText">{target.label}</span>
+                            {target.raw && <code className="targetCodeKey">{target.raw}</code>}
+                          </div>
+                          <p className="detailPreviewLine" title={detailPreview}>
+                            {detailPreview}
+                          </p>
+                        </td>
 
-                          <td className="targetCell">
-                            <span className="targetBadge" title={log.target_table || ''}>
-                              {getTargetTableName(log.target_table)}
-                            </span>
-                          </td>
+                        <td className="cellNetwork">
+                          <div className="ipLine">
+                            <span className="ipAddressText tabular-nums">{log.ip_address || '—'}</span>
+                            {isLocal && <span className="lanTag">LAN</span>}
+                          </div>
+                          <span
+                            className="deviceSubLine"
+                            title={`${ua.os} · ${ua.browser}`}
+                          >
+                            {ua.deviceModel || ua.os} · {ua.browser}
+                          </span>
+                        </td>
 
-                          <td className="ipCell">
-                            {log.ip_address ? (
-                              <div className="ipBadgeWrapper">
-                                <span className="ipText tabular-nums">{log.ip_address}</span>
-                                {isLocal && <span className="lanBadge">LAN</span>}
-                                <button
-                                  type="button"
-                                  className="copyIpBtn"
-                                  onClick={() => copyToClipboard(log.ip_address!, `IP Address ${log.ip_address}`)}
-                                  title="คัดลอก IP Address"
-                                  aria-label="คัดลอก IP Address"
-                                >
-                                  {copiedField === `IP Address ${log.ip_address}` ? (
-                                    <Check size={12} className="copySuccessIcon" />
-                                  ) : (
-                                    <Copy size={12} />
-                                  )}
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="emptyText">-</span>
-                            )}
-                          </td>
-
-                          <td className="deviceCell">
-                            {getDeviceBadge(log.user_agent)}
-                          </td>
-
-                          <td className="actionCell">
-                            <button 
-                              type="button"
-                              className="viewDetailBtn"
-                              onClick={() => setSelectedLog(log)}
-                              title="ดูข้อมูลเจาะลึกความปลอดภัย"
-                              aria-label={`ดูบันทึก #${log.id}`}
-                            >
-                              <span>ดูบันทึก</span>
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        <td className="cellInspect" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="inspectRowBtn"
+                            onClick={() => setSelectedLog(log)}
+                            title="ดูข้อมูลเจาะลึกความปลอดภัย"
+                            aria-label={`ดูบันทึก #${log.id}`}
+                          >
+                            ดูบันทึก
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            {/* Mobile / Tablet Responsive Cards View */}
-            <div className="mobileCardsContainer">
+            {/* Mobile / Tablet Responsive Cards (< 860px) */}
+            <div className="mobileLedgerList">
               {logs.map((log) => {
+                const ts = formatSplitTimestamp(log.timestamp)
                 const relative = formatRelativeTime(log.timestamp)
+                const target = getTargetInfo(log.target_table, log.action_type)
+                const detailPreview = parseDetailsPayload(log.action_details).summary
+                const ua = parseUserAgent(log.user_agent)
                 const isLocal = isLocalIp(log.ip_address)
 
                 return (
-                  <div key={log.id} className="mobileLogCard">
-                    <div className="mobileLogCardTop">
-                      <div className="mobileActionWrap">
+                  <article key={log.id} className="mobileLedgerCard">
+                    <div className="mobileCardHeader">
+                      <div className="mobileBadgeId">
                         {getActionBadge(log.action_type)}
-                        <span className="mobileLogId tabular-nums">#{log.id}</span>
+                        <span className="mobileEntryId tabular-nums">#{log.id}</span>
                       </div>
-                      <div className="mobileTimeWrap">
-                        <span className="mobileTimePrimary tabular-nums">{formatDate(log.timestamp)}</span>
-                        {relative && <span className="mobileTimeRelative">{relative}</span>}
-                      </div>
-                    </div>
-
-                    <div className="mobileLogCardBody">
-                      <div className="mobileUserRow">
-                        {log.username ? (
-                          <div className="userDetails">
-                            <div className="userAvatarCircle" aria-hidden="true">
-                              <span>{getInitials(log.username)}</span>
-                            </div>
-                            <div className="userTextWrapper">
-                              <span className="usernameText">{log.username}</span>
-                              {log.email && <span className="emailText">{log.email}</span>}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="guestUserDetails">
-                            <span className="guestText">Guest / System</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mobileMetaGrid">
-                        <div className="mobileMetaItem">
-                          <span className="mobileMetaLabel">เป้าหมาย:</span>
-                          <span className="targetBadge mobileTarget">{getTargetTableName(log.target_table)}</span>
-                        </div>
-                        <div className="mobileMetaItem">
-                          <span className="mobileMetaLabel">IP:</span>
-                          <span className="ipBadgeWrapper">
-                            <span className="ipText tabular-nums">{log.ip_address || '-'}</span>
-                            {isLocal && <span className="lanBadge">LAN</span>}
-                            {log.ip_address && (
-                              <button
-                                type="button"
-                                className="copyIpBtn"
-                                onClick={() => copyToClipboard(log.ip_address!, `IP Address ${log.ip_address}`)}
-                                title="คัดลอก IP"
-                              >
-                                {copiedField === `IP Address ${log.ip_address}` ? (
-                                  <Check size={12} className="copySuccessIcon" />
-                                ) : (
-                                  <Copy size={12} />
-                                )}
-                              </button>
-                            )}
-                          </span>
-                        </div>
-                        <div className="mobileMetaItem fullWidth">
-                          <span className="mobileMetaLabel">อุปกรณ์:</span>
-                          {getDeviceBadge(log.user_agent)}
-                        </div>
+                      <div className="mobileTimestamp tabular-nums">
+                        <span>{ts.datePart} {ts.timePart}</span>
+                        {relative && <span className="mobileRelative">{relative}</span>}
                       </div>
                     </div>
 
-                    <div className="mobileLogCardFooter">
-                      <button
-                        type="button"
-                        className="mobileViewDetailBtn"
-                        onClick={() => setSelectedLog(log)}
-                      >
-                        <span>ดูบันทึกเจาะลึก</span>
-                      </button>
+                    <div className="mobileCardBody">
+                      <div className="mobilePrimaryInfo">
+                        <strong className="mobileTargetName">{target.label}</strong>
+                        <p className="mobileDetailSnippet">{detailPreview}</p>
+                      </div>
+
+                      <dl className="mobileMetaList">
+                        <div className="mobileMetaPair">
+                          <dt>ผู้ใช้งาน</dt>
+                          <dd>{log.username || 'ระบบอัตโนมัติ / ไม่ระบุตัวตน'}</dd>
+                        </div>
+                        <div className="mobileMetaPair">
+                          <dt>เครือข่าย</dt>
+                          <dd className="tabular-nums">
+                            {log.ip_address || '—'} {isLocal ? '(LAN)' : ''}
+                          </dd>
+                        </div>
+                        <div className="mobileMetaPair fullSpan">
+                          <dt>อุปกรณ์</dt>
+                          <dd>{ua.deviceModel || ua.os} · {ua.browser}</dd>
+                        </div>
+                      </dl>
                     </div>
-                  </div>
+
+                    <button
+                      type="button"
+                      className="mobileInspectBtn"
+                      onClick={() => setSelectedLog(log)}
+                    >
+                      ดูรายละเอียดบันทึก
+                    </button>
+                  </article>
                 )
               })}
             </div>
 
-            {/* Pagination Controls */}
-            <div className="pagination">
-              <div className="paginationInfo tabular-nums">
-                แสดงผล <span>{logs.length}</span> จากทั้งหมด <span>{pagination.total.toLocaleString()}</span> รายการ
+            {/* Pagination Footer */}
+            <footer className="ledgerPagination">
+              <div className="paginationSummary tabular-nums">
+                แสดง <strong>{logs.length}</strong> รายการ (หน้า {page} จาก {pagination.totalPages || 1}) · ทั้งหมด{' '}
+                <strong>{pagination.total.toLocaleString()}</strong> รายการ
               </div>
-              
-              <div className="paginationBtns">
+
+              <div className="paginationControls">
                 <button
+                  type="button"
+                  className="pageNavBtn pageNavIconOnly"
                   disabled={page <= 1 || loading}
                   onClick={() => setPage(1)}
-                  className="pageBtn pageBtnSquare"
-                  title="หน้าแรก"
-                  type="button"
                   aria-label="หน้าแรก"
+                  title="หน้าแรก"
                 >
                   «
                 </button>
                 <button
-                  disabled={page <= 1 || loading}
-                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                  className="pageBtn"
                   type="button"
+                  className="pageNavBtn"
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={16} aria-hidden="true" />
                   <span>ก่อนหน้า</span>
                 </button>
-                
-                <div className="pageIndicator tabular-nums">
-                  หน้า <strong>{page}</strong> จาก <strong>{pagination.totalPages || 1}</strong>
-                </div>
+
+                <span className="pageCurrentPill tabular-nums">
+                  {page} / {pagination.totalPages || 1}
+                </span>
 
                 <button
-                  disabled={page >= pagination.totalPages || loading}
-                  onClick={() => setPage((prev) => Math.min(pagination.totalPages, prev + 1))}
-                  className="pageBtn"
                   type="button"
+                  className="pageNavBtn"
+                  disabled={page >= pagination.totalPages || loading}
+                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                 >
                   <span>ถัดไป</span>
-                  <ChevronRight size={16} />
+                  <ChevronRight size={16} aria-hidden="true" />
                 </button>
                 <button
+                  type="button"
+                  className="pageNavBtn pageNavIconOnly"
                   disabled={page >= pagination.totalPages || loading}
                   onClick={() => setPage(pagination.totalPages)}
-                  className="pageBtn pageBtnSquare"
-                  title="หน้าสุดท้าย"
-                  type="button"
                   aria-label="หน้าสุดท้าย"
+                  title="หน้าสุดท้าย"
                 >
                   »
                 </button>
               </div>
-            </div>
+            </footer>
           </>
         )}
       </section>
 
-      {/* Details Modal */}
+      {/* 5. Slide-Over Inspector Drawer */}
       {selectedLog && (
-        <div className="modalOverlay" onClick={() => setSelectedLog(null)} role="dialog" aria-modal="true">
-          <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-            <div className="modalHeader">
+        <div
+          className="drawerBackdrop"
+          onClick={() => setSelectedLog(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="inspector-drawer-title"
+        >
+          <aside className="inspectorDrawer" onClick={(e) => e.stopPropagation()}>
+            <div className="drawerHeader">
               <div>
-                <h3>รายละเอียดบันทึกความปลอดภัย</h3>
-                <span className="modalHeaderSub tabular-nums">Audit Log Entry ID #{selectedLog.id}</span>
+                <h2 id="inspector-drawer-title">รายละเอียดบันทึกความปลอดภัย</h2>
+                <span className="drawerEntryMeta tabular-nums">
+                  Audit Log Entry ID #{selectedLog.id}
+                </span>
               </div>
-              <button 
-                type="button"
-                className="closeBtn" 
-                onClick={() => setSelectedLog(null)}
-                aria-label="ปิดหน้าต่าง"
-              >
-                <X size={18} />
+
+              <div className="drawerHeaderTools">
+                <div className="drawerStepGroup" role="group" aria-label="เลื่อนดูรายการก่อนหน้าและถัดไป">
+                  <button
+                    type="button"
+                    className="drawerIconBtn"
+                    disabled={selectedIndex <= 0}
+                    onClick={() => selectedIndex > 0 && setSelectedLog(logs[selectedIndex - 1])}
+                    title="รายการก่อนหน้า (ลูกศรขึ้น)"
+                    aria-label="รายการก่อนหน้า"
+                  >
+                    <ChevronUp size={18} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="drawerIconBtn"
+                    disabled={selectedIndex < 0 || selectedIndex >= logs.length - 1}
+                    onClick={() =>
+                      selectedIndex >= 0 &&
+                      selectedIndex < logs.length - 1 &&
+                      setSelectedLog(logs[selectedIndex + 1])
+                    }
+                    title="รายการถัดไป (ลูกศรลง)"
+                    aria-label="รายการถัดไป"
+                  >
+                    <ChevronDown size={18} aria-hidden="true" />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="drawerCloseBtn"
+                  onClick={() => setSelectedLog(null)}
+                  aria-label="ปิดหน้าต่าง"
+                  title="ปิดหน้าต่าง (Esc)"
+                >
+                  <X size={19} aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+
+            <div className="drawerBody">
+              {/* Primary Telemetry Strip */}
+              <div className="drawerTelemetryStrip">
+                <div className="telemetryCell">
+                  <span className="telemetryLabel">ประเภทกิจกรรม</span>
+                  <div>{getActionBadge(selectedLog.action_type)}</div>
+                </div>
+                <div className="telemetryCell">
+                  <span className="telemetryLabel">วัน-เวลาบันทึก (พ.ศ.)</span>
+                  <strong className="telemetryValue tabular-nums">
+                    {formatSplitTimestamp(selectedLog.timestamp).full}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Metadata Specification Table */}
+              <section className="drawerSection">
+                <h3 className="drawerSectionTitle">ข้อมูลผู้กระทำและเป้าหมาย</h3>
+                <dl className="specList">
+                  <div className="specRow">
+                    <dt>บัญชีผู้ใช้งาน</dt>
+                    <dd className="specValueWithAction">
+                      <span>
+                        {selectedLog.username
+                          ? `${selectedLog.username}${selectedLog.email ? ` (${selectedLog.email})` : ''}`
+                          : 'ระบบอัตโนมัติ / ไม่ได้เข้าสู่ระบบ'}
+                      </span>
+                      {selectedLog.username && (
+                        <button
+                          type="button"
+                          className="inlineCopyBtn"
+                          onClick={() => copyToClipboard(selectedLog.username!, 'actor', 'ชื่อผู้ใช้')}
+                        >
+                          {copiedField === 'actor' ? <Check size={13} /> : <Copy size={13} />}
+                          <span>คัดลอก</span>
+                        </button>
+                      )}
+                    </dd>
+                  </div>
+
+                  <div className="specRow">
+                    <dt>เป้าหมายที่เข้าถึง</dt>
+                    <dd>
+                      <span className="specStrong">
+                        {getTargetInfo(selectedLog.target_table, selectedLog.action_type).label}
+                      </span>
+                      {selectedLog.target_table && (
+                        <code className="targetCodeKey">{selectedLog.target_table}</code>
+                      )}
+                    </dd>
+                  </div>
+
+                  <div className="specRow">
+                    <dt>หมายเลข IP</dt>
+                    <dd className="specValueWithAction">
+                      <span className="tabular-nums">
+                        {selectedLog.ip_address || 'ไม่ระบุ'}
+                        {isLocalIp(selectedLog.ip_address) && (
+                          <span className="lanTag inlineLan">เครือข่ายภายใน รพ. (LAN)</span>
+                        )}
+                      </span>
+                      {selectedLog.ip_address && (
+                        <button
+                          type="button"
+                          className="inlineCopyBtn"
+                          onClick={() => copyToClipboard(selectedLog.ip_address!, 'ip', 'หมายเลข IP')}
+                        >
+                          {copiedField === 'ip' ? <Check size={13} /> : <Copy size={13} />}
+                          <span>คัดลอก</span>
+                        </button>
+                      )}
+                    </dd>
+                  </div>
+
+                  <div className="specRow">
+                    <dt>อุปกรณ์และเบราว์เซอร์</dt>
+                    <dd>
+                      {(() => {
+                        const p = parseUserAgent(selectedLog.user_agent)
+                        const typeLabel =
+                          p.deviceType === 'desktop'
+                            ? 'คอมพิวเตอร์'
+                            : p.deviceType === 'mobile'
+                            ? `มือถือ (${p.deviceModel || 'Smartphone'})`
+                            : p.deviceType === 'tablet'
+                            ? `แท็บเล็ต (${p.deviceModel || 'Tablet'})`
+                            : p.deviceType === 'bot'
+                            ? 'สคริปต์อัตโนมัติ'
+                            : 'ไม่ทราบประเภท'
+                        return `${typeLabel} · ${p.os} · ${p.browser}`
+                      })()}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              {/* Structured Action Details */}
+              <section className="drawerSection">
+                <div className="drawerSectionHeader">
+                  <h3 className="drawerSectionTitle">รายละเอียดการปฏิบัติงาน (Action Details)</h3>
+                  {selectedLog.action_details && (
+                    <button
+                      type="button"
+                      className="inlineCopyBtn"
+                      onClick={() =>
+                        copyToClipboard(
+                          selectedDetails?.prettyJson || selectedLog.action_details!,
+                          'details',
+                          'รายละเอียดการปฏิบัติงาน'
+                        )
+                      }
+                    >
+                      {copiedField === 'details' ? <Check size={13} /> : <Copy size={13} />}
+                      <span>คัดลอกข้อมูล</span>
+                    </button>
+                  )}
+                </div>
+
+                {selectedDetails?.entries && selectedDetails.entries.length > 0 && (
+                  <div className="structuredPayloadBox">
+                    {selectedDetails.entries.map((entry) => (
+                      <div key={entry.key} className="payloadEntryRow">
+                        <span className="payloadKey">{entry.key}</span>
+                        <span className="payloadVal">{entry.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <pre className="rawPayloadPre">
+                  {selectedDetails?.prettyJson || selectedLog.action_details || 'ไม่มีรายละเอียดเพิ่มเติม'}
+                </pre>
+              </section>
+
+              {/* User-Agent String */}
+              <section className="drawerSection">
+                <div className="drawerSectionHeader">
+                  <h3 className="drawerSectionTitle">ข้อมูล User-Agent แบบเต็ม</h3>
+                  {selectedLog.user_agent && (
+                    <button
+                      type="button"
+                      className="inlineCopyBtn"
+                      onClick={() => copyToClipboard(selectedLog.user_agent!, 'ua', 'ข้อมูล User-Agent')}
+                    >
+                      {copiedField === 'ua' ? <Check size={13} /> : <Copy size={13} />}
+                      <span>คัดลอก</span>
+                    </button>
+                  )}
+                </div>
+                <pre className="rawPayloadPre uaPre">
+                  {selectedLog.user_agent || 'ไม่มีข้อมูล User-Agent'}
+                </pre>
+              </section>
+            </div>
+
+            <div className="drawerFooter">
+              <button type="button" className="btnSecondary fullWidthMobile" onClick={() => setSelectedLog(null)}>
+                ปิดหน้าต่างรายละเอียด
               </button>
             </div>
-            
-            <div className="modalBody">
-              {/* Quick Info Banner */}
-              <div className="modalSummaryBanner">
-                <div className="modalSummaryItem">
-                  <span className="summaryLabel">ประเภทการดำเนินการ</span>
-                  <span className="summaryValue">{getActionBadge(selectedLog.action_type)}</span>
-                </div>
-                <div className="modalSummaryItem">
-                  <span className="summaryLabel">วัน-เวลาบันทึก (Timestamp)</span>
-                  <span className="summaryValue tabular-nums">{formatDate(selectedLog.timestamp)}</span>
-                </div>
-                <div className="modalSummaryItem">
-                  <span className="summaryLabel">สถานะเครือข่าย</span>
-                  <span className="summaryValue ipModalTag tabular-nums">
-                    {selectedLog.ip_address || '-'} 
-                    {isLocalIp(selectedLog.ip_address) && <span className="lanBadge">Internal LAN</span>}
-                  </span>
-                </div>
-              </div>
-
-              {/* 2-Column Info Grid */}
-              <div className="detailGrid">
-                <div className="detailItem">
-                  <span className="detailLabel">ผู้ใช้งาน (Account)</span>
-                  <div className="detailValueWithCopy">
-                    <span className="detailValue">
-                      {selectedLog.username ? `${selectedLog.username} (${selectedLog.email || 'ไม่มีอีเมล'})` : 'ไม่ได้เข้าสู่ระบบ (Guest / System)'}
-                    </span>
-                    {selectedLog.username && (
-                      <button 
-                        type="button" 
-                        className="modalCopyBtn"
-                        onClick={() => copyToClipboard(selectedLog.username!, 'ชื่อผู้ใช้')}
-                        title="คัดลอกชื่อผู้ใช้"
-                        aria-label="คัดลอกชื่อผู้ใช้"
-                      >
-                        <Copy size={13} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="detailItem">
-                  <span className="detailLabel">เป้าหมายที่เข้าถึง (Target Resource)</span>
-                  <div className="detailValue">
-                    <span className="targetBadge">{getTargetTableName(selectedLog.target_table)}</span>
-                  </div>
-                </div>
-
-                <div className="detailItem">
-                  <span className="detailLabel">ประเภทอุปกรณ์ (Device Type)</span>
-                  <span className="detailValue">
-                    {(() => {
-                      const p = parseUserAgent(selectedLog.user_agent)
-                      return p.deviceType === 'desktop' 
-                        ? 'เครื่องคอมพิวเตอร์ (Desktop PC / Mac)' 
-                        : p.deviceType === 'mobile' 
-                        ? `โทรศัพท์มือถือ (${p.deviceModel || 'Smartphone'})` 
-                        : p.deviceType === 'tablet' 
-                        ? `แท็บเล็ต (${p.deviceModel || 'Tablet'})` 
-                        : p.deviceType === 'bot' 
-                        ? 'สคริปต์อัตโนมัติ / บอท (Bot Crawler)' 
-                        : 'ไม่สามารถระบุอุปกรณ์ได้'
-                    })()}
-                  </span>
-                </div>
-
-                <div className="detailItem">
-                  <span className="detailLabel">ระบบปฏิบัติการและเบราว์เซอร์</span>
-                  <span className="detailValue">
-                    {parseUserAgent(selectedLog.user_agent).os} • {parseUserAgent(selectedLog.user_agent).browser}
-                  </span>
-                </div>
-
-                <div className="detailItem fullWidth">
-                  <div className="detailHeaderWithAction">
-                    <span className="detailLabel">User-Agent Header แบบเต็ม</span>
-                    {selectedLog.user_agent && (
-                      <button 
-                        type="button"
-                        className="textActionBtn"
-                        onClick={() => copyToClipboard(selectedLog.user_agent!, 'User-Agent Header')}
-                      >
-                        <Copy size={12} />
-                        <span>คัดลอก</span>
-                      </button>
-                    )}
-                  </div>
-                  <pre className="codeBlock">{selectedLog.user_agent || 'ไม่มีข้อมูล User-Agent'}</pre>
-                </div>
-
-                <div className="detailItem fullWidth">
-                  <div className="detailHeaderWithAction">
-                    <span className="detailLabel">รายละเอียดการปฏิบัติงาน (Action Details)</span>
-                    {selectedLog.action_details && (
-                      <button 
-                        type="button"
-                        className="textActionBtn"
-                        onClick={() => copyToClipboard(selectedLog.action_details!, 'รายละเอียดการปฏิบัติงาน')}
-                      >
-                        <Copy size={12} />
-                        <span>คัดลอก</span>
-                      </button>
-                    )}
-                  </div>
-                  <pre className="codeBlock actionDetailsPre">
-                    {selectedLog.action_details || 'ไม่มีรายละเอียดเพิ่มเติม'}
-                  </pre>
-                </div>
-              </div>
-            </div>
-
-            <div className="modalFooter">
-              <button 
-                type="button" 
-                className="btnSecondary" 
-                onClick={() => setSelectedLog(null)}
-              >
-                ปิดหน้าต่าง
-              </button>
-            </div>
-          </div>
+          </aside>
         </div>
       )}
 
-      {/* PDPA Retention Cleanup Confirmation Modal */}
+      {/* 6. PDPA Retention Cleanup Confirmation Modal */}
       {cleanupModalOpen && (
-        <div className="modalOverlay" onClick={() => !cleanupLoading && setCleanupModalOpen(false)} role="dialog" aria-modal="true">
-          <div className="modalContent cleanupModalContent" onClick={(e) => e.stopPropagation()}>
-            <div className="modalHeader">
+        <div
+          className="modalBackdrop"
+          onClick={() => !cleanupLoading && setCleanupModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cleanup-modal-title"
+        >
+          <div className="confirmModalCard" onClick={(e) => e.stopPropagation()}>
+            <div className="confirmModalHeader">
               <div>
-                <h3>ล้างประวัติการใช้งานระบบ (PDPA Retention)</h3>
-                <span className="modalHeaderSub">เกณฑ์การจัดเก็บข้อมูลขั้นต่ำ 90 วันตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล</span>
+                <h2 id="cleanup-modal-title">ยืนยันการล้างประวัติเก่าเกิน 90 วัน</h2>
+                <span className="confirmModalSub">
+                  ตามเกณฑ์การจัดเก็บข้อมูล พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล (PDPA)
+                </span>
               </div>
-              <button 
+              <button
                 type="button"
-                className="closeBtn" 
+                className="drawerCloseBtn"
                 onClick={() => !cleanupLoading && setCleanupModalOpen(false)}
                 disabled={cleanupLoading}
                 aria-label="ปิดหน้าต่าง"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
 
-            <div className="modalBody">
-              <div className="cleanupInfoBox">
-                <p className="cleanupWarningText">
-                  ระบบจะลบข้อมูลประวัติในตาราง <code>audit_logs</code> ที่มีอายุเก่ากว่า <strong>90 วัน</strong> ทั้งหมดออกจากฐานข้อมูล
-                </p>
-                <div className="cleanupCountSummary">
-                  <span className="cleanupCountLabel">จำนวนรายการที่เข้าเกณฑ์ล้างประวัติ:</span>
-                  <span className="cleanupCountValue tabular-nums">
-                    {cleanupChecking ? (
-                      <span className="statSkeleton"></span>
-                    ) : expiredCount !== null ? (
-                      `${expiredCount.toLocaleString()} รายการ`
-                    ) : (
-                      'พร้อมตรวจสอบ'
-                    )}
-                  </span>
-                </div>
-                <p className="cleanupNotice">
-                  หมายเหตุ: การดำเนินการนี้เป็นการลบถาวรเพื่อลดขนาดฐานข้อมูลตามมาตรฐานความปลอดภัย และระบบจะบันทึก Audit Log การล้างข้อมูลนี้ไว้เป็นหลักฐานโดยอัตโนมัติ
-                </p>
+            <div className="confirmModalBody">
+              <p className="confirmLeadText">
+                ระบบจะลบรายการในตาราง <code>audit_logs</code> ที่มีอายุเกินกว่า <strong>90 วัน</strong>{' '}
+                ออกจากฐานข้อมูลอย่างถาวร
+              </p>
+
+              <div className="expiredSummaryBox">
+                <span className="expiredLabel">รายการที่เข้าเกณฑ์ถูกลบ</span>
+                <strong className="expiredValue tabular-nums">
+                  {cleanupChecking ? (
+                    <span className="metricSkeleton" />
+                  ) : expiredCount !== null ? (
+                    `${expiredCount.toLocaleString()} รายการ`
+                  ) : (
+                    'กำลังตรวจสอบ...'
+                  )}
+                </strong>
               </div>
+
+              <p className="confirmFootnote">
+                การดำเนินการนี้ไม่สามารถย้อนกลับได้ และระบบจะบันทึกเหตุการณ์การล้างข้อมูลนี้ลงใน Audit Log โดยอัตโนมัติ
+              </p>
             </div>
 
-            <div className="modalFooter">
-              <button 
-                type="button" 
-                className="btnSecondary" 
+            <div className="confirmModalFooter">
+              <button
+                type="button"
+                className="btnSecondary"
                 onClick={() => setCleanupModalOpen(false)}
                 disabled={cleanupLoading}
               >
-                ยกเลิก
+                ยกเลิกคำขอ
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btnDanger"
                 onClick={handleExecuteCleanup}
                 disabled={cleanupLoading || cleanupChecking || expiredCount === 0}
               >
                 {cleanupLoading ? (
                   <>
-                    <RefreshCw size={15} className="animate-spin" />
-                    <span>กำลังดำเนินการ...</span>
+                    <RefreshCw size={15} className="spinIcon" aria-hidden="true" />
+                    <span>กำลังล้างข้อมูล...</span>
                   </>
                 ) : (
                   <span>ยืนยันการล้างข้อมูล</span>
@@ -1245,8 +1420,7 @@ export default function AuditLogsClient() {
         </div>
       )}
 
-      {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
-    </>
+    </div>
   )
 }
