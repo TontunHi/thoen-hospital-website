@@ -96,6 +96,15 @@ async function runMigration() {
     const file = allFiles[i]
     const progress = `[${i + 1}/${allFiles.length}]`
 
+    // Check if any path segment exceeds POSIX/MinIO 255-byte limit
+    const segments = file.s3Key.split('/')
+    const oversizedSegment = segments.find(seg => Buffer.byteLength(seg, 'utf8') > 255)
+    if (oversizedSegment) {
+      console.warn(`${progress} ⚠️ Skipped (segment exceeds 255-byte limit, kept on local disk): ${file.s3Key.slice(0, 80)}...`)
+      skippedCount++
+      continue
+    }
+
     try {
       // Check if file already exists in MinIO
       const existing = await headObjectS3({ bucket: file.bucket, key: file.s3Key })
