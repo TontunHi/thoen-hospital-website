@@ -1,0 +1,276 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { KpiTrackerClient } from '../KpiTrackerClient'
+
+// Mock next/navigation
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/service/kpi-tracker',
+}))
+
+const mockIndicators = [
+  {
+    id: 1,
+    topicId: 1,
+    sequence: '1.1',
+    category: 'ยุทธศาสตร์ที่1',
+    subcategory: 'การพัฒนาบริการ',
+    code: 'KPI-001',
+    oldCode: null,
+    title: 'ร้อยละความพึงพอใจของผู้รับบริการ',
+    targetValue: 85,
+    targetOperator: 'GTE',
+    targetUnit: '%',
+    targetLabel: '>= 85%',
+    frequency: 'MONTHLY',
+    indicatorType: 'ยุทธศาสตร์',
+    isAutoCalc: true,
+    numeratorName: 'จำนวนผู้พึงพอใจ',
+    denominatorName: 'จำนวนผู้ตอบแบบสอบถามทั้งหมด',
+    responsibleName: 'งานพัฒนาคุณภาพ',
+    responsibleDepartment: 'กลุ่มงานยุทธศาสตร์',
+    displayOrder: 1,
+    currentEntry: {
+      id: 101,
+      indicatorId: 1,
+      periodKey: '2569-M01',
+      numeratorValue: 90,
+      denominatorValue: 100,
+      resultValue: 90,
+      resultText: '90%',
+      status: 'PASS',
+      note: null,
+      updatedAt: '2026-10-15T00:00:00.000Z',
+    },
+  },
+  {
+    id: 2,
+    topicId: 1,
+    sequence: '2.1',
+    category: 'ยุทธศาสตร์ที่2',
+    subcategory: 'การบริหารจัดการ',
+    code: 'KPI-002',
+    oldCode: null,
+    title: 'อัตราการครองเตียง',
+    targetValue: 80,
+    targetOperator: 'LTE',
+    targetUnit: '%',
+    targetLabel: '<= 80%',
+    frequency: 'MONTHLY',
+    indicatorType: 'ยุทธศาสตร์',
+    isAutoCalc: true,
+    numeratorName: 'วันนอนจริง',
+    denominatorName: 'วันนอนเป้าหมาย',
+    responsibleName: 'งานบริหาร',
+    responsibleDepartment: 'กลุ่มงานบริหารทั่วไป',
+    displayOrder: 2,
+    currentEntry: {
+      id: 102,
+      indicatorId: 2,
+      periodKey: '2569-M01',
+      numeratorValue: 75,
+      denominatorValue: 100,
+      resultValue: 75,
+      resultText: '75%',
+      status: 'PASS',
+      note: null,
+      updatedAt: '2026-10-15T00:00:00.000Z',
+    },
+  },
+  {
+    id: 3,
+    topicId: 1,
+    sequence: '3.1',
+    category: 'หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)',
+    subcategory: 'ความปลอดภัยผู้ป่วย',
+    code: 'KPI-003',
+    oldCode: null,
+    title: 'อัตราการติดเชื้อในโรงพยาบาล',
+    targetValue: 1.5,
+    targetOperator: 'LTE',
+    targetUnit: '%',
+    targetLabel: '<= 1.5%',
+    frequency: 'MONTHLY',
+    indicatorType: 'HA',
+    isAutoCalc: false,
+    numeratorName: null,
+    denominatorName: null,
+    responsibleName: 'งาน IC',
+    responsibleDepartment: 'กลุ่มงานการพยาบาล',
+    displayOrder: 3,
+    currentEntry: {
+      id: 103,
+      indicatorId: 3,
+      periodKey: '2569-M01',
+      numeratorValue: null,
+      denominatorValue: null,
+      resultValue: 1.2,
+      resultText: '1.2%',
+      status: 'PASS',
+      note: null,
+      updatedAt: '2026-10-15T00:00:00.000Z',
+    },
+  },
+]
+
+const mockUser = {
+  id: 1,
+  username: 'admin',
+  name: 'แอดมิน',
+  role: 'ADMIN',
+  department: 'IT',
+  isAdmin: true,
+}
+
+describe('KpiTrackerClient - Category Multi-Selector Filter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/kpi/topics')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              fiscalYears: ['2569', '2568'],
+              defaultYear: '2569',
+              topics: [
+                { id: 1, title: 'ตัวชี้วัดโรงพยาบาลเถิน 2569', fiscalYear: '2569', isCurrent: true }
+              ]
+            }
+          })
+        }
+      }
+      if (url.includes('/api/kpi/indicators')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              indicators: mockIndicators,
+              categories: [
+                'ยุทธศาสตร์ที่1',
+                'ยุทธศาสตร์ที่2',
+                'หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)'
+              ]
+            }
+          })
+        }
+      }
+      if (url.includes('/api/kpi/stats')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              totalIndicators: 3,
+              totalPass: 3,
+              totalFail: 0,
+              totalPending: 0,
+              totalWaitingTarget: 0,
+              evaluatedCount: 3,
+              passRate: 100,
+              categoryBreakdown: []
+            }
+          })
+        }
+      }
+      return { ok: false, json: async () => ({}) }
+    }))
+  })
+
+  it('renders multi-selector button with default "ทั้งหมด" label and opens popover', async () => {
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('ร้อยละความพึงพอใจของผู้รับบริการ')).toBeInTheDocument()
+    })
+
+    const triggerBtn = screen.getByRole('combobox', { name: /หมวดหมู่ \/ ยุทธศาสตร์/i })
+    expect(triggerBtn).toHaveTextContent('ทั้งหมด (ทุกหมวดและทุกยุทธศาสตร์)')
+
+    // Click trigger to open popover
+    fireEvent.click(triggerBtn)
+    expect(screen.getByRole('dialog', { name: 'เลือกหมวดหมู่และยุทธศาสตร์' })).toBeInTheDocument()
+    expect(screen.getByText('กลุ่มยุทธศาสตร์')).toBeInTheDocument()
+    expect(screen.getByText('หมวดหมู่คุณภาพ HA')).toBeInTheDocument()
+  })
+
+  it('filters indicators when multiple categories are selected', async () => {
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('ร้อยละความพึงพอใจของผู้รับบริการ')).toBeInTheDocument()
+      expect(screen.getByText('อัตราการครองเตียง')).toBeInTheDocument()
+      expect(screen.getByText('อัตราการติดเชื้อในโรงพยาบาล')).toBeInTheDocument()
+    })
+
+    const triggerBtn = screen.getByRole('combobox', { name: /หมวดหมู่ \/ ยุทธศาสตร์/i })
+    fireEvent.click(triggerBtn)
+
+    const dialog = screen.getByRole('dialog', { name: 'เลือกหมวดหมู่และยุทธศาสตร์' })
+
+    // Select "ยุทธศาสตร์ที่1"
+    const cat1Option = within(dialog).getByText('ยุทธศาสตร์ที่1')
+    fireEvent.click(cat1Option)
+
+    // Now only KPI-001 should be visible
+    expect(screen.getByText('ร้อยละความพึงพอใจของผู้รับบริการ')).toBeInTheDocument()
+    expect(screen.queryByText('อัตราการครองเตียง')).not.toBeInTheDocument()
+    expect(screen.queryByText('อัตราการติดเชื้อในโรงพยาบาล')).not.toBeInTheDocument()
+
+    // Also select "ยุทธศาสตร์ที่2" (multi selector)
+    const cat2Option = within(dialog).getByText('ยุทธศาสตร์ที่2')
+    fireEvent.click(cat2Option)
+
+    // Now both KPI-001 and KPI-002 should be visible, but NOT KPI-003 (HA)
+    expect(screen.getByText('ร้อยละความพึงพอใจของผู้รับบริการ')).toBeInTheDocument()
+    expect(screen.getByText('อัตราการครองเตียง')).toBeInTheDocument()
+    expect(screen.queryByText('อัตราการติดเชื้อในโรงพยาบาล')).not.toBeInTheDocument()
+
+    // Trigger button should show count of 2
+    expect(triggerBtn).toHaveTextContent('เลือก 2 หมวดหมู่ / ยุทธศาสตร์')
+
+    // Active chips should be rendered
+    const activeChipsSection = screen.getByLabelText('หมวดหมู่ที่เลือกกรอง')
+    expect(activeChipsSection).toBeInTheDocument()
+    expect(within(activeChipsSection).getByText('ยุทธศาสตร์ที่1')).toBeInTheDocument()
+    expect(within(activeChipsSection).getByText('ยุทธศาสตร์ที่2')).toBeInTheDocument()
+
+    // Click "ล้างตัวกรองทั้งหมด"
+    const clearAllBtn = screen.getByRole('button', { name: 'ล้างตัวกรองทั้งหมด' })
+    fireEvent.click(clearAllBtn)
+
+    // All indicators should be visible again
+    expect(screen.getByText('ร้อยละความพึงพอใจของผู้รับบริการ')).toBeInTheDocument()
+    expect(screen.getByText('อัตราการครองเตียง')).toBeInTheDocument()
+    expect(screen.getByText('อัตราการติดเชื้อในโรงพยาบาล')).toBeInTheDocument()
+  })
+
+  it('selects and deselects entire group when "เลือกทั้งกลุ่ม" is clicked', async () => {
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('ร้อยละความพึงพอใจของผู้รับบริการ')).toBeInTheDocument()
+    })
+
+    const triggerBtn = screen.getByRole('combobox', { name: /หมวดหมู่ \/ ยุทธศาสตร์/i })
+    fireEvent.click(triggerBtn)
+
+    // Find the group toggle buttons
+    const groupToggleBtns = screen.getAllByRole('button', { name: 'เลือกทั้งกลุ่ม' })
+    expect(groupToggleBtns.length).toBeGreaterThan(0)
+
+    // Click toggle for strategy group
+    fireEvent.click(groupToggleBtns[0])
+
+    // Trigger button should show all strategies selected
+    expect(triggerBtn).toHaveTextContent(/เลือก \d+ หมวดหมู่ \/ ยุทธศาสตร์/)
+
+    // HA indicator should be filtered out
+    expect(screen.queryByText('อัตราการติดเชื้อในโรงพยาบาล')).not.toBeInTheDocument()
+  })
+})

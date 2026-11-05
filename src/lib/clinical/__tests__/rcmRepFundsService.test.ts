@@ -164,4 +164,50 @@ describe('RcmRepFundsService queries', () => {
     expect(cases[0].compensated).toBe(3621.62)
     expect(cases[0].status).toBe('paid')
   })
+
+  it('queries summary and cases by custom date range (ds1 and ds2)', async () => {
+    // 1. getAvailableYears
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([{ YearBudget: '2570' }])
+    // 2. Metrics
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([
+      {
+        totalCases: 5,
+        totalReps: 1,
+        totalIncome: 50000,
+        totalCompensated: 48000,
+        totalDiff: -2000,
+        pendingAppeals: 0,
+        errorCount: 0,
+      },
+    ])
+    // 3. Fund groups
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([])
+    // 4. Rep list
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([])
+    // 5. Available funds
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([])
+
+    const summary = await RcmRepFundsService.getRepFundsSummary({
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+    })
+
+    expect(summary.metrics.totalCases).toBe(5)
+    expect(apiGateway.clinical.query).toHaveBeenCalledWith(
+      expect.stringContaining('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?'),
+      expect.arrayContaining(['2026-10-01 00:00:00', '2026-10-31 23:59:59'])
+    )
+
+    // Cases query by ds1 and ds2
+    vi.mocked(apiGateway.clinical.query).mockResolvedValueOnce([])
+    await RcmRepFundsService.getRepCases({
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+    })
+
+    expect(apiGateway.clinical.query).toHaveBeenCalledWith(
+      expect.stringContaining('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?'),
+      expect.arrayContaining(['2026-10-01 00:00:00', '2026-10-31 23:59:59'])
+    )
+  })
 })

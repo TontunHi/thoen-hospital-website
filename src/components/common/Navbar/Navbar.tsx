@@ -193,6 +193,18 @@ export default function Navbar() {
     };
   }, [isOpen]);
 
+  // Auto-close mobile drawer when viewport expands to desktop
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleResize = () => {
+      if (window.innerWidth > 1024) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isOpen]);
+
   const isActiveLink = (href: string) => {
     if (href === '/') {
       return pathname === '/';

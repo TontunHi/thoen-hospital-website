@@ -79,6 +79,8 @@ export interface RepFundsSummaryResult {
 
 export interface RepFundsSummaryParams {
   fiscalYear?: string
+  ds1?: string
+  ds2?: string
   department?: 'ALL' | 'OP' | 'IP'
   fund?: string
   subFund?: string
@@ -93,6 +95,8 @@ export interface RepCasesParams {
   subFund?: string
   department?: 'ALL' | 'OP' | 'IP'
   fiscalYear?: string
+  ds1?: string
+  ds2?: string
   hn?: string
   status?: string
   errorCode?: string
@@ -205,8 +209,16 @@ export class RcmRepFundsService {
     const search = params.search ? params.search.trim() : null
 
     // Base filters
-    const whereClauses: string[] = ['YearBudget = ?']
-    const queryParams: any[] = [fiscalYear]
+    const whereClauses: string[] = []
+    const queryParams: any[] = []
+
+    if (params.ds1 && params.ds2) {
+      whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
+      queryParams.push(`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`)
+    } else {
+      whereClauses.push('YearBudget = ?')
+      queryParams.push(fiscalYear)
+    }
 
     if (department !== 'ALL') {
       whereClauses.push('Department = ?')
@@ -376,38 +388,66 @@ export class RcmRepFundsService {
       }
     })
 
-    // 4. Distinct Available Funds in selected fiscal year
-    const availableFundsSql = `
+    // 4. Distinct Available Funds in selected timeframe
+    let availableFundsSql = `
       SELECT 
         COALESCE(Fund, 'UNKNOWN') as fundKey,
         COUNT(*) as cnt
       FROM rcmdb.repdata
-      WHERE YearBudget = ?
-      GROUP BY Fund
-      ORDER BY cnt DESC
-      LIMIT 50
     `
-    const fundRows = await apiGateway.clinical.query<any>(availableFundsSql, [fiscalYear])
+    let fundsQueryParams: any[] = []
+    if (params.ds1 && params.ds2) {
+      availableFundsSql += `
+        WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ?
+        GROUP BY Fund
+        ORDER BY cnt DESC
+        LIMIT 50
+      `
+      fundsQueryParams = [`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`]
+    } else {
+      availableFundsSql += `
+        WHERE YearBudget = ?
+        GROUP BY Fund
+        ORDER BY cnt DESC
+        LIMIT 50
+      `
+      fundsQueryParams = [fiscalYear]
+    }
+    const fundRows = await apiGateway.clinical.query<any>(availableFundsSql, fundsQueryParams)
     const availableFunds = fundRows.map((r) => ({
       key: String(r.fundKey),
       label: `${formatFundLabel(r.fundKey)} (${Number(r.cnt).toLocaleString('th-TH')})`,
       count: Number(r.cnt || 0),
     }))
 
-    // 5. Distinct Available Error Codes in selected fiscal year
-    const availableErrorCodesSql = `
+    // 5. Distinct Available Error Codes in selected timeframe
+    let availableErrorCodesSql = `
       SELECT 
         ErrorCode as code,
         COUNT(*) as cnt
       FROM rcmdb.repdata
-      WHERE YearBudget = ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0
-      GROUP BY ErrorCode
-      ORDER BY cnt DESC
-      LIMIT 50
     `
+    let errQueryParams: any[] = []
+    if (params.ds1 && params.ds2) {
+      availableErrorCodesSql += `
+        WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0
+        GROUP BY ErrorCode
+        ORDER BY cnt DESC
+        LIMIT 50
+      `
+      errQueryParams = [`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`]
+    } else {
+      availableErrorCodesSql += `
+        WHERE YearBudget = ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0
+        GROUP BY ErrorCode
+        ORDER BY cnt DESC
+        LIMIT 50
+      `
+      errQueryParams = [fiscalYear]
+    }
     let availableErrorCodes: Array<{ code: string; count: number }> = []
     try {
-      const errRows = await apiGateway.clinical.query<any>(availableErrorCodesSql, [fiscalYear])
+      const errRows = await apiGateway.clinical.query<any>(availableErrorCodesSql, errQueryParams)
       availableErrorCodes = errRows.map((r) => ({
         code: String(r.code),
         count: Number(r.cnt || 0),
@@ -439,7 +479,10 @@ export class RcmRepFundsService {
       queryParams.push(params.rep.trim())
     }
 
-    if (params.fiscalYear) {
+    if (params.ds1 && params.ds2) {
+      whereClauses.push('COALESCE(AdmDate, DchDate) BETWEEN ? AND ?')
+      queryParams.push(`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`)
+    } else if (params.fiscalYear) {
       whereClauses.push('YearBudget = ?')
       queryParams.push(params.fiscalYear)
     }

@@ -9,7 +9,9 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  Filter,
 } from 'lucide-react'
+import ThaiDatePicker from '@/components/ui/ThaiDatePicker'
 import type {
   PatientClaimRecord,
   FundSummaryGroup,
@@ -20,7 +22,18 @@ import './page.css'
 
 export type { PatientClaimRecord, FundSummaryGroup, RepStatementSummary, RepFundsSummaryMetrics }
 
+const THAI_MONTH_NAMES = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+]
+
 export default function RepFundsClient() {
+  const today = useMemo(() => new Date(), [])
+  const currentCalYear = today.getFullYear()
+  const currentMonth = today.getMonth() + 1
+  const defaultFiscalYear = currentMonth >= 10 ? currentCalYear + 1 : currentCalYear
+  const defaultFiscalYearStr = String(defaultFiscalYear + 543)
+
   // Active Tab: default to 'reps' for direct multi-Rep multi-HN viewing
   const [activeTab, setActiveTab] = useState<'reps' | 'funds'>('reps')
 
@@ -32,14 +45,20 @@ export default function RepFundsClient() {
   const [isSearchingLookup, setIsSearchingLookup] = useState<boolean>(false)
   const [hasSearched, setHasSearched] = useState<boolean>(false)
 
-  // Report Filters - Ordered logically from Broad (Macro) -> Specific (Micro):
-  // 1. ปีงบประมาณ (Fiscal Year)
+  // Date controls: 'custom' | 'month' | 'year'
+  const [dateMode, setDateMode] = useState<'custom' | 'month' | 'year'>('year')
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(defaultFiscalYearStr)
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth)
+  const [selectedMonthYear, setSelectedMonthYear] = useState<number>(currentCalYear + 543)
+  const [ds1, setDs1] = useState<string>(`${defaultFiscalYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(`${defaultFiscalYear}-09-30`)
+
+  // Report Dimension Filters:
   // 2. กองทุนหลัก (Fund)
   // 3. กองทุนย่อย (SubFund)
   // 4. แผนกบริการ (Department: OPD / IPD)
   // 5. สถานะการชดเชย (Status)
   // 6. คำค้นหา (Search: Rep, HN, Patient Name, Error Code)
-  const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>('2570')
   const [selectedFund, setSelectedFund] = useState<string>('ALL')
   const [selectedSubFund, setSelectedSubFund] = useState<string>('ALL')
   const [selectedDept, setSelectedDept] = useState<'ALL' | 'OP' | 'IP'>('ALL')
@@ -83,6 +102,61 @@ export default function RepFundsClient() {
   const [isFundModalLoading, setIsFundModalLoading] = useState<boolean>(false)
   const [fundModalSearchTerm, setFundModalSearchTerm] = useState<string>('')
 
+  // Available Calendar Years for Month Mode (Buddhist Era)
+  const availableMonthYears = useMemo(() => {
+    const list: number[] = []
+    const currentBe = currentCalYear + 543
+    for (let y = currentBe + 1; y >= currentBe - 5; y--) {
+      list.push(y)
+    }
+    return list
+  }, [currentCalYear])
+
+  // Handle Date Mode Changes
+  const handleModeChange = (mode: 'custom' | 'month' | 'year') => {
+    setDateMode(mode)
+    if (mode === 'year') {
+      const beYear = parseInt(selectedFiscalYear, 10) || defaultFiscalYear + 543
+      const ceYear = beYear - 543
+      setDs1(`${ceYear - 1}-10-01`)
+      setDs2(`${ceYear}-09-30`)
+    } else if (mode === 'month') {
+      const ceYear = selectedMonthYear - 543
+      const mStr = String(selectedMonth).padStart(2, '0')
+      const lastDay = new Date(ceYear, selectedMonth, 0).getDate()
+      setDs1(`${ceYear}-${mStr}-01`)
+      setDs2(`${ceYear}-${mStr}-${String(lastDay).padStart(2, '0')}`)
+    }
+  }
+
+  const handleSelectFiscalYear = (yearStr: string) => {
+    setSelectedFiscalYear(yearStr)
+    const beYear = parseInt(yearStr, 10)
+    if (!isNaN(beYear)) {
+      const ceYear = beYear - 543
+      setDs1(`${ceYear - 1}-10-01`)
+      setDs2(`${ceYear}-09-30`)
+    }
+  }
+
+  const handleSelectMonth = (month: number) => {
+    setSelectedMonth(month)
+    const ceYear = selectedMonthYear - 543
+    const mStr = String(month).padStart(2, '0')
+    const lastDay = new Date(ceYear, month, 0).getDate()
+    setDs1(`${ceYear}-${mStr}-01`)
+    setDs2(`${ceYear}-${mStr}-${String(lastDay).padStart(2, '0')}`)
+  }
+
+  const handleSelectMonthYear = (beYear: number) => {
+    setSelectedMonthYear(beYear)
+    const ceYear = beYear - 543
+    const mStr = String(selectedMonth).padStart(2, '0')
+    const lastDay = new Date(ceYear, selectedMonth, 0).getDate()
+    setDs1(`${ceYear}-${mStr}-01`)
+    setDs2(`${ceYear}-${mStr}-${String(lastDay).padStart(2, '0')}`)
+  }
+
   // 1. Fetch Summary Data (KPI Metrics & Fund Matrix)
   const fetchSummaryData = useCallback(async () => {
     setIsLoadingSummary(true)
@@ -90,7 +164,12 @@ export default function RepFundsClient() {
 
     try {
       const q = new URLSearchParams()
-      if (selectedFiscalYear) q.set('fiscalYear', selectedFiscalYear)
+      if (dateMode === 'year') {
+        if (selectedFiscalYear) q.set('fiscalYear', selectedFiscalYear)
+      } else {
+        if (ds1) q.set('ds1', ds1)
+        if (ds2) q.set('ds2', ds2)
+      }
       if (selectedDept && selectedDept !== 'ALL') q.set('department', selectedDept)
       if (selectedFund && selectedFund !== 'ALL') q.set('fund', selectedFund)
       if (selectedSubFund && selectedSubFund !== 'ALL') q.set('subFund', selectedSubFund)
@@ -129,7 +208,10 @@ export default function RepFundsClient() {
       setIsLoadingSummary(false)
     }
   }, [
+    dateMode,
     selectedFiscalYear,
+    ds1,
+    ds2,
     selectedDept,
     selectedFund,
     selectedSubFund,
@@ -144,7 +226,12 @@ export default function RepFundsClient() {
 
     try {
       const q = new URLSearchParams()
-      if (selectedFiscalYear) q.set('fiscalYear', selectedFiscalYear)
+      if (dateMode === 'year') {
+        if (selectedFiscalYear) q.set('fiscalYear', selectedFiscalYear)
+      } else {
+        if (ds1) q.set('ds1', ds1)
+        if (ds2) q.set('ds2', ds2)
+      }
       if (selectedDept && selectedDept !== 'ALL') q.set('department', selectedDept)
       if (selectedFund && selectedFund !== 'ALL') q.set('fund', selectedFund)
       if (selectedSubFund && selectedSubFund !== 'ALL') q.set('subFund', selectedSubFund)
@@ -166,7 +253,10 @@ export default function RepFundsClient() {
       setIsCasesLoading(false)
     }
   }, [
+    dateMode,
     selectedFiscalYear,
+    ds1,
+    ds2,
     selectedDept,
     selectedFund,
     selectedSubFund,
@@ -249,7 +339,12 @@ export default function RepFundsClient() {
       q.set('fund', group.fundKey)
       if (group.subFundKey && group.subFundKey !== '-') q.set('subFund', group.subFundKey)
       q.set('department', group.department)
-      q.set('fiscalYear', selectedFiscalYear)
+      if (dateMode === 'year') {
+        q.set('fiscalYear', selectedFiscalYear)
+      } else {
+        q.set('ds1', ds1)
+        q.set('ds2', ds2)
+      }
 
       const res = await fetch(`/api/service/dashboard-rcm/rep-funds/cases?${q.toString()}`)
       const json = await res.json()
@@ -280,6 +375,14 @@ export default function RepFundsClient() {
 
   // Reset all filters
   const handleResetFilters = () => {
+    setDateMode('year')
+    setSelectedFiscalYear(availableYears[0] || defaultFiscalYearStr)
+    const beYear = parseInt(availableYears[0] || defaultFiscalYearStr, 10)
+    const ceYear = beYear - 543
+    setDs1(`${ceYear - 1}-10-01`)
+    setDs2(`${ceYear}-09-30`)
+    setSelectedMonth(today.getMonth() + 1)
+    setSelectedMonthYear(today.getFullYear() + 543)
     setSelectedFund('ALL')
     setSelectedSubFund('ALL')
     setSelectedDept('ALL')
@@ -290,6 +393,7 @@ export default function RepFundsClient() {
   // Export CSV functions
   const handleExportCsv = () => {
     const BOM = '\uFEFF'
+    const timeframeTag = dateMode === 'year' ? `FY${selectedFiscalYear}` : `${ds1}_to_${ds2}`
     if (activeTab === 'funds') {
       const header = 'กองทุนหลัก,กองทุนย่อย/รายการ,แผนก,จำนวนเคส,ค่ารักษาจริง (บาท),เงินชดเชยที่ได้ (บาท),อัตราชดเชย (%),ส่วนต่าง (บาท),เคสอุทธรณ์\n'
       const rows = fundGroups
@@ -302,7 +406,7 @@ export default function RepFundsClient() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `rep-funds-matrix-${selectedFiscalYear}.csv`
+      a.download = `rep-funds-matrix-${timeframeTag}.csv`
       a.click()
     } else {
       const header = 'เลขที่ใบ REP,เลขประจำตัว (HN),ชื่อ-สกุลคนไข้,วันที่รับบริการ,แผนก,กองทุน,ค่ารักษาจริง (บาท),เงินชดเชย (บาท),ส่วนต่าง (บาท),อัตราชดเชย (%),สถานะ,รหัส Error\n'
@@ -316,7 +420,7 @@ export default function RepFundsClient() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `rep-statement-cases-${selectedFiscalYear}.csv`
+      a.download = `rep-statement-cases-${timeframeTag}.csv`
       a.click()
     }
   }
@@ -608,122 +712,233 @@ export default function RepFundsClient() {
 
         {/* Toolbar Controls - Strict Order: ใหญ่ไปเล็ก (Macro -> Micro) */}
         <div className="toolbar-section">
-          <div className="filter-group">
-            <h2 id="table-heading" className="sr-only">
-              ตัวกรองข้อมูล Rep และกองทุน เรียงจากระดับใหญ่ไปเล็ก
-            </h2>
+          {/* 1. Timeframe Controls (Date Mode Selector & Contextual Inputs) */}
+          <div className="date-controls-row">
+            <div className="rcm-button-group" role="tablist" aria-label="รูปแบบช่วงเวลา">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dateMode === 'custom'}
+                onClick={() => handleModeChange('custom')}
+                className={`rcm-mode-btn ${dateMode === 'custom' ? 'active' : ''}`}
+              >
+                กำหนดเอง (วันถึงวัน)
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dateMode === 'month'}
+                onClick={() => handleModeChange('month')}
+                className={`rcm-mode-btn ${dateMode === 'month' ? 'active' : ''}`}
+              >
+                รายเดือน
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dateMode === 'year'}
+                onClick={() => handleModeChange('year')}
+                className={`rcm-mode-btn ${dateMode === 'year' ? 'active' : ''}`}
+              >
+                รายปีงบประมาณ
+              </button>
+            </div>
 
-            {/* 1. ปีงบประมาณ (Fiscal Year - Macro Timeframe) */}
-            <select
-              className="filter-select"
-              value={selectedFiscalYear}
-              onChange={(e) => setSelectedFiscalYear(e.target.value)}
-              aria-label="1. เลือกปีงบประมาณ"
-              title="1. ปีงบประมาณ พ.ศ."
-            >
-              {availableYears.map((yr) => (
-                <option key={yr} value={yr}>
-                  ปีงบประมาณ {yr}
-                </option>
-              ))}
-            </select>
+            <div className="contextual-date-inputs">
+              {dateMode === 'year' && (
+                <div className="date-input-pair">
+                  <select
+                    className="filter-select"
+                    value={selectedFiscalYear}
+                    onChange={(e) => handleSelectFiscalYear(e.target.value)}
+                    aria-label="1. เลือกปีงบประมาณ"
+                    title="1. เลือกปีงบประมาณ"
+                  >
+                    {availableYears.map((yr) => (
+                      <option key={yr} value={yr}>
+                        ปีงบประมาณ {yr}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="timeframe-hint-badge">
+                    1 ต.ค. {parseInt(selectedFiscalYear, 10) - 1} - 30 ก.ย. {selectedFiscalYear}
+                  </span>
+                </div>
+              )}
 
-            {/* 2. กองทุนหลัก (Main Fund - Payer) */}
-            <select
-              className="filter-select"
-              value={selectedFund}
-              onChange={(e) => {
-                setSelectedFund(e.target.value)
-                setSelectedSubFund('ALL')
-              }}
-              aria-label="2. เลือกกองทุนหลัก"
-              title="2. กองทุนหลัก"
-            >
-              <option value="ALL">กองทุนหลัก: ทั้งหมด</option>
-              <option value="UCS">บัตรทอง (UCS รวม)</option>
-              <option value="OFC">ข้าราชการ (OFC/CS รวม)</option>
-              <option value="SSS">ประกันสังคม (SSS รวม)</option>
-              <option value="LGO">อปท. (LGO รวม)</option>
-              <option value="STP">สถานะและสิทธิ (STP)</option>
-              {availableFunds.map((f) => (
-                <option key={f.key} value={f.key}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
+              {dateMode === 'month' && (
+                <div className="date-input-pair">
+                  <select
+                    className="filter-select"
+                    value={selectedMonth}
+                    onChange={(e) => handleSelectMonth(Number(e.target.value))}
+                    aria-label="เลือกเดือน"
+                    title="เลือกเดือน"
+                  >
+                    {THAI_MONTH_NAMES.map((name, idx) => (
+                      <option key={idx + 1} value={idx + 1}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="filter-select"
+                    value={selectedMonthYear}
+                    onChange={(e) => handleSelectMonthYear(Number(e.target.value))}
+                    aria-label="เลือกปี พ.ศ."
+                    title="เลือกปี พ.ศ."
+                  >
+                    {availableMonthYears.map((yr) => (
+                      <option key={yr} value={yr}>
+                        พ.ศ. {yr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-            {/* 3. กองทุนย่อย (SubFund - Sub-category) */}
-            {availableSubFunds.length > 0 && (
+              {dateMode === 'custom' && (
+                <div className="date-input-pair custom-range-wrap">
+                  <div className="date-picker-wrap">
+                    <span className="date-label">ตั้งแต่วันที่:</span>
+                    <ThaiDatePicker
+                      value={ds1}
+                      onChange={setDs1}
+                      maxDate={ds2}
+                      aria-label="ตั้งแต่วันที่"
+                    />
+                  </div>
+                  <div className="date-picker-wrap">
+                    <span className="date-label">ถึงวันที่:</span>
+                    <ThaiDatePicker
+                      value={ds2}
+                      onChange={setDs2}
+                      minDate={ds1}
+                      aria-label="ถึงวันที่"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fetchSummaryData()
+                      fetchStatementCases()
+                    }}
+                    disabled={isLoadingSummary || isCasesLoading}
+                    className="btn-fetch-range"
+                    title="ดึงข้อมูลตามช่วงวันที่ระบุ"
+                  >
+                    <Filter size={14} />
+                    <span>ดึงข้อมูล</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Dimension Filters Row */}
+          <div className="dimension-filters-row">
+            <div className="filter-group">
+              <h2 id="table-heading" className="sr-only">
+                ตัวกรองข้อมูล Rep และกองทุน เรียงจากระดับใหญ่ไปเล็ก
+              </h2>
+
+              {/* 2. กองทุนหลัก (Main Fund - Payer) */}
               <select
                 className="filter-select"
-                value={selectedSubFund}
-                onChange={(e) => setSelectedSubFund(e.target.value)}
-                aria-label="3. เลือกกองทุนย่อย"
-                title="3. กองทุนย่อย / หมวดโครงการ"
+                value={selectedFund}
+                onChange={(e) => {
+                  setSelectedFund(e.target.value)
+                  setSelectedSubFund('ALL')
+                }}
+                aria-label="2. เลือกกองทุนหลัก"
+                title="2. กองทุนหลัก"
               >
-                <option value="ALL">กองทุนย่อย: ทั้งหมด</option>
-                {availableSubFunds.map((sub) => (
-                  <option key={sub} value={sub}>
-                    {sub}
+                <option value="ALL">กองทุนหลัก: ทั้งหมด</option>
+                <option value="UCS">บัตรทอง (UCS รวม)</option>
+                <option value="OFC">ข้าราชการ (OFC/CS รวม)</option>
+                <option value="SSS">ประกันสังคม (SSS รวม)</option>
+                <option value="LGO">อปท. (LGO รวม)</option>
+                <option value="STP">สถานะและสิทธิ (STP)</option>
+                {availableFunds.map((f) => (
+                  <option key={f.key} value={f.key}>
+                    {f.label}
                   </option>
                 ))}
               </select>
-            )}
 
-            {/* 4. แผนกบริการ (Department - Service Venue) */}
-            <select
-              className="filter-select"
-              value={selectedDept}
-              onChange={(e) => setSelectedDept(e.target.value as 'ALL' | 'OP' | 'IP')}
-              aria-label="4. เลือกแผนกบริการ"
-              title="4. แผนกบริการ"
-            >
-              <option value="ALL">แผนก: ทั้งหมด</option>
-              <option value="OP">ผู้ป่วยนอก (OPD)</option>
-              <option value="IP">ผู้ป่วยใน (IPD)</option>
-            </select>
+              {/* 3. กองทุนย่อย (SubFund - Sub-category) */}
+              {availableSubFunds.length > 0 && (
+                <select
+                  className="filter-select"
+                  value={selectedSubFund}
+                  onChange={(e) => setSelectedSubFund(e.target.value)}
+                  aria-label="3. เลือกกองทุนย่อย"
+                  title="3. กองทุนย่อย / หมวดโครงการ"
+                >
+                  <option value="ALL">กองทุนย่อย: ทั้งหมด</option>
+                  {availableSubFunds.map((sub) => (
+                    <option key={sub} value={sub}>
+                      {sub}
+                    </option>
+                  ))}
+                </select>
+              )}
 
-            {/* 5. สถานะการชดเชย (Reimbursement Status) */}
-            <select
-              className="filter-select"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              aria-label="5. เลือกสถานะการชดเชย"
-              title="5. สถานะการชดเชย"
-            >
-              <option value="ALL">สถานะการชดเชย: ทั้งหมด</option>
-              <option value="paid">ได้รับเงินชดเชย (Compensated &gt; 0)</option>
-              <option value="denied">ไม่ได้รับชดเชย (0 บาท)</option>
-              <option value="has_error">มีรหัส Error Code</option>
-            </select>
-
-            {/* Limit selector for statement cases */}
-            {activeTab === 'reps' && (
+              {/* 4. แผนกบริการ (Department - Service Venue) */}
               <select
                 className="filter-select"
-                value={recordLimit}
-                onChange={(e) => setRecordLimit(Number(e.target.value))}
-                aria-label="เลือกจำนวนรายการที่แสดง"
-                title="จำนวนรายการที่แสดง"
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value as 'ALL' | 'OP' | 'IP')}
+                aria-label="4. เลือกแผนกบริการ"
+                title="4. แผนกบริการ"
               >
-                <option value={100}>แสดง 100 รายการ</option>
-                <option value={250}>แสดง 250 รายการ</option>
-                <option value={500}>แสดง 500 รายการ</option>
-                <option value={1000}>แสดง 1,000 รายการ</option>
+                <option value="ALL">แผนก: ทั้งหมด</option>
+                <option value="OP">ผู้ป่วยนอก (OPD)</option>
+                <option value="IP">ผู้ป่วยใน (IPD)</option>
               </select>
-            )}
-          </div>
 
-          {/* 6. ช่องค้นหาเฉพาะเจาะจง (Search: Rep, HN, Name, Error) */}
-          <div className="search-input-wrapper">
-            <input
-              type="text"
-              className="search-input"
-              placeholder="ค้นหาเลข Rep, HN, ชื่อคนไข้, Error..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              aria-label="6. ค้นหาเลข Rep, HN, ชื่อคนไข้, หรือรหัส Error"
-            />
+              {/* 5. สถานะการชดเชย (Reimbursement Status) */}
+              <select
+                className="filter-select"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                aria-label="5. เลือกสถานะการชดเชย"
+                title="5. สถานะการชดเชย"
+              >
+                <option value="ALL">สถานะการชดเชย: ทั้งหมด</option>
+                <option value="paid">ได้รับเงินชดเชย (Compensated &gt; 0)</option>
+                <option value="denied">ไม่ได้รับชดเชย (0 บาท)</option>
+                <option value="has_error">มีรหัส Error Code</option>
+              </select>
+
+              {/* Limit selector for statement cases */}
+              {activeTab === 'reps' && (
+                <select
+                  className="filter-select"
+                  value={recordLimit}
+                  onChange={(e) => setRecordLimit(Number(e.target.value))}
+                  aria-label="เลือกจำนวนรายการที่แสดง"
+                  title="จำนวนรายการที่แสดง"
+                >
+                  <option value={100}>แสดง 100 รายการ</option>
+                  <option value={250}>แสดง 250 รายการ</option>
+                  <option value={500}>แสดง 500 รายการ</option>
+                  <option value={1000}>แสดง 1,000 รายการ</option>
+                </select>
+              )}
+            </div>
+
+            {/* 6. ช่องค้นหาเฉพาะเจาะจง (Search: Rep, HN, Name, Error) */}
+            <div className="search-input-wrapper">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="ค้นหาเลข Rep, HN, ชื่อคนไข้, Error..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                aria-label="6. ค้นหาเลข Rep, HN, ชื่อคนไข้, หรือรหัส Error"
+              />
+            </div>
           </div>
         </div>
 

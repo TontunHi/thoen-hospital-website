@@ -95,9 +95,60 @@ describe('GET /api/service/dashboard-rcm/rep-funds', () => {
     expect(json.metrics.totalCases).toBe(100)
     expect(RcmRepFundsService.getRepFundsSummary).toHaveBeenCalledWith({
       fiscalYear: '2570',
+      ds1: undefined,
+      ds2: undefined,
       department: 'ALL',
       fund: undefined,
       subFund: undefined,
+      status: undefined,
+      errorCode: undefined,
+      search: undefined,
+    })
+  })
+
+  it('supports ds1 and ds2 custom date range', async () => {
+    vi.mocked(verifyMemberSession).mockResolvedValueOnce({
+      username: 'nurse_somjai',
+      role: 'staff',
+      email: 'somjai@thoen.go.th',
+      aud: 'member',
+      iat: 12345,
+      exp: 67890,
+    })
+
+    vi.mocked(RcmRepFundsService.getRepFundsSummary).mockResolvedValueOnce({
+      metrics: {
+        totalCases: 25,
+        totalReps: 2,
+        totalIncome: 25000,
+        totalCompensated: 24000,
+        rate: '96.0',
+        totalDiff: -1000,
+        pendingAppeals: 0,
+        errorCount: 0,
+      },
+      fundGroups: [],
+      repList: [],
+      availableYears: ['2570'],
+      availableFunds: [],
+      availableErrorCodes: [],
+    })
+
+    const req = new Request('http://localhost:3000/api/service/dashboard-rcm/rep-funds?ds1=2026-10-01&ds2=2026-10-31')
+    const res = await GET(req)
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(RcmRepFundsService.getRepFundsSummary).toHaveBeenCalledWith({
+      fiscalYear: undefined,
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+      department: 'ALL',
+      fund: undefined,
+      subFund: undefined,
+      status: undefined,
+      errorCode: undefined,
       search: undefined,
     })
   })

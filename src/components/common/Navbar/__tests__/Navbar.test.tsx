@@ -125,4 +125,17 @@ describe('Navbar Component (Hallmark & Superfuture Responsive Redesign)', () => 
     const nav = within(desktopNav);
     expect(nav.getByRole('link', { name: 'ระบบงานภายใน' })).toBeInTheDocument();
   });
+
+  it('closes mobile drawer automatically when window is resized to desktop width (>1024px)', () => {
+    render(<Navbar />);
+
+    const burgerBtn = screen.getByLabelText(/เปิดเมนู/i);
+    fireEvent.click(burgerBtn);
+    expect(burgerBtn).toHaveAttribute('aria-expanded', 'true');
+
+    window.innerWidth = 1280;
+    fireEvent(window, new Event('resize'));
+
+    expect(burgerBtn).toHaveAttribute('aria-expanded', 'false');
+  });
 });

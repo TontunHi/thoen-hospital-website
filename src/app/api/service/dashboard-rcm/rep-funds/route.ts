@@ -23,6 +23,8 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const fiscalYear = searchParams.get('fiscalYear') || undefined
+    const ds1 = searchParams.get('ds1') || undefined
+    const ds2 = searchParams.get('ds2') || undefined
     const department = (searchParams.get('department') as 'ALL' | 'OP' | 'IP') || 'ALL'
     const fund = searchParams.get('fund') || undefined
     const subFund = searchParams.get('subFund') || undefined
@@ -30,15 +32,18 @@ export async function GET(request: Request) {
     const errorCode = searchParams.get('errorCode') || undefined
     const search = searchParams.get('search') || undefined
 
+    const timeFrameLabel = ds1 && ds2 ? `range: ${ds1} to ${ds2}` : `FY: ${fiscalYear || 'default'}`
     logThrottledAudit(
       'READ',
       'rep_funds',
-      `Viewed REP funds summary (FY: ${fiscalYear || 'default'}, dept: ${department}, status: ${status || 'all'})`,
+      `Viewed REP funds summary (${timeFrameLabel}, dept: ${department}, status: ${status || 'all'})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'REP funds audit log failed'))
 
     const data = await RcmRepFundsService.getRepFundsSummary({
       fiscalYear,
+      ds1,
+      ds2,
       department,
       fund,
       subFund,

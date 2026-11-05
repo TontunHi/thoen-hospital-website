@@ -27,6 +27,8 @@ export async function GET(request: Request) {
     const subFund = searchParams.get('subFund') || undefined
     const department = (searchParams.get('department') as 'ALL' | 'OP' | 'IP') || 'ALL'
     const fiscalYear = searchParams.get('fiscalYear') || undefined
+    const ds1 = searchParams.get('ds1') || undefined
+    const ds2 = searchParams.get('ds2') || undefined
     const hn = searchParams.get('hn') || undefined
     const status = searchParams.get('status') || undefined
     const errorCode = searchParams.get('errorCode') || undefined
@@ -34,10 +36,11 @@ export async function GET(request: Request) {
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 250
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!, 10) : 0
 
+    const timeFrameLabel = ds1 && ds2 ? `range: ${ds1} to ${ds2}` : `FY: ${fiscalYear || 'all'}`
     logThrottledAudit(
       'READ',
       'rep_cases',
-      `Viewed patient cases for REP/Fund (rep: ${rep || 'all'}, fund: ${fund || 'all'}, dept: ${department}, status: ${status || 'all'})`,
+      `Viewed patient cases for REP/Fund (rep: ${rep || 'all'}, fund: ${fund || 'all'}, ${timeFrameLabel}, dept: ${department}, status: ${status || 'all'})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'REP cases audit log failed'))
 
@@ -47,6 +50,8 @@ export async function GET(request: Request) {
       subFund,
       department,
       fiscalYear,
+      ds1,
+      ds2,
       hn,
       status,
       errorCode,

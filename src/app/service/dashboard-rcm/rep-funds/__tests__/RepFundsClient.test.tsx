@@ -276,4 +276,68 @@ describe('RepFundsClient Component (3.1.1 Live Data)', () => {
     fireEvent.click(collapseBtn)
     expect(screen.getByRole('button', { name: /ค้นหารายคนไข้/ })).toBeInTheDocument()
   })
+
+  it('supports switching date mode between custom, month, and fiscal year', async () => {
+    render(<RepFundsClient />)
+
+    // Check all 3 mode buttons are rendered
+    const customBtn = screen.getByRole('tab', { name: /กำหนดเอง \(วันถึงวัน\)/ })
+    const monthBtn = screen.getByRole('tab', { name: /รายเดือน/ })
+    const yearBtn = screen.getByRole('tab', { name: /รายปีงบประมาณ/ })
+
+    expect(customBtn).toBeInTheDocument()
+    expect(monthBtn).toBeInTheDocument()
+    expect(yearBtn).toBeInTheDocument()
+
+    // Default mode is year: fiscal year selector should be present
+    expect(screen.getByLabelText(/1\. เลือกปีงบประมาณ/)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/ตั้งแต่วันที่/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/เลือกเดือน/)).not.toBeInTheDocument()
+
+    // Switch to 'month' mode
+    fireEvent.click(monthBtn)
+    await waitFor(() => {
+      expect(screen.getByLabelText(/เลือกเดือน/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/เลือกปี พ\.ศ\./)).toBeInTheDocument()
+      expect(screen.queryByLabelText(/1\. เลือกปีงบประมาณ/)).not.toBeInTheDocument()
+    })
+
+    // Switch to 'custom' mode
+    fireEvent.click(customBtn)
+    await waitFor(() => {
+      expect(screen.getByLabelText(/ตั้งแต่วันที่/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/ถึงวันที่/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /ดึงข้อมูล/ })).toBeInTheDocument()
+      expect(screen.queryByLabelText(/เลือกเดือน/)).not.toBeInTheDocument()
+    })
+
+    // Switch back to 'year' mode
+    fireEvent.click(yearBtn)
+    await waitFor(() => {
+      expect(screen.getByLabelText(/1\. เลือกปีงบประมาณ/)).toBeInTheDocument()
+      expect(screen.queryByLabelText(/ตั้งแต่วันที่/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('fetches data with ds1 and ds2 when in custom date mode', async () => {
+    render(<RepFundsClient />)
+
+    // Switch to custom mode
+    const customBtn = screen.getByRole('tab', { name: /กำหนดเอง \(วันถึงวัน\)/ })
+    fireEvent.click(customBtn)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/ตั้งแต่วันที่/)).toBeInTheDocument()
+    })
+
+    // Click fetch button
+    const fetchBtn = screen.getByRole('button', { name: /ดึงข้อมูล/ })
+    fireEvent.click(fetchBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringMatching(/\/api\/service\/dashboard-rcm\/rep-funds\?.*ds1=.*&ds2=/)
+      )
+    })
+  })
 })

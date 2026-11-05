@@ -122,6 +122,7 @@
   gap: 6px;
   justify-content: center;
   flex: 1;
+  min-width: 0;
   list-style: none;
   margin: 0;
   padding: 0 1rem;
@@ -204,9 +205,9 @@
 }
 
 /* ==========================================================================
-   Desktop Dropdown Card (>= 1081px)
+   Desktop Dropdown Card (>= 1025px)
    ========================================================================== */
-@media (min-width: 1081px) {
+@media (min-width: 1025px) {
   /* Standard Dropdown Card */
   .navbar__submenu {
     position: absolute;
@@ -294,6 +295,7 @@
     transform: translateX(-50%) translateY(8px);
     background: #ffffff;
     width: 620px;
+    max-width: min(620px, calc(100vw - 24px));
     box-shadow: 0 24px 48px -10px rgba(15, 23, 42, 0.16), 0 10px 20px -5px rgba(15, 23, 42, 0.06);
     border-radius: 20px;
     border: 1px solid rgba(226, 232, 240, 0.95);
@@ -730,21 +732,21 @@
 }
 
 /* ==========================================================================
-   Responsive Adaptations for Small Laptop Displays (1081px - 1280px)
+   Responsive Adaptations for Standard Laptop Displays (1201px - 1380px)
+   - Covers 1366x768 (standard hospital laptops), 1280px, and 125%/150% scaled displays
    ========================================================================== */
-@media (min-width: 1081px) and (max-width: 1280px) {
+@media (min-width: 1201px) and (max-width: 1380px) {
   .navbar__container {
     padding: 0 1rem;
   }
 
-  .navbar__links {
-    padding: 0 0.5rem;
-    gap: 2px;
+  .navbar__logo {
+    gap: 0.5rem;
   }
 
-  .navbar__link {
-    padding: 0.4rem 0.55rem;
-    font-size: 13.5px;
+  .navbar__logo-img {
+    width: 40px;
+    height: 40px;
   }
 
   .navbar__logo-sub {
@@ -753,6 +755,24 @@
 
   .navbar__logo-name {
     font-size: 1.05rem;
+  }
+
+  .navbar__links {
+    padding: 0 0.45rem;
+    gap: 3px;
+  }
+
+  .navbar__link {
+    padding: 0.38rem 0.52rem;
+    font-size: 13.5px;
+  }
+
+  .navbar__actions {
+    gap: 8px;
+  }
+
+  .navbar__cta-desktop {
+    gap: 8px;
   }
 
   .navbar__check-date-text-full {
@@ -766,19 +786,166 @@
   .navbar__check-date-btn {
     padding: 5px 12px 5px 6px;
     font-size: 13px;
+    gap: 6px;
   }
 
   .navbar__login-btn {
     padding: 5px 12px 5px 6px;
     font-size: 13px;
+    gap: 6px;
+  }
+
+  .navbar__member-btn {
+    padding: 4px 10px 4px 5px;
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .navbar__member-name {
+    max-width: 85px;
+    font-size: 13px;
   }
 }
 
 /* ==========================================================================
-   Mobile & Tablet Drawer Navigation (max-width: 1080px)
-   Switches cleanly at 1080px to completely prevent overflow / zoom-out
+   Responsive Adaptations for Compact Displays (1025px - 1200px)
+   - Covers 1366x768 @ 125% (1092px effective), 1152px, iPad Pro/Air landscape
    ========================================================================== */
-@media (max-width: 1080px) {
+@media (min-width: 1025px) and (max-width: 1200px) {
+  .navbar__container {
+    padding: 0 0.65rem;
+  }
+
+  .navbar__logo {
+    gap: 0.4rem;
+  }
+
+  .navbar__logo-badge {
+    border-radius: 10px;
+    padding: 2px;
+  }
+
+  .navbar__logo-img {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  .navbar__logo-sub {
+    display: none;
+  }
+
+  .navbar__logo-name {
+    font-size: 0.95rem;
+  }
+
+  .navbar__links {
+    padding: 0 0.2rem;
+    gap: 2px;
+  }
+
+  .navbar__link {
+    padding: 0.32rem 0.42rem;
+    font-size: 12.5px;
+    gap: 2px;
+  }
+
+  .dropdown-arrow {
+    margin-left: 1px;
+  }
+
+  .dropdown-arrow svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .navbar__actions {
+    gap: 6px;
+  }
+
+  .navbar__cta-desktop {
+    gap: 6px;
+  }
+
+  .navbar__check-date-text-full {
+    display: none;
+  }
+
+  .navbar__check-date-text-short {
+    display: inline;
+  }
+
+  .navbar__check-date-icon-wrap {
+    width: 24px;
+    height: 24px;
+  }
+
+  .navbar__check-date-icon-wrap svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .navbar__check-date-btn {
+    padding: 4px 10px 4px 5px;
+    font-size: 12.5px;
+    gap: 5px;
+  }
+
+  .navbar__login-icon-wrap {
+    width: 24px;
+    height: 24px;
+  }
+
+  .navbar__login-icon-wrap svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .navbar__login-btn {
+    padding: 4px 10px 4px 5px;
+    font-size: 12.5px;
+    gap: 5px;
+  }
+
+  .navbar__member-btn {
+    padding: 3px 8px 3px 4px;
+    gap: 5px;
+  }
+
+  .navbar__member-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .navbar__member-avatar svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .navbar__member-name {
+    max-width: 70px;
+    font-size: 12px;
+  }
+
+  .navbar__member-arrow {
+    display: none;
+  }
+
+  .navbar__grouped-dropdown {
+    width: 560px;
+    padding: 1rem;
+  }
+
+  .navbar__grouped-grid {
+    gap: 12px;
+  }
+}
+
+/* ==========================================================================
+   Mobile & Tablet Drawer Navigation (max-width: 1024px)
+   Switches cleanly at 1024px to completely prevent overflow / zoom-out
+   ========================================================================== */
+@media (max-width: 1024px) {
   .navbar__container {
     padding: 0 1rem;
   }

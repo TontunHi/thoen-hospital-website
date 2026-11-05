@@ -81,4 +81,30 @@ describe('GET /api/service/dashboard-rcm/rep-funds/cases', () => {
     expect(json.cases[0].ptName).toBe('นาย กฤษฎา สาริวงค์')
     expect(json.cases[0].compensated).toBe(3621.62)
   })
+
+  it('supports filtering cases by ds1 and ds2', async () => {
+    vi.mocked(verifyMemberSession).mockResolvedValueOnce({
+      username: 'audit_officer',
+      role: 'admin',
+      email: 'audit@thoen.go.th',
+      aud: 'member',
+      iat: 12345,
+      exp: 67890,
+    })
+
+    vi.mocked(RcmRepFundsService.getRepCases).mockResolvedValueOnce([])
+
+    const req = new Request('http://localhost:3000/api/service/dashboard-rcm/rep-funds/cases?ds1=2026-10-01&ds2=2026-10-31')
+    const res = await GET(req)
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(RcmRepFundsService.getRepCases).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ds1: '2026-10-01',
+        ds2: '2026-10-31',
+      })
+    )
+  })
 })

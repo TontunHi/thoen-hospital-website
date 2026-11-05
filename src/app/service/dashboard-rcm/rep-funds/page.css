@@ -417,12 +417,138 @@
 .toolbar-section {
   padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
   display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 0.75rem);
+  border-bottom: 1px solid var(--gray-100);
+  background-color: var(--white);
+}
+
+/* Date Mode & Contextual Timeframe Controls */
+.date-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px dashed var(--gray-200);
+  width: 100%;
+}
+
+.rcm-button-group {
+  display: inline-flex;
+  padding: 0.25rem;
+  background-color: var(--gray-100, #f1f5f9);
+  border: 1px solid var(--gray-300, #cbd5e1);
+  border-radius: var(--radius-sm, 6px);
+  gap: 0.25rem;
+}
+
+.rcm-mode-btn {
+  padding: 0.45rem 0.85rem;
+  font-size: var(--font-size-sm, 0.825rem);
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--gray-700, #334155);
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  transition: all var(--transition-fast, 0.15s ease);
+  white-space: nowrap;
+}
+
+.rcm-mode-btn:hover {
+  background-color: rgba(255, 255, 255, 0.8);
+  color: var(--gray-900, #0f172a);
+}
+
+.rcm-mode-btn.active {
+  background-color: var(--white, #ffffff);
+  color: var(--primary, #0d7446);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.contextual-date-inputs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.date-input-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.timeframe-hint-badge {
+  font-size: 0.78rem;
+  color: var(--gray-600, #475569);
+  font-weight: 500;
+  padding: 0.25rem 0.6rem;
+  background-color: var(--gray-100, #f1f5f9);
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.custom-range-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.date-picker-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.date-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--gray-700, #334155);
+  white-space: nowrap;
+}
+
+.btn-fetch-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background-color: var(--primary);
+  color: #ffffff;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--primary);
+  font-size: 0.825rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 40px;
+  transition: background-color var(--transition-fast, 0.15s ease);
+}
+
+.btn-fetch-range:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-fetch-range:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dimension-filters-row {
+  display: flex;
   flex-wrap: wrap;
   gap: var(--space-3, 0.75rem);
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--gray-100);
-  background-color: var(--white);
+  width: 100%;
 }
 
 .filter-group {

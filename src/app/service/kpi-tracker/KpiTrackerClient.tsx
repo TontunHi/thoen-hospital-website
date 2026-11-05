@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import {
   ChevronRight,
@@ -70,10 +70,14 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   // Indicators Data & Filters
   const [indicators, setIndicators] = useState<KpiIndicatorItem[]>([])
   const [categories, setCategories] = useState<string[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [categoryMultiSelectOpen, setCategoryMultiSelectOpen] = useState<boolean>(false)
+  const [categorySearchQuery, setCategorySearchQuery] = useState<string>('')
+  const categoryMultiSelectRef = useRef<HTMLDivElement>(null)
   const [selectedFrequency, setSelectedFrequency] = useState<string>('ALL')
   const [selectedPeriodKey, setSelectedPeriodKey] = useState<string>('ALL')
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL')
+  const [selectedFilledStatus, setSelectedFilledStatus] = useState<'ALL' | 'FILLED' | 'UNFILLED'>('ALL')
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'ALL' | 'MY' | 'DUE'>('ALL')
@@ -293,19 +297,152 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     }
   }, [indicators, stats])
 
-  // Count of indicators due now or within 5 days (excluding those already answered for this round)
+  // Count of indicators due now or within 5 days
   const dueIndicatorsCount = useMemo(() => {
     return indicators.filter(ind => {
       const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
-      if (!dueStatus.isDue) return false
-      return !isIndicatorAnsweredForPeriod(ind, dueStatus.relevantPeriod.key)
+      return dueStatus.isDue
     }).length
   }, [indicators, selectedYear])
+
+  // Multi-Select Category Logic: Close on outside click or Escape
+  useEffect(() => {
+    if (!categoryMultiSelectOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryMultiSelectRef.current && !categoryMultiSelectRef.current.contains(e.target as Node)) {
+        setCategoryMultiSelectOpen(false)
+      }
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCategoryMultiSelectOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [categoryMultiSelectOpen])
+
+  // Count indicators per category
+  const categoryCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    indicators.forEach(ind => {
+      if (ind.category) {
+        map.set(ind.category, (map.get(ind.category) || 0) + 1)
+      }
+    })
+    return map
+  }, [indicators])
+
+  // Group categories into Strategic Issues, HA Quality Categories, and Other
+  const categoryGroups = useMemo(() => {
+    const defaultStrategies = [
+      'ยุทธศาสตร์ที่1',
+      'ยุทธศาสตร์ที่2',
+      'ยุทธศาสตร์ที่3',
+      'ยุทธศาสตร์ที่4',
+      'ยุทธศาสตร์ที่5'
+    ]
+    const defaultHa = [
+      'หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)',
+      'หมวดที่ 2: IV-2 ด้านการมุ่งเน้นผู้ป่วยและผู้รับผลงาน',
+      'หมวดที่ 3: IV-3 ด้านบุคลากร',
+      'หมวดที่ 4: IV-4 ด้านการนำและการกำกับดูแล',
+      'หมวดที่ 5: IV-5 ด้านระบบงานสำคัญ',
+      'หมวดที่ 6: IV-6 ด้านการเงิน'
+    ]
+
+    const uniqueCats = new Set<string>()
+    categories.forEach(c => c && uniqueCats.add(c))
+    indicators.forEach(i => i.category && uniqueCats.add(i.category))
+
+    const strategySet = new Set<string>()
+    defaultStrategies.forEach(s => strategySet.add(s))
+    uniqueCats.forEach(c => {
+      if (c.includes('ยุทธศาสตร์')) {
+        strategySet.add(c)
+      }
+    })
+
+    const haSet = new Set<string>()
+    defaultHa.forEach(h => haSet.add(h))
+    uniqueCats.forEach(c => {
+      if (c.startsWith('หมวดที่') || c.startsWith('หมวด ') || c.startsWith('หมวด')) {
+        haSet.add(c)
+      }
+    })
+
+    const otherSet = new Set<string>()
+    uniqueCats.forEach(c => {
+      if (!strategySet.has(c) && !haSet.has(c)) {
+        otherSet.add(c)
+      }
+    })
+
+    const strategyList = Array.from(strategySet)
+    const haList = Array.from(haSet)
+    const otherList = Array.from(otherSet)
+    const allList = Array.from(new Set([...strategyList, ...haList, ...otherList]))
+
+    return {
+      strategy: strategyList,
+      ha: haList,
+      other: otherList,
+      all: allList
+    }
+  }, [categories, indicators])
+
+  // Filtered categories based on search input inside popover
+  const filteredCategoryGroups = useMemo(() => {
+    const q = categorySearchQuery.trim().toLowerCase()
+    if (!q) {
+      return categoryGroups
+    }
+    return {
+      strategy: categoryGroups.strategy.filter(c => c.toLowerCase().includes(q)),
+      ha: categoryGroups.ha.filter(c => c.toLowerCase().includes(q)),
+      other: categoryGroups.other.filter(c => c.toLowerCase().includes(q)),
+      all: categoryGroups.all.filter(c => c.toLowerCase().includes(q))
+    }
+  }, [categoryGroups, categorySearchQuery])
+
+  const toggleCategory = useCallback((cat: string) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(cat)) {
+        return prev.filter(c => c !== cat)
+      } else {
+        return [...prev, cat]
+      }
+    })
+  }, [])
+
+  const selectAllCategories = useCallback(() => {
+    setSelectedCategories(categoryGroups.all)
+  }, [categoryGroups.all])
+
+  const clearAllCategories = useCallback(() => {
+    setSelectedCategories([])
+  }, [])
+
+  const toggleGroupCategories = useCallback((groupItems: string[]) => {
+    setSelectedCategories(prev => {
+      const allSelected = groupItems.length > 0 && groupItems.every(item => prev.includes(item))
+      if (allSelected) {
+        return prev.filter(c => !groupItems.includes(c))
+      } else {
+        const set = new Set([...prev, ...groupItems])
+        return Array.from(set)
+      }
+    })
+  }, [])
 
   // Filtered & Sorted Indicators (Default sorted by sequence number)
   const displayedIndicators = useMemo(() => {
     const filtered = indicators.filter(ind => {
-      if (selectedCategory !== 'ALL' && ind.category !== selectedCategory) {
+      if (selectedCategories.length > 0 && !selectedCategories.includes(ind.category)) {
         return false
       }
       if (selectedFrequency !== 'ALL' && ind.frequency !== selectedFrequency) {
@@ -323,15 +460,22 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         if (!dueStatus.isDue) {
           return false
         }
-        if (isIndicatorAnsweredForPeriod(ind, dueStatus.relevantPeriod.key)) {
-          return false
-        }
       }
       if (selectedStatus !== 'ALL') {
         const status = ind.currentEntry?.status || 'PENDING'
         if (selectedStatus === 'WAITING_TARGET') {
           if (status !== 'WAITING_TARGET') return false
         } else if (status !== selectedStatus) {
+          return false
+        }
+      }
+      if (selectedFilledStatus !== 'ALL') {
+        const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
+        const isAnswered = isIndicatorAnsweredForPeriod(ind, dueStatus.relevantPeriod.key)
+        if (selectedFilledStatus === 'FILLED' && !isAnswered) {
+          return false
+        }
+        if (selectedFilledStatus === 'UNFILLED' && isAnswered) {
           return false
         }
       }
@@ -377,7 +521,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       }
       return 0
     })
-  }, [indicators, selectedCategory, selectedFrequency, activeTab, selectedStatus, debouncedSearch, currentUser, sortField, sortOrder])
+  }, [indicators, selectedCategories, selectedFrequency, activeTab, selectedStatus, selectedFilledStatus, selectedYear, debouncedSearch, currentUser, sortField, sortOrder])
 
   // Calculation for Answer Modal (if numerator and denominator exist)
   const computedPercentage = useMemo(() => {
@@ -830,8 +974,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       if (scope === 'DUE') {
         exportParams.set('onlyDue', 'true')
       }
-      if (selectedCategory && selectedCategory !== 'ALL') {
-        exportParams.set('category', selectedCategory)
+      if (selectedCategories.length === 1) {
+        exportParams.set('category', selectedCategories[0])
       }
       const url = `/api/kpi/export?${exportParams.toString()}`
       const res = await fetch(url)
@@ -1027,41 +1171,275 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         {/* 3. Toolbar (ปุ่มกรองตามหมวด + ช่องค้นหา) per design.md */}
         <section className="kpiToolbar" aria-label="แถบตัวกรองและค้นหา">
           <div className="kpiToolbarPrimary">
-            <div className="kpiCategoryDropdownField">
-              <label htmlFor="kpi-category-select" className="kpiCategoryLabel">
+            <div className="kpiCategoryDropdownField" ref={categoryMultiSelectRef}>
+              <label id="kpi-category-label" className="kpiCategoryLabel">
                 หมวดหมู่ / ยุทธศาสตร์:
               </label>
-              <div className="kpiSelectWrapper">
-                <select
-                  id="kpi-category-select"
-                  className="kpiCategorySelect"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+              <div className="kpiMultiSelectWrapper">
+                <div
+                  role="combobox"
+                  tabIndex={0}
+                  id="kpi-category-multi-select"
+                  aria-labelledby="kpi-category-label"
+                  aria-expanded={categoryMultiSelectOpen}
+                  aria-haspopup="dialog"
+                  className={`kpiMultiSelectTrigger ${selectedCategories.length > 0 ? 'kpiMultiSelectTrigger--active' : ''} ${categoryMultiSelectOpen ? 'kpiMultiSelectTrigger--open' : ''}`}
+                  onClick={() => setCategoryMultiSelectOpen(prev => !prev)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setCategoryMultiSelectOpen(prev => !prev)
+                    }
+                  }}
                 >
-                  <option value="ALL">ทั้งหมด (ทุกหมวดและทุกยุทธศาสตร์)</option>
-                  <optgroup label="ยุทธศาสตร์">
-                    <option value="ยุทธศาสตร์ที่1">ยุทธศาสตร์ที่1</option>
-                    <option value="ยุทธศาสตร์ที่2">ยุทธศาสตร์ที่2</option>
-                    <option value="ยุทธศาสตร์ที่3">ยุทธศาสตร์ที่3</option>
-                    <option value="ยุทธศาสตร์ที่4">ยุทธศาสตร์ที่4</option>
-                    <option value="ยุทธศาสตร์ที่5">ยุทธศาสตร์ที่5</option>
-                  </optgroup>
-                  <optgroup label="หมวดหมู่คุณภาพ HA">
-                    <option value="หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)">หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)</option>
-                    <option value="หมวดที่ 2: IV-2 ด้านการมุ่งเน้นผู้ป่วยและผู้รับผลงาน">หมวดที่ 2: IV-2 ด้านการมุ่งเน้นผู้ป่วยและผู้รับผลงาน</option>
-                    <option value="หมวดที่ 3: IV-3 ด้านบุคลากร">หมวดที่ 3: IV-3 ด้านบุคลากร</option>
-                    <option value="หมวดที่ 4: IV-4 ด้านการนำและการกำกับดูแล">หมวดที่ 4: IV-4 ด้านการนำและการกำกับดูแล</option>
-                    <option value="หมวดที่ 5: IV-5 ด้านระบบงานสำคัญ">หมวดที่ 5: IV-5 ด้านระบบงานสำคัญ</option>
-                    <option value="หมวดที่ 6: IV-6 ด้านการเงิน">หมวดที่ 6: IV-6 ด้านการเงิน</option>
-                  </optgroup>
-                  {/* แสดงหมวดหมู่อื่นๆ จากฐานข้อมูลหากมีเพิ่มเติม */}
-                  {categories
-                    .filter(c => !c.startsWith('ยุทธศาสตร์ที่') && !c.startsWith('หมวดที่'))
-                    .map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                </select>
-                <ChevronDown size={16} className="kpiSelectArrow" />
+                  <div className="kpiMultiSelectValueWrap">
+                    <span className="kpiMultiSelectText" title={
+                      selectedCategories.length === 0
+                        ? 'ทั้งหมด (ทุกหมวดและทุกยุทธศาสตร์)'
+                        : selectedCategories.length === 1
+                        ? selectedCategories[0]
+                        : `เลือก ${selectedCategories.length} หมวดหมู่ / ยุทธศาสตร์`
+                    }>
+                      {selectedCategories.length === 0
+                        ? 'ทั้งหมด (ทุกหมวดและทุกยุทธศาสตร์)'
+                        : selectedCategories.length === 1
+                        ? selectedCategories[0]
+                        : `เลือก ${selectedCategories.length} หมวดหมู่ / ยุทธศาสตร์`}
+                    </span>
+                    {selectedCategories.length > 1 && (
+                      <span className="kpiMultiSelectBadge">
+                        {selectedCategories.length}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="kpiMultiSelectActionsWrap">
+                    {selectedCategories.length > 0 && (
+                      <button
+                        type="button"
+                        className="kpiMultiSelectClearTrigger"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          clearAllCategories()
+                        }}
+                        title="ล้างการเลือกทั้งหมด"
+                        aria-label="ล้างการเลือกทั้งหมด"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <ChevronDown
+                      size={16}
+                      className={`kpiSelectArrow ${categoryMultiSelectOpen ? 'is-rotated' : ''}`}
+                    />
+                  </div>
+                </div>
+
+                {/* Popover Dropdown Panel */}
+                {categoryMultiSelectOpen && (
+                  <div className="kpiMultiSelectPopover" role="dialog" aria-label="เลือกหมวดหมู่และยุทธศาสตร์">
+                    <div className="kpiMultiSelectHeader">
+                      <div className="kpiMultiSelectSearchWrap">
+                        <Search size={14} className="kpiMultiSelectSearchIcon" />
+                        <input
+                          type="text"
+                          className="kpiMultiSelectSearchInput"
+                          placeholder="พิมพ์ค้นหาหมวดหมู่ / ยุทธศาสตร์..."
+                          value={categorySearchQuery}
+                          onChange={(e) => setCategorySearchQuery(e.target.value)}
+                          autoFocus
+                        />
+                        {categorySearchQuery && (
+                          <button
+                            type="button"
+                            className="kpiMultiSelectSearchClear"
+                            onClick={() => setCategorySearchQuery('')}
+                            aria-label="ล้างคำค้นหา"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="kpiMultiSelectQuickActions">
+                        <span className="kpiMultiSelectCountSummary">
+                          {selectedCategories.length === 0 ? (
+                            'กำลังแสดงทั้งหมด'
+                          ) : (
+                            <>เลือกแล้ว <strong>{selectedCategories.length}</strong> จาก {categoryGroups.all.length}</>
+                          )}
+                        </span>
+                        <div className="kpiMultiSelectQuickBtns">
+                          <button
+                            type="button"
+                            className="kpiQuickActionBtn"
+                            onClick={selectAllCategories}
+                          >
+                            เลือกทั้งหมด
+                          </button>
+                          <span className="kpiQuickActionDivider">|</span>
+                          <button
+                            type="button"
+                            className="kpiQuickActionBtn"
+                            onClick={clearAllCategories}
+                          >
+                            ล้างค่า
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="kpiMultiSelectList">
+                      {/* 1. กลุ่มยุทธศาสตร์ */}
+                      {filteredCategoryGroups.strategy.length > 0 && (
+                        <div className="kpiMultiSelectGroup">
+                          <div className="kpiMultiSelectGroupHeader">
+                            <span className="kpiMultiSelectGroupTitle">กลุ่มยุทธศาสตร์</span>
+                            <button
+                              type="button"
+                              className="kpiMultiSelectGroupToggle"
+                              onClick={() => toggleGroupCategories(filteredCategoryGroups.strategy)}
+                            >
+                              {filteredCategoryGroups.strategy.every(s => selectedCategories.includes(s))
+                                ? 'ยกเลิกทั้งกลุ่ม'
+                                : 'เลือกทั้งกลุ่ม'}
+                            </button>
+                          </div>
+                          {filteredCategoryGroups.strategy.map(cat => {
+                            const isChecked = selectedCategories.includes(cat)
+                            const count = categoryCounts.get(cat) || 0
+                            return (
+                              <label
+                                key={cat}
+                                className={`kpiMultiSelectItem ${isChecked ? 'kpiMultiSelectItem--checked' : ''}`}
+                              >
+                                <span className={`kpiMultiSelectCheckbox ${isChecked ? 'is-checked' : ''}`}>
+                                  {isChecked && <Check size={12} strokeWidth={3} />}
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  className="sr-only"
+                                  checked={isChecked}
+                                  onChange={() => toggleCategory(cat)}
+                                />
+                                <span className="kpiMultiSelectItemLabel">{cat}</span>
+                                <span className="kpiMultiSelectItemCount" title={`${count} ตัวชี้วัด`}>
+                                  {count}
+                                </span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* 2. กลุ่มหมวดหมู่คุณภาพ HA */}
+                      {filteredCategoryGroups.ha.length > 0 && (
+                        <div className="kpiMultiSelectGroup">
+                          <div className="kpiMultiSelectGroupHeader">
+                            <span className="kpiMultiSelectGroupTitle">หมวดหมู่คุณภาพ HA</span>
+                            <button
+                              type="button"
+                              className="kpiMultiSelectGroupToggle"
+                              onClick={() => toggleGroupCategories(filteredCategoryGroups.ha)}
+                            >
+                              {filteredCategoryGroups.ha.every(h => selectedCategories.includes(h))
+                                ? 'ยกเลิกทั้งกลุ่ม'
+                                : 'เลือกทั้งกลุ่ม'}
+                            </button>
+                          </div>
+                          {filteredCategoryGroups.ha.map(cat => {
+                            const isChecked = selectedCategories.includes(cat)
+                            const count = categoryCounts.get(cat) || 0
+                            return (
+                              <label
+                                key={cat}
+                                className={`kpiMultiSelectItem ${isChecked ? 'kpiMultiSelectItem--checked' : ''}`}
+                              >
+                                <span className={`kpiMultiSelectCheckbox ${isChecked ? 'is-checked' : ''}`}>
+                                  {isChecked && <Check size={12} strokeWidth={3} />}
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  className="sr-only"
+                                  checked={isChecked}
+                                  onChange={() => toggleCategory(cat)}
+                                />
+                                <span className="kpiMultiSelectItemLabel">{cat}</span>
+                                <span className="kpiMultiSelectItemCount" title={`${count} ตัวชี้วัด`}>
+                                  {count}
+                                </span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* 3. หมวดหมู่อื่นๆ */}
+                      {filteredCategoryGroups.other.length > 0 && (
+                        <div className="kpiMultiSelectGroup">
+                          <div className="kpiMultiSelectGroupHeader">
+                            <span className="kpiMultiSelectGroupTitle">หมวดหมู่อื่นๆ</span>
+                            <button
+                              type="button"
+                              className="kpiMultiSelectGroupToggle"
+                              onClick={() => toggleGroupCategories(filteredCategoryGroups.other)}
+                            >
+                              {filteredCategoryGroups.other.every(o => selectedCategories.includes(o))
+                                ? 'ยกเลิกทั้งกลุ่ม'
+                                : 'เลือกทั้งกลุ่ม'}
+                            </button>
+                          </div>
+                          {filteredCategoryGroups.other.map(cat => {
+                            const isChecked = selectedCategories.includes(cat)
+                            const count = categoryCounts.get(cat) || 0
+                            return (
+                              <label
+                                key={cat}
+                                className={`kpiMultiSelectItem ${isChecked ? 'kpiMultiSelectItem--checked' : ''}`}
+                              >
+                                <span className={`kpiMultiSelectCheckbox ${isChecked ? 'is-checked' : ''}`}>
+                                  {isChecked && <Check size={12} strokeWidth={3} />}
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  className="sr-only"
+                                  checked={isChecked}
+                                  onChange={() => toggleCategory(cat)}
+                                />
+                                <span className="kpiMultiSelectItemLabel">{cat}</span>
+                                <span className="kpiMultiSelectItemCount" title={`${count} ตัวชี้วัด`}>
+                                  {count}
+                                </span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* กรณีค้นหาแล้วไม่พบ */}
+                      {filteredCategoryGroups.all.length === 0 && (
+                        <div className="kpiMultiSelectEmpty">
+                          ไม่พบหมวดหมู่หรือยุทธศาสตร์ที่ตรงกับ &ldquo;{categorySearchQuery}&rdquo;
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="kpiMultiSelectFooter">
+                      <span className="kpiMultiSelectFooterHint">
+                        {selectedCategories.length === 0
+                          ? 'ยังไม่ได้เลือกหมวด (แสดงตัวชี้วัดทั้งหมด)'
+                          : `กรองเฉพาะ ${selectedCategories.length} หมวดที่เลือก`}
+                      </span>
+                      <button
+                        type="button"
+                        className="kpiMultiSelectDoneBtn"
+                        onClick={() => setCategoryMultiSelectOpen(false)}
+                      >
+                        เสร็จสิ้น
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1080,6 +1458,37 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
               />
             </div>
           </div>
+
+          {/* Active Category Filter Chips (Pills) */}
+          {selectedCategories.length > 0 && (
+            <div className="kpiActiveFilterChips" aria-label="หมวดหมู่ที่เลือกกรอง">
+              <span className="kpiActiveFilterLabel">กรองเฉพาะ ({selectedCategories.length}):</span>
+              <div className="kpiActiveChipsList">
+                {selectedCategories.map(cat => (
+                  <span key={cat} className="kpiActiveChip">
+                    <span className="kpiActiveChipText" title={cat}>
+                      {cat.length > 36 ? cat.substring(0, 36) + '...' : cat}
+                    </span>
+                    <button
+                      type="button"
+                      className="kpiActiveChipRemove"
+                      onClick={() => toggleCategory(cat)}
+                      aria-label={`ลบตัวกรอง ${cat}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  className="kpiClearAllChipsBtn"
+                  onClick={clearAllCategories}
+                >
+                  ล้างตัวกรองทั้งหมด
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Secondary Filter Row */}
           <div className="kpiToolbarSecondary">
@@ -1148,6 +1557,19 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   <option value="FAIL">ไม่ผ่านเกณฑ์</option>
                   <option value="PENDING">ไม่มีรายงาน</option>
                   <option value="WAITING_TARGET">ยังไม่ระบุสถานะ</option>
+                </select>
+              </div>
+
+              <div className="kpiInlineFilter">
+                <span>การกรอกผล:</span>
+                <select
+                  className="kpiMiniSelect"
+                  value={selectedFilledStatus}
+                  onChange={(e) => setSelectedFilledStatus(e.target.value as 'ALL' | 'FILLED' | 'UNFILLED')}
+                >
+                  <option value="ALL">ทั้งหมด</option>
+                  <option value="FILLED">กรอกแล้ว</option>
+                  <option value="UNFILLED">ยังไม่กรอก</option>
                 </select>
               </div>
             </div>
@@ -1963,7 +2385,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                       </span>
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '3px' }}>
-                      ส่งออกเฉพาะตัวชี้วัดที่ถึงรอบตอบแล้ว ณ ปัจจุบัน หรือจะถึงรอบใน 5 วัน (ที่ยังไม่ได้ตอบในรอบนั้น)
+                      ส่งออกเฉพาะตัวชี้วัดที่ถึงรอบตอบแล้ว ณ ปัจจุบัน หรือจะถึงรอบใน 5 วัน
                     </div>
                   </div>
                 </label>

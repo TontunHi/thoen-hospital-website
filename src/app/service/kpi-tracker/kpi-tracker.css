@@ -358,6 +358,512 @@
   transform: translateY(-50%);
   color: var(--ink-muted);
   pointer-events: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.15s ease;
+}
+
+.kpiSelectArrow.is-rotated {
+  transform: translateY(-50%) rotate(180deg);
+  color: var(--accent);
+}
+
+/* ── Multi-Selector Category & Strategy Filter ── */
+.kpiMultiSelectWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 600px;
+}
+
+.kpiMultiSelectTrigger {
+  width: 100%;
+  height: var(--btn-min-height);
+  min-height: var(--btn-min-height);
+  padding: 0 14px 0 16px;
+  border-radius: var(--radius-btn);
+  border: 1px solid #C5D5D1;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.kpiMultiSelectTrigger:hover {
+  border-color: var(--accent);
+  background: #fdfdfd;
+}
+
+.kpiMultiSelectTrigger:focus-visible,
+.kpiMultiSelectTrigger--open {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.kpiMultiSelectTrigger--active {
+  border-color: var(--accent);
+  background: #f0fdf4;
+}
+
+.kpiMultiSelectValueWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.kpiMultiSelectText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+.kpiMultiSelectTrigger--active .kpiMultiSelectText {
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.kpiMultiSelectBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.kpiMultiSelectActionsWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.kpiMultiSelectClearTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--divider);
+  color: var(--ink-muted);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.kpiMultiSelectClearTrigger:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  transform: scale(1.05);
+}
+
+/* ── Popover Dropdown Panel ── */
+.kpiMultiSelectPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  min-width: 380px;
+  max-width: 620px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-elevated);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: kpiPopoverSlideDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kpiPopoverSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kpiMultiSelectHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--divider);
+  background: #fafcfb;
+}
+
+.kpiMultiSelectSearchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.kpiMultiSelectSearchIcon {
+  position: absolute;
+  left: 11px;
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
+.kpiMultiSelectSearchInput {
+  width: 100%;
+  height: 36px;
+  padding: 0 32px 0 32px;
+  border-radius: 8px;
+  border: 1px solid #C5D5D1;
+  background: var(--surface);
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpiMultiSelectSearchInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(15, 107, 99, 0.15);
+}
+
+.kpiMultiSelectSearchClear {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--divider);
+  color: var(--ink-muted);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.kpiMultiSelectQuickActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.kpiMultiSelectCountSummary strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.kpiMultiSelectQuickBtns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kpiQuickActionBtn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.kpiQuickActionBtn:hover {
+  background: rgba(15, 107, 99, 0.08);
+  text-decoration: underline;
+}
+
+.kpiQuickActionDivider {
+  color: #C5D5D1;
+  font-size: 10px;
+}
+
+/* ── Category List & Items ── */
+.kpiMultiSelectList {
+  overflow-y: auto;
+  max-height: 320px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpiMultiSelectGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.kpiMultiSelectGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 4px;
+  border-bottom: 1px solid var(--divider);
+  margin-bottom: 3px;
+}
+
+.kpiMultiSelectGroupTitle {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpiMultiSelectGroupToggle {
+  background: transparent;
+  border: none;
+  color: var(--ink-muted);
+  font-size: 11.5px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.kpiMultiSelectGroupToggle:hover {
+  color: var(--accent);
+  background: rgba(15, 107, 99, 0.08);
+}
+
+.kpiMultiSelectItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  user-select: none;
+}
+
+.kpiMultiSelectItem:hover {
+  background: var(--row-hover);
+}
+
+.kpiMultiSelectItem--checked {
+  background: #f0fdf4;
+}
+
+.kpiMultiSelectItem--checked:hover {
+  background: #e6f9ed;
+}
+
+.kpiMultiSelectCheckbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #A8C2BD;
+  background: var(--surface);
+  color: #ffffff;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.kpiMultiSelectCheckbox.is-checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.kpiMultiSelectItemLabel {
+  flex: 1;
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.kpiMultiSelectItem--checked .kpiMultiSelectItemLabel {
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+
+.kpiMultiSelectItemCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  background: var(--head-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.kpiMultiSelectItem--checked .kpiMultiSelectItemCount {
+  background: #dcfce7;
+  color: var(--accent-ink);
+}
+
+.kpiMultiSelectEmpty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+/* ── Popover Footer ── */
+.kpiMultiSelectFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--head-bg);
+  border-top: 1px solid var(--divider);
+}
+
+.kpiMultiSelectFooterHint {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.kpiMultiSelectDoneBtn {
+  padding: 5px 16px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.kpiMultiSelectDoneBtn:hover {
+  background: var(--accent-ink);
+}
+
+/* ── Active Filter Chips (Pills) Under Toolbar ── */
+.kpiActiveFilterChips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f8faf9;
+  border-radius: 10px;
+  border: 1px dashed #C5D5D1;
+  margin-top: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.kpiActiveFilterLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.kpiActiveChipsList {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.kpiActiveChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 12px;
+  border-radius: 999px;
+  background: #e6f4f1;
+  border: 1px solid #b2dfdb;
+  color: var(--accent-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  transition: all 0.15s ease;
+}
+
+.kpiActiveChip:hover {
+  border-color: var(--accent);
+  background: #d8eee9;
+}
+
+.kpiActiveChipText {
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpiActiveChipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(15, 107, 99, 0.15);
+  color: var(--accent-ink);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.kpiActiveChipRemove:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.kpiClearAllChipsBtn {
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-decoration: underline;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.kpiClearAllChipsBtn:hover {
+  background: #fee2e2;
+  text-decoration: none;
 }
 
 .kpiSearchField {
@@ -1306,9 +1812,15 @@
     gap: 6px;
   }
 
-  .kpiSelectWrapper {
+  .kpiSelectWrapper,
+  .kpiMultiSelectWrapper {
     max-width: 100%;
     width: 100%;
+  }
+
+  .kpiMultiSelectPopover {
+    min-width: 100%;
+    max-width: 100%;
   }
 
   .kpiSearchField {
