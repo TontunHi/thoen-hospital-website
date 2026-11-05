@@ -771,5 +771,215 @@ fastify.post('/api/v1/app/kpi/import-batch', {
   }
 })
 
+// 4.10 Member Auth Context (Hydrates profile, permissions, system settings, and telegram link)
+fastify.post('/api/v1/app/members/auth-context', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'ดึงข้อมูล Context ของสมาชิกเพื่อทำ Authentication (รวมสิทธิ์, ตั้งค่าระบบ, Telegram)',
+    body: {
+      type: 'object',
+      required: ['username', 'email'],
+      properties: {
+        username: { type: 'string' },
+        email: { type: 'string' }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { username, email } = req.body || {}
+  try {
+    const [users] = await appPool.query(
+      'SELECT id, username, email, name, department, position, salary_user, role, signature_path, profile_path FROM members WHERE username = ? AND email = ? LIMIT 1',
+      [username, email]
+    )
+    if (users.length === 0) {
+      return { success: false, data: null, message: 'Member not found' }
+    }
+    const user = users[0]
+    const userPosition = (user.position || '').trim()
+
+    const [permsRes] = await appPool.query(
+      'SELECT permission_key FROM member_permissions WHERE member_id = ?',
+      [user.id]
+    )
+
+    let posPermsRes = []
+    if (userPosition) {
+      const [pRows] = await appPool.query(
+        'SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)',
+        [userPosition]
+      )
+      posPermsRes = pRows
+    }
+
+    const [settingsRows] = await appPool.query('SELECT config_key, config_value FROM member_system_settings')
+    const [telegramRows] = await appPool.query('SELECT id FROM member_telegram_links WHERE member_id = ? LIMIT 1', [user.id])
+
+    const permissions = new Set()
+    permsRes.forEach(r => { if (r.permission_key) permissions.add(r.permission_key) })
+    posPermsRes.forEach(r => { if (r.permission_key) permissions.add(r.permission_key) })
+
+    const settings = {}
+    settingsRows.forEach(r => { if (r.config_key) settings[r.config_key] = r.config_value })
+
+    return {
+      success: true,
+      data: {
+        member: user,
+        permissions: Array.from(permissions),
+        settings,
+        isTelegramLinked: telegramRows.length > 0
+      }
+    }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.11 Check Position Permission
+fastify.post('/api/v1/app/members/check-position-permission', {
+  schema: {
+    tags: ['3. Members Management'],
+    summary: 'ตรวจสอบสิทธิ์ของตำแหน่งงาน',
+    body: {
+      type: 'object',
+      required: ['username', 'permissionKeys'],
+      properties: {
+        username: { type: 'string' },
+        permissionKeys: { type: 'array', items: { type: 'string' } }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const { username, permissionKeys } = req.body || {}
+  try {
+    const [users] = await appPool.query('SELECT position, role FROM members WHERE username = ? LIMIT 1', [username])
+    if (users.length === 0) return { success: true, allowed: false }
+    const user = users[0]
+    if (user.role === 'admin') return { success: true, allowed: true }
+
+    const userPosition = (user.position || '').trim()
+    if (!userPosition || !permissionKeys || permissionKeys.length === 0) return { success: true, allowed: false }
+
+    const placeholders = permissionKeys.map(() => '?').join(', ')
+    const [rows] = await appPool.query(
+      `SELECT COUNT(*) as count FROM position_permissions WHERE permission_key IN (${placeholders}) AND TRIM(position_name) = TRIM(?)`,
+      [...permissionKeys, userPosition]
+    )
+    return { success: true, allowed: (rows[0]?.count || 0) > 0 }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.12 Published News with Attachments
+fastify.get('/api/v1/app/news/published', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการข่าวสารที่มีผลเผยแพร่ในปัจจุบัน พร้อมไฟล์แนบ (หน้าแรก)',
+    querystring: {
+      type: 'object',
+      properties: {
+        limit: { type: 'integer', default: 20 }
+      }
+    }
+  }
+}, async (req, reply) => {
+  const limit = parseInt(req.query?.limit || 20, 10)
+  try {
+    const cacheKey = `app-news-published-${limit}`
+    const data = await getCached(cacheKey, 30000, async () => {
+      const [rawNews] = await appPool.query(`
+        SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
+        FROM news
+        WHERE start_date <= NOW() AND end_date >= NOW()
+        ORDER BY start_date DESC
+        LIMIT ?
+      `, [limit])
+
+      if (rawNews.length === 0) return []
+
+      const newsIds = rawNews.map(n => n.id)
+      const placeholders = newsIds.map(() => '?').join(',')
+      const [attachments] = await appPool.query(`
+        SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
+        FROM attachments
+        WHERE news_id IN (${placeholders})
+        ORDER BY id ASC
+      `, newsIds)
+
+      const attachmentsByNewsId = new Map()
+      for (const att of attachments) {
+        const list = attachmentsByNewsId.get(att.newsId) || []
+        list.push(att)
+        attachmentsByNewsId.set(att.newsId, list)
+      }
+
+      return rawNews.map(item => {
+        const atts = attachmentsByNewsId.get(item.id) || []
+        const imageAttachments = atts.filter(att => att.fileType && att.fileType.startsWith('image/'))
+        const images = imageAttachments.map(att => ({ id: att.id, imageUrl: att.filePath, order: 0 }))
+        const pdfAttachment = atts.find(att => att.fileType === 'application/pdf')
+        return {
+          ...item,
+          images,
+          thumbnailUrl: images[0]?.imageUrl || null,
+          pdfUrl: pdfAttachment?.filePath || null
+        }
+      })
+    })
+    return { success: true, count: data.length, data }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.13 Sitemap News
+fastify.get('/api/v1/app/news/sitemap', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการข่าวสารสำหรับ Sitemap'
+  }
+}, async (req, reply) => {
+  try {
+    const data = await getCached('app-news-sitemap', 300000, async () => {
+      const [rows] = await appPool.query(`
+        SELECT id, slug, updated_at AS updatedAt
+        FROM news
+        WHERE start_date <= NOW() AND end_date >= NOW()
+        ORDER BY start_date DESC
+        LIMIT 500
+      `)
+      return rows
+    })
+    return { success: true, count: data.length, data }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
+// 4.14 Active Hero Slides
+fastify.get('/api/v1/app/slides/active', {
+  schema: {
+    tags: ['4. Website Application Services'],
+    summary: 'ดึงรายการแบนเนอร์สไลด์ที่กำลังแสดงผล (มีผลตามวันที่)'
+  }
+}, async (req, reply) => {
+  try {
+    const data = await getCached('app-slides-active', 60000, async () => {
+      const [rows] = await appPool.query(`
+        SELECT id, title, image_path AS imagePath, link_url AS linkUrl, start_date AS startDate, end_date AS endDate, display_order AS displayOrder, duration, created_at AS createdAt, updated_at AS updatedAt
+        FROM hero_slides
+        WHERE start_date <= NOW() AND end_date >= NOW()
+        ORDER BY display_order ASC, created_at DESC
+      `)
+      return rows
+    })
+    return { success: true, count: data.length, data }
+  } catch (err) {
+    reply.code(500); return { success: false, error: err.message }
+  }
+})
+
 }
 

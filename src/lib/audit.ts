@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import { queryMemberDb } from './memberDb'
+import { apiGateway } from './apiGateway'
 
 import { logger } from './logger'
 
@@ -149,20 +149,16 @@ export async function logAudit(
       // Outside HTTP request context
     }
 
-    // Insert into audit_logs table
-    await queryMemberDb(
-      `INSERT INTO audit_logs (username, email, action_type, target_table, action_details, ip_address, user_agent)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        sanitizedUsername,
-        email,
-        actionType,
-        targetTable,
-        sanitizedDetails,
-        ipAddress ? ipAddress.substring(0, 45) : null,
-        userAgent ? userAgent.substring(0, 255) : null
-      ]
-    )
+    // Insert into audit_logs table via Gateway Named API
+    await apiGateway.app.logAudit({
+      username: sanitizedUsername || undefined,
+      email: email || undefined,
+      actionType,
+      targetTable,
+      actionDetails: sanitizedDetails,
+      ipAddress: ipAddress ? ipAddress.substring(0, 45) : undefined,
+      userAgent: userAgent ? userAgent.substring(0, 255) : undefined,
+    })
   } catch (error) {
     logger.error({ error }, 'Error writing audit log')
   }

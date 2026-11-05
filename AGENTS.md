@@ -102,7 +102,7 @@ Don't run the full checklist on every diff; scale it to what the change touches.
 - **HOSxP Clinical DB (Read-Only):** `@/lib/clinicalDb` (`queryClinicalDb`) and clinical domain services delegate to `apiGateway.clinical.query` or dedicated endpoints. Enforced read-only (`SELECT`, `EXPLAIN`, `SHOW`). See `.agents/skills/hosxp-db-access/SKILL.md`.
 - **Salary DB:** `@/lib/salaryDb` (`querySalaryDb`, `querySalaryEditDb`) delegates to `apiGateway.salary`. See `.agents/skills/salary-db/SKILL.md`.
 - **Website Core & Member DB:** `@/lib/memberDb` (`queryMemberDb`) delegates to `apiGateway.app.query`, `apiGateway.app.execute`, and `apiGateway.app.transaction`.
-- **Remote Gateway Operations (`/ssh-thlp`):** Whenever inspecting, modifying, or deploying the internal API Gateway on the Proxmox VM (`192.168.1.208`), invoke `.agents/skills/ssh-thlp/SKILL.md` via `/ssh-thlp`. Always use ephemeral Python paramiko scripts without persistent credentials, and consult the refactoring roadmap in `docs/gateway/TODO.md`.
+- **Remote Infrastructure & Server Operations (`/ssh-thlp`):** Whenever inspecting, modifying, or deploying on the internal API Gateway VM (`192.168.1.208`, user `thoen`) or the File Storage Proxmox CT (`192.168.1.24`, user `root`), invoke `.agents/skills/ssh-thlp/SKILL.md` via `/ssh-thlp`. Always use ephemeral Python paramiko scripts without persistent credentials, and consult the refactoring roadmap in `docs/gateway/TODO.md`.
 
 ### 3. Authentication & Access Control Flow
 - **Hospital Staff Portal (`/member`):** Passwordless OTP auth. Full flow and required session-check pattern are in `.agents/skills/member-auth-flow/SKILL.md` — read that skill before touching any `/member` route or its APIs.

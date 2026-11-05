@@ -577,6 +577,33 @@ export class ApiGatewayClient {
       return this.delete<{ message: string }>(`/api/v1/app/members/${id}/permissions/${encodeURIComponent(permissionKey)}`)
     },
 
+    getMemberAuthContext: (username: string, email: string) => {
+      return this.post<{
+        member: {
+          id: number
+          username: string
+          email: string
+          name: string | null
+          department: string | null
+          position: string | null
+          salary_user: string | null
+          role: string
+          signature_path: string | null
+          profile_path: string | null
+        } | null
+        permissions: string[]
+        settings: Record<string, string>
+        isTelegramLinked: boolean
+      }>('/api/v1/app/members/auth-context', { username, email })
+    },
+
+    checkPositionPermission: (username: string, permissionKeys: string[]) => {
+      return this.post<{ allowed: boolean }>('/api/v1/app/members/check-position-permission', {
+        username,
+        permissionKeys
+      })
+    },
+
     // ── Security Audit Log ──
     logAudit: (entry: {
       actionType: string
@@ -627,6 +654,14 @@ export class ApiGatewayClient {
       return this.put<{ message: string }>(`/api/v1/app/news/${id}`, news)
     },
 
+    getPublishedNews: (limit = 20) => {
+      return this.get<Array<Record<string, unknown>>>(`/api/v1/app/news/published?limit=${limit}`)
+    },
+
+    getSitemapNews: () => {
+      return this.get<Array<{ id: number; slug: string; updatedAt: string }>>('/api/v1/app/news/sitemap')
+    },
+
     deleteNews: (id: string | number) => {
       return this.delete<{ message: string }>(`/api/v1/app/news/${id}`)
     },
@@ -634,6 +669,10 @@ export class ApiGatewayClient {
     // ── Hero Slides ──
     getSlides: () => {
       return this.get<Array<Record<string, unknown>>>('/api/v1/app/slides')
+    },
+
+    getActiveSlides: () => {
+      return this.get<Array<Record<string, unknown>>>('/api/v1/app/slides/active')
     },
 
     createSlide: (slide: {

@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { queryMemberDb } from '@/lib/memberDb';
+import { apiGateway } from '@/lib/apiGateway';
 import HeroSlideshow from '@/components/common/HeroSlideshow';
 import { 
   Phone,
@@ -18,64 +18,25 @@ export const dynamic = 'force-dynamic';
 
 async function getLatestNews(): Promise<NewsListItem[]> {
   try {
-    const rawNews = await queryMemberDb(`
-      SELECT id, title, slug, category, youtube_link AS youtubeLink, start_date AS startDate, end_date AS endDate, view_count AS viewCount, created_at AS createdAt, updated_at AS updatedAt
-      FROM news
-      WHERE start_date <= NOW() AND end_date >= NOW()
-      ORDER BY start_date DESC
-      LIMIT 20
-    `)
+    const rawNews = await apiGateway.app.getPublishedNews(20);
+    if (!rawNews || rawNews.length === 0) return [];
 
-    if (rawNews.length === 0) return []
-
-    const newsIds = rawNews.map((n: any) => n.id)
-    const placeholders = newsIds.map(() => '?').join(',')
-    const attachments = await queryMemberDb(`
-      SELECT id, news_id AS newsId, file_path AS filePath, file_type AS fileType, original_name AS originalName
-      FROM attachments
-      WHERE news_id IN (${placeholders})
-      ORDER BY id ASC
-    `, newsIds)
-
-    const attachmentsByNewsId = new Map<number, any[]>()
-    for (const att of attachments) {
-      const list = attachmentsByNewsId.get(att.newsId) || []
-      list.push(att)
-      attachmentsByNewsId.set(att.newsId, list)
-    }
-
-    const newsList: NewsListItem[] = rawNews.map((item: any) => {
-      const atts = attachmentsByNewsId.get(item.id) || []
-      const imageAttachments = atts.filter((att: any) => 
-        att.fileType && att.fileType.startsWith('image/')
-      )
-      const images = imageAttachments.map((att: any) => ({
-        id: att.id,
-        imageUrl: att.filePath,
-        order: 0
-      }))
-
-      const pdfAttachment = atts.find((att: any) => 
-        att.fileType === 'application/pdf'
-      )
-
-      return {
-        id: item.id,
-        title: item.title,
-        slug: item.slug,
-        excerpt: '',
-        content: '',
-        youtubeUrl: item.youtubeLink,
-        pdfUrl: pdfAttachment ? pdfAttachment.filePath : null,
-        status: 'PUBLISHED',
-        category: item.category,
-        views: item.viewCount || 0,
-        publishedAt: item.startDate,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        images
-      }
-    })
+    const newsList: NewsListItem[] = rawNews.map((item: any) => ({
+      id: item.id,
+      title: item.title,
+      slug: item.slug,
+      excerpt: '',
+      content: '',
+      youtubeUrl: item.youtubeLink,
+      pdfUrl: item.pdfUrl || null,
+      status: 'PUBLISHED',
+      category: item.category,
+      views: item.viewCount || 0,
+      publishedAt: item.startDate,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      images: item.images || []
+    }));
 
     const selected: NewsListItem[] = [];
     const usedCategories = new Set<string>();
@@ -110,15 +71,23 @@ async function getLatestNews(): Promise<NewsListItem[]> {
   }
 }
 
-async function getActiveSlides() {
+async function getActiveSlides(): Promise<Array<{
+  id: number
+  imagePath: string
+  title: string | null
+  linkUrl: string | null
+  duration?: number | null
+}>> {
   try {
-    const slides = await queryMemberDb(`
-      SELECT id, title, image_path AS imagePath, link_url AS linkUrl, start_date AS startDate, end_date AS endDate, display_order AS displayOrder, duration, created_at AS createdAt, updated_at AS updatedAt
-      FROM hero_slides
-      WHERE start_date <= NOW() AND end_date >= NOW()
-      ORDER BY display_order ASC, created_at DESC
-    `)
-    return slides
+    const rawSlides = await apiGateway.app.getActiveSlides();
+    if (!rawSlides || !Array.isArray(rawSlides)) return [];
+    return rawSlides.map((s: any) => ({
+      id: Number(s.id),
+      imagePath: String(s.imagePath || ''),
+      title: s.title ? String(s.title) : null,
+      linkUrl: s.linkUrl ? String(s.linkUrl) : null,
+      duration: s.duration ? Number(s.duration) : 6
+    }));
   } catch (error) {
     console.error('Fetch active slides error:', error)
     return []

@@ -1669,10 +1669,31 @@
   color: var(--admin-slate-dark);
 }
 
-.viewModeBtn.active {
-  background: var(--admin-primary);
-  color: #FFFFFF;
-  box-shadow: 0 2px 6px rgba(13, 116, 70, 0.25);
+.adminViewHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #166534;
+  line-height: 1.4;
+  box-shadow: 0 1px 3px rgba(13, 116, 70, 0.06);
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.adminViewHintIcon {
+  flex-shrink: 0;
+  color: #0D7446;
+}
+
+.adminViewHint strong {
+  font-weight: 700;
+  color: #0D7446;
 }
 
 .orgViewHintText {
@@ -1998,6 +2019,24 @@
   color: var(--admin-primary);
   border-color: var(--admin-primary);
   transform: translateY(-1px);
+}
+
+.adminDiagramScrollHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--admin-slate-muted);
+  background: #FFFFFF;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.adminDiagramScrollHint svg {
+  color: #0D7446;
 }
 
 .adminZoomControls {

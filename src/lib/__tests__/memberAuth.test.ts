@@ -18,6 +18,18 @@ vi.mock('../audit', () => ({
   logAudit: vi.fn().mockResolvedValue(undefined),
 }))
 
+const mockGetMemberAuthContext = vi.fn()
+const mockCheckPositionPermission = vi.fn()
+
+vi.mock('../apiGateway', () => ({
+  apiGateway: {
+    app: {
+      getMemberAuthContext: (...args: any[]) => mockGetMemberAuthContext(...args),
+      checkPositionPermission: (...args: any[]) => mockCheckPositionPermission(...args),
+    },
+  },
+}))
+
 describe('Member & Salary Authentication & JWT Audience', () => {
   let authService: MemberAuthService
 
@@ -135,42 +147,37 @@ describe('Member & Salary Authentication & JWT Audience', () => {
 })
 
 describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('correctly computes permissions, roles, and feature access', async () => {
     const { fetchAuthenticatedMember } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
 
-    // Mock queryMemberDb for user lookup, perms lookup, settings, and telegram link
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 101,
-          username: 'nurse_som',
-          email: 'som@hospital.go.th',
-          name: 'สมศรี มีสุข',
-          department: 'กลุ่มงานการพยาบาล',
-          position: 'พยาบาลวิชาชีพชำนาญการ',
-          salary_user: '1234567890123',
-          role: 'member',
-          signature_path: 'storage/nurse_som/signature.png',
-          profile_path: 'storage/nurse_som/profile.png',
-        },
-      ]) // members query
-      .mockResolvedValueOnce([{ permission_key: 'manage_ethics' }]) // member permissions
-      .mockResolvedValueOnce([]) // position permissions
-      .mockResolvedValueOnce([
-        { config_key: 'feature_signature', config_value: '1' },
-        { config_key: 'feature_salary', config_value: '0' },
-      ]) // system settings
-      .mockResolvedValueOnce([{ id: 1 }]) // telegram link
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 101,
+        username: 'nurse_som',
+        email: 'som@hospital.go.th',
+        name: 'สมศรี มีสุข',
+        department: 'กลุ่มงานการพยาบาล',
+        position: 'พยาบาลวิชาชีพชำนาญการ',
+        salary_user: '1234567890123',
+        role: 'member',
+        signature_path: 'storage/nurse_som/signature.png',
+        profile_path: 'storage/nurse_som/profile.png',
+      },
+      permissions: ['manage_ethics'],
+      settings: {
+        feature_signature: '1',
+        feature_salary: '0',
+      },
+      isTelegramLinked: true,
+    })
 
     const member = await fetchAuthenticatedMember('nurse_som', 'som@hospital.go.th')
     expect(member).not.toBeNull()
-    expect(querySpy).toHaveBeenNthCalledWith(
-      2,
-      'SELECT permission_key FROM member_permissions WHERE member_id = ?',
-      [101]
-    )
+    expect(mockGetMemberAuthContext).toHaveBeenCalledWith('nurse_som', 'som@hospital.go.th')
     expect(member?.username).toBe('nurse_som')
     expect(member?.name).toBe('สมศรี มีสุข')
     expect(member?.hasSignature).toBe(true)
@@ -183,84 +190,62 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
     expect(member?.isFeatureEnabled('feature_salary')).toBe(false)
     expect(member?.hasAccess('feature_signature')).toBe(true)
     expect(member?.hasAccess('feature_salary')).toBe(false)
-
-    querySpy.mockRestore()
   })
 
   it('grants all permissions and feature access to admin users', async () => {
     const { fetchAuthenticatedMember } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
 
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 1,
-          username: 'admin_it',
-          email: 'admin@hospital.go.th',
-          name: 'แอดมิน โรงพยาบาล',
-          department: 'งานดิจิทัล',
-          position: 'นักวิชาการคอมพิวเตอร์',
-          salary_user: null,
-          role: 'admin',
-          signature_path: null,
-          profile_path: null,
-        },
-      ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]) // position permissions
-      .mockResolvedValueOnce([{ config_key: 'feature_salary', config_value: '0' }])
-      .mockResolvedValueOnce([])
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 1,
+        username: 'admin_it',
+        email: 'admin@hospital.go.th',
+        name: 'แอดมิน โรงพยาบาล',
+        department: 'งานดิจิทัล',
+        position: 'นักวิชาการคอมพิวเตอร์',
+        salary_user: null,
+        role: 'admin',
+        signature_path: null,
+        profile_path: null,
+      },
+      permissions: [],
+      settings: { feature_salary: '0' },
+      isTelegramLinked: false,
+    })
 
     const member = await fetchAuthenticatedMember('admin_it', 'admin@hospital.go.th')
     expect(member).not.toBeNull()
-    expect(querySpy).toHaveBeenNthCalledWith(
-      2,
-      'SELECT permission_key FROM member_permissions WHERE member_id = ?',
-      [1]
-    )
     expect(member?.isAdmin).toBe(true)
     expect(member?.can('manage_ethics')).toBe(true)
     expect(member?.can('manage_news')).toBe(true)
     expect(member?.can('upload_salary')).toBe(true)
     // Even if setting is 0, admin has access
     expect(member?.hasAccess('feature_salary')).toBe(true)
-
-    querySpy.mockRestore()
   })
 
   it('serializes AuthenticatedMember to a plain serializable DTO without functions or Set', async () => {
     const { fetchAuthenticatedMember, toClientMember } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
 
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 303,
-          username: 'doctor_a',
-          email: 'doctor_a@thoen.go.th',
-          name: 'นพ. สมเกียรติ มั่นคง',
-          department: 'องค์กรแพทย์',
-          position: 'นายแพทย์ชำนาญการพิเศษ',
-          salary_user: '3520100123456',
-          role: 'member',
-          signature_path: '/uploads/signatures/doc_a.png',
-          profile_path: '/uploads/profiles/doc_a.jpg',
-        },
-      ])
-      .mockResolvedValueOnce([{ permission_key: 'manage_rdu' }])
-      .mockResolvedValueOnce([]) // position permissions
-      .mockResolvedValueOnce([{ config_key: 'feature_signature', config_value: '1' }])
-      .mockResolvedValueOnce([{ id: 5 }])
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 303,
+        username: 'doctor_a',
+        email: 'doctor_a@thoen.go.th',
+        name: 'นพ. สมเกียรติ มั่นคง',
+        department: 'องค์กรแพทย์',
+        position: 'นายแพทย์ชำนาญการพิเศษ',
+        salary_user: '3520100123456',
+        role: 'member',
+        signature_path: '/uploads/signatures/doc_a.png',
+        profile_path: '/uploads/profiles/doc_a.jpg',
+      },
+      permissions: ['manage_rdu'],
+      settings: { feature_signature: '1' },
+      isTelegramLinked: true,
+    })
 
     const member = await fetchAuthenticatedMember('doctor_a', 'doctor_a@thoen.go.th')
     expect(member).not.toBeNull()
-    expect(querySpy).toHaveBeenNthCalledWith(
-      2,
-      'SELECT permission_key FROM member_permissions WHERE member_id = ?',
-      [303]
-    )
 
     const dto = toClientMember(member!)
     expect(dto.id).toBe(303)
@@ -286,94 +271,78 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
     const parsed = JSON.parse(jsonString)
     expect(parsed.id).toBe(303)
     expect(parsed.permissions).toContain('manage_rdu')
-
-    querySpy.mockRestore()
   })
 
   it('evaluates individual permissions for upload_salary without legacy position hardcoding', async () => {
     const { fetchAuthenticatedMember } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
-
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
 
     // 1. User with individual upload_salary permission (regardless of position)
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 201,
-          username: 'finance_individual',
-          email: 'fin@hospital.go.th',
-          name: 'เจ้าหน้าที่ การเงิน',
-          department: 'การเงิน',
-          position: 'นักวิชาการเงินและบัญชี',
-          salary_user: '1234567890123',
-          role: 'member',
-          signature_path: null,
-          profile_path: null,
-        },
-      ])
-      .mockResolvedValueOnce([{ permission_key: 'upload_salary' }])
-      .mockResolvedValueOnce([]) // position permissions
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 201,
+        username: 'finance_individual',
+        email: 'fin@hospital.go.th',
+        name: 'เจ้าหน้าที่ การเงิน',
+        department: 'การเงิน',
+        position: 'นักวิชาการเงินและบัญชี',
+        salary_user: '1234567890123',
+        role: 'member',
+        signature_path: null,
+        profile_path: null,
+      },
+      permissions: ['upload_salary'],
+      settings: {},
+      isTelegramLinked: false,
+    })
 
     const memberWithPerm = await fetchAuthenticatedMember('finance_individual', 'fin@hospital.go.th')
     expect(memberWithPerm?.can('upload_salary')).toBe(true)
     expect(memberWithPerm?.can(['upload_salary', 'manage_news'])).toBe(true)
 
     // 2. User with legacy position title "เจ้าพนักงานการเงินและบัญชี" but NO upload_salary in member_permissions
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 202,
-          username: 'finance_no_perm',
-          email: 'fin2@hospital.go.th',
-          name: 'จนท. บัญชี',
-          department: 'การเงิน',
-          position: 'เจ้าพนักงานการเงินและบัญชี',
-          salary_user: null,
-          role: 'member',
-          signature_path: null,
-          profile_path: null,
-        },
-      ])
-      .mockResolvedValueOnce([]) // NO member_permissions
-      .mockResolvedValueOnce([]) // position permissions
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 202,
+        username: 'finance_no_perm',
+        email: 'fin2@hospital.go.th',
+        name: 'จนท. บัญชี',
+        department: 'การเงิน',
+        position: 'เจ้าพนักงานการเงินและบัญชี',
+        salary_user: null,
+        role: 'member',
+        signature_path: null,
+        profile_path: null,
+      },
+      permissions: [],
+      settings: {},
+      isTelegramLinked: false,
+    })
 
     const memberWithoutPerm = await fetchAuthenticatedMember('finance_no_perm', 'fin2@hospital.go.th')
     expect(memberWithoutPerm?.can('upload_salary')).toBe(false)
-
-    querySpy.mockRestore()
   })
 
   it('evaluates individual permissions for manage_news', async () => {
     const { fetchAuthenticatedMember } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
-
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
 
     // User granted manage_news individually
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 203,
-          username: 'pr_officer',
-          email: 'pr@hospital.go.th',
-          name: 'เจ้าหน้าที่ ประชาสัมพันธ์',
-          department: 'บริหารทั่วไป',
-          position: 'นักประชาสัมพันธ์',
-          salary_user: null,
-          role: 'member',
-          signature_path: null,
-          profile_path: null,
-        },
-      ])
-      .mockResolvedValueOnce([{ permission_key: 'manage_news' }])
-      .mockResolvedValueOnce([]) // position permissions
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 203,
+        username: 'pr_officer',
+        email: 'pr@hospital.go.th',
+        name: 'เจ้าหน้าที่ ประชาสัมพันธ์',
+        department: 'บริหารทั่วไป',
+        position: 'นักประชาสัมพันธ์',
+        salary_user: null,
+        role: 'member',
+        signature_path: null,
+        profile_path: null,
+      },
+      permissions: ['manage_news'],
+      settings: {},
+      isTelegramLinked: false,
+    })
 
     const memberWithNews = await fetchAuthenticatedMember('pr_officer', 'pr@hospital.go.th')
     expect(memberWithNews?.can('manage_news')).toBe(true)
@@ -382,82 +351,57 @@ describe('AuthenticatedMember Context & RBAC Helper Methods', () => {
 
   it('hydrates permissions from position_permissions table into member permissions set', async () => {
     const { fetchAuthenticatedMember } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
 
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 501,
-          username: 'supplies_officer',
-          email: 'supplies@hospital.go.th',
-          name: 'เจ้าหน้าที่ พัสดุ',
-          department: 'งานพัสดุ',
-          position: 'เจ้าพนักงานพัสดุ',
-          role: 'member',
-        },
-      ])
-      .mockResolvedValueOnce([]) // member_permissions (none)
-      .mockResolvedValueOnce([{ permission_key: 'manage_news' }]) // position_permissions
-      .mockResolvedValueOnce([]) // settings
-      .mockResolvedValueOnce([]) // telegram
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 501,
+        username: 'supplies_officer',
+        email: 'supplies@hospital.go.th',
+        name: 'เจ้าหน้าที่ พัสดุ',
+        department: 'งานพัสดุ',
+        position: 'เจ้าพนักงานพัสดุ',
+        role: 'member',
+      },
+      permissions: ['manage_news'],
+      settings: {},
+      isTelegramLinked: false,
+    })
 
     const member = await fetchAuthenticatedMember('supplies_officer', 'supplies@hospital.go.th')
     expect(member).not.toBeNull()
     expect(member?.can('manage_news')).toBe(true)
     expect(member?.permissions.has('manage_news')).toBe(true)
-    expect(querySpy).toHaveBeenNthCalledWith(
-      3,
-      'SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)',
-      ['เจ้าพนักงานพัสดุ']
-    )
-
-    querySpy.mockRestore()
   })
 })
 
 describe('checkPositionPermission', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('returns true for admin role', async () => {
     const { checkPositionPermission } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
-
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    querySpy.mockResolvedValueOnce([{ id: 1, position: 'นักวิชาการคอมพิวเตอร์', role: 'admin' }])
+    mockCheckPositionPermission.mockResolvedValueOnce({ allowed: true })
 
     const result = await checkPositionPermission('admin_user', 'upload_salary')
     expect(result).toBe(true)
-
-    querySpy.mockRestore()
+    expect(mockCheckPositionPermission).toHaveBeenCalledWith('admin_user', ['upload_salary'])
   })
 
   it('returns false for legacy position without database position_permissions record', async () => {
     const { checkPositionPermission } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
-
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    querySpy
-      .mockResolvedValueOnce([{ id: 2, position: 'เจ้าพนักงานการเงินและบัญชี', role: 'member' }])
-      .mockResolvedValueOnce([{ count: 0 }])
+    mockCheckPositionPermission.mockResolvedValueOnce({ allowed: false })
 
     const result = await checkPositionPermission('legacy_finance', 'upload_salary')
     expect(result).toBe(false)
-
-    querySpy.mockRestore()
   })
 
   it('returns true when position permission exists in position_permissions table', async () => {
     const { checkPositionPermission } = await import('../memberAuth')
-    const memberDb = await import('../memberDb')
-
-    const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
-    querySpy
-      .mockResolvedValueOnce([{ id: 3, position: 'นักประชาสัมพันธ์', role: 'member' }])
-      .mockResolvedValueOnce([{ count: 1 }])
+    mockCheckPositionPermission.mockResolvedValueOnce({ allowed: true })
 
     const result = await checkPositionPermission('pr_staff', 'manage_news')
     expect(result).toBe(true)
-
-    querySpy.mockRestore()
   })
 })
 
@@ -465,6 +409,8 @@ describe('requireNewsPermission Route Guard', () => {
   let authService: MemberAuthService
 
   beforeEach(() => {
+    vi.clearAllMocks()
+    process.env.MEMBER_SESSION_SECRET = 'test-member-secret-at-least-32-chars-long!!'
     authService = new MemberAuthService(vi.fn())
   })
 
@@ -514,23 +460,22 @@ describe('requireNewsPermission Route Guard', () => {
     const querySpy = vi.spyOn(memberDb, 'queryMemberDb')
     // 1. verifySession check
     querySpy.mockResolvedValueOnce([{ role: 'member' }])
-    // 2. fetchAuthenticatedMember mocks:
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 401,
-          username: 'news_editor',
-          email: 'news@hospital.go.th',
-          name: 'บรรณาธิการ ข่าว',
-          department: 'บริหาร',
-          position: 'เจ้าหน้าที่ทั่วไป',
-          role: 'member',
-        },
-      ])
-      .mockResolvedValueOnce([{ permission_key: 'manage_news' }])
-      .mockResolvedValueOnce([]) // position permissions // member_permissions
-      .mockResolvedValueOnce([]) // settings
-      .mockResolvedValueOnce([]) // telegram
+    
+    // 2. getMemberAuthContext mock:
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 401,
+        username: 'news_editor',
+        email: 'news@hospital.go.th',
+        name: 'บรรณาธิการ ข่าว',
+        department: 'บริหาร',
+        position: 'เจ้าหน้าที่ทั่วไป',
+        role: 'member',
+      },
+      permissions: ['manage_news'],
+      settings: {},
+      isTelegramLinked: false,
+    })
 
     const result = await requireNewsPermission()
     expect(result.error).toBeUndefined()
@@ -554,30 +499,22 @@ describe('requireNewsPermission Route Guard', () => {
     // 1. verifySession check
     querySpy.mockResolvedValueOnce([{ role: 'member' }])
     // 2. fetchAuthenticatedMember: has no individual manage_news
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 402,
-          username: 'pr_officer_pos',
-          email: 'pr@hospital.go.th',
-          name: 'เจ้าหน้าที่ ประชาสัมพันธ์',
-          department: 'บริหาร',
-          position: 'นักประชาสัมพันธ์',
-          role: 'member',
-        },
-      ])
-      .mockResolvedValueOnce([]) // no individual permissions
-      .mockResolvedValueOnce([]) // position permissions
-      .mockResolvedValueOnce([]) // settings
-      .mockResolvedValueOnce([]) // telegram
-      // 3. checkPositionPermission queries:
-      .mockResolvedValueOnce([
-        {
-          position: 'นักประชาสัมพันธ์',
-          role: 'member',
-        },
-      ]) // members query
-      .mockResolvedValueOnce([{ count: 1 }]) // position_permissions query count > 0
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 402,
+        username: 'pr_officer_pos',
+        email: 'pr@hospital.go.th',
+        name: 'เจ้าหน้าที่ ประชาสัมพันธ์',
+        department: 'บริหาร',
+        position: 'นักประชาสัมพันธ์',
+        role: 'member',
+      },
+      permissions: [],
+      settings: {},
+      isTelegramLinked: false,
+    })
+    // 3. checkPositionPermission:
+    mockCheckPositionPermission.mockResolvedValueOnce({ allowed: true })
 
     const result = await requireNewsPermission()
     expect(result.error).toBeUndefined()
@@ -601,30 +538,22 @@ describe('requireNewsPermission Route Guard', () => {
     // 1. verifySession check
     querySpy.mockResolvedValueOnce([{ role: 'member' }])
     // 2. fetchAuthenticatedMember: no individual permissions
-    querySpy
-      .mockResolvedValueOnce([
-        {
-          id: 403,
-          username: 'unauthorized_member',
-          email: 'user@hospital.go.th',
-          name: 'ผู้ใช้ ทั่วไป',
-          department: 'กลุ่มงานทั่วไป',
-          position: 'พนักงานบริการ',
-          role: 'member',
-        },
-      ])
-      .mockResolvedValueOnce([]) // no individual permissions
-      .mockResolvedValueOnce([]) // position permissions
-      .mockResolvedValueOnce([]) // settings
-      .mockResolvedValueOnce([]) // telegram
-      // 3. checkPositionPermission:
-      .mockResolvedValueOnce([
-        {
-          position: 'พนักงานบริการ',
-          role: 'member',
-        },
-      ])
-      .mockResolvedValueOnce([{ count: 0 }]) // position_permissions count = 0
+    mockGetMemberAuthContext.mockResolvedValueOnce({
+      member: {
+        id: 403,
+        username: 'unauthorized_member',
+        email: 'user@hospital.go.th',
+        name: 'ผู้ใช้ ทั่วไป',
+        department: 'กลุ่มงานทั่วไป',
+        position: 'พนักงานบริการ',
+        role: 'member',
+      },
+      permissions: [],
+      settings: {},
+      isTelegramLinked: false,
+    })
+    // 3. checkPositionPermission:
+    mockCheckPositionPermission.mockResolvedValueOnce({ allowed: false })
 
     const result = await requireNewsPermission()
     expect(result.error).toBeDefined()
@@ -635,5 +564,6 @@ describe('requireNewsPermission Route Guard', () => {
     querySpy.mockRestore()
   })
 })
+
 
 

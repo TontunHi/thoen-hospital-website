@@ -30,7 +30,7 @@
                  │
                  ▼
 [ Phase 4: Object Storage Evolution (MinIO Proxmox LXC) ]
-สร้าง Proxmox LXC Container (192.168.1.209) รัน MinIO S3-Compatible Storage
+สร้าง Proxmox LXC Container (192.168.1.24: root) รัน MinIO S3-Compatible Storage
   └── ปรับ documentStorage.ts ใช้ S3 SDK / เว็บไซต์กลายเป็น Stateless 100%
 ```
 
@@ -82,8 +82,18 @@
     - [x] `src/app/api/salary/data/route.ts`: เปลี่ยนมาใช้ `apiGateway.salary.getRecords()` และ `apiGateway.salary.getCalendar()`
     - [x] `src/app/api/salary/all/statement/route.ts`: เปลี่ยนมาใช้ `apiGateway.salary.getRecords()`
     - [x] `src/lib/salary/salaryLedgerService.ts`: เปลี่ยนค่าเริ่มต้นมาใช้ `apiGateway.salary.getRecords()` และ `apiGateway.salary.getCalendar()`
-  - [ ] **`src/lib/memberDb.ts`** (Domain ถัดไป):
-    - [ ] สำรวจและสร้าง Named API รองรับ Task Inbox, Member Profile, Permissions, Telegram Bot
+  - [x] **Member & App Domain Migration (Named APIs แทนที่ Raw SQL)**:
+    - [x] `POST /api/v1/app/members/auth-context`: รวม Member profile, permissions, position permissions, settings, telegram link ใน 1 atomic roundtrip
+    - [x] `POST /api/v1/app/members/check-position-permission`: ตรวจสอบสิทธิ์ตามตำแหน่งงาน
+    - [x] `GET /api/v1/app/news/published`: ข่าวประชาสัมพันธ์สถานะ published สำหรับหน้าหลัก
+    - [x] `GET /api/v1/app/news/sitemap`: ดึงรายการข่าวสำหรับ Next.js sitemap generator
+    - [x] `GET /api/v1/app/slides/active`: ดึงภาพ Hero Banner สไลด์ที่กำลังแสดงผล
+    - [x] `POST /api/v1/audit/log`: บันทึก Audit Log (PDPA) ตรงสู่ Gateway
+    - [x] `src/lib/memberAuth.ts`: ปรับ `fetchAuthenticatedMember` และ `checkPositionPermission` ให้ใช้ Named APIs 100%
+    - [x] `src/lib/audit.ts`: ปรับ `logAudit` ให้ส่งตรงผ่าน Gateway Named API
+    - [x] `src/app/page.tsx`, `src/app/sitemap.ts`, `src/lib/prisma.ts`: แปลงการดึงข้อมูลและ ping ให้ผ่าน Named APIs และ `apiGateway.health()`
+  - [ ] **Task Inbox & Legacy CMS Queries in `src/lib/memberDb.ts`** (Domain ถัดไป):
+    - [ ] สำรวจและสร้าง Named API รองรับ Task Inbox workflows ใน `src/lib/taskInboxService.ts`
     - [ ] เมื่อไม่มีส่วนใดในระบบเรียกใช้แล้ว ให้ปิดตาย (Disable) Endpoint `/api/v1/app/query`, `/execute`, `/transaction` และ `/api/v1/salary/execute` ในไฟล์ `routes/rawSql.js`
 
 ---
@@ -97,22 +107,23 @@
 
 ---
 
-### [ ] Phase 4: ยกระดับระบบจัดเก็บไฟล์สู่ MinIO Object Storage (ความสำคัญ: โครงสร้างพื้นฐานถัดไป)
+### [x] Phase 4: ยกระดับระบบจัดเก็บไฟล์สู่ MinIO Object Storage (สถานะ: สำเร็จสมบูรณ์แล้ว 100% ✅)
 * **เป้าหมาย:** แยกการจัดเก็บไฟล์อัปโหลด (รูปภาพข่าวสาร, สไลด์, เอกสารแนบกิจกรรม, ไฟล์แนบงานซ่อม, รูปโปรไฟล์) ออกจาก Disk ของ Web Server สู่ระบบ Object Storage มาตรฐาน S3 ช่วยให้เว็บเป็น Stateless 100% และลดความเสี่ยง Disk เต็มดึงให้ Gateway ล่ม
 * **สเปก Proxmox LXC Container (CT):**
   * **OS Template:** Debian 12 Standard LXC หรือ Ubuntu 24.04 LTS
+  * **SSH Access:** `root@192.168.1.24` (Port `22`)
   * **vCPU:** 2 Cores
   * **RAM:** 2 GB (Swap: 1 GB)
   * **Disk:** 50 – 100 GB+ (แยก Volume ข้อมูลไว้ที่ `/mnt/data`)
-  * **Network:** Static IP (เช่น `192.168.1.209/24`, Gateway: `192.168.1.1`)
+  * **Network:** Static IP `192.168.1.24/24`, Gateway: `192.168.1.1`
   * **Ports:** `9000` (S3 API), `9001` (Web Console)
 * **การเชื่อมต่อและการเขียนโค้ด (Next.js Integration):**
-  - [ ] สร้าง Bucket สำหรับงานต่าง ๆ:
+  - [x] สร้าง Bucket สำหรับงานต่าง ๆ (สร้างและทดสอบเรียบร้อยแล้ว ✅):
     - `public-assets` (รูปข่าว, สไลด์แบนเนอร์, โลโก้ — สิทธิ์ Public Read)
     - `private-documents` (เอกสารคำสั่ง, สลิป, ไฟล์แนบงานซ่อม — สิทธิ์ Private เข้าถึงผ่าน Presigned URL)
-  - [ ] ติดตั้ง `@aws-sdk/client-s3` และ `@aws-sdk/s3-request-presigner` ในเว็บ Next.js
-  - [ ] ปรับปรุงโมดูลกลาง [`src/lib/storage/documentStorage.ts`](file:///c:/Users/Tontun/Documents/thoen-hospital-website/src/lib/storage/documentStorage.ts) และ `src/app/uploads/[...path]/route.ts` ให้บันทึกและสตรีมไฟล์ผ่าน MinIO
-  - [ ] เขียนสคริปต์ Migration เพื่อโอนย้ายไฟล์เดิมจากโฟลเดอร์ `public/uploads/` และ `storage/` ขึ้น MinIO Bucket ครั้งแรก
+  - [x] ติดตั้ง `@aws-sdk/client-s3` และ `@aws-sdk/s3-request-presigner` ในเว็บ Next.js ✅
+  - [x] ปรับปรุงโมดูลกลาง [`src/lib/storage/documentStorage.ts`](file:///c:/Users/Tontun/Documents/thoen-hospital-website/src/lib/storage/documentStorage.ts) และ `src/app/uploads/[...path]/route.ts` ให้บันทึกและสตรีมไฟล์ผ่าน MinIO ✅
+  - [x] เขียนสคริปต์ Migration เพื่อโอนย้ายไฟล์เดิมจากโฟลเดอร์ `public/uploads/` และ `storage/` ขึ้น MinIO Bucket ครั้งแรก (`scripts/migrateStorageToS3.ts` / `npm run storage:migrate`) ✅
 
 ---
 *เอกสารอ้างอิง: [`docs/ZERO_DB_GATEWAY_PLAN.md`](file:///c:/Users/Tontun/Documents/thoen-hospital-website/docs/ZERO_DB_GATEWAY_PLAN.md) และ [`docs/gateway/server.js`](file:///c:/Users/Tontun/Documents/thoen-hospital-website/docs/gateway/server.js)*

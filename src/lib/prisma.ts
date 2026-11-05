@@ -21,8 +21,8 @@ const basePrisma =
 // In Zero-DB mode, route raw health/ping checks through Gateway
 if (!process.env.DATABASE_URL) {
   basePrisma.$queryRaw = async (...args: any[]) => {
-    const { queryMemberDb } = await import('./memberDb')
-    return queryMemberDb('SELECT 1')
+    const { apiGateway } = await import('./apiGateway')
+    return apiGateway.health()
   }
 }
 

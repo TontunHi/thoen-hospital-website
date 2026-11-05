@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { queryMemberDb } from '@/lib/memberDb'
+import { apiGateway } from '@/lib/apiGateway'
 import { siteConfig } from '@/config/site'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -127,14 +127,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Dynamic news pages
   let newsRoutes: MetadataRoute.Sitemap = []
   try {
-    const publishedNews = await queryMemberDb(`
-      SELECT slug, updated_at AS updatedAt
-      FROM news
-      WHERE start_date <= NOW() AND end_date >= NOW()
-      LIMIT 100
-    `)
+    const publishedNews = await apiGateway.app.getSitemapNews()
 
-    newsRoutes = publishedNews.map((item: any) => ({
+    newsRoutes = (publishedNews || []).map((item: any) => ({
       url: `${baseUrl}/news/${item.slug}`,
       lastModified: item.updatedAt ? new Date(item.updatedAt) : now,
       changeFrequency: 'weekly',

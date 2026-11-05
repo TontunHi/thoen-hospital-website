@@ -284,51 +284,16 @@ export async function destroyMemberSession(): Promise<void> {
  */
 export async function fetchAuthenticatedMember(username: string, email: string): Promise<AuthenticatedMember | null> {
   try {
-    const { queryMemberDb } = await import('./memberDb')
+    const { apiGateway } = await import('./apiGateway')
+    const res = await apiGateway.app.getMemberAuthContext(username, email)
+    if (!res || !res.member) return null
 
-    // 1. Fetch member core profile
-    const users = await queryMemberDb(
-      'SELECT id, username, email, name, department, position, salary_user, role, signature_path, profile_path FROM members WHERE username = ? AND email = ? LIMIT 1',
-      [username, email]
-    )
-
-    if (!users || users.length === 0) return null
-    const user = users[0]
-
+    const user = res.member
     const userPosition = (user.position || '').trim()
     const isAdmin = user.role === 'admin'
-
-    // 2. Fetch parallel context data: permissions, system settings, telegram linking
-    const [permsRes, posPermsRes, settingsRows, telegramRows] = await Promise.all([
-      queryMemberDb('SELECT permission_key FROM member_permissions WHERE member_id = ?', [user.id]),
-      userPosition
-        ? queryMemberDb('SELECT permission_key FROM position_permissions WHERE TRIM(position_name) = TRIM(?)', [userPosition])
-        : Promise.resolve([]),
-      queryMemberDb('SELECT config_key, config_value FROM member_system_settings'),
-      queryMemberDb('SELECT id FROM member_telegram_links WHERE member_id = ? LIMIT 1', [user.id])
-    ])
-
-    const permissions = new Set<string>()
-    if (permsRes && Array.isArray(permsRes)) {
-      permsRes.forEach((row: any) => {
-        if (row.permission_key) permissions.add(row.permission_key)
-      })
-    }
-
-    if (posPermsRes && Array.isArray(posPermsRes)) {
-      posPermsRes.forEach((row: any) => {
-        if (row.permission_key) permissions.add(row.permission_key)
-      })
-    }
-
-    const settings: Record<string, string> = {}
-    if (settingsRows && Array.isArray(settingsRows)) {
-      settingsRows.forEach((row: any) => {
-        if (row.config_key) settings[row.config_key] = row.config_value
-      })
-    }
-
-    const isTelegramLinked = Boolean(telegramRows && telegramRows.length > 0)
+    const permissions = new Set<string>(res.permissions || [])
+    const settings = res.settings || {}
+    const isTelegramLinked = Boolean(res.isTelegramLinked)
     const hasSignature = Boolean(user.signature_path)
     const hasSalary = Boolean(user.salary_user)
 
@@ -536,28 +501,10 @@ export async function checkPositionPermission(
   permissionKey: string | string[]
 ): Promise<boolean> {
   try {
-    const { queryMemberDb } = await import('./memberDb')
-    const users = await queryMemberDb(
-      'SELECT position, role FROM members WHERE username = ? LIMIT 1',
-      [username]
-    )
-
-    if (!users || users.length === 0) return false
-    const user = users[0]
-    if (user.role === 'admin') return true
-
-    const userPosition = (user.position || '').trim()
-    if (!userPosition) return false
-
+    const { apiGateway } = await import('./apiGateway')
     const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey]
-    const placeholders = keys.map(() => '?').join(', ')
-
-    const result = await queryMemberDb(
-      `SELECT COUNT(*) as count FROM position_permissions WHERE permission_key IN (${placeholders}) AND TRIM(position_name) = TRIM(?)`,
-      [...keys, userPosition]
-    )
-
-    return (result[0]?.count || 0) > 0
+    const res = await apiGateway.app.checkPositionPermission(username, keys)
+    return Boolean(res?.allowed)
   } catch (error) {
     logger.error({ error }, 'Check position permission error')
     return false

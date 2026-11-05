@@ -1,6 +1,7 @@
 import fs from 'fs/promises'
 import fsSync from 'fs'
 import path from 'path'
+import { isS3Configured, uploadToS3, deleteFromS3, getObjectFromS3, S3_CONFIG } from './s3Client'
 
 export interface StorageSaveOptions {
   /**
@@ -226,6 +227,23 @@ export const DocumentStorage = {
       publicUrl = '/' + relativePath
     }
 
+    // Mirror to MinIO / S3 Object Storage if configured
+    if (isS3Configured()) {
+      try {
+        const isPrivate = safeDestDir.startsWith('storage') || safeDestDir.includes('private')
+        const bucket = isPrivate ? S3_CONFIG.privateBucket : S3_CONFIG.publicBucket
+        const s3Key = relativePath.startsWith('public/') ? relativePath.substring('public/'.length) : relativePath
+        await uploadToS3({
+          bucket,
+          key: s3Key,
+          body: buffer,
+          contentType: mimeType,
+        })
+      } catch (s3Err) {
+        console.warn(`[DocumentStorage] S3 upload failed for ${relativePath}, kept on local disk:`, s3Err)
+      }
+    }
+
     return {
       publicUrl,
       relativePath,
@@ -260,6 +278,18 @@ export const DocumentStorage = {
       assertSafePath(relPath, allowedRoots)
     } catch {
       return false
+    }
+
+    // Delete from MinIO / S3 if configured
+    if (isS3Configured()) {
+      try {
+        const isPrivate = relPath.startsWith('storage') || relPath.includes('private')
+        const bucket = isPrivate ? S3_CONFIG.privateBucket : S3_CONFIG.publicBucket
+        const s3Key = relPath.startsWith('public/') ? relPath.substring('public/'.length) : relPath
+        await deleteFromS3({ bucket, key: s3Key })
+      } catch (s3Err) {
+        console.warn(`[DocumentStorage] S3 delete failed for ${relPath}:`, s3Err)
+      }
     }
 
     const absolutePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relPath)
@@ -359,6 +389,27 @@ export const DocumentStorage = {
 
     assertSafePath(relPath, allowedRoots)
 
+    // Try reading from MinIO / S3 first
+    if (isS3Configured()) {
+      try {
+        const isPrivate = relPath.startsWith('storage') || relPath.includes('private')
+        const bucket = isPrivate ? S3_CONFIG.privateBucket : S3_CONFIG.publicBucket
+        const s3Key = relPath.startsWith('public/') ? relPath.substring('public/'.length) : relPath
+        const s3Res = await getObjectFromS3({ bucket, key: s3Key })
+        if (s3Res.Body) {
+          const bodyAny = s3Res.Body as any
+          if (typeof bodyAny.transformToByteArray === 'function') {
+            const bytes = await bodyAny.transformToByteArray()
+            return Buffer.from(bytes)
+          }
+        }
+      } catch (s3Err: any) {
+        if (s3Err?.name !== 'NoSuchKey' && s3Err?.$metadata?.httpStatusCode !== 404) {
+          console.warn(`[DocumentStorage] S3 readBuffer failed for ${relPath}:`, s3Err?.message || s3Err)
+        }
+      }
+    }
+
     const absolutePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relPath)
     try {
       const stat = await fs.stat(absolutePath)
@@ -380,8 +431,48 @@ export const DocumentStorage = {
 
     try {
       assertSafePath(relPath, allowedRoots)
-    } catch (e: any) {
+    } catch {
       return new Response('Forbidden', { status: 403 })
+    }
+
+    // Try streaming from MinIO / S3 first
+    if (isS3Configured()) {
+      try {
+        const isPrivate = relPath.startsWith('storage') || relPath.includes('private')
+        const bucket = isPrivate ? S3_CONFIG.privateBucket : S3_CONFIG.publicBucket
+        const s3Key = relPath.startsWith('public/') ? relPath.substring('public/'.length) : relPath
+        const rangeHeader = req.headers.get('range') || undefined
+        const s3Res = await getObjectFromS3({ bucket, key: s3Key, range: rangeHeader })
+
+        if (s3Res.Body) {
+          const contentType = s3Res.ContentType || 'application/octet-stream'
+          const contentLength = s3Res.ContentLength
+          const contentRange = s3Res.ContentRange
+          const isPartial = Boolean(rangeHeader && contentRange)
+
+          const bodyAny = s3Res.Body as any
+          const webStream = typeof bodyAny.transformToWebStream === 'function'
+            ? bodyAny.transformToWebStream()
+            : (require('stream').Readable.toWeb(bodyAny) as ReadableStream)
+
+          const headers: Record<string, string> = {
+            'Content-Type': contentType,
+            'Accept-Ranges': 'bytes',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          }
+          if (contentLength !== undefined) headers['Content-Length'] = String(contentLength)
+          if (contentRange) headers['Content-Range'] = contentRange
+
+          return new Response(webStream, {
+            status: isPartial ? 206 : 200,
+            headers,
+          })
+        }
+      } catch (s3Err: any) {
+        if (s3Err?.name !== 'NoSuchKey' && s3Err?.$metadata?.httpStatusCode !== 404) {
+          console.warn(`[DocumentStorage] S3 serveFile failed for ${relPath}:`, s3Err?.message || s3Err)
+        }
+      }
     }
 
     const absolutePath = path.join(/*turbopackIgnore: true*/ process.cwd(), relPath)

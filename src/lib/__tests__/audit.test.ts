@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockQueryMemberDb = vi.fn()
+const mockLogAuditGateway = vi.fn()
 
-vi.mock('../memberDb', () => ({
-  queryMemberDb: (...args: any[]) => mockQueryMemberDb(...args),
+vi.mock('../apiGateway', () => ({
+  apiGateway: {
+    app: {
+      logAudit: (...args: any[]) => mockLogAuditGateway(...args),
+    },
+  },
 }))
 
 vi.mock('next/headers', () => ({
@@ -18,7 +22,7 @@ vi.mock('next/headers', () => ({
 describe('Audit Logger', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockQueryMemberDb.mockResolvedValue([{ insertId: 1 }])
+    mockLogAuditGateway.mockResolvedValue({ logId: 1 })
   })
 
   it('inserts audit log entry with masked username and sanitized parameters per PDPA', async () => {
@@ -31,29 +35,29 @@ describe('Audit Logger', () => {
       { username: '1234567890123', email: 'staff@hospital.go.th' }
     )
 
-    expect(mockQueryMemberDb).toHaveBeenCalledTimes(1)
-    const [sql, params] = mockQueryMemberDb.mock.calls[0]
-    expect(sql).toContain('INSERT INTO audit_logs')
+    expect(mockLogAuditGateway).toHaveBeenCalledTimes(1)
+    const entry = mockLogAuditGateway.mock.calls[0][0]
+    expect(entry.actionType).toBe('READ')
+    expect(entry.targetTable).toBe('patients')
     // Username must be masked to show only last 4 digits
-    expect(params[0]).toBe('x-xxxx-xxxxx-01-23')
-    expect(params[1]).toBe('staff@hospital.go.th')
-    expect(params[2]).toBe('READ')
-    expect(params[3]).toBe('patients')
+    expect(entry.username).toBe('x-xxxx-xxxxx-01-23')
+    expect(entry.email).toBe('staff@hospital.go.th')
     // Action details must have CID and HN masked
-    expect(params[4]).toBe('Viewed patient visit history for CID x-xxxx-xxxxx-01-23 and HN: xxxx2345')
-    expect(params[5]).toBe('203.0.113.195')
+    expect(entry.actionDetails).toBe('Viewed patient visit history for CID x-xxxx-xxxxx-01-23 and HN: xxxx2345')
+    expect(entry.ipAddress).toBe('203.0.113.195')
+    expect(entry.userAgent).toBe('HospitalBrowser/1.0')
   })
 
   it('skips recursion if targetTable is audit_logs', async () => {
     const { logAudit } = await import('../audit')
 
     await logAudit('READ', 'audit_logs', 'Querying audit history')
-    expect(mockQueryMemberDb).not.toHaveBeenCalled()
+    expect(mockLogAuditGateway).not.toHaveBeenCalled()
   })
 
   it('handles database error gracefully without throwing', async () => {
     const { logAudit } = await import('../audit')
-    mockQueryMemberDb.mockRejectedValue(new Error('DB Connection Timeout'))
+    mockLogAuditGateway.mockRejectedValue(new Error('DB Connection Timeout'))
 
     // Should not throw
     await expect(
@@ -70,18 +74,18 @@ describe('Audit Logger', () => {
     // First call: writes to DB
     const res1 = await logThrottledAudit('READ', 'loratadine_dispense_log', 'First view', user, 1000)
     expect(res1).toBe(true)
-    expect(mockQueryMemberDb).toHaveBeenCalledTimes(1)
+    expect(mockLogAuditGateway).toHaveBeenCalledTimes(1)
 
     // Second call immediately after: should be throttled (skipped)
     const res2 = await logThrottledAudit('READ', 'loratadine_dispense_log', 'Second view', user, 1000)
     expect(res2).toBe(false)
-    expect(mockQueryMemberDb).toHaveBeenCalledTimes(1) // Still 1!
+    expect(mockLogAuditGateway).toHaveBeenCalledTimes(1) // Still 1!
 
     // Third call after cooldown expires (simulate elapsed time)
     await new Promise((resolve) => setTimeout(resolve, 1050))
     const res3 = await logThrottledAudit('READ', 'loratadine_dispense_log', 'Third view after cooldown', user, 1000)
     expect(res3).toBe(true)
-    expect(mockQueryMemberDb).toHaveBeenCalledTimes(2) // Incremented to 2!
+    expect(mockLogAuditGateway).toHaveBeenCalledTimes(2) // Incremented to 2!
   })
 
   describe('maskAuditIdentifier', () => {
