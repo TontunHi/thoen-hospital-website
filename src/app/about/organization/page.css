@@ -946,20 +946,6 @@
   word-break: break-word;
 }
 
-.subUnitSimpleCount {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.725rem;
-  font-weight: 600;
-  color: #64748B;
-  background: #F1F5F9;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  margin-top: 3px;
-  line-height: 1.2;
-}
-
 /* Group Name Tag on Top of Card */
 .treeNodeGroupTag {
   background: #F1F5F9;

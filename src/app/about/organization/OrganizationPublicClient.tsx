@@ -447,11 +447,6 @@ function OrgTreeSubnode({
             <span className="subUnitSimpleTitle" title={node.name}>
               {node.name}
             </span>
-            {node.members.length > 0 && (
-              <span className="subUnitSimpleCount">
-                <Users size={12} /> {node.members.length} คน
-              </span>
-            )}
           </div>
         )}
       </div>
@@ -662,9 +657,6 @@ function PublicSubgroupView({ subgroup, depth = 0 }: { subgroup: PublicGroupNode
           <Layers size={16} />
         </div>
         <h3>{subgroup.name}</h3>
-        <span className="subgroupMemberCount">
-          {subgroup.members.length} ท่าน
-        </span>
       </div>
 
       {/* Subgroup Primary Leader */}
