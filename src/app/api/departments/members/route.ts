@@ -7,7 +7,7 @@ const createMemberSchema = z.object({
   groupId: z.coerce.number().int().positive('กรุณาระบุกลุ่มงาน'),
   name: z.string().trim().min(1, 'กรุณาระบุชื่อ-นามสกุล').max(255),
   position: z.string().trim().min(1, 'กรุณาระบุตำแหน่ง').max(200),
-  role: z.enum(['leader', 'member']).default('member'),
+  role: z.string().trim().min(1, 'กรุณาระบุบทบาท').max(100).default('member'),
   orderIndex: z.coerce.number().int().default(0),
   imagePath: z.string().trim().max(255).optional().nullable(),
   phone: z.string().trim().max(50).optional().nullable(),

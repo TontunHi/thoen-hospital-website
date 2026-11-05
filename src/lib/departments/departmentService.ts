@@ -12,12 +12,31 @@ export interface DepartmentGroupNode {
   children: DepartmentGroupNode[]
 }
 
+export interface DepartmentRoleRecord {
+  id: number
+  name: string
+  orderIndex: number
+  isDefault: boolean
+}
+
+export interface CreateRoleInput {
+  name: string
+  orderIndex?: number
+  isDefault?: boolean
+}
+
+export interface UpdateRoleInput {
+  name?: string
+  orderIndex?: number
+  isDefault?: boolean
+}
+
 export interface DepartmentMemberRecord {
   id: number
   groupId: number
   name: string
   position: string
-  role: 'leader' | 'member'
+  role: string
   orderIndex: number
   imagePath: string | null
   phone?: string | null
@@ -41,7 +60,7 @@ export interface CreateMemberInput {
   groupId: number
   name: string
   position: string
-  role?: 'leader' | 'member'
+  role?: string
   orderIndex?: number
   imagePath?: string | null
   phone?: string | null
@@ -51,7 +70,7 @@ export interface CreateMemberInput {
 export interface UpdateMemberInput {
   name?: string
   position?: string
-  role?: 'leader' | 'member'
+  role?: string
   orderIndex?: number
   imagePath?: string | null
   phone?: string | null
@@ -262,7 +281,195 @@ export class DepartmentService {
   }
 
   /**
-   * Retrieves members for a specific group.
+   * Ensures the department_roles table exists and default roles are seeded.
+   */
+  async ensureRolesTable(): Promise<void> {
+    try {
+      await this.queryExecutor(`
+        CREATE TABLE IF NOT EXISTS department_roles (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          order_index INT NOT NULL DEFAULT 0,
+          is_default TINYINT(1) NOT NULL DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_dept_role_order (order_index)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `)
+
+      const existing = await this.queryExecutor(`SELECT COUNT(*) AS count FROM department_roles`)
+      if (Number(existing[0]?.count || 0) === 0) {
+        await this.queryExecutor(`
+          INSERT INTO department_roles (name, order_index, is_default)
+          VALUES 
+            ('หัวหน้ากลุ่มงาน / หัวหน้างาน', 0, 0),
+            ('รองหัวหน้ากลุ่มงาน / รองหัวหน้างาน', 1, 0),
+            ('เจ้าหน้าที่ผู้ปฏิบัติงาน', 2, 1)
+        `)
+      }
+    } catch {
+      // Continue gracefully if table already exists or in test environment
+    }
+  }
+
+  /**
+   * Retrieves all custom department roles ordered by priority/level.
+   */
+  async getRoles(): Promise<DepartmentRoleRecord[]> {
+    try {
+      await this.ensureRolesTable()
+      const rows = await this.queryExecutor(`
+        SELECT id, name, order_index, is_default
+        FROM department_roles
+        ORDER BY order_index ASC, id ASC
+      `)
+
+      if (!Array.isArray(rows)) return []
+
+      return rows.map((r: any) => ({
+        id: Number(r.id),
+        name: String(r.name),
+        orderIndex: Number(r.order_index ?? 0),
+        isDefault: Boolean(r.is_default)
+      }))
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Creates a new department role level.
+   */
+  async createRole(input: CreateRoleInput, actor: ActorInfo): Promise<DepartmentRoleRecord> {
+    await this.ensureRolesTable()
+    const cleanName = input.name.trim()
+    if (!cleanName) throw new Error('กรุณาระบุชื่อบทบาท')
+
+    let orderIndex = input.orderIndex
+    if (orderIndex === undefined || orderIndex === null) {
+      const maxRows = await this.queryExecutor(`SELECT MAX(order_index) AS max_order FROM department_roles`)
+      orderIndex = Number(maxRows[0]?.max_order ?? -1) + 1
+    }
+
+    const isDefault = input.isDefault ? 1 : 0
+    if (isDefault) {
+      await this.queryExecutor(`UPDATE department_roles SET is_default = 0`)
+    }
+
+    const res: any = await this.queryExecutor(
+      `INSERT INTO department_roles (name, order_index, is_default) VALUES (?, ?, ?)`,
+      [cleanName, orderIndex, isDefault]
+    )
+
+    const insertId = Number(res?.insertId || 0)
+    await logAudit(
+      'CREATE',
+      'department_roles',
+      JSON.stringify({ roleId: insertId, name: cleanName, orderIndex }),
+      { username: actor.name || undefined }
+    ).catch(() => {})
+
+    return {
+      id: insertId,
+      name: cleanName,
+      orderIndex,
+      isDefault: Boolean(isDefault)
+    }
+  }
+
+  /**
+   * Updates an existing department role.
+   */
+  async updateRole(id: number, input: UpdateRoleInput, actor: ActorInfo): Promise<boolean> {
+    await this.ensureRolesTable()
+    const updates: string[] = []
+    const params: any[] = []
+
+    if (input.name !== undefined) {
+      const cleanName = input.name.trim()
+      if (!cleanName) throw new Error('ชื่อบทบาทไม่สามารถเว้นว่างได้')
+      updates.push('name = ?')
+      params.push(cleanName)
+    }
+    if (input.orderIndex !== undefined) {
+      updates.push('order_index = ?')
+      params.push(input.orderIndex)
+    }
+    if (input.isDefault !== undefined) {
+      if (input.isDefault) {
+        await this.queryExecutor(`UPDATE department_roles SET is_default = 0 WHERE id != ?`, [id])
+      }
+      updates.push('is_default = ?')
+      params.push(input.isDefault ? 1 : 0)
+    }
+
+    if (updates.length === 0) return true
+    params.push(id)
+
+    await this.queryExecutor(`UPDATE department_roles SET ${updates.join(', ')} WHERE id = ?`, params)
+
+    await logAudit(
+      'UPDATE',
+      'department_roles',
+      JSON.stringify({ roleId: id, input }),
+      { username: actor.name || undefined }
+    ).catch(() => {})
+
+    return true
+  }
+
+  /**
+   * Deletes a department role. Prevents deletion if it is the only role left.
+   */
+  async deleteRole(id: number, actor: ActorInfo): Promise<boolean> {
+    await this.ensureRolesTable()
+    const countRows = await this.queryExecutor(`SELECT COUNT(*) AS count FROM department_roles`)
+    if (Number(countRows[0]?.count || 0) <= 1) {
+      throw new Error('ไม่สามารถลบบทบาทนี้ได้ เนื่องจากต้องมีระดับบทบาทอย่างน้อย 1 รายการในระบบ')
+    }
+
+    await this.queryExecutor(`DELETE FROM department_roles WHERE id = ?`, [id])
+
+    await logAudit(
+      'DELETE',
+      'department_roles',
+      JSON.stringify({ roleId: id }),
+      { username: actor.name || undefined }
+    ).catch(() => {})
+
+    return true
+  }
+
+  /**
+   * Reorders department roles atomically based on given array order.
+   */
+  async reorderRoles(roleIds: number[], actor: ActorInfo): Promise<boolean> {
+    await this.ensureRolesTable()
+    if (roleIds.length === 0) return true
+
+    const cases = roleIds.map(() => 'WHEN ? THEN ?').join(' ')
+    const caseParams = roleIds.flatMap((id, idx) => [id, idx])
+    const inPlaceholders = roleIds.map(() => '?').join(', ')
+
+    await this.queryExecutor(
+      `UPDATE department_roles
+       SET order_index = CASE id ${cases} ELSE order_index END
+       WHERE id IN (${inPlaceholders})`,
+      [...caseParams, ...roleIds]
+    )
+
+    await logAudit(
+      'UPDATE',
+      'department_roles',
+      JSON.stringify({ action: 'REORDER_ROLES', roleIds }),
+      { username: actor.name || undefined }
+    ).catch(() => {})
+
+    return true
+  }
+
+  /**
+   * Retrieves members for a specific group sorted by role level and order_index.
    * If isPublic=true, phone number is stripped for privacy (PDPA compliance).
    */
   async getMembersByGroupId(groupId: number, options: { isPublic?: boolean } = {}): Promise<DepartmentMemberRecord[]> {
@@ -270,17 +477,37 @@ export class DepartmentService {
       `SELECT id, group_id, name, position, role, order_index, image_path, phone, member_id
        FROM department_members
        WHERE group_id = ?
-       ORDER BY CASE WHEN role = 'leader' THEN 0 ELSE 1 END, order_index ASC, id ASC`,
+       ORDER BY order_index ASC, id ASC`,
       [groupId]
     )
 
-    return rows.map((row: any) => {
+    if (!Array.isArray(rows)) return []
+
+    const roleRankMap = new Map<string, number>()
+    try {
+      const roles = await this.getRoles()
+      roles.forEach((r, idx) => {
+        roleRankMap.set(r.name.toLowerCase().trim(), idx)
+      })
+    } catch {
+      // Ignore
+    }
+
+    const getRank = (roleStr: string): number => {
+      const lower = (roleStr || '').toLowerCase().trim()
+      if (lower === 'leader') return 0
+      if (roleRankMap.has(lower)) return roleRankMap.get(lower)!
+      if (lower === 'member') return 999
+      return 500
+    }
+
+    const records: DepartmentMemberRecord[] = rows.map((row: any) => {
       const record: DepartmentMemberRecord = {
         id: Number(row.id),
         groupId: Number(row.group_id),
         name: String(row.name),
         position: String(row.position),
-        role: row.role === 'leader' ? 'leader' : 'member',
+        role: String(row.role || 'member'),
         orderIndex: Number(row.order_index || 0),
         imagePath: row.image_path || null,
         memberId: row.member_id ? Number(row.member_id) : null
@@ -292,6 +519,16 @@ export class DepartmentService {
 
       return record
     })
+
+    records.sort((a, b) => {
+      const rankA = getRank(a.role)
+      const rankB = getRank(b.role)
+      if (rankA !== rankB) return rankA - rankB
+      if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex
+      return a.id - b.id
+    })
+
+    return records
   }
 
   /**
@@ -300,7 +537,7 @@ export class DepartmentService {
   async createMember(input: CreateMemberInput, actor: ActorInfo): Promise<DepartmentMemberRecord> {
     const cleanName = input.name.trim()
     const cleanPosition = input.position.trim()
-    const role = input.role === 'leader' ? 'leader' : 'member'
+    const role = (input.role || 'member').trim()
     const orderIndex = input.orderIndex ?? 0
     const memberId = input.memberId && input.memberId > 0 ? input.memberId : null
     const imagePath = await resolvePublicProfilePath(input.imagePath?.trim() || null, memberId)
@@ -351,7 +588,7 @@ export class DepartmentService {
     }
     if (input.role !== undefined) {
       updates.push('role = ?')
-      params.push(input.role === 'leader' ? 'leader' : 'member')
+      params.push(input.role.trim())
     }
     if (input.orderIndex !== undefined) {
       updates.push('order_index = ?')
@@ -452,7 +689,7 @@ export class DepartmentService {
       groupId: Number(row.group_id),
       name: String(row.name),
       position: String(row.position),
-      role: row.role === 'leader' ? 'leader' : 'member',
+      role: String(row.role || 'member'),
       orderIndex: Number(row.order_index || 0),
       imagePath: row.image_path || null,
       groupName: String(row.group_name)
@@ -476,9 +713,29 @@ export class DepartmentService {
         FROM department_members m
         JOIN department_groups g ON m.group_id = g.id
         WHERE g.is_active = 1
-        ORDER BY CASE WHEN m.role = 'leader' THEN 0 ELSE 1 END, m.order_index ASC, m.id ASC
+        ORDER BY m.order_index ASC, m.id ASC
       `)
     ])
+
+    if (!Array.isArray(groups) || !Array.isArray(members)) return []
+
+    const roleRankMap = new Map<string, number>()
+    try {
+      const roles = await this.getRoles()
+      roles.forEach((r, idx) => {
+        roleRankMap.set(r.name.toLowerCase().trim(), idx)
+      })
+    } catch {
+      // Ignore
+    }
+
+    const getRank = (roleStr: string): number => {
+      const lower = (roleStr || '').toLowerCase().trim()
+      if (lower === 'leader') return 0
+      if (roleRankMap.has(lower)) return roleRankMap.get(lower)!
+      if (lower === 'member') return 999
+      return 500
+    }
 
     const memberMap = new Map<number, any[]>()
     members.forEach((m: any) => {
@@ -489,9 +746,20 @@ export class DepartmentService {
         groupId: gid,
         name: String(m.name),
         position: String(m.position),
-        role: m.role === 'leader' ? 'leader' : 'member',
+        role: String(m.role || 'member'),
         orderIndex: Number(m.order_index || 0),
         imagePath: m.image_path || null
+      })
+    })
+
+    // Sort members in each group according to role rank, then orderIndex, then id
+    memberMap.forEach((list) => {
+      list.sort((a, b) => {
+        const rankA = getRank(a.role)
+        const rankB = getRank(b.role)
+        if (rankA !== rankB) return rankA - rankB
+        if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex
+        return a.id - b.id
       })
     })
 

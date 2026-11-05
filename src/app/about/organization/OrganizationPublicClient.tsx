@@ -28,7 +28,7 @@ interface PublicMember {
   groupId: number
   name: string
   position: string
-  role: 'leader' | 'member'
+  role: string
   orderIndex: number
   imagePath: string | null
   groupName?: string
@@ -509,9 +509,13 @@ function OrgTreeSubnode({
   const isDragging = canReorder && dragCtx?.draggedItem?.type === 'group' && dragCtx.draggedItem.id === node.id
   const isDropTarget = canReorder && dragCtx?.dragOverKey === itemKey
 
-  const leader = node.members.find((m) => m.role === 'leader')
-  const otherLeaders = node.members.filter((m) => m.role === 'leader' && m.id !== leader?.id)
-  const staff = node.members.filter((m) => m.role !== 'leader')
+  const isLeaderRole = (r: string) => {
+    const l = (r || '').toLowerCase()
+    return l === 'leader' || l.includes('หัวหน้า') || l.includes('ผู้บริหาร')
+  }
+  const leader = node.members.find((m) => isLeaderRole(m.role)) || (node.members.length > 0 && node.members[0].role !== 'member' && node.members[0].role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน' ? node.members[0] : undefined)
+  const otherLeaders = node.members.filter((m) => m.id !== leader?.id && (isLeaderRole(m.role) || (m.role !== 'member' && m.role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน')))
+  const staff = node.members.filter((m) => m.id !== leader?.id && !otherLeaders.some((ol) => ol.id === m.id))
   const children = node.children || []
 
   const hasChildBranches = children.length > 0 || otherLeaders.length > 0 || staff.length > 0
@@ -562,7 +566,7 @@ function OrgTreeSubnode({
               className="publicLeaderBadge"
               style={{ fontSize: '0.7rem', padding: '2px 9px', margin: '0 auto', width: 'fit-content' }}
             >
-              หัวหน้างาน
+              {leader.role && leader.role !== 'leader' ? leader.role : 'หัวหน้างาน'}
             </span>
             <span className="treeNodeName" title={leader.name}>{leader.name}</span>
             <span className="treeNodePosition" title={leader.position}>{leader.position}</span>
@@ -608,7 +612,7 @@ function OrgTreeSubnode({
               <OrgTreeMemberLeaf
                 key={`deputy-${deputy.id}`}
                 member={deputy}
-                badge="รองหัวหน้างาน"
+                badge={deputy.role && deputy.role !== 'leader' ? deputy.role : 'รองหัวหน้างาน'}
                 groupId={node.id}
                 groupName={node.name}
               />
@@ -769,9 +773,13 @@ function PublicDraggableDeputyCard({
  */
 function PublicSubgroupView({ subgroup, depth = 0 }: { subgroup: PublicGroupNode; depth?: number }) {
   const dragCtx = useOrgDrag()
-  const primaryLeader = subgroup.members.find((m) => m.role === 'leader')
-  const deputyLeaders = subgroup.members.filter((m) => m.role === 'leader' && m.id !== primaryLeader?.id)
-  const subMembers = subgroup.members.filter((m) => m.role !== 'leader')
+  const isLeaderRole = (r: string) => {
+    const l = (r || '').toLowerCase()
+    return l === 'leader' || l.includes('หัวหน้า') || l.includes('ผู้บริหาร')
+  }
+  const primaryLeader = subgroup.members.find((m) => isLeaderRole(m.role)) || (subgroup.members.length > 0 && subgroup.members[0].role !== 'member' && subgroup.members[0].role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน' ? subgroup.members[0] : undefined)
+  const deputyLeaders = subgroup.members.filter((m) => m.id !== primaryLeader?.id && (isLeaderRole(m.role) || (m.role !== 'member' && m.role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน')))
+  const subMembers = subgroup.members.filter((m) => m.id !== primaryLeader?.id && !deputyLeaders.some((d) => d.id === m.id))
 
   return (
     <div
@@ -824,7 +832,7 @@ function PublicSubgroupView({ subgroup, depth = 0 }: { subgroup: PublicGroupNode
           </div>
           <div className="publicLeaderInfo">
             <span className="publicLeaderBadge">
-              หัวหน้างาน
+              {primaryLeader.role && primaryLeader.role !== 'leader' ? primaryLeader.role : 'หัวหน้างาน'}
             </span>
             <span className="publicLeaderName" style={{ fontSize: '1.15rem' }}>
               {primaryLeader.name}
@@ -841,7 +849,7 @@ function PublicSubgroupView({ subgroup, depth = 0 }: { subgroup: PublicGroupNode
           deputy={deputy}
           groupId={subgroup.id}
           groupName={subgroup.name}
-          badgeText="รองหัวหน้างาน"
+          badgeText={deputy.role && deputy.role !== 'leader' ? deputy.role : 'รองหัวหน้างาน'}
         />
       ))}
 
@@ -1121,12 +1129,20 @@ export default function OrganizationPublicClient() {
     handleCardClick
   }
 
+  const isLeaderRole = (r: string) => {
+    const l = (r || '').toLowerCase()
+    return l === 'leader' || l.includes('หัวหน้า') || l.includes('ผู้บริหาร')
+  }
   const selectedRoot = orgChart.find((g) => g.id === selectedRootId) || orgChart[0]
-  const rootLeader = selectedRoot ? selectedRoot.members.find((m) => m.role === 'leader') : null
+  const rootLeader = selectedRoot
+    ? selectedRoot.members.find((m) => isLeaderRole(m.role)) || (selectedRoot.members.length > 0 && selectedRoot.members[0].role !== 'member' && selectedRoot.members[0].role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน' ? selectedRoot.members[0] : null)
+    : null
   const otherRootLeaders = selectedRoot
-    ? selectedRoot.members.filter((m) => m.role === 'leader' && m.id !== rootLeader?.id)
+    ? selectedRoot.members.filter((m) => m.id !== rootLeader?.id && (isLeaderRole(m.role) || (m.role !== 'member' && m.role !== 'เจ้าหน้าที่ผู้ปฏิบัติงาน')))
     : []
-  const rootStaff = selectedRoot ? selectedRoot.members.filter((m) => m.role !== 'leader') : []
+  const rootStaff = selectedRoot
+    ? selectedRoot.members.filter((m) => m.id !== rootLeader?.id && !otherRootLeaders.some((ol) => ol.id === m.id))
+    : []
   const rootChildren = selectedRoot ? selectedRoot.children || [] : []
 
   const hasRootBranches =
@@ -1481,7 +1497,7 @@ export default function OrganizationPublicClient() {
                                         width: 'fit-content'
                                       }}
                                     >
-                                      หัวหน้ากลุ่มงาน
+                                      {rootLeader.role && rootLeader.role !== 'leader' ? rootLeader.role : 'หัวหน้ากลุ่มงาน'}
                                     </span>
                                     <span className="treeNodeName" style={{ fontSize: '1.05rem' }}>
                                       {rootLeader.name}
@@ -1530,7 +1546,7 @@ export default function OrganizationPublicClient() {
                                       <OrgTreeMemberLeaf
                                         key={`deputy-${deputy.id}`}
                                         member={deputy}
-                                        badge="รองหัวหน้ากลุ่มงาน"
+                                        badge={deputy.role && deputy.role !== 'leader' ? deputy.role : 'รองหัวหน้ากลุ่มงาน'}
                                         groupId={selectedRoot.id}
                                         groupName={selectedRoot.name}
                                       />

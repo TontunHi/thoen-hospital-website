@@ -28,7 +28,8 @@ import {
   Filter,
   CheckCircle2,
   UserCheck,
-  Crop
+  Crop,
+  GripVertical
 } from 'lucide-react'
 import ImageCropModal from '@/components/ui/ImageCropModal'
 import Link from 'next/link'
@@ -46,12 +47,19 @@ interface DepartmentGroupNode {
   children: DepartmentGroupNode[]
 }
 
+export interface DepartmentRoleItem {
+  id: number
+  name: string
+  orderIndex: number
+  isDefault: boolean
+}
+
 interface DepartmentMember {
   id: number
   groupId: number
   name: string
   position: string
-  role: 'leader' | 'member'
+  role: string
   orderIndex: number
   imagePath: string | null
   phone?: string | null
@@ -129,20 +137,34 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     parentId: null
   })
 
+  // Roles state & Role modal
+  const [roles, setRoles] = useState<DepartmentRoleItem[]>([])
+  const [loadingRoles, setLoadingRoles] = useState(false)
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false)
+  const [newRoleName, setNewRoleName] = useState('')
+  const [creatingRole, setCreatingRole] = useState(false)
+  const [editingRoleId, setEditingRoleId] = useState<number | null>(null)
+  const [editingRoleName, setEditingRoleName] = useState('')
+  const [savingRoleEdit, setSavingRoleEdit] = useState(false)
+
+  // Drag-and-drop state for members in right pane
+  const [draggedMemberId, setDraggedMemberId] = useState<number | null>(null)
+  const [dragOverMemberId, setDragOverMemberId] = useState<number | null>(null)
+
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false)
   const [memberModalMode, setMemberModalMode] = useState<'create' | 'edit'>('create')
   const [memberFormData, setMemberFormData] = useState<{
     id?: number
     name: string
     position: string
-    role: 'leader' | 'member'
+    role: string
     phone: string
     imagePath: string
     memberId: number | null
   }>({
     name: '',
     position: '',
-    role: 'member',
+    role: 'เจ้าหน้าที่ผู้ปฏิบัติงาน',
     phone: '',
     imagePath: '',
     memberId: null
@@ -240,8 +262,25 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     }
   }
 
+  // Fetch department roles
+  const loadRoles = async () => {
+    try {
+      setLoadingRoles(true)
+      const res = await fetch('/api/departments/roles')
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setRoles(json.data)
+      }
+    } catch {
+      addToast('ไม่สามารถโหลดระดับบทบาทได้', 'error')
+    } finally {
+      setLoadingRoles(false)
+    }
+  }
+
   useEffect(() => {
     loadGroups()
+    loadRoles()
   }, [])
 
   useEffect(() => {
@@ -557,24 +596,25 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     })
   }
 
-  // Move member up/down to reorder scoped strictly to role section
-  const handleMoveMember = async (role: 'leader' | 'member', sectionIndex: number, direction: 'up' | 'down') => {
+  // Move member up/down to reorder within its section
+  const handleMoveMember = async (sectionList: DepartmentMember[], sectionIndex: number, direction: 'up' | 'down') => {
     if (!selectedGroup) return
-    const sectionList = role === 'leader' ? leaderMembers : regularMembers
     const targetIndex = direction === 'up' ? sectionIndex - 1 : sectionIndex + 1
     if (targetIndex < 0 || targetIndex >= sectionList.length) return
 
-    const updatedSection = [...sectionList]
-    const temp = updatedSection[sectionIndex]
-    updatedSection[sectionIndex] = updatedSection[targetIndex]
-    updatedSection[targetIndex] = temp
+    const memberA = sectionList[sectionIndex]
+    const memberB = sectionList[targetIndex]
 
-    const updatedCombined =
-      role === 'leader'
-        ? [...updatedSection, ...regularMembers]
-        : [...leaderMembers, ...updatedSection]
+    const updatedMembers = [...members]
+    const idxA = updatedMembers.findIndex((m) => m.id === memberA.id)
+    const idxB = updatedMembers.findIndex((m) => m.id === memberB.id)
+    if (idxA === -1 || idxB === -1) return
 
-    setMembers(updatedCombined)
+    const temp = updatedMembers[idxA]
+    updatedMembers[idxA] = updatedMembers[idxB]
+    updatedMembers[idxB] = temp
+
+    setMembers(updatedMembers)
 
     try {
       const res = await fetch('/api/departments/members/reorder', {
@@ -582,7 +622,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           groupId: selectedGroup.id,
-          memberIds: updatedCombined.map((m) => m.id)
+          memberIds: updatedMembers.map((m) => m.id)
         })
       })
       const json = await res.json()
@@ -593,6 +633,187 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     } catch {
       addToast('เกิดข้อผิดพลาดในการสลับลำดับ', 'error')
       loadMembers(selectedGroup.id)
+    }
+  }
+
+  // Member drag-and-drop handlers for admin workbench
+  const handleMemberDragStart = (memberId: number, e: React.DragEvent) => {
+    setDraggedMemberId(memberId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(memberId))
+  }
+
+  const handleMemberDragOver = (memberId: number, e: React.DragEvent) => {
+    if (!draggedMemberId || draggedMemberId === memberId) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverMemberId !== memberId) {
+      setDragOverMemberId(memberId)
+    }
+  }
+
+  const handleMemberDragLeave = (e: React.DragEvent) => {
+    const currentTarget = e.currentTarget
+    const relatedTarget = e.relatedTarget as Node | null
+    if (!currentTarget.contains(relatedTarget)) {
+      setDragOverMemberId(null)
+    }
+  }
+
+  const handleMemberDrop = async (targetMemberId: number, e: React.DragEvent) => {
+    e.preventDefault()
+    if (!selectedGroup || !draggedMemberId || draggedMemberId === targetMemberId) {
+      setDraggedMemberId(null)
+      setDragOverMemberId(null)
+      return
+    }
+
+    const currentList = [...members]
+    const fromIndex = currentList.findIndex((m) => m.id === draggedMemberId)
+    const toIndex = currentList.findIndex((m) => m.id === targetMemberId)
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedMemberId(null)
+      setDragOverMemberId(null)
+      return
+    }
+
+    const [moved] = currentList.splice(fromIndex, 1)
+    currentList.splice(toIndex, 0, moved)
+
+    setMembers(currentList)
+    setDraggedMemberId(null)
+    setDragOverMemberId(null)
+
+    try {
+      const res = await fetch('/api/departments/members/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          groupId: selectedGroup.id,
+          memberIds: currentList.map((m) => m.id)
+        })
+      })
+      const json = await res.json()
+      if (json.success) {
+        addToast('สลับตำแหน่งบุคลากรสำเร็จ', 'success')
+      } else {
+        addToast(json.error || 'ไม่สามารถบันทึกลำดับได้', 'error')
+        loadMembers(selectedGroup.id)
+      }
+    } catch {
+      addToast('เกิดข้อผิดพลาดในการสลับลำดับ', 'error')
+      loadMembers(selectedGroup.id)
+    }
+  }
+
+  const handleMemberDragEnd = () => {
+    setDraggedMemberId(null)
+    setDragOverMemberId(null)
+  }
+
+  // Role Management Handlers
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const cleanName = newRoleName.trim()
+    if (!cleanName) return
+    try {
+      setCreatingRole(true)
+      const res = await fetch('/api/departments/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: cleanName })
+      })
+      const json = await res.json()
+      if (json.success) {
+        addToast('เพิ่มระดับบทบาทสำเร็จ', 'success')
+        setNewRoleName('')
+        await loadRoles()
+      } else {
+        addToast(json.error || 'เพิ่มระดับบทบาทไม่สำเร็จ', 'error')
+      }
+    } catch {
+      addToast('เกิดข้อผิดพลาดในการเพิ่มบทบาท', 'error')
+    } finally {
+      setCreatingRole(false)
+    }
+  }
+
+  const handleUpdateRole = async (id: number) => {
+    const cleanName = editingRoleName.trim()
+    if (!cleanName) return
+    try {
+      setSavingRoleEdit(true)
+      const res = await fetch(`/api/departments/roles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: cleanName })
+      })
+      const json = await res.json()
+      if (json.success) {
+        addToast('อัปเดตชื่อบทบาทสำเร็จ', 'success')
+        setEditingRoleId(null)
+        setEditingRoleName('')
+        await loadRoles()
+      } else {
+        addToast(json.error || 'อัปเดตชื่อบทบาทไม่สำเร็จ', 'error')
+      }
+    } catch {
+      addToast('เกิดข้อผิดพลาดในการอัปเดตบทบาท', 'error')
+    } finally {
+      setSavingRoleEdit(false)
+    }
+  }
+
+  const handleDeleteRole = (roleItem: DepartmentRoleItem) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'ยืนยันการลบบทบาท',
+      message: `คุณต้องการลบบทบาท "${roleItem.name}" ใช่หรือไม่? บุคลากรที่ใช้บทบาทนี้จะยังคงอยู่ในระบบ`,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/departments/roles/${roleItem.id}`, { method: 'DELETE' })
+          const json = await res.json()
+          if (json.success) {
+            addToast('ลบบทบาทสำเร็จ', 'success')
+            await loadRoles()
+          } else {
+            addToast(json.error || 'ไม่สามารถลบบทบาทได้', 'error')
+          }
+        } catch {
+          addToast('เกิดข้อผิดพลาดในการลบบทบาท', 'error')
+        }
+      }
+    })
+  }
+
+  const handleMoveRole = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= roles.length) return
+
+    const updated = [...roles]
+    const temp = updated[index]
+    updated[index] = updated[targetIndex]
+    updated[targetIndex] = temp
+
+    setRoles(updated)
+
+    try {
+      const res = await fetch('/api/departments/roles/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roleIds: updated.map((r) => r.id) })
+      })
+      const json = await res.json()
+      if (json.success) {
+        addToast('สลับลำดับบทบาทสำเร็จ', 'success')
+        await loadRoles()
+      } else {
+        addToast(json.error || 'ไม่สามารถสลับลำดับบทบาทได้', 'error')
+        await loadRoles()
+      }
+    } catch {
+      addToast('เกิดข้อผิดพลาดในการสลับลำดับบทบาท', 'error')
+      await loadRoles()
     }
   }
 
@@ -796,22 +1017,71 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     )
   }
 
-  // Split members into leader and normal members
-  const leaderMembers = members.filter((m) => m.role === 'leader')
-  const regularMembers = members.filter((m) => m.role !== 'leader')
+  // Dynamic role sections grouping
+  const roleSections = useMemo(() => {
+    if (roles.length === 0) {
+      const leaders = members.filter((m) => m.role === 'leader' || (m.role || '').includes('หัวหน้า'))
+      const regulars = members.filter((m) => !leaders.some((l) => l.id === m.id))
+      return [
+        { id: 1, name: 'หัวหน้ากลุ่มงาน / ผู้บริหาร', isLeader: true, orderIndex: 0, isDefault: false, members: leaders },
+        { id: 2, name: 'เจ้าหน้าที่ / สมาชิกในกลุ่มงาน', isLeader: false, orderIndex: 1, isDefault: true, members: regulars }
+      ]
+    }
 
-  // Filter members by in-pane search
-  const filteredLeaderMembers = useMemo(() => {
     const q = searchMemberInGroupQuery.trim().toLowerCase()
-    if (!q) return leaderMembers
-    return leaderMembers.filter((m) => m.name.toLowerCase().includes(q) || m.position.toLowerCase().includes(q))
-  }, [leaderMembers, searchMemberInGroupQuery])
+    const visibleMembers = q
+      ? members.filter((m) => m.name.toLowerCase().includes(q) || m.position.toLowerCase().includes(q))
+      : members
 
-  const filteredRegularMembers = useMemo(() => {
-    const q = searchMemberInGroupQuery.trim().toLowerCase()
-    if (!q) return regularMembers
-    return regularMembers.filter((m) => m.name.toLowerCase().includes(q) || m.position.toLowerCase().includes(q))
-  }, [regularMembers, searchMemberInGroupQuery])
+    const matchedMemberIds = new Set<number>()
+
+    const sections = roles.map((role, idx) => {
+      const isLeader = idx === 0 || role.name.toLowerCase().includes('หัวหน้า')
+      const roleMembers = visibleMembers.filter((m) => {
+        const mRole = (m.role || '').toLowerCase().trim()
+        const rName = role.name.toLowerCase().trim()
+        if (mRole === rName) return true
+        if (mRole === 'leader' && (rName.includes('หัวหน้า') || idx === 0)) return true
+        if (mRole === 'member' && (role.isDefault || idx === roles.length - 1)) return true
+        return false
+      })
+
+      roleMembers.forEach((m) => matchedMemberIds.add(m.id))
+
+      return {
+        id: role.id,
+        name: role.name,
+        isLeader,
+        orderIndex: role.orderIndex,
+        isDefault: role.isDefault,
+        members: roleMembers
+      }
+    })
+
+    const otherMembers = visibleMembers.filter((m) => !matchedMemberIds.has(m.id))
+    if (otherMembers.length > 0) {
+      sections.push({
+        id: 99999,
+        name: 'บทบาทอื่นๆ',
+        isLeader: false,
+        orderIndex: 99999,
+        isDefault: false,
+        members: otherMembers
+      })
+    }
+
+    return sections
+  }, [members, roles, searchMemberInGroupQuery])
+
+  const leaderMembers = useMemo(() => {
+    const firstSec = roleSections[0]
+    return firstSec && firstSec.isLeader ? firstSec.members : members.filter((m) => m.role === 'leader' || (m.role || '').includes('หัวหน้า'))
+  }, [roleSections, members])
+
+  const regularMembers = useMemo(() => {
+    const leaderSet = new Set(leaderMembers.map((m) => m.id))
+    return members.filter((m) => !leaderSet.has(m.id))
+  }, [members, leaderMembers])
 
   return (
     <div className="orgAdminPage">
@@ -844,6 +1114,15 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               <span>ดูหน้าเว็บสาธารณะ</span>
               <ExternalLink size={14} />
             </Link>
+            <button
+              type="button"
+              className="btn btnSecondary"
+              onClick={() => setIsRoleModalOpen(true)}
+              title="จัดการระดับบทบาทบุคลากร (หัวหน้า, รองหัวหน้า, เจ้าหน้าที่ ฯลฯ)"
+            >
+              <Shield size={15} className="text-emerald-700" />
+              <span>ระดับบทบาท ({roles.length})</span>
+            </button>
             <button
               type="button"
               className="btn btnPrimary"
@@ -1157,34 +1436,51 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   </div>
                 ) : (
                   <div className="orgMembersListScroll">
-                    {/* Leader Section */}
-                    {leaderMembers.length > 0 && (
-                      <section className="orgMemberSection">
-                        <div className="orgSectionHeading">
-                          <Crown size={15} className="text-amber-600" />
-                          <span>หัวหน้ากลุ่มงาน / ผู้บริหาร</span>
-                          <span className="orgSectionCount">{leaderMembers.length}</span>
-                        </div>
+                    {roleSections.map((sec) => {
+                      if (sec.members.length === 0) return null
 
-                        {filteredLeaderMembers.length === 0 ? (
-                          <div className="orgNoSearchResultNote">
-                            ไม่พบหัวหน้ากลุ่มงานที่ตรงกับคำค้นหา &quot;{searchMemberInGroupQuery}&quot;
+                      return (
+                        <section key={sec.id} className="orgMemberSection">
+                          <div className="orgSectionHeading">
+                            {sec.isLeader ? (
+                              <Crown size={15} className="text-amber-600" />
+                            ) : (
+                              <Users size={15} className="text-slate-600" />
+                            )}
+                            <span>{sec.name}</span>
+                            <span className="orgSectionCount">{sec.members.length}</span>
                           </div>
-                        ) : (
-                          <div className="leaderCardsList">
-                            {filteredLeaderMembers.map((leader, leaderIndex) => {
-                              return (
-                                <div key={leader.id} className="leaderCard">
+
+                          <div className={sec.isLeader ? "leaderCardsList" : "membersGrid"}>
+                            {sec.members.map((member, memberIndex) => {
+                              const isDragging = draggedMemberId === member.id
+                              const isDropTarget = dragOverMemberId === member.id
+
+                              return sec.isLeader ? (
+                                <div
+                                  key={member.id}
+                                  className={`leaderCard ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
+                                  draggable
+                                  onDragStart={(e) => handleMemberDragStart(member.id, e)}
+                                  onDragOver={(e) => handleMemberDragOver(member.id, e)}
+                                  onDragLeave={handleMemberDragLeave}
+                                  onDrop={(e) => handleMemberDrop(member.id, e)}
+                                  onDragEnd={handleMemberDragEnd}
+                                >
+                                  <div className="dragHandleWrap" title="ลากเพื่อสลับตำแหน่ง">
+                                    <GripVertical size={16} className="text-slate-400" />
+                                  </div>
+
                                   <div className="leaderAvatarWrap">
-                                    {leader.imagePath ? (
+                                    {member.imagePath ? (
                                       <img
-                                        src={leader.imagePath}
-                                        alt={leader.name}
+                                        src={member.imagePath}
+                                        alt={member.name}
                                         className="leaderAvatar"
                                       />
                                     ) : (
                                       <div className="avatarFallback">
-                                        {getInitials(leader.name)}
+                                        {getInitials(member.name)}
                                       </div>
                                     )}
                                     <span className="leaderCrownBadge" title="หัวหน้ากลุ่มงาน">
@@ -1195,20 +1491,20 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                   <div className="leaderInfo">
                                     <div className="leaderHeaderLine">
                                       <span className="leaderBadge">
-                                        หัวหน้ากลุ่มงาน
+                                        {sec.name}
                                       </span>
-                                      {leader.memberId && (
+                                      {member.memberId && (
                                         <span className="linkedAccountBadge" title="ผูกกับบัญชีบุคลากรในระบบ">
                                           <CheckCircle2 size={11} /> บุคลากรในระบบ
                                         </span>
                                       )}
                                     </div>
-                                    <span className="leaderName">{leader.name}</span>
-                                    <span className="leaderPosition">{leader.position}</span>
-                                    {leader.phone && (
+                                    <span className="leaderName">{member.name}</span>
+                                    <span className="leaderPosition">{member.position}</span>
+                                    {member.phone && (
                                       <div className="leaderPhoneChip" title="เบอร์โทรภายใน (ดูได้เฉพาะเจ้าหน้าที่)">
                                         <Phone size={12} />
-                                        <span>เบอร์โทรภายใน: {leader.phone}</span>
+                                        <span>เบอร์โทรภายใน: {member.phone}</span>
                                       </div>
                                     )}
                                   </div>
@@ -1219,8 +1515,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                         type="button"
                                         className="orderBtn"
                                         title="เลื่อนขึ้น"
-                                        disabled={leaderIndex === 0}
-                                        onClick={() => handleMoveMember('leader', leaderIndex, 'up')}
+                                        disabled={memberIndex === 0}
+                                        onClick={() => handleMoveMember(sec.members, memberIndex, 'up')}
                                       >
                                         <ArrowUp size={12} />
                                       </button>
@@ -1228,8 +1524,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                         type="button"
                                         className="orderBtn"
                                         title="เลื่อนลง"
-                                        disabled={leaderIndex === leaderMembers.length - 1}
-                                        onClick={() => handleMoveMember('leader', leaderIndex, 'down')}
+                                        disabled={memberIndex === sec.members.length - 1}
+                                        onClick={() => handleMoveMember(sec.members, memberIndex, 'down')}
                                       >
                                         <ArrowDown size={12} />
                                       </button>
@@ -1241,13 +1537,13 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                       onClick={() => {
                                         setMemberModalMode('edit')
                                         setMemberFormData({
-                                          id: leader.id,
-                                          name: leader.name,
-                                          position: leader.position,
-                                          role: leader.role,
-                                          phone: leader.phone || '',
-                                          imagePath: leader.imagePath || '',
-                                          memberId: leader.memberId || null
+                                          id: member.id,
+                                          name: member.name,
+                                          position: member.position,
+                                          role: member.role,
+                                          phone: member.phone || '',
+                                          imagePath: member.imagePath || '',
+                                          memberId: member.memberId || null
                                         })
                                         setImgPreviewFailed(false)
                                         setIsMemberModalOpen(true)
@@ -1259,37 +1555,27 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                       type="button"
                                       className="iconBtn danger"
                                       title="ลบสมาชิก"
-                                      onClick={() => handleDeleteMember(leader)}
+                                      onClick={() => handleDeleteMember(member)}
                                     >
                                       <Trash2 size={15} />
                                     </button>
                                   </div>
                                 </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </section>
-                    )}
+                              ) : (
+                                <div
+                                  key={member.id}
+                                  className={`memberCard ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
+                                  draggable
+                                  onDragStart={(e) => handleMemberDragStart(member.id, e)}
+                                  onDragOver={(e) => handleMemberDragOver(member.id, e)}
+                                  onDragLeave={handleMemberDragLeave}
+                                  onDrop={(e) => handleMemberDrop(member.id, e)}
+                                  onDragEnd={handleMemberDragEnd}
+                                >
+                                  <div className="dragHandleWrap" title="ลากเพื่อสลับตำแหน่ง">
+                                    <GripVertical size={14} className="text-slate-400" />
+                                  </div>
 
-                    {/* Regular Members Grid */}
-                    {regularMembers.length > 0 && (
-                      <section className="orgMemberSection">
-                        <div className="orgSectionHeading">
-                          <Users size={15} className="text-slate-600" />
-                          <span>เจ้าหน้าที่ / สมาชิกในกลุ่มงาน ({regularMembers.length})</span>
-                          <span className="orgSectionCount">{regularMembers.length}</span>
-                        </div>
-
-                        {filteredRegularMembers.length === 0 ? (
-                          <div className="orgNoSearchResultNote">
-                            ไม่พบสมาชิกที่ตรงกับคำค้นหา &quot;{searchMemberInGroupQuery}&quot;
-                          </div>
-                        ) : (
-                          <div className="membersGrid">
-                            {filteredRegularMembers.map((member, memberIndex) => {
-                              return (
-                                <div key={member.id} className="memberCard">
                                   <div className="memberCardAvatarWrap">
                                     {member.imagePath ? (
                                       <img
@@ -1325,7 +1611,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                         className="orderBtn"
                                         title="เลื่อนขึ้น"
                                         disabled={memberIndex === 0}
-                                        onClick={() => handleMoveMember('member', memberIndex, 'up')}
+                                        onClick={() => handleMoveMember(sec.members, memberIndex, 'up')}
                                       >
                                         <ArrowUp size={11} />
                                       </button>
@@ -1333,8 +1619,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                                         type="button"
                                         className="orderBtn"
                                         title="เลื่อนลง"
-                                        disabled={memberIndex === regularMembers.length - 1}
-                                        onClick={() => handleMoveMember('member', memberIndex, 'down')}
+                                        disabled={memberIndex === sec.members.length - 1}
+                                        onClick={() => handleMoveMember(sec.members, memberIndex, 'down')}
                                       >
                                         <ArrowDown size={11} />
                                       </button>
@@ -1373,9 +1659,9 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                               )
                             })}
                           </div>
-                        )}
-                      </section>
-                    )}
+                        </section>
+                      )
+                    })}
                   </div>
                 )}
               </>
@@ -1716,51 +2002,89 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
 
                   {/* Bottom: Role in Group (Full Width) */}
                   <div className="formGroup" style={{ marginTop: '10px' }}>
-                    <label className="formLabel">บทบาทในกลุ่มงาน *</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label className="formLabel">ระดับบทบาทในกลุ่มงาน *</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsRoleModalOpen(true)}
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--admin-primary)',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Shield size={12} />
+                        <span>จัดการระดับบทบาท</span>
+                      </button>
+                    </div>
                     <div className="roleSelectorGrid">
-                      <div
-                        className={`roleOptionCard ${memberFormData.role === 'member' ? 'active' : ''}`}
-                        onClick={() => setMemberFormData({ ...memberFormData, role: 'member' })}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setMemberFormData({ ...memberFormData, role: 'member' })
-                          }
-                        }}
-                      >
-                        <div className="roleOptionCardHeader">
-                          <Users size={16} className={memberFormData.role === 'member' ? 'text-emerald-700' : 'text-slate-400'} />
-                          <div className="roleOptionCardTitle">
-                            เจ้าหน้าที่ผู้ปฏิบัติงาน
+                      {roles.length === 0 ? (
+                        <>
+                          <div
+                            className={`roleOptionCard ${memberFormData.role === 'member' ? 'active' : ''}`}
+                            onClick={() => setMemberFormData({ ...memberFormData, role: 'member' })}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <div className="roleOptionCardHeader">
+                              <Users size={16} className={memberFormData.role === 'member' ? 'text-emerald-700' : 'text-slate-400'} />
+                              <div className="roleOptionCardTitle">เจ้าหน้าที่ผู้ปฏิบัติงาน</div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="roleOptionCardDesc">
-                          แสดงเป็นการ์ดพร้อมเส้นโยงสายการบังคับบัญชาลงมาจากหัวหน้างาน
-                        </div>
-                      </div>
+                          <div
+                            className={`roleOptionCard ${memberFormData.role === 'leader' ? 'active' : ''}`}
+                            onClick={() => setMemberFormData({ ...memberFormData, role: 'leader' })}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <div className="roleOptionCardHeader">
+                              <Crown size={16} className={memberFormData.role === 'leader' ? 'text-amber-600' : 'text-slate-400'} />
+                              <div className="roleOptionCardTitle">หัวหน้ากลุ่มงาน / ผู้บริหาร</div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        roles.map((r, rIdx) => {
+                          const isSelected =
+                            memberFormData.role === r.name ||
+                            (rIdx === 0 && memberFormData.role === 'leader') ||
+                            (r.isDefault && memberFormData.role === 'member')
+                          const isLeader = rIdx === 0 || r.name.toLowerCase().includes('หัวหน้า')
 
-                      <div
-                        className={`roleOptionCard ${memberFormData.role === 'leader' ? 'active' : ''}`}
-                        onClick={() => setMemberFormData({ ...memberFormData, role: 'leader' })}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            setMemberFormData({ ...memberFormData, role: 'leader' })
-                          }
-                        }}
-                      >
-                        <div className="roleOptionCardHeader">
-                          <Crown size={16} className={memberFormData.role === 'leader' ? 'text-amber-600' : 'text-slate-400'} />
-                          <div className="roleOptionCardTitle">
-                            หัวหน้ากลุ่มงาน / ผู้บริหาร
-                          </div>
-                        </div>
-                        <div className="roleOptionCardDesc">
-                          แสดงเด่นด้านบนสุด เป็นจุดเริ่มต้นของสายการบังคับบัญชา
-                        </div>
-                      </div>
+                          return (
+                            <div
+                              key={r.id}
+                              className={`roleOptionCard ${isSelected ? 'active' : ''}`}
+                              onClick={() => setMemberFormData({ ...memberFormData, role: r.name })}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  setMemberFormData({ ...memberFormData, role: r.name })
+                                }
+                              }}
+                            >
+                              <div className="roleOptionCardHeader">
+                                {isLeader ? (
+                                  <Crown size={16} className={isSelected ? 'text-amber-600' : 'text-slate-400'} />
+                                ) : (
+                                  <Users size={16} className={isSelected ? 'text-emerald-700' : 'text-slate-400'} />
+                                )}
+                                <div className="roleOptionCardTitle">{r.name}</div>
+                              </div>
+                              <div className="roleOptionCardDesc">
+                                ระดับลำดับที่ {rIdx + 1} {r.isDefault ? '• ค่าเริ่มต้น' : ''}
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1777,6 +2101,184 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Role Levels Management Modal */}
+        {isRoleModalOpen && (
+          <div className="modalOverlay" onClick={() => setIsRoleModalOpen(false)}>
+            <div className="modalContent modalWide" onClick={(e) => e.stopPropagation()}>
+              <div className="modalHeader">
+                <div>
+                  <h3 className="modalHeaderTitle">
+                    จัดการระดับบทบาทบุคลากร (Role Levels)
+                  </h3>
+                  <p className="modalHeaderSub">
+                    กำหนดและจัดลำดับความสำคัญของบทบาทบุคลากรภายในกลุ่มงาน (เช่น หัวหน้า, รองหัวหน้า, เจ้าหน้าที่)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="iconBtn"
+                  onClick={() => setIsRoleModalOpen(false)}
+                  aria-label="ปิด"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="modalBody">
+                {/* Add Role Form */}
+                <form onSubmit={handleCreateRole} className="roleCreateForm">
+                  <input
+                    type="text"
+                    className="formInput"
+                    placeholder="ระบุชื่อบทบาทใหม่ เช่น รองหัวหน้ากลุ่มงาน, ผู้ช่วยหัวหน้างาน, พยาบาลประสานงาน..."
+                    value={newRoleName}
+                    onChange={(e) => setNewRoleName(e.target.value)}
+                    disabled={creatingRole}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btnPrimary"
+                    disabled={creatingRole || !newRoleName.trim()}
+                  >
+                    {creatingRole ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                    <span>เพิ่มบทบาท</span>
+                  </button>
+                </form>
+
+                {/* Roles List */}
+                <div className="roleListContainer">
+                  {loadingRoles ? (
+                    <div className="emptyState" style={{ padding: '24px 0' }}>
+                      <Loader2 className="animate-spin text-emerald-700" size={24} />
+                      <span>กำลังโหลดระดับบทบาท...</span>
+                    </div>
+                  ) : roles.length === 0 ? (
+                    <div className="emptyState" style={{ padding: '24px 0' }}>
+                      <span>ยังไม่มีบทบาทที่กำหนด</span>
+                    </div>
+                  ) : (
+                    <div className="rolesList">
+                      {roles.map((r, index) => {
+                        const isEditing = editingRoleId === r.id
+                        const isFirst = index === 0
+                        const isLast = index === roles.length - 1
+
+                        return (
+                          <div key={r.id} className="roleListItem">
+                            <div className="roleItemLeft">
+                              <div className="roleRankBadge" title={`ลำดับความสำคัญที่ ${index + 1}`}>
+                                #{index + 1}
+                              </div>
+
+                              {isEditing ? (
+                                <div className="roleEditInputWrap">
+                                  <input
+                                    type="text"
+                                    className="formInput"
+                                    value={editingRoleName}
+                                    onChange={(e) => setEditingRoleName(e.target.value)}
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleUpdateRole(r.id)
+                                      if (e.key === 'Escape') setEditingRoleId(null)
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn btnPrimary btnSmall"
+                                    onClick={() => handleUpdateRole(r.id)}
+                                    disabled={savingRoleEdit || !editingRoleName.trim()}
+                                  >
+                                    <Check size={13} /> บันทึก
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btnSecondary btnSmall"
+                                    onClick={() => setEditingRoleId(null)}
+                                  >
+                                    ยกเลิก
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="roleItemNameWrap">
+                                  <span className="roleItemName">{r.name}</span>
+                                  {r.isDefault && (
+                                    <span className="roleDefaultTag">ค่าเริ่มต้น</span>
+                                  )}
+                                  {isFirst && (
+                                    <span className="roleTopRankTag">ระดับสูงสุด</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {!isEditing && (
+                              <div className="roleItemActions">
+                                <div className="orderButtonsRow">
+                                  <button
+                                    type="button"
+                                    className="orderBtnCompact"
+                                    title="เลื่อนระดับขึ้น (ความสำคัญสูงขึ้น)"
+                                    disabled={isFirst}
+                                    onClick={() => handleMoveRole(index, 'up')}
+                                  >
+                                    <ArrowUp size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="orderBtnCompact"
+                                    title="เลื่อนระดับลง"
+                                    disabled={isLast}
+                                    onClick={() => handleMoveRole(index, 'down')}
+                                  >
+                                    <ArrowDown size={12} />
+                                  </button>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="iconBtnCompact"
+                                  title="แก้ไขชื่อบทบาท"
+                                  onClick={() => {
+                                    setEditingRoleId(r.id)
+                                    setEditingRoleName(r.name)
+                                  }}
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="iconBtnCompact danger"
+                                  title="ลบบทบาทนี้"
+                                  disabled={roles.length <= 1}
+                                  onClick={() => handleDeleteRole(r)}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="modalFooter">
+                <button
+                  type="button"
+                  className="btn btnPrimary"
+                  onClick={() => setIsRoleModalOpen(false)}
+                >
+                  ปิดหน้าต่าง
+                </button>
+              </div>
             </div>
           </div>
         )}

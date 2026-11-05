@@ -219,25 +219,26 @@ describe('salaryStatementService', () => {
       expect(res.member.accountNumber).toBe('012-3-45678-9')
     })
 
-    it('correctly aggregates otCh11 from c11 column when c5 is empty or populated', () => {
+    it('correctly separates otCh11 (c5) and otCh11Retroactive (c11)', () => {
       const otWithC11 = [
         {
           c1: '2026-10-12',
           c3: '5180583764',
           c4: 'นางวรรณนิสา คำภิโร',
-          c5: '',
+          c5: '2500.00',
           c6: '5920.00',
           c10: 'กันยายน',
           c11: '3000.00',
-          c15: '8920.00',
+          c15: '11420.00',
           c22: '-',
-          c23: '8920.00'
+          c23: '11420.00'
         }
       ]
       const res = buildStatementData(mockMember, [], otWithC11, '1m')
-      expect(res.records[0].otCh11).toBe(3000)
+      expect(res.records[0].otCh11).toBe(2500)
+      expect(res.records[0].otCh11Retroactive).toBe(3000)
       expect(res.records[0].otShift).toBe(5920)
-      expect(res.records[0].totalEarnings).toBe(8920)
+      expect(res.records[0].totalEarnings).toBe(11420)
     })
 
     it('generates a valid excel workbook buffer without average row', async () => {

@@ -111,6 +111,19 @@ describe('OrganizationAdminClient Component', () => {
             })
         })
       }
+      if (url.includes('/api/departments/roles')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: [
+                { id: 1, name: 'หัวหน้ากลุ่มงาน / หัวหน้างาน', orderIndex: 0, isDefault: false },
+                { id: 2, name: 'เจ้าหน้าที่ผู้ปฏิบัติงาน', orderIndex: 1, isDefault: true }
+              ]
+            })
+        })
+      }
       if (url.includes('/api/departments/members')) {
         return Promise.resolve({
           ok: true,
@@ -141,7 +154,7 @@ describe('OrganizationAdminClient Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('พว.สมหญิง รักดี')).toBeDefined()
-      expect(screen.getByText('หัวหน้ากลุ่มงาน')).toBeDefined()
+      expect(screen.getAllByText(/หัวหน้ากลุ่มงาน/i).length).toBeGreaterThanOrEqual(1)
       expect(screen.getByText('พว.สมชาย บริการดี')).toBeDefined()
       expect(screen.getByText('พยาบาลวิชาชีพ')).toBeDefined()
     })
@@ -268,5 +281,23 @@ describe('OrganizationAdminClient Component', () => {
     // Wait longer than the 250ms debounce window to ensure dropdown does NOT pop up again
     await new Promise((r) => setTimeout(r, 400))
     expect(screen.queryByText(/พยาบาลวิชาชีพชำนาญการ • กลุ่มงานการพยาบาล/i)).toBeNull()
+  })
+
+  it('opens role management modal and displays roles list', async () => {
+    render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/ระดับบทบาท/i)).toBeDefined()
+    })
+
+    const roleBtn = screen.getByText(/ระดับบทบาท/i)
+    fireEvent.click(roleBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('จัดการระดับบทบาทบุคลากร (Role Levels)')).toBeDefined()
+      expect(screen.getByPlaceholderText(/ระบุชื่อบทบาทใหม่/i)).toBeDefined()
+      expect(screen.getByText('หัวหน้ากลุ่มงาน / หัวหน้างาน')).toBeDefined()
+      expect(screen.getByText('เจ้าหน้าที่ผู้ปฏิบัติงาน')).toBeDefined()
+    })
   })
 });

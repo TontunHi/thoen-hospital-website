@@ -816,6 +816,18 @@ model DepartmentMember {
   @@map("department_members")
 }
 
+model DepartmentRole {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(100)
+  orderIndex Int      @default(0) @map("order_index")
+  isDefault  Boolean  @default(false) @map("is_default")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(0)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(0)
+
+  @@index([orderIndex], map: "idx_dept_role_order")
+  @@map("department_roles")
+}
+
 model PalliativeCareRegistry {
   id                 Int       @id @default(autoincrement())
   hn                 String    @db.VarChar(20)

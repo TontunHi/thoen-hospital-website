@@ -188,4 +188,74 @@ describe('DepartmentService (TDD)', () => {
       expect(results[0].groupName).toBe('กลุ่มงานการแพทย์')
     })
   })
+
+  describe('Role Levels Management', () => {
+    it('creates a custom department role', async () => {
+      mockExecutor
+        .mockResolvedValueOnce({ insertId: 0 }) // ensureRolesTable CREATE
+        .mockResolvedValueOnce([{ count: 3 }]) // ensureRolesTable COUNT
+        .mockResolvedValueOnce([{ max_order: 2 }]) // MAX(order_index)
+        .mockResolvedValueOnce({ insertId: 5, affectedRows: 1 }) // INSERT
+
+      const role = await service.createRole(
+        { name: 'รองหัวหน้ากลุ่มงาน' },
+        { id: 1, name: 'Admin' }
+      )
+
+      expect(role).toEqual({
+        id: 5,
+        name: 'รองหัวหน้ากลุ่มงาน',
+        orderIndex: 3,
+        isDefault: false
+      })
+    })
+
+    it('retrieves all roles ordered by priority', async () => {
+      mockExecutor
+        .mockResolvedValueOnce({ insertId: 0 }) // ensureRolesTable CREATE
+        .mockResolvedValueOnce([{ count: 3 }]) // ensureRolesTable COUNT
+        .mockResolvedValueOnce([
+          { id: 1, name: 'หัวหน้ากลุ่มงาน', order_index: 0, is_default: 0 },
+          { id: 2, name: 'รองหัวหน้ากลุ่มงาน', order_index: 1, is_default: 0 },
+          { id: 3, name: 'เจ้าหน้าที่ผู้ปฏิบัติงาน', order_index: 2, is_default: 1 }
+        ])
+
+      const roles = await service.getRoles()
+      expect(roles).toHaveLength(3)
+      expect(roles[0].name).toBe('หัวหน้ากลุ่มงาน')
+      expect(roles[1].name).toBe('รองหัวหน้ากลุ่มงาน')
+      expect(roles[2].isDefault).toBe(true)
+    })
+
+    it('reorders roles atomically', async () => {
+      mockExecutor
+        .mockResolvedValueOnce({ insertId: 0 }) // ensureRolesTable CREATE
+        .mockResolvedValueOnce([{ count: 3 }]) // ensureRolesTable COUNT
+        .mockResolvedValueOnce({ affectedRows: 2 }) // UPDATE CASE
+
+      const success = await service.reorderRoles([2, 1], { id: 1, name: 'Admin' })
+      expect(success).toBe(true)
+    })
+
+    it('updates a role name', async () => {
+      mockExecutor
+        .mockResolvedValueOnce({ insertId: 0 }) // ensureRolesTable CREATE
+        .mockResolvedValueOnce([{ count: 3 }]) // ensureRolesTable COUNT
+        .mockResolvedValueOnce({ affectedRows: 1 }) // UPDATE
+
+      const success = await service.updateRole(2, { name: 'รองหัวหน้ากลุ่มงาน (ฝ่ายบริหาร)' }, { id: 1, name: 'Admin' })
+      expect(success).toBe(true)
+    })
+
+    it('deletes a role', async () => {
+      mockExecutor
+        .mockResolvedValueOnce({ insertId: 0 }) // ensureRolesTable CREATE
+        .mockResolvedValueOnce([{ count: 3 }]) // ensureRolesTable COUNT
+        .mockResolvedValueOnce([{ count: 3 }]) // deleteRole check COUNT > 1
+        .mockResolvedValueOnce({ affectedRows: 1 }) // DELETE
+
+      const success = await service.deleteRole(2, { id: 1, name: 'Admin' })
+      expect(success).toBe(true)
+    })
+  })
 })

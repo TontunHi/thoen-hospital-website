@@ -6,7 +6,7 @@ import { z } from 'zod'
 const updateMemberSchema = z.object({
   name: z.string().trim().min(1, 'กรุณาระบุชื่อ-นามสกุล').max(255).optional(),
   position: z.string().trim().min(1, 'กรุณาระบุตำแหน่ง').max(200).optional(),
-  role: z.enum(['leader', 'member']).optional(),
+  role: z.string().trim().min(1, 'กรุณาระบุบทบาท').max(100).optional(),
   orderIndex: z.coerce.number().int().optional(),
   imagePath: z.string().trim().max(255).optional().nullable(),
   phone: z.string().trim().max(50).optional().nullable(),

@@ -42,6 +42,7 @@ export interface StatementPeriodItem {
   // OT
   hasOt: boolean
   otCh11: number
+  otCh11Retroactive: number
   otShift: number
   otPerDiem: number
   otSpecial: number
@@ -291,11 +292,12 @@ export function buildStatementData(
     const salaryNet = parseSalaryAmount(s?.c26 || (salaryEarnings - salaryDeductions))
 
     const hasOt = !!ot
-    const otCh11 = Math.round((parseSalaryAmount(ot?.c11) + parseSalaryAmount(ot?.c5)) * 100) / 100
+    const otCh11 = parseSalaryAmount(ot?.c5)
+    const otCh11Retroactive = parseSalaryAmount(ot?.c11)
     const otShift = parseSalaryAmount(ot?.c6)
     const otPerDiem = parseSalaryAmount(ot?.c7)
     const otSpecial = parseSalaryAmount(ot?.c8)
-    const otEarnings = parseSalaryAmount(ot?.c15 || (otCh11 + otShift + otPerDiem + otSpecial))
+    const otEarnings = parseSalaryAmount(ot?.c15 || (otCh11 + otCh11Retroactive + otShift + otPerDiem + otSpecial))
     const otDeductions = parseSalaryAmount(ot?.c22)
     const otNet = parseSalaryAmount(ot?.c23 || (otEarnings - otDeductions))
 
@@ -325,6 +327,7 @@ export function buildStatementData(
       salaryNet,
       hasOt,
       otCh11,
+      otCh11Retroactive,
       otShift,
       otPerDiem,
       otSpecial,
