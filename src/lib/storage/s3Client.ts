@@ -6,6 +6,8 @@ import {
   HeadObjectCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import crypto from 'crypto'
+import path from 'path'
 
 // Configuration with sensible defaults for Thoen Hospital Storage CT (192.168.1.24)
 export const S3_CONFIG = {
@@ -19,6 +21,35 @@ export const S3_CONFIG = {
 }
 
 let s3ClientInstance: S3Client | null = null
+
+/**
+ * Safely normalizes S3 keys so that individual path segments between '/' never exceed
+ * the Linux filesystem POSIX limit (NAME_MAX = 255 bytes).
+ * For segments > 220 bytes, it deterministically shortens the name while preserving the extension
+ * and appending a SHA-256 hash slice so the mapping is 100% reproducible for both upload and retrieval.
+ */
+export function normalizeS3Key(key: string): string {
+  const cleanKey = key.replace(/^\/+/, '')
+  return cleanKey.split('/').map(segment => {
+    const byteLen = Buffer.byteLength(segment, 'utf8')
+    if (byteLen <= 220) return segment
+
+    let ext = path.extname(segment)
+    if (ext.length > 10 || ext.includes(' ') || ext.includes('\t')) {
+      ext = ''
+    }
+    const base = ext ? segment.slice(0, -ext.length) : segment
+    const hash = crypto.createHash('sha256').update(segment).digest('hex').slice(0, 12)
+
+    let safeBase = ''
+    for (const char of base) {
+      if (Buffer.byteLength(safeBase + char, 'utf8') > 170) break
+      safeBase += char
+    }
+
+    return `${safeBase}_${hash}${ext}`
+  }).join('/')
+}
 
 /**
  * Get or initialize singleton S3 client.
@@ -57,18 +88,18 @@ export async function uploadToS3(params: {
 }): Promise<{ bucket: string; key: string; eTag?: string }> {
   const client = getS3Client()
   const bucket = params.bucket || S3_CONFIG.publicBucket
-  const cleanKey = params.key.replace(/^\/+/, '')
+  const normalizedKey = normalizeS3Key(params.key)
 
   const command = new PutObjectCommand({
     Bucket: bucket,
-    Key: cleanKey,
+    Key: normalizedKey,
     Body: params.body,
     ContentType: params.contentType || 'application/octet-stream',
     CacheControl: params.cacheControl || (bucket === S3_CONFIG.publicBucket ? 'public, max-age=31536000, immutable' : undefined),
   })
 
   const res = await client.send(command)
-  return { bucket, key: cleanKey, eTag: res.ETag }
+  return { bucket, key: normalizedKey, eTag: res.ETag }
 }
 
 /**
@@ -81,11 +112,11 @@ export async function getObjectFromS3(params: {
 }) {
   const client = getS3Client()
   const bucket = params.bucket || S3_CONFIG.publicBucket
-  const cleanKey = params.key.replace(/^\/+/, '')
+  const normalizedKey = normalizeS3Key(params.key)
 
   const command = new GetObjectCommand({
     Bucket: bucket,
-    Key: cleanKey,
+    Key: normalizedKey,
     Range: params.range,
   })
 
@@ -101,12 +132,12 @@ export async function headObjectS3(params: {
 }) {
   const client = getS3Client()
   const bucket = params.bucket || S3_CONFIG.publicBucket
-  const cleanKey = params.key.replace(/^\/+/, '')
+  const normalizedKey = normalizeS3Key(params.key)
 
   try {
     const command = new HeadObjectCommand({
       Bucket: bucket,
-      Key: cleanKey,
+      Key: normalizedKey,
     })
     return await client.send(command)
   } catch {
@@ -123,17 +154,17 @@ export async function deleteFromS3(params: {
 }): Promise<boolean> {
   const client = getS3Client()
   const bucket = params.bucket || S3_CONFIG.publicBucket
-  const cleanKey = params.key.replace(/^\/+/, '')
+  const normalizedKey = normalizeS3Key(params.key)
 
   try {
     const command = new DeleteObjectCommand({
       Bucket: bucket,
-      Key: cleanKey,
+      Key: normalizedKey,
     })
     await client.send(command)
     return true
   } catch (err) {
-    console.warn(`[S3] Failed to delete ${bucket}/${cleanKey}:`, err)
+    console.warn(`[S3] Failed to delete ${bucket}/${normalizedKey}:`, err)
     return false
   }
 }
@@ -148,11 +179,11 @@ export async function getPresignedDownloadUrl(params: {
 }): Promise<string> {
   const client = getS3Client()
   const bucket = params.bucket || S3_CONFIG.privateBucket
-  const cleanKey = params.key.replace(/^\/+/, '')
+  const normalizedKey = normalizeS3Key(params.key)
 
   const command = new GetObjectCommand({
     Bucket: bucket,
-    Key: cleanKey,
+    Key: normalizedKey,
   })
 
   return await getSignedUrl(client, command, {
