@@ -369,10 +369,10 @@ describe('OrganizationAdminClient Component', () => {
     render(<OrganizationAdminClient currentAdmin={mockAdmin} />)
 
     await waitFor(() => {
-      expect(screen.getByTitle('เพิ่มหน่วยงานย่อย')).toBeDefined()
+      expect(screen.getAllByTitle('เพิ่มหน่วยงานย่อย').length).toBeGreaterThanOrEqual(1)
     })
 
-    const addSubGroupBtn = screen.getByTitle('เพิ่มหน่วยงานย่อย')
+    const addSubGroupBtn = screen.getAllByTitle('เพิ่มหน่วยงานย่อย')[0]
     fireEvent.click(addSubGroupBtn)
 
     await waitFor(() => {

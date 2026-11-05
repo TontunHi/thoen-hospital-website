@@ -1469,7 +1469,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     const isDeputy = badge?.includes('รอง')
 
     return (
-      <li key={`staff-leaf-${member.id}`}>
+      <li key={`staff-leaf-${member.id}`} className="adminTreeMemberLeafLi">
         <div
           className={`adminTreeMemberCard ${isDragging ? 'isDragging' : ''} ${isDropTarget ? 'isDropTarget' : ''}`}
           draggable={true}
@@ -1514,7 +1514,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               title="แก้ไขข้อมูล"
               onClick={() => openEditMember(member)}
             >
-              <Edit2 size={12} />
+              <Edit2 size={13} />
               <span>แก้ไข</span>
             </button>
             <button
@@ -1523,7 +1523,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               title="ลบบุคลากรออกจากกลุ่มงาน"
               onClick={() => handleDeleteMember(member)}
             >
-              <Trash2 size={12} />
+              <Trash2 size={13} />
+              <span>ลบ</span>
             </button>
           </div>
         </div>
@@ -1549,37 +1550,40 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
         {rows.map((rowMembers, rowIndex) => {
           const isLastRow = rowIndex === rows.length - 1
           return (
-            <ul key={`admin-row-${rowIndex}`} className="adminTieredRow">
-              {rowMembers.map((member) =>
-                renderAdminMemberLeaf(member, badge, groupId, groupName)
-              )}
-              {isLastRow && (
-                <li key="admin-add-card">
-                  <button
-                    type="button"
-                    className="adminTreeAddDashedCard"
-                    onClick={() => openCreateMemberForGroup(groupId, groupName, badge || 'เจ้าหน้าที่ผู้ปฏิบัติงาน')}
-                    title={`เพิ่มบุคลากร (${badge || 'เจ้าหน้าที่'})`}
-                  >
-                    <Plus size={16} />
-                    <span>เพิ่มบุคลากร</span>
-                  </button>
-                </li>
-              )}
-            </ul>
+            <div key={`admin-row-wrap-${rowIndex}`} className="adminTieredRowWrap">
+              <ul className="adminTieredRow">
+                {rowMembers.map((member) =>
+                  renderAdminMemberLeaf(member, badge, groupId, groupName)
+                )}
+                {isLastRow && (
+                  <li key="admin-add-card" className="adminTreeAddDashedCardWrap">
+                    <button
+                      type="button"
+                      className="adminTreeAddDashedCard"
+                      onClick={() => openCreateMemberForGroup(groupId, groupName, badge || 'เจ้าหน้าที่ผู้ปฏิบัติงาน')}
+                      title={`เพิ่มบุคลากร (${badge || 'เจ้าหน้าที่'})`}
+                    >
+                      <UserPlus size={18} />
+                      <span>+ เพิ่มบุคลากร</span>
+                    </button>
+                  </li>
+                )}
+              </ul>
+              {!isLastRow && <div className="adminTieredInterRowStem" aria-hidden="true" />}
+            </div>
           )
         })}
         {rows.length === 0 && (
           <ul className="adminTieredRow">
-            <li key="admin-add-card-empty">
+            <li key="admin-add-card-empty" className="adminTreeAddDashedCardWrap">
               <button
                 type="button"
                 className="adminTreeAddDashedCard"
                 onClick={() => openCreateMemberForGroup(groupId, groupName, badge || 'เจ้าหน้าที่ผู้ปฏิบัติงาน')}
                 title={`เพิ่มบุคลากร (${badge || 'เจ้าหน้าที่'})`}
               >
-                <Plus size={16} />
-                <span>เพิ่มบุคลากร ({badge || 'เจ้าหน้าที่'})</span>
+                <UserPlus size={18} />
+                <span>+ เพิ่มบุคลากร</span>
               </button>
             </li>
           </ul>
@@ -1594,54 +1598,41 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     const staff = node.members.filter((m) => m.id !== leader?.id && !otherLeaders.some((ol) => ol.id === m.id))
     const children = node.children || []
 
+    const hasChildBranches = children.length > 0 || otherLeaders.length > 0 || staff.length > 0
+
     return (
       <li key={`subnode-${node.id}`} className="adminOrgTreeSubItem">
         <div className="adminTreeNodeCard subUnitNode">
+          {/* Top Bar: Unit Tag on left, Edit/Delete on right */}
           <div className="adminTreeNodeHeader">
-            <div className="adminTreeNodeTitleWrap">
-              <span className="adminTreeNodeGroupTag">งานย่อย</span>
-              <h3 className="adminTreeNodeTitle" title={node.name}>
-                {node.name}
-              </h3>
-            </div>
-            <div className="adminNodeQuickActions" onClick={(e) => e.stopPropagation()}>
+            <span className="adminTreeNodeGroupTag">งานย่อย</span>
+            <div className="adminNodeHeaderActions" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
-                className="adminNodeActionBtn primary"
-                onClick={() => openCreateMemberForGroup(node.id, node.name)}
-                title="เพิ่มสมาชิกเข้างานย่อยนี้"
-              >
-                <Plus size={11} />
-                <span>สมาชิก</span>
-              </button>
-              <button
-                type="button"
-                className="adminNodeActionBtn"
-                onClick={() => openCreateSubGroup(node.id)}
-                title="เพิ่มงานย่อยภายใต้งานนี้"
-              >
-                <Plus size={11} />
-                <span>งานย่อย</span>
-              </button>
-              <button
-                type="button"
-                className="adminNodeActionBtn"
+                className="adminIconBtn"
                 onClick={() => openEditGroup(node)}
                 title="แก้ไขชื่องานย่อย"
+                aria-label="แก้ไขชื่องานย่อย"
               >
-                <Edit2 size={11} />
+                <Edit2 size={14} />
               </button>
               <button
                 type="button"
-                className="adminNodeActionBtn danger"
+                className="adminIconBtn danger"
                 onClick={() => handleDeleteGroup(node)}
                 title="ลบงานย่อย"
+                aria-label="ลบงานย่อย"
               >
-                <Trash2 size={11} />
+                <Trash2 size={14} />
               </button>
             </div>
           </div>
 
+          <h3 className="adminTreeNodeTitle" title={node.name}>
+            {node.name}
+          </h3>
+
+          {/* Leader Section */}
           {leader ? (
             <div className="adminNodeLeaderWrap">
               <div className="adminNodeLeaderAvatarWrap">
@@ -1663,8 +1654,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   onClick={() => openEditMember(leader)}
                   title="แก้ไขข้อมูล"
                 >
-                  <Edit2 size={11} />
-                  <span>แก้ไข</span>
+                  <Edit2 size={12} />
+                  <span>แก้ไขข้อมูล</span>
                 </button>
                 <button
                   type="button"
@@ -1672,7 +1663,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   onClick={() => handleDeleteMember(leader)}
                   title="ลบข้อมูลหัวหน้า"
                 >
-                  <Trash2 size={11} />
+                  <Trash2 size={12} />
+                  <span>ลบ</span>
                 </button>
               </div>
             </div>
@@ -1681,43 +1673,84 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               <span className="adminNoLeaderText">ยังไม่มีหัวหน้างาน</span>
               <button
                 type="button"
-                className="adminNodeActionBtn primary"
+                className="adminMiniBtn primary"
                 onClick={() => openCreateMemberForGroup(node.id, node.name, 'หัวหน้างาน')}
               >
-                <Plus size={11} />
-                <span>กำหนดหัวหน้า</span>
+                <Plus size={12} />
+                <span>+ กำหนดหัวหน้า</span>
               </button>
             </div>
           )}
+
+          {/* Prominent Card Bottom Action Bar - Big, clear buttons! */}
+          <div className="adminCardBottomBar" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="adminCardActionBtn primary"
+              onClick={() => openCreateMemberForGroup(node.id, node.name)}
+              title="เพิ่มสมาชิกเข้างานย่อยนี้"
+            >
+              <UserPlus size={14} />
+              <span>+ สมาชิก</span>
+            </button>
+            <button
+              type="button"
+              className="adminCardActionBtn secondary"
+              onClick={() => openCreateSubGroup(node.id)}
+              title="เพิ่มงานย่อยภายใต้งานนี้"
+            >
+              <FolderPlus size={14} />
+              <span>+ งานย่อย</span>
+            </button>
+          </div>
         </div>
 
-        {otherLeaders.length > 0 && (
-          <div className="adminDeputyTier">
-            <ul className="adminTieredRow">
+        {/* Continuous Stem & Child Branches */}
+        {hasChildBranches && (
+          children.length === 0 && otherLeaders.length === 0 ? (
+            <>
+              <div className="adminTreeVerticalStem" />
+              <div className="adminDirectStaffBlock">
+                <div className="adminStaffTierHeader">
+                  <Users size={14} className="text-emerald-700" />
+                  <span>เจ้าหน้าที่ ({staff.length} คน)</span>
+                </div>
+                {renderAdminTieredStaff(staff, rowSize, 'เจ้าหน้าที่', true, node.id, node.name)}
+              </div>
+            </>
+          ) : (
+            <ul className="adminTreeBranchRow">
+              {children.map((child) => renderAdminSubnode(child, rowSize))}
+
+              <li key="add-subunit-dashed-child" className="adminOrgTreeBranchItem dashed">
+                <button
+                  type="button"
+                  className="adminTreeAddSubunitDashedCard"
+                  onClick={() => openCreateSubGroup(node.id)}
+                  title="เพิ่มงานย่อยภายใต้แผนกนี้"
+                >
+                  <FolderPlus size={20} />
+                  <span>+ เพิ่มงานย่อย</span>
+                </button>
+              </li>
+
               {otherLeaders.map((deputy) =>
                 renderAdminMemberLeaf(deputy, deputy.role, node.id, node.name)
               )}
+
+              {staff.length > 0 && (
+                <li key="nested-staff-branch" className="adminOrgTreeBranchItem staffBranch">
+                  <div className="adminStaffBranchCardWrap">
+                    <div className="adminStaffBranchHeader">
+                      <Users size={14} />
+                      <span>เจ้าหน้าที่ ({staff.length} คน)</span>
+                    </div>
+                    {renderAdminTieredStaff(staff, rowSize, 'เจ้าหน้าที่', true, node.id, node.name)}
+                  </div>
+                </li>
+              )}
             </ul>
-          </div>
-        )}
-
-        {renderAdminTieredStaff(staff, rowSize, 'เจ้าหน้าที่', true, node.id, node.name)}
-
-        {children.length > 0 && (
-          <ul className="adminOrgTreeSubRow">
-            {children.map((child) => renderAdminSubnode(child, rowSize))}
-            <li key="add-subunit-dashed-child" className="adminTreeAddSubunitDashedCardWrap">
-              <button
-                type="button"
-                className="adminTreeAddSubunitDashedCard"
-                onClick={() => openCreateSubGroup(node.id)}
-                title="เพิ่มงานย่อยภายใต้แผนกนี้"
-              >
-                <Plus size={16} />
-                <span>เพิ่มงานย่อย</span>
-              </button>
-            </li>
-          </ul>
+          )
         )}
       </li>
     )
@@ -1729,54 +1762,41 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
     const staff = root.members.filter((m) => m.id !== leader?.id && !otherLeaders.some((ol) => ol.id === m.id))
     const children = root.children || []
 
+    const hasRootBranches = children.length > 0 || otherLeaders.length > 0 || staff.length > 0
+
     return (
       <div className="adminOrgTree">
         <div className="adminTreeNodeCard rootNode">
+          {/* Top Bar: Group Tag on left, Edit/Delete on right */}
           <div className="adminTreeNodeHeader">
-            <div className="adminTreeNodeTitleWrap">
-              <span className="adminTreeNodeGroupTag">กลุ่มงานหลัก</span>
-              <h2 className="adminTreeNodeTitle" title={root.name}>
-                {root.name}
-              </h2>
-            </div>
-            <div className="adminNodeQuickActions" onClick={(e) => e.stopPropagation()}>
+            <span className="adminTreeNodeGroupTag">กลุ่มงานหลัก</span>
+            <div className="adminNodeHeaderActions" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
-                className="adminNodeActionBtn primary"
-                onClick={() => openCreateMemberForGroup(root.id, root.name)}
-                title="เพิ่มสมาชิกเข้ากลุ่มงานหลัก"
-              >
-                <Plus size={12} />
-                <span>เพิ่มสมาชิก</span>
-              </button>
-              <button
-                type="button"
-                className="adminNodeActionBtn"
-                onClick={() => openCreateSubGroup(root.id)}
-                title="เพิ่มหน่วยงานย่อย"
-              >
-                <Plus size={12} />
-                <span>เพิ่มงานย่อย</span>
-              </button>
-              <button
-                type="button"
-                className="adminNodeActionBtn"
+                className="adminIconBtn"
                 onClick={() => openEditGroup(root)}
                 title="แก้ไขชื่อกลุ่มงานหลัก"
+                aria-label="แก้ไขชื่อกลุ่มงานหลัก"
               >
-                <Edit2 size={12} />
+                <Edit2 size={14} />
               </button>
               <button
                 type="button"
-                className="adminNodeActionBtn danger"
+                className="adminIconBtn danger"
                 onClick={() => handleDeleteGroup(root)}
                 title="ลบกลุ่มงานหลัก"
+                aria-label="ลบกลุ่มงานหลัก"
               >
-                <Trash2 size={12} />
+                <Trash2 size={14} />
               </button>
             </div>
           </div>
 
+          <h2 className="adminTreeNodeTitle" title={root.name}>
+            {root.name}
+          </h2>
+
+          {/* Leader Section */}
           {leader ? (
             <div className="adminNodeLeaderWrap">
               <div className="adminNodeLeaderAvatarWrap">
@@ -1786,7 +1806,7 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   <div className="adminNodeLeaderFallback">{getInitials(leader.name)}</div>
                 )}
                 <span className="adminCrownBadge" title="หัวหน้ากลุ่มงาน">
-                  <Crown size={11} />
+                  <Crown size={12} />
                 </span>
               </div>
               <span className="adminNodeLeaderName">{leader.name}</span>
@@ -1798,8 +1818,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   onClick={() => openEditMember(leader)}
                   title="แก้ไขข้อมูล"
                 >
-                  <Edit2 size={11} />
-                  <span>แก้ไข</span>
+                  <Edit2 size={12} />
+                  <span>แก้ไขข้อมูล</span>
                 </button>
                 <button
                   type="button"
@@ -1807,7 +1827,8 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
                   onClick={() => handleDeleteMember(leader)}
                   title="ลบข้อมูลหัวหน้ากลุ่มงาน"
                 >
-                  <Trash2 size={11} />
+                  <Trash2 size={12} />
+                  <span>ลบ</span>
                 </button>
               </div>
             </div>
@@ -1816,55 +1837,97 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
               <span className="adminNoLeaderText">ยังไม่มีหัวหน้ากลุ่มงาน</span>
               <button
                 type="button"
-                className="adminNodeActionBtn primary"
+                className="adminMiniBtn primary"
                 onClick={() => openCreateMemberForGroup(root.id, root.name, 'หัวหน้ากลุ่มงาน')}
               >
-                <Plus size={11} />
-                <span>กำหนดหัวหน้ากลุ่มงาน</span>
+                <Plus size={12} />
+                <span>+ กำหนดหัวหน้ากลุ่มงาน</span>
               </button>
             </div>
           )}
+
+          {/* Prominent Card Bottom Action Bar */}
+          <div className="adminCardBottomBar" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="adminCardActionBtn primary"
+              onClick={() => openCreateMemberForGroup(root.id, root.name)}
+              title="เพิ่มสมาชิกเข้ากลุ่มงานหลัก"
+            >
+              <UserPlus size={15} />
+              <span>+ เพิ่มสมาชิก</span>
+            </button>
+            <button
+              type="button"
+              className="adminCardActionBtn secondary"
+              onClick={() => openCreateSubGroup(root.id)}
+              title="เพิ่มหน่วยงานย่อย"
+            >
+              <FolderPlus size={15} />
+              <span>+ เพิ่มงานย่อย</span>
+            </button>
+          </div>
         </div>
 
-        {otherLeaders.length > 0 && (
-          <div className="adminDeputyTier">
-            <ul className="adminTieredRow">
+        {/* Continuous Connecting Stem & Child Branches */}
+        {hasRootBranches && (
+          children.length === 0 && otherLeaders.length === 0 ? (
+            /* Only staff under department -> Vertical stem straight to staff block */
+            <>
+              <div className="adminTreeVerticalStem" />
+              <div className="adminDirectStaffBlock">
+                <div className="adminStaffTierHeader">
+                  <Users size={15} className="text-emerald-700" />
+                  <span>เจ้าหน้าที่ผู้ปฏิบัติงาน ({staff.length} คน)</span>
+                </div>
+                {renderAdminTieredStaff(staff, membersPerRow, 'เจ้าหน้าที่', false, root.id, root.name)}
+                <div className="adminAddSubunitPrompt">
+                  <button
+                    type="button"
+                    className="adminTreeAddSubunitDashedCard"
+                    onClick={() => openCreateSubGroup(root.id)}
+                    title="เพิ่มหน่วยงานย่อย"
+                  >
+                    <FolderPlus size={18} />
+                    <span>+ เพิ่มงานย่อยในกลุ่มงานนี้</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Has Sub-units -> Branch row with continuous horizontal and vertical lines */
+            <ul className="adminTreeBranchRow">
+              {children.map((child) => renderAdminSubnode(child, membersPerRow))}
+
+              <li key="add-subunit-dashed-root" className="adminOrgTreeBranchItem dashed">
+                <button
+                  type="button"
+                  className="adminTreeAddSubunitDashedCard"
+                  onClick={() => openCreateSubGroup(root.id)}
+                  title="เพิ่มหน่วยงานย่อย"
+                >
+                  <FolderPlus size={20} />
+                  <span>+ เพิ่มงานย่อย</span>
+                </button>
+              </li>
+
               {otherLeaders.map((deputy) =>
                 renderAdminMemberLeaf(deputy, deputy.role, root.id, root.name)
               )}
+
+              {staff.length > 0 && (
+                <li key="root-staff-branch" className="adminOrgTreeBranchItem staffBranch">
+                  <div className="adminStaffBranchCardWrap">
+                    <div className="adminStaffBranchHeader">
+                      <Users size={14} />
+                      <span>เจ้าหน้าที่กลุ่มงานหลัก ({staff.length} คน)</span>
+                    </div>
+                    {renderAdminTieredStaff(staff, membersPerRow, 'เจ้าหน้าที่', false, root.id, root.name)}
+                  </div>
+                </li>
+              )}
             </ul>
-          </div>
-        )}
-
-        {renderAdminTieredStaff(staff, membersPerRow, 'เจ้าหน้าที่', false, root.id, root.name)}
-
-        {children.length > 0 ? (
-          <ul className="adminOrgTreeSubRow">
-            {children.map((child) => renderAdminSubnode(child, membersPerRow))}
-            <li key="add-subunit-dashed-root" className="adminTreeAddSubunitDashedCardWrap">
-              <button
-                type="button"
-                className="adminTreeAddSubunitDashedCard"
-                onClick={() => openCreateSubGroup(root.id)}
-                title="เพิ่มงานย่อยในกลุ่มงานนี้"
-              >
-                <Plus size={16} />
-                <span>เพิ่มงานย่อย</span>
-              </button>
-            </li>
-          </ul>
-        ) : (
-          <div className="adminTreeEmptySubunitPrompt" style={{ marginTop: '20px' }}>
-            <button
-              type="button"
-              className="adminTreeAddSubunitDashedCard"
-              onClick={() => openCreateSubGroup(root.id)}
-              title="เพิ่มงานย่อยในกลุ่มงานนี้"
-            >
-              <Plus size={16} />
-              <span>+ เพิ่มงานย่อยในกลุ่มงานนี้</span>
-            </button>
-          </div>
+          )
         )}
       </div>
     )
@@ -2015,59 +2078,59 @@ export default function OrganizationAdminClient({ currentAdmin }: { currentAdmin
 
         {adminViewMode === 'diagram' ? (
           <div className="adminDiagramSection">
-            {/* Department Selector Bar */}
+            {/* Department Selector Section - Multi-row 2-3 rows */}
             <div className="adminDeptSelectorSection">
-              <div className="adminDeptSelectorBar">
-                <div className="adminDeptQuickSelectBlock">
-                  <span className="adminDeptSelectLabel">
-                    <Building2 size={15} />
-                    <span>เลือกกลุ่มงาน:</span>
-                  </span>
-                  <div className="adminDeptSelectInputWrap">
-                    <select
-                      className="adminDeptSelectInput"
-                      value={selectedRoot?.id || ''}
-                      onChange={(e) => {
-                        const id = Number(e.target.value)
-                        setSelectedRootId(id)
-                        const found = groups.find((g) => g.id === id)
+              <div className="adminDeptSelectorHeader">
+                <div className="adminDeptSelectorTitle">
+                  <Building2 size={18} className="text-emerald-700" />
+                  <span>เลือกกลุ่มงาน ({effectiveOrgChart.length} กลุ่มงาน)</span>
+                </div>
+                <div className="adminDeptSelectorQuick">
+                  <span className="adminDeptSelectLabel">เลือกด่วน:</span>
+                  <select
+                    className="adminDeptSelectInput"
+                    value={selectedRoot?.id || ''}
+                    onChange={(e) => {
+                      const id = Number(e.target.value)
+                      setSelectedRootId(id)
+                      const found = groups.find((g) => g.id === id)
+                      if (found) setSelectedGroup(found)
+                    }}
+                    aria-label="เลือกกลุ่มงานหลักที่ต้องการแสดงในแผนภาพ"
+                  >
+                    {effectiveOrgChart.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* 2 - 3 Rows Grid for Departments */}
+              <div className="adminDeptTabsGrid" role="tablist">
+                {effectiveOrgChart.map((g) => {
+                  const isSelected = selectedRoot?.id === g.id
+                  const count = countTotalMembersInGroup(g)
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isSelected}
+                      className={`adminDeptTabBtn ${isSelected ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedRootId(g.id)
+                        const found = groups.find((grp) => grp.id === g.id)
                         if (found) setSelectedGroup(found)
                       }}
-                      aria-label="เลือกกลุ่มงานหลักที่ต้องการแสดงในแผนภาพ"
                     >
-                      {effectiveOrgChart.map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Wrapped Tabs */}
-                <div className="adminDeptTabsNav wrapped" role="tablist">
-                  {effectiveOrgChart.map((g) => {
-                    const isSelected = selectedRoot?.id === g.id
-                    const count = countTotalMembersInGroup(g)
-                    return (
-                      <button
-                        key={g.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={isSelected}
-                        className={`adminDeptTabBtn ${isSelected ? 'active' : ''}`}
-                        onClick={() => {
-                          setSelectedRootId(g.id)
-                          const found = groups.find((grp) => grp.id === g.id)
-                          if (found) setSelectedGroup(found)
-                        }}
-                      >
-                        <span className="adminDeptTabName">{g.name}</span>
-                        {count > 0 && <span className="adminDeptTabBadge">{count}</span>}
-                      </button>
-                    )
-                  })}
-                </div>
+                      <Building2 size={16} className="adminDeptTabIcon" />
+                      <span className="adminDeptTabName">{g.name}</span>
+                      {count > 0 && <span className="adminDeptTabBadge">{count}</span>}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
