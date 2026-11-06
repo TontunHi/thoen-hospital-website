@@ -567,7 +567,7 @@ export default function CcsService1B005Client() {
               >
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
-                    พ.ศ. {y} (1 ต.ค. {y - 1} - 30 ก.ย. {y})
+                    ปีงบประมาณ {y}
                   </option>
                 ))}
               </select>

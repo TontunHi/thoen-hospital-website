@@ -534,7 +534,7 @@ export default function PregnancyTestClient() {
               >
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
-                    ปีงบประมาณ พ.ศ. {y} (1 ต.ค. {y - 1} - 30 ก.ย. {y})
+                    ปีงบประมาณ {y}
                   </option>
                 ))}
               </select>

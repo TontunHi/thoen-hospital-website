@@ -544,7 +544,7 @@ export default function PostpartumService30016Client() {
               >
                 {yearOptions.map((y) => (
                   <option key={y} value={y}>
-                    {y} (1 ต.ค. {y - 1} - 30 ก.ย. {y})
+                    ปีงบประมาณ {y}
                   </option>
                 ))}
               </select>

@@ -266,8 +266,9 @@ describe('AncService23Client Component', () => {
       expect(screen.getByText('นาง สมหญิง ทดสอบ')).toBeInTheDocument()
     })
 
-    const inspectButtons = screen.getAllByRole('button', { name: 'ดูข้อมูล' })
-    fireEvent.click(inspectButtons[0])
+    const patientRow = screen.getByText('นาง สมหญิง ทดสอบ').closest('tr')
+    expect(patientRow).toBeInTheDocument()
+    fireEvent.click(patientRow!)
 
     await waitFor(() => {
       expect(

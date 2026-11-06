@@ -262,27 +262,9 @@ export default function DashboardRcmShell({
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false)
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false)
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {}
-    for (const group of RCM_NAV_GROUPS) {
-      initial[group.id] = true
-    }
-    return initial
-  })
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>(() => {
-    const initial: Record<string, boolean> = {}
-    for (const group of RCM_NAV_GROUPS) {
-      for (const item of group.items) {
-        if (item.children && item.children.length > 0) {
-          initial[item.href] =
-            isPathMatch(pathname, item.href) ||
-            item.children.some((c) => isPathMatch(pathname, c.href)) ||
-            true
-        }
-      }
-    }
-    return initial
-  })
+  // เริ่มต้น: ซ่อนให้หมดทุกกลุ่ม (Default collapsed/hidden ตามมาตรฐาน UI สะอาด สบายตา)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
 
   // Hydrate collapsed & expanded group/submenu states from localStorage
   useEffect(() => {
@@ -296,20 +278,7 @@ export default function DashboardRcmShell({
       if (savedGroups) {
         const parsed = JSON.parse(savedGroups) as Record<string, boolean>
         if (parsed && typeof parsed === 'object') {
-          setExpandedGroups((prev) => {
-            const next = { ...prev, ...parsed }
-            for (const group of RCM_NAV_GROUPS) {
-              const hasActiveChild = group.items.some(
-                (item) =>
-                  isPathMatch(pathname, item.href) ||
-                  Boolean(item.children?.some((c) => isPathMatch(pathname, c.href)))
-              )
-              if (hasActiveChild) {
-                next[group.id] = true
-              }
-            }
-            return next
-          })
+          setExpandedGroups(parsed)
         }
       }
 
@@ -317,51 +286,13 @@ export default function DashboardRcmShell({
       if (savedMenus) {
         const parsedMenus = JSON.parse(savedMenus) as Record<string, boolean>
         if (parsedMenus && typeof parsedMenus === 'object') {
-          setExpandedMenus((prev) => {
-            const next = { ...prev, ...parsedMenus }
-            for (const group of RCM_NAV_GROUPS) {
-              for (const item of group.items) {
-                if (
-                  item.children &&
-                  (isPathMatch(pathname, item.href) ||
-                    item.children.some((c) => isPathMatch(pathname, c.href)))
-                ) {
-                  next[item.href] = true
-                }
-              }
-            }
-            return next
-          })
+          setExpandedMenus(parsedMenus)
         }
       }
     } catch {
       // Ignore localStorage read errors in private browsing
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Auto-expand active main group and submenu if user navigates into one of its routes
-  useEffect(() => {
-    for (const group of RCM_NAV_GROUPS) {
-      const groupHasActive = group.items.some(
-        (item) =>
-          isPathMatch(pathname, item.href) ||
-          Boolean(item.children?.some((c) => isPathMatch(pathname, c.href)))
-      )
-      if (groupHasActive) {
-        setExpandedGroups((prev) => (prev[group.id] ? prev : { ...prev, [group.id]: true }))
-      }
-
-      for (const item of group.items) {
-        if (
-          item.children &&
-          (isPathMatch(pathname, item.href) || item.children.some((c) => isPathMatch(pathname, c.href)))
-        ) {
-          setExpandedMenus((prev) => (prev[item.href] ? prev : { ...prev, [item.href]: true }))
-        }
-      }
-    }
-  }, [pathname])
 
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
@@ -379,7 +310,7 @@ export default function DashboardRcmShell({
     setExpandedGroups((prev) => {
       const next = {
         ...prev,
-        [groupId]: !(prev[groupId] ?? true),
+        [groupId]: !Boolean(prev[groupId]),
       }
       try {
         localStorage.setItem('rcm_sidebar_expanded_groups', JSON.stringify(next))
@@ -394,7 +325,7 @@ export default function DashboardRcmShell({
     setExpandedMenus((prev) => {
       const next = {
         ...prev,
-        [href]: !prev[href],
+        [href]: !Boolean(prev[href]),
       }
       try {
         localStorage.setItem('rcm_sidebar_expanded_menus', JSON.stringify(next))
@@ -473,7 +404,7 @@ export default function DashboardRcmShell({
         {/* Navigation Categories */}
         <nav className="rcm-sidebar-nav">
           {RCM_NAV_GROUPS.map((group) => {
-            const isGroupExpanded = expandedGroups[group.id] ?? true
+            const isGroupExpanded = Boolean(expandedGroups[group.id])
             const isGroupActive = group.items.some(
               (item) =>
                 isPathMatch(pathname, item.href) ||

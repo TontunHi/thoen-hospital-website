@@ -905,9 +905,6 @@ export default function AncService23Client() {
                   <th rowSpan={2} style={{ width: 150 }}>
                     ข้อควรตรวจสอบ
                   </th>
-                  <th rowSpan={2} className="anc3-cell-center" style={{ width: 80 }}>
-                    รายละเอียด
-                  </th>
                 </tr>
 
                 {/* Header Row 2: Sub-columns */}
@@ -995,7 +992,12 @@ export default function AncService23Client() {
                   else if (isOk) rowClass = 'anc3-row-ok'
 
                   return (
-                    <tr key={`${row.vn}-${idx}`} className={rowClass}>
+                    <tr
+                      key={`${row.vn}-${idx}`}
+                      className={`${rowClass} anc3-row-clickable`}
+                      onClick={() => openDetailModal(row)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {/* 1. ลำดับ */}
                       <td className="anc3-cell-center anc3-cell-num">{row.no || idx + 1}</td>
 
@@ -1177,17 +1179,6 @@ export default function AncService23Client() {
                             ปกติ
                           </span>
                         )}
-                      </td>
-
-                      {/* 25. ปุ่มเปิดรายละเอียด */}
-                      <td className="anc3-cell-center">
-                        <button
-                          type="button"
-                          className="anc3-inspect-btn"
-                          onClick={() => openDetailModal(row)}
-                        >
-                          ดูข้อมูล
-                        </button>
                       </td>
                     </tr>
                   )

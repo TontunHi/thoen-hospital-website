@@ -252,6 +252,10 @@ export default function FamilyPlanning91Client() {
       const res = await fetch(
         `/api/service/dashboard-rcm/funds/family-planning/vn-details?vn=${encodeURIComponent(vn)}`
       )
+      const contentType = res.headers?.get ? (res.headers.get('content-type') || '') : 'application/json'
+      if (!contentType.includes('application/json')) {
+        throw new Error(`ไม่สามารถเชื่อมต่อระบบข้อมูลเวชระเบียนได้ (HTTP ${res.status})`)
+      }
       const json = await res.json()
       if (!res.ok || !json.success) {
         throw new Error(json.error?.message || 'ไม่สามารถโหลดเวชระเบียนคลินิกได้')

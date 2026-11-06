@@ -249,8 +249,12 @@ export default function FamilyPlanning92Client() {
     setClinicalError(null)
     try {
       const res = await fetch(
-        `/api/service/dashboard-rcm/clinical-details?vn=${encodeURIComponent(vn)}`
+        `/api/service/dashboard-rcm/funds/family-planning/vn-details?vn=${encodeURIComponent(vn)}`
       )
+      const contentType = res.headers?.get ? (res.headers.get('content-type') || '') : 'application/json'
+      if (!contentType.includes('application/json')) {
+        throw new Error(`ไม่สามารถเชื่อมต่อระบบข้อมูลเวชระเบียนได้ (HTTP ${res.status})`)
+      }
       const json = await res.json()
       if (!res.ok || !json.success) {
         throw new Error(json.error?.message || 'ไม่สามารถโหลดเวชระเบียนคลินิกได้')
@@ -1098,7 +1102,7 @@ export default function FamilyPlanning92Client() {
                     </td>
                     <td className="fp-mono font-medium">{item.vn}</td>
                     <td className="fp-mono">{item.hn}</td>
-                    <td className="fp-mono text-xs">
+                    <td>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1108,11 +1112,11 @@ export default function FamilyPlanning92Client() {
                           setTimeout(() => setCopiedField(null), 1500)
                         }}
                         title="คลิกเพื่อคัดลอกเลขบัตรประชาชน 13 หลัก"
-                        className="hover:underline cursor-pointer text-left"
+                        className="fp-cid-btn fp-mono"
                       >
-                        {formatCidDisplay(item.cid)}
+                        <span>{formatCidDisplay(item.cid)}</span>
                         {copiedField === `cid-${item.vn}` && (
-                          <span className="text-emerald-700 ml-1 text-[11px]">คัดลอกแล้ว</span>
+                          <span className="fp-copied-indicator">คัดลอกแล้ว</span>
                         )}
                       </button>
                     </td>
@@ -1276,8 +1280,8 @@ export default function FamilyPlanning92Client() {
                   <span className="fp-mono text-sm font-semibold">{selectedItem.vn}</span>
                 </div>
                 <h2 className="fp-modal-title">{selectedItem.ptname}</h2>
-                <div className="text-xs text-slate-500 mt-0.5">
-                  HN: {selectedItem.hn} · CID: {selectedItem.cid} · เพศ: {selectedItem.sex} · อายุ:{' '}
+                <div className="fp-modal-header-sub">
+                  HN: {selectedItem.hn} · CID: {formatCidDisplay(selectedItem.cid)} · เพศ: {selectedItem.sex} · อายุ:{' '}
                   {selectedItem.age} ปี
                 </div>
               </div>
@@ -1303,7 +1307,12 @@ export default function FamilyPlanning92Client() {
               <button
                 type="button"
                 className={`fp-modal-tab ${modalTab === 'clinical' ? 'active' : ''}`}
-                onClick={() => setModalTab('clinical')}
+                onClick={() => {
+                  setModalTab('clinical')
+                  if (!clinicalData && !clinicalLoading) {
+                    fetchClinicalDetails(selectedItem.vn)
+                  }
+                }}
               >
                 ข้อมูลเวชระเบียนใน HOSxP
               </button>
@@ -1311,14 +1320,15 @@ export default function FamilyPlanning92Client() {
 
             <div className="fp-modal-body">
               {modalTab === 'summary' && (
-                <div className="space-y-4">
+                <div className="fp-modal-content-stack">
                   {/* Quick Copy Action Bar */}
-                  <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs">
-                    <span className="font-medium text-slate-600 mr-1 self-center">คัดลอกด่วน:</span>
+                  <div className="fp-quick-copy-bar">
+                    <span className="fp-quick-copy-label">คัดลอกด่วน:</span>
                     <button
                       type="button"
                       className="fp-copy-btn"
                       onClick={() => copyText(selectedItem.vn, 'vn')}
+                      title="คัดลอก VN"
                     >
                       {copiedField === 'vn' ? <Check size={12} /> : <Copy size={12} />}
                       <span>VN: {selectedItem.vn}</span>
@@ -1327,6 +1337,7 @@ export default function FamilyPlanning92Client() {
                       type="button"
                       className="fp-copy-btn"
                       onClick={() => copyText(selectedItem.hn, 'hn')}
+                      title="คัดลอก HN"
                     >
                       {copiedField === 'hn' ? <Check size={12} /> : <Copy size={12} />}
                       <span>HN: {selectedItem.hn}</span>
@@ -1335,15 +1346,17 @@ export default function FamilyPlanning92Client() {
                       type="button"
                       className="fp-copy-btn"
                       onClick={() => copyText(selectedItem.cid, 'cid')}
+                      title="คัดลอกเลขบัตรประชาชน 13 หลัก"
                     >
                       {copiedField === 'cid' ? <Check size={12} /> : <Copy size={12} />}
-                      <span>CID: {selectedItem.cid}</span>
+                      <span>CID: {formatCidDisplay(selectedItem.cid)}</span>
                     </button>
                     {selectedItem.claimcode && (
                       <button
                         type="button"
                         className="fp-copy-btn"
                         onClick={() => copyText(selectedItem.claimcode || '', 'claimcode')}
+                        title="คัดลอก Authen Code"
                       >
                         {copiedField === 'claimcode' ? <Check size={12} /> : <Copy size={12} />}
                         <span>Authen: {selectedItem.claimcode}</span>
@@ -1353,19 +1366,21 @@ export default function FamilyPlanning92Client() {
 
                   {/* Errors / Warnings */}
                   {selectedItem.hasError ? (
-                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs space-y-1">
-                      <div className="font-semibold flex items-center gap-1.5 text-sm">
-                        <AlertTriangle size={15} />
+                    <div className="fp-modal-alert fp-modal-alert--danger">
+                      <div className="fp-modal-alert-header">
+                        <AlertTriangle size={16} />
                         <span>พบข้อผิดพลาดที่ต้องตรวจสอบก่อนส่งเบิก</span>
                       </div>
-                      {selectedItem.errorDx && <div>• {selectedItem.errorDx} (ต้องมีรหัสวินิจฉัย Z301)</div>}
-                      {selectedItem.errorOp && <div>• {selectedItem.errorOp} (ต้องมีรหัสหัตถการ ICD-9: 697)</div>}
-                      {selectedItem.errorDrug && (
-                        <div>• {selectedItem.errorDrug} (ต้องมีรายการค่าบริการ ADP: 20003, FP001, 71681, 71682)</div>
-                      )}
+                      <div className="fp-modal-alert-body">
+                        {selectedItem.errorDx && <div>• {selectedItem.errorDx} (ต้องมีรหัสวินิจฉัย Z301)</div>}
+                        {selectedItem.errorOp && <div>• {selectedItem.errorOp} (ต้องมีรหัสหัตถการ ICD-9: 697)</div>}
+                        {selectedItem.errorDrug && (
+                          <div>• {selectedItem.errorDrug} (ต้องมีรายการค่าบริการ ADP: 20003, FP001, 71681, 71682)</div>
+                        )}
+                      </div>
                     </div>
                   ) : (
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs flex items-center gap-2">
+                    <div className="fp-modal-alert fp-modal-alert--success">
                       <CheckCircle2 size={16} />
                       <span className="font-semibold">
                         ข้อมูลการให้รหัสครบถ้วน (มี Dx Z301, Op 697 และรายการค่าบริการ ADP)
@@ -1374,18 +1389,18 @@ export default function FamilyPlanning92Client() {
                   )}
 
                   {/* Summary Grid */}
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2">
-                      <div className="font-semibold text-slate-800 border-b pb-1">ข้อมูลการรับบริการ</div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">วันที่รับบริการ:</span>
-                        <span className="font-medium">{formatThaiDate(selectedItem.vstdate)}</span>
+                  <div className="fp-modal-grid-2">
+                    <div className="fp-modal-card-box">
+                      <div className="fp-modal-card-title">ข้อมูลการรับบริการ</div>
+                      <div className="fp-modal-row">
+                        <span className="fp-modal-label">วันที่รับบริการ:</span>
+                        <span className="fp-modal-val font-medium">{formatThaiDate(selectedItem.vstdate)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">
+                      <div className="fp-modal-row">
+                        <span className="fp-modal-label">
                           {patientType === 'IPD' ? 'วันที่จำหน่าย:' : 'เวลาที่รับบริการ:'}
                         </span>
-                        <span className="font-medium">
+                        <span className="fp-modal-val font-medium">
                           {patientType === 'IPD'
                             ? selectedItem.dchdate
                               ? formatThaiDate(selectedItem.dchdate)
@@ -1393,54 +1408,54 @@ export default function FamilyPlanning92Client() {
                             : selectedItem.vsttime || '—'}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">สิทธิการรักษา:</span>
-                        <span className="font-medium">{selectedItem.pttypename}</span>
+                      <div className="fp-modal-row">
+                        <span className="fp-modal-label">สิทธิการรักษา:</span>
+                        <span className="fp-modal-val font-medium">{selectedItem.pttypename}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">แผนก:</span>
-                        <span className="font-medium">{selectedItem.department || '—'}</span>
+                      <div className="fp-modal-row">
+                        <span className="fp-modal-label">แผนก:</span>
+                        <span className="fp-modal-val font-medium">{selectedItem.department || '—'}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">คลินิก:</span>
-                        <span className="font-medium">{selectedItem.clinic || '—'}</span>
+                      <div className="fp-modal-row">
+                        <span className="fp-modal-label">คลินิก:</span>
+                        <span className="fp-modal-val font-medium">{selectedItem.clinic || '—'}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Authen Code:</span>
-                        <span className="font-medium font-mono text-sky-700">
+                      <div className="fp-modal-row">
+                        <span className="fp-modal-label">Authen Code:</span>
+                        <span className="fp-modal-val font-medium fp-mono text-sky-700">
                           {selectedItem.claimcode || '—'}
                         </span>
                       </div>
-                      <div className="pt-2 border-t text-slate-700">
-                        <span className="text-slate-500 block">อาการสำคัญ (CC):</span>
-                        <div className="mt-0.5">{selectedItem.cc || '—'}</div>
+                      <div className="fp-modal-divider">
+                        <span className="fp-modal-label block">อาการสำคัญ (CC):</span>
+                        <div className="fp-modal-cc-text">{selectedItem.cc || '—'}</div>
                       </div>
                     </div>
 
-                    <div className="p-3 bg-white border border-slate-200 rounded-lg space-y-2">
-                      <div className="font-semibold text-slate-800 border-b pb-1">ข้อมูลการวินิจฉัย & ค่าบริการ</div>
-                      <div>
-                        <span className="text-slate-500 block">รหัสการวินิจฉัย (Dx):</span>
-                        <span className="font-medium text-slate-800">{selectedItem.dx || '—'}</span>
+                    <div className="fp-modal-card-box">
+                      <div className="fp-modal-card-title">ข้อมูลการวินิจฉัย & ค่าบริการ</div>
+                      <div className="fp-modal-field-block">
+                        <span className="fp-modal-label block">รหัสการวินิจฉัย (Dx):</span>
+                        <span className="fp-modal-val font-medium">{selectedItem.dx || '—'}</span>
                       </div>
-                      <div>
-                        <span className="text-slate-500 block">รหัสหัตถการ (Op ICD-9):</span>
-                        <span className="font-medium text-slate-800">{selectedItem.op || '—'}</span>
+                      <div className="fp-modal-field-block">
+                        <span className="fp-modal-label block">รหัสหัตถการ (Op ICD-9):</span>
+                        <span className="fp-modal-val font-medium">{selectedItem.op || '—'}</span>
                       </div>
-                      <div>
-                        <span className="text-slate-500 block">รายการค่าบริการ/ยา (ADP):</span>
-                        <span className="font-medium text-slate-800">{selectedItem.drug || '—'}</span>
+                      <div className="fp-modal-field-block">
+                        <span className="fp-modal-label block">รายการค่าบริการ/ยา (ADP):</span>
+                        <span className="fp-modal-val font-medium">{selectedItem.drug || '—'}</span>
                       </div>
-                      <div className="pt-2 border-t">
-                        <span className="text-slate-500 block">สถานะการชดเชย:</span>
-                        <div className="font-medium text-slate-800 mt-1">{selectedItem.status}</div>
+                      <div className="fp-modal-divider">
+                        <span className="fp-modal-label block">สถานะการชดเชย:</span>
+                        <div className="fp-modal-val font-medium mt-1">{selectedItem.status}</div>
                         {selectedItem.rep && (
                           <div className="text-xs text-slate-500 mt-0.5">เลขที่ Rep: {selectedItem.rep}</div>
                         )}
                       </div>
-                      <div className="pt-2 border-t flex justify-between items-center text-sm">
+                      <div className="fp-modal-divider fp-modal-row items-center">
                         <span className="font-semibold text-slate-700">ยอดชดเชยรวม:</span>
-                        <span className="font-bold text-emerald-700 text-base font-mono">
+                        <span className="font-bold text-emerald-700 text-base fp-mono">
                           ฿{formatMoney(selectedItem.compensated)}
                         </span>
                       </div>
@@ -1450,53 +1465,53 @@ export default function FamilyPlanning92Client() {
               )}
 
               {modalTab === 'clinical' && (
-                <div>
+                <div className="fp-modal-content-stack">
                   {clinicalLoading ? (
                     <div className="text-center py-10 text-slate-500">
                       <RefreshCw size={20} className="animate-spin text-emerald-700 mx-auto mb-2" />
                       <span>กำลังโหลดเวชระเบียนจากฐานข้อมูล HOSxP...</span>
                     </div>
                   ) : clinicalError ? (
-                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs">
+                    <div className="fp-modal-alert fp-modal-alert--danger">
                       {clinicalError}
                     </div>
                   ) : clinicalData ? (
-                    <div className="space-y-4 text-xs">
+                    <div className="fp-modal-content-stack">
                       {/* Vitals */}
-                      <div className="p-3 bg-slate-50 border rounded-lg">
-                        <div className="font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+                      <div className="fp-modal-card-box">
+                        <div className="fp-modal-card-title flex items-center gap-1.5">
                           <Activity size={14} />
                           <span>สัญญาณชีพ (Vital Signs)</span>
                         </div>
-                        <div className="grid grid-cols-4 gap-2">
-                          <div>
-                            <span className="text-slate-500">BP:</span> {clinicalData.screen?.bps || '—'}/
+                        <div className="fp-vitals-grid">
+                          <div className="fp-vital-item">
+                            <span className="fp-modal-label">BP:</span> {clinicalData.screen?.bps || '—'}/
                             {clinicalData.screen?.bpd || '—'} mmHg
                           </div>
-                          <div>
-                            <span className="text-slate-500">Pulse:</span> {clinicalData.screen?.pulse || '—'} bpm
+                          <div className="fp-vital-item">
+                            <span className="fp-modal-label">Pulse:</span> {clinicalData.screen?.pulse || '—'} bpm
                           </div>
-                          <div>
-                            <span className="text-slate-500">Temp:</span>{' '}
+                          <div className="fp-vital-item">
+                            <span className="fp-modal-label">Temp:</span>{' '}
                             {clinicalData.screen?.temperature || '—'} °C
                           </div>
-                          <div>
-                            <span className="text-slate-500">BW:</span> {clinicalData.screen?.bw || '—'} kg
+                          <div className="fp-vital-item">
+                            <span className="fp-modal-label">BW:</span> {clinicalData.screen?.bw || '—'} kg
                           </div>
                         </div>
                       </div>
 
                       {/* Diagnoses */}
-                      <div className="p-3 bg-white border rounded-lg">
-                        <div className="font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <div className="fp-modal-card-box">
+                        <div className="fp-modal-card-title flex items-center gap-1.5">
                           <Stethoscope size={14} />
                           <span>การวินิจฉัยโรค (Diagnoses)</span>
                         </div>
                         {clinicalData.diagnoses && clinicalData.diagnoses.length > 0 ? (
-                          <div className="space-y-1">
+                          <div className="fp-diag-list">
                             {clinicalData.diagnoses.map((d, i) => (
-                              <div key={i} className="flex gap-2">
-                                <span className="font-mono font-medium text-sky-800">{d.icd10}</span>
+                              <div key={i} className="fp-diag-item">
+                                <span className="fp-mono font-medium text-sky-800">{d.icd10}</span>
                                 <span>{d.icd_name}</span>
                                 <span className="text-slate-400">({d.diagtype_name})</span>
                               </div>
@@ -1508,19 +1523,19 @@ export default function FamilyPlanning92Client() {
                       </div>
 
                       {/* Drugs & Fees */}
-                      <div className="p-3 bg-white border rounded-lg">
-                        <div className="font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                      <div className="fp-modal-card-box">
+                        <div className="fp-modal-card-title flex items-center gap-1.5">
                           <Pill size={14} />
                           <span>รายการยาและค่าบริการ (Medications & Fees)</span>
                         </div>
                         {clinicalData.orders?.items && clinicalData.orders.items.length > 0 ? (
-                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                          <div className="fp-order-list">
                             {clinicalData.orders.items.map((m, i) => (
-                              <div key={i} className="flex justify-between py-0.5 border-b border-slate-100">
+                              <div key={i} className="fp-order-item">
                                 <span>
                                   {m.item_name} {m.strength ? `(${m.strength})` : ''} x {m.qty} {m.units || ''}
                                 </span>
-                                <span className="font-mono text-slate-600">฿{formatMoney(m.sum_price)}</span>
+                                <span className="fp-mono text-slate-600">฿{formatMoney(m.sum_price)}</span>
                               </div>
                             ))}
                           </div>

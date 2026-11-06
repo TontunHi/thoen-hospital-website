@@ -948,7 +948,8 @@ export default function FamilyPlanningReportClient({
                           copyText(row.cid, `cid_${row.vn}`)
                         }}
                         title="คลิกเพื่อคัดลอกเลขบัตรประชาชน"
-                        className="fp-mono text-xs text-gray-700 hover:underline cursor-pointer text-left"
+                        className="fp-cell-action-btn fp-mono text-xs text-gray-700 hover:underline cursor-pointer text-left"
+                        style={{ background: 'transparent', border: 'none', padding: 0 }}
                       >
                         {formatCidDisplay(row.cid)}
                         {copiedField === `cid_${row.vn}` && (
@@ -970,7 +971,9 @@ export default function FamilyPlanningReportClient({
                     </td>
                     <td>
                       {row.claimcode ? (
-                        <span className="fp-badge fp-badge-info fp-mono">{row.claimcode}</span>
+                        <span className="fp-mono text-xs font-semibold" style={{ color: 'var(--fp-accent)' }}>
+                          {row.claimcode}
+                        </span>
                       ) : (
                         <span className="text-xs text-gray-400">—</span>
                       )}

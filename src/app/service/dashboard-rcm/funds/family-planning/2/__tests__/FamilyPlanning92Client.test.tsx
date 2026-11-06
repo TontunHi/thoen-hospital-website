@@ -123,9 +123,26 @@ const mockReportData = {
 describe('FamilyPlanning92Client Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => mockReportData,
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('vn-details')) {
+        return {
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            success: true,
+            data: {
+              screen: { bps: 120, bpd: 80, pulse: 76, temperature: 36.5, bw: 54 },
+              diagnoses: [{ icd10: 'Z301', icd_name: 'Initial prescription of intrauterine contraceptive device', diagtype_name: 'PRINCIPLE DX' }],
+              orders: { items: [{ item_name: 'ห่วงอนามัย', strength: '', qty: 1, units: 'ชุด', sum_price: 800 }] },
+            },
+          }),
+        }
+      }
+      return {
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => mockReportData,
+      }
     }) as any
   })
 
@@ -177,7 +194,7 @@ describe('FamilyPlanning92Client Component', () => {
     })
   })
 
-  it('opens modal on row click and shows details', async () => {
+  it('opens modal on row click, fetches vn-details, and shows clinical details tab', async () => {
     render(<FamilyPlanning92Client />)
 
     await waitFor(() => {
@@ -189,9 +206,24 @@ describe('FamilyPlanning92Client Component', () => {
     fireEvent.click(row!)
 
     await waitFor(() => {
-      const dialog = screen.getByRole('dialog')
-      expect(within(dialog).getByText('รายละเอียดบริการ 9.2 & การชดเชย')).toBeInTheDocument()
-      expect(within(dialog).getAllByText(/AUTH123456/).length).toBeGreaterThan(0)
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByText('รายละเอียดบริการ 9.2 & การชดเชย')).toBeInTheDocument()
+      expect(screen.getAllByText(/AUTH123456/).length).toBeGreaterThan(0)
+    })
+
+    const dialog = screen.getByRole('dialog')
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/service/dashboard-rcm/funds/family-planning/vn-details?vn=6911060001')
+    )
+
+    // Switch to HOSxP Clinical Tab
+    const clinicalTabBtn = within(dialog).getByRole('button', { name: /ข้อมูลเวชระเบียนใน HOSxP/ })
+    fireEvent.click(clinicalTabBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('สัญญาณชีพ (Vital Signs)')).toBeInTheDocument()
+      expect(screen.getByText('Initial prescription of intrauterine contraceptive device')).toBeInTheDocument()
     })
   })
 })
