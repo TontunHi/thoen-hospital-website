@@ -60,6 +60,10 @@ const TaskRepairModals = dynamic(() => import('./components/TaskRepairModals'), 
   ssr: false,
 })
 
+const TaskSendBackModal = dynamic(() => import('./components/TaskSendBackModal'), {
+  ssr: false,
+})
+
 // Predefined Work Types with quick assist tags for Media Request
 const WORK_TYPES_CONFIG = [
   { key: 'tri_fold', label: 'แผ่นพับ 3 พับ', icon: '📄', hasCustomInput: false },
@@ -223,6 +227,12 @@ export default function TaskDetailClient({
   // Media Request Immediate Complete Modal State
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState<boolean>(false)
   const [completeComment, setCompleteComment] = useState<string>('')
+
+  // Send Back Modal State
+  const [isSendBackModalOpen, setIsSendBackModalOpen] = useState<boolean>(false)
+  const [sendBackTargetStepNo, setSendBackTargetStepNo] = useState<number | null>(null)
+  const [sendBackToRequester, setSendBackToRequester] = useState<boolean>(false)
+  const [sendBackComment, setSendBackComment] = useState<string>('')
 
   // Manager Edit Task Modal State
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState<boolean>(false)
@@ -616,6 +626,59 @@ export default function TaskDetailClient({
         setSuccessMsg(`ดำเนินการ ${action === 'APPROVE' ? 'อนุมัติ' : action === 'SEND_BACK' ? 'ส่งกลับแก้ไข' : 'ไม่อนุมัติ'} สำเร็จเรียบร้อยแล้ว`)
         setActionComment('')
         setIsEditingPayload(false)
+        await loadData()
+      } else {
+        setError(data.error || 'เกิดข้อผิดพลาดในการประมวลผล')
+      }
+    } catch (e: any) {
+      setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // ── Send Back Modal Handlers ──
+  const handleOpenSendBackModal = () => {
+    const currentStepNo = task?.current_step_no || 1
+    const defaultTarget = currentStepNo > 1 ? currentStepNo - 1 : 1
+    setSendBackTargetStepNo(defaultTarget)
+    setSendBackToRequester(currentStepNo <= 1)
+    setSendBackComment(actionComment.trim() || '')
+    setIsSendBackModalOpen(true)
+  }
+
+  const handleConfirmSendBack = async () => {
+    if (!sendBackComment.trim()) {
+      setError('กรุณาระบุความคิดเห็น / เหตุผลในการส่งกลับแก้ไข')
+      return
+    }
+
+    setActionLoading(true)
+    setError(null)
+    setSuccessMsg(null)
+
+    try {
+      const res = await fetch(`/api/member/inbox/${taskId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SEND_BACK',
+          comment: sendBackComment,
+          targetStepNo: sendBackToRequester ? 1 : sendBackTargetStepNo,
+          sendToRequester: sendBackToRequester,
+        }),
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setSuccessMsg(
+          sendBackToRequester || (sendBackTargetStepNo === 1 && (task?.current_step_no || 1) <= 1)
+            ? 'ส่งกลับเอกสารให้ผู้ยื่นคำขอแก้ไขเรียบร้อยแล้ว'
+            : `ส่งกลับเอกสารไปยังขั้นตอนที่ ${sendBackTargetStepNo} เรียบร้อยแล้ว`
+        )
+        setActionComment('')
+        setSendBackComment('')
+        setIsSendBackModalOpen(false)
         await loadData()
       } else {
         setError(data.error || 'เกิดข้อผิดพลาดในการประมวลผล')
@@ -1866,6 +1929,35 @@ export default function TaskDetailClient({
                 </div>
               )}
 
+              {/* Send Back Notice if previous step was sent back */}
+              {(() => {
+                const sendBackNoticeStep = steps.find((s) => s.action_taken === 'SEND_BACK')
+                if (!sendBackNoticeStep) return null
+                return (
+                  <div
+                    style={{
+                      marginBottom: '1rem',
+                      padding: '0.75rem 1rem',
+                      backgroundColor: '#fffbeb',
+                      border: '1px solid #fde68a',
+                      borderRadius: '0.625rem',
+                      fontSize: '0.85rem',
+                      color: '#92400e',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, marginBottom: '0.2rem' }}>
+                      <AlertCircle size={16} className="text-amber-600 flex-shrink-0" />
+                      <span>คำขอนี้ถูกส่งกลับมาแก้ไขจาก: {sendBackNoticeStep.step_name}</span>
+                    </div>
+                    <div style={{ color: '#78350f' }}>
+                      ส่งกลับโดย: <strong>{sendBackNoticeStep.action_by_name || 'ผู้พิจารณา'}</strong>
+                      {sendBackNoticeStep.comment ? ` — เหตุผล: "${sendBackNoticeStep.comment}"` : ''}
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', color: '#334155' }}>
                   ข้อความบันทึกความเห็น / คำสั่งการ
@@ -1924,7 +2016,7 @@ export default function TaskDetailClient({
                 <button
                   type="button"
                   disabled={actionLoading}
-                  onClick={() => handleAction('SEND_BACK')}
+                  onClick={handleOpenSendBackModal}
                   className="btnSendBack"
                 >
                   <AlertCircle size={16} />
@@ -3034,6 +3126,25 @@ export default function TaskDetailClient({
         setCompleteComment={setCompleteComment}
         actionLoading={actionLoading}
         handleCompleteMediaRequest={handleCompleteMediaRequest}
+      />
+
+      <TaskSendBackModal
+        isOpen={isSendBackModalOpen}
+        onClose={() => setIsSendBackModalOpen(false)}
+        taskNo={task.task_no}
+        taskTitle={task.title}
+        requesterName={task.requester_name}
+        currentStepNo={task.current_step_no}
+        currentStepName={currentStep?.step_name}
+        steps={steps}
+        selectedTargetStepNo={sendBackTargetStepNo}
+        setSelectedTargetStepNo={setSendBackTargetStepNo}
+        sendToRequester={sendBackToRequester}
+        setSendToRequester={setSendBackToRequester}
+        comment={sendBackComment}
+        setComment={setSendBackComment}
+        actionLoading={actionLoading}
+        onConfirm={handleConfirmSendBack}
       />
     </div>
   )

@@ -1032,6 +1032,8 @@ export interface WorkflowActionInput {
   partialEdits?: any
   holdReason?: string
   holdDetails?: string
+  targetStepNo?: number | null
+  sendToRequester?: boolean
 }
 
 export interface WorkflowActionResult {
@@ -1045,7 +1047,7 @@ export async function executeWorkflowAction(
   input: WorkflowActionInput,
   executor: MemberDbExecutor = queryMemberDb
 ): Promise<WorkflowActionResult> {
-  const { taskId, action, actorMemberId, actorUsername, actorName, actorPosition, actorRole, signaturePath, comment, nextAssigneeId, partialEdits, holdReason, holdDetails } = input
+  const { taskId, action, actorMemberId, actorUsername, actorName, actorPosition, actorRole, signaturePath, comment, nextAssigneeId, partialEdits, holdReason, holdDetails, targetStepNo, sendToRequester } = input
 
   // 1. Fetch Task
   const tasks = await executor('SELECT * FROM inbox_tasks WHERE id = ? LIMIT 1', [taskId])
@@ -1296,7 +1298,9 @@ export async function executeWorkflowAction(
       )
 
       await executor(
-        `UPDATE inbox_task_steps SET status = 'PENDING', assigned_to_id = ? WHERE id = ?`,
+        `UPDATE inbox_task_steps 
+         SET status = 'PENDING', assigned_to_id = ?, action_taken = NULL, action_by = NULL, action_by_name = NULL, action_at = NULL, comment = NULL, signature_path = NULL, signature_hash = NULL 
+         WHERE id = ?`,
         [nextAssignee, nextStep.id]
       )
 
@@ -1438,50 +1442,148 @@ export async function executeWorkflowAction(
       }).catch(() => {})
     }
   } else if (action === 'SEND_BACK') {
-    await executor(
-      `UPDATE inbox_task_steps 
-       SET status = 'WAITING', action_taken = 'SEND_BACK', action_by = ?, action_by_name = ?, action_at = NOW(), comment = ?
-       WHERE id = ?`,
-      [actorMemberId, actorName || actorUsername, comment || 'ส่งกลับแก้ไข', currentStep.id]
-    )
-    await executor(
-      `UPDATE inbox_tasks 
-       SET status = 'SENT_BACK', current_step_no = 1, current_assignee = requester_id, \`current_role\` = NULL, updated_at = NOW() 
-       WHERE id = ?`,
-      [taskId]
-    )
-    if (steps.length > 0) {
-      await executor(
-        `UPDATE inbox_task_steps SET status = 'PENDING' WHERE task_id = ? AND step_no = 1`,
-        [taskId]
-      )
+    const currentStepNo = task.current_step_no
+    let effectiveTargetStepNo = targetStepNo
+
+    // If sendToRequester is requested or currentStepNo is 1, target is requester (step 1, status: SENT_BACK)
+    const isSendingToRequester = Boolean(sendToRequester || currentStepNo <= 1)
+
+    if (!isSendingToRequester && (!effectiveTargetStepNo || effectiveTargetStepNo >= currentStepNo)) {
+      effectiveTargetStepNo = Math.max(1, currentStepNo - 1)
     }
 
-    if (task.task_type === 'MEDIA_REQUEST') {
-      notifyMediaRequestRejectedOrSentBackOnTelegram({
-        taskId,
-        taskNo: task.task_no,
-        title: task.title,
-        action: 'SEND_BACK',
-        requesterId: task.requester_id,
-        requesterName: task.requester_name,
-        requesterDept: task.requester_dept,
-        performerName: actorName || actorUsername,
-        performerPosition: actorPosition,
-        stepName: currentStep.step_name,
-        reason: comment || 'ส่งกลับแก้ไข',
-      }).catch((e) => logger.error({ error: e }, 'Telegram media send-back notify error'))
+    let targetStep: any = null
+    if (!isSendingToRequester && effectiveTargetStepNo) {
+      targetStep = steps.find((s: any) => s.step_no === effectiveTargetStepNo)
+    }
+
+    if (isSendingToRequester || !targetStep) {
+      // 1. Mark current step as WAITING with action SEND_BACK
+      await executor(
+        `UPDATE inbox_task_steps 
+         SET status = 'WAITING', action_taken = 'SEND_BACK', action_by = ?, action_by_name = ?, action_at = NOW(), comment = ?
+         WHERE id = ?`,
+        [actorMemberId, actorName || actorUsername, comment || 'ส่งกลับแก้ไข', currentStep.id]
+      )
+
+      // 2. Reset any intermediate steps > 1 to WAITING
+      await executor(
+        `UPDATE inbox_task_steps 
+         SET status = 'WAITING', action_taken = NULL, action_by = NULL, action_by_name = NULL, action_at = NULL, comment = NULL, signature_path = NULL, signature_hash = NULL
+         WHERE task_id = ? AND step_no > 1 AND id != ?`,
+        [taskId, currentStep.id]
+      )
+
+      // 3. Update task to SENT_BACK assigned to requester
+      await executor(
+        `UPDATE inbox_tasks 
+         SET status = 'SENT_BACK', current_step_no = 1, current_assignee = requester_id, \`current_role\` = NULL, updated_at = NOW() 
+         WHERE id = ?`,
+        [taskId]
+      )
+
+      // 4. Update step 1 to PENDING
+      if (steps.length > 0) {
+        await executor(
+          `UPDATE inbox_task_steps 
+           SET status = 'PENDING', action_taken = NULL, action_by = NULL, action_by_name = NULL, action_at = NULL, comment = NULL, signature_path = NULL, signature_hash = NULL
+           WHERE task_id = ? AND step_no = 1`,
+          [taskId]
+        )
+      }
+
+      if (task.task_type === 'MEDIA_REQUEST') {
+        notifyMediaRequestRejectedOrSentBackOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          title: task.title,
+          action: 'SEND_BACK',
+          requesterId: task.requester_id,
+          requesterName: task.requester_name,
+          requesterDept: task.requester_dept,
+          performerName: actorName || actorUsername,
+          performerPosition: actorPosition,
+          stepName: currentStep.step_name,
+          targetStepName: 'ผู้ยื่นคำขอรับบริการ',
+          reason: comment || 'ส่งกลับแก้ไข',
+        }).catch((e) => logger.error({ error: e }, 'Telegram media send-back notify error'))
+      } else {
+        notifyAssigneeOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          taskType: task.task_type,
+          title: `[ส่งกลับแก้ไข] ${task.title}`,
+          requesterName: task.requester_name,
+          requesterDept: task.requester_dept,
+          assigneeId: task.requester_id,
+          stepName: `ส่งกลับแก้ไขโดย ${actorName || actorUsername} (เหตุผล: ${comment || '-'})`,
+        }).catch(() => {})
+      }
     } else {
-      notifyAssigneeOnTelegram({
-        taskId,
-        taskNo: task.task_no,
-        taskType: task.task_type,
-        title: `[ส่งกลับแก้ไข] ${task.title}`,
-        requesterName: task.requester_name,
-        requesterDept: task.requester_dept,
-        assigneeId: task.requester_id,
-        stepName: `ส่งกลับแก้ไขโดย ${actorName || actorUsername} (เหตุผล: ${comment || '-'})`,
-      }).catch(() => {})
+      // Sending back to an approval step (effectiveTargetStepNo between 1 and currentStepNo - 1)
+      // 1. Mark current step as WAITING with action SEND_BACK
+      await executor(
+        `UPDATE inbox_task_steps 
+         SET status = 'WAITING', action_taken = 'SEND_BACK', action_by = ?, action_by_name = ?, action_at = NOW(), comment = ?
+         WHERE id = ?`,
+        [actorMemberId, actorName || actorUsername, comment || 'ส่งกลับแก้ไข', currentStep.id]
+      )
+
+      // 2. Reset any intermediate steps between targetStep and currentStep
+      await executor(
+        `UPDATE inbox_task_steps 
+         SET status = 'WAITING', action_taken = NULL, action_by = NULL, action_by_name = NULL, action_at = NULL, comment = NULL, signature_path = NULL, signature_hash = NULL
+         WHERE task_id = ? AND step_no > ? AND id != ?`,
+        [taskId, effectiveTargetStepNo, currentStep.id]
+      )
+
+      // 3. Reset target step to PENDING so the approver at that step can review and act
+      await executor(
+        `UPDATE inbox_task_steps 
+         SET status = 'PENDING', action_taken = NULL, action_by = NULL, action_by_name = NULL, action_at = NULL, comment = NULL, signature_path = NULL, signature_hash = NULL
+         WHERE id = ?`,
+        [targetStep.id]
+      )
+
+      // 4. Update task: current_step_no = targetStep.step_no, role = targetStep.assigned_role, assignee = targetStep.assigned_to_id, status = 'PENDING'
+      await executor(
+        `UPDATE inbox_tasks 
+         SET status = 'PENDING', current_step_no = ?, current_assignee = ?, \`current_role\` = ?, updated_at = NOW() 
+         WHERE id = ?`,
+        [targetStep.step_no, targetStep.assigned_to_id || null, targetStep.assigned_role || null, taskId]
+      )
+
+      // Telegram notify
+      if (task.task_type === 'MEDIA_REQUEST') {
+        notifyMediaRequestRejectedOrSentBackOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          title: task.title,
+          action: 'SEND_BACK',
+          requesterId: task.requester_id,
+          requesterName: task.requester_name,
+          requesterDept: task.requester_dept,
+          performerName: actorName || actorUsername,
+          performerPosition: actorPosition,
+          stepName: currentStep.step_name,
+          targetStepName: `ขั้นตอนที่ ${targetStep.step_no} (${targetStep.step_name})`,
+          targetRole: targetStep.assigned_role,
+          targetAssigneeId: targetStep.assigned_to_id,
+          reason: comment || 'ส่งกลับแก้ไข',
+        }).catch((e) => logger.error({ error: e }, 'Telegram media step send-back notify error'))
+      } else {
+        notifyAssigneeOnTelegram({
+          taskId,
+          taskNo: task.task_no,
+          taskType: task.task_type,
+          title: `[ส่งกลับแก้ไขไปขั้นตอนที่ ${targetStep.step_no}] ${task.title}`,
+          requesterName: task.requester_name,
+          requesterDept: task.requester_dept,
+          assigneeId: targetStep.assigned_to_id || task.requester_id,
+          targetRole: targetStep.assigned_role,
+          stepName: `ส่งกลับไปยังขั้นตอน: ${targetStep.step_name} โดย ${actorName || actorUsername} (เหตุผล: ${comment || '-'})`,
+        }).catch(() => {})
+      }
     }
   } else if (action === 'COMPLETE') {
     const finalComment = comment?.trim() || 'ดำเนินการเสร็จสิ้นเรียบร้อย'
@@ -1529,6 +1631,16 @@ export async function executeWorkflowAction(
     }).catch((e) => logger.error({ error: e }, 'Telegram media completion notify error'))
   }
 
+  const auditDetails = action === 'SEND_BACK'
+    ? {
+        stepNo: currentStep.step_no,
+        stepName: currentStep.step_name,
+        comment,
+        targetStepNo: sendToRequester || task.current_step_no <= 1 ? 1 : (targetStepNo ?? Math.max(1, task.current_step_no - 1)),
+        targetStepName: sendToRequester || task.current_step_no <= 1 ? 'ผู้ยื่นคำขอรับบริการ' : `ขั้นตอนที่ ${targetStepNo ?? Math.max(1, task.current_step_no - 1)}`,
+      }
+    : { stepNo: currentStep.step_no, stepName: currentStep.step_name, comment }
+
   const auditActionId = crypto.randomUUID()
   await executor(
     `INSERT INTO inbox_task_audit_logs 
@@ -1540,7 +1652,7 @@ export async function executeWorkflowAction(
       action,
       actorMemberId,
       actorName || actorUsername,
-      JSON.stringify({ stepNo: currentStep.step_no, stepName: currentStep.step_name, comment }),
+      JSON.stringify(auditDetails),
     ]
   )
 

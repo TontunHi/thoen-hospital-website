@@ -172,8 +172,8 @@ describe('FamilyPlanning91Client Component', () => {
     render(<FamilyPlanning91Client />)
 
     // Check title and badges
-    expect(screen.getByText('9.1 วางแผนครอบครัว (FP)')).toBeInTheDocument()
-    expect(screen.getByText('9.1 วางแผนครอบครัวและการป้องกันการตั้งครรภ์')).toBeInTheDocument()
+    expect(screen.queryByText('9.1 วางแผนครอบครัว (FP)')).not.toBeInTheDocument()
+    expect(screen.getByText('วางแผนครอบครัวและการป้องกันการตั้งครรภ์')).toBeInTheDocument()
 
     // Wait for data to load
     await waitFor(() => {
@@ -222,15 +222,14 @@ describe('FamilyPlanning91Client Component', () => {
     })
   })
 
-  it('opens clinical inspection modal when "ดูเวชระเบียน" button is clicked', async () => {
+  it('opens clinical inspection modal when record row is clicked', async () => {
     render(<FamilyPlanning91Client />)
 
     await waitFor(() => {
       expect(screen.getByText('นาง สมศรี มีสุข')).toBeInTheDocument()
     })
 
-    const inspectBtns = screen.getAllByRole('button', { name: 'ดูเวชระเบียน' })
-    fireEvent.click(inspectBtns[0])
+    fireEvent.click(screen.getByText('นาง สมศรี มีสุข'))
 
     // Modal should show
     await waitFor(() => {

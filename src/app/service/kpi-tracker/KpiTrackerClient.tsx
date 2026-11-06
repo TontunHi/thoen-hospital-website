@@ -27,12 +27,13 @@ import {
   Hash,
   Layers,
   FileText,
-  Check
+  Check,
+  History
 } from 'lucide-react'
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
-import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod } from '@/lib/kpi/kpiTimeUtils'
+import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
 interface CurrentUser {
@@ -76,14 +77,6 @@ const formatThaiDateTime = (dateStr?: string | null): string => {
   } catch {
     return '-'
   }
-}
-
-function matchesPeriodKey(entryKey?: string | null, targetKey?: string | null): boolean {
-  if (!entryKey || !targetKey) return false
-  if (entryKey === targetKey) return true
-  if (entryKey.endsWith('-' + targetKey) || entryKey.endsWith('_' + targetKey)) return true
-  if (targetKey.endsWith('-' + entryKey) || targetKey.endsWith('_' + entryKey)) return true
-  return false
 }
 
 function formatAnswerDisplay(
@@ -181,6 +174,11 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const [importModalOpen, setImportModalOpen] = useState<boolean>(false)
   const [exportModalOpen, setExportModalOpen] = useState<boolean>(false)
   const [exportScope, setExportScope] = useState<'ALL' | 'DUE'>('ALL')
+  const [exportTopicId, setExportTopicId] = useState<number | null>(null)
+  const [exportCategory, setExportCategory] = useState<string>('ALL')
+  const [exportPeriodKey, setExportPeriodKey] = useState<string>('ALL')
+  const [historyModalOpen, setHistoryModalOpen] = useState<boolean>(false)
+  const [historyIndicator, setHistoryIndicator] = useState<KpiIndicatorItem | null>(null)
   const [activeIndicator, setActiveIndicator] = useState<KpiIndicatorItem | null>(null)
   const [isCreatingNew, setIsCreatingNew] = useState<boolean>(false)
 
@@ -769,6 +767,35 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     }
   }
 
+  // Open Round History Modal
+  const handleOpenHistoryModal = (ind: KpiIndicatorItem) => {
+    setHistoryIndicator(ind)
+    setHistoryModalOpen(true)
+  }
+
+  // Switch to editing a specific round from History Modal
+  const handleEditRoundFromHistory = (ind: KpiIndicatorItem, periodKey: string, periodLabel: string) => {
+    setHistoryModalOpen(false)
+    setActiveIndicator(ind)
+    setFormPeriodKey(periodKey)
+    setFormPeriodLabel(periodLabel)
+
+    const entry = ind.entries?.find(e => matchesPeriodKey(e.periodKey, periodKey)) ||
+      (ind.currentEntry && matchesPeriodKey(ind.currentEntry.periodKey, periodKey) ? ind.currentEntry : null)
+
+    if (entry) {
+      setFormNumerator(entry.numeratorValue !== null ? String(entry.numeratorValue) : '')
+      setFormDenominator(entry.denominatorValue !== null ? String(entry.denominatorValue) : '')
+      setFormSingleAnswer(entry.resultValue !== null ? String(entry.resultValue) : (entry.resultText || ''))
+    } else {
+      setFormNumerator('')
+      setFormDenominator('')
+      setFormSingleAnswer('')
+    }
+
+    setAnswerModalOpen(true)
+  }
+
   // Save Answer
   const handleSaveAnswer = async () => {
     if (!activeIndicator) return
@@ -1138,8 +1165,17 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     currentUser.permissions?.includes('view_all_kpi')
   )
 
+  const handleOpenExportModal = () => {
+    setExportTopicId(selectedTopicId)
+    setExportCategory(selectedCategories.length === 1 ? selectedCategories[0] : 'ALL')
+    setExportPeriodKey(selectedPeriodKey !== 'ALL' ? selectedPeriodKey : 'ALL')
+    setExportScope(activeTab === 'DUE' ? 'DUE' : 'ALL')
+    setExportModalOpen(true)
+  }
+
   const handleExportExcel = async (scope: 'ALL' | 'DUE' = exportScope) => {
-    if (!selectedTopicId) {
+    const targetTopicId = exportTopicId || selectedTopicId
+    if (!targetTopicId) {
       alert('กรุณาเลือกชุดตัวชี้วัดที่ต้องการส่งออก')
       return
     }
@@ -1147,14 +1183,19 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     try {
       setExporting(true)
       const exportParams = new URLSearchParams({
-        topicId: String(selectedTopicId),
+        topicId: String(targetTopicId),
         fiscalYear: selectedYear,
       })
       if (scope === 'DUE') {
         exportParams.set('onlyDue', 'true')
       }
-      if (selectedCategories.length === 1) {
+      if (exportCategory && exportCategory !== 'ALL') {
+        exportParams.set('category', exportCategory)
+      } else if (selectedCategories.length === 1 && (!exportCategory || exportCategory === 'ALL')) {
         exportParams.set('category', selectedCategories[0])
+      }
+      if (exportPeriodKey && exportPeriodKey !== 'ALL') {
+        exportParams.set('periodKey', exportPeriodKey)
       }
       const url = `/api/kpi/export?${exportParams.toString()}`
       const res = await fetch(url)
@@ -1281,10 +1322,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
             <button 
               type="button"
               className="kpiBtn kpiBtnSecondary"
-              onClick={() => {
-                setExportScope(activeTab === 'DUE' ? 'DUE' : 'ALL')
-                setExportModalOpen(true)
-              }}
+              onClick={handleOpenExportModal}
               disabled={exporting || loading || !selectedTopicId}
               title="ส่งออกรายงานตัวชี้วัดเป็นไฟล์ Excel (.xlsx)"
             >
@@ -1881,6 +1919,9 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                 {/* Data rows per design.md Section 5 */}
                 {displayedIndicators.map((ind, idx) => {
                   const entry = getActivePeriodEntry(ind)
+                  const periods = getPeriodsForFrequency(ind.frequency)
+                  const totalRounds = periods.length
+                  const answeredRounds = periods.filter(p => isIndicatorAnsweredForPeriod(ind, p.key)).length
                   const answerDisplay = formatAnswerDisplay(entry, ind.targetUnit)
                   const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
                   const isLocked = !dueStatus.isDueNow && !isKpiManager
@@ -1903,12 +1944,12 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         <div>{renderStatusBadge(ind, entry, isLocked, dueStatus)}</div>
                       </div>
 
-                      {/* Col 1: ลำดับ (56px) */}
+                      {/* Col 1: ลำดับ (52px) */}
                       <div className="kpiColSeq desktopOnly" role="cell">
                         {ind.sequence || idx + 1}
                       </div>
 
-                      {/* Col 2: ตัวชี้วัด (minmax(280px, 1fr)) */}
+                      {/* Col 2: ตัวชี้วัด (minmax(230px, 1fr)) */}
                       <div className="kpiColTitle" role="cell">
                         <div className="kpiIndicatorTitle">{ind.title}</div>
                         <div className="kpiIndicatorMeta">
@@ -1939,6 +1980,16 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                           <span className={answerDisplay ? 'kpiResultValue' : ''}>
                             {answerDisplay ? `${answerDisplay.main} ${answerDisplay.sub || ''}`.trim() : '-'}
                           </span>
+                          <button
+                            type="button"
+                            className="kpiHistoryBtn"
+                            style={{ marginTop: '4px', height: '28px', fontSize: '11.5px', padding: '0 8px' }}
+                            onClick={() => handleOpenHistoryModal(ind)}
+                            title="ดูข้อมูลย้อนหลังแต่ละรอบ"
+                          >
+                            <History size={12} />
+                            <span>ดูประวัติ ({answeredRounds}/{totalRounds})</span>
+                          </button>
                         </div>
                         <div className="kpiMobileMetaItem">
                           <label>ผู้รับผิดชอบ</label>
@@ -1946,17 +1997,17 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         </div>
                       </div>
 
-                      {/* Col 3: ความถี่ (96px) */}
+                      {/* Col 3: ความถี่ (92px) */}
                       <div className="kpiColFreq desktopOnly" role="cell">
                         {ind.frequency}
                       </div>
 
-                      {/* Col 4: เป้าหมาย (100px) */}
+                      {/* Col 4: เป้าหมาย (96px) */}
                       <div className="kpiColTarget desktopOnly" role="cell">
                         {targetText}
                       </div>
 
-                      {/* Col 5: ผลงาน (104px) */}
+                      {/* Col 5: ผลงาน (108px) */}
                       <div className="kpiColResult desktopOnly" role="cell">
                         {answerDisplay ? (
                           <div className="kpiResultBlock">
@@ -1966,25 +2017,44 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         ) : (
                           <span className="kpiResultEmpty">-</span>
                         )}
+                        {totalRounds > 1 && (
+                          <span
+                            className="kpiResultRoundsBadge"
+                            onClick={() => handleOpenHistoryModal(ind)}
+                            title={`คลิกเพื่อดูข้อมูลย้อนหลังทุกรอบ (ตอบแล้ว ${answeredRounds}/${totalRounds} รอบ)`}
+                          >
+                            ตอบแล้ว {answeredRounds}/{totalRounds} รอบ
+                          </span>
+                        )}
                       </div>
 
-                      {/* Col 6: ผู้รับผิดชอบ (120px) */}
+                      {/* Col 6: ผู้รับผิดชอบ (116px) */}
                       <div className="kpiColResp desktopOnly" role="cell">
                         {ind.responsibleName || '-'}
                       </div>
 
-                      {/* Col 7: สถานะ (120px) */}
+                      {/* Col 7: สถานะ (116px) */}
                       <div className="kpiColStatus desktopOnly" role="cell">
                         {renderStatusBadge(ind, entry, isLocked, dueStatus)}
                       </div>
 
-                      {/* Col 8: ประเภท (76px) */}
+                      {/* Col 8: ประเภท (72px) */}
                       <div className="kpiColType desktopOnly" role="cell">
                         <span className="kpiTypeBadge">{ind.indicatorType || 'HA'}</span>
                       </div>
 
-                      {/* Col 9: ปุ่ม (96px) */}
+                      {/* Col 9: ปุ่ม (156px) */}
                       <div className="kpiColAction" role="cell">
+                        <button
+                          type="button"
+                          className="kpiHistoryBtn"
+                          onClick={() => handleOpenHistoryModal(ind)}
+                          title={`ดูข้อมูลย้อนหลังในแต่ละรอบ (ตอบแล้ว ${answeredRounds}/${totalRounds} รอบ)`}
+                        >
+                          <History size={13} />
+                          <span>ประวัติ</span>
+                        </button>
+
                         {userCanAnswer ? (
                           <button
                             type="button"
@@ -2193,6 +2263,52 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     />
                   </div>
                 )}
+
+                {/* Previous Rounds History Preview & Switcher */}
+                {(() => {
+                  const periods = getPeriodsForFrequency(activeIndicator.frequency)
+                  if (periods.length <= 1) return null
+
+                  return (
+                    <div className="kpiModalPrevRoundsSection">
+                      <div className="kpiModalPrevRoundsHeader">
+                        <span>ประวัติคำตอบในรอบอื่น ๆ (คลิกเพื่อดูหรือสลับรอบ):</span>
+                        <button
+                          type="button"
+                          className="kpiQuickActionBtn"
+                          onClick={() => {
+                            setAnswerModalOpen(false)
+                            handleOpenHistoryModal(activeIndicator)
+                          }}
+                        >
+                          เปิดดูประวัติแบบละเอียด
+                        </button>
+                      </div>
+                      <div className="kpiModalPrevRoundsGrid">
+                        {periods.map(p => {
+                          const isCurrent = matchesPeriodKey(formPeriodKey, p.key)
+                          const entry = activeIndicator.entries?.find(e => matchesPeriodKey(e.periodKey, p.key)) ||
+                            (activeIndicator.currentEntry && matchesPeriodKey(activeIndicator.currentEntry.periodKey, p.key) ? activeIndicator.currentEntry : null)
+                          const ansDisplay = formatAnswerDisplay(entry, activeIndicator.targetUnit)
+
+                          return (
+                            <div
+                              key={p.key}
+                              className={`kpiModalPrevRoundChip ${isCurrent ? 'active' : ''}`}
+                              onClick={() => handleModalPeriodChange(p.key)}
+                              title={ansDisplay ? `ตอบแล้ว: ${ansDisplay.main}` : 'ยังไม่บันทึก (คลิกเพื่อกรอกรอบนี้)'}
+                            >
+                              <div className="kpiModalPrevRoundChipName">{p.label}</div>
+                              <div className="kpiModalPrevRoundChipVal">
+                                {ansDisplay ? ansDisplay.main : 'ยังไม่บันทึก'}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
 
               <div className="kpiModalFooter">
@@ -2211,6 +2327,252 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   <Check size={16} />
                   {saving ? 'กำลังบันทึก...' : 'บันทึกผลการดำเนินงาน'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL 5: ROUND HISTORY MODAL (ดูข้อมูลย้อนหลังแต่ละรอบ) ── */}
+        {historyModalOpen && historyIndicator && (
+          <div className="kpiModalOverlay" onClick={() => setHistoryModalOpen(false)}>
+            <div className="kpiModalCard kpiHistoryModalCard" onClick={(e) => e.stopPropagation()}>
+              <div className="kpiModalHeader">
+                <div>
+                  <div className="kpiModalSubBadge">
+                    {historyIndicator.code ? `${historyIndicator.code} • ` : ''}{historyIndicator.frequency} • ปี {selectedYear}
+                  </div>
+                  <h2>ประวัติคำตอบย้อนหลังในแต่ละรอบ</h2>
+                </div>
+                <button
+                  type="button"
+                  className="kpiModalClose"
+                  onClick={() => setHistoryModalOpen(false)}
+                  aria-label="ปิดหน้าต่าง"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="kpiModalBody" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Indicator Context Summary */}
+                <div className="kpiIndicatorSummaryBox">
+                  <div className="kpiSummaryCategory">
+                    {historyIndicator.category} {historyIndicator.subcategory ? `› ${historyIndicator.subcategory}` : ''}
+                  </div>
+                  <div className="kpiSummaryTitle" style={{ fontSize: '15px', fontWeight: 600 }}>
+                    {historyIndicator.title}
+                  </div>
+                  <div className="kpiSummaryMeta">
+                    <span>
+                      <strong>เป้าหมาย:</strong>{' '}
+                      {historyIndicator.targetValue !== null
+                        ? `${historyIndicator.targetOperator || '>='} ${historyIndicator.targetValue}${historyIndicator.targetUnit || '%'}`
+                        : historyIndicator.targetRaw || 'รอระบุเป้าหมาย'}
+                    </span>
+                    <span className="kpiSummaryMetaDivider">•</span>
+                    <span><strong>ผู้รับผิดชอบ:</strong> {historyIndicator.responsibleName || 'ไม่ระบุ'}</span>
+                  </div>
+                </div>
+
+                {/* Subquestions breakdown if any */}
+                {(historyIndicator.numeratorName || historyIndicator.denominatorName) && (
+                  <div className="kpiHistoryQuestionsCard">
+                    {historyIndicator.numeratorName && (
+                      <div className="kpiHistoryQuestionRow">
+                        <span className="kpiHistoryQuestionTag num">คำถามตัวตั้ง</span>
+                        <span>{historyIndicator.numeratorName}</span>
+                      </div>
+                    )}
+                    {historyIndicator.denominatorName && (
+                      <div className="kpiHistoryQuestionRow">
+                        <span className="kpiHistoryQuestionTag den">คำถามตัวหาร</span>
+                        <span>{historyIndicator.denominatorName}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Progress Summary Banner */}
+                {(() => {
+                  const periods = getPeriodsForFrequency(historyIndicator.frequency)
+                  const totalRounds = periods.length
+                  const answeredCount = periods.filter(p => isIndicatorAnsweredForPeriod(historyIndicator, p.key)).length
+                  let passCount = 0
+                  let failCount = 0
+
+                  periods.forEach(p => {
+                    const match = historyIndicator.entries?.find(e => matchesPeriodKey(e.periodKey, p.key)) ||
+                      (historyIndicator.currentEntry && matchesPeriodKey(historyIndicator.currentEntry.periodKey, p.key) ? historyIndicator.currentEntry : null)
+                    if (match?.status === 'PASS') passCount++
+                    else if (match?.status === 'FAIL') failCount++
+                  })
+
+                  const pct = totalRounds > 0 ? ((answeredCount / totalRounds) * 100).toFixed(0) : '0'
+
+                  return (
+                    <div className="kpiHistorySummaryBanner">
+                      <div className="kpiHistorySummaryPill">
+                        <span>บันทึกผลแล้ว:</span>
+                        <strong>{answeredCount} จาก {totalRounds} รอบ ({pct}%)</strong>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ color: 'var(--pass-ink)', fontWeight: 600 }}>ผ่านเกณฑ์ {passCount} รอบ</span>
+                        <span style={{ color: 'var(--divider)' }}>|</span>
+                        <span style={{ color: 'var(--fail-ink)', fontWeight: 600 }}>ไม่ผ่าน {failCount} รอบ</span>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Rounds List */}
+                <div className="kpiHistoryRoundsList">
+                  {getPeriodsForFrequency(historyIndicator.frequency).map((p, pIdx) => {
+                    const entry = historyIndicator.entries?.find(e => matchesPeriodKey(e.periodKey, p.key)) ||
+                      (historyIndicator.currentEntry && matchesPeriodKey(historyIndicator.currentEntry.periodKey, p.key) ? historyIndicator.currentEntry : null)
+                    const isAnswered = isIndicatorAnsweredForPeriod(historyIndicator, p.key)
+                    const hasNumDen = Boolean(historyIndicator.numeratorName || historyIndicator.denominatorName)
+                    const periodStatus = checkPeriodStatus(historyIndicator.frequency, p.key, selectedYear)
+                    const dueStatus = checkIndicatorDueStatus(historyIndicator.frequency, selectedYear)
+                    const isCurrentPeriod = matchesPeriodKey(p.key, dueStatus.relevantPeriod.key)
+                    const canEdit = canAnswerIndicator(historyIndicator)
+
+                    return (
+                      <div
+                        key={p.key}
+                        className={`kpiHistoryRoundCard ${isCurrentPeriod ? 'currentRound' : ''} ${!isAnswered ? 'unanswered' : ''}`}
+                      >
+                        <div className="kpiHistoryRoundHeader">
+                          <div className="kpiHistoryRoundTitleWrap">
+                            <span className="kpiColSeq">#{pIdx + 1}</span>
+                            <span className="kpiHistoryRoundTitle">{p.label}</span>
+                            {isCurrentPeriod && (
+                              <span className="kpiHistoryRoundCurrentBadge">รอบปัจจุบัน</span>
+                            )}
+                            <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>({p.description})</span>
+                          </div>
+
+                          <div>
+                            {isAnswered && entry ? (
+                              entry.status === 'PASS' ? (
+                                <span className="kpiStatusPill pass">
+                                  <CheckCircle2 size={13} /> ผ่านเกณฑ์
+                                </span>
+                              ) : entry.status === 'FAIL' ? (
+                                <span className="kpiStatusPill fail">
+                                  <XCircle size={13} /> ไม่ผ่านเกณฑ์
+                                </span>
+                              ) : entry.status === 'WAITING_TARGET' ? (
+                                <span className="kpiStatusPill unspecified">
+                                  <AlertCircle size={13} /> รอผลประเมิน
+                                </span>
+                              ) : (
+                                <span className="kpiStatusPill pass">
+                                  <CheckCircle2 size={13} /> บันทึกแล้ว
+                                </span>
+                              )
+                            ) : periodStatus.isOpen ? (
+                              <span className="kpiStatusPill noReport">
+                                <Clock size={13} /> ยังไม่บันทึกผล
+                              </span>
+                            ) : (
+                              <span className="kpiStatusPill locked" title={periodStatus.message}>
+                                <Lock size={13} /> ยังไม่ถึงรอบ
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Answers Grid */}
+                        <div className="kpiHistoryAnswersGrid">
+                          {hasNumDen ? (
+                            <>
+                              <div className="kpiHistoryAnswerBox">
+                                <span className="kpiHistoryAnswerLabel">คำตอบตัวตั้ง (Numerator):</span>
+                                <span className="kpiHistoryAnswerVal">
+                                  {entry?.numeratorValue !== null && entry?.numeratorValue !== undefined ? entry.numeratorValue : '-'}
+                                </span>
+                              </div>
+                              <div className="kpiHistoryAnswerBox">
+                                <span className="kpiHistoryAnswerLabel">คำตอบตัวหาร (Denominator):</span>
+                                <span className="kpiHistoryAnswerVal">
+                                  {entry?.denominatorValue !== null && entry?.denominatorValue !== undefined ? entry.denominatorValue : '-'}
+                                </span>
+                              </div>
+                              <div className="kpiHistoryAnswerBox">
+                                <span className="kpiHistoryAnswerLabel">ผลงานคำนวณ (%):</span>
+                                <span className="kpiHistoryAnswerVal highlight">
+                                  {entry?.resultValue !== null && entry?.resultValue !== undefined ? `${entry.resultValue}%` : (entry?.resultText || '-')}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="kpiHistoryAnswerBox" style={{ gridColumn: '1 / -1' }}>
+                              <span className="kpiHistoryAnswerLabel">คำตอบผลการดำเนินงาน:</span>
+                              <span className="kpiHistoryAnswerVal highlight">
+                                {entry?.resultValue !== null && entry?.resultValue !== undefined
+                                  ? `${entry.resultValue}${historyIndicator.targetUnit || ''}`
+                                  : (entry?.resultText || '-')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card Footer */}
+                        <div className="kpiHistoryRoundFooter">
+                          <div className="kpiHistoryRoundMeta">
+                            {entry?.recordedByName && (
+                              <span>ผู้รายงาน: <strong>{entry.recordedByName}</strong></span>
+                            )}
+                            {(entry?.updatedAt || entry?.recordedAt) && (
+                              <span>บันทึกเมื่อ: {formatThaiDateTime(entry.updatedAt || entry.recordedAt)}</span>
+                            )}
+                            {entry?.note && (
+                              <span>หมายเหตุ: {entry.note}</span>
+                            )}
+                            {!entry && (
+                              <span>ยังไม่มีการบันทึกข้อมูลในรอบนี้</span>
+                            )}
+                          </div>
+
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="kpiHistoryRoundEditBtn"
+                              onClick={() => handleEditRoundFromHistory(historyIndicator, p.key, p.label)}
+                            >
+                              <Edit size={12} />
+                              <span>{entry ? 'แก้ไขรอบนี้' : 'บันทึกรอบนี้'}</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="kpiModalFooter">
+                <button
+                  type="button"
+                  className="kpiBtn kpiBtnSecondary"
+                  onClick={() => setHistoryModalOpen(false)}
+                >
+                  <X size={16} />
+                  <span>ปิดหน้าต่าง</span>
+                </button>
+                {canAnswerIndicator(historyIndicator) && (
+                  <button
+                    type="button"
+                    className="kpiBtn kpiBtnPrimary"
+                    onClick={() => {
+                      setHistoryModalOpen(false)
+                      handleOpenAnswer(historyIndicator)
+                    }}
+                  >
+                    <Edit size={16} />
+                    <span>ตอบผลการดำเนินงาน</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -2515,11 +2877,11 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
         {/* ── MODAL 4: EXPORT EXCEL SELECTION MODAL ── */}
         {exportModalOpen && (
           <div className="kpiModalOverlay" onClick={() => !exporting && setExportModalOpen(false)}>
-            <div className="kpiModalCard" style={{ maxWidth: '490px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
+            <div className="kpiModalCard" style={{ maxWidth: '520px', width: '95%' }} onClick={(e) => e.stopPropagation()}>
               <div className="kpiModalHeader">
                 <div>
                   <div className="kpiModalPreTitle">ดาวน์โหลดข้อมูลตัวชี้วัด</div>
-                  <h2>เลือกชุดข้อมูลส่งออก Excel (.xlsx)</h2>
+                  <h2>ส่งออกรายงานตัวชี้วัด Excel (.xlsx)</h2>
                 </div>
                 <button 
                   type="button"
@@ -2531,78 +2893,155 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                 </button>
               </div>
 
-              <div className="kpiModalBody" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="kpiModalBody" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <p style={{ fontSize: '0.875rem', color: 'var(--ink-muted)' }}>
-                  เลือกชุดข้อมูลตัวชี้วัดสำหรับปีงบประมาณ <strong>{selectedYear}</strong>:
+                  เลือกเงื่อนไขส่งออกข้อมูลตัวชี้วัดสำหรับปีงบประมาณ <strong>{selectedYear}</strong>:
                 </p>
 
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '12px',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    border: exportScope === 'ALL' ? '2px solid var(--accent)' : '1px solid var(--border)',
-                    background: exportScope === 'ALL' ? 'var(--row-hover)' : 'var(--surface)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="exportScope"
-                    value="ALL"
-                    checked={exportScope === 'ALL'}
-                    onChange={() => setExportScope('ALL')}
-                    style={{ marginTop: '3px', cursor: 'pointer' }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600, color: 'var(--ink)' }}>
-                      <span>ตัวชี้วัดทั้งหมด</span>
-                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'var(--waiting-bg)', color: 'var(--ink-muted)' }}>
-                        {indicators.length} รายการ
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '3px' }}>
-                      ส่งออกตัวชี้วัดทั้งหมดในชุดข้อมูล ไม่ว่าจะถึงรอบแล้วหรือไม่
-                    </div>
+                {/* 1. เลือกหัวข้อ / ชุดตัวชี้วัด (Topic) */}
+                <div className="kpiFormGroup" style={{ marginBottom: 0 }}>
+                  <label className="kpiFormLabel">
+                    <span>หัวข้อ / ชุดตัวชี้วัด:</span>
+                  </label>
+                  <div className="kpiSelectWrapper">
+                    <select
+                      className="kpiSelectInput"
+                      value={exportTopicId || selectedTopicId || ''}
+                      onChange={(e) => setExportTopicId(Number(e.target.value))}
+                    >
+                      {topics
+                        .filter(t => !selectedYear || t.fiscalYear === selectedYear)
+                        .map(t => (
+                          <option key={t.id} value={t.id}>{t.title} ({t.code})</option>
+                        ))}
+                    </select>
+                    <ChevronDown size={16} className="kpiSelectArrow" />
                   </div>
-                </label>
+                </div>
 
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '12px',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    border: exportScope === 'DUE' ? '2px solid var(--accent)' : '1px solid var(--border)',
-                    background: exportScope === 'DUE' ? 'var(--row-hover)' : 'var(--surface)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="exportScope"
-                    value="DUE"
-                    checked={exportScope === 'DUE'}
-                    onChange={() => setExportScope('DUE')}
-                    style={{ marginTop: '3px', cursor: 'pointer' }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600, color: 'var(--ink)' }}>
-                      <span>ตัวที่ถึงเวลา</span>
-                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'var(--status-bg)', color: 'var(--status-ink)', fontWeight: 600 }}>
-                        {dueIndicatorsCount} รายการ
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '3px' }}>
-                      ส่งออกเฉพาะตัวชี้วัดที่ถึงรอบตอบแล้ว ณ ปัจจุบัน หรือจะถึงรอบใน 5 วัน
-                    </div>
+                {/* 2. เลือกหมวดหมู่ / ยุทธศาสตร์ (Category) */}
+                <div className="kpiFormGroup" style={{ marginBottom: 0 }}>
+                  <label className="kpiFormLabel">
+                    <span>หมวดหมู่ / ยุทธศาสตร์:</span>
+                  </label>
+                  <div className="kpiSelectWrapper">
+                    <select
+                      className="kpiSelectInput"
+                      value={exportCategory}
+                      onChange={(e) => setExportCategory(e.target.value)}
+                    >
+                      <option value="ALL">ทุกหมวดหมู่ (ตัวชี้วัดทั้งหมดในหัวข้อนี้)</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={16} className="kpiSelectArrow" />
                   </div>
-                </label>
+                </div>
+
+                {/* 3. เลือกรอบการประเมิน (Period) */}
+                <div className="kpiFormGroup" style={{ marginBottom: 0 }}>
+                  <label className="kpiFormLabel">
+                    <span>รอบการประเมิน:</span>
+                  </label>
+                  <div className="kpiSelectWrapper">
+                    <select
+                      className="kpiSelectInput"
+                      value={exportPeriodKey}
+                      onChange={(e) => setExportPeriodKey(e.target.value)}
+                    >
+                      <option value="ALL">ทุกรอบ (ดึงคำตอบล่าสุด และแนบประวัติทุกรอบ)</option>
+                      <option value="H1">รอบ 6 เดือนแรก (H1)</option>
+                      <option value="H2">รอบ 6 เดือนหลัง (H2)</option>
+                      <option value="Q1">ไตรมาสที่ 1 (Q1)</option>
+                      <option value="Q2">ไตรมาสที่ 2 (Q2)</option>
+                      <option value="Q3">ไตรมาสที่ 3 (Q3)</option>
+                      <option value="Q4">ไตรมาสที่ 4 (Q4)</option>
+                      <option value="YEAR">รอบสิ้นปีงบประมาณ (รายปี)</option>
+                    </select>
+                    <ChevronDown size={16} className="kpiSelectArrow" />
+                  </div>
+                </div>
+
+                {/* 4. ขอบเขตตัวชี้วัด */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label className="kpiFormLabel" style={{ marginBottom: 0 }}>
+                    <span>ขอบเขตรายการ:</span>
+                  </label>
+
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: exportScope === 'ALL' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      background: exportScope === 'ALL' ? 'var(--row-hover)' : 'var(--surface)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="exportScope"
+                      value="ALL"
+                      checked={exportScope === 'ALL'}
+                      onChange={() => setExportScope('ALL')}
+                      style={{ marginTop: '3px', cursor: 'pointer' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600, color: 'var(--ink)' }}>
+                        <span>ตัวชี้วัดทั้งหมด</span>
+                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'var(--waiting-bg)', color: 'var(--ink-muted)' }}>
+                          {indicators.length} รายการ
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '2px' }}>
+                        ส่งออกตัวชี้วัดทั้งหมดในหัวข้อนี้ พร้อมคำตอบที่บันทึกแล้ว
+                      </div>
+                    </div>
+                  </label>
+
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: exportScope === 'DUE' ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      background: exportScope === 'DUE' ? 'var(--row-hover)' : 'var(--surface)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="exportScope"
+                      value="DUE"
+                      checked={exportScope === 'DUE'}
+                      onChange={() => setExportScope('DUE')}
+                      style={{ marginTop: '3px', cursor: 'pointer' }}
+                    />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600, color: 'var(--ink)' }}>
+                        <span>ตัวที่ถึงเวลา</span>
+                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'var(--status-bg)', color: 'var(--status-ink)', fontWeight: 600 }}>
+                          {dueIndicatorsCount} รายการ
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '2px' }}>
+                        ส่งออกเฉพาะตัวชี้วัดที่ถึงรอบตอบแล้ว ณ ปัจจุบัน หรือจะถึงรอบใน 5 วัน
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Reassurance note */}
+                <div style={{ background: 'var(--head-bg)', padding: '10px 12px', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--ink)', lineHeight: 1.45, borderLeft: '3px solid var(--accent)' }}>
+                  ระบบจะดึงคำตอบของแต่ละคำถาม (ตัวตั้ง ตัวหาร ผลงาน และสถานะประเมิน) ติดมาด้วยในไฟล์ Excel พร้อมสรุปประวัติคำตอบในแต่ละรอบ
+                </div>
               </div>
 
               <div className="kpiModalFooter">

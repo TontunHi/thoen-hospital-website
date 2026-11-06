@@ -622,16 +622,12 @@ export class RcmFamilyPlanningService {
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
               s.cc,
-              cc.claimcode AS authencode,
+              cc.AuthenCode AS authencode,
               ptt.name AS pttypename,
               v.pdx, v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
               v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
               IFNULL(dx.icd10, '') AS icd10,
-              (
-                SELECT GROUP_CONCAT(DISTINCT dxx.icd10 SEPARATOR ', ')
-                FROM ovstdiag dxx
-                WHERE dxx.vn = o.vn AND (dxx.icd10 REGEXP '^697' OR dxx.icd10 REGEXP '^992')
-              ) AS op,
+              dx.op,
               IFNULL(v.income, 0) AS income,
               doc.name AS doctorname,
               IFNULL(fp.name, '') AS listname,
@@ -645,7 +641,20 @@ export class RcmFamilyPlanningService {
               COALESCE(rd.subfund, re.subfund) AS subfund,
               rd.remark,
               rd.projectcode
-            FROM ovst o
+            FROM (
+              SELECT DISTINCT vn FROM (
+                SELECT vn FROM ovstdiag WHERE vstdate BETWEEN ? AND ? AND (icd10 REGEXP '^Z30' OR icd10 REGEXP '^697' OR icd10 REGEXP '^992')
+                UNION
+                SELECT oo.vn
+                FROM s_drugitems d
+                JOIN opitemrece oo ON oo.icode = d.icode
+                WHERE (
+                  TRIM(d.nhso_adp_code) IN ('FP001', 'FP002', 'FP003_1', 'FP003_2', 'FP003_3', 'FP003_4', '20001', '20002', '20003', '20004')
+                  OR d.nhso_adp_code LIKE 'FP%'
+                ) AND oo.vstdate BETWEEN ? AND ? AND IFNULL(oo.vn, '') <> ''
+              ) u
+            ) t
+            JOIN ovst o ON o.vn = t.vn
             LEFT JOIN patient pt ON pt.hn = o.hn
             LEFT JOIN vn_stat v ON v.vn = o.vn
             LEFT JOIN opdscreen s ON s.vn = o.vn
@@ -656,24 +665,31 @@ export class RcmFamilyPlanningService {
               SELECT 
                 oo.vn,
                 GROUP_CONCAT(DISTINCT CONCAT_WS(':', d.nhso_adp_code, CONCAT(d.name, ' ', IFNULL(d.strength, ''))) SEPARATOR ', ') AS name
-              FROM opitemrece oo
-              JOIN s_drugitems d ON d.icode = oo.icode
-              WHERE oo.vstdate BETWEEN ? AND ?
+              FROM s_drugitems d
+              JOIN opitemrece oo ON oo.icode = d.icode
+              WHERE (
+                TRIM(d.nhso_adp_code) IN ('FP001', 'FP002', 'FP003_1', 'FP003_2', 'FP003_3', 'FP003_4', '20001', '20002', '20003', '20004')
+                OR d.nhso_adp_code LIKE 'FP%'
+              ) AND oo.vstdate BETWEEN ? AND ?
               GROUP BY oo.vn
             ) fp ON fp.vn = o.vn
             LEFT JOIN (
               SELECT 
                 oo.vn,
                 GROUP_CONCAT(DISTINCT d.name SEPARATOR ', ') AS drugname
-              FROM opitemrece oo
-              JOIN drugitems d ON d.icode = oo.icode
-              WHERE oo.vstdate BETWEEN ? AND ?
+              FROM drugitems d
+              JOIN opitemrece oo ON oo.icode = d.icode
+              WHERE (d.name LIKE '%คุมกำเนิด%' OR d.name LIKE '%DMPA%' OR d.name LIKE '%ยาคุม%' OR d.name LIKE '%ถุงยาง%')
+                AND oo.vstdate BETWEEN ? AND ?
               GROUP BY oo.vn
             ) d ON d.vn = o.vn
             LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT icd10 SEPARATOR ', ') AS icd10
+              SELECT vn,
+                     GROUP_CONCAT(DISTINCT icd10 SEPARATOR ', ') AS icd10,
+                     GROUP_CONCAT(DISTINCT IF(icd10 REGEXP '^697' OR icd10 REGEXP '^992', icd10, NULL) SEPARATOR ', ') AS op
               FROM ovstdiag
-              WHERE vstdate BETWEEN ? AND ? AND (icd10 REGEXP '^Z30' OR icd10 REGEXP '^697' OR icd10 REGEXP '^992')
+              WHERE (icd10 REGEXP '^Z30' OR icd10 REGEXP '^697' OR icd10 REGEXP '^992')
+                AND vstdate BETWEEN ? AND ?
               GROUP BY vn
             ) dx ON dx.vn = o.vn
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
@@ -704,13 +720,13 @@ export class RcmFamilyPlanningService {
               WHERE m.person_type = '1' AND m.dateadm BETWEEN ? AND ?
               GROUP BY m.opdseq
             ) m ON m.vn = o.vn
-            WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
+            ORDER BY o.vstdate DESC, o.vsttime DESC
           `
           return (await executor(
             sql,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
-            { timeoutMs: 90000 }
+            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
+            { timeoutMs: 45000 }
           )) as any[]
         },
         300000
@@ -1143,7 +1159,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-          COALESCE(cc.claimcode, cc.AuthenCode) AS claimcode,
+          cc.AuthenCode AS claimcode,
           dep.department AS department,
           spc.name AS clinic,
           s.cc AS cc,
@@ -1313,7 +1329,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(i.regdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(i.regtime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
-          COALESCE(cc.claimcode, cc.AuthenCode) AS claimcode,
+          cc.AuthenCode AS claimcode,
           w.name AS department,
           spc.name AS clinic,
           '' AS cc,
@@ -1372,7 +1388,7 @@ export class RcmFamilyPlanningService {
           WHERE department = 'IP'
             AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
           GROUP BY an
-        ) r ON r.vn = i.an
+        ) r ON r.an = i.an
         LEFT JOIN (
           SELECT an,
                  SUM(COALESCE(fpnhso, 0) + COALESCE(pp, 0) + COALESCE(compensated, 0)) AS income,
@@ -1381,7 +1397,7 @@ export class RcmFamilyPlanningService {
           WHERE department = 'IP'
             AND (COALESCE(fpnhso, 0) > 0 OR COALESCE(pp, 0) > 0 OR COALESCE(compensated, 0) > 0)
           GROUP BY an
-        ) n ON n.vn = i.an
+        ) n ON n.an = i.an
         LEFT JOIN (
           SELECT m.an,
                  MAX(m.eclaim_no) AS eclaim_no,
@@ -1824,7 +1840,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
-          COALESCE(cc.AuthenCode, cc.claimcode, m.claimcode, '') AS claimcode,
+          COALESCE(cc.AuthenCode, m.claimcode, '') AS claimcode,
           dep.department AS department,
           spc.name AS clinic,
           s.cc AS cc,
@@ -1973,7 +1989,7 @@ export class RcmFamilyPlanningService {
           DATE_FORMAT(i.regdate, '%Y-%m-%d') AS vstdate,
           TIME_FORMAT(i.regtime, '%H:%i:%s') AS vsttime,
           CONCAT_WS(':', i.pttype, ptt.name) AS pttypename,
-          COALESCE(cc.AuthenCode, cc.claimcode, m.claimcode, '') AS claimcode,
+          COALESCE(cc.AuthenCode, m.claimcode, '') AS claimcode,
           w.name AS department,
           spc.name AS clinic,
           '' AS cc,

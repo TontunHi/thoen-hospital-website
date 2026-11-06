@@ -1,6 +1,6 @@
 import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
-import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus } from './kpiTimeUtils'
+import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, matchesPeriodKey } from './kpiTimeUtils'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 
@@ -323,10 +323,6 @@ export class KpiService {
       sql += ' AND e.fiscal_year = ?'
       params.push(filters.fiscalYear)
     }
-    if (filters.periodKey) {
-      sql += ' AND e.period_key = ?'
-      params.push(filters.periodKey)
-    }
 
     sql += `
       LEFT JOIN members m ON m.id = e.recorded_by_id
@@ -442,11 +438,17 @@ export class KpiService {
         continue
       }
       if (filters.periodKey) {
-        ind.currentEntry = ind.entries.find(e => e.periodKey === filters.periodKey || e.periodKey?.endsWith('-' + filters.periodKey)) || null
+        ind.currentEntry = ind.entries.find(e => matchesPeriodKey(e.periodKey, filters.periodKey)) || null
       } else {
         const due = checkIndicatorDueStatus(ind.frequency, filters.fiscalYear || '2570')
-        const dueEntry = ind.entries.find(e => e.periodKey === due.relevantPeriod.key || e.periodKey?.endsWith('-' + due.relevantPeriod.key))
-        ind.currentEntry = dueEntry || null
+        const dueEntry = ind.entries.find(e => matchesPeriodKey(e.periodKey, due.relevantPeriod.key))
+        const answered = ind.entries.filter(e =>
+          (e.resultValue !== null && e.resultValue !== undefined) ||
+          (e.resultText && e.resultText.trim() !== '' && e.resultText !== 'ไม่มีรายงาน') ||
+          (e.numeratorValue !== null && e.denominatorValue !== null && e.numeratorValue !== undefined && e.denominatorValue !== undefined)
+        )
+        const latestEntry = answered.length > 0 ? answered[answered.length - 1] : null
+        ind.currentEntry = dueEntry || latestEntry || null
       }
     }
 

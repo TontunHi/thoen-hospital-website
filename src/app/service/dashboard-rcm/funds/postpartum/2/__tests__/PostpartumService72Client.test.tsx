@@ -128,9 +128,9 @@ describe('PostpartumService72Client (Postpartum 7.2 ADP 30015)', () => {
     render(<PostpartumService72Client />)
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      '7.2 การตรวจหลังคลอด ADP'
+      'การตรวจหลังคลอด ADP'
     )
-    expect(screen.getByText(/กองทุนที่ 7 · การตรวจหลังคลอด/)).toBeInTheDocument()
+    expect(screen.queryByText(/กองทุนที่ 7 · การตรวจหลังคลอด/)).not.toBeInTheDocument()
 
     // Assert KPI Summary cards
     await waitFor(() => {

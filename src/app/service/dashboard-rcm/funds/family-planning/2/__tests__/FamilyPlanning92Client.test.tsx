@@ -132,7 +132,9 @@ describe('FamilyPlanning92Client Component', () => {
   it('renders header, title, ADP badge, and summary metrics', async () => {
     render(<FamilyPlanning92Client />)
 
-    expect(screen.getByText(/หัวข้อ 9.2 บริการใส่ห่วงอนามัย/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'บริการใส่ห่วงอนามัย (IUD Insertion)'
+    )
     expect(screen.getAllByText(/20003, FP001, 71681, 71682/).length).toBeGreaterThan(0)
 
     await waitFor(() => {

@@ -237,6 +237,31 @@ export interface IndicatorWithEntries {
 }
 
 /**
+ * Robust matching between period keys (e.g. M01 vs M1, H1 vs 6M1, prefixed keys like 2570-Q1)
+ */
+export function matchesPeriodKey(entryKey?: string | null, targetKey?: string | null): boolean {
+  if (!entryKey || !targetKey) return false
+  if (entryKey === targetKey) return true
+  if (entryKey.endsWith('-' + targetKey) || entryKey.endsWith('_' + targetKey)) return true
+  if (targetKey.endsWith('-' + entryKey) || targetKey.endsWith('_' + entryKey)) return true
+
+  // Normalize monthly M01 -> M1
+  const cleanA = entryKey.replace(/^M0?(\d+)$/, 'M$1')
+  const cleanB = targetKey.replace(/^M0?(\d+)$/, 'M$1')
+  if (cleanA === cleanB) return true
+
+  // Normalize semi-annual H1 -> 6M1, H2 -> 6M2
+  const normSemi = (k: string) => k === '6M1' ? 'H1' : k === '6M2' ? 'H2' : k
+  if (normSemi(entryKey) === normSemi(targetKey)) return true
+
+  // Normalize annual YEAR -> Y1
+  const normYear = (k: string) => k === 'YEAR' ? 'Y1' : k
+  if (normYear(entryKey) === normYear(targetKey)) return true
+
+  return false
+}
+
+/**
  * Checks whether an indicator has already been answered for a given reporting period.
  */
 export function isIndicatorAnsweredForPeriod(
@@ -253,21 +278,16 @@ export function isIndicatorAnsweredForPeriod(
     return (hasValue || hasText || hasNumDen) && (isNotPending || hasNumDen)
   }
 
-  const matchKey = (key?: string) => {
-    if (!key) return false
-    return key === periodKey || key.endsWith('-' + periodKey) || periodKey.endsWith('-' + key)
-  }
-
   // 1. Check in entries list if present
   if (ind.entries && ind.entries.length > 0) {
-    const entry = ind.entries.find(e => matchKey(e.periodKey))
+    const entry = ind.entries.find(e => matchesPeriodKey(e.periodKey, periodKey))
     if (entry) {
       return isEntryAnswered(entry)
     }
   }
 
   // 2. Fallback to currentEntry if it matches this periodKey
-  if (ind.currentEntry && matchKey(ind.currentEntry.periodKey)) {
+  if (ind.currentEntry && matchesPeriodKey(ind.currentEntry.periodKey, periodKey)) {
     return isEntryAnswered(ind.currentEntry)
   }
 

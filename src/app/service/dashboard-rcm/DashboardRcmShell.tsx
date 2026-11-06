@@ -160,7 +160,7 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         children: [
           {
             href: '/service/dashboard-rcm/funds/anc/3',
-            label: '2.3 US - ตรวจช่องปาก - ขัดฟัน',
+            label: 'US - ตรวจช่องปาก - ขัดฟัน',
             badge: '2.3',
           },
           {
@@ -178,7 +178,7 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         children: [
           {
             href: '/service/dashboard-rcm/funds/thalassemia/1',
-            label: '3.1 คัดกรองธาลัสซีเมีย',
+            label: 'คัดกรองธาลัสซีเมีย',
             badge: '3.1',
           },
         ],
@@ -191,12 +191,12 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         children: [
           {
             href: '/service/dashboard-rcm/funds/postpartum/2',
-            label: '7.2 การตรวจหลังคลอด ADP',
+            label: 'การตรวจหลังคลอด ADP',
             badge: '7.2',
           },
           {
             href: '/service/dashboard-rcm/funds/postpartum/3',
-            label: '7.3 การจ่ายยา Triforine ADP',
+            label: 'การจ่ายยา Triforine ADP',
             badge: '7.3',
           },
         ],
@@ -209,7 +209,7 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         children: [
           {
             href: '/service/dashboard-rcm/funds/pregnancy-test/1',
-            label: '8.1 การทดสอบการตั้งครรภ์',
+            label: 'การทดสอบการตั้งครรภ์',
             badge: '8.1',
           },
         ],
@@ -222,22 +222,22 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         children: [
           {
             href: '/service/dashboard-rcm/funds/family-planning/1',
-            label: '9.1 วางแผนครอบครัวและการป้องกันการตั้งครรภ์',
+            label: 'วางแผนครอบครัวและการป้องกันการตั้งครรภ์',
             badge: '9.1',
           },
           {
             href: '/service/dashboard-rcm/funds/family-planning/2',
-            label: '9.2 บริการใส่ห่วงอนามัย',
+            label: 'บริการใส่ห่วงอนามัย',
             badge: '9.2',
           },
           {
             href: '/service/dashboard-rcm/funds/family-planning/9-3-1',
-            label: '9.3.1 รายการฝังยาคุม',
+            label: 'รายการฝังยาคุม',
             badge: '9.3.1',
           },
           {
             href: '/service/dashboard-rcm/funds/family-planning/9-3-2',
-            label: '9.3.2 รายการถอดยาคุม',
+            label: 'รายการถอดยาคุม',
             badge: '9.3.2',
           },
         ],

@@ -77,7 +77,7 @@ export default function PostpartumService30016Client() {
   }, [defaultFiscalBeYear])
 
   // Date selection states (Default to Fiscal Year)
-  const [dateMode, setDateMode] = useState<'fiscal' | 'monthly' | 'custom'>('fiscal')
+  const [dateMode, setDateMode] = useState<'custom' | 'monthly' | 'fiscal'>('custom')
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
@@ -390,10 +390,6 @@ export default function PostpartumService30016Client() {
       {/* ── 1. Header Bar ── */}
       <header className="pp3-header">
         <div className="pp3-title-group">
-          <div className="pp3-title-badge">
-            <HeartPulse size={14} />
-            <span>กองทุนการตรวจหลังคลอด (PNC)</span>
-          </div>
           <h1 className="pp3-title">7.3 การจ่ายยา Triforine ADP (รหัสบริการ 30016)</h1>
           <p className="pp3-subtitle">
             รายงานการสั่งจ่ายยาเสริมธาตุเหล็ก/Triforine (รหัส ADP 30016) สำหรับหญิงหลังคลอด ตรวจสอบสิทธิ
@@ -427,7 +423,7 @@ export default function PostpartumService30016Client() {
       </header>
 
       {/* ── 2. ADP Mapping Alert Banner ── */}
-      {!adpMapping.isMapped ? (
+      {!adpMapping.isMapped && (
         <div className="pp3-banner pp3-banner-warn" role="alert">
           <AlertTriangle size={20} className="shrink-0 text-amber-600" />
           <div>
@@ -438,23 +434,6 @@ export default function PostpartumService30016Client() {
             </p>
           </div>
         </div>
-      ) : (
-        <div className="pp3-banner pp3-banner-info">
-          <Activity size={18} className="shrink-0 text-emerald-600" />
-          <div className="flex-1">
-            <span>
-              ระบบตรวจพบรายการยาที่ Map รหัส ADP <strong>30016</strong> จำนวน{' '}
-              <strong>{adpMapping.mappedCount}</strong> รายการ:
-            </span>
-            <div className="pp3-banner-chips">
-              {adpMapping.items.map((it) => (
-                <span key={it.icode} className="pp3-banner-chip" title={`icode: ${it.icode}`}>
-                  <strong>{it.icode}</strong>: {it.name} {it.strength ? `(${it.strength})` : ''}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* ── 3. Date Selection Panel ── */}
@@ -462,46 +441,54 @@ export default function PostpartumService30016Client() {
         <div className="pp3-date-mode-tabs">
           <button
             type="button"
-            className={`pp3-date-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
-            onClick={() => setDateMode('fiscal')}
+            className={`pp3-date-tab ${dateMode === 'custom' ? 'active' : ''}`}
+            onClick={() => setDateMode('custom')}
           >
-            ปีงบประมาณ
+            กำหนดเอง
           </button>
           <button
             type="button"
             className={`pp3-date-tab ${dateMode === 'monthly' ? 'active' : ''}`}
             onClick={() => setDateMode('monthly')}
           >
-            รายเดือน
+            เดือน
           </button>
           <button
             type="button"
-            className={`pp3-date-tab ${dateMode === 'custom' ? 'active' : ''}`}
-            onClick={() => setDateMode('custom')}
+            className={`pp3-date-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
+            onClick={() => setDateMode('fiscal')}
           >
-            กำหนดช่วงวันเอง
+            ปีงบประมาณ
           </button>
         </div>
 
         <div className="pp3-date-controls">
-          {dateMode === 'fiscal' && (
-            <div className="pp3-input-group">
-              <label htmlFor="fiscal-year-select" className="pp3-label">
-                ปีงบประมาณ พ.ศ.
-              </label>
-              <select
-                id="fiscal-year-select"
-                className="pp3-select"
-                value={selectedFiscalYear}
-                onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y} (1 ต.ค. {y - 1} - 30 ก.ย. {y})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {dateMode === 'custom' && (
+            <>
+              <div className="pp3-input-group">
+                <label className="pp3-label">ตั้งแต่วันที่</label>
+                <ThaiDatePicker
+                  value={ds1}
+                  onChange={(val) => {
+                    setDs1(val)
+                    setCurrentPage(1)
+                  }}
+                  maxDate={ds2}
+                />
+              </div>
+
+              <div className="pp3-input-group">
+                <label className="pp3-label">ถึงวันที่</label>
+                <ThaiDatePicker
+                  value={ds2}
+                  onChange={(val) => {
+                    setDs2(val)
+                    setCurrentPage(1)
+                  }}
+                  minDate={ds1}
+                />
+              </div>
+            </>
           )}
 
           {dateMode === 'monthly' && (
@@ -544,38 +531,25 @@ export default function PostpartumService30016Client() {
             </>
           )}
 
-          {dateMode === 'custom' && (
-            <>
-              <div className="pp3-input-group">
-                <label className="pp3-label">ตั้งแต่วันที่</label>
-                <ThaiDatePicker
-                  value={ds1}
-                  onChange={(val) => {
-                    setDs1(val)
-                    setCurrentPage(1)
-                  }}
-                  maxDate={ds2}
-                />
-              </div>
-
-              <div className="pp3-input-group">
-                <label className="pp3-label">ถึงวันที่</label>
-                <ThaiDatePicker
-                  value={ds2}
-                  onChange={(val) => {
-                    setDs2(val)
-                    setCurrentPage(1)
-                  }}
-                  minDate={ds1}
-                />
-              </div>
-            </>
+          {dateMode === 'fiscal' && (
+            <div className="pp3-input-group">
+              <label htmlFor="fiscal-year-select" className="pp3-label">
+                ปีงบประมาณ พ.ศ.
+              </label>
+              <select
+                id="fiscal-year-select"
+                className="pp3-select"
+                value={selectedFiscalYear}
+                onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y} (1 ต.ค. {y - 1} - 30 ก.ย. {y})
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
-
-          <div className="pp3-date-range-hint">
-            <Calendar size={14} className="inline mr-1 text-emerald-700" />
-            <span>ช่วงวันที่ประมวลผล: {formatThaiDate(ds1)} ถึง {formatThaiDate(ds2)}</span>
-          </div>
         </div>
       </section>
 
@@ -702,8 +676,7 @@ export default function PostpartumService30016Client() {
       <section className="pp3-filter-bar" aria-label="ค้นหาและตัวกรอง">
         <div className="pp3-filter-group">
           <div className="pp3-input-group">
-            <label htmlFor="comp-filter-select" className="pp3-label inline-flex items-center gap-1">
-              <Filter size={14} />
+            <label htmlFor="comp-filter-select" className="pp3-label">
               <span>สถานะชดเชย:</span>
             </label>
             <select
@@ -722,26 +695,6 @@ export default function PostpartumService30016Client() {
               <option value="NO_AUTHEN">ไม่มี Authen Code ({summary.withoutAuthenCount})</option>
               <option value="HAS_PDX">มีรหัสวินิจฉัย PDx ({summary.withPdxCount})</option>
               <option value="HAS_OP">มีรหัสหัตถการ OP ({summary.withOpCount})</option>
-            </select>
-          </div>
-
-          <div className="pp3-input-group">
-            <label htmlFor="search-field-select" className="pp3-label">
-              ค้นหาจาก:
-            </label>
-            <select
-              id="search-field-select"
-              className="pp3-select"
-              value={searchField}
-              onChange={(e) => setSearchField(e.target.value as PostpartumSearchField)}
-            >
-              <option value="ALL">ทุกฟิลด์</option>
-              <option value="HN">HN</option>
-              <option value="CID">เลขบัตรประชาชน</option>
-              <option value="PTNAME">ชื่อ-สกุล</option>
-              <option value="VN">เลขที่ VN</option>
-              <option value="DIAG">รหัสโรค (ICD-10)</option>
-              <option value="PTTYPE">สิทธิการรักษา</option>
             </select>
           </div>
 
@@ -932,7 +885,6 @@ export default function PostpartumService30016Client() {
                   </div>
                 </th>
                 <th rowSpan={2}>กองทุน</th>
-                <th rowSpan={2}>จัดการ</th>
               </tr>
 
               {/* Row 2: Sub-columns for Diagnoses and Procedures */}
@@ -959,14 +911,14 @@ export default function PostpartumService30016Client() {
             <tbody>
               {loading && items.length === 0 ? (
                 <tr>
-                  <td colSpan={26} className="text-center py-12 text-slate-500">
+                  <td colSpan={25} className="text-center py-12 text-slate-500">
                     <RefreshCw size={24} className="pp3-spin-icon inline-block mb-2 text-emerald-600" />
                     <div>กำลังโหลดข้อมูลบริการ 30016...</div>
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={26} className="pp3-empty-state">
+                  <td colSpan={25} className="pp3-empty-state">
                     <div className="pp3-empty-title">ไม่พบรายการข้อมูลตามเงื่อนไขที่เลือก</div>
                     <p>ลองเปลี่ยนช่วงวัน หรือปรับตัวกรองการชดเชย / คำค้นหา</p>
                   </td>
@@ -989,21 +941,17 @@ export default function PostpartumService30016Client() {
                     <td className="tabular-nums font-mono text-xs">{it.vn}</td>
                     <td className="tabular-nums font-mono text-xs font-semibold">{it.hn}</td>
                     <td className="whitespace-nowrap">
-                      <span className="pp3-cell-id">
-                        <span>{maskIdentifier(it.cid)}</span>
-                        {it.cid && (
-                          <button
-                            type="button"
-                            className="pp3-copy-btn"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCopy(it.cid, `cid-${it.vn}`)
-                            }}
-                            title="คัดลอกเลขบัตรประชาชนเต็ม"
-                          >
-                            {copiedField === `cid-${it.vn}` ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                          </button>
-                        )}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        style={{ cursor: 'pointer' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCopy(it.cid, `cid-${it.vn}`)
+                        }}
+                        title="คลิกเพื่อคัดลอก CID"
+                      >
+                        {it.cid || '—'}
                       </span>
                     </td>
                     <td className="pp3-sticky-col-ptname font-medium">{it.ptname}</td>
@@ -1081,19 +1029,6 @@ export default function PostpartumService30016Client() {
                       ) : (
                         '—'
                       )}
-                    </td>
-                    <td className="whitespace-nowrap text-center">
-                      <button
-                        type="button"
-                        className="pp3-action-link"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedIndex(idx)
-                          setModalTab('summary')
-                        }}
-                      >
-                        ดูรายละเอียด
-                      </button>
                     </td>
                   </tr>
                 ))

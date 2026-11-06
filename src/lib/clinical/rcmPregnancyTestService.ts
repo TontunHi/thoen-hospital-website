@@ -281,7 +281,7 @@ export class RcmPregnancyTestService {
               IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
               TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
-              COALESCE(cc.claimcode, cc.AuthenCode) AS authencode,
+              cc.AuthenCode AS authencode,
               IFNULL(ptt.hipdata_code, '') AS maininscl,
               CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
               dep.department AS department,
@@ -322,7 +322,8 @@ export class RcmPregnancyTestService {
                 GROUP_CONCAT(DISTINCT lo.lab_order_result SEPARATOR ', ') AS lab_order_result
               FROM lab_head lh
               JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
-              WHERE lo.lab_items_name_ref REGEXP 'preg|UPT'
+              WHERE lh.order_date BETWEEN ? AND ?
+                AND (lo.lab_items_name_ref REGEXP 'preg|UPT' OR lo.lab_items_name_ref LIKE '%pregnancy%')
               GROUP BY lh.vn
             ) lo ON lo.vn = o.vn
             LEFT JOIN (
@@ -363,7 +364,7 @@ export class RcmPregnancyTestService {
             GROUP BY o.vn
             ORDER BY o.vstdate DESC, o.vsttime DESC;
             `,
-            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
+            [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2],
             { timeoutMs: 90000 }
           ),
         ])

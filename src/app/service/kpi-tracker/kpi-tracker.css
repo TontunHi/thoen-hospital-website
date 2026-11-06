@@ -1011,7 +1011,7 @@
 }
 
 .kpiGridTable {
-  min-width: 1040px;
+  min-width: 1080px;
   display: flex;
   flex-direction: column;
 }
@@ -1019,7 +1019,7 @@
 /* Header row per design.md */
 .kpiGridHead {
   display: grid;
-  grid-template-columns: 52px minmax(250px, 1fr) 96px 100px 104px 120px 120px 76px 96px;
+  grid-template-columns: 52px minmax(230px, 1fr) 92px 96px 108px 116px 116px 72px 156px;
   column-gap: 14px;
   padding: 12px 20px;
   background: var(--head-bg);
@@ -1033,7 +1033,7 @@
 /* Data rows per design.md */
 .kpiGridRow {
   display: grid;
-  grid-template-columns: 52px minmax(250px, 1fr) 96px 100px 104px 120px 120px 76px 96px;
+  grid-template-columns: 52px minmax(230px, 1fr) 92px 96px 108px 116px 116px 72px 156px;
   column-gap: 14px;
   padding: 14px 20px 18px 20px;
   background: var(--surface);
@@ -1982,4 +1982,333 @@
     padding: 14px 16px;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   ROUND HISTORY & ENHANCED EXPORT STYLES (ui-style-brief compliant)
+   ══════════════════════════════════════════════════════════════ */
+
+/* History Button on Table Row */
+.kpiHistoryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  color: var(--ink);
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.kpiHistoryBtn:hover {
+  background: var(--head-bg);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.kpiHistoryBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Clickable rounds progress badge in result column */
+.kpiResultRoundsBadge {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--ink-muted);
+  background: var(--head-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.kpiResultRoundsBadge:hover {
+  background: var(--border);
+  color: var(--accent-ink);
+  text-decoration: underline;
+}
+
+/* History Modal Card */
+.kpiHistoryModalCard {
+  max-width: 820px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* History Questions Breakdown Card */
+.kpiHistoryQuestionsCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.kpiHistoryQuestionRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.45;
+}
+
+.kpiHistoryQuestionTag {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--head-bg);
+  color: var(--head-ink);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.kpiHistoryQuestionTag.num {
+  background: #E8F5E9;
+  color: #1B5E20;
+}
+
+.kpiHistoryQuestionTag.den {
+  background: #E3F2FD;
+  color: #0D47A1;
+}
+
+/* History Summary Banner */
+.kpiHistorySummaryBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--head-bg);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.kpiHistorySummaryPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Round History List */
+.kpiHistoryRoundsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: 52vh;
+  padding-right: 4px;
+}
+
+.kpiHistoryRoundCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpiHistoryRoundCard:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-subtle);
+}
+
+.kpiHistoryRoundCard.currentRound {
+  border-left: 4px solid var(--accent);
+  background: #FCFDFD;
+}
+
+.kpiHistoryRoundCard.unanswered {
+  background: #FAFCFB;
+  opacity: 0.85;
+}
+
+.kpiHistoryRoundHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kpiHistoryRoundTitleWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kpiHistoryRoundTitle {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+
+.kpiHistoryRoundCurrentBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--status-bg);
+  color: var(--status-ink);
+}
+
+/* Answers Grid inside Round Card */
+.kpiHistoryAnswersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.kpiHistoryAnswerBox {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.kpiHistoryAnswerLabel {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+}
+
+.kpiHistoryAnswerVal {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiHistoryAnswerVal.highlight {
+  color: var(--accent-ink);
+  font-size: 15.5px;
+}
+
+/* Round Footer (Meta & Action) */
+.kpiHistoryRoundFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  border-top: 1px solid var(--divider);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.kpiHistoryRoundMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiHistoryRoundEditBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kpiHistoryRoundEditBtn:hover {
+  background: var(--head-bg);
+  border-color: var(--accent);
+}
+
+/* Mini Previous Rounds Preview inside Answer Modal */
+.kpiModalPrevRoundsSection {
+  margin-top: 14px;
+  border-top: 1px solid var(--divider);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kpiModalPrevRoundsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.kpiModalPrevRoundsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.kpiModalPrevRoundChip {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.kpiModalPrevRoundChip:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.kpiModalPrevRoundChip.active {
+  border-color: var(--accent);
+  background: #F0FDF4;
+}
+
+.kpiModalPrevRoundChipName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.kpiModalPrevRoundChipVal {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
 

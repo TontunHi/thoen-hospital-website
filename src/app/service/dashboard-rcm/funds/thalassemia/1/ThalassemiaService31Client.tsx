@@ -340,10 +340,6 @@ export default function ThalassemiaService31Client() {
       {/* ── 1. Header Bar ── */}
       <header className="thal31-header">
         <div className="thal31-title-group">
-          <div className="thal31-title-badge">
-            <Droplet size={14} aria-hidden="true" />
-            <span>กองทุน 3. ธาลัสซีเมียในหญิงตั้งครรภ์</span>
-          </div>
           <h1 className="thal31-title">3.1 คัดกรองธาลัสซีเมีย</h1>
           <p className="thal31-subtitle">
             รายงานการตรวจคัดกรองโรคโลหิตจางธาลัสซีเมียในหญิงตั้งครรภ์ ตรวจสอบผลตรวจทางห้องปฏิบัติการ DCIP,
@@ -640,25 +636,6 @@ export default function ThalassemiaService31Client() {
               <option value="OTHER">อื่นๆ / ท่าก้น / สูญญากาศ</option>
             </select>
 
-            <span className="thal31-field-label">ค้นหาจาก:</span>
-            <select
-              className="thal31-select"
-              value={searchField}
-              onChange={(e) => {
-                setSearchField(e.target.value as ThalassemiaSearchField)
-                setCurrentPage(1)
-              }}
-              aria-label="เลือกฟิลด์ค้นหา"
-            >
-              <option value="ALL">ทุกฟิลด์ข้อมูล</option>
-              <option value="HN">HN</option>
-              <option value="CID">เลขประจำตัวประชาชน (CID)</option>
-              <option value="PTNAME">ชื่อ-สกุล ผู้ป่วย</option>
-              <option value="LABRESULT">ผลการตรวจ Lab</option>
-              <option value="HOSPITAL">โรงพยาบาล</option>
-              <option value="PTTYPE">สิทธิการรักษา</option>
-            </select>
-
             <div className="thal31-search-box">
               <Search size={16} className="thal31-search-icon" aria-hidden="true" />
               <input
@@ -817,13 +794,16 @@ export default function ThalassemiaService31Client() {
                     </span>
                   </th>
                   <th>วันที่ตรวจ Lab</th>
-                  <th style={{ width: 70, textAlign: 'center' }}>จัดการ</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, index) => {
                   return (
-                    <tr key={`${item.ancno}-${index}`}>
+                    <tr
+                      key={`${item.ancno}-${index}`}
+                      onClick={() => setSelectedIndex(index)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <td style={{ textAlign: 'center' }} className="font-tabular text-muted">
                         {item.no}
                       </td>
@@ -836,36 +816,32 @@ export default function ThalassemiaService31Client() {
                         </span>
                       </td>
                       <td className="font-tabular" style={{ whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          className="thal31-clear-btn"
-                          style={{ position: 'static', padding: 0, fontWeight: 600, color: 'var(--thal-accent)' }}
-                          onClick={() => handleCopy(item.hn, `hn-${index}`)}
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          style={{ fontWeight: 600, color: 'var(--thal-accent)', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCopy(item.hn, `hn-${index}`)
+                          }}
                           title="คลิกเพื่อคัดลอก HN"
                         >
                           {item.hn}
-                          {copiedField === `hn-${index}` ? (
-                            <Check size={12} style={{ color: 'var(--thal-ok)', marginLeft: 4 }} />
-                          ) : (
-                            <Copy size={12} style={{ opacity: 0.4, marginLeft: 4 }} />
-                          )}
-                        </button>
+                        </span>
                       </td>
                       <td className="font-tabular" style={{ whiteSpace: 'nowrap' }}>
-                        <button
-                          type="button"
-                          className="thal31-clear-btn"
-                          style={{ position: 'static', padding: 0 }}
-                          onClick={() => handleCopy(item.cid, `cid-${index}`)}
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          style={{ cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCopy(item.cid, `cid-${index}`)
+                          }}
                           title="คลิกเพื่อคัดลอก CID"
                         >
-                          {formatCidDisplay(item.cid)}
-                          {copiedField === `cid-${index}` ? (
-                            <Check size={12} style={{ color: 'var(--thal-ok)', marginLeft: 4 }} />
-                          ) : (
-                            <Copy size={12} style={{ opacity: 0.4, marginLeft: 4 }} />
-                          )}
-                        </button>
+                          {item.cid || '—'}
+                        </span>
                       </td>
                       <td style={{ fontWeight: 500, minWidth: 150 }}>{item.ptname}</td>
                       <td style={{ textAlign: 'center' }} className="font-tabular">
@@ -914,16 +890,6 @@ export default function ThalassemiaService31Client() {
                       </td>
                       <td className="font-tabular" style={{ whiteSpace: 'nowrap' }}>
                         {item.lab_order_date ? formatThaiDate(item.lab_order_date) : '—'}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="thal31-btn-secondary"
-                          style={{ minHeight: 32, padding: '0 10px', fontSize: 12.5 }}
-                          onClick={() => setSelectedIndex(index)}
-                        >
-                          ดูข้อมูล
-                        </button>
                       </td>
                     </tr>
                   )

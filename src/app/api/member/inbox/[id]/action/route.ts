@@ -11,6 +11,8 @@ const actionSchema = z.object({
   partialEdits: z.any().optional(),
   holdReason: z.string().optional(),
   holdDetails: z.string().optional(),
+  targetStepNo: z.number().int().positive().nullable().optional(),
+  sendToRequester: z.boolean().optional(),
 })
 
 export async function POST(
@@ -31,7 +33,7 @@ export async function POST(
       return NextResponse.json({ error: 'Action ไม่ถูกต้อง' }, { status: 400 })
     }
     
-    const { action, comment, nextAssigneeId, partialEdits, holdReason, holdDetails } = parsed.data
+    const { action, comment, nextAssigneeId, partialEdits, holdReason, holdDetails, targetStepNo, sendToRequester } = parsed.data
 
     const members = await queryMemberDb(
       'SELECT id, username, name, department, position, role, signature_path FROM members WHERE username = ? LIMIT 1',
@@ -50,6 +52,8 @@ export async function POST(
       partialEdits,
       holdReason,
       holdDetails,
+      targetStepNo: targetStepNo ?? null,
+      sendToRequester: Boolean(sendToRequester),
       actorMemberId: currentMember.id,
       actorUsername: currentMember.username,
       actorName: currentMember.name,

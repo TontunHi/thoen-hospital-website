@@ -90,7 +90,9 @@ describe('ImplantInsertionClient Component (9.3.1)', () => {
   it('renders header, title, ADP badge, and summary metrics', async () => {
     render(<ImplantInsertionClient />)
 
-    expect(screen.getByText(/หัวข้อ 9.3.1 รายการฝังยาคุม/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'รายการฝังยาคุม (Contraceptive Implant Insertion)'
+    )
     expect(screen.getAllByText(/FP002_1/).length).toBeGreaterThan(0)
 
     await waitFor(() => {

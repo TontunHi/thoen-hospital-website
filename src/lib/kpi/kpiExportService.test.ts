@@ -143,21 +143,32 @@ describe('KpiExportService', () => {
     // Table Header
     expect(sheet?.getCell('A6').value).toBe('ลำดับ')
     expect(sheet?.getCell('G6').value).toBe('ชื่อตัวชี้วัด / คำถามหลัก')
-    expect(sheet?.getCell('L6').value).toBe('สถานะประเมินผล')
+    expect(sheet?.getCell('H6').value).toBe('คำถามตัวตั้ง (Numerator Definition)')
+    expect(sheet?.getCell('I6').value).toBe('คำถามตัวหาร (Denominator Definition)')
+    expect(sheet?.getCell('L6').value).toBe('คำตอบตัวตั้ง (ค่าตัวเลข)')
+    expect(sheet?.getCell('M6').value).toBe('คำตอบตัวหาร (ค่าตัวเลข)')
+    expect(sheet?.getCell('N6').value).toBe('ผลงานที่ได้')
+    expect(sheet?.getCell('O6').value).toBe('สถานะประเมินผล')
 
     // Data Row 1 (Pass)
     expect(sheet?.getCell('A7').value).toBe('1')
     expect(sheet?.getCell('D7').value).toBe('IPD-01')
-    expect(sheet?.getCell('L7').value).toBe('ผ่านเกณฑ์')
+    expect(sheet?.getCell('H7').value).toBe('จำนวนผู้ติดเชื้อ')
+    expect(sheet?.getCell('I7').value).toBe('จำนวนวันนอนรวม')
+    expect(sheet?.getCell('L7').value).toBe(12)
+    expect(sheet?.getCell('M7').value).toBe(1000)
+    expect(sheet?.getCell('O7').value).toBe('ผ่านเกณฑ์')
 
     // Data Row 2 (Fail)
     expect(sheet?.getCell('A8').value).toBe('2')
     expect(sheet?.getCell('D8').value).toBe('SAF-01')
-    expect(sheet?.getCell('L8').value).toBe('ไม่ผ่านเกณฑ์')
+    expect(sheet?.getCell('H8').value).toBe('-')
+    expect(sheet?.getCell('L8').value).toBe('-')
+    expect(sheet?.getCell('O8').value).toBe('ไม่ผ่านเกณฑ์')
 
     // Data Row 3 (Pending)
     expect(sheet?.getCell('A9').value).toBe('3')
-    expect(sheet?.getCell('L9').value).toBe('ยังไม่บันทึกผล')
+    expect(sheet?.getCell('O9').value).toBe('ยังไม่บันทึกผล')
   })
 
   it('filters by onlyDue when onlyDue is true', async () => {
@@ -246,4 +257,78 @@ describe('KpiExportService', () => {
     expect(sheet?.getCell('G7').value).toBe('ตัวชี้วัดรายเดือน ยังไม่ได้ตอบรอบ ต.ค. (M01)')
   })
 
+  it('preserves answered entries and attaches round history when category is selected', async () => {
+    const mockExecutor = vi.fn().mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM kpi_topics WHERE id = ?')) {
+        return [{ id: 5, fiscalYear: '2570', code: 'HA-70', title: 'ตัวชี้วัด HA' }]
+      }
+      if (sql.includes('FROM kpi_indicators i')) {
+        return [
+          {
+            id: 21,
+            sequence: '1',
+            category: 'หมวดที่ 1',
+            subcategory: 'การประเมิน',
+            code: 'IPD-01',
+            frequency: 'รายไตรมาส',
+            title: 'อัตราความพึงพอใจผู้ป่วยใน',
+            numeratorName: 'จำนวนผู้พึงพอใจ',
+            denominatorName: 'จำนวนผู้ตอบทั้งหมด',
+            targetRaw: '>= 85%',
+            targetOperator: '>=',
+            targetValue: '85.0000',
+            targetUnit: '%',
+            responsibleName: 'นิศานาถ',
+            indicatorType: 'HA',
+            displayOrder: 1,
+            entryId: 301,
+            entryPeriodKey: 'Q1',
+            entryPeriodLabel: 'ไตรมาสที่ 1',
+            entryNumeratorValue: '90',
+            entryDenominatorValue: '100',
+            entryResultValue: '90.00',
+            entryStatus: 'PASS',
+            entryRecordedByName: 'นิศานาถ',
+            entryRecordedAt: '2026-11-01',
+          }
+        ]
+      }
+      return []
+    })
+
+    const result = await KpiExportService.exportToExcel({
+      topicId: 5,
+      fiscalYear: '2570',
+      category: 'หมวดที่ 1',
+    }, mockExecutor)
+
+    expect(result.totalCount).toBe(1)
+    expect(result.passCount).toBe(1)
+
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(result.buffer as any)
+    const sheet = wb.getWorksheet('หมวดที่ 1')
+    expect(sheet).toBeDefined()
+
+    // Row 7 (first indicator):
+    // Col 8 (Numerator question definition):
+    expect(sheet?.getCell('H7').value).toBe('จำนวนผู้พึงพอใจ')
+    // Col 9 (Denominator question definition):
+    expect(sheet?.getCell('I7').value).toBe('จำนวนผู้ตอบทั้งหมด')
+    // Col 11 (Reported period):
+    expect(sheet?.getCell('K7').value).toBe('ไตรมาสที่ 1')
+    // Col 12 (Numerator value number):
+    expect(sheet?.getCell('L7').value).toBe(90)
+    // Col 13 (Denominator value number):
+    expect(sheet?.getCell('M7').value).toBe(100)
+    // Col 14 (Result display):
+    expect(sheet?.getCell('N7').value).toBe('90%')
+    // Col 15 (Status):
+    expect(sheet?.getCell('O7').value).toBe('ผ่านเกณฑ์')
+    // Col 16 (Round history): contains round breakdown
+    expect(sheet?.getCell('P7').value).toContain('ไตรมาสที่ 1')
+    expect(sheet?.getCell('P7').value).toContain('ตัวตั้ง = 90')
+    expect(sheet?.getCell('P7').value).toContain('ตัวหาร = 100')
+    expect(sheet?.getCell('P7').value).toContain('ผลงาน = 90%')
+  })
 })

@@ -140,7 +140,9 @@ describe('PregnancyTestClient Component (8.1)', () => {
   it('renders title, KPI cards, and patient records in table', async () => {
     render(<PregnancyTestClient />)
 
-    expect(screen.getByText(/8.1 การทดสอบการตั้งครรภ์/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'การทดสอบการตั้งครรภ์ (Pregnancy Test)'
+    )
 
     await waitFor(() => {
       expect(screen.getByText('น.ส. สมฤดี ทดสอบ')).toBeInTheDocument()
@@ -179,7 +181,7 @@ describe('PregnancyTestClient Component (8.1)', () => {
     render(<PregnancyTestClient />)
 
     // Switch to monthly
-    const monthlyTab = screen.getByRole('tab', { name: 'รายเดือน' })
+    const monthlyTab = screen.getByRole('tab', { name: 'เดือน' })
     fireEvent.click(monthlyTab)
 
     expect(monthlyTab).toHaveAttribute('aria-selected', 'true')
@@ -193,15 +195,14 @@ describe('PregnancyTestClient Component (8.1)', () => {
     expect(screen.getByText('ถึงวันที่')).toBeInTheDocument()
   })
 
-  it('opens clinical detail modal when clicking "ดูข้อมูล"', async () => {
+  it('opens clinical detail modal when clicking record row', async () => {
     render(<PregnancyTestClient />)
 
     await waitFor(() => {
       expect(screen.getByText('น.ส. สมฤดี ทดสอบ')).toBeInTheDocument()
     })
 
-    const viewButtons = screen.getAllByRole('button', { name: 'ดูข้อมูล' })
-    fireEvent.click(viewButtons[0])
+    fireEvent.click(screen.getByText('น.ส. สมฤดี ทดสอบ'))
 
     await waitFor(() => {
       expect(screen.getByText(/ข้อมูลการรับบริการตรวจการตั้งครรภ์/)).toBeInTheDocument()

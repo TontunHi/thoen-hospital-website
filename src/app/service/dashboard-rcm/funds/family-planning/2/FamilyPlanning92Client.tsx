@@ -62,8 +62,7 @@ function formatCidDisplay(cid?: string | null): string {
   if (!cid) return '—'
   const digits = cid.replace(/\D/g, '')
   if (digits.length !== 13) return cid
-  // Mask middle digits: 1-2345-xxxxx-xx-1
-  return `${digits[0]}-${digits.slice(1, 5)}-xxxxx-xx-${digits[12]}`
+  return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`
 }
 
 export default function FamilyPlanning92Client() {
@@ -468,14 +467,9 @@ export default function FamilyPlanning92Client() {
 
   return (
     <div className="fp-page">
-      {/* 1. Header Area */}
       <div className="fp-header">
         <div className="fp-title-group">
-          <div className="fp-title-badge">
-            <ShieldCheck size={15} />
-            <span>กองทุนบริการวางแผนครอบครัว · 9.2</span>
-          </div>
-          <h1 className="fp-title">หัวข้อ 9.2 บริการใส่ห่วงอนามัย (IUD Insertion)</h1>
+          <h1 className="fp-title">บริการใส่ห่วงอนามัย (IUD Insertion)</h1>
           <p className="fp-subtitle">
             รายงานและตรวจสอบข้อมูลบริการใส่ห่วงอนามัย รหัส ADP: 20003, FP001, 71681, 71682
             ตรวจสอบการลงรหัส Dx (Z301), หัตถการ Op (697), ค่าบริการ/ยา และการชดเชยค่าบริการ E-Claim / สปสช. ทั้งผู้ป่วยนอก (OPD) และผู้ป่วยใน (IPD)
@@ -526,7 +520,7 @@ export default function FamilyPlanning92Client() {
               className={`fp-mode-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => setDateMode('monthly')}
             >
-              รายเดือน
+              เดือน
             </button>
             <button
               type="button"
@@ -608,7 +602,7 @@ export default function FamilyPlanning92Client() {
                 >
                   {yearOptions.map((y) => (
                     <option key={y} value={y}>
-                      พ.ศ. {y} ({y - 544}-10-01 ถึง {y - 543}-09-30)
+                      ปีงบประมาณ {y}
                     </option>
                   ))}
                 </select>
@@ -645,8 +639,7 @@ export default function FamilyPlanning92Client() {
         </div>
       </div>
 
-      {/* 3. ADP Code Mapping Status Banner */}
-      {!adpMapping.isMapped ? (
+      {!adpMapping.isMapped && (
         <div className="fp-alert fp-alert-danger">
           <AlertCircle size={20} />
           <div>
@@ -655,24 +648,6 @@ export default function FamilyPlanning92Client() {
               ไม่พบรายการค่าบริการ/ยาที่มีรหัส ADP: 20003, FP001, 71681, 71682 ในตาราง s_drugitems กรุณาตรวจสอบการตั้งค่า Map รหัส ADP
             </p>
           </div>
-        </div>
-      ) : (
-        <div className="fp-adp-banner">
-          <div className="fp-adp-info">
-            <ShieldCheck size={16} className="text-emerald-700" />
-            <span>
-              Map ADP Code สำเร็จ ({adpMapping.mappedCount} รายการ): <strong>20003, FP001, 71681, 71682</strong>
-            </span>
-          </div>
-          {adpMapping.items && adpMapping.items.length > 0 && (
-            <div className="fp-adp-items">
-              {adpMapping.items.map((it) => (
-                <span key={it.icode} className="fp-adp-tag" title={`icode: ${it.icode} [${it.nhso_adp_code}]`}>
-                  {it.name} {it.strength ? `(${it.strength})` : ''} [{it.nhso_adp_code}]
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -883,32 +858,6 @@ export default function FamilyPlanning92Client() {
 
       {/* 5. Filter & Search Toolbar */}
       <div className="fp-filter-bar">
-        {/* Search Field Dropdown */}
-        <div className="fp-field-group">
-          <label className="fp-field-label">ค้นหาในฟิลด์</label>
-          <select
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as IudSearchField)
-              setCurrentPage(1)
-            }}
-            className="fp-select"
-          >
-            <option value="ALL">ทุกฟิลด์</option>
-            <option value="HN">HN</option>
-            <option value="CID">เลขบัตรประชาชน (CID)</option>
-            <option value="PTNAME">ชื่อ-สกุล</option>
-            <option value="VN">{patientType === 'IPD' ? 'AN' : 'VN'}</option>
-            <option value="PTTYPE">สิทธิการรักษา</option>
-            <option value="DEPARTMENT">แผนก</option>
-            <option value="CLINIC">คลินิก</option>
-            <option value="DX">การวินิจฉัย (Dx)</option>
-            <option value="OP">หัตถการ (Op 697)</option>
-            <option value="DRUG">ค่าบริการ/ยา</option>
-            <option value="REP">เลขที่ Rep</option>
-          </select>
-        </div>
-
         {/* Search Input Box */}
         <div className="fp-field-group fp-search-wrapper">
           <label className="fp-field-label">คำค้นหา</label>
@@ -918,7 +867,7 @@ export default function FamilyPlanning92Client() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="พิมพ์คำค้นหา..."
+              placeholder="ค้นหา HN, เลขบัตรประชาชน, ชื่อ-สกุล, VN, แผนก, Dx, Op..."
               className="fp-search-input"
             />
             {search && (
@@ -1149,7 +1098,24 @@ export default function FamilyPlanning92Client() {
                     </td>
                     <td className="fp-mono font-medium">{item.vn}</td>
                     <td className="fp-mono">{item.hn}</td>
-                    <td className="fp-mono text-xs">{formatCidDisplay(item.cid)}</td>
+                    <td className="fp-mono text-xs">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigator.clipboard?.writeText(item.cid || '')
+                          setCopiedField(`cid-${item.vn}`)
+                          setTimeout(() => setCopiedField(null), 1500)
+                        }}
+                        title="คลิกเพื่อคัดลอกเลขบัตรประชาชน 13 หลัก"
+                        className="hover:underline cursor-pointer text-left"
+                      >
+                        {formatCidDisplay(item.cid)}
+                        {copiedField === `cid-${item.vn}` && (
+                          <span className="text-emerald-700 ml-1 text-[11px]">คัดลอกแล้ว</span>
+                        )}
+                      </button>
+                    </td>
                     <td className="font-medium">{item.ptname}</td>
                     <td style={{ textAlign: 'center' }} className="text-xs">
                       {item.sex} / {item.age} ปี

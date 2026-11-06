@@ -115,7 +115,7 @@ describe('executeWorkflowAction', () => {
     )
   })
 
-  it('should send back task', async () => {
+  it('should send back task at step 1 to requester', async () => {
     const executor = createExecutor()
     const result = await executeWorkflowAction({
       taskId: 't-1',
@@ -133,6 +133,130 @@ describe('executeWorkflowAction', () => {
     expect(executor).toHaveBeenCalledWith(
       expect.stringContaining("UPDATE inbox_tasks"),
       expect.arrayContaining(['t-1']) // SENT_BACK status
+    )
+  })
+
+  it('should send back task from step 3 to step 2 (previous step)', async () => {
+    const step3Task = {
+      ...mockTask,
+      current_step_no: 3,
+      current_assignee: 4,
+    }
+    const threeSteps = [
+      { id: 's-1', task_id: 't-1', step_no: 1, step_name: 'Step 1', status: 'COMPLETED', assigned_to_id: 2, assigned_role: 'Role 1' },
+      { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'COMPLETED', assigned_to_id: 3, assigned_role: 'Role 2' },
+      { id: 's-3', task_id: 't-1', step_no: 3, step_name: 'Step 3', status: 'PENDING', assigned_to_id: 4, assigned_role: 'Role 3' },
+    ]
+    const executor = createExecutor([step3Task], threeSteps)
+    const result = await executeWorkflowAction({
+      taskId: 't-1',
+      actorMemberId: 4,
+      actorUsername: 'user4',
+      actorName: 'User Four',
+      actorPosition: 'Director',
+      actorRole: 'member',
+      action: 'SEND_BACK',
+      targetStepNo: 2,
+      comment: 'Re-check financial detail'
+    }, executor)
+
+    expect(result.success).toBe(true)
+
+    // Current step (s-3) set to WAITING with SEND_BACK
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_task_steps \n         SET status = 'WAITING', action_taken = 'SEND_BACK'"),
+      expect.arrayContaining([4, 'User Four', 'Re-check financial detail', 's-3'])
+    )
+
+    // Target step (s-2) reset to PENDING
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_task_steps \n         SET status = 'PENDING'"),
+      expect.arrayContaining(['s-2'])
+    )
+
+    // Task current_step_no updated to 2 and status PENDING
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_tasks \n         SET status = 'PENDING', current_step_no = ?"),
+      expect.arrayContaining([2, 3, 'Role 2', 't-1'])
+    )
+  })
+
+  it('should send back task from step 3 to step 1 (skipping step 2)', async () => {
+    const step3Task = {
+      ...mockTask,
+      current_step_no: 3,
+      current_assignee: 4,
+    }
+    const threeSteps = [
+      { id: 's-1', task_id: 't-1', step_no: 1, step_name: 'Step 1', status: 'COMPLETED', assigned_to_id: 2, assigned_role: 'Role 1' },
+      { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'COMPLETED', assigned_to_id: 3, assigned_role: 'Role 2' },
+      { id: 's-3', task_id: 't-1', step_no: 3, step_name: 'Step 3', status: 'PENDING', assigned_to_id: 4, assigned_role: 'Role 3' },
+    ]
+    const executor = createExecutor([step3Task], threeSteps)
+    const result = await executeWorkflowAction({
+      taskId: 't-1',
+      actorMemberId: 4,
+      actorUsername: 'user4',
+      actorName: 'User Four',
+      actorPosition: 'Director',
+      actorRole: 'member',
+      action: 'SEND_BACK',
+      targetStepNo: 1,
+      comment: 'Restart design from scratch'
+    }, executor)
+
+    expect(result.success).toBe(true)
+
+    // Intermediate step 2 reset to WAITING
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_task_steps \n         SET status = 'WAITING', action_taken = NULL"),
+      expect.arrayContaining(['t-1', 1, 's-3'])
+    )
+
+    // Target step 1 reset to PENDING
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_task_steps \n         SET status = 'PENDING'"),
+      expect.arrayContaining(['s-1'])
+    )
+
+    // Task updated to step 1
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_tasks \n         SET status = 'PENDING', current_step_no = ?"),
+      expect.arrayContaining([1, 2, 'Role 1', 't-1'])
+    )
+  })
+
+  it('should send back task from step 3 to requester when sendToRequester is true', async () => {
+    const step3Task = {
+      ...mockTask,
+      current_step_no: 3,
+      current_assignee: 4,
+      requester_id: 999,
+    }
+    const threeSteps = [
+      { id: 's-1', task_id: 't-1', step_no: 1, step_name: 'Step 1', status: 'COMPLETED', assigned_to_id: 2, assigned_role: 'Role 1' },
+      { id: 's-2', task_id: 't-1', step_no: 2, step_name: 'Step 2', status: 'COMPLETED', assigned_to_id: 3, assigned_role: 'Role 2' },
+      { id: 's-3', task_id: 't-1', step_no: 3, step_name: 'Step 3', status: 'PENDING', assigned_to_id: 4, assigned_role: 'Role 3' },
+    ]
+    const executor = createExecutor([step3Task], threeSteps)
+    const result = await executeWorkflowAction({
+      taskId: 't-1',
+      actorMemberId: 4,
+      actorUsername: 'user4',
+      actorName: 'User Four',
+      actorPosition: 'Director',
+      actorRole: 'member',
+      action: 'SEND_BACK',
+      sendToRequester: true,
+      comment: 'Need requester to amend project scope'
+    }, executor)
+
+    expect(result.success).toBe(true)
+
+    // Task updated to SENT_BACK
+    expect(executor).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE inbox_tasks \n         SET status = 'SENT_BACK', current_step_no = 1"),
+      expect.arrayContaining(['t-1'])
     )
   })
 

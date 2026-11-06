@@ -415,7 +415,6 @@ export default function AncService23Client() {
       {/* ── Header Bar ── */}
       <header className="anc3-header">
         <div className="anc3-title-group">
-          <span className="anc3-meta-tag">กองทุนบริการฝากครรภ์ (ANC) • ข้อ 2.3</span>
           <h1 className="anc3-title">
             2.3 หญิงตั้งครรภ์ ได้รับบริการตรวจ Ultrasound - ตรวจช่องปาก - ขัดทำความสะอาดฟัน
           </h1>

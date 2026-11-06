@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { queryMemberDb } from '@/lib/memberDb'
-import { KpiService, KpiIndicatorItem, QueryExecutor } from './kpiService'
-import { checkIndicatorDueStatus, isIndicatorAnsweredForPeriod } from './kpiTimeUtils'
+import { KpiService, KpiIndicatorItem, QueryExecutor, cleanPeriodLabel } from './kpiService'
+import { checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, getPeriodsForFrequency, matchesPeriodKey } from './kpiTimeUtils'
 
 export interface KpiExportOptions {
   topicId: number
@@ -59,23 +59,27 @@ function renderWorksheetData(
   fiscalYear: string,
   sectionTitle?: string
 ) {
-  // Setup Columns definitions & widths (15 comprehensive columns)
+  // Setup Columns definitions & widths (19 comprehensive, crystal-clear columns)
   worksheet.columns = [
-    { key: 'seq', width: 9 },         // Col 1: ลำดับ
-    { key: 'category', width: 32 },    // Col 2: หมวดหมู่
-    { key: 'subcategory', width: 26 }, // Col 3: หมวดหมู่ย่อย
-    { key: 'code', width: 14 },        // Col 4: รหัสตัวชี้วัด
-    { key: 'oldCode', width: 12 },     // Col 5: รหัสเดิม
-    { key: 'frequency', width: 15 },   // Col 6: ความถี่
-    { key: 'title', width: 50 },       // Col 7: ชื่อตัวชี้วัด / คำถามหลัก
-    { key: 'target', width: 16 },      // Col 8: เกณฑ์เป้าหมาย
-    { key: 'result', width: 14 },      // Col 9: ผลการดำเนินงาน (%)
-    { key: 'numerator', width: 30 },   // Col 10: ตัวตั้ง (คำถาม / ข้อมูล)
-    { key: 'denominator', width: 30 }, // Col 11: ตัวหาร (คำถาม / ข้อมูล)
-    { key: 'status', width: 18 },      // Col 12: สถานะประเมินผล
-    { key: 'responsible', width: 26 }, // Col 13: ผู้รับผิดชอบ
-    { key: 'recorder', width: 30 },    // Col 14: ผู้บันทึก / วันที่บันทึก
-    { key: 'type', width: 18 },        // Col 15: ประเภทตัวชี้วัด (HA / ยุทธศาสตร์)
+    { key: 'seq', width: 8 },             // Col 1 (A): ลำดับ
+    { key: 'category', width: 28 },        // Col 2 (B): หมวดหมู่
+    { key: 'subcategory', width: 24 },     // Col 3 (C): หมวดหมู่ย่อย
+    { key: 'code', width: 14 },            // Col 4 (D): รหัสตัวชี้วัด
+    { key: 'oldCode', width: 12 },         // Col 5 (E): รหัสเดิม
+    { key: 'frequency', width: 14 },       // Col 6 (F): ความถี่
+    { key: 'title', width: 44 },           // Col 7 (G): ชื่อตัวชี้วัด / คำถามหลัก
+    { key: 'numeratorName', width: 32 },   // Col 8 (H): คำถามตัวตั้ง (Numerator Definition)
+    { key: 'denominatorName', width: 32 }, // Col 9 (I): คำถามตัวหาร (Denominator Definition)
+    { key: 'target', width: 16 },          // Col 10 (J): เกณฑ์เป้าหมาย
+    { key: 'period', width: 20 },          // Col 11 (K): รอบที่รายงาน
+    { key: 'numeratorVal', width: 18 },    // Col 12 (L): คำตอบตัวตั้ง (ค่าตัวเลข)
+    { key: 'denominatorVal', width: 18 },  // Col 13 (M): คำตอบตัวหาร (ค่าตัวเลข)
+    { key: 'result', width: 18 },          // Col 14 (N): ผลงานที่ได้
+    { key: 'status', width: 16 },          // Col 15 (O): สถานะประเมินผล
+    { key: 'roundHistory', width: 68 },    // Col 16 (P): ประวัติคำตอบทุกรอบ (ตัวตั้ง / ตัวหาร / ผลงาน / สถานะ)
+    { key: 'responsible', width: 24 },     // Col 17 (Q): ผู้รับผิดชอบ
+    { key: 'recorder', width: 28 },        // Col 18 (R): ผู้บันทึก / วันที่บันทึก
+    { key: 'type', width: 16 },            // Col 19 (S): ประเภทตัวชี้วัด
   ]
 
   const totalCount = indicators.length
@@ -85,7 +89,15 @@ function renderWorksheetData(
   let waitingCount = 0
 
   indicators.forEach(ind => {
-    const status = ind.currentEntry?.status
+    const answered = (ind.entries || []).filter(e =>
+      (e.resultValue !== null && e.resultValue !== undefined) ||
+      (e.resultText && e.resultText.trim() !== '' && e.resultText !== 'ไม่มีรายงาน') ||
+      (e.numeratorValue !== null && e.denominatorValue !== null && e.numeratorValue !== undefined && e.denominatorValue !== undefined)
+    )
+    const latestEntry = answered.length > 0 ? answered[answered.length - 1] : null
+    const entry = ind.currentEntry || latestEntry
+
+    const status = entry?.status
     if (status && status !== 'PENDING') {
       recordedCount++
       if (status === 'PASS') passCount++
@@ -98,8 +110,8 @@ function renderWorksheetData(
   const passPct = recordedCount > 0 ? ((passCount / recordedCount) * 100).toFixed(1) : '0.0'
   const failPct = recordedCount > 0 ? ((failCount / recordedCount) * 100).toFixed(1) : '0.0'
 
-  // Row 1: Hospital Name Title Banner (Merged A1:O1)
-  worksheet.mergeCells('A1:O1')
+  // Row 1: Hospital Name Title Banner (Merged A1:S1)
+  worksheet.mergeCells('A1:S1')
   const row1 = worksheet.getCell('A1')
   row1.value = 'โรงพยาบาลเถิน จังหวัดลำปาง (Thoen Hospital, Lampang)'
   row1.font = { name: 'Sarabun', size: 16, bold: true, color: { argb: 'FFFFFFFF' } }
@@ -107,8 +119,8 @@ function renderWorksheetData(
   row1.alignment = { horizontal: 'center', vertical: 'middle' }
   worksheet.getRow(1).height = 36
 
-  // Row 2: Topic Title & Code Banner (Merged A2:O2)
-  worksheet.mergeCells('A2:O2')
+  // Row 2: Topic Title & Code Banner (Merged A2:S2)
+  worksheet.mergeCells('A2:S2')
   const row2 = worksheet.getCell('A2')
   row2.value = `รายงานผลการดำเนินงานตามตัวชี้วัด: ${topic.title} (${topic.code})${sectionTitle ? ` — ${sectionTitle}` : ''}`
   row2.font = { name: 'Sarabun', size: 12, bold: true, color: { argb: 'FF0F172A' } }
@@ -116,8 +128,8 @@ function renderWorksheetData(
   row2.alignment = { horizontal: 'center', vertical: 'middle' }
   worksheet.getRow(2).height = 28
 
-  // Row 3: Metadata Info (Merged A3:O3)
-  worksheet.mergeCells('A3:O3')
+  // Row 3: Metadata Info (Merged A3:S3)
+  worksheet.mergeCells('A3:S3')
   const row3 = worksheet.getCell('A3')
   row3.value = `ปีงบประมาณ: พ.ศ. ${fiscalYear}  |  ข้อมูล ณ วันที่ส่งออกรายงาน: ${formatThaiDateFull(new Date())}`
   row3.font = { name: 'Sarabun', size: 10, italic: true, color: { argb: 'FF475569' } }
@@ -125,8 +137,8 @@ function renderWorksheetData(
   row3.alignment = { horizontal: 'center', vertical: 'middle' }
   worksheet.getRow(3).height = 22
 
-  // Row 4: Summary Statistics Bar (Merged A4:O4)
-  worksheet.mergeCells('A4:O4')
+  // Row 4: Summary Statistics Bar (Merged A4:S4)
+  worksheet.mergeCells('A4:S4')
   const row4 = worksheet.getCell('A4')
   row4.value = `📊 สรุปผลภาพรวม: ตัวชี้วัดทั้งหมด ${totalCount} รายการ  |  บันทึกผลแล้ว ${recordedCount} (${recordedPct}%)  |  ผ่านเกณฑ์: ${passCount} (${passPct}%)  |  ไม่ผ่านเกณฑ์: ${failCount} (${failPct}%)  |  รอผลประเมิน: ${waitingCount}`
   row4.font = { name: 'Sarabun', size: 10.5, bold: true, color: { argb: 'FF134E4A' } }
@@ -137,7 +149,7 @@ function renderWorksheetData(
   // Row 5: Empty Spacer Row
   worksheet.getRow(5).height = 8
 
-  // Row 6: Table Header Columns
+  // Row 6: Table Header Columns (19 columns)
   const headerRow = worksheet.getRow(6)
   headerRow.height = 32
   headerRow.values = [
@@ -148,11 +160,15 @@ function renderWorksheetData(
     'รหัสเดิม',
     'ความถี่',
     'ชื่อตัวชี้วัด / คำถามหลัก',
+    'คำถามตัวตั้ง (Numerator Definition)',
+    'คำถามตัวหาร (Denominator Definition)',
     'เกณฑ์เป้าหมาย',
-    'ผลงาน (%)',
-    'ตัวตั้ง (Numerator)',
-    'ตัวหาร (Denominator)',
+    'รอบที่รายงาน',
+    'คำตอบตัวตั้ง (ค่าตัวเลข)',
+    'คำตอบตัวหาร (ค่าตัวเลข)',
+    'ผลงานที่ได้',
     'สถานะประเมินผล',
+    'ประวัติคำตอบทุกรอบ (ตัวตั้ง / ตัวหาร / ผลงาน / สถานะ)',
     'ผู้รับผิดชอบ',
     'ผู้บันทึก / วันที่บันทึก',
     'ประเภทตัวชี้วัด',
@@ -178,10 +194,17 @@ function renderWorksheetData(
   }
 
   indicators.forEach((ind, index) => {
-    const entry = ind.currentEntry
+    // Find entry: prefer currentEntry, or fall back to the most recent answered entry
+    const answered = (ind.entries || []).filter(e =>
+      (e.resultValue !== null && e.resultValue !== undefined) ||
+      (e.resultText && e.resultText.trim() !== '' && e.resultText !== 'ไม่มีรายงาน') ||
+      (e.numeratorValue !== null && e.denominatorValue !== null && e.numeratorValue !== undefined && e.denominatorValue !== undefined)
+    )
+    const latestEntry = answered.length > 0 ? answered[answered.length - 1] : null
+    const entry = ind.currentEntry || latestEntry
+
     const rowNumber = 7 + index
     const dataRow = worksheet.getRow(rowNumber)
-    dataRow.height = 28
 
     const targetText = ind.targetRaw || (
       ind.targetOperator && ind.targetValue !== null && ind.targetValue !== undefined
@@ -189,35 +212,50 @@ function renderWorksheetData(
         : '-'
     )
 
+    // Col 8 & 9: Clean question definitions (only definition text)
+    const numeratorQuestionText = ind.numeratorName || '-'
+    const denominatorQuestionText = ind.denominatorName || '-'
+
+    // Col 11: Reported Period Name
+    const periodLabelText = entry?.periodLabel || (entry?.periodKey ? cleanPeriodLabel(entry.periodLabel, entry.periodKey, ind.frequency) : '-')
+
+    // Col 12 & 13: Clean numeric answers
+    const numeratorValDisplay = entry?.numeratorValue !== null && entry?.numeratorValue !== undefined
+      ? entry.numeratorValue
+      : '-'
+
+    const denominatorValDisplay = entry?.denominatorValue !== null && entry?.denominatorValue !== undefined
+      ? entry.denominatorValue
+      : '-'
+
+    // Col 14: Result Display (Clean formatted value)
     let resultDisplay: string | number = '-'
-    if (entry?.resultValue !== null && entry?.resultValue !== undefined) {
-      resultDisplay = entry.resultValue
-    } else if (entry?.resultText) {
+    const hasNumDen = Boolean(
+      (ind.numeratorName || ind.denominatorName) &&
+      entry?.numeratorValue !== null &&
+      entry?.denominatorValue !== null &&
+      entry?.numeratorValue !== undefined &&
+      entry?.denominatorValue !== undefined
+    )
+
+    if (entry && hasNumDen) {
+      const num = Number(entry.numeratorValue)
+      const den = Number(entry.denominatorValue)
+      if (num === 0 && den === 0) {
+        resultDisplay = '0% (ไม่มีเคส)'
+      } else if (entry.resultValue !== null && entry.resultValue !== undefined) {
+        resultDisplay = `${entry.resultValue}${ind.targetUnit || '%'}`
+      } else if (den > 0) {
+        const val = parseFloat(((num / den) * 100).toFixed(2))
+        resultDisplay = `${val}${ind.targetUnit || '%'}`
+      }
+    } else if (entry?.resultValue !== null && entry?.resultValue !== undefined) {
+      resultDisplay = `${entry.resultValue}${ind.targetUnit || ''}`
+    } else if (entry?.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน') {
       resultDisplay = entry.resultText
-    } else if (entry?.numeratorValue !== null && entry?.denominatorValue !== null && entry?.numeratorValue !== undefined && entry?.denominatorValue !== undefined) {
-      resultDisplay = entry.denominatorValue > 0 ? parseFloat(((entry.numeratorValue / entry.denominatorValue) * 100).toFixed(2)) : 0
     }
 
-    // Complete Numerator Info: Definition + Recorded Value
-    let numeratorDisplay = '-'
-    if (ind.numeratorName && entry?.numeratorValue !== null && entry?.numeratorValue !== undefined) {
-      numeratorDisplay = `${ind.numeratorName} [รายงาน: ${entry.numeratorValue}]`
-    } else if (ind.numeratorName) {
-      numeratorDisplay = ind.numeratorName
-    } else if (entry?.numeratorValue !== null && entry?.numeratorValue !== undefined) {
-      numeratorDisplay = String(entry.numeratorValue)
-    }
-
-    // Complete Denominator Info: Definition + Recorded Value
-    let denominatorDisplay = '-'
-    if (ind.denominatorName && entry?.denominatorValue !== null && entry?.denominatorValue !== undefined) {
-      denominatorDisplay = `${ind.denominatorName} [รายงาน: ${entry.denominatorValue}]`
-    } else if (ind.denominatorName) {
-      denominatorDisplay = ind.denominatorName
-    } else if (entry?.denominatorValue !== null && entry?.denominatorValue !== undefined) {
-      denominatorDisplay = String(entry.denominatorValue)
-    }
-
+    // Col 15: Status
     let statusLabel = 'ยังไม่บันทึกผล'
     let statusBg = 'FFF1F5F9' // Slate 100
     let statusTextColor = 'FF64748B' // Slate 500
@@ -236,6 +274,69 @@ function renderWorksheetData(
       statusTextColor = 'FFB45309' // Amber 700
     }
 
+    // Col 16: Complete rounds history breakdown (Separated by newlines for easy reading)
+    const periods = getPeriodsForFrequency(ind.frequency)
+    const roundSummaryParts: string[] = []
+
+    periods.forEach(p => {
+      const match = (ind.entries || []).find(e => matchesPeriodKey(e.periodKey, p.key))
+      if (match) {
+        const matchHasNumDen = Boolean(
+          (ind.numeratorName || ind.denominatorName) &&
+          match.numeratorValue !== null &&
+          match.denominatorValue !== null &&
+          match.numeratorValue !== undefined &&
+          match.denominatorValue !== undefined
+        )
+
+        let ansText = ''
+        if (match && matchHasNumDen) {
+          const num = Number(match.numeratorValue)
+          const den = Number(match.denominatorValue)
+          const numFmt = num.toLocaleString('en-US')
+          const denFmt = den.toLocaleString('en-US')
+
+          if (num === 0 && den === 0) {
+            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = 0% (ไม่มีเคส)`
+          } else {
+            const calcVal = match.resultValue !== null && match.resultValue !== undefined
+              ? match.resultValue
+              : (den > 0 ? parseFloat(((num / den) * 100).toFixed(2)) : 0)
+            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${calcVal}${ind.targetUnit || '%'}`
+          }
+        } else {
+          let valDisplay = '-'
+          if (match.resultValue !== null && match.resultValue !== undefined) {
+            valDisplay = `${match.resultValue}${ind.targetUnit || ''}`
+          } else if (match.resultText && match.resultText.trim() !== '' && match.resultText !== 'ไม่มีรายงาน') {
+            valDisplay = match.resultText
+          }
+          ansText = `ผลงาน = ${valDisplay}`
+        }
+
+        const st = match.status === 'PASS'
+          ? 'ผ่านเกณฑ์'
+          : match.status === 'FAIL'
+          ? 'ไม่ผ่านเกณฑ์'
+          : match.status === 'WAITING_TARGET'
+          ? 'รอผลประเมิน'
+          : 'บันทึกแล้ว'
+
+        let recorderMeta = ''
+        if (match.recordedByName) {
+          recorderMeta = ` [${match.recordedByName}${match.recordedAt ? ` • ${formatThaiDateShort(match.recordedAt)}` : ''}]`
+        }
+
+        roundSummaryParts.push(`• [${p.label}]: ${ansText} (${st})${recorderMeta}`)
+      } else {
+        roundSummaryParts.push(`• [${p.label}]: ยังไม่บันทึกผล`)
+      }
+    })
+
+    const roundHistoryText = roundSummaryParts.join('\r\n')
+    const historyLineCount = Math.max(1, roundSummaryParts.length)
+    dataRow.height = Math.max(28, Math.min(130, historyLineCount * 18 + 8))
+
     let recordedInfo = '-'
     if (entry?.recordedByName) {
       recordedInfo = entry.recordedByName
@@ -245,21 +346,25 @@ function renderWorksheetData(
     }
 
     dataRow.values = [
-      ind.sequence || (index + 1),
-      ind.category || '-',
-      ind.subcategory || '-',
-      ind.code || '-',
-      ind.oldCode || '-',
-      ind.frequency || '-',
-      ind.title,
-      targetText,
-      resultDisplay,
-      numeratorDisplay,
-      denominatorDisplay,
-      statusLabel,
-      ind.responsibleName || '-',
-      recordedInfo,
-      ind.indicatorType || '-',
+      ind.sequence || (index + 1),       // Col 1: ลำดับ
+      ind.category || '-',                // Col 2: หมวดหมู่
+      ind.subcategory || '-',             // Col 3: หมวดหมู่ย่อย
+      ind.code || '-',                    // Col 4: รหัสตัวชี้วัด
+      ind.oldCode || '-',                 // Col 5: รหัสเดิม
+      ind.frequency || '-',               // Col 6: ความถี่
+      ind.title,                          // Col 7: ชื่อตัวชี้วัด / คำถามหลัก
+      numeratorQuestionText,              // Col 8: คำถามตัวตั้ง (Definition)
+      denominatorQuestionText,            // Col 9: คำถามตัวหาร (Definition)
+      targetText,                         // Col 10: เกณฑ์เป้าหมาย
+      periodLabelText,                    // Col 11: รอบที่รายงาน
+      numeratorValDisplay,                // Col 12: คำตอบตัวตั้ง (Number)
+      denominatorValDisplay,              // Col 13: คำตอบตัวหาร (Number)
+      resultDisplay,                      // Col 14: ผลงานที่ได้
+      statusLabel,                        // Col 15: สถานะประเมินผล
+      roundHistoryText,                   // Col 16: ประวัติคำตอบทุกรอบ (แจกแจงทุกรอบ)
+      ind.responsibleName || '-',         // Col 17: ผู้รับผิดชอบ
+      recordedInfo,                       // Col 18: ผู้บันทึก / วันที่บันทึก
+      ind.indicatorType || '-',           // Col 19: ประเภทตัวชี้วัด
     ]
 
     const isEvenRow = index % 2 === 1
@@ -271,22 +376,31 @@ function renderWorksheetData(
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: defaultRowBg } }
 
       // Alignments per column
-      if (colNumber === 1 || colNumber === 4 || colNumber === 5 || colNumber === 6 || colNumber === 8 || colNumber === 15) {
+      if (colNumber === 1 || colNumber === 4 || colNumber === 5 || colNumber === 6 || colNumber === 10 || colNumber === 11 || colNumber === 19) {
         cell.alignment = { horizontal: 'center', vertical: 'middle' }
-      } else if (colNumber === 9) {
+      } else if (colNumber === 12 || colNumber === 13) {
+        // Numerator / Denominator answers (Numbers)
         if (typeof cell.value === 'number') {
           cell.alignment = { horizontal: 'right', vertical: 'middle' }
-          cell.numFmt = '#,##0.00'
+          cell.numFmt = '#,##0.##'
         } else {
           cell.alignment = { horizontal: 'center', vertical: 'middle' }
         }
-      } else if (colNumber === 12) {
+      } else if (colNumber === 14) {
+        // Result display
+        cell.alignment = { horizontal: 'center', vertical: 'middle' }
+        cell.font = { name: 'Sarabun', size: 9.5, bold: true, color: { argb: 'FF0F172A' } }
+      } else if (colNumber === 15) {
         // Status column styling
         cell.alignment = { horizontal: 'center', vertical: 'middle' }
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusBg } }
         cell.font = { name: 'Sarabun', size: 9.5, bold: true, color: { argb: statusTextColor } }
+      } else if (colNumber === 16) {
+        // Round history breakdown with wrapText and newline
+        cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
+        cell.font = { name: 'Sarabun', size: 9, color: { argb: 'FF334155' } }
       } else {
-        // Text columns: Category, Title, Numerator, Denominator, Responsible, Recorder
+        // Text columns: Category, Title, Questions, Responsible, Recorder
         cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
       }
     })

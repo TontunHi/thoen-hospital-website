@@ -130,7 +130,7 @@ describe('AncService30011Client (ANC Page 2.4 บริการฝากคร�
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
       '2.4 บริการฝากครรภ์ (ANC 30011)'
     )
-    expect(screen.getByText('กองทุน 2. บริการฝากครรภ์ (ANC)')).toBeInTheDocument()
+    expect(screen.queryByText('กองทุน 2. บริการฝากครรภ์ (ANC)')).not.toBeInTheDocument()
 
     // Assert KPI Summary cards
     await waitFor(() => {

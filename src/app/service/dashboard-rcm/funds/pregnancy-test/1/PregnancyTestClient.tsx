@@ -78,8 +78,8 @@ export default function PregnancyTestClient() {
     return list
   }, [defaultFiscalBeYear])
 
-  // Date Selection States (Default to Fiscal Year)
-  const [dateMode, setDateMode] = useState<'fiscal' | 'monthly' | 'custom'>('fiscal')
+  // Date Selection States (Default to Custom)
+  const [dateMode, setDateMode] = useState<'custom' | 'monthly' | 'fiscal'>('custom')
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
@@ -380,11 +380,7 @@ export default function PregnancyTestClient() {
       {/* ── Page Header ── */}
       <div className="preg81-header">
         <div className="preg81-title-group">
-          <div className="preg81-title-badge">
-            <TestTube2 size={15} />
-            <span>กองทุน RCM · 8.1</span>
-          </div>
-          <h1 className="preg81-title">8.1 การทดสอบการตั้งครรภ์ (Pregnancy Test)</h1>
+          <h1 className="preg81-title">การทดสอบการตั้งครรภ์ (Pregnancy Test)</h1>
           <p className="preg81-subtitle">
             รายงานการตรวจการตั้งครรภ์ด้วยรหัส ADP 31101 (การตรวจทางห้องปฏิบัติการ) และ 30014
             (การตรวจด้วยชุดทดสอบ) ติดตามผลตรวจ UPT และการชดเชยค่าบริการกองทุน
@@ -436,11 +432,11 @@ export default function PregnancyTestClient() {
             <button
               type="button"
               role="tab"
-              aria-selected={dateMode === 'fiscal'}
-              className={`preg81-mode-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
-              onClick={() => setDateMode('fiscal')}
+              aria-selected={dateMode === 'custom'}
+              className={`preg81-mode-tab ${dateMode === 'custom' ? 'active' : ''}`}
+              onClick={() => setDateMode('custom')}
             >
-              ปีงบประมาณ
+              กำหนดเอง
             </button>
             <button
               type="button"
@@ -449,37 +445,44 @@ export default function PregnancyTestClient() {
               className={`preg81-mode-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => setDateMode('monthly')}
             >
-              รายเดือน
+              เดือน
             </button>
             <button
               type="button"
               role="tab"
-              aria-selected={dateMode === 'custom'}
-              className={`preg81-mode-tab ${dateMode === 'custom' ? 'active' : ''}`}
-              onClick={() => setDateMode('custom')}
+              aria-selected={dateMode === 'fiscal'}
+              className={`preg81-mode-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
+              onClick={() => setDateMode('fiscal')}
             >
-              กำหนดเอง
+              ปีงบประมาณ
             </button>
           </div>
 
           {/* Date Mode Controls */}
-          {dateMode === 'fiscal' && (
+          {dateMode === 'custom' && (
             <div className="preg81-date-inputs">
-              <label htmlFor="preg81-fiscal-select" className="sr-only">
-                เลือกปีงบประมาณ
-              </label>
-              <select
-                id="preg81-fiscal-select"
-                className="preg81-select"
-                value={selectedFiscalYear}
-                onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    ปีงบประมาณ พ.ศ. {y} (1 ต.ค. {y - 1} - 30 ก.ย. {y})
-                  </option>
-                ))}
-              </select>
+              <span className="text-xs font-semibold" style={{ color: 'var(--preg-text-sub)' }}>
+                ตั้งแต่วันที่
+              </span>
+              <ThaiDatePicker
+                aria-label="ตั้งแต่วันที่"
+                value={ds1}
+                onChange={(val) => {
+                  setDs1(val)
+                  setCurrentPage(1)
+                }}
+              />
+              <span className="text-xs font-semibold" style={{ color: 'var(--preg-text-sub)' }}>
+                ถึงวันที่
+              </span>
+              <ThaiDatePicker
+                aria-label="ถึงวันที่"
+                value={ds2}
+                onChange={(val) => {
+                  setDs2(val)
+                  setCurrentPage(1)
+                }}
+              />
             </div>
           )}
 
@@ -518,40 +521,25 @@ export default function PregnancyTestClient() {
             </div>
           )}
 
-          {dateMode === 'custom' && (
+          {dateMode === 'fiscal' && (
             <div className="preg81-date-inputs">
-              <span className="text-xs font-semibold" style={{ color: 'var(--preg-text-sub)' }}>
-                ตั้งแต่วันที่
-              </span>
-              <ThaiDatePicker
-                aria-label="ตั้งแต่วันที่"
-                value={ds1}
-                onChange={(val) => {
-                  setDs1(val)
-                  setCurrentPage(1)
-                }}
-              />
-              <span className="text-xs font-semibold" style={{ color: 'var(--preg-text-sub)' }}>
-                ถึงวันที่
-              </span>
-              <ThaiDatePicker
-                aria-label="ถึงวันที่"
-                value={ds2}
-                onChange={(val) => {
-                  setDs2(val)
-                  setCurrentPage(1)
-                }}
-              />
+              <label htmlFor="preg81-fiscal-select" className="sr-only">
+                เลือกปีงบประมาณ
+              </label>
+              <select
+                id="preg81-fiscal-select"
+                className="preg81-select"
+                value={selectedFiscalYear}
+                onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    ปีงบประมาณ พ.ศ. {y} (1 ต.ค. {y - 1} - 30 ก.ย. {y})
+                  </option>
+                ))}
+              </select>
             </div>
           )}
-
-          {/* Active Date Range Tag */}
-          <div className="preg81-date-badge">
-            <Calendar size={14} />
-            <span>
-              {formatThaiDate(ds1)} — {formatThaiDate(ds2)}
-            </span>
-          </div>
         </div>
       </div>
 
@@ -822,24 +810,6 @@ export default function PregnancyTestClient() {
         {/* Search Row */}
         <div className="preg81-search-row">
           <div className="preg81-search-group">
-            <select
-              className="preg81-select"
-              value={searchField}
-              onChange={(e) => {
-                setSearchField(e.target.value as PregnancyTestSearchField)
-                setCurrentPage(1)
-              }}
-              title="ค้นหาตามประเภทข้อมูล"
-            >
-              <option value="ALL">ค้นหาทุกฟิลด์</option>
-              <option value="HN">HN</option>
-              <option value="CID">เลขบัตรประชาชน (CID)</option>
-              <option value="PTNAME">ชื่อ-สกุล</option>
-              <option value="VN">เลขที่บริการ (VN)</option>
-              <option value="DIAG">การวินิจฉัย (ICD-10)</option>
-              <option value="PTTYPE">สิทธิการรักษา</option>
-              <option value="LABRESULT">ผลตรวจ Lab / UPT</option>
-            </select>
             <div className="preg81-search-input-wrapper">
               <Search size={16} className="preg81-search-icon" />
               <input
@@ -963,20 +933,19 @@ export default function PregnancyTestClient() {
                     )}
                   </span>
                 </th>
-                <th style={{ textAlign: 'center' }}>จัดการ</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={16} className="preg81-empty-state">
+                  <td colSpan={15} className="preg81-empty-state">
                     <RefreshCw size={28} className="animate-spin preg81-empty-icon" />
                     <p className="preg81-empty-title">กำลังโหลดข้อมูลรายงาน...</p>
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="preg81-empty-state">
+                  <td colSpan={15} className="preg81-empty-state">
                     <TestTube2 size={36} className="preg81-empty-icon" />
                     <h3 className="preg81-empty-title">ไม่พบข้อมูลการทดสอบการตั้งครรภ์</h3>
                     <p className="preg81-empty-text">
@@ -986,7 +955,11 @@ export default function PregnancyTestClient() {
                 </tr>
               ) : (
                 items.map((row) => (
-                  <tr key={row.vn}>
+                  <tr
+                    key={row.vn}
+                    onClick={() => handleOpenDetail(row)}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <td className="preg81-td-num">{row.no}</td>
                     <td className="preg81-td-datetime">
                       <div>{formatThaiDate(row.vstdate)}</div>
@@ -994,31 +967,48 @@ export default function PregnancyTestClient() {
                         {row.vsttime || '—'}
                       </div>
                     </td>
-                    <td className="preg81-copy-cell font-mono text-xs">
-                      <span>{row.vn}</span>
-                      <button
-                        type="button"
-                        className="preg81-copy-btn"
-                        onClick={() => handleCopy(row.vn, `vn-${row.vn}`)}
-                        title="คัดลอก VN"
+                    <td className="font-mono text-xs">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        style={{ cursor: 'pointer' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCopy(row.vn, `vn-${row.vn}`)
+                        }}
+                        title="คลิกเพื่อคัดลอก VN"
                       >
-                        {copiedField === `vn-${row.vn}` ? <Check size={12} /> : <Copy size={12} />}
-                      </button>
+                        {row.vn}
+                      </span>
                     </td>
                     <td>
-                      <div className="preg81-copy-cell font-mono">
-                        <span style={{ fontWeight: 600 }}>{row.hn}</span>
-                        <button
-                          type="button"
-                          className="preg81-copy-btn"
-                          onClick={() => handleCopy(row.hn, `hn-${row.hn}`)}
-                          title="คัดลอก HN"
+                      <div className="font-mono">
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          style={{ fontWeight: 600, cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCopy(row.hn, `hn-${row.hn}`)
+                          }}
+                          title="คลิกเพื่อคัดลอก HN"
                         >
-                          {copiedField === `hn-${row.hn}` ? <Check size={12} /> : <Copy size={12} />}
-                        </button>
+                          {row.hn}
+                        </span>
                       </div>
-                      <div className="text-xs" style={{ color: 'var(--preg-text-muted)' }}>
-                        {maskIdentifier(row.cid)}
+                      <div className="text-xs font-mono" style={{ color: 'var(--preg-text-muted)' }}>
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          style={{ cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCopy(row.cid, `cid-${row.cid}`)
+                          }}
+                          title="คลิกเพื่อคัดลอก CID"
+                        >
+                          {row.cid || '—'}
+                        </span>
                       </div>
                     </td>
                     <td className="preg81-td-ptname">{row.ptname}</td>
@@ -1106,16 +1096,6 @@ export default function PregnancyTestClient() {
                       ) : (
                         <span style={{ color: 'var(--preg-text-muted)' }}>0.00</span>
                       )}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        className="preg81-btn preg81-btn-outline"
-                        style={{ padding: '6px 12px', minHeight: 34, fontSize: 13 }}
-                        onClick={() => handleOpenDetail(row)}
-                      >
-                        ดูข้อมูล
-                      </button>
                     </td>
                   </tr>
                 ))

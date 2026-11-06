@@ -385,19 +385,6 @@
   box-shadow: 0 0 0 2px var(--anc-accent), var(--anc-shadow-elevated);
 }
 
-.anc3-kpi-card.is-active::after {
-  content: 'เลือกอยู่';
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--anc-accent-ink);
-  background: var(--anc-accent);
-  padding: 1px 6px;
-  border-radius: var(--anc-r-full);
-}
-
 .anc3-kpi-header {
   display: flex;
   align-items: center;

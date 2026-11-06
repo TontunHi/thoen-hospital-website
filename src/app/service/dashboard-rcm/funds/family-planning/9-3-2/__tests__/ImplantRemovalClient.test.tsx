@@ -90,7 +90,9 @@ describe('ImplantRemovalClient Component (9.3.2)', () => {
   it('renders header, title, ADP badge FP002_2, and summary metrics', async () => {
     render(<ImplantRemovalClient />)
 
-    expect(screen.getByText(/หัวข้อ 9.3.2 รายการถอดยาคุม/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'รายการถอดยาคุม (Contraceptive Implant Removal)'
+    )
     expect(screen.getAllByText(/FP002_2/).length).toBeGreaterThan(0)
 
     await waitFor(() => {

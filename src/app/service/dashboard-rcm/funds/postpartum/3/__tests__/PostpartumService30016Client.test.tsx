@@ -130,19 +130,14 @@ describe('PostpartumService30016Client (7.3 การจ่ายยา Triforin
     })
   })
 
-  it('renders header, title, badges, and ADP mapping info correctly', async () => {
+  it('renders header, title, and handles loading correctly', async () => {
     render(<PostpartumService30016Client />)
 
-    expect(screen.getByText('กองทุนการตรวจหลังคลอด (PNC)')).toBeInTheDocument()
+    expect(screen.queryByText('กองทุนการตรวจหลังคลอด (PNC)')).not.toBeInTheDocument()
     expect(
       screen.getByText('7.3 การจ่ายยา Triforine ADP (รหัสบริการ 30016)')
     ).toBeInTheDocument()
-
-    await waitFor(() => {
-      expect(screen.getByText(/ระบบตรวจพบรายการยาที่ Map รหัส ADP/)).toBeInTheDocument()
-      expect(screen.getByText('1540013')).toBeInTheDocument()
-      expect(screen.getByText('3002541')).toBeInTheDocument()
-    })
+    expect(screen.queryByText(/ระบบตรวจพบรายการยาที่ Map รหัส ADP/)).not.toBeInTheDocument()
   })
 
   it('renders KPI cards with correct summary numbers and allows clicking to filter', async () => {
@@ -168,29 +163,28 @@ describe('PostpartumService30016Client (7.3 การจ่ายยา Triforin
     })
   })
 
-  it('renders table rows, masked CID, diagnoses, and procedures', async () => {
+  it('renders table rows, unmasked CID, diagnoses, and procedures', async () => {
     render(<PostpartumService30016Client />)
 
     await waitFor(() => {
       expect(screen.getByText('น.ส.สิรินทรา พุทธิหน๋อย')).toBeInTheDocument()
       expect(screen.getByText('นางสมหญิง ทดสอบ')).toBeInTheDocument()
-      expect(screen.getByText('•••1698')).toBeInTheDocument() // Masked CID
-      expect(screen.getByText('•••9999')).toBeInTheDocument()
+      expect(screen.getByText('1520800121698')).toBeInTheDocument() // Unmasked CID
+      expect(screen.getByText('1520800999999')).toBeInTheDocument()
       expect(screen.getByText('Z392')).toBeInTheDocument() // PDx
       expect(screen.getByText('Z391')).toBeInTheDocument()
       expect(screen.getByText('9929')).toBeInTheDocument() // Op0
     })
   })
 
-  it('opens clinical modal when clicking view detail', async () => {
+  it('opens clinical modal when clicking record row', async () => {
     render(<PostpartumService30016Client />)
 
     await waitFor(() => {
-      expect(screen.getAllByText('ดูรายละเอียด').length).toBeGreaterThan(0)
+      expect(screen.getByText('น.ส.สิรินทรา พุทธิหน๋อย')).toBeInTheDocument()
     })
 
-    const viewDetailBtns = screen.getAllByText('ดูรายละเอียด')
-    fireEvent.click(viewDetailBtns[0])
+    fireEvent.click(screen.getByText('น.ส.สิรินทรา พุทธิหน๋อย'))
 
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument()

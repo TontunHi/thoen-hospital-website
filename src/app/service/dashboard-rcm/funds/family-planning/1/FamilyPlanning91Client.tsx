@@ -62,8 +62,7 @@ function formatCidDisplay(cid?: string | null): string {
   if (!cid) return '—'
   const digits = cid.replace(/\D/g, '')
   if (digits.length !== 13) return cid
-  // Mask middle digits: 1-2345-xxxxx-xx-1
-  return `${digits[0]}-${digits.slice(1, 5)}-xxxxx-xx-${digits[12]}`
+  return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`
 }
 
 export default function FamilyPlanning91Client() {
@@ -82,8 +81,8 @@ export default function FamilyPlanning91Client() {
     return list
   }, [defaultFiscalBeYear])
 
-  // Date Selection States (Fiscal Year default)
-  const [dateMode, setDateMode] = useState<'fiscal' | 'monthly' | 'custom'>('fiscal')
+  // Date Selection States (Default to Custom)
+  const [dateMode, setDateMode] = useState<'custom' | 'monthly' | 'fiscal'>('custom')
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
@@ -426,11 +425,7 @@ export default function FamilyPlanning91Client() {
       {/* ── 1. Header Section ── */}
       <header className="fp91-header">
         <div className="fp91-title-group">
-          <div className="fp91-title-badge">
-            <Heart size={14} aria-hidden="true" />
-            <span>9.1 วางแผนครอบครัว (FP)</span>
-          </div>
-          <h1 className="fp91-title">9.1 วางแผนครอบครัวและการป้องกันการตั้งครรภ์</h1>
+          <h1 className="fp91-title">วางแผนครอบครัวและการป้องกันการตั้งครรภ์</h1>
           <p className="fp91-subtitle">
             รายงานและตรวจสอบข้อมูลบริการวางแผนครอบครัว การป้องกันการตั้งครรภ์ไม่พึงประสงค์
             รหัสบริการ ADP หัตถการ ยาคุมกำเนิด และการชดเชยค่าบริการ
@@ -626,12 +621,12 @@ export default function FamilyPlanning91Client() {
           <div className="fp91-date-tabs" role="tablist" aria-label="โหมดเลือกช่วงเวลา">
             <button
               type="button"
-              className={`fp91-date-tab-btn ${dateMode === 'fiscal' ? 'active' : ''}`}
-              onClick={() => setDateMode('fiscal')}
+              className={`fp91-date-tab-btn ${dateMode === 'custom' ? 'active' : ''}`}
+              onClick={() => setDateMode('custom')}
               role="tab"
-              aria-selected={dateMode === 'fiscal'}
+              aria-selected={dateMode === 'custom'}
             >
-              ปีงบประมาณ
+              กำหนดเอง
             </button>
             <button
               type="button"
@@ -640,33 +635,40 @@ export default function FamilyPlanning91Client() {
               role="tab"
               aria-selected={dateMode === 'monthly'}
             >
-              รายเดือน
+              เดือน
             </button>
             <button
               type="button"
-              className={`fp91-date-tab-btn ${dateMode === 'custom' ? 'active' : ''}`}
-              onClick={() => setDateMode('custom')}
+              className={`fp91-date-tab-btn ${dateMode === 'fiscal' ? 'active' : ''}`}
+              onClick={() => setDateMode('fiscal')}
               role="tab"
-              aria-selected={dateMode === 'custom'}
+              aria-selected={dateMode === 'fiscal'}
             >
-              กำหนดเอง
+              ปีงบประมาณ
             </button>
           </div>
 
           <div className="fp91-date-pickers">
-            {dateMode === 'fiscal' && (
-              <select
-                className="fp91-select font-tabular"
-                value={selectedFiscalYear}
-                onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
-                aria-label="เลือกปีงบประมาณ"
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    ปีงบประมาณ {y}
-                  </option>
-                ))}
-              </select>
+            {dateMode === 'custom' && (
+              <>
+                <ThaiDatePicker
+                  value={ds1}
+                  onChange={(val) => {
+                    setDs1(val)
+                    setCurrentPage(1)
+                  }}
+                  aria-label="วันที่เริ่มต้น"
+                />
+                <span className="fp91-date-sep">ถึง</span>
+                <ThaiDatePicker
+                  value={ds2}
+                  onChange={(val) => {
+                    setDs2(val)
+                    setCurrentPage(1)
+                  }}
+                  aria-label="วันที่สิ้นสุด"
+                />
+              </>
             )}
 
             {dateMode === 'monthly' && (
@@ -698,31 +700,20 @@ export default function FamilyPlanning91Client() {
               </>
             )}
 
-            {dateMode === 'custom' && (
-              <>
-                <ThaiDatePicker
-                  value={ds1}
-                  onChange={(val) => {
-                    setDs1(val)
-                    setCurrentPage(1)
-                  }}
-                  aria-label="วันที่เริ่มต้น"
-                />
-                <span className="fp91-date-sep">ถึง</span>
-                <ThaiDatePicker
-                  value={ds2}
-                  onChange={(val) => {
-                    setDs2(val)
-                    setCurrentPage(1)
-                  }}
-                  aria-label="วันที่สิ้นสุด"
-                />
-              </>
+            {dateMode === 'fiscal' && (
+              <select
+                className="fp91-select font-tabular"
+                value={selectedFiscalYear}
+                onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
+                aria-label="เลือกปีงบประมาณ"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    ปีงบประมาณ {y}
+                  </option>
+                ))}
+              </select>
             )}
-
-            <span className="fp91-card-sub font-tabular" style={{ marginLeft: 8 }}>
-              ({formatThaiDate(ds1)} — {formatThaiDate(ds2)})
-            </span>
           </div>
         </div>
 
@@ -794,35 +785,13 @@ export default function FamilyPlanning91Client() {
             ))}
           </select>
 
-          {/* Search Field Dropdown */}
-          <select
-            className="fp91-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as FamilyPlanningSearchField)
-              setCurrentPage(1)
-            }}
-            aria-label="เลือกช่องที่จะค้นหา"
-          >
-            <option value="ALL">ค้นหา: ทุกฟิลด์</option>
-            <option value="HN">ค้นหา: HN</option>
-            <option value="CID">ค้นหา: เลขบัตร ปชช.</option>
-            <option value="PTNAME">ค้นหา: ชื่อ-สกุล</option>
-            <option value="VN">ค้นหา: VN</option>
-            <option value="DRUG">ค้นหา: ยาคุมกำเนิด</option>
-            <option value="SERVICE">ค้นหา: บริการ ADP</option>
-            <option value="DIAG">ค้นหา: การวินิจฉัย</option>
-            <option value="DOCTOR">ค้นหา: แพทย์</option>
-            <option value="ERROR">ค้นหา: ข้อบกพร่อง</option>
-          </select>
-
           {/* Search Box */}
           <div className="fp91-search-box">
             <Search size={16} className="fp91-search-icon" aria-hidden="true" />
             <input
               type="text"
               className="fp91-input fp91-search-input"
-              placeholder="ค้นหา HN, ชื่อ, VN, ยาคุม, ข้อบกพร่อง..."
+              placeholder="ค้นหา HN, เลขบัตรประชาชน, ชื่อ-สกุล, VN, ยาคุม, ข้อบกพร่อง..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="ช่องค้นหา"
@@ -1033,13 +1002,12 @@ export default function FamilyPlanning91Client() {
                     )}
                   </span>
                 </th>
-                <th style={{ width: '90px', textAlign: 'center' }}>จัดการ</th>
-              </tr>
+                </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={18}>
+                  <td colSpan={17}>
                     <div className="fp91-empty-state">
                       <RefreshCw size={28} className="fp91-spin-icon fp91-empty-icon" />
                       <div className="fp91-empty-title">กำลังโหลดข้อมูล...</div>
@@ -1049,7 +1017,7 @@ export default function FamilyPlanning91Client() {
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={18}>
+                  <td colSpan={17}>
                     <div className="fp91-empty-state">
                       <FileText size={32} className="fp91-empty-icon" />
                       <div className="fp91-empty-title">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>
@@ -1068,6 +1036,8 @@ export default function FamilyPlanning91Client() {
                     <tr
                       key={item.vn}
                       className={hasErr ? 'fp91-row-error' : undefined}
+                      onClick={() => openInspectionModal(item)}
+                      style={{ cursor: 'pointer' }}
                     >
                       <td style={{ textAlign: 'center' }} className="font-tabular text-muted">
                         {item.no}
@@ -1084,14 +1054,17 @@ export default function FamilyPlanning91Client() {
                         <button
                           type="button"
                           className="fp91-cid-btn font-tabular"
-                          onClick={() => handleCopy(item.cid, `cid-${item.vn}`)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCopy(item.cid, `cid-${item.vn}`)
+                          }}
                           title="คลิกเพื่อคัดลอกเลขบัตรประชาชน 13 หลัก"
                         >
                           <span>{formatCidDisplay(item.cid)}</span>
-                          {copiedField === `cid-${item.vn}` ? (
-                            <Check size={12} className="text-ok" />
-                          ) : (
-                            <Copy size={12} className="text-muted" />
+                          {copiedField === `cid-${item.vn}` && (
+                            <span className="text-ok" style={{ fontSize: '11px', marginLeft: '4px' }}>
+                              คัดลอกแล้ว
+                            </span>
                           )}
                         </button>
                       </td>
@@ -1200,17 +1173,6 @@ export default function FamilyPlanning91Client() {
                             ปกติ
                           </span>
                         )}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="fp91-btn-secondary"
-                          style={{ minHeight: '32px', padding: '0 10px', fontSize: '12.5px' }}
-                          onClick={() => openInspectionModal(item)}
-                          title="ดูรายละเอียดเวชระเบียนคลินิก"
-                        >
-                          ดูเวชระเบียน
-                        </button>
                       </td>
                     </tr>
                   )

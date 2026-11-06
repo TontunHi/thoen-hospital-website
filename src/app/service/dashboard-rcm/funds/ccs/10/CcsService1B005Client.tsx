@@ -440,7 +440,6 @@ export default function CcsService1B005Client() {
       {/* ── 1. Header Bar ── */}
       <header className="ccs10-header">
         <div className="ccs10-title-group">
-          <div className="ccs10-meta-tag">กองทุนหลักประกันสุขภาพ · CCS 1.10</div>
           <h1 className="ccs10-title">1.10 บริการ 1B005</h1>
           <p className="ccs10-subtitle">
             รายงานผู้รับบริการตรวจคัดกรองมะเร็งปากมดลูกด้วยรหัส ADP 1B005 ตรวจสอบการสั่งใช้รหัส ADP การวินิจฉัย (ICD-10) หัตถการ (ICD-9) และการชดเชยค่าบริการ E-Claim / สปสช.
@@ -574,10 +573,6 @@ export default function CcsService1B005Client() {
               </select>
             </div>
           )}
-
-          <div className="ccs10-date-span-badge">
-            ช่วงเวลา: {formatThaiDate(ds1)} ถึง {formatThaiDate(ds2)}
-          </div>
         </div>
       </section>
 

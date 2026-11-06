@@ -372,10 +372,6 @@ export default function FamilyPlanningReportClient({
       {/* 1. Header Area */}
       <div className="fp-header">
         <div className="fp-title-group">
-          <div className="fp-title-badge">
-            <ShieldCheck size={15} />
-            <span>กองทุนบริการวางแผนครอบครัว · {reportType}</span>
-          </div>
           <h1 className="fp-title">{title}</h1>
           <p className="fp-subtitle">{subtitle}</p>
         </div>
@@ -424,7 +420,7 @@ export default function FamilyPlanningReportClient({
               className={`fp-mode-tab ${dateMode === 'monthly' ? 'active' : ''}`}
               onClick={() => setDateMode('monthly')}
             >
-              รายเดือน
+              เดือน
             </button>
             <button
               type="button"
@@ -542,25 +538,13 @@ export default function FamilyPlanningReportClient({
         </div>
       </div>
 
-      {/* 3. ADP Mapping Warning / Success Banner */}
-      {!adpMapping.isMapped ? (
+      {!adpMapping.isMapped && (
         <div className="fp-adp-banner unmapped" role="alert">
           <div className="fp-adp-banner-content">
             <AlertTriangle size={18} />
             <span>
               <strong>คุณยังไม่ได้ Map ADP Code:</strong> ระบบตรวจไม่พบรายการยาในตาราง{' '}
               <code>s_drugitems</code> ที่ผูกรหัส NHSO ADP <code>{adpCode}</code> กรุณาตรวจสอบการตั้งค่ารหัสยา
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div className="fp-adp-banner mapped">
-          <div className="fp-adp-banner-content">
-            <CheckCircle2 size={18} />
-            <span>
-              ระบบตรวจพบการ Map รหัส ADP <strong>{adpCode}</strong> จำนวน{' '}
-              <strong>{adpMapping.mappedCount}</strong> รายการ:
-              {adpMapping.items.map((i) => ` ${i.name} (${i.icode})`).join(', ')}
             </span>
           </div>
         </div>
@@ -732,29 +716,11 @@ export default function FamilyPlanningReportClient({
       {/* 5. Toolbar: Search and Filter Chips */}
       <div className="fp-toolbar">
         <div className="fp-search-box">
-          <select
-            className="fp-search-field-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as FamilyPlanningSearchField)
-              setCurrentPage(1)
-            }}
-          >
-            <option value="ALL">ค้นหาทั้งหมด</option>
-            <option value="HN">HN</option>
-            <option value="CID">เลขบัตรประชาชน</option>
-            <option value="PTNAME">ชื่อ-สกุล</option>
-            <option value="VN">{patientType === 'IPD' ? 'AN' : 'VN'}</option>
-            <option value="PTTYPE">สิทธิการรักษา</option>
-            <option value="DEPARTMENT">แผนก/คลินิก</option>
-            <option value="DX">รหัสวินิจฉัย (Dx)</option>
-            <option value="DRUG">รายการยา/บริการ</option>
-          </select>
           <Search size={16} className="text-gray-400 mr-2 shrink-0" />
           <input
             type="text"
             className="fp-search-input"
-            placeholder={`ค้นหาในตาราง ${patientType}...`}
+            placeholder="ค้นหา HN, เลขบัตรประชาชน, ชื่อ-สกุล, VN, แผนก, Dx..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -975,26 +941,20 @@ export default function FamilyPlanningReportClient({
                       <div className="fp-mono font-bold text-gray-900">{row.hn}</div>
                     </td>
                     <td>
-                      <div className="flex items-center gap-1">
-                        <span className="fp-mono text-xs text-gray-700">
-                          {formatCidDisplay(row.cid)}
-                        </span>
-                        <button
-                          type="button"
-                          className="text-gray-400 hover:text-gray-700 p-1"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            copyText(row.cid, `cid_${row.vn}`)
-                          }}
-                          title="คัดลอกเลขบัตรประชาชน"
-                        >
-                          {copiedField === `cid_${row.vn}` ? (
-                            <Check size={12} className="text-emerald-600" />
-                          ) : (
-                            <Copy size={12} />
-                          )}
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          copyText(row.cid, `cid_${row.vn}`)
+                        }}
+                        title="คลิกเพื่อคัดลอกเลขบัตรประชาชน"
+                        className="fp-mono text-xs text-gray-700 hover:underline cursor-pointer text-left"
+                      >
+                        {formatCidDisplay(row.cid)}
+                        {copiedField === `cid_${row.vn}` && (
+                          <span className="text-emerald-600 ml-1 text-[11px]">คัดลอกแล้ว</span>
+                        )}
+                      </button>
                     </td>
                     <td>
                       <div className="font-medium text-gray-900">{row.ptname}</div>

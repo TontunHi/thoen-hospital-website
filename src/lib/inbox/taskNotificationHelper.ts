@@ -816,6 +816,9 @@ export async function notifyMediaRequestRejectedOrSentBackOnTelegram(params: {
   performerName: string
   performerPosition?: string | null
   stepName: string
+  targetStepName?: string | null
+  targetRole?: string | null
+  targetAssigneeId?: number | null
   reason?: string | null
 }) {
   try {
@@ -837,6 +840,20 @@ export async function notifyMediaRequestRejectedOrSentBackOnTelegram(params: {
         const reqChatId = links[0].telegram_chat_id
         if (!targetChatIds.includes(reqChatId)) {
           targetChatIds.push(reqChatId)
+        }
+      }
+    }
+
+    // 3. Target Assignee Private Chat ID (if sent back to specific person)
+    if (params.targetAssigneeId && params.targetAssigneeId !== params.requesterId) {
+      const targetLinks = await queryMemberDb(
+        'SELECT telegram_chat_id FROM member_telegram_links WHERE member_id = ? LIMIT 1',
+        [params.targetAssigneeId]
+      )
+      if (targetLinks && targetLinks.length > 0) {
+        const targetChatId = targetLinks[0].telegram_chat_id
+        if (!targetChatIds.includes(targetChatId)) {
+          targetChatIds.push(targetChatId)
         }
       }
     }
@@ -866,14 +883,15 @@ export async function notifyMediaRequestRejectedOrSentBackOnTelegram(params: {
       `📋 <b>หัวข้อ :</b> <b>${escapeHtml(params.title)}</b>`,
       `👤 <b>ผู้ร้องขอ :</b> ${escapeHtml(params.requesterName)}${params.requesterDept ? ` (${escapeHtml(params.requesterDept)})` : ''}`,
       `${actorLabel} <b>${escapeHtml(params.performerName)}</b>${params.performerPosition ? ` (${escapeHtml(params.performerPosition)})` : ''}`,
-      `📍 <b>ขั้นตอน :</b> ${escapeHtml(params.stepName)}`,
+      `📍 <b>ขั้นตอนที่ส่งกลับ :</b> ${escapeHtml(params.stepName)}`,
+      ...(params.targetStepName ? [`🎯 <b>ส่งกลับไปยัง :</b> <b>${escapeHtml(params.targetStepName)}</b>`] : []),
       `${reasonLabel}\n<i>${escapeHtml(params.reason || '-')}</i>`,
       `⏰ <b>เวลาดำเนินการ :</b> ${thaiDate} น.`,
     ]
 
     const footer = isReject
       ? '⚠️ <i>คำขอนี้ถูกยุติการดำเนินการ</i>'
-      : '✨ <i>กรุณากดปุ่มด้านล่างเพื่อตรวจสอบและแก้ไขข้อมูลคำขอ</i>'
+      : '✨ <i>กรุณากดปุ่มด้านล่างเพื่อตรวจสอบและดำเนินการต่อ</i>'
 
     const message = `${lines.join('\n\n')}\n\n────────────────────────\n${footer}`
 

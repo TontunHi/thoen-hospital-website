@@ -441,7 +441,6 @@ export default function CcsScreenedRecipientsClient() {
       {/* ── 1. Header Bar ── */}
       <header className="ccs2-header">
         <div className="ccs2-title-group">
-          <div className="ccs2-meta-tag">กองทุนหลักประกันสุขภาพ · CCS 1.2</div>
           <h1 className="ccs2-title">
             1.2 รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก
           </h1>

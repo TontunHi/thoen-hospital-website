@@ -77,8 +77,8 @@ export default function PostpartumService72Client() {
     return list
   }, [defaultFiscalBeYear])
 
-  // Date selection states (Default to Fiscal Year)
-  const [dateMode, setDateMode] = useState<'fiscal' | 'monthly' | 'custom'>('fiscal')
+  // Date selection states (Default to Custom)
+  const [dateMode, setDateMode] = useState<'custom' | 'monthly' | 'fiscal'>('custom')
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
@@ -390,11 +390,7 @@ export default function PostpartumService72Client() {
       {/* ── 1. Header Bar ── */}
       <header className="pnc72-header">
         <div className="pnc72-title-group">
-          <span className="pnc72-title-badge">
-            <HeartPulse size={14} aria-hidden="true" />
-            กองทุนที่ 7 · การตรวจหลังคลอด
-          </span>
-          <h1 className="pnc72-title">7.2 การตรวจหลังคลอด ADP</h1>
+          <h1 className="pnc72-title">การตรวจหลังคลอด ADP</h1>
           <p className="pnc72-subtitle">
             ติดตามบริการตรวจหลังคลอด รหัส ADP <strong>30015</strong> (โครงการตรวจหลังคลอด Z390-391-392)
             ตรวจสอบการขอรหัส Authen การวินิจฉัย และสถานะการชดเชยค่าบริการ
@@ -427,18 +423,7 @@ export default function PostpartumService72Client() {
       </header>
 
       {/* ── 2. ADP Mapping Alert Banner ── */}
-      {adpMapping.isMapped ? (
-        <div className="pnc72-alert-banner info" role="status">
-          <div className="pnc72-alert-content">
-            <Check size={18} className="text-emerald-600 flex-shrink-0" aria-hidden="true" />
-            <span>
-              <strong>Map ADP Code เรียบร้อย:</strong> พบรายการยา/บริการรหัส <strong>30015</strong> จำนวน{' '}
-              {adpMapping.mappedCount} รายการ ในระบบ HOSxP (
-              {adpMapping.items.map((i) => `${i.icode}: ${i.name}`).join(', ')})
-            </span>
-          </div>
-        </div>
-      ) : (
+      {!adpMapping.isMapped && (
         <div className="pnc72-alert-banner warning" role="alert">
           <div className="pnc72-alert-content">
             <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" aria-hidden="true" />
@@ -456,12 +441,12 @@ export default function PostpartumService72Client() {
           <button
             type="button"
             role="tab"
-            aria-selected={dateMode === 'fiscal'}
-            className={`pnc72-date-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
-            onClick={() => setDateMode('fiscal')}
+            aria-selected={dateMode === 'custom'}
+            className={`pnc72-date-tab ${dateMode === 'custom' ? 'active' : ''}`}
+            onClick={() => setDateMode('custom')}
           >
             <Calendar size={16} aria-hidden="true" />
-            <span>ปีงบประมาณ</span>
+            <span>กำหนดเอง</span>
           </button>
 
           <button
@@ -472,40 +457,52 @@ export default function PostpartumService72Client() {
             onClick={() => setDateMode('monthly')}
           >
             <Calendar size={16} aria-hidden="true" />
-            <span>รายเดือน</span>
+            <span>เดือน</span>
           </button>
 
           <button
             type="button"
             role="tab"
-            aria-selected={dateMode === 'custom'}
-            className={`pnc72-date-tab ${dateMode === 'custom' ? 'active' : ''}`}
-            onClick={() => setDateMode('custom')}
+            aria-selected={dateMode === 'fiscal'}
+            className={`pnc72-date-tab ${dateMode === 'fiscal' ? 'active' : ''}`}
+            onClick={() => setDateMode('fiscal')}
           >
             <Calendar size={16} aria-hidden="true" />
-            <span>กำหนดช่วงวันเอง</span>
+            <span>ปีงบประมาณ</span>
           </button>
         </div>
 
         <div className="pnc72-date-controls">
-          {dateMode === 'fiscal' && (
-            <div className="pnc72-control-group">
-              <label htmlFor="pnc-fiscal-select" className="pnc72-control-label">
-                ปีงบประมาณ พ.ศ.:
-              </label>
-              <select
-                id="pnc-fiscal-select"
-                className="pnc72-select"
-                value={selectedFiscalYear}
-                onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    พ.ศ. {y} (1 ต.ค. {y - 1} – 30 ก.ย. {y})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {dateMode === 'custom' && (
+            <>
+              <div className="pnc72-control-group">
+                <label htmlFor="pnc-date-start" className="pnc72-control-label">
+                  ตั้งแต่วันที่:
+                </label>
+                <ThaiDatePicker
+                  id="pnc-date-start"
+                  value={ds1}
+                  onChange={(val) => {
+                    setDs1(val)
+                    setCurrentPage(1)
+                  }}
+                />
+              </div>
+
+              <div className="pnc72-control-group">
+                <label htmlFor="pnc-date-end" className="pnc72-control-label">
+                  ถึงวันที่:
+                </label>
+                <ThaiDatePicker
+                  id="pnc-date-end"
+                  value={ds2}
+                  onChange={(val) => {
+                    setDs2(val)
+                    setCurrentPage(1)
+                  }}
+                />
+              </div>
+            </>
           )}
 
           {dateMode === 'monthly' && (
@@ -548,44 +545,25 @@ export default function PostpartumService72Client() {
             </>
           )}
 
-          {dateMode === 'custom' && (
-            <>
-              <div className="pnc72-control-group">
-                <label htmlFor="pnc-date-start" className="pnc72-control-label">
-                  ตั้งแต่วันที่:
-                </label>
-                <ThaiDatePicker
-                  id="pnc-date-start"
-                  value={ds1}
-                  onChange={(val) => {
-                    setDs1(val)
-                    setCurrentPage(1)
-                  }}
-                />
-              </div>
-
-              <div className="pnc72-control-group">
-                <label htmlFor="pnc-date-end" className="pnc72-control-label">
-                  ถึงวันที่:
-                </label>
-                <ThaiDatePicker
-                  id="pnc-date-end"
-                  value={ds2}
-                  onChange={(val) => {
-                    setDs2(val)
-                    setCurrentPage(1)
-                  }}
-                />
-              </div>
-            </>
+          {dateMode === 'fiscal' && (
+            <div className="pnc72-control-group">
+              <label htmlFor="pnc-fiscal-select" className="pnc72-control-label">
+                ปีงบประมาณ พ.ศ.:
+              </label>
+              <select
+                id="pnc-fiscal-select"
+                className="pnc72-select"
+                value={selectedFiscalYear}
+                onChange={(e) => setSelectedFiscalYear(Number(e.target.value))}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    พ.ศ. {y} (1 ต.ค. {y - 1} – 30 ก.ย. {y})
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
-
-          <div className="pnc72-date-display-badge">
-            <span>ช่วงวันที่ประมวลผล:</span>
-            <strong>
-              {formatThaiDate(ds1)} — {formatThaiDate(ds2)}
-            </strong>
-          </div>
         </div>
       </section>
 
@@ -704,24 +682,6 @@ export default function PostpartumService72Client() {
       {/* ── 5. Search Bar & Table Controls ── */}
       <section className="pnc72-tools-row" aria-label="ค้นหาและตัวกรองตาราง">
         <div className="pnc72-search-group">
-          <select
-            className="pnc72-select"
-            value={searchField}
-            onChange={(e) => {
-              setSearchField(e.target.value as PostpartumSearchField)
-              setCurrentPage(1)
-            }}
-            aria-label="เลือกประเภทการค้นหา"
-          >
-            <option value="ALL">ค้นหาทุกฟิลด์</option>
-            <option value="HN">HN</option>
-            <option value="CID">เลขบัตรประชาชน</option>
-            <option value="PTNAME">ชื่อ-สกุลผู้ป่วย</option>
-            <option value="VN">เลขที่ VN</option>
-            <option value="DIAG">รหัสโรค (ICD-10)</option>
-            <option value="PTTYPE">สิทธิการรักษา</option>
-          </select>
-
           <div className="pnc72-search-box">
             <Search size={18} className="pnc72-search-icon" aria-hidden="true" />
             <input
@@ -841,13 +801,12 @@ export default function PostpartumService72Client() {
                     {renderSortIcon('compensated')}
                   </div>
                 </th>
-                <th style={{ textAlign: 'center' }}>การกระทำ</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={15}>
+                  <td colSpan={14}>
                     <div className="pnc72-loading-state">
                       <div className="pnc72-spinner" aria-hidden="true" />
                       <span>กำลังโหลดข้อมูลการตรวจหลังคลอด กรุณารอสักครู่...</span>
@@ -856,7 +815,7 @@ export default function PostpartumService72Client() {
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={15}>
+                  <td colSpan={14}>
                     <div className="pnc72-empty-state">
                       <UserCheck size={36} className="text-gray-400" aria-hidden="true" />
                       <strong>ไม่พบข้อมูลผู้รับบริการตรวจหลังคลอด</strong>
@@ -881,8 +840,8 @@ export default function PostpartumService72Client() {
                     </td>
                     <td className="pnc72-num font-medium">{formatThaiDate(item.vstdate)}</td>
                     <td className="pnc72-num text-muted">{item.vsttime || '—'}</td>
-                    <td className="pnc72-num font-mono">{maskIdentifier(item.hn)}</td>
-                    <td className="pnc72-num font-mono">{maskIdentifier(item.cid)}</td>
+                    <td className="pnc72-num font-mono">{item.hn || '—'}</td>
+                    <td className="pnc72-num font-mono">{item.cid || '—'}</td>
                     <td>
                       <div className="pnc72-patient-cell">
                         <span className="pnc72-patient-name">{item.ptname}</span>
@@ -925,19 +884,6 @@ export default function PostpartumService72Client() {
                     <td className="pnc72-num font-mono">{item.rep || '—'}</td>
                     <td className="pnc72-num font-semibold text-emerald-800">
                       {item.compensated > 0 ? `${formatMoney(item.compensated)} ฿` : '—'}
-                    </td>
-                    <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="pnc72-btn-secondary"
-                        style={{ minHeight: 32, padding: '0 10px', fontSize: 12 }}
-                        onClick={() => {
-                          setSelectedIndex(idx)
-                          setModalTab('summary')
-                        }}
-                      >
-                        รายละเอียด
-                      </button>
                     </td>
                   </tr>
                 ))

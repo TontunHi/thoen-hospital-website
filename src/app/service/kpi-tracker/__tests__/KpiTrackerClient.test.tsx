@@ -629,5 +629,199 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
     expect(screen.getAllByText('(0/0)').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('ผ่านเกณฑ์').length).toBeGreaterThanOrEqual(1)
   })
+
+  it('opens Round History Modal and shows answers across rounds for an indicator', async () => {
+    const historyIndicators = [
+      {
+        id: 99,
+        topicId: 1,
+        sequence: '1.2',
+        category: 'ยุทธศาสตร์ที่1',
+        subcategory: 'คุณภาพบริการ',
+        code: 'KPI-HIST-01',
+        oldCode: null,
+        title: 'อัตราความสำเร็จในการรักษา',
+        targetValue: 80,
+        targetOperator: '>=',
+        targetUnit: '%',
+        targetLabel: '>= 80%',
+        frequency: 'รายไตรมาส',
+        indicatorType: 'ยุทธศาสตร์',
+        isAutoCalc: true,
+        numeratorName: 'จำนวนผู้ป่วยที่รักษาหาย',
+        denominatorName: 'จำนวนผู้ป่วยทั้งหมด',
+        responsibleName: 'พยาบาลวิชาชีพ',
+        responsibleDepartment: 'กลุ่มงานการพยาบาล',
+        displayOrder: 1,
+        currentEntry: {
+          id: 201,
+          indicatorId: 99,
+          periodKey: '2569-Q1',
+          numeratorValue: 85,
+          denominatorValue: 100,
+          resultValue: 85,
+          resultText: '85%',
+          status: 'PASS',
+          note: 'ผ่านเกณฑ์ดีเยี่ยม',
+          updatedAt: '2026-10-15T00:00:00.000Z',
+          recordedByName: 'สมชาย รักษาดี',
+        },
+        entries: [
+          {
+            id: 201,
+            indicatorId: 99,
+            periodKey: '2569-Q1',
+            numeratorValue: 85,
+            denominatorValue: 100,
+            resultValue: 85,
+            resultText: '85%',
+            status: 'PASS',
+            note: 'ผ่านเกณฑ์ดีเยี่ยม',
+            updatedAt: '2026-10-15T00:00:00.000Z',
+            recordedByName: 'สมชาย รักษาดี',
+          },
+          {
+            id: 202,
+            indicatorId: 99,
+            periodKey: '2569-Q2',
+            numeratorValue: 70,
+            denominatorValue: 100,
+            resultValue: 70,
+            resultText: '70%',
+            status: 'FAIL',
+            note: 'มีเคสยากเพิ่มขึ้น',
+            updatedAt: '2027-01-15T00:00:00.000Z',
+            recordedByName: 'สมชาย รักษาดี',
+          }
+        ]
+      }
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/kpi/topics')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              fiscalYears: ['2569'],
+              defaultYear: '2569',
+              topics: [
+                { id: 1, title: 'ตัวชี้วัดโรงพยาบาลเถิน 2569', fiscalYear: '2569', isCurrent: true }
+              ]
+            }
+          })
+        }
+      }
+      if (url.includes('/api/kpi/indicators')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              indicators: historyIndicators,
+              categories: ['ยุทธศาสตร์ที่1']
+            }
+          })
+        }
+      }
+      return { ok: true, json: async () => ({ success: true, data: {} }) }
+    }))
+
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('อัตราความสำเร็จในการรักษา')).toBeInTheDocument()
+    })
+
+    // Click "ประวัติ" button
+    const historyBtns = screen.getAllByRole('button', { name: /ประวัติ/i })
+    expect(historyBtns.length).toBeGreaterThanOrEqual(1)
+    fireEvent.click(historyBtns[0])
+
+    // Verify Round History Modal opens
+    await waitFor(() => {
+      expect(screen.getByText('ประวัติคำตอบย้อนหลังในแต่ละรอบ')).toBeInTheDocument()
+    })
+
+    // Verify numerator and denominator question labels appear
+    expect(screen.getAllByText(/จำนวนผู้ป่วยที่รักษาหาย/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/จำนวนผู้ป่วยทั้งหมด/).length).toBeGreaterThanOrEqual(1)
+
+    // Verify answers for recorded rounds appear
+    expect(screen.getAllByText('85%').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('70%')).toBeInTheDocument()
+    expect(screen.getByText(/ผ่านเกณฑ์ดีเยี่ยม/)).toBeInTheDocument()
+    expect(screen.getByText(/มีเคสยากเพิ่มขึ้น/)).toBeInTheDocument()
+
+    // Click "แก้ไขรอบนี้" on recorded round card
+    const editRoundBtns = screen.getAllByRole('button', { name: /แก้ไขรอบนี้/i })
+    expect(editRoundBtns.length).toBeGreaterThanOrEqual(1)
+    fireEvent.click(editRoundBtns[0])
+
+    // Verify that it opens the Answer Modal for that round
+    await waitFor(() => {
+      expect(screen.getByText('ตอบผลการดำเนินงานตัวชี้วัด')).toBeInTheDocument()
+    })
+  })
+
+  it('opens Export Modal with topic, category, and period selectors including answer preservation notice', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/kpi/topics')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              fiscalYears: ['2569'],
+              defaultYear: '2569',
+              topics: [
+                { id: 1, title: 'ตัวชี้วัดโรงพยาบาลเถิน 2569', fiscalYear: '2569', isCurrent: true }
+              ]
+            }
+          })
+        }
+      }
+      if (url.includes('/api/kpi/indicators')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              indicators: mockIndicators,
+              categories: ['ยุทธศาสตร์ที่1', 'ยุทธศาสตร์ที่2']
+            }
+          })
+        }
+      }
+      return { ok: true, json: async () => ({ success: true, data: {} }) }
+    }))
+
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('ร้อยละความพึงพอใจของผู้รับบริการ')).toBeInTheDocument()
+    })
+
+    // Click "ส่งออก Excel" button
+    const exportBtn = screen.getByRole('button', { name: /ส่งออก Excel/i })
+    fireEvent.click(exportBtn)
+
+    // Verify Export Modal opens
+    await waitFor(() => {
+      expect(screen.getByText('ส่งออกรายงานตัวชี้วัด Excel (.xlsx)')).toBeInTheDocument()
+    })
+
+    // Check selectors
+    expect(screen.getByText('หัวข้อ / ชุดตัวชี้วัด:')).toBeInTheDocument()
+    expect(screen.getAllByText('หมวดหมู่ / ยุทธศาสตร์:').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('รอบการประเมิน:')).toBeInTheDocument()
+
+    // Check reassurance text about keeping answers
+    expect(screen.getByText(/ระบบจะดึงคำตอบของแต่ละคำถาม \(ตัวตั้ง ตัวหาร ผลงาน และสถานะประเมิน\) ติดมาด้วยในไฟล์ Excel/)).toBeInTheDocument()
+  })
 })
+
 

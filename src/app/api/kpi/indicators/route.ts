@@ -14,10 +14,26 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
+    const idStr = searchParams.get('id')
+    if (idStr) {
+      const id = parseInt(idStr, 10)
+      const indicator = await KpiService.getIndicatorById(id)
+      if (!indicator) {
+        return NextResponse.json(
+          { success: false, error: { code: 'NOT_FOUND', message: 'ไม่พบตัวชี้วัดที่ระบุ' } },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json({
+        success: true,
+        data: { indicator },
+      })
+    }
+
     const topicIdStr = searchParams.get('topicId')
     if (!topicIdStr) {
       return NextResponse.json(
-        { success: false, error: { code: 'BAD_REQUEST', message: 'กรุณาระบุ topicId' } },
+        { success: false, error: { code: 'BAD_REQUEST', message: 'กรุณาระบุ topicId หรือ id' } },
         { status: 400 }
       )
     }

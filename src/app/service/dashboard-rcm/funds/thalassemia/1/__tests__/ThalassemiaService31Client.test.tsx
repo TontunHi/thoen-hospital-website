@@ -121,8 +121,8 @@ describe('ThalassemiaService31Client Component', () => {
     expect(screen.getByText('38')).toBeInTheDocument()
     expect(screen.getByText('DCIP: Negative')).toBeInTheDocument()
     expect(screen.getByText('DCIP: Positive | Hb typing: E trait')).toBeInTheDocument()
-    expect(screen.getByText('1-5208-00011-11-1')).toBeInTheDocument()
-    expect(screen.getByText('1-5208-00022-22-2')).toBeInTheDocument()
+    expect(screen.getByText('1520800011111')).toBeInTheDocument()
+    expect(screen.getByText('1520800022222')).toBeInTheDocument()
   })
 
   it('allows interactive filtering by clicking on KPI summary cards', async () => {
@@ -161,15 +161,14 @@ describe('ThalassemiaService31Client Component', () => {
     })
   })
 
-  it('opens patient detail modal when clicking "ดูข้อมูล"', async () => {
+  it('opens patient detail modal when clicking on record row', async () => {
     render(<ThalassemiaService31Client />)
 
     await waitFor(() => {
       expect(screen.getByText('นาง วิภา สดใส')).toBeInTheDocument()
     })
 
-    const inspectButtons = screen.getAllByRole('button', { name: 'ดูข้อมูล' })
-    fireEvent.click(inspectButtons[0])
+    fireEvent.click(screen.getByText('นาง วิภา สดใส'))
 
     await waitFor(() => {
       expect(screen.getByText(/นาง วิภา สดใส \(HN: 0055001\)/)).toBeInTheDocument()

@@ -393,10 +393,6 @@ export default function AncService30011Client() {
       {/* ── 1. Header Bar ── */}
       <header className="anc4-header">
         <div className="anc4-title-group">
-          <div className="anc4-title-badge">
-            <Baby size={14} aria-hidden="true" />
-            <span>กองทุน 2. บริการฝากครรภ์ (ANC)</span>
-          </div>
           <h1 className="anc4-title">2.4 บริการฝากครรภ์ (ANC 30011)</h1>
           <p className="anc4-subtitle">
             รายงานผู้รับบริการที่มีการสั่งใช้รหัส ADP 30011 ตรวจสอบการวินิจฉัย หัตถการ รายการเวชภัณฑ์ และสถานะการชดเชยค่าบริการ E-Claim / สปสช.
@@ -657,24 +653,6 @@ export default function AncService30011Client() {
         {/* ── Search Bar & Filter Indicators ── */}
         <div className="anc4-filter-bar">
           <div className="anc4-search-group">
-            <select
-              className="anc4-select"
-              value={searchField}
-              onChange={(e) => {
-                setSearchField(e.target.value as AncSearchField)
-                setCurrentPage(1)
-              }}
-              aria-label="เลือกฟิลด์ค้นหา"
-            >
-              <option value="ALL">ค้นหาทุกฟิลด์</option>
-              <option value="HN">HN</option>
-              <option value="CID">เลขบัตรประชาชน</option>
-              <option value="PTNAME">ชื่อ - สกุล</option>
-              <option value="VN">VN</option>
-              <option value="DIAG">รหัสโรค (PDX/DX)</option>
-              <option value="PTTYPE">สิทธิการรักษา</option>
-            </select>
-
             <div className="anc4-search-wrapper">
               <Search size={16} className="anc4-search-icon" aria-hidden="true" />
               <input

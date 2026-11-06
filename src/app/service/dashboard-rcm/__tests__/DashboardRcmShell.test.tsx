@@ -60,28 +60,28 @@ describe('DashboardRcmShell Component', () => {
 
     // Assert ANC navigation under กองทุน
     expect(screen.getByRole('button', { name: /บริการฝากครรภ์ \(ANC\)/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /2.3 US - ตรวจช่องปาก - ขัดฟัน/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /2\.3.*ตรวจช่องปาก/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /บริการ 30011/ })).toBeInTheDocument()
 
     // Assert Thalassemia navigation under กองทุน
     expect(screen.getByRole('button', { name: /ธาลัสซีเมียในหญิงตั้งครรภ์/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /3.1 คัดกรองธาลัสซีเมีย/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /3\.1.*คัดกรองธาลัสซีเมีย/ })).toBeInTheDocument()
 
     // Assert Postpartum navigation under กองทุน
     expect(screen.getByRole('button', { name: /การตรวจหลังคลอด/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /7.2 การตรวจหลังคลอด ADP/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /7.3 การจ่ายยา Triforine ADP/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /7\.2.*การตรวจหลังคลอด/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /7\.3.*การจ่ายยา/ })).toBeInTheDocument()
 
     // Assert Pregnancy Test navigation under กองทุน
     expect(screen.getByRole('button', { name: /การทดสอบการตั้งครรภ์/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /8.1 การทดสอบการตั้งครรภ์/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /8\.1.*การทดสอบการตั้งครรภ์/ })).toBeInTheDocument()
 
     // Assert Family Planning navigation under กองทุน
     expect(screen.getByRole('button', { name: /วางแผนครอบครัว & คุมกำเนิด \(FP\)/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /9.1 วางแผนครอบครัวและการป้องกันการตั้งครรภ์/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /9.2 บริการใส่ห่วงอนามัย/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /9.3.1 รายการฝังยาคุม/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /9.3.2 รายการถอดยาคุม/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /9\.1.*วางแผนครอบครัว/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /9\.2.*บริการใส่ห่วงอนามัย/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /9\.3\.1.*รายการฝังยาคุม/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /9\.3\.2.*รายการถอดยาคุม/ })).toBeInTheDocument()
 
     expect(screen.getByTestId('test-content')).toBeInTheDocument()
     expect(screen.getByText('← หน้าบริการ')).toBeInTheDocument()
