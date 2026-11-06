@@ -231,14 +231,14 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
             badge: '9.2',
           },
           {
-            href: '/service/dashboard-rcm/funds/family-planning/9-3-1',
+            href: '/service/dashboard-rcm/funds/family-planning/9-3-1-1',
             label: 'รายการฝังยาคุม',
-            badge: '9.3.1',
+            badge: '9.3.1.1',
           },
           {
-            href: '/service/dashboard-rcm/funds/family-planning/9-3-2',
+            href: '/service/dashboard-rcm/funds/family-planning/9-3-1-2',
             label: 'รายการถอดยาคุม',
-            badge: '9.3.2',
+            badge: '9.3.1.2',
           },
         ],
       },

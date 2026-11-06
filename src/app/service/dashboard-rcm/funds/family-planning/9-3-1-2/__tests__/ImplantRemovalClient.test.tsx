@@ -5,7 +5,7 @@ import ImplantRemovalClient from '../ImplantRemovalClient'
 const mockReportData = {
   ds1: '2026-11-01',
   ds2: '2026-11-06',
-  reportType: '9.3.2',
+  reportType: '9.3.1.2',
   patientType: 'OPD',
   adpCode: 'FP002_2',
   adpMapping: {
@@ -91,7 +91,7 @@ describe('ImplantRemovalClient Component (9.3.2)', () => {
     render(<ImplantRemovalClient />)
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'รายการถอดยาคุม (Contraceptive Implant Removal)'
+      '9.3.1.2 รายการถอดยาคุม (Contraceptive Implant Removal)'
     )
     expect(screen.getAllByText(/FP002_2/).length).toBeGreaterThan(0)
 

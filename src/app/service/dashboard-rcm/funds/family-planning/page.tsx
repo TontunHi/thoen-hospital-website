@@ -11,5 +11,5 @@ export default async function FamilyPlanningIndexPage() {
     redirect('/service')
   }
 
-  redirect('/service/dashboard-rcm/funds/family-planning/9-3-1')
+  redirect('/service/dashboard-rcm/funds/family-planning/9-3-1-1')
 }

@@ -5,7 +5,7 @@ import ImplantInsertionClient from '../ImplantInsertionClient'
 const mockReportData = {
   ds1: '2026-11-01',
   ds2: '2026-11-06',
-  reportType: '9.3.1',
+  reportType: '9.3.1.1',
   patientType: 'OPD',
   adpCode: 'FP002_1',
   adpMapping: {
@@ -91,7 +91,7 @@ describe('ImplantInsertionClient Component (9.3.1)', () => {
     render(<ImplantInsertionClient />)
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      'รายการฝังยาคุม (Contraceptive Implant Insertion)'
+      '9.3.1.1 รายการฝังยาคุม (Contraceptive Implant Insertion)'
     )
     expect(screen.getAllByText(/FP002_1/).length).toBeGreaterThan(0)
 

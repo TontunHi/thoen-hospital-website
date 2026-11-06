@@ -4,7 +4,7 @@ import { resolveFiscalDateRange, type FiscalDateRangeParams, type QueryExecutor 
 
 // ── 1. Domain Types ──────────────────────────────────────────────────────────
 
-export type FamilyPlanningReportType = '9.3.1' | '9.3.2'
+export type FamilyPlanningReportType = '9.3.1' | '9.3.2' | '9.3.1.1' | '9.3.1.2'
 export type FamilyPlanningPatientType = 'OPD' | 'IPD'
 
 export type FamilyPlanningCardFilter =
