@@ -66,11 +66,12 @@ function formatCidDisplay(cid?: string | null): string {
 }
 
 export interface FamilyPlanningClientProps {
-  reportType: FamilyPlanningReportType // '9.3.1' | '9.3.2'
+  reportType: FamilyPlanningReportType // '9.3.1' | '9.3.2' | '9.3.1.1' | '9.3.1.2' | '9.4' | '9.3.4' | '9.5' | '9.3.5' | '9.3.6'
   apiEndpoint: string
   title: string
   subtitle: string
   adpCode: string
+  expectedDx?: string
 }
 
 export default function FamilyPlanningReportClient({
@@ -79,8 +80,10 @@ export default function FamilyPlanningReportClient({
   title,
   subtitle,
   adpCode,
+  expectedDx = 'Z308',
 }: FamilyPlanningClientProps) {
   const today = useMemo(() => new Date(), [])
+  const expectedDxRegex = useMemo(() => new RegExp(expectedDx, 'i'), [expectedDx])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
   const curMonth = today.getMonth() + 1
@@ -653,23 +656,23 @@ export default function FamilyPlanningReportClient({
           </div>
         </div>
 
-        {/* Card 6: ไม่พบ Dx Z308 */}
+        {/* Card 6: ไม่พบ Dx */}
         <div
           className={`fp-card card-danger ${cardFilter === 'ERROR_DX' ? 'is-active is-active-danger' : ''}`}
           onClick={() => {
             setCardFilter('ERROR_DX')
             setCurrentPage(1)
           }}
-          title="คลิกเพื่อกรองรายการที่ไม่พบการลงรหัส Dx Z308"
+          title={`คลิกเพื่อกรองรายการที่ไม่พบการลงรหัส Dx ${expectedDx}`}
         >
           <div className="fp-card-header">
-            <span className="fp-card-title">ไม่พบ Dx Z308</span>
+            <span className="fp-card-title">ไม่พบ Dx {expectedDx}</span>
             <div className="fp-card-icon">
               <AlertCircle size={16} />
             </div>
           </div>
           <div className="fp-card-value">{summary.errorDxCount.toLocaleString()}</div>
-          <div className="fp-card-sub">ต้องลงรหัส Z308 เพื่อเคลม</div>
+          <div className="fp-card-sub">ต้องลงรหัส {expectedDx} เพื่อเคลม</div>
         </div>
 
         {/* Card 7: ไม่พบค่าบริการ (ยา) */}
@@ -983,7 +986,7 @@ export default function FamilyPlanningReportClient({
                         {row.dx ? (
                           <span
                             className={`text-xs font-medium fp-mono ${
-                              /Z308/i.test(row.dx) ? 'text-gray-900' : 'text-red-600 font-bold'
+                              expectedDxRegex.test(row.dx) ? 'text-gray-900' : 'text-red-600 font-bold'
                             }`}
                             title={row.dx}
                           >

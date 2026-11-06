@@ -293,3 +293,65 @@ export function isIndicatorAnsweredForPeriod(
 
   return false
 }
+
+export interface IndicatorMetricMeta {
+  title?: string | null
+  targetUnit?: string | null
+  target_unit?: string | null
+  numeratorName?: string | null
+  numerator_name?: string | null
+  denominatorName?: string | null
+  denominator_name?: string | null
+}
+
+/**
+ * Determines whether a KPI indicator's numerator/denominator formula
+ * should be calculated as a percentage (x 100) or as a direct division/average/ratio (num / den).
+ */
+export function isPercentageIndicator(ind?: IndicatorMetricMeta | null): boolean {
+  if (!ind) return true
+  const unit = (ind.targetUnit ?? ind.target_unit ?? '').trim()
+  if (unit === '%') return true
+  if (unit && unit !== '%') return false // e.g. วัน, นาที, ชั่วโมง, ครั้ง, เท่า, คะแนน, บาท
+
+  const title = (ind.title || '').trim()
+  if (
+    title.includes('ค่าเฉลี่ย') || 
+    title.includes('ระยะเวลาเฉลี่ย') ||
+    title.includes('Ratio') ||
+    title.includes('อัตราส่วน') ||
+    title.includes('สัดส่วน')
+  ) {
+    if (!title.includes('ร้อยละ') && !title.includes('%')) {
+      return false
+    }
+  }
+
+  const numName = (ind.numeratorName ?? ind.numerator_name ?? '').trim()
+  if (
+    (numName.includes('นาที') || numName.includes('วัน') || numName.includes('ชั่วโมง') || numName.includes('บาท')) &&
+    !title.includes('ร้อยละ') && !title.includes('%')
+  ) {
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Calculates the KPI result value from numerator and denominator.
+ * Returns null if den is 0 (and num > 0), or 0 if 0/0.
+ */
+export function calculateIndicatorResult(
+  num: number,
+  den: number,
+  isPercentage: boolean = true
+): number | null {
+  if (den === 0) {
+    if (num === 0) return 0
+    return null
+  }
+  const raw = isPercentage ? (num / den) * 100 : (num / den)
+  return parseFloat(raw.toFixed(2))
+}
+

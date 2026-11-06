@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   RcmFamilyPlanningService,
   getAdpCodeForReport,
+  getExpectedDxForReport,
   getReportTitle,
 } from '../rcmFamilyPlanningService'
 
@@ -10,11 +11,32 @@ describe('RcmFamilyPlanningService Domain Service', () => {
     vi.clearAllMocks()
   })
 
-  it('resolves correct ADP code and title for 9.3.1 and 9.3.2', () => {
+  it('resolves correct ADP code, Dx, and title for 9.3.1, 9.3.2, 9.4, 9.5, 9.6, and 9.7', () => {
     expect(getAdpCodeForReport('9.3.1')).toBe('FP002_1')
     expect(getAdpCodeForReport('9.3.2')).toBe('FP002_2')
+    expect(getAdpCodeForReport('9.4')).toBe('FP003_1')
+    expect(getAdpCodeForReport('9.3.4')).toBe('FP003_1')
+    expect(getAdpCodeForReport('9.5')).toBe('FP003_2')
+    expect(getAdpCodeForReport('9.3.5')).toBe('FP003_2')
+    expect(getAdpCodeForReport('9.6')).toBe('FP003_3')
+    expect(getAdpCodeForReport('9.3.6')).toBe('FP003_3')
+    expect(getAdpCodeForReport('9.7')).toBe('FP003_4')
+    expect(getAdpCodeForReport('9.3.7')).toBe('FP003_4')
+    expect(getExpectedDxForReport('9.3.1')).toBe('Z308')
+    expect(getExpectedDxForReport('9.4')).toBe('Z304')
+    expect(getExpectedDxForReport('9.3.4')).toBe('Z304')
+    expect(getExpectedDxForReport('9.5')).toBe('Z304')
+    expect(getExpectedDxForReport('9.3.5')).toBe('Z304')
+    expect(getExpectedDxForReport('9.6')).toBe('Z304')
+    expect(getExpectedDxForReport('9.3.6')).toBe('Z304')
+    expect(getExpectedDxForReport('9.7')).toBe('Z304')
+    expect(getExpectedDxForReport('9.3.7')).toBe('Z304')
     expect(getReportTitle('9.3.1')).toContain('9.3.1 รายการฝังยาคุม')
     expect(getReportTitle('9.3.2')).toContain('9.3.2 รายการถอดยาคุม')
+    expect(getReportTitle('9.4')).toContain('9.4 รายการยาเม็ดคุมกำเนิดชนิดฮอร์โมนรวม')
+    expect(getReportTitle('9.5')).toContain('9.5 ยาเม็ดคุมกำเนิดชนิดฮอร์โมนเดียว')
+    expect(getReportTitle('9.6')).toContain('9.6 ยาเม็ดคุมกำเนิดชนิดฉุกเฉิน')
+    expect(getReportTitle('9.7')).toContain('9.7 ยาฉีดคุมกำเนิด')
   })
 
   it('checks ADP mapping in s_drugitems correctly', async () => {
@@ -146,6 +168,269 @@ describe('RcmFamilyPlanningService Domain Service', () => {
     expect(item2.errorDrug).toBe('ไม่พบค่าบริการ')
     expect(item2.hasError).toBe(true)
     expect(item2.isCompensated).toBe(false)
+  })
+
+  it('generates 9.4 oral contraceptives OPD report with Dx Z304 validation logic', async () => {
+    const mockRows = [
+      {
+        vn: '6911020001',
+        cid: '1509900111222',
+        hn: '0011222',
+        ptname: 'นาง สมศรี มั่นใจ',
+        sex: 'หญิง',
+        age: 25,
+        vstdate: '2026-11-04',
+        vsttime: '09:30:00',
+        pttypename: 'UCS:บัตรทอง',
+        claimcode: 'AUTH888111',
+        department: 'ห้องตรวจวางแผนครอบครัว',
+        clinic: 'สูติ-นรีเวชกรรม',
+        cc: 'รับยาคุมกำเนิดชนิดเม็ด',
+        income: 300,
+        dx: 'Z304',
+        op: null,
+        drug: 'Microgynon 30 ED 28 tab',
+        money_eclaim: 300,
+        money_rep: 300,
+        money_invoice: 300,
+        rep: 'REP691102',
+        status: 'NHSO :: ได้รับ Invoice',
+      },
+      {
+        vn: '6911020002',
+        cid: '1509900333444',
+        hn: '0033444',
+        ptname: 'นางสาว อำนวย พร',
+        sex: 'หญิง',
+        age: 21,
+        vstdate: '2026-11-03',
+        vsttime: '10:15:00',
+        pttypename: 'UCS:บัตรทอง',
+        claimcode: null,
+        department: 'ห้องตรวจวางแผนครอบครัว',
+        clinic: 'สูติ-นรีเวชกรรม',
+        cc: 'ขอรับยาเม็ดคุมกำเนิด',
+        income: 300,
+        dx: 'Z308', // Has Z308 instead of Z304!
+        op: null,
+        drug: '', // Missing drug!
+        money_eclaim: 0,
+        money_rep: 0,
+        money_invoice: 0,
+        rep: null,
+        status: '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim',
+      },
+    ]
+
+    const mockExecutor = vi
+      .fn()
+      .mockResolvedValueOnce([{ icode: '1500099', name: 'Microgynon 30 ED', nhso_adp_code: 'FP003_1' }])
+      .mockResolvedValueOnce(mockRows)
+
+    const result = await RcmFamilyPlanningService.getFamilyPlanningReport(
+      {
+        reportType: '9.4',
+        patientType: 'OPD',
+        startDate: '2026-11-01',
+        endDate: '2026-11-30',
+        refresh: true,
+      },
+      mockExecutor
+    )
+
+    expect(result.reportType).toBe('9.4')
+    expect(result.adpCode).toBe('FP003_1')
+    expect(result.items).toHaveLength(2)
+
+    // First case: has Z304 and drug
+    const passItem = result.items.find((i: { vn: string }) => i.vn === '6911020001')!
+    expect(passItem).toBeDefined()
+    expect(passItem.errorDx).toBeNull()
+    expect(passItem.errorDrug).toBeNull()
+    expect(passItem.hasError).toBe(false)
+    expect(passItem.isCompensated).toBe(true)
+
+    // Second case: missing Z304 (has Z308) and missing drug
+    const failItem = result.items.find((i: { vn: string }) => i.vn === '6911020002')!
+    expect(failItem).toBeDefined()
+    expect(failItem.errorDx).toBe('ไม่พบ Dx Z304')
+    expect(failItem.errorDrug).toBe('ไม่พบค่าบริการ')
+    expect(failItem.hasError).toBe(true)
+    expect(failItem.isCompensated).toBe(false)
+  })
+
+  it('generates 9.5 single hormone pill OPD report with Dx Z304 validation logic', async () => {
+    const mockRows = [
+      {
+        vn: '6911025001',
+        cid: '1509900987654',
+        hn: '0098765',
+        ptname: 'นาง สุภาพร มั่นคง',
+        sex: 'หญิง',
+        age: 26,
+        vstdate: '2026-11-05',
+        vsttime: '09:15:00',
+        pttypename: 'UCS:บัตรทอง',
+        claimcode: 'AUTH999222',
+        department: 'ห้องตรวจวางแผนครอบครัว',
+        clinic: 'สูติ-นรีเวชกรรม',
+        cc: 'รับยาคุมกำเนิดฮอร์โมนเดี่ยว',
+        income: 300,
+        dx: 'Z304',
+        op: null,
+        drug: 'Exluton 0.5 mg 28 tab',
+        money_eclaim: 300,
+        money_rep: 300,
+        money_invoice: 300,
+        rep: 'REP691105',
+        status: 'NHSO :: ได้รับ Invoice',
+      },
+      {
+        vn: '6911025002',
+        cid: '1509900123999',
+        hn: '0012399',
+        ptname: 'นางสาว พรทิพย์ สดใส',
+        sex: 'หญิง',
+        age: 22,
+        vstdate: '2026-11-04',
+        vsttime: '10:30:00',
+        pttypename: 'UCS:บัตรทอง',
+        claimcode: null,
+        department: 'ห้องตรวจวางแผนครอบครัว',
+        clinic: 'สูติ-นรีเวชกรรม',
+        cc: 'ขอรับยาเม็ดคุมกำเนิดให้นมบุตร',
+        income: 300,
+        dx: 'Z308', // Has Z308 instead of Z304!
+        op: null,
+        drug: '', // Missing drug!
+        money_eclaim: 0,
+        money_rep: 0,
+        money_invoice: 0,
+        rep: null,
+        status: '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim',
+      },
+    ]
+
+    const mockExecutor = vi
+      .fn()
+      .mockResolvedValueOnce([{ icode: '1500005', name: 'Exluton', nhso_adp_code: 'FP003_2' }])
+      .mockResolvedValueOnce(mockRows)
+
+    const result = await RcmFamilyPlanningService.getFamilyPlanningReport(
+      {
+        reportType: '9.5',
+        patientType: 'OPD',
+        startDate: '2026-11-01',
+        endDate: '2026-11-30',
+        refresh: true,
+      },
+      mockExecutor
+    )
+
+    expect(result.reportType).toBe('9.5')
+    expect(result.adpCode).toBe('FP003_2')
+    expect(result.items).toHaveLength(2)
+
+    const passItem = result.items.find((i: { vn: string }) => i.vn === '6911025001')!
+    expect(passItem).toBeDefined()
+    expect(passItem.errorDx).toBeNull()
+    expect(passItem.errorDrug).toBeNull()
+    expect(passItem.hasError).toBe(false)
+    expect(passItem.isCompensated).toBe(true)
+
+    const failItem = result.items.find((i: { vn: string }) => i.vn === '6911025002')!
+    expect(failItem).toBeDefined()
+    expect(failItem.errorDx).toBe('ไม่พบ Dx Z304')
+    expect(failItem.errorDrug).toBe('ไม่พบค่าบริการ')
+    expect(failItem.hasError).toBe(true)
+    expect(failItem.isCompensated).toBe(false)
+  })
+
+  it('generates 9.6 emergency contraceptive OPD report with Dx Z304 validation logic', async () => {
+    const mockRows = [
+      {
+        vn: '6911030001',
+        cid: '1509900555666',
+        hn: '0055666',
+        ptname: 'นางสาว กานดา สดใส',
+        sex: 'หญิง',
+        age: 21,
+        vstdate: '2026-11-05',
+        vsttime: '09:30:00',
+        pttypename: 'UCS:บัตรทอง',
+        claimcode: 'AUTH999111',
+        department: 'ห้องตรวจวางแผนครอบครัว',
+        clinic: 'สูติ-นรีเวชกรรม',
+        cc: 'ขอรับยาเม็ดคุมกำเนิดฉุกเฉิน',
+        income: 300,
+        dx: 'Z304',
+        op: null,
+        drug: 'Postinor 0.75 mg 2 tab',
+        money_eclaim: 300,
+        money_rep: 300,
+        money_invoice: 300,
+        rep: 'REP691103',
+        status: 'NHSO :: ได้รับ Invoice',
+      },
+      {
+        vn: '6911030002',
+        cid: '1509900777888',
+        hn: '0077888',
+        ptname: 'นางสาว สุพรรณี ชูใจ',
+        sex: 'หญิง',
+        age: 22,
+        vstdate: '2026-11-04',
+        vsttime: '10:15:00',
+        pttypename: 'UCS:บัตรทอง',
+        claimcode: null,
+        department: 'ห้องตรวจวางแผนครอบครัว',
+        clinic: 'สูติ-นรีเวชกรรม',
+        cc: 'ปรึกษาการคุมกำเนิดฉุกเฉิน',
+        income: 300,
+        dx: 'Z308', // Has Z308 instead of Z304!
+        op: null,
+        drug: '', // Missing drug!
+        money_eclaim: 0,
+        money_rep: 0,
+        money_invoice: 0,
+        rep: null,
+        status: '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim',
+      },
+    ]
+
+    const mockExecutor = vi
+      .fn()
+      .mockResolvedValueOnce([{ icode: '1500088', name: 'Postinor', nhso_adp_code: 'FP003_3' }])
+      .mockResolvedValueOnce(mockRows)
+
+    const result = await RcmFamilyPlanningService.getFamilyPlanningReport(
+      {
+        reportType: '9.6',
+        patientType: 'OPD',
+        startDate: '2026-11-01',
+        endDate: '2026-11-30',
+        refresh: true,
+      },
+      mockExecutor
+    )
+
+    expect(result.reportType).toBe('9.6')
+    expect(result.adpCode).toBe('FP003_3')
+    expect(result.items).toHaveLength(2)
+
+    const passItem = result.items.find((i: { vn: string }) => i.vn === '6911030001')!
+    expect(passItem).toBeDefined()
+    expect(passItem.errorDx).toBeNull()
+    expect(passItem.errorDrug).toBeNull()
+    expect(passItem.hasError).toBe(false)
+    expect(passItem.isCompensated).toBe(true)
+
+    const failItem = result.items.find((i: { vn: string }) => i.vn === '6911030002')!
+    expect(failItem).toBeDefined()
+    expect(failItem.errorDx).toBe('ไม่พบ Dx Z304')
+    expect(failItem.errorDrug).toBe('ไม่พบค่าบริการ')
+    expect(failItem.hasError).toBe(true)
+    expect(failItem.isCompensated).toBe(false)
   })
 
   it('filters by interactive card filter correctly (ERROR_DX, COMPENSATED, etc.)', async () => {

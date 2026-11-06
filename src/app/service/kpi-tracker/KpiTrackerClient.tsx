@@ -33,7 +33,7 @@ import {
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
-import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey } from '@/lib/kpi/kpiTimeUtils'
+import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, calculateIndicatorResult, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
 interface CurrentUser {
@@ -81,7 +81,8 @@ const formatThaiDateTime = (dateStr?: string | null): string => {
 
 function formatAnswerDisplay(
   entry: any,
-  unit?: string | null
+  unit?: string | null,
+  ind?: IndicatorMetricMeta | null
 ): { main: string; sub?: string } | null {
   if (!entry) return null
   const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
@@ -96,8 +97,9 @@ function formatAnswerDisplay(
   } else if (hasValue) {
     main = `${entry.resultValue}${unit || ''}`
   } else if (hasNumDen) {
+    const isPct = isPercentageIndicator(ind)
     const val = entry.denominatorValue > 0
-      ? parseFloat(((entry.numeratorValue / entry.denominatorValue) * 100).toFixed(2))
+      ? calculateIndicatorResult(entry.numeratorValue, entry.denominatorValue, isPct)
       : 0
     main = `${val}${unit || ''}`
   }
@@ -188,6 +190,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const [formNumerator, setFormNumerator] = useState<string>('')
   const [formDenominator, setFormDenominator] = useState<string>('')
   const [formSingleAnswer, setFormSingleAnswer] = useState<string>('')
+  const [formCalcMode, setFormCalcMode] = useState<'percentage' | 'ratio'>('percentage')
 
   // Edit / Create Indicator Form State (Full Columns A - N)
   const [indFormSequence, setIndFormSequence] = useState<string>('')
@@ -397,9 +400,10 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       return 'PENDING'
     }
 
+    const isPct = isPercentageIndicator(ind)
     const val = entry.resultValue !== null && entry.resultValue !== undefined
       ? entry.resultValue
-      : (hasNumDen && entry.denominatorValue > 0 ? (entry.numeratorValue / entry.denominatorValue) * 100 : null)
+      : (hasNumDen && entry.denominatorValue > 0 ? calculateIndicatorResult(entry.numeratorValue, entry.denominatorValue, isPct) : null)
 
     if (val === null || val === undefined) {
       return 'PENDING'
@@ -684,14 +688,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     const den = parseFloat(denStr)
     if (isNaN(num) || isNaN(den)) return null
 
-    if (den > 0) {
-      return parseFloat(((num / den) * 100).toFixed(2))
-    }
-    if (den === 0 && num === 0) {
-      return 0
-    }
-    return null
-  }, [formNumerator, formDenominator])
+    return calculateIndicatorResult(num, den, formCalcMode === 'percentage')
+  }, [formNumerator, formDenominator, formCalcMode])
 
   // Target preview evaluation in Answer Modal
   const liveEvaluationStatus = useMemo(() => {
@@ -728,6 +726,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   // Open Answer Modal
   const handleOpenAnswer = (ind: KpiIndicatorItem) => {
     setActiveIndicator(ind)
+    const isPct = isPercentageIndicator(ind)
+    setFormCalcMode(isPct ? 'percentage' : 'ratio')
     const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
     const defaultPeriod = dueStatus.relevantPeriod
     setFormPeriodKey(defaultPeriod.key)
@@ -777,6 +777,8 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   const handleEditRoundFromHistory = (ind: KpiIndicatorItem, periodKey: string, periodLabel: string) => {
     setHistoryModalOpen(false)
     setActiveIndicator(ind)
+    const isPct = isPercentageIndicator(ind)
+    setFormCalcMode(isPct ? 'percentage' : 'ratio')
     setFormPeriodKey(periodKey)
     setFormPeriodLabel(periodLabel)
 
@@ -1922,15 +1924,17 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   const periods = getPeriodsForFrequency(ind.frequency)
                   const totalRounds = periods.length
                   const answeredRounds = periods.filter(p => isIndicatorAnsweredForPeriod(ind, p.key)).length
-                  const answerDisplay = formatAnswerDisplay(entry, ind.targetUnit)
+                  const answerDisplay = formatAnswerDisplay(entry, ind.targetUnit, ind)
                   const dueStatus = checkIndicatorDueStatus(ind.frequency, selectedYear)
                   const isLocked = !dueStatus.isDueNow && !isKpiManager
                   const userCanAnswer = canAnswerIndicator(ind)
                   const userCanEdit = canEditIndicator(ind)
                   const userCanDelete = canDeleteIndicator(ind)
 
+                  const isPctInd = isPercentageIndicator(ind)
+                  const defaultTargetUnit = isPctInd ? '%' : ''
                   const targetText = ind.targetValue !== null && ind.targetValue !== undefined
-                    ? `${ind.targetOperator || '>='} ${ind.targetValue}${ind.targetUnit || '%'}`
+                    ? `${ind.targetOperator || '>='} ${ind.targetValue}${ind.targetUnit || defaultTargetUnit}`
                     : (ind.targetRaw || '-')
 
                   return (
@@ -2220,15 +2224,55 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                     {/* Auto-calculation Preview */}
                     <div className="kpiCalcPreview">
                       <div>
-                        <strong style={{ display: 'block', marginBottom: '0.2rem' }}>ผลการคำนวณอัตโนมัติ:</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: '13px' }}>ผลการคำนวณอัตโนมัติ:</strong>
+                          <div style={{ display: 'inline-flex', gap: '4px', background: 'var(--canvas-subtle, #f1f5f9)', padding: '2px', borderRadius: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setFormCalcMode('percentage')}
+                              style={{
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: formCalcMode === 'percentage' ? 'var(--primary, #0284c7)' : 'transparent',
+                                color: formCalcMode === 'percentage' ? '#fff' : 'var(--ink-muted, #64748b)',
+                                fontWeight: formCalcMode === 'percentage' ? 600 : 400,
+                              }}
+                            >
+                              ร้อยละ (× 100)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormCalcMode('ratio')}
+                              style={{
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                background: formCalcMode === 'ratio' ? 'var(--primary, #0284c7)' : 'transparent',
+                                color: formCalcMode === 'ratio' ? '#fff' : 'var(--ink-muted, #64748b)',
+                                fontWeight: formCalcMode === 'ratio' ? 600 : 400,
+                              }}
+                            >
+                              ค่าเฉลี่ย / สัดส่วนตรง (÷)
+                            </button>
+                          </div>
+                        </div>
                         <div style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {computedPercentage !== null 
                             ? (parseFloat(formNumerator) === 0 && parseFloat(formDenominator) === 0
-                                ? `${formNumerator} ÷ ${formDenominator} = 0% (ไม่มีเคสในรอบนี้)`
-                                : `${formNumerator} ÷ ${formDenominator} × 100 = ${computedPercentage}%`)
+                                ? (formCalcMode === 'percentage'
+                                    ? `${formNumerator} ÷ ${formDenominator} = 0% (ไม่มีเคสในรอบนี้)`
+                                    : `${formNumerator} ÷ ${formDenominator} = 0 (ไม่มีเคสในรอบนี้)`)
+                                : (formCalcMode === 'percentage'
+                                    ? `${formNumerator} ÷ ${formDenominator} × 100 = ${computedPercentage}%`
+                                    : `${formNumerator} ÷ ${formDenominator} = ${computedPercentage}${activeIndicator.targetUnit ? ` ${activeIndicator.targetUnit}` : ''}`))
                             : formNumerator.trim() !== '' && formDenominator.trim() === '0'
-                              ? 'ตัวหารเป็น 0 ไม่สามารถคำนวณร้อยละได้'
-                              : 'กรอกตัวตั้งและตัวหารเพื่อคำนวณร้อยละ'}
+                              ? 'ตัวหารเป็น 0 ไม่สามารถคำนวณได้'
+                              : 'กรอกตัวตั้งและตัวหารเพื่อคำนวณผลลัพธ์'}
                         </div>
                       </div>
                       <div>
@@ -2289,7 +2333,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                           const isCurrent = matchesPeriodKey(formPeriodKey, p.key)
                           const entry = activeIndicator.entries?.find(e => matchesPeriodKey(e.periodKey, p.key)) ||
                             (activeIndicator.currentEntry && matchesPeriodKey(activeIndicator.currentEntry.periodKey, p.key) ? activeIndicator.currentEntry : null)
-                          const ansDisplay = formatAnswerDisplay(entry, activeIndicator.targetUnit)
+                          const ansDisplay = formatAnswerDisplay(entry, activeIndicator.targetUnit, activeIndicator)
 
                           return (
                             <div
@@ -2499,9 +2543,13 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                                 </span>
                               </div>
                               <div className="kpiHistoryAnswerBox">
-                                <span className="kpiHistoryAnswerLabel">ผลงานคำนวณ (%):</span>
+                                <span className="kpiHistoryAnswerLabel">
+                                  {isPercentageIndicator(historyIndicator) ? 'ผลงานคำนวณ (%):' : 'ผลงานคำนวณ:'}
+                                </span>
                                 <span className="kpiHistoryAnswerVal highlight">
-                                  {entry?.resultValue !== null && entry?.resultValue !== undefined ? `${entry.resultValue}%` : (entry?.resultText || '-')}
+                                  {entry?.resultValue !== null && entry?.resultValue !== undefined
+                                    ? `${entry.resultValue}${historyIndicator.targetUnit || (isPercentageIndicator(historyIndicator) ? '%' : '')}`
+                                    : (entry?.resultText || '-')}
                                 </span>
                               </div>
                             </>

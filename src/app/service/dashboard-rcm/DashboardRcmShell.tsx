@@ -240,6 +240,31 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
             label: 'รายการถอดยาคุม',
             badge: '9.3.1.2',
           },
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/9-3-2',
+            label: 'บริการคุมกำเนิดกึ่งถาวร (หญิงอายุ ≥ 20 ปี)',
+            badge: '9.3.2',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/9-4',
+            label: 'ยาเม็ดคุมกำเนิดชนิดฮอร์โมนรวม',
+            badge: '9.4',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/9-5',
+            label: 'ยาเม็ดคุมกำเนิดชนิดฮอร์โมนเดียว',
+            badge: '9.5',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/9-6',
+            label: 'ยาเม็ดคุมกำเนิดชนิดฉุกเฉิน',
+            badge: '9.6',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/9-7',
+            label: 'ยาฉีดคุมกำเนิด',
+            badge: '9.7',
+          },
         ],
       },
     ],

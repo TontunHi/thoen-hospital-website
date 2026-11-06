@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { queryMemberDb } from '@/lib/memberDb'
 import { KpiService, KpiIndicatorItem, QueryExecutor, cleanPeriodLabel } from './kpiService'
-import { checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, getPeriodsForFrequency, matchesPeriodKey } from './kpiTimeUtils'
+import { checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, getPeriodsForFrequency, matchesPeriodKey, isPercentageIndicator, calculateIndicatorResult } from './kpiTimeUtils'
 
 export interface KpiExportOptions {
   topicId: number
@@ -241,13 +241,21 @@ function renderWorksheetData(
     if (entry && hasNumDen) {
       const num = Number(entry.numeratorValue)
       const den = Number(entry.denominatorValue)
+      const isPct = isPercentageIndicator({
+        title: ind.title,
+        targetUnit: ind.targetUnit,
+        numeratorName: ind.numeratorName,
+      })
+      const defaultUnit = isPct ? '%' : ''
+      const unitStr = ind.targetUnit || defaultUnit
+
       if (num === 0 && den === 0) {
-        resultDisplay = '0% (ไม่มีเคส)'
+        resultDisplay = isPct ? '0% (ไม่มีเคส)' : '0 (ไม่มีเคส)'
       } else if (entry.resultValue !== null && entry.resultValue !== undefined) {
-        resultDisplay = `${entry.resultValue}${ind.targetUnit || '%'}`
+        resultDisplay = `${entry.resultValue}${unitStr}`
       } else if (den > 0) {
-        const val = parseFloat(((num / den) * 100).toFixed(2))
-        resultDisplay = `${val}${ind.targetUnit || '%'}`
+        const val = calculateIndicatorResult(num, den, isPct)
+        resultDisplay = `${val}${unitStr}`
       }
     } else if (entry?.resultValue !== null && entry?.resultValue !== undefined) {
       resultDisplay = `${entry.resultValue}${ind.targetUnit || ''}`
@@ -296,13 +304,21 @@ function renderWorksheetData(
           const numFmt = num.toLocaleString('en-US')
           const denFmt = den.toLocaleString('en-US')
 
+          const isPct = isPercentageIndicator({
+            title: ind.title,
+            targetUnit: ind.targetUnit,
+            numeratorName: ind.numeratorName,
+          })
+          const defaultUnit = isPct ? '%' : ''
+          const unitStr = ind.targetUnit || defaultUnit
+
           if (num === 0 && den === 0) {
-            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = 0% (ไม่มีเคส)`
+            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${isPct ? '0% (ไม่มีเคส)' : '0 (ไม่มีเคส)'}`
           } else {
             const calcVal = match.resultValue !== null && match.resultValue !== undefined
               ? match.resultValue
-              : (den > 0 ? parseFloat(((num / den) * 100).toFixed(2)) : 0)
-            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${calcVal}${ind.targetUnit || '%'}`
+              : (den > 0 ? (calculateIndicatorResult(num, den, isPct) ?? 0) : 0)
+            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${calcVal}${unitStr}`
           }
         } else {
           let valDisplay = '-'

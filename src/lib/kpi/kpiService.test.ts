@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { KpiService } from '@/lib/kpi/kpiService'
-import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, isIndicatorAnsweredForPeriod } from '@/lib/kpi/kpiTimeUtils'
+import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, isPercentageIndicator, calculateIndicatorResult } from '@/lib/kpi/kpiTimeUtils'
 
 // Mock audit logging
 vi.mock('@/lib/audit', () => ({
@@ -410,4 +410,86 @@ describe('KpiService with Mock QueryExecutor', () => {
     expect(indicators[0].entries?.map(e => e.periodKey)).toEqual(['M01', 'M02'])
   })
 
+  it('correctly identifies percentage vs non-percentage (average/ratio) indicators', () => {
+    // Percentage indicators
+    expect(isPercentageIndicator({ title: 'ร้อยละการผ่าตัดคลอด', targetUnit: '%' })).toBe(true)
+    expect(isPercentageIndicator({ title: 'อัตราการติดเชื้อ', targetUnit: null })).toBe(true)
+    expect(isPercentageIndicator({ title: 'ร้อยละความพึงพอใจ', targetUnit: null })).toBe(true)
+
+    // Non-percentage indicators (average / duration / ratio)
+    expect(isPercentageIndicator({
+      title: 'ค่าเฉลี่ยระยะเวลาการเข้ารับ-ออกจากบริการของผู้ป่วยที่มารับบริการที่ห้องฉุกเฉิน',
+      targetUnit: null,
+      numeratorName: 'ระยะเวลา (นาที) รวมทั้งหมดของผู้ป่วยฉุกเฉินมาก',
+      denominatorName: 'จำนวนผู้ป่วยฉุกเฉินมาก (คน) ทั้งหมด'
+    })).toBe(false)
+
+    expect(isPercentageIndicator({
+      title: 'ระยะเวลาเฉลี่ยในการเรียกเก็บหนี้กองทุนหลักประกันสุขภาพถ้วนหน้า',
+      targetUnit: 'วัน'
+    })).toBe(false)
+
+    expect(isPercentageIndicator({
+      title: 'อัตราส่วนการขอใช้โลหิตต่อการใช้โลหิตจริง (Crossmatch-to-Transfusion Ratio: C:T Ratio)',
+      targetUnit: null
+    })).toBe(false)
+  })
+
+  it('correctly calculates results without multiplying by 100 for average indicators', async () => {
+    // 13770 / 102 should be 135 (not 13500)
+    expect(calculateIndicatorResult(13770, 102, false)).toBe(135)
+    // Percentage should multiply by 100
+    expect(calculateIndicatorResult(45, 50, true)).toBe(90)
+
+    const mockDb: any[] = []
+    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
+      if (sql.includes('FROM kpi_indicators i')) {
+        return [{
+          id: 91,
+          topicId: 1,
+          sequence: '53',
+          category: 'หมวดที่ 1',
+          subcategory: 'การดูแลผู้ป่วยฉุกเฉิน',
+          code: 'HR-EMC-0101',
+          oldCode: 'CE0102',
+          frequency: 'รายเดือน',
+          title: 'ค่าเฉลี่ยระยะเวลาการเข้ารับ-ออกจากบริการของผู้ป่วยที่มารับบริการที่ห้องฉุกเฉิน',
+          numeratorName: 'ระยะเวลา (นาที) รวมทั้งหมด',
+          denominatorName: 'จำนวนผู้ป่วยฉุกเฉินมาก (คน)',
+          targetRaw: null,
+          targetOperator: null,
+          targetValue: null,
+          targetUnit: null,
+          responsibleName: 'ภูนนท์',
+          indicatorType: 'HA',
+          displayOrder: 91,
+          created_at: '2026-10-22',
+          updated_at: '2026-10-22',
+        }]
+      }
+      if (sql.includes('SELECT id FROM kpi_entries')) {
+        return []
+      }
+      if (sql.includes('INSERT INTO kpi_entries')) {
+        mockDb.push(params)
+        return { insertId: 101 }
+      }
+      return []
+    })
+
+    const entry = await KpiService.saveEntry({
+      indicatorId: 91,
+      fiscalYear: '2570',
+      periodKey: 'M01',
+      periodLabel: 'ตุลาคม',
+      numeratorValue: 13770,
+      denominatorValue: 102,
+      isAdmin: true,
+      recordedByName: 'ภูนนท์'
+    }, mockExecutor)
+
+    expect(entry.resultValue).toBe(135)
+    expect(entry.status).toBe('WAITING_TARGET')
+  })
 })
+

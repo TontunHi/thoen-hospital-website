@@ -1,6 +1,6 @@
 import { queryMemberDb } from '@/lib/memberDb'
 import { logAudit } from '@/lib/audit'
-import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, matchesPeriodKey } from './kpiTimeUtils'
+import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, matchesPeriodKey, isPercentageIndicator, calculateIndicatorResult } from './kpiTimeUtils'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 
@@ -400,7 +400,12 @@ export class KpiService {
         // Handle case where resultValue was null but 0/0 or num/den was recorded
         if (resVal === null && numVal !== null && denVal !== null) {
           if (denVal > 0) {
-            resVal = parseFloat(((numVal / denVal) * 100).toFixed(2))
+            const isPct = isPercentageIndicator({
+              title: ind.title,
+              targetUnit: ind.targetUnit,
+              numeratorName: ind.numeratorName,
+            })
+            resVal = calculateIndicatorResult(numVal, denVal, isPct)
           } else if (denVal === 0 && numVal === 0) {
             resVal = 0
             if (entryStatus === 'PENDING') {
@@ -541,7 +546,12 @@ export class KpiService {
 
         if (resVal === null && numVal !== null && denVal !== null) {
           if (denVal > 0) {
-            resVal = parseFloat(((numVal / denVal) * 100).toFixed(2))
+            const isPct = isPercentageIndicator({
+              title: r.title,
+              targetUnit: r.targetUnit,
+              numeratorName: r.numeratorName,
+            })
+            resVal = calculateIndicatorResult(numVal, denVal, isPct)
           } else if (denVal === 0 && numVal === 0) {
             resVal = 0
             if (entryStatus === 'PENDING') {
@@ -626,7 +636,7 @@ export class KpiService {
     // Ensure canonical Thai period label
     const safePeriodLabel = cleanPeriodLabel(input.periodLabel, input.periodKey, indicator.frequency)
 
-    // Auto-calculate percentage if numerator and denominator provided and resultValue not set
+    // Auto-calculate if numerator and denominator provided and resultValue not set
     let computedResult = input.resultValue
     let isZeroDenominator = false
     const hasNum = input.numeratorValue !== undefined && input.numeratorValue !== null
@@ -635,7 +645,12 @@ export class KpiService {
     if (hasNum && hasDen) {
       if (input.denominatorValue! > 0) {
         if (computedResult === undefined || computedResult === null) {
-          computedResult = parseFloat(((input.numeratorValue! / input.denominatorValue!) * 100).toFixed(2))
+          const isPct = isPercentageIndicator({
+            title: indicator.title,
+            targetUnit: indicator.targetUnit,
+            numeratorName: indicator.numeratorName,
+          })
+          computedResult = calculateIndicatorResult(input.numeratorValue!, input.denominatorValue!, isPct)
         }
       } else if (input.denominatorValue === 0 && input.numeratorValue === 0) {
         computedResult = 0
