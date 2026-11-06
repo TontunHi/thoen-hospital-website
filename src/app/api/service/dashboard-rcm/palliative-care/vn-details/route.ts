@@ -47,6 +47,15 @@ export async function GET(request: Request) {
       )
     }
 
+    if (details.header?.hn) {
+      const { LtcRegistryService } = await import('@/lib/clinical/ltcRegistryService')
+      try {
+        details.header.isLtc = await LtcRegistryService.isPatientInLtc(details.header.hn)
+      } catch (err) {
+        logger.warn({ err }, 'Failed to check patient LTC status for VN details')
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: details,

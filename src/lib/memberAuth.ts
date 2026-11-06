@@ -55,6 +55,9 @@ export type MemberPermission =
   | 'view_palliative_registry'
   | 'edit_palliative_registry'
   | 'manage_palliative_registry'
+  | 'view_ltc_registry'
+  | 'edit_ltc_registry'
+  | 'manage_ltc_registry'
 
 export interface MemberDto {
   id: number

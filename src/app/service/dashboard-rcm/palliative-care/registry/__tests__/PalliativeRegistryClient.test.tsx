@@ -87,7 +87,7 @@ describe('PalliativeRegistryClient Component', () => {
   it('renders title, stats, and patient table correctly with Clinic Palliative Care status & Rep', async () => {
     render(<PalliativeRegistryClient userRole="admin" />)
 
-    expect(screen.getByText('ทะเบียน Palliative Care')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'ทะเบียน Palliative Care' })).toBeInTheDocument()
     expect(screen.getByText('REGISTRY')).toBeInTheDocument()
 
     await waitFor(() => {
@@ -305,9 +305,17 @@ describe('PalliativeRegistryClient Component', () => {
 
     vi.mocked(global.fetch).mockImplementation(((url: any) => {
       if (typeof url === 'string' && url.includes('/api/service/dashboard-rcm/palliative-care/registry')) {
+        let filtered = multiMockData.items
+        if (url.includes('color=PINK')) {
+          filtered = multiMockData.items.filter((i: any) => i.deathDate)
+        } else if (url.includes('color=GREEN')) {
+          filtered = multiMockData.items.filter((i: any) => !i.deathDate && (i.visit1Compensated > 0 || i.visit2Compensated > 0))
+        } else if (url.includes('color=ORANGE')) {
+          filtered = multiMockData.items.filter((i: any) => !i.deathDate && i.visit1Date && !i.visit1Compensated)
+        }
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(multiMockData),
+          json: () => Promise.resolve({ ...multiMockData, items: filtered, total: filtered.length }),
         })
       }
       return Promise.reject(new Error('not found'))
@@ -325,23 +333,29 @@ describe('PalliativeRegistryClient Component', () => {
     const select = screen.getByLabelText('กรองสถานะเงินชดเชย')
     fireEvent.change(select, { target: { value: 'PINK' } })
 
-    expect(screen.getByText('คนไข้ชมพู เสียชีวิต')).toBeInTheDocument()
-    expect(screen.queryByText('คนไข้เขียว ได้เงิน')).toBeNull()
-    expect(screen.queryByText('คนไข้ส้ม รอชดเชย')).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByText('คนไข้ชมพู เสียชีวิต')).toBeInTheDocument()
+      expect(screen.queryByText('คนไข้เขียว ได้เงิน')).toBeNull()
+      expect(screen.queryByText('คนไข้ส้ม รอชดเชย')).toBeNull()
+    })
 
     // Select Paid/Green option
     fireEvent.change(select, { target: { value: 'GREEN' } })
 
-    expect(screen.getByText('คนไข้เขียว ได้เงิน')).toBeInTheDocument()
-    expect(screen.queryByText('คนไข้ชมพู เสียชีวิต')).toBeNull()
-    expect(screen.queryByText('คนไข้ส้ม รอชดเชย')).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByText('คนไข้เขียว ได้เงิน')).toBeInTheDocument()
+      expect(screen.queryByText('คนไข้ชมพู เสียชีวิต')).toBeNull()
+      expect(screen.queryByText('คนไข้ส้ม รอชดเชย')).toBeNull()
+    })
 
     // Select Pending/Orange option
     fireEvent.change(select, { target: { value: 'ORANGE' } })
 
-    expect(screen.getByText('คนไข้ส้ม รอชดเชย')).toBeInTheDocument()
-    expect(screen.queryByText('คนไข้เขียว ได้เงิน')).toBeNull()
-    expect(screen.queryByText('คนไข้ชมพู เสียชีวิต')).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByText('คนไข้ส้ม รอชดเชย')).toBeInTheDocument()
+      expect(screen.queryByText('คนไข้เขียว ได้เงิน')).toBeNull()
+      expect(screen.queryByText('คนไข้ชมพู เสียชีวิต')).toBeNull()
+    })
   })
 
   it('filters table rows by Fiscal Year (ปีงบประมาณ)', async () => {
@@ -368,9 +382,15 @@ describe('PalliativeRegistryClient Component', () => {
 
     vi.mocked(global.fetch).mockImplementation(((url: any) => {
       if (typeof url === 'string' && url.includes('/api/service/dashboard-rcm/palliative-care/registry')) {
+        let filtered = fyMockData.items
+        if (url.includes('fiscalYear=2568')) {
+          filtered = fyMockData.items.filter((i: any) => i.id === 101)
+        } else if (url.includes('fiscalYear=2569')) {
+          filtered = fyMockData.items.filter((i: any) => i.id === 102)
+        }
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(fyMockData),
+          json: () => Promise.resolve({ ...fyMockData, items: filtered, total: filtered.length }),
         })
       }
       return Promise.reject(new Error('not found'))
@@ -390,20 +410,26 @@ describe('PalliativeRegistryClient Component', () => {
     // Filter to FY 2568
     fireEvent.change(fySelect, { target: { value: '2568' } })
 
-    expect(screen.getByText('คนไข้ ปีงบ 2568')).toBeInTheDocument()
-    expect(screen.queryByText('คนไข้ ปีงบ 2569')).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByText('คนไข้ ปีงบ 2568')).toBeInTheDocument()
+      expect(screen.queryByText('คนไข้ ปีงบ 2569')).toBeNull()
+    })
 
     // Filter to FY 2569
     fireEvent.change(fySelect, { target: { value: '2569' } })
 
-    expect(screen.getByText('คนไข้ ปีงบ 2569')).toBeInTheDocument()
-    expect(screen.queryByText('คนไข้ ปีงบ 2568')).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByText('คนไข้ ปีงบ 2569')).toBeInTheDocument()
+      expect(screen.queryByText('คนไข้ ปีงบ 2568')).toBeNull()
+    })
 
     // Reset to ALL
     fireEvent.change(fySelect, { target: { value: 'ALL' } })
 
-    expect(screen.getByText('คนไข้ ปีงบ 2568')).toBeInTheDocument()
-    expect(screen.getByText('คนไข้ ปีงบ 2569')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('คนไข้ ปีงบ 2568')).toBeInTheDocument()
+      expect(screen.getByText('คนไข้ ปีงบ 2569')).toBeInTheDocument()
+    })
   })
 
   it('does not include "ยังไม่ได้ขึ้นทะเบียน Palliative Care" in the compensation status filter dropdown', async () => {

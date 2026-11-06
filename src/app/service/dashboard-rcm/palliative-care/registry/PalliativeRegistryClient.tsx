@@ -15,7 +15,14 @@ import {
   Check,
   Search,
 } from 'lucide-react'
-import { PalliativeRegistryItem, RegistryStats, VisitRepItem } from '@/lib/clinical/palliativeRegistryService'
+import {
+  PalliativeRegistryItem,
+  RegistryStats,
+  VisitRepItem,
+  ColorCounts,
+  calculateFiscalYear,
+  getItemFiscalYear,
+} from '@/lib/clinical/palliativeRegistryService'
 import { formatThaiDate } from '@/lib/formatters'
 import './page.css'
 
@@ -306,49 +313,6 @@ function EditableDeathCell({
   )
 }
 
-/**
- * Calculates Thai Fiscal Year (ปีงบประมาณ พ.ศ.) from date string.
- * Thai Fiscal Year runs from 1 October to 30 September of the following year.
- * e.g., 2026-10-19 -> 2570
- *       2026-07-04 -> 2569
- *       05/04/2024 -> 2567
- */
-export function calculateFiscalYear(dateStr?: string | null): number | null {
-  if (!dateStr || !dateStr.trim()) return null
-  const clean = dateStr.trim()
-
-  let year: number | null = null
-  let month: number | null = null
-
-  // 1. ISO format: YYYY-MM-DD or YYYY/MM/DD
-  const ymdMatch = clean.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
-  if (ymdMatch) {
-    year = parseInt(ymdMatch[1], 10)
-    month = parseInt(ymdMatch[2], 10)
-  } else {
-    // 2. DMY format: D/M/YYYY or DD/MM/YYYY
-    const dmyMatch = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
-    if (dmyMatch) {
-      month = parseInt(dmyMatch[2], 10)
-      year = parseInt(dmyMatch[3], 10)
-    }
-  }
-
-  if (!year || !month) return null
-  if (year > 2400) year -= 543
-
-  const beYear = year + 543
-  return month >= 10 ? beYear + 1 : beYear
-}
-
-export function getItemFiscalYear(item: PalliativeRegistryItem): number | null {
-  return (
-    calculateFiscalYear(item.registeredDate) ||
-    calculateFiscalYear(item.visit1Date) ||
-    calculateFiscalYear(item.createdAt ? String(item.createdAt) : null)
-  )
-}
-
 export default function PalliativeRegistryClient({
   userRole = 'staff',
   username = '',
@@ -361,8 +325,19 @@ export default function PalliativeRegistryClient({
     pendingRegistration: 0,
     claimed: 0,
     paid: 0,
+    waitingComp: 0,
+    deceased: 0,
     deny: 0,
   })
+  const [colorCounts, setColorCounts] = useState<ColorCounts>({
+    total: 0,
+    green: 0,
+    orange: 0,
+    orangeWaitingRep: 0,
+    pink: 0,
+  })
+  const [serverFiscalYears, setServerFiscalYears] = useState<number[]>([])
+  const [isExporting, setIsExporting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [permissions, setPermissions] = useState({
@@ -376,6 +351,8 @@ export default function PalliativeRegistryClient({
   const [filterFiscalYear, setFilterFiscalYear] = useState('ALL')
   const [filterRegStatus, setFilterRegStatus] = useState('ALL')
   const [filterColor, setFilterColor] = useState('ALL')
+  const [filterCompAmount, setFilterCompAmount] = useState('ALL')
+  const [filterCompVisits, setFilterCompVisits] = useState('ALL')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -459,6 +436,18 @@ export default function PalliativeRegistryClient({
         registrationStatus: data.isRegistered ? 'ดำเนินการเรียบร้อย' : 'ยังไม่ได้ดำเนินการ',
         deathDate: data.deathDate || prev.deathDate,
       }))
+
+      // Check if patient is in LTC
+      if (data.isLtc) {
+        setIsDuplicate(true)
+        setLookupFeedback({
+          type: 'error',
+          message:
+            data.ltcMessage ||
+            `⚠️ ผู้ป่วยรายนี้ (HN: ${data.hn} - ${data.patientName}) มีรายชื่อในทะเบียน Long Term Care (LTC) แล้ว ไม่สามารถลงทะเบียน Palliative Care ได้`,
+        })
+        return
+      }
 
       // Check if patient or AN is already in registry
       const alreadyInTable = items.some(
@@ -656,18 +645,30 @@ export default function PalliativeRegistryClient({
     }
   }
 
-  // Fetch list
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Fetch list with Server-side Two-Tier Query Architecture
   const fetchData = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setLoading(true)
     setError(null)
     try {
       const q = new URLSearchParams()
       if (search.trim()) q.set('search', search.trim())
+      if (filterFiscalYear !== 'ALL') q.set('fiscalYear', filterFiscalYear)
       if (filterRegStatus !== 'ALL') q.set('registrationStatus', filterRegStatus)
+      if (filterColor !== 'ALL') q.set('color', filterColor)
+      if (filterCompAmount !== 'ALL') q.set('compAmount', filterCompAmount)
+      if (filterCompVisits !== 'ALL') q.set('compVisits', filterCompVisits)
       q.set('page', page.toString())
       q.set('limit', '50')
 
-      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/registry?${q.toString()}`)
+      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/registry?${q.toString()}`, {
+        signal: controller.signal,
+      })
       const data = await res.json()
 
       if (!res.ok || !data.success) {
@@ -678,16 +679,22 @@ export default function PalliativeRegistryClient({
       setTotalPages(data.totalPages || 1)
       setTotalCount(data.total || 0)
       if (data.stats) setStats(data.stats)
+      if (data.colorCounts) setColorCounts(data.colorCounts)
+      if (Array.isArray(data.availableFiscalYears) && data.availableFiscalYears.length > 0) {
+        setServerFiscalYears(data.availableFiscalYears)
+      }
       if (data.permissions) setPermissions(data.permissions)
     } catch (err: any) {
+      if (err?.name === 'AbortError') return
       setError(err?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) setLoading(false)
     }
-  }, [search, filterRegStatus, page])
+  }, [search, filterFiscalYear, filterRegStatus, filterColor, filterCompAmount, filterCompVisits, page])
 
   useEffect(() => {
     fetchData()
+    return () => abortRef.current?.abort()
   }, [fetchData])
 
   // Active Thai Fiscal Year (e.g., Nov 2026 -> 2570)
@@ -699,155 +706,14 @@ export default function PalliativeRegistryClient({
     return m >= 10 ? be + 1 : be
   }, [])
 
-  // Dynamic available fiscal years
+  // Dynamic available fiscal years from entire registry database
   const availableFiscalYears = useMemo(() => {
-    const years = new Set<number>()
-    // Include active year and past 2 years as standard presets
-    years.add(activeFiscalYear)
-    years.add(activeFiscalYear - 1)
-    years.add(activeFiscalYear - 2)
+    if (serverFiscalYears.length > 0) return serverFiscalYears
+    return [activeFiscalYear, activeFiscalYear - 1, activeFiscalYear - 2]
+  }, [serverFiscalYears, activeFiscalYear])
 
-    for (const item of items) {
-      const fy = getItemFiscalYear(item)
-      if (fy) years.add(fy)
-    }
-    return Array.from(years).sort((a, b) => b - a)
-  }, [items, activeFiscalYear])
-
-  // Items filtered by Fiscal Year first
-  const itemsInFiscalYear = useMemo(() => {
-    if (filterFiscalYear === 'ALL') return items
-    const targetFy = parseInt(filterFiscalYear, 10)
-    return items.filter((item) => getItemFiscalYear(item) === targetFy)
-  }, [items, filterFiscalYear])
-
-  // Active Metrics reflecting selected fiscal year
-  const activeMetrics = useMemo(() => {
-    let registered = 0
-    let pendingRegistration = 0
-    let paid = 0
-    let waitingComp = 0
-    let deceased = 0
-
-    for (const item of itemsInFiscalYear) {
-      const isDeceased = Boolean(item.deathDate?.trim())
-      if (isDeceased) {
-        deceased++
-      }
-
-      const isReg = Boolean(
-        item.registeredDate || item.registrationStatus === 'ดำเนินการเรียบร้อย'
-      )
-      if (isReg) {
-        registered++
-      } else {
-        pendingRegistration++
-      }
-
-      let hasPaid = false
-      for (let v = 1; v <= 6; v++) {
-        if (((item as any)[`visit${v}Compensated`] || 0) > 0) {
-          hasPaid = true
-          break
-        }
-      }
-
-      if (!isDeceased) {
-        if (hasPaid) {
-          paid++
-        } else {
-          waitingComp++
-        }
-      }
-    }
-
-    return {
-      total: itemsInFiscalYear.length,
-      registered,
-      pendingRegistration,
-      paid,
-      waitingComp,
-      deceased,
-    }
-  }, [itemsInFiscalYear])
-
-  // Color classification & counts (scoped to selected fiscal year)
-  const colorCounts = useMemo(() => {
-    let green = 0
-    let orange = 0
-    let orangeWaitingRep = 0
-    let pink = 0
-
-    for (const item of itemsInFiscalYear) {
-      const isDeceased = Boolean(item.deathDate?.trim())
-      if (isDeceased) {
-        pink++
-        continue
-      }
-      let hasComp = false
-      if (item.visits && item.visits.length > 0) {
-        for (const v of item.visits) {
-          if ((v.compensated || 0) > 0) {
-            hasComp = true
-            break
-          }
-        }
-      } else {
-        for (let v = 1; v <= 6; v++) {
-          if (((item as any)[`visit${v}Compensated`] || 0) > 0) {
-            hasComp = true
-            break
-          }
-        }
-      }
-      const isRegistered = Boolean(
-        item.registeredDate || item.registrationStatus === 'ดำเนินการเรียบร้อย'
-      )
-
-      if (hasComp) {
-        green++
-      } else {
-        orange++
-        if (isRegistered) {
-          orangeWaitingRep++
-        }
-      }
-    }
-
-    return { green, orange, orangeWaitingRep, pink }
-  }, [itemsInFiscalYear])
-
-  // Filtered items based on color conditions (scoped to fiscal year)
-  const displayedItems = useMemo(() => {
-    return itemsInFiscalYear.filter((item) => {
-      const isDeceased = Boolean(item.deathDate?.trim())
-      let hasComp = false
-      if (item.visits && item.visits.length > 0) {
-        for (const v of item.visits) {
-          if ((v.compensated || 0) > 0) {
-            hasComp = true
-            break
-          }
-        }
-      } else {
-        for (let v = 1; v <= 6; v++) {
-          if (((item as any)[`visit${v}Compensated`] || 0) > 0) {
-            hasComp = true
-            break
-          }
-        }
-      }
-      const isRegistered = Boolean(
-        item.registeredDate || item.registrationStatus === 'ดำเนินการเรียบร้อย'
-      )
-
-      if (filterColor === 'PINK') return isDeceased
-      if (filterColor === 'GREEN') return !isDeceased && hasComp
-      if (filterColor === 'ORANGE') return !isDeceased && !hasComp
-      if (filterColor === 'ORANGE_WAITING_REP') return !isDeceased && isRegistered && !hasComp
-      return true
-    })
-  }, [itemsInFiscalYear, filterColor])
+  // Items are already filtered and paginated server-side
+  const displayedItems = items
 
   // Dynamic maximum visits across displayed items (minimum 6)
   const maxVisits = useMemo(() => {
@@ -1070,122 +936,239 @@ export default function PalliativeRegistryClient({
     }
   }
 
-  // Export CSV/Excel
-  const handleExportCSV = () => {
-    if (displayedItems.length === 0) {
-      alert('ไม่มีข้อมูลสำหรับส่งออก')
-      return
-    }
+  // Export CSV/Excel across ALL filtered items
+  const handleExportCSV = async () => {
+    setIsExporting(true)
+    try {
+      const q = new URLSearchParams()
+      if (search.trim()) q.set('search', search.trim())
+      if (filterFiscalYear !== 'ALL') q.set('fiscalYear', filterFiscalYear)
+      if (filterRegStatus !== 'ALL') q.set('registrationStatus', filterRegStatus)
+      if (filterColor !== 'ALL') q.set('color', filterColor)
+      if (filterCompAmount !== 'ALL') q.set('compAmount', filterCompAmount)
+      if (filterCompVisits !== 'ALL') q.set('compVisits', filterCompVisits)
+      q.set('exportAll', 'true')
 
-    const visitHeaders: string[] = []
-    for (let n = 1; n <= maxVisits; n++) {
-      visitHeaders.push(`วันเยี่ยมครั้งที่ ${n}`, `Rep เยี่ยม ${n}`, `ชดเชย เยี่ยม ${n} (บาท)`)
-    }
-
-    const headers = [
-      'ลำดับ',
-      'HN',
-      'ชื่อ-สกุลผู้ป่วย',
-      'ที่อยู่',
-      'เบอร์โทรผู้ป่วย/ญาติ',
-      'ICD10 รหัสโรคหลัก',
-      'ICD 10 รหัส Palliative',
-      'Project code Palliative',
-      'สถานะการขึ้นทะเบียน Palliative Care',
-      'วันที่ขึ้นทะเบียน Palliative Care',
-      ...visitHeaders,
-      'วันที่เสียชีวิต',
-    ]
-
-    const escapeCsv = (val: any) => {
-      if (val === null || val === undefined) return '""'
-      const str = String(val).replace(/"/g, '""')
-      return `"${str}"`
-    }
-
-    const formatVisitRep = (itemsList?: VisitRepItem[], fallbackRep?: string | null) => {
-      if (itemsList && itemsList.length > 0) {
-        return itemsList[0].rep
-      }
-      return fallbackRep || ''
-    }
-
-    const formatVisitComp = (itemsList?: VisitRepItem[], fallbackComp?: number | null) => {
-      if (itemsList && itemsList.length > 0) {
-        return itemsList[0].compensated
-      }
-      return fallbackComp ?? 0
-    }
-
-    const rows = displayedItems.map((item, idx) => {
-      const visitCols: any[] = []
-      for (let n = 1; n <= maxVisits; n++) {
-        const visitObj = item.visits?.find((v) => v.visitNo === n)
-        const date =
-          visitObj?.visitDate || (n <= 6 ? (item as any)[`visit${n}Date`] : '') || ''
-        const rep = visitObj?.rep || (n <= 6 ? (item as any)[`visit${n}Rep`] : '') || ''
-        const comp =
-          visitObj !== undefined && visitObj.compensated !== undefined
-            ? visitObj.compensated
-            : n <= 6
-              ? (item as any)[`visit${n}Compensated`]
-              : 0
-        const repItems = (
-          Array.isArray(visitObj?.repItems)
-            ? visitObj?.repItems
-            : Array.isArray((item as any)[`visit${n}RepItems`])
-              ? (item as any)[`visit${n}RepItems`]
-              : []
-        ) as VisitRepItem[]
-
-        const displayRep = formatVisitRep(repItems, rep)
-        const displayComp = formatVisitComp(repItems, comp)
-
-        visitCols.push(
-          escapeCsv(date),
-          escapeCsv(displayRep),
-          escapeCsv(displayComp)
-        )
+      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/registry?${q.toString()}`)
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'ไม่สามารถดึงข้อมูลสำหรับส่งออกได้')
       }
 
-      return [
-        idx + 1,
-        `="${item.hn}"`,
-        escapeCsv(item.patientName),
-        escapeCsv(item.address),
-        escapeCsv(item.phone),
-        escapeCsv(item.icd10Principal),
-        escapeCsv(item.icd10Palliative),
-        escapeCsv(item.projectCode),
-        escapeCsv(item.registeredDate ? 'ขึ้นทะเบียนแล้ว' : item.registrationStatus),
-        escapeCsv(item.registeredDate || ''),
-        ...visitCols,
-        escapeCsv(item.deathDate || ''),
+      const exportItems: PalliativeRegistryItem[] = data.items || []
+      if (exportItems.length === 0) {
+        alert('ไม่มีข้อมูลสำหรับส่งออก')
+        return
+      }
+
+      let exportMaxVisits = 6
+      for (const item of exportItems) {
+        if (item.visits && item.visits.length > 0) {
+          for (const v of item.visits) {
+            if (
+              v.visitNo > exportMaxVisits &&
+              (Boolean(v.visitDate?.trim()) || Boolean(v.rep) || (v.compensated ?? 0) > 0)
+            ) {
+              exportMaxVisits = v.visitNo
+            }
+          }
+        }
+      }
+
+      const visitHeaders: string[] = []
+      for (let n = 1; n <= exportMaxVisits; n++) {
+        visitHeaders.push(`วันเยี่ยมครั้งที่ ${n}`, `Rep เยี่ยม ${n}`, `ชดเชย เยี่ยม ${n} (บาท)`)
+      }
+
+      const headers = [
+        'ลำดับ',
+        'HN',
+        'ชื่อ-สกุลผู้ป่วย',
+        'ที่อยู่',
+        'เบอร์โทรผู้ป่วย/ญาติ',
+        'ICD10 รหัสโรคหลัก',
+        'ICD 10 รหัส Palliative',
+        'Project code Palliative',
+        'สถานะการขึ้นทะเบียน Palliative Care',
+        'วันที่ขึ้นทะเบียน Palliative Care',
+        ...visitHeaders,
+        'วันที่เสียชีวิต',
       ]
-    })
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    const fySuffix = filterFiscalYear !== 'ALL' ? `_FY${filterFiscalYear}` : ''
-    link.setAttribute('download', `Palliative_Care_Registry${fySuffix}_${new Date().toISOString().slice(0, 10)}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+      const escapeCsv = (val: any) => {
+        if (val === null || val === undefined) return '""'
+        const str = String(val).replace(/"/g, '""')
+        return `"${str}"`
+      }
+
+      const formatVisitRep = (itemsList?: VisitRepItem[], fallbackRep?: string | null) => {
+        if (itemsList && itemsList.length > 0) {
+          return itemsList[0].rep
+        }
+        return fallbackRep || ''
+      }
+
+      const formatVisitComp = (itemsList?: VisitRepItem[], fallbackComp?: number | null) => {
+        if (itemsList && itemsList.length > 0) {
+          return itemsList[0].compensated
+        }
+        return fallbackComp ?? 0
+      }
+
+      const rows = exportItems.map((item, idx) => {
+        const visitCols: any[] = []
+        for (let n = 1; n <= exportMaxVisits; n++) {
+          const visitObj = item.visits?.find((v) => v.visitNo === n)
+          const date =
+            visitObj?.visitDate || (n <= 6 ? (item as any)[`visit${n}Date`] : '') || ''
+          const rep = visitObj?.rep || (n <= 6 ? (item as any)[`visit${n}Rep`] : '') || ''
+          const comp =
+            visitObj !== undefined && visitObj.compensated !== undefined
+              ? visitObj.compensated
+              : n <= 6
+                ? (item as any)[`visit${n}Compensated`]
+                : 0
+          const repItems = (
+            Array.isArray(visitObj?.repItems)
+              ? visitObj?.repItems
+              : Array.isArray((item as any)[`visit${n}RepItems`])
+                ? (item as any)[`visit${n}RepItems`]
+                : []
+          ) as VisitRepItem[]
+
+          const displayRep = formatVisitRep(repItems, rep)
+          const displayComp = formatVisitComp(repItems, comp)
+
+          visitCols.push(
+            escapeCsv(date),
+            escapeCsv(displayRep),
+            escapeCsv(displayComp)
+          )
+        }
+
+        return [
+          idx + 1,
+          `="${item.hn}"`,
+          escapeCsv(item.patientName),
+          escapeCsv(item.address),
+          escapeCsv(item.phone),
+          escapeCsv(item.icd10Principal),
+          escapeCsv(item.icd10Palliative),
+          escapeCsv(item.projectCode),
+          escapeCsv(item.registeredDate ? 'ขึ้นทะเบียนแล้ว' : item.registrationStatus),
+          escapeCsv(item.registeredDate || ''),
+          ...visitCols,
+          escapeCsv(item.deathDate || ''),
+        ]
+      })
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      const fySuffix = filterFiscalYear !== 'ALL' ? `_FY${filterFiscalYear}` : ''
+      link.setAttribute('download', `Palliative_Care_Registry${fySuffix}_${new Date().toISOString().slice(0, 10)}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      alert(err?.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   const canEdit = permissions.canEdit || permissions.canManage
 
+  // Card click filtering handlers & active state checks
+  const handleCardClick = (
+    cardType: 'total' | 'registered' | 'pending' | 'paid' | 'waiting' | 'deceased'
+  ) => {
+    setPage(1)
+    if (cardType === 'total') {
+      setFilterRegStatus('ALL')
+      setFilterColor('ALL')
+    } else if (cardType === 'registered') {
+      setFilterRegStatus((prev) => (prev === 'ดำเนินการเรียบร้อย' ? 'ALL' : 'ดำเนินการเรียบร้อย'))
+      setFilterColor('ALL')
+    } else if (cardType === 'pending') {
+      setFilterRegStatus((prev) => (prev === 'ยังไม่ได้ดำเนินการ' ? 'ALL' : 'ยังไม่ได้ดำเนินการ'))
+      setFilterColor('ALL')
+    } else if (cardType === 'paid') {
+      setFilterColor((prev) => (prev === 'GREEN' ? 'ALL' : 'GREEN'))
+      setFilterRegStatus('ALL')
+    } else if (cardType === 'waiting') {
+      setFilterColor((prev) => (prev === 'ORANGE' ? 'ALL' : 'ORANGE'))
+      setFilterRegStatus('ALL')
+    } else if (cardType === 'deceased') {
+      setFilterColor((prev) => (prev === 'PINK' ? 'ALL' : 'PINK'))
+      setFilterRegStatus('ALL')
+    }
+  }
+
+  const isTotalActive = filterRegStatus === 'ALL' && filterColor === 'ALL'
+  const isRegisteredActive = filterRegStatus === 'ดำเนินการเรียบร้อย'
+  const isPendingActive = filterRegStatus === 'ยังไม่ได้ดำเนินการ'
+  const isPaidActive = filterColor === 'GREEN'
+  const isWaitingActive = filterColor === 'ORANGE'
+  const isDeceasedActive = filterColor === 'PINK'
+  const hasActiveFilters = Boolean(
+    search.trim() ||
+      filterFiscalYear !== 'ALL' ||
+      filterColor !== 'ALL' ||
+      filterRegStatus !== 'ALL' ||
+      filterCompAmount !== 'ALL' ||
+      filterCompVisits !== 'ALL'
+  )
+
+  const handleClearAllFilters = () => {
+    setSearch('')
+    setFilterFiscalYear('ALL')
+    setFilterColor('ALL')
+    setFilterRegStatus('ALL')
+    setFilterCompAmount('ALL')
+    setFilterCompVisits('ALL')
+    setPage(1)
+  }
+
   return (
     <div className="pcr-container">
-      {/* 0. Back link */}
-      <div>
+      {/* 0. Back link & Registry Tabs */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
         <Link href="/service/dashboard-rcm/palliative-care/pc-1" className="pcr-back-link">
           ← กลับแดชบอร์ด Palliative Care
         </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'var(--pc-surface)', padding: '0.35rem', borderRadius: 10, border: '1px solid var(--pc-border)' }}>
+          <Link
+            href="/service/dashboard-rcm/palliative-care/registry"
+            style={{
+              padding: '0.45rem 1rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'var(--pc-accent-dark)',
+              background: 'var(--pc-accent-tint)',
+              borderRadius: 7,
+              textDecoration: 'none',
+            }}
+          >
+            ทะเบียน Palliative Care
+          </Link>
+          <Link
+            href="/service/dashboard-rcm/palliative-care/ltc-registry"
+            style={{
+              padding: '0.45rem 1rem',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'var(--pc-muted)',
+              borderRadius: 7,
+              textDecoration: 'none',
+            }}
+          >
+            ทะเบียน Long Term Care (LTC)
+          </Link>
+        </div>
       </div>
 
       {/* 1. Header */}
@@ -1224,10 +1207,15 @@ export default function PalliativeRegistryClient({
             type="button"
             className="pcr-btn pcr-btn-secondary"
             onClick={handleExportCSV}
-            title="ส่งออกไฟล์ Excel / CSV"
+            disabled={isExporting}
+            title="ส่งออกไฟล์ Excel / CSV ทั้งหมดตาม Filter"
           >
-            <Download size={15} />
-            ส่งออก Excel
+            {isExporting ? (
+              <RefreshCw size={15} className="animate-spin" />
+            ) : (
+              <Download size={15} />
+            )}
+            {isExporting ? 'กำลังส่งออก...' : 'ส่งออก Excel'}
           </button>
 
           {canEdit && (
@@ -1242,52 +1230,93 @@ export default function PalliativeRegistryClient({
         </div>
       </div>
 
-      {/* 3. Consolidated Executive Metric Strip */}
-      <div className="pcr-metric-strip">
-        <div className="pcr-metric-cell">
+      {/* 3. Consolidated Executive Metric Strip (Interactive Cards) */}
+      <div className="pcr-metric-strip" role="region" aria-label="สรุปสถิติผู้ป่วยและตัวกรองด่วน">
+        <button
+          type="button"
+          className={`pcr-metric-cell pcr-metric-cell-btn ${isTotalActive ? 'is-active is-active-total' : ''}`}
+          onClick={() => handleCardClick('total')}
+          title={isTotalActive ? 'แสดงผู้ป่วยทั้งหมด' : 'คลิกเพื่อดูผู้ป่วยทั้งหมด'}
+          aria-pressed={isTotalActive}
+        >
           <span className="pcr-metric-label">
             ผู้ป่วยในทะเบียน{filterFiscalYear !== 'ALL' ? ` (ปีงบ ${filterFiscalYear})` : 'ทั้งหมด'}
           </span>
           <span className="pcr-metric-val">
-            {activeMetrics.total.toLocaleString()}
+            {stats.total.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
-        </div>
-        <div className="pcr-metric-cell">
+        </button>
+
+        <button
+          type="button"
+          className={`pcr-metric-cell pcr-metric-cell-btn ${isRegisteredActive ? 'is-active is-active-registered' : ''}`}
+          onClick={() => handleCardClick('registered')}
+          title={isRegisteredActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ขึ้นทะเบียนแล้ว'}
+          aria-pressed={isRegisteredActive}
+        >
           <span className="pcr-metric-label">ขึ้นทะเบียน Palliative Care แล้ว</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-teal-text)' }}>
-            {activeMetrics.registered.toLocaleString()}
+            {stats.registered.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
-        </div>
-        <div className="pcr-metric-cell">
+        </button>
+
+        <button
+          type="button"
+          className={`pcr-metric-cell pcr-metric-cell-btn ${isPendingActive ? 'is-active is-active-pending' : ''}`}
+          onClick={() => handleCardClick('pending')}
+          title={isPendingActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ยังไม่ขึ้นทะเบียน'}
+          aria-pressed={isPendingActive}
+        >
           <span className="pcr-metric-label">ยังไม่ขึ้นทะเบียน Palliative Care</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-amber-text)' }}>
-            {activeMetrics.pendingRegistration.toLocaleString()}
+            {stats.pendingRegistration.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
-        </div>
-        <div className="pcr-metric-cell">
+        </button>
+
+        <button
+          type="button"
+          className={`pcr-metric-cell pcr-metric-cell-btn ${isPaidActive ? 'is-active is-active-paid' : ''}`}
+          onClick={() => handleCardClick('paid')}
+          title={isPaidActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ได้รับเงินชดเชยแล้ว'}
+          aria-pressed={isPaidActive}
+        >
           <span className="pcr-metric-label">ได้รับเงินชดเชยแล้ว</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-teal-text)' }}>
-            {activeMetrics.paid.toLocaleString()}
+            {stats.paid.toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
-        </div>
-        <div className="pcr-metric-cell">
+        </button>
+
+        <button
+          type="button"
+          className={`pcr-metric-cell pcr-metric-cell-btn ${isWaitingActive ? 'is-active is-active-waiting' : ''}`}
+          onClick={() => handleCardClick('waiting')}
+          title={isWaitingActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่รอผลชดเชย'}
+          aria-pressed={isWaitingActive}
+        >
           <span className="pcr-metric-label">รอผลชดเชย</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-amber-text)' }}>
-            {activeMetrics.waitingComp.toLocaleString()}
+            {(stats.waitingComp ?? 0).toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
-        </div>
-        <div className="pcr-metric-cell">
+        </button>
+
+        <button
+          type="button"
+          className={`pcr-metric-cell pcr-metric-cell-btn ${isDeceasedActive ? 'is-active is-active-deceased' : ''}`}
+          onClick={() => handleCardClick('deceased')}
+          title={isDeceasedActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่เสียชีวิต'}
+          aria-pressed={isDeceasedActive}
+        >
           <span className="pcr-metric-label">ผู้ป่วยเสียชีวิต</span>
           <span className="pcr-metric-val" style={{ color: 'var(--pc-rose-text)' }}>
-            {activeMetrics.deceased.toLocaleString()}
+            {(stats.deceased ?? 0).toLocaleString()}
             <span className="pcr-metric-unit">คน</span>
           </span>
-        </div>
+        </button>
       </div>
 
       {/* 4. Toolbar & Filters */}
@@ -1332,7 +1361,7 @@ export default function PalliativeRegistryClient({
           }}
           aria-label="กรองสถานะเงินชดเชย"
         >
-          <option value="ALL">สถานะเงินชดเชย: ทั้งหมด ({itemsInFiscalYear.length})</option>
+          <option value="ALL">สถานะเงินชดเชย: ทั้งหมด ({colorCounts.total || stats.total})</option>
           <option value="GREEN">ได้รับเงินชดเชยแล้ว ({colorCounts.green})</option>
           <option value="ORANGE">ยังไม่ได้รับเงินชดเชย ({colorCounts.orange})</option>
           <option value="ORANGE_WAITING_REP">ขึ้นทะเบียนแล้ว แต่ยังรอเงินชดเชย ({colorCounts.orangeWaitingRep})</option>
@@ -1352,6 +1381,61 @@ export default function PalliativeRegistryClient({
           <option value="ดำเนินการเรียบร้อย">ขึ้นทะเบียนแล้ว</option>
           <option value="ยังไม่ได้ดำเนินการ">ยังไม่ได้ดำเนินการ / รอ</option>
         </select>
+
+        {/* New Filter: จำนวนเงินที่ชดเชย */}
+        <select
+          className="pcr-select"
+          value={filterCompAmount}
+          onChange={(e) => {
+            setFilterCompAmount(e.target.value)
+            setPage(1)
+          }}
+          aria-label="กรองจำนวนเงินที่ชดเชย"
+          title="กรองตามจำนวนเงินชดเชยรวมของผู้ป่วย"
+        >
+          <option value="ALL">จำนวนเงินชดเชย: ทั้งหมด</option>
+          <option value="PAID">มีเงินชดเชย (&gt; 0 บาท)</option>
+          <option value="ZERO">ไม่มียอดเงินชดเชย (0 บาท)</option>
+          <option value="1_1000">1 - 1,000 บาท</option>
+          <option value="1001_3000">1,001 - 3,000 บาท</option>
+          <option value="3001_5000">3,001 - 5,000 บาท</option>
+          <option value="5001_10000">5,001 - 10,000 บาท</option>
+          <option value="OVER_10000">มากกว่า 10,000 บาท</option>
+        </select>
+
+        {/* New Filter: จำนวนครั้งเยี่ยมที่บ้าน เฉพาะที่มีเงินชดเชยเท่านั้น */}
+        <select
+          className="pcr-select"
+          value={filterCompVisits}
+          onChange={(e) => {
+            setFilterCompVisits(e.target.value)
+            setPage(1)
+          }}
+          aria-label="กรองจำนวนครั้งเยี่ยมเฉพาะที่มีเงินชดเชย"
+          title="กรองจำนวนครั้งเยี่ยมบ้านเฉพาะครั้งที่ได้รับเงินชดเชย"
+        >
+          <option value="ALL">ครั้งเยี่ยมที่มีชดเชย: ทั้งหมด</option>
+          <option value="HAS_COMP">มีครั้งเยี่ยมที่ได้ชดเชย (&ge; 1 ครั้ง)</option>
+          <option value="0">ไม่มีครั้งเยี่ยมที่ได้ชดเชย (0 ครั้ง)</option>
+          <option value="1">ได้เงินชดเชย 1 ครั้ง</option>
+          <option value="2">ได้เงินชดเชย 2 ครั้ง</option>
+          <option value="3">ได้เงินชดเชย 3 ครั้ง</option>
+          <option value="4">ได้เงินชดเชย 4 ครั้ง</option>
+          <option value="5">ได้เงินชดเชย 5 ครั้ง</option>
+          <option value="6">ได้เงินชดเชย 6 ครั้ง</option>
+          <option value="7_PLUS">ได้เงินชดเชย 7 ครั้งขึ้นไป</option>
+        </select>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            className="pcr-btn pcr-btn-secondary"
+            onClick={handleClearAllFilters}
+            title="ล้างตัวกรองทั้งหมด"
+          >
+            ล้างตัวกรอง
+          </button>
+        )}
 
         <button
           type="button"
@@ -1503,6 +1587,25 @@ export default function PalliativeRegistryClient({
                         style={{ fontWeight: 600, minWidth: 135, textAlign: 'left' }}
                       >
                         {item.patientName}
+                        {item.isLtc && (
+                          <span
+                            style={{
+                              marginLeft: '0.35rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: '#0284c7',
+                              backgroundColor: '#e0f2fe',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '4px',
+                              display: 'inline-block',
+                              verticalAlign: 'middle',
+                              border: '1px solid #bae6fd',
+                            }}
+                            title="ผู้ป่วยรายนี้มีรายชื่อในทะเบียน Long Term Care (LTC)"
+                          >
+                            (LTC)
+                          </span>
+                        )}
                       </td>
                       <td
                         style={{ maxWidth: 190, fontSize: '0.8rem', color: 'var(--pc-ink-2)' }}
@@ -1651,17 +1754,7 @@ export default function PalliativeRegistryClient({
         {/* 7. Pagination */}
         <div className="pcr-pagination">
           <div>
-            {filterColor !== 'ALL'
-              ? `แสดง ${displayedItems.length} จาก ${items.length} รายการในหน้านี้ (สถานะ: ${
-                  filterColor === 'GREEN'
-                    ? 'ได้รับเงินชดเชยแล้ว'
-                    : filterColor === 'ORANGE'
-                      ? 'ยังไม่ได้รับเงินชดเชย'
-                      : filterColor === 'ORANGE_WAITING_REP'
-                        ? 'ขึ้นทะเบียนแล้ว แต่ยังรอเงินชดเชย'
-                        : 'ผู้ป่วยเสียชีวิต'
-                })`
-              : `แสดง ${displayedItems.length} จาก ${totalCount} รายการ (หน้า ${page} / ${totalPages})`}
+            แสดง {items.length} จาก {totalCount.toLocaleString()} รายการ (หน้า {page} / {totalPages})
           </div>
           <div className="pcr-page-btns">
             <button

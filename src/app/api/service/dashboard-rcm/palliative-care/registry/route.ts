@@ -76,13 +76,18 @@ export async function GET(req: NextRequest) {
     const registrationStatus = searchParams.get('registrationStatus') || undefined
     const claimStatus = searchParams.get('claimStatus') || undefined
     const claimResult = searchParams.get('claimResult') || undefined
+    const fiscalYear = searchParams.get('fiscalYear') || undefined
+    const color = searchParams.get('color') || undefined
+    const compAmount = searchParams.get('compAmount') || undefined
+    const compVisits = searchParams.get('compVisits') || undefined
+    const exportAll = searchParams.get('exportAll') === 'true'
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = parseInt(searchParams.get('limit') || '50', 10)
 
     logThrottledAudit(
       'READ',
       'palliative_care_registries',
-      `Viewed Palliative Care Registry list (search: ${search || 'none'})`,
+      `Viewed Palliative Care Registry list (search: ${search || 'none'}, fy: ${fiscalYear || 'all'})`,
       { username: member.username, email: member.email }
     ).catch((err) => logger.error({ err }, 'Audit log failed'))
 
@@ -91,6 +96,11 @@ export async function GET(req: NextRequest) {
       registrationStatus,
       claimStatus,
       claimResult,
+      fiscalYear,
+      color,
+      compAmount,
+      compVisits,
+      exportAll,
       page,
       limit,
     })

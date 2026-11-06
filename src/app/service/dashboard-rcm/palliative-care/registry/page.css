@@ -290,6 +290,63 @@
   border-right: none;
 }
 
+.pcr-metric-cell-btn {
+  text-align: left;
+  cursor: pointer;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  font-family: inherit;
+  transition: all 0.15s ease-in-out;
+  position: relative;
+  outline: none;
+}
+
+.pcr-metric-cell-btn:hover {
+  background: var(--pc-surface-alt);
+}
+
+.pcr-metric-cell-btn:focus-visible {
+  outline: 2px solid var(--pc-accent);
+  outline-offset: -2px;
+  z-index: 2;
+}
+
+.pcr-metric-cell-btn.is-active-total {
+  box-shadow: inset 0 -3px 0 var(--pc-accent);
+  background: var(--pc-accent-tint);
+}
+
+.pcr-metric-cell-btn.is-active-registered {
+  box-shadow: inset 0 -3px 0 var(--pc-teal-text);
+  background: var(--pc-teal-bg);
+}
+
+.pcr-metric-cell-btn.is-active-pending {
+  box-shadow: inset 0 -3px 0 var(--pc-amber-text);
+  background: var(--pc-amber-bg);
+}
+
+.pcr-metric-cell-btn.is-active-paid {
+  box-shadow: inset 0 -3px 0 var(--pc-teal-text);
+  background: var(--pc-teal-bg);
+}
+
+.pcr-metric-cell-btn.is-active-waiting {
+  box-shadow: inset 0 -3px 0 var(--pc-amber-text);
+  background: var(--pc-amber-bg);
+}
+
+.pcr-metric-cell-btn.is-active-deceased {
+  box-shadow: inset 0 -3px 0 var(--pc-rose-text);
+  background: var(--pc-rose-bg);
+}
+
+.pcr-metric-cell-btn.is-active .pcr-metric-label {
+  font-weight: 700;
+  color: var(--pc-ink);
+}
+
 .pcr-metric-label {
   font-size: 0.8125rem;
   color: var(--pc-muted);

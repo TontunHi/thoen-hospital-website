@@ -30,6 +30,14 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
   // Direct register patient into Palliative Care registry without leaving page
   const handleDirectRegister = async () => {
     if (!data?.header?.hn || isRegistering || isRegisteredSuccess) return
+    if (data.header.isLtc) {
+      setPopupNotice({
+        type: 'warning',
+        title: 'ไม่สามารถลงทะเบียนได้',
+        message: 'ผู้ป่วยรายนี้เป็นผู้มีทะเบียนใน LTC แล้ว ไม่สามารถลงทะเบียน Palliative Care ได้',
+      })
+      return
+    }
     const targetHn = data.header.hn.trim()
     setIsRegistering(true)
 
@@ -50,6 +58,18 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
       }
 
       const lookupData = lookupJson.data
+
+      // Check LTC status from lookup
+      if (lookupData.isLtc) {
+        setPopupNotice({
+          type: 'warning',
+          title: 'ไม่สามารถลงทะเบียนได้',
+          message:
+            lookupData.ltcMessage ||
+            'ผู้ป่วยรายนี้เป็นผู้มีทะเบียนใน LTC แล้ว ไม่สามารถลงทะเบียน Palliative Care ได้',
+        })
+        return
+      }
 
       // Check if already in registry
       if (lookupData.isAlreadyInRegistry) {
@@ -195,6 +215,22 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
                 {data?.header && (
                   <span style={{ fontSize: '0.875rem', opacity: 0.9 }}>
                     ({data.header.sex} • อายุ {data.header.age} ปี)
+                    {data.header.isLtc && (
+                      <span
+                        style={{
+                          marginLeft: '0.45rem',
+                          color: '#b45309',
+                          fontWeight: 600,
+                          backgroundColor: '#fef3c7',
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '4px',
+                          display: 'inline-block',
+                          border: '1px solid #fde68a',
+                        }}
+                      >
+                        เป็นผู้มีทะเบียนใน LTC
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
@@ -630,21 +666,37 @@ export function VnDetailModal({ vn, onClose }: VnDetailModalProps) {
         <div className="vn-modal-footer">
           <button
             type="button"
-            className={`vn-btn-register ${isRegisteredSuccess ? 'is-success' : ''}`}
+            className={`vn-btn-register ${isRegisteredSuccess ? 'is-success' : ''} ${
+              data?.header?.isLtc ? 'is-disabled' : ''
+            }`}
             onClick={handleDirectRegister}
-            disabled={!data?.header?.hn || isRegistering || isRegisteredSuccess}
+            disabled={!data?.header?.hn || isRegistering || isRegisteredSuccess || Boolean(data?.header?.isLtc)}
             title={
-              isRegisteredSuccess
+              data?.header?.isLtc
+                ? 'ผู้ป่วยรายนี้มีรายชื่อในทะเบียน Long Term Care (LTC) แล้ว ไม่สามารถลงทะเบียน Palliative Care ได้'
+                : isRegisteredSuccess
                 ? 'ลงทะเบียนผู้ป่วยรายนี้เรียบร้อยแล้ว'
                 : data?.header?.hn
                 ? `ดึงข้อมูลและบันทึกลงทะเบียน HN: ${data.header.hn} เข้าสู่ระบบทันที`
                 : 'กำลังโหลดข้อมูล...'
+            }
+            style={
+              data?.header?.isLtc
+                ? {
+                    backgroundColor: '#e2e8f0',
+                    color: '#64748b',
+                    cursor: 'not-allowed',
+                    border: '1px solid #cbd5e1',
+                  }
+                : undefined
             }
           >
             {isRegistering
               ? 'กำลังลงทะเบียน...'
               : isRegisteredSuccess
               ? 'ลงทะเบียนแล้ว ✓'
+              : data?.header?.isLtc
+              ? 'มีทะเบียนใน LTC (ห้ามลงทะเบียน)'
               : 'เพิ่มลงทะเบียน'}
           </button>
           <button type="button" className="vn-btn-close" onClick={onClose}>

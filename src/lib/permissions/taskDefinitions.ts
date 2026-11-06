@@ -517,5 +517,41 @@ export const TASK_DEFINITIONS: TaskDefinition[] = [
       },
     ],
   },
+  {
+    id: 'LONG_TERM_CARE_REGISTRY',
+    name: 'งานทะเบียน Long Term Care (LTC)',
+    shortName: 'ทะเบียน LTC',
+    category: 'workflow',
+    categoryLabel: 'งานบริการ & กล่องงาน',
+    description: 'ระบบบันทึกและจัดการทะเบียนผู้ป่วย Long Term Care (LTC), คะแนน ADL, เขตพื้นที่ และการตรวจสอบข้ามระบบกับ Palliative Care',
+    iconName: 'ShieldCheck',
+    badgeColor: '#0284c7',
+    roles: [
+      {
+        roleType: 'view',
+        label: 'ผู้ดูข้อมูลทะเบียน Long Term Care (View)',
+        shortLabel: 'ดูทะเบียน LTC',
+        description: 'สามารถเปิดดูรายชื่อผู้ป่วย ค้นหา ดูข้อมูลการขึ้นทะเบียน LTC คะแนน ADL และเขตพื้นที่',
+        permissionKey: 'view_ltc_registry',
+        allowedActions: ['เปิดดูรายชื่อและข้อมูลทะเบียน LTC', 'ค้นหาและกรองข้อมูลผู้ป่วย LTC'],
+      },
+      {
+        roleType: 'edit',
+        label: 'เจ้าหน้าที่บันทึกข้อมูล Long Term Care (Edit)',
+        shortLabel: 'บันทึก/แก้ไขทะเบียน LTC',
+        description: 'สามารถเพิ่มผู้ป่วยใหม่เข้าสู่ทะเบียน LTC และแก้ไขคะแนน ADL หรือเขตพื้นที่',
+        permissionKey: 'edit_ltc_registry',
+        allowedActions: ['เพิ่มผู้ป่วยใหม่เข้าทะเบียน LTC', 'แก้ไขคะแนน ADL และเขตพื้นที่'],
+      },
+      {
+        roleType: 'manage',
+        label: 'ผู้ดูแลระบบทะเบียน Long Term Care (Manage)',
+        shortLabel: 'ผู้จัดการทะเบียน LTC',
+        description: 'หัวหน้างานหรือผู้ดูแลระบบ มีสิทธิ์เข้าถึงหน้าจัดการทะเบียน LTC ลบข้อมูลเคส และจัดการการตั้งค่าทั้งหมด',
+        permissionKey: 'manage_ltc_registry',
+        allowedActions: ['เข้าถึงหน้าทะเบียน LTC', 'เพิ่ม แก้ไข ลบ ข้อมูลทะเบียน LTC', 'ส่งออกข้อมูลทะเบียน LTC', 'จัดการการตั้งค่าและสิทธิ์'],
+      },
+    ],
+  },
 ]
 

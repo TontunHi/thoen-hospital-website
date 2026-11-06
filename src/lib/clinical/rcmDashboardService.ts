@@ -729,6 +729,7 @@ export interface VnClinicalDetailsHeader {
   pttypename: string
   department: string
   clinic: string
+  isLtc?: boolean
 }
 
 export interface VnClinicalDetails {

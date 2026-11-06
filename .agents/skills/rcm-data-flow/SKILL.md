@@ -21,6 +21,7 @@ description: Architecture and data-fetching patterns for RCM clinical dashboards
   - ส่งข้อมูลเฉพาะหน้าที่กำลังเปิดดูเท่านั้น
 - **Export Mode**:
   - เมื่อผู้ใช้กดปุ่มดาวน์โหลด CSV หรือ Excel ให้ส่ง `exportAll=true` เพื่อดึงข้อมูลเต็มเฉพาะจังหวะที่ส่งออกไฟล์
+  - สำหรับไฟล์ CSV ต้องใส่ UTF-8 BOM (`\uFEFF`) นำหน้าเสมอ เพื่อให้เปิดใน Microsoft Excel บน Windows ภาษาไทยได้ถูกต้องโดยไม่เป็นต่างดาว
 
 ---
 
@@ -28,30 +29,14 @@ description: Architecture and data-fetching patterns for RCM clinical dashboards
 
 อย่าปล่อยให้ Client Component เมานต์แบบว่างเปล่าแล้วหมุน Skeleton รอ Client ยิง API รอบแรก:
 
-1. ใน `page.tsx` (Server Component) ตรวจ Session และดึง Initial Data ประจำปีงบประมาณปัจจุบันส่งผ่าน Props
+1. ใน `page.tsx` (Server Component) ตรวจ Session และดึง Initial Data ประจำปีงบประมาณปัจจุบันส่งผ่าน Props (หรือให้ Client ดึงด้วย default fiscal range ทันที)
 2. ใน `*Client.tsx` กำหนด `useState(initialData || [])`
 3. ใน `useEffect` ครั้งแรก (First Mount) ให้ข้ามการยิง API ถ้ามี Initial Data อยู่แล้ว หน้าเว็บจะ **แสดงผลตัวเลขทันทีตั้งแต่ First Paint (Zero Skeleton)**
 4. การยิง `fetch()` ใน Client จะทำงานเฉพาะเมื่อผู้ใช้เปลี่ยน Filter หรือเปลี่ยนวันที่
 
-```tsx
-// page.tsx (Server Component)
-export default async function OpdPage() {
-  const session = await verifyMemberSession()
-  if (!session) redirect('/member/login')
-
-  const defaultRange = getDefaultFiscalYearDateRange()
-  const initialData = await RcmDashboardService.getOpdDepartmentSummary({
-    startDate: defaultRange.startDate,
-    endDate: defaultRange.endDate,
-  }).catch(() => [])
-
-  return <OpdClient initialData={initialData} initialRange={defaultRange} />
-}
-```
-
 ---
 
-## 3. ปีงบประมาณแบบไดนามิก (ห้าม Hardcode วันที่)
+## 3. ปีงบประมาณแบบไดนามิกและการจัดเรียงตัวเลือกช่วงเวลา
 
 ปีงบประมาณไทยเริ่ม **1 ตุลาคม ถึง 30 กันยายน** ของปีถัดไป:
 
@@ -63,6 +48,8 @@ export default async function OpdPage() {
   const ds1 = params.ds1 || defaultRange.startDate
   const ds2 = params.ds2 || defaultRange.endDate
   ```
+- **ลำดับมาตรฐานของแท็บช่วงเวลา (Date Selector Tab Order):**
+  เรียงแท็บตามลำดับนี้เสมอ: **1. กำหนดเอง (Custom)** &rarr; **2. เดือน (Monthly)** &rarr; **3. ปีงบประมาณ (Fiscal Year)**
 
 ---
 
@@ -74,7 +61,7 @@ export default async function OpdPage() {
 // *Client.tsx
 const abortRef = useRef<AbortController | null>(null)
 
-const fetchData = useCallback(async (start = ds1, end = ds2) => {
+const fetchData = useCallback(async (refresh = false) => {
   // 1. ตัด Request ก่อนหน้าที่ยังค้างอยู่
   abortRef.current?.abort()
   const controller = new AbortController()
@@ -92,7 +79,7 @@ const fetchData = useCallback(async (start = ds1, end = ds2) => {
   } finally {
     if (!controller.signal.aborted) setLoading(false)
   }
-}, [ds1, ds2])
+}, [ds1, ds2, cardFilter, search, sortBy, sortOrder, currentPage, pageSize])
 
 useEffect(() => {
   return () => abortRef.current?.abort() // Cleanup เมื่อ unmount
@@ -107,20 +94,46 @@ useEffect(() => {
 
 - ตรวจรูปแบบวันที่ `rcmDateRegex` (`YYYY-MM-DD`)
 - ตรวจ bounds ของตัวเลข (`page >= 1`, `pageSize` 10–500)
-- ใช้ `validateSearchParams(schema, searchParams)`
+- ตรวจ enum สำหรับ `cardFilter`, `searchField`, `sortBy`, `sortOrder`
 - หาก Validation ไม่ผ่าน ให้ return HTTP 400 พร้อมข้อความแจ้งเตือนทันที
-
-```typescript
-// route.ts
-const validation = validateSearchParams(opdDeptSummaryQuerySchema, searchParams)
-if (!validation.success) {
-  return NextResponse.json({ success: false, error: validation.error }, { status: 400 })
-}
-```
 
 ---
 
-## 6. ขจัด Mojibake & Encoding ใน SQL
+## 6. ข้อควรระวังในการแปลงคำสั่ง FoxPro เป็น MySQL Gateway (FoxPro Migration Rules)
+
+ระบบเดิมของโรงพยาบาลรันด้วย Visual FoxPro ซึ่งมีฟังก์ชันเฉพาะตัวและตารางชั่วคราว เมื่อแปลงมาเป็น SQL บน MySQL/MariaDB API Gateway ต้องปฏิบัติตามกฎดังนี้:
+
+1. **Authen Code ฟิลด์จริงคือ `cc.AuthenCode`:**
+   - ในสคริปต์ FoxPro จะเขียน `cc.claimcode authencode` เพราะสร้างตารางชั่วคราวชื่อ `tmpClaimCode`
+   - แต่ในฐานข้อมูลจริง ตารางคือ `rcmdb.authencode` และฟิลด์คือ **`cc.AuthenCode`**
+   - **ห้าม** ใช้ `cc.claimcode` เพราะจะเกิดข้อผิดพลาด `Unknown column 'cc.claimcode' in 'field list'` ทันที
+2. **การแปลงฟังก์ชัน Lookup และคำนวณอายุ:**
+   - `thaiage(pt.birthday, o.vstdate)` &rarr; `IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate))`
+   - `seeknames(pt.nationality, 'nation')` &rarr; `LEFT JOIN nationality nat ON nat.nationality = pt.nationality` แล้วใช้ `IFNULL(nat.name, pt.nationality)`
+   - `seeknames(o.pttype, 'pttype')` &rarr; `LEFT JOIN pttype ptt ON ptt.pttype = o.pttype`
+   - `seekname(o.main_dep, 'kskdepartment')` &rarr; `LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep`
+   - `seekname(o.spclty, 'spclty')` &rarr; `LEFT JOIN spclty spc ON spc.spclty = o.spclty`
+3. **การแปลงตารางสถานะการชดเชย (NHSO, REP, eClaim):**
+   - แปลงคำสั่ง `call createtempnhso(...)` / `call createtemprep(...)` / `call createtempeclaim(...)` เป็น Subquery JOIN:
+     - `rcmdb.repeclaim` (สถานะ 'NHSO :: มี Invoice แล้ว')
+     - `rcmdb.repdata` (สถานะ 'Rep :: มี Rep แล้ว' พร้อมดึง `fund`, `subfund`)
+     - `rcmdb.neweclaim nn ON nn.Seq = o.vn`
+     - `eclaimdb.m_registerdata m` พร้อม join `rcmdb.eclaimstatus ecs`
+   - รวมค่าชดเชยและสถานะด้วย:
+     `COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname)`
+     `COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep)`
+     `COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0)`
+4. **Timeout สำหรับรายงานกองทุน (90 วินาที):**
+   - การ Query ที่มีการ Join ข้อมูล `opitemrece` ข้ามช่วงเวลาหลายเดือนพร้อมตารางตอบรับ ต้องส่งออปชัน `{ timeoutMs: 90000 }` (90 วินาที) เสมอ เพื่อป้องกัน Gateway ตัดการเชื่อมต่อก่อนดึงข้อมูลเสร็จ
+5. **การตรวจสอบการ Map รหัส ADP (NHSO ADP Pre-Check):**
+   - ก่อนแสดงผลรายงานกองทุน ให้ตรวจตาราง `s_drugitems` เสมอ:
+     `SELECT icode, name, strength, nhso_adp_code FROM s_drugitems WHERE TRIM(nhso_adp_code) IN (...)`
+   - ฟังก์ชันตรวจสอบต้องรับพารามิเตอร์ `refresh?: boolean` เพื่อให้สามารถ Invalidate Cache ได้เมื่อกดรีเฟรช
+   - หากพบว่า `isMapped === false` ให้แสดง Warning Banner แจ้งเตือนเจ้าหน้าที่อย่างชัดเจนในหน้าเว็บ
+
+---
+
+## 7. ขจัด Mojibake & Encoding ใน SQL
 
 ฐานข้อมูล HOSxP ใช้ Charset `tis620` แต่ไฟล์ Node.js/TypeScript เป็น `utf8`:
 
@@ -133,7 +146,24 @@ if (!validation.success) {
 
 ---
 
-## 7. ความปลอดภัย & Audit Logging (PHI Compliance)
+## 8. การกรองข้อมูลผ่าน KPI Summary Cards (Card Filtering)
+
+หน้าจอรายงานกองทุนต้องออกแบบให้ผู้ใช้สามารถคลิกที่การ์ดสรุปยอดเพื่อกรองตารางได้ทันที:
+
+- **การ์ดมาตรฐานที่ต้องมี:**
+  1. ผู้รับบริการทั้งหมด (`ALL`)
+  2. ชดเชยแล้ว (`COMPENSATED`)
+  3. ยังไม่ชดเชย / รอชดเชย (`UNCOMPENSATED`)
+  4. มี Authen Code (`WITH_AUTHEN`)
+  5. ไม่มี Authen Code (`NO_AUTHEN`)
+  6. สิทธิบัตรทอง (`UC_ONLY`)
+- **พฤติกรรม UI:**
+  - การ์ดที่ถูกเลือกต้องมี Active Ring และตัวบอกสถานะ (Indicator line/color) อย่างชัดเจน
+  - เมื่อคลิกการ์ด ให้รีเซ็ตหน้าตารางกลับไปที่หน้าที่ 1 (`setCurrentPage(1)`) และส่ง `cardFilter` ไปยัง API หรือกรองใน Client
+
+---
+
+## 9. ความปลอดภัย & Audit Logging (PHI Compliance)
 
 - **Zero-DB**: ห้ามต่อ MySQL ตรงจาก Next.js ให้เรียกผ่าน Centralized API Gateway เสมอ
 - **Auth Double-Check**: ตรวจ Session และสิทธิ์ (`verifyMemberSession()`) ทั้งใน `page.tsx` และใน API `route.ts`
@@ -142,7 +172,7 @@ if (!validation.success) {
 
 ---
 
-## 8. การแสดงผลข้อมูลเต็มรูปแบบ (ไม่ต้องซ่อนหรือ Mask ข้อมูล)
+## 10. การแสดงผลข้อมูลเต็มรูปแบบ (ไม่ต้องซ่อนหรือ Mask ข้อมูล)
 
 ระบบในกลุ่ม Dashboard RCM เป็นระบบงานภายในเฉพาะเจ้าหน้าที่โรงพยาบาล (Internal Hospital Staff & Claim Auditors) ที่ผ่านการยืนยันตัวตนแล้ว:
 

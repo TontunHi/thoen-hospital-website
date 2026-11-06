@@ -23,6 +23,7 @@ import {
   Droplet,
   TestTube2,
   Heart,
+  Sparkles,
 } from 'lucide-react'
 
 export interface NavSubItem {
@@ -127,6 +128,12 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         label: 'ทะเบียน Palliative Care',
         badge: 'ทะเบียน',
         icon: HeartPulse,
+      },
+      {
+        href: '/service/dashboard-rcm/palliative-care/ltc-registry',
+        label: 'ทะเบียน Long Term Care (LTC)',
+        badge: 'LTC',
+        icon: ShieldCheck,
       },
     ],
   },
@@ -264,6 +271,19 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
             href: '/service/dashboard-rcm/funds/family-planning/9-7',
             label: 'ยาฉีดคุมกำเนิด',
             badge: '9.7',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/oral-cancer',
+        label: 'คัดกรองมะเร็งช่องปาก (40 ปี+)',
+        badge: '12',
+        icon: Sparkles,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/oral-cancer/1',
+            label: 'คัดกรองรอยโรคมะเร็งช่องปาก',
+            badge: '12.1',
           },
         ],
       },

@@ -318,4 +318,75 @@ describe('PalliativeRegistryService', () => {
       })
     ).rejects.toThrow('ห้ามลงข้อมูลซ้ำ')
   })
+
+  it('filters by compAmount and compVisits in test fallback branch', async () => {
+    const mockResponse = {
+      items: [
+        {
+          id: 1,
+          hn: '0001',
+          patientName: 'นายหนึ่ง ได้เงิน',
+          visits: [
+            { visitNo: 1, visitDate: '2026-01-10', compensated: 1000 },
+            { visitNo: 2, visitDate: '2026-02-10', compensated: 500 },
+          ],
+        },
+        {
+          id: 2,
+          hn: '0002',
+          patientName: 'นายสอง ยังไม่ได้เงิน',
+          visits: [{ visitNo: 1, visitDate: '2026-01-15', compensated: 0 }],
+        },
+        {
+          id: 3,
+          hn: '0003',
+          patientName: 'นายสาม ได้เงินเยอะ',
+          visits: [
+            { visitNo: 1, visitDate: '2026-01-10', compensated: 2000 },
+            { visitNo: 2, visitDate: '2026-02-10', compensated: 2000 },
+          ],
+        },
+      ],
+      total: 3,
+      page: 1,
+      limit: 10,
+      totalPages: 1,
+      stats: { total: 3, registered: 3, pendingRegistration: 0, claimed: 2, paid: 2, deny: 0 },
+    }
+
+    vi.mocked(apiGateway.app.getPalliativeRegistries).mockResolvedValue(mockResponse as any)
+
+    // Filter by PAID
+    const paidResult = await PalliativeRegistryService.listRegistries({ compAmount: 'PAID' })
+    expect(paidResult.items).toHaveLength(2)
+    expect(paidResult.items.map((i) => i.hn)).toEqual(['0001', '0003'])
+
+    // Filter by specific amount range 1001-3000
+    const rangeResult = await PalliativeRegistryService.listRegistries({ compAmount: '1001_3000' })
+    expect(rangeResult.items).toHaveLength(1)
+    expect(rangeResult.items[0].hn).toBe('0001') // 1500 total
+
+    // Filter by compVisits = 2
+    const visitsResult = await PalliativeRegistryService.listRegistries({ compVisits: '2' })
+    expect(visitsResult.items).toHaveLength(2)
+    expect(visitsResult.items.map((i) => i.hn)).toEqual(['0001', '0003'])
+
+    // Filter by compVisits = 0
+    const zeroVisitsResult = await PalliativeRegistryService.listRegistries({ compVisits: '0' })
+    expect(zeroVisitsResult.items).toHaveLength(1)
+    expect(zeroVisitsResult.items[0].hn).toBe('0002')
+  })
+
+  it('rejects adding patient to Palliative Care registry if they are in LTC', async () => {
+    // Mock LTC query returning patient's HN
+    vi.mocked(apiGateway.app.query).mockResolvedValueOnce([{ hn: '0008888' }] as any)
+
+    await expect(
+      PalliativeRegistryService.createRegistry({
+        hn: '0008888',
+        patientName: 'นายคนไข้ แอลทีซี',
+      })
+    ).rejects.toThrow('มีรายชื่อในทะเบียน Long Term Care (LTC) แล้ว ไม่สามารถลงทะเบียน Palliative Care ได้')
+  })
 })
+
