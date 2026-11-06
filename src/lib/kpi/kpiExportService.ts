@@ -194,6 +194,8 @@ function renderWorksheetData(
       resultDisplay = entry.resultValue
     } else if (entry?.resultText) {
       resultDisplay = entry.resultText
+    } else if (entry?.numeratorValue !== null && entry?.denominatorValue !== null && entry?.numeratorValue !== undefined && entry?.denominatorValue !== undefined) {
+      resultDisplay = entry.denominatorValue > 0 ? parseFloat(((entry.numeratorValue / entry.denominatorValue) * 100).toFixed(2)) : 0
     }
 
     // Complete Numerator Info: Definition + Recorded Value

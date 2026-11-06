@@ -4,7 +4,7 @@ import DashboardRcmShell from '../DashboardRcmShell'
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/service/dashboard-rcm/sss-dental',
+  usePathname: () => '/service/dashboard-rcm/funds/ccs/2',
 }))
 
 describe('DashboardRcmShell Component', () => {
@@ -13,40 +13,81 @@ describe('DashboardRcmShell Component', () => {
     vi.clearAllMocks()
   })
 
-  it('renders sidebar brand and navigation groups', () => {
+  it('renders sidebar brand, collapsible main groups, and nested CCS submenu', () => {
     render(
       <DashboardRcmShell userRole="staff">
         <div data-testid="test-content">Dashboard Content</div>
       </DashboardRcmShell>
     )
 
-    // Check brand
     expect(screen.getAllByText('Dashboard-RCM').length).toBeGreaterThan(0)
     expect(screen.getByText('โรงพยาบาลเถิน')).toBeInTheDocument()
 
-    // Check category groups
-    expect(screen.getAllByText('2.1 ผู้ป่วยนอก & ทันตกรรม').length).toBeGreaterThan(0)
-    expect(screen.getByText('2.2 บริการผู้ป่วยใน')).toBeInTheDocument()
-    expect(screen.getByText('3.1 ข้อมูลการชดเชยค่าบริการ (REP)')).toBeInTheDocument()
-    expect(screen.getByText('5.2 การเงิน & รายรับ')).toBeInTheDocument()
-    expect(screen.getByText('Palliative Care')).toBeInTheDocument()
+    // Check main category group buttons
+    const opdGroupBtn = screen.getByRole('button', { name: '2.1 ผู้ป่วยนอก & ทันตกรรม' })
+    const fundsGroupBtn = screen.getByRole('button', { name: 'กองทุน' })
+    expect(opdGroupBtn).toHaveAttribute('aria-expanded', 'true')
+    expect(fundsGroupBtn).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: '2.2 บริการผู้ป่วยใน' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '3.1 ข้อมูลการชดเชยค่าบริการ (REP)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '5.2 การเงิน & รายรับ' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Palliative Care' })).toBeInTheDocument()
 
-    // Check tabs
-    expect(screen.getAllByText('ประกันสังคมทำฟัน').length).toBeGreaterThan(0)
-    expect(screen.getByText('OPD ตามสิทธิ์')).toBeInTheDocument()
-    expect(screen.getByText('สรุปผู้ป่วยใน (IPD)')).toBeInTheDocument()
-    expect(screen.getByText('ข้อมูล Rep แต่ละกองทุน')).toBeInTheDocument()
-    expect(screen.getByText('สรุปรายรับจาก Invoice')).toBeInTheDocument()
-    expect(screen.getByText('End Of Life')).toBeInTheDocument()
-    expect(screen.getByText('ตามกลุ่มโรค')).toBeInTheDocument()
-    expect(screen.getByText('ทะเบียน Palliative Care')).toBeInTheDocument()
+    // Collapse & re-expand a main category group ('2.1 ผู้ป่วยนอก & ทันตกรรม')
+    expect(screen.getByRole('link', { name: /ประกันสังคมทำฟัน/ })).toBeInTheDocument()
+    fireEvent.click(opdGroupBtn)
+    expect(opdGroupBtn).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('link', { name: /ประกันสังคมทำฟัน/ })).not.toBeInTheDocument()
+    expect(localStorage.getItem('rcm_sidebar_expanded_groups')).toContain('"opd-dental":false')
 
-    // Check breadcrumbs and content
+    fireEvent.click(opdGroupBtn)
+    expect(opdGroupBtn).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('link', { name: /ประกันสังคมทำฟัน/ })).toBeInTheDocument()
+
+    // Collapse the currently active main group ('กองทุน') -> marks button with has-active
+    fireEvent.click(fundsGroupBtn)
+    expect(fundsGroupBtn).toHaveAttribute('aria-expanded', 'false')
+    expect(fundsGroupBtn.className).toContain('has-active')
+    expect(screen.queryByRole('link', { name: /รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก/ })).not.toBeInTheDocument()
+
+    // Re-expand 'กองทุน' and toggle nested CCS submenu
+    fireEvent.click(fundsGroupBtn)
+    const parentToggle = screen.getByRole('button', { name: /คัดกรองมะเร็งปากมดลูก \(CCS\)/ })
+    fireEvent.click(parentToggle)
+    expect(screen.queryByRole('link', { name: /รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก/ })).not.toBeInTheDocument()
+    fireEvent.click(parentToggle)
+    expect(screen.getByRole('link', { name: /บริการ 1B005/ })).toBeInTheDocument()
+
+    // Assert ANC navigation under กองทุน
+    expect(screen.getByRole('button', { name: /บริการฝากครรภ์ \(ANC\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /2.3 US - ตรวจช่องปาก - ขัดฟัน/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /บริการ 30011/ })).toBeInTheDocument()
+
+    // Assert Thalassemia navigation under กองทุน
+    expect(screen.getByRole('button', { name: /ธาลัสซีเมียในหญิงตั้งครรภ์/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /3.1 คัดกรองธาลัสซีเมีย/ })).toBeInTheDocument()
+
+    // Assert Postpartum navigation under กองทุน
+    expect(screen.getByRole('button', { name: /การตรวจหลังคลอด/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /7.2 การตรวจหลังคลอด ADP/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /7.3 การจ่ายยา Triforine ADP/ })).toBeInTheDocument()
+
+    // Assert Pregnancy Test navigation under กองทุน
+    expect(screen.getByRole('button', { name: /การทดสอบการตั้งครรภ์/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /8.1 การทดสอบการตั้งครรภ์/ })).toBeInTheDocument()
+
+    // Assert Family Planning navigation under กองทุน
+    expect(screen.getByRole('button', { name: /วางแผนครอบครัว & คุมกำเนิด \(FP\)/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /9.1 วางแผนครอบครัวและการป้องกันการตั้งครรภ์/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /9.2 บริการใส่ห่วงอนามัย/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /9.3.1 รายการฝังยาคุม/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /9.3.2 รายการถอดยาคุม/ })).toBeInTheDocument()
+
     expect(screen.getByTestId('test-content')).toBeInTheDocument()
     expect(screen.getByText('← หน้าบริการ')).toBeInTheDocument()
   })
 
-  it('toggles collapse state and persists to localStorage', () => {
+  it('toggles sidebar width collapse state and persists to localStorage', () => {
     render(
       <DashboardRcmShell userRole="admin">
         <div>Content</div>
@@ -56,11 +97,9 @@ describe('DashboardRcmShell Component', () => {
     const toggleBtn = screen.getByLabelText(/Collapse sidebar|Expand sidebar/)
     expect(toggleBtn).toBeInTheDocument()
 
-    // Click collapse
     fireEvent.click(toggleBtn)
     expect(localStorage.getItem('rcm_sidebar_collapsed')).toBe('true')
 
-    // Click again to expand
     fireEvent.click(toggleBtn)
     expect(localStorage.getItem('rcm_sidebar_collapsed')).toBe('false')
   })

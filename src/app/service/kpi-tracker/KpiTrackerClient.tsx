@@ -93,22 +93,48 @@ function formatAnswerDisplay(
   if (!entry) return null
   const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
   const hasText = Boolean(entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
+  const hasNumDen = entry.numeratorValue !== null && entry.denominatorValue !== null && entry.numeratorValue !== undefined && entry.denominatorValue !== undefined
 
-  if (!hasValue && !hasText) return null
+  if (!hasValue && !hasText && !hasNumDen) return null
 
   let main = ''
   if (hasText) {
     main = entry.resultText
   } else if (hasValue) {
     main = `${entry.resultValue}${unit || ''}`
+  } else if (hasNumDen) {
+    const val = entry.denominatorValue > 0
+      ? parseFloat(((entry.numeratorValue / entry.denominatorValue) * 100).toFixed(2))
+      : 0
+    main = `${val}${unit || ''}`
   }
 
   let sub: string | undefined = undefined
-  if (entry.numeratorValue !== null && entry.denominatorValue !== null && entry.numeratorValue !== undefined && entry.denominatorValue !== undefined) {
+  if (hasNumDen) {
     sub = `(${entry.numeratorValue}/${entry.denominatorValue})`
   }
 
   return { main, sub }
+}
+
+function evaluateTargetClient(
+  val: number | null | undefined,
+  operator: string | null | undefined,
+  targetValue: number | null | undefined
+): 'PASS' | 'FAIL' | 'WAITING_TARGET' | 'PENDING' {
+  if (val === null || val === undefined) return 'PENDING'
+  const op = operator || '>='
+  if (targetValue === null || targetValue === undefined) {
+    if (op === 'MIN') return val === 0 ? 'PASS' : 'WAITING_TARGET'
+    return 'WAITING_TARGET'
+  }
+  if (op === '>=') return val >= targetValue ? 'PASS' : 'FAIL'
+  if (op === '<=') return val <= targetValue ? 'PASS' : 'FAIL'
+  if (op === '>') return val > targetValue ? 'PASS' : 'FAIL'
+  if (op === '<') return val < targetValue ? 'PASS' : 'FAIL'
+  if (op === '=') return Math.abs(val - targetValue) < 0.0001 ? 'PASS' : 'FAIL'
+  if (op === 'MIN') return val <= targetValue ? 'PASS' : 'FAIL'
+  return 'WAITING_TARGET'
 }
 
 export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) {
@@ -335,23 +361,53 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
   // Helper to determine indicator evaluated status consistently across badges, filters, and stats summary
   const getIndicatorStatus = useCallback((ind: KpiIndicatorItem): 'PASS' | 'FAIL' | 'PENDING' | 'WAITING_TARGET' => {
     const entry = getActivePeriodEntry(ind)
+    const hasNumDen = Boolean(
+      entry &&
+      entry.numeratorValue !== null &&
+      entry.denominatorValue !== null &&
+      entry.numeratorValue !== undefined &&
+      entry.denominatorValue !== undefined
+    )
     const hasResult = Boolean(
       entry && (
         entry.resultValue !== null ||
-        (entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
+        (entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน') ||
+        hasNumDen
       )
     )
 
-    if (!entry || !hasResult || entry.resultText === 'ไม่มีรายงาน' || entry.status === 'PENDING') {
+    if (!entry || !hasResult || entry.resultText === 'ไม่มีรายงาน') {
       return 'PENDING'
     }
+
+    // 0/0 is treated as PASS (no cases / target not violated)
+    if (hasNumDen && entry.numeratorValue === 0 && entry.denominatorValue === 0) {
+      return 'PASS'
+    }
+
     if (entry.status === 'PASS') {
       return 'PASS'
     }
     if (entry.status === 'FAIL') {
       return 'FAIL'
     }
-    return 'WAITING_TARGET'
+    if (entry.status === 'WAITING_TARGET') {
+      return 'WAITING_TARGET'
+    }
+
+    if (entry.status === 'PENDING' && !hasNumDen) {
+      return 'PENDING'
+    }
+
+    const val = entry.resultValue !== null && entry.resultValue !== undefined
+      ? entry.resultValue
+      : (hasNumDen && entry.denominatorValue > 0 ? (entry.numeratorValue / entry.denominatorValue) * 100 : null)
+
+    if (val === null || val === undefined) {
+      return 'PENDING'
+    }
+
+    return evaluateTargetClient(val, ind.targetOperator, ind.targetValue)
   }, [getActivePeriodEntry])
 
 
@@ -622,10 +678,19 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
 
   // Calculation for Answer Modal (if numerator and denominator exist)
   const computedPercentage = useMemo(() => {
-    const num = parseFloat(formNumerator)
-    const den = parseFloat(formDenominator)
-    if (!isNaN(num) && !isNaN(den) && den > 0) {
+    const numStr = formNumerator.trim()
+    const denStr = formDenominator.trim()
+    if (numStr === '' || denStr === '') return null
+
+    const num = parseFloat(numStr)
+    const den = parseFloat(denStr)
+    if (isNaN(num) || isNaN(den)) return null
+
+    if (den > 0) {
       return parseFloat(((num / den) * 100).toFixed(2))
+    }
+    if (den === 0 && num === 0) {
+      return 0
     }
     return null
   }, [formNumerator, formDenominator])
@@ -636,6 +701,14 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     const hasNumDen = Boolean(activeIndicator.numeratorName || activeIndicator.denominatorName)
     const val = hasNumDen ? computedPercentage : (formSingleAnswer ? parseFloat(formSingleAnswer) : null)
     if (val === null || isNaN(val)) return 'PENDING'
+
+    if (hasNumDen) {
+      const num = parseFloat(formNumerator.trim())
+      const den = parseFloat(formDenominator.trim())
+      if (num === 0 && den === 0) {
+        return 'PASS'
+      }
+    }
 
     const op = activeIndicator.targetOperator || '>='
     const target = activeIndicator.targetValue
@@ -652,7 +725,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
     if (op === '=') return Math.abs(val - target) < 0.0001 ? 'PASS' : 'FAIL'
     if (op === 'MIN') return val <= target ? 'PASS' : 'FAIL'
     return 'WAITING_TARGET'
-  }, [activeIndicator, computedPercentage, formSingleAnswer])
+  }, [activeIndicator, computedPercentage, formSingleAnswer, formNumerator, formDenominator])
 
   // Open Answer Modal
   const handleOpenAnswer = (ind: KpiIndicatorItem) => {
@@ -709,8 +782,17 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
       let resText: string | null = null
 
       if (hasNumDen) {
-        numVal = formNumerator ? parseFloat(formNumerator) : null
-        denVal = formDenominator ? parseFloat(formDenominator) : null
+        const numTrim = formNumerator.trim()
+        const denTrim = formDenominator.trim()
+
+        if (numTrim !== '' && denTrim === '0' && parseFloat(numTrim) > 0) {
+          alert('ตัวหารไม่สามารถเป็น 0 ได้หากตัวตั้งมากกว่า 0')
+          setSaving(false)
+          return
+        }
+
+        numVal = numTrim !== '' ? parseFloat(numTrim) : null
+        denVal = denTrim !== '' ? parseFloat(denTrim) : null
         resVal = computedPercentage
       } else {
         const parsedNum = parseFloat(formSingleAnswer)
@@ -2071,8 +2153,12 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         <strong style={{ display: 'block', marginBottom: '0.2rem' }}>ผลการคำนวณอัตโนมัติ:</strong>
                         <div style={{ fontVariantNumeric: 'tabular-nums' }}>
                           {computedPercentage !== null 
-                            ? `${formNumerator} ÷ ${formDenominator} × 100 = ${computedPercentage}%`
-                            : 'กรอกตัวตั้งและตัวหารเพื่อคำนวณร้อยละ'}
+                            ? (parseFloat(formNumerator) === 0 && parseFloat(formDenominator) === 0
+                                ? `${formNumerator} ÷ ${formDenominator} = 0% (ไม่มีเคสในรอบนี้)`
+                                : `${formNumerator} ÷ ${formDenominator} × 100 = ${computedPercentage}%`)
+                            : formNumerator.trim() !== '' && formDenominator.trim() === '0'
+                              ? 'ตัวหารเป็น 0 ไม่สามารถคำนวณร้อยละได้'
+                              : 'กรอกตัวตั้งและตัวหารเพื่อคำนวณร้อยละ'}
                         </div>
                       </div>
                       <div>

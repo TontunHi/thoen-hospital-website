@@ -547,5 +547,87 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
     expect(within(kpi2Row).queryByText(/ตอบเมื่อ/)).not.toBeInTheDocument()
     expect(within(kpi2Row).getAllByText('ไม่มีรายงาน').length).toBeGreaterThanOrEqual(1)
   })
+
+  it('correctly displays 0% (0/0) and PASS when indicator has 0/0 entry', async () => {
+    const zeroZeroIndicators = [
+      {
+        id: 88,
+        topicId: 1,
+        sequence: '1.5',
+        category: 'หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)',
+        subcategory: 'Sepsis',
+        code: 'HR-ITC-0101',
+        oldCode: null,
+        title: 'ร้อยละการเสียชีวิตของผู้ป่วยใน จากภาวะพิษเหตุติดเชื้อในชุมชน (Community-acquired sepsis)',
+        targetValue: 24,
+        targetOperator: '<',
+        targetUnit: '%',
+        targetLabel: '< 24%',
+        frequency: 'MONTHLY',
+        indicatorType: 'HA',
+        isAutoCalc: true,
+        numeratorName: 'จำนวนผู้เสียชีวิต',
+        denominatorName: 'จำนวนผู้ป่วยทั้งหมด',
+        responsibleName: 'นิศานาถ',
+        responsibleDepartment: 'กลุ่มงานการพยาบาล',
+        displayOrder: 5,
+        currentEntry: {
+          id: 11,
+          indicatorId: 88,
+          periodKey: '2569-M01',
+          numeratorValue: 0,
+          denominatorValue: 0,
+          resultValue: 0,
+          resultText: null,
+          status: 'PASS',
+          note: null,
+          updatedAt: '2026-10-15T00:00:00.000Z',
+        },
+      }
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/kpi/topics')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              fiscalYears: ['2569'],
+              defaultYear: '2569',
+              topics: [
+                { id: 1, title: 'ตัวชี้วัดโรงพยาบาลเถิน 2569', fiscalYear: '2569', isCurrent: true }
+              ]
+            }
+          })
+        }
+      }
+      if (url.includes('/api/kpi/indicators')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              indicators: zeroZeroIndicators,
+              categories: ['หมวดที่ 1: IV-1 ด้านการดูแลสุขภาพ (Healthcare Results)']
+            }
+          })
+        }
+      }
+      return { ok: true, json: async () => ({ success: true, data: {} }) }
+    }))
+
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('ร้อยละการเสียชีวิตของผู้ป่วยใน จากภาวะพิษเหตุติดเชื้อในชุมชน (Community-acquired sepsis)')).toBeInTheDocument()
+    })
+
+    // Expect 0% and (0/0) to be displayed
+    expect(screen.getAllByText('0%').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('(0/0)').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('ผ่านเกณฑ์').length).toBeGreaterThanOrEqual(1)
+  })
 })
 

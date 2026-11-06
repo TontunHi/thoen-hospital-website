@@ -150,6 +150,62 @@ describe('KpiService with Mock QueryExecutor', () => {
     expect(entry.id).toBe(99)
   })
 
+  it('correctly calculates 0% and PASS when numerator and denominator are 0/0 (no cases)', async () => {
+    const mockDb: any[] = []
+    const mockExecutor = vi.fn().mockImplementation(async (sql: string, params: any[] = []) => {
+      if (sql.includes('FROM kpi_indicators i')) {
+        return [{
+          id: 88,
+          topicId: 1,
+          sequence: '1',
+          category: 'หมวด 1',
+          subcategory: 'Sepsis',
+          code: 'HR-ITC-0101',
+          oldCode: null,
+          frequency: 'รายเดือน',
+          title: 'ร้อยละการเสียชีวิตของผู้ป่วยใน จากภาวะพิษเหตุติดเชื้อในชุมชน (Community-acquired sepsis)',
+          numeratorName: 'จำนวนผู้เสียชีวิต',
+          denominatorName: 'จำนวนผู้ป่วยทั้งหมด',
+          targetRaw: '< ร้อยละ 24',
+          targetOperator: '<',
+          targetValue: '24.0000',
+          targetUnit: '%',
+          responsibleName: 'นิศานาถ',
+          indicatorType: 'HA',
+          displayOrder: 1,
+          fiscalYear: '2570'
+        }]
+      }
+      if (sql.includes('SELECT id, indicator_id AS indicatorId')) {
+        return []
+      }
+      if (sql.includes('SELECT id FROM kpi_entries')) {
+        return []
+      }
+      if (sql.includes('INSERT INTO kpi_entries')) {
+        mockDb.push(params)
+        return { insertId: 101 }
+      }
+      return []
+    })
+
+    const entry = await KpiService.saveEntry({
+      indicatorId: 88,
+      fiscalYear: '2570',
+      periodKey: 'M01',
+      periodLabel: 'ตุลาคม',
+      numeratorValue: 0,
+      denominatorValue: 0, // 0/0 no cases
+      isAdmin: true,
+      recordedByName: 'นิศานาถ'
+    }, mockExecutor)
+
+    expect(entry.resultValue).toBe(0)
+    expect(entry.status).toBe('PASS')
+    expect(entry.numeratorValue).toBe(0)
+    expect(entry.denominatorValue).toBe(0)
+  })
+
   it('creates, updates, and deletes an indicator', async () => {
     let insertedParams: any[] = []
     let updatedParams: any[] = []

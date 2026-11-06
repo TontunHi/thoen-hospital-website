@@ -1,0 +1,1008 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 · archetype: Clinical Audit Ledger · theme: Thoen Emerald */
+
+/* ==========================================================================
+   CCS 1.2 Screened Recipients Ledger — Hallmark Redesign
+   Hospital Emerald Design System · Anti-AI-Slop · Sarabun · Tabular Figures
+   ========================================================================== */
+
+.ccs2-page {
+  /* ── 1. Color Palette (Thoen Hospital Emerald Theme Preserved) ── */
+  --ccs-bg: var(--bg-main, #F0F4F2);
+  --ccs-surface: var(--bg-surface, #FFFFFF);
+  --ccs-surface-2: var(--bg-subtle, #F6F9F7);
+  --ccs-surface-3: #EDF3F0;
+  --ccs-surface-accent: var(--primary-subtle, #E6F3ED);
+  --ccs-surface-accent-strong: var(--primary-light, #BFE1D2);
+  --ccs-ink: var(--gray-900, #14221A);
+  --ccs-ink-2: var(--gray-700, #33443B);
+  --ccs-muted: var(--gray-500, #5C7065);
+  --ccs-hairline: var(--gray-200, #DCE4DF);
+  --ccs-hairline-soft: var(--gray-100, #EFF3F1);
+  --ccs-hairline-strong: var(--gray-400, #9FB3A7);
+  --ccs-accent: var(--primary, #0D7446);
+  --ccs-accent-hover: var(--primary-hover, #0A5C37);
+  --ccs-accent-active: #08482B;
+  --ccs-accent-dark: var(--primary-dark, #063C24);
+  --ccs-accent-ink: var(--white, #FFFFFF);
+  --ccs-focus-ring: color-mix(in srgb, var(--primary, #0D7446) 24%, transparent);
+  --ccs-backdrop: rgba(15, 23, 20, 0.55);
+
+  /* Semantic feedback tokens */
+  --ccs-ok: var(--success, #0F6B3A);
+  --ccs-ok-bg: #EAF6EF;
+  --ccs-ok-border: #BCE2CE;
+  --ccs-warn: var(--warning, #92400E);
+  --ccs-warn-bg: #FEF6E7;
+  --ccs-warn-border: #FCD34D;
+  --ccs-err: var(--danger, #991B1B);
+  --ccs-err-bg: #FEEBEB;
+  --ccs-err-border: #FCA5A5;
+  --ccs-info: var(--info, #1E40AF);
+  --ccs-info-bg: #EBF3FE;
+  --ccs-info-border: #93C5FD;
+
+  /* Typography */
+  --ccs-font: var(--font-family, 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  --ccs-font-mono: var(--font-mono, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace);
+  --ccs-text-xs: 0.75rem;
+  --ccs-text-sm: 0.875rem;
+  --ccs-text-base: 1rem;
+  --ccs-text-lg: 1.125rem;
+  --ccs-text-xl: 1.25rem;
+  --ccs-text-2xl: 1.5rem;
+
+  /* Spacing Scale */
+  --ccs-s1: 4px;
+  --ccs-s2: 8px;
+  --ccs-s3: 12px;
+  --ccs-s4: 16px;
+  --ccs-s5: 20px;
+  --ccs-s6: 24px;
+  --ccs-s8: 32px;
+  --ccs-s10: 40px;
+
+  /* Radii */
+  --ccs-r-xs: 3px;
+  --ccs-r-sm: 6px;
+  --ccs-r-md: 8px;
+  --ccs-r-lg: 12px;
+  --ccs-r-full: 9999px;
+
+  /* Shadows (crisp, subtle, tactile) */
+  --ccs-shadow-sm: 0 1px 2px rgba(20, 34, 26, 0.04);
+  --ccs-shadow-card: 0 1px 3px rgba(20, 34, 26, 0.05), 0 1px 2px rgba(20, 34, 26, 0.03);
+  --ccs-shadow-elevated: 0 6px 16px -2px rgba(20, 34, 26, 0.08), 0 2px 4px -1px rgba(20, 34, 26, 0.04);
+  --ccs-shadow-active: 0 16px 36px -4px rgba(20, 34, 26, 0.16);
+
+  /* Layout container */
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--ccs-s5) var(--ccs-s6) var(--ccs-s10);
+  color: var(--ccs-ink);
+  font-family: var(--ccs-font);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ccs-s4);
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* ── 2. Header Bar ── */
+.ccs2-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ccs-s4);
+  flex-wrap: wrap;
+  padding-bottom: var(--ccs-s4);
+  border-bottom: 1px solid var(--ccs-hairline);
+}
+
+.ccs2-title-group {
+  min-width: 0;
+  flex: 1 1 440px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ccs-s1);
+}
+
+.ccs2-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: var(--ccs-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ccs-accent);
+  background: var(--ccs-surface-accent);
+  border: 1px solid var(--ccs-surface-accent-strong);
+  padding: 2px 8px;
+  border-radius: var(--ccs-r-xs);
+  margin-bottom: 2px;
+}
+
+.ccs2-title {
+  font-size: var(--ccs-text-2xl);
+  font-weight: 700;
+  font-style: normal;
+  color: var(--ccs-ink);
+  line-height: 1.35;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ccs2-subtitle {
+  font-size: var(--ccs-text-sm);
+  color: var(--ccs-ink-2);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 900px;
+}
+
+.ccs2-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ccs-s2);
+  flex-wrap: wrap;
+}
+
+/* ── 3. Tactile Action Buttons (8-state discipline) ── */
+.ccs2-btn-primary,
+.ccs2-btn-secondary,
+.ccs2-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ccs-s2);
+  min-height: 40px;
+  padding: var(--ccs-s2) var(--ccs-s4);
+  border-radius: var(--ccs-r-md);
+  font-family: inherit;
+  font-size: var(--ccs-text-sm);
+  font-weight: 600;
+  font-style: normal;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
+}
+
+/* Primary Button */
+.ccs2-btn-primary {
+  background: var(--ccs-accent);
+  color: var(--ccs-accent-ink);
+  border: 1px solid var(--ccs-accent-dark);
+  box-shadow: var(--ccs-shadow-sm);
+}
+
+.ccs2-btn-primary:hover:not(:disabled) {
+  background: var(--ccs-accent-hover);
+  border-color: var(--ccs-accent-dark);
+  box-shadow: var(--ccs-shadow-card);
+}
+
+.ccs2-btn-primary:active:not(:disabled) {
+  background: var(--ccs-accent-active);
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.ccs2-btn-primary:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+  outline-offset: 2px;
+}
+
+/* Secondary Button */
+.ccs2-btn-secondary {
+  background: var(--ccs-surface);
+  color: var(--ccs-ink);
+  border: 1px solid var(--ccs-hairline-strong);
+  box-shadow: var(--ccs-shadow-sm);
+}
+
+.ccs2-btn-secondary:hover:not(:disabled) {
+  background: var(--ccs-surface-2);
+  border-color: var(--ccs-ink-2);
+}
+
+.ccs2-btn-secondary:active:not(:disabled) {
+  background: var(--ccs-surface-3);
+  transform: translateY(1px);
+}
+
+.ccs2-btn-secondary:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+  outline-offset: 2px;
+}
+
+/* Ghost Button */
+.ccs2-btn-ghost {
+  background: transparent;
+  color: var(--ccs-ink-2);
+  border: 1px solid transparent;
+}
+
+.ccs2-btn-ghost:hover:not(:disabled) {
+  background: var(--ccs-surface-2);
+  color: var(--ccs-ink);
+}
+
+.ccs2-btn-ghost:active:not(:disabled) {
+  background: var(--ccs-surface-3);
+  transform: translateY(1px);
+}
+
+.ccs2-btn-ghost:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+  outline-offset: 2px;
+}
+
+/* Disabled States */
+.ccs2-btn-primary:disabled,
+.ccs2-btn-secondary:disabled,
+.ccs2-btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ccs2-spin-icon {
+  animation: ccs2-spin 1s linear infinite;
+}
+
+@keyframes ccs2-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── 4. Date Selection Controls Bar (กำหนดเอง · รายเดือน · ปีงบประมาณ) ── */
+.ccs2-date-card {
+  background: var(--ccs-surface);
+  border: 1px solid var(--ccs-hairline);
+  border-radius: var(--ccs-r-lg);
+  padding: var(--ccs-s3) var(--ccs-s4);
+  box-shadow: var(--ccs-shadow-sm);
+}
+
+.ccs2-date-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ccs-s3);
+  flex-wrap: wrap;
+}
+
+.ccs2-mode-tabs {
+  display: inline-flex;
+  background: var(--ccs-surface-2);
+  border: 1px solid var(--ccs-hairline);
+  border-radius: var(--ccs-r-md);
+  padding: 3px;
+  gap: 2px;
+  width: fit-content;
+}
+
+.ccs2-mode-tab {
+  padding: 6px 14px;
+  font-size: var(--ccs-text-sm);
+  font-weight: 500;
+  font-style: normal;
+  border: none;
+  background: transparent;
+  color: var(--ccs-muted);
+  border-radius: var(--ccs-r-sm);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.ccs2-mode-tab:hover:not(.is-active) {
+  color: var(--ccs-ink);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.ccs2-mode-tab:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+  outline-offset: 1px;
+}
+
+.ccs2-mode-tab.is-active {
+  background: var(--ccs-surface);
+  color: var(--ccs-accent-dark);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.ccs2-date-select,
+.ccs2-input-text {
+  height: 38px;
+  padding: 0 var(--ccs-s3);
+  border: 1px solid var(--ccs-hairline-strong);
+  border-radius: var(--ccs-r-md);
+  font-size: var(--ccs-text-sm);
+  font-family: inherit;
+  color: var(--ccs-ink);
+  background: var(--ccs-surface);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ccs2-date-select:hover,
+.ccs2-input-text:hover {
+  border-color: var(--ccs-ink-2);
+}
+
+.ccs2-date-select:focus,
+.ccs2-input-text:focus {
+  outline: none;
+  border-color: var(--ccs-accent);
+  box-shadow: 0 0 0 3px var(--ccs-focus-ring);
+}
+
+.ccs2-date-span-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: var(--ccs-surface-accent);
+  color: var(--ccs-accent-dark);
+  border: 1px solid var(--ccs-surface-accent-strong);
+  border-radius: var(--ccs-r-sm);
+  font-size: var(--ccs-text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* ── 5. Clinical Audit Workbench Summary Ribbon (Interactive KPI Cards) ── */
+.ccs2-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--ccs-s3);
+}
+
+.ccs2-kpi-card {
+  background: var(--ccs-surface);
+  border: 1px solid var(--ccs-hairline);
+  border-top: 4px solid var(--ccs-hairline-strong);
+  border-radius: var(--ccs-r-lg);
+  padding: var(--ccs-s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ccs-s1);
+  box-shadow: var(--ccs-shadow-sm);
+  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+  position: relative;
+  background-clip: padding-box;
+}
+
+.ccs2-kpi-card:hover {
+  border-color: var(--ccs-hairline-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--ccs-shadow-card);
+}
+
+.ccs2-kpi-card:active {
+  transform: translateY(0);
+}
+
+.ccs2-kpi-card:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+  outline-offset: 2px;
+}
+
+/* Distinct Top Stripe Semantics */
+.ccs2-kpi-accent {
+  border-top-color: var(--ccs-accent);
+}
+
+.ccs2-kpi-success {
+  border-top-color: var(--ccs-ok);
+}
+
+.ccs2-kpi-warn {
+  border-top-color: var(--ccs-err);
+}
+
+/* Active Filtering State (High Contrast, Tactile) */
+.ccs2-kpi-card.is-active-filter {
+  border-color: var(--ccs-accent);
+  border-top-color: var(--ccs-accent);
+  background: var(--ccs-surface-accent);
+  box-shadow: 0 0 0 2px var(--ccs-accent);
+}
+
+.ccs2-kpi-card.is-active-filter-success {
+  border-color: var(--ccs-ok);
+  border-top-color: var(--ccs-ok);
+  background: var(--ccs-ok-bg);
+  box-shadow: 0 0 0 2px var(--ccs-ok);
+}
+
+.ccs2-kpi-card.is-active-filter-warn {
+  border-color: var(--ccs-err);
+  border-top-color: var(--ccs-err);
+  background: var(--ccs-err-bg);
+  box-shadow: 0 0 0 2px var(--ccs-err);
+}
+
+.ccs2-kpi-label {
+  font-size: var(--ccs-text-xs);
+  color: var(--ccs-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ccs2-kpi-filter-tag {
+  font-size: 0.6875rem;
+  padding: 1px 7px;
+  border-radius: var(--ccs-r-xs);
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ccs-ink);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.ccs2-kpi-value {
+  font-size: var(--ccs-text-2xl);
+  font-weight: 700;
+  color: var(--ccs-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.ccs2-kpi-sub {
+  font-size: var(--ccs-text-xs);
+  color: var(--ccs-ink-2);
+  display: flex;
+  align-items: center;
+  gap: var(--ccs-s1);
+  margin-top: 2px;
+}
+
+/* ── 6. Filter & Search Controls Bar ── */
+.ccs2-filter-card {
+  background: var(--ccs-surface);
+  border: 1px solid var(--ccs-hairline);
+  border-radius: var(--ccs-r-lg);
+  padding: var(--ccs-s3) var(--ccs-s4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ccs-s3);
+  flex-wrap: wrap;
+  box-shadow: var(--ccs-shadow-sm);
+}
+
+.ccs2-filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--ccs-s2);
+  flex-wrap: wrap;
+}
+
+.ccs2-filter-label {
+  font-size: var(--ccs-text-sm);
+  color: var(--ccs-muted);
+  font-weight: 600;
+}
+
+.ccs2-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 320px;
+  min-width: 240px;
+  position: relative;
+}
+
+.ccs2-search-input-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.ccs2-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--ccs-muted);
+  pointer-events: none;
+}
+
+.ccs2-search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 36px 0 36px;
+  border: 1px solid var(--ccs-hairline-strong);
+  border-radius: var(--ccs-r-md);
+  font-size: var(--ccs-text-sm);
+  font-family: inherit;
+  color: var(--ccs-ink);
+  background: var(--ccs-surface);
+  transition: all 0.15s ease;
+}
+
+.ccs2-search-input:focus {
+  outline: none;
+  border-color: var(--ccs-accent);
+  box-shadow: 0 0 0 3px var(--ccs-focus-ring);
+}
+
+.ccs2-search-clear {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--ccs-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ccs-r-xs);
+}
+
+.ccs2-search-clear:hover {
+  color: var(--ccs-ink);
+}
+
+/* ── 7. Data Ledger Table (Clinical Audit Double-tier Header) ── */
+.ccs2-table-card {
+  background: var(--ccs-surface);
+  border: 1px solid var(--ccs-hairline);
+  border-radius: var(--ccs-r-lg);
+  overflow: hidden;
+  box-shadow: var(--ccs-shadow-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.ccs2-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+  position: relative;
+}
+
+.ccs2-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--ccs-text-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
+/* Tier 1 Header (Merged Categories) */
+.ccs2-table thead tr:first-child th {
+  background: var(--ccs-surface-2);
+  color: var(--ccs-ink);
+  font-size: var(--ccs-text-xs);
+  font-weight: 700;
+  text-align: center;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--ccs-hairline);
+  border-right: 1px solid var(--ccs-hairline-soft);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* Tier 2 Header (Column Definitions) */
+.ccs2-table thead tr:nth-child(2) th {
+  background: var(--ccs-surface);
+  color: var(--ccs-ink-2);
+  font-size: var(--ccs-text-xs);
+  font-weight: 600;
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 2px solid var(--ccs-hairline);
+  border-right: 1px solid var(--ccs-hairline-soft);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ccs2-table th.is-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.1s ease;
+}
+
+.ccs2-table th.is-sortable:hover {
+  background: var(--ccs-surface-2);
+  color: var(--ccs-accent-dark);
+}
+
+.ccs2-table th.is-sortable:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+}
+
+/* Table Body Cells */
+.ccs2-table tbody td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--ccs-hairline-soft);
+  border-right: 1px solid var(--ccs-hairline-soft);
+  color: var(--ccs-ink);
+  white-space: nowrap;
+  transition: background-color 0.1s ease;
+}
+
+.ccs2-table tbody tr:hover td {
+  background: var(--ccs-surface-2);
+}
+
+/* FoxPro _color Warning Highlight when OK is null (Missing PP Special Code) */
+.ccs2-row-not-ok {
+  background: rgba(254, 235, 235, 0.45);
+}
+
+.ccs2-row-not-ok td {
+  color: #7F1D1D;
+}
+
+.ccs2-row-not-ok td:first-child {
+  border-left: 3px solid var(--ccs-err);
+}
+
+/* FoxPro Summary 'รวม' Total Row */
+.ccs2-row-total {
+  background: var(--ccs-surface-3);
+  font-weight: 700;
+}
+
+.ccs2-row-total td {
+  border-top: 2px solid var(--ccs-hairline-strong);
+  border-bottom: 2px solid var(--ccs-hairline-strong);
+  color: var(--ccs-ink);
+}
+
+/* Alignments & Monospace Formats */
+.ccs2-align-right {
+  text-align: right;
+}
+
+.ccs2-align-center {
+  text-align: center;
+}
+
+.ccs2-mono {
+  font-family: var(--ccs-font-mono);
+  letter-spacing: -0.01em;
+}
+
+/* ── 8. Status Badges & Pills ── */
+.ccs2-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: var(--ccs-r-xs);
+  font-size: var(--ccs-text-xs);
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.ccs2-badge-success {
+  background: var(--ccs-ok-bg);
+  color: var(--ccs-ok);
+  border: 1px solid var(--ccs-ok-border);
+}
+
+.ccs2-badge-danger {
+  background: var(--ccs-err-bg);
+  color: var(--ccs-err);
+  border: 1px solid var(--ccs-err-border);
+}
+
+.ccs2-badge-warn {
+  background: var(--ccs-warn-bg);
+  color: var(--ccs-warn);
+  border: 1px solid var(--ccs-warn-border);
+}
+
+.ccs2-badge-info {
+  background: var(--ccs-info-bg);
+  color: var(--ccs-info);
+  border: 1px solid var(--ccs-info-border);
+}
+
+.ccs2-badge-ghost {
+  background: var(--ccs-surface-2);
+  color: var(--ccs-muted);
+  border: 1px solid var(--ccs-hairline);
+}
+
+/* Interactive VN Inspection Link */
+.ccs2-link-vn {
+  color: var(--ccs-accent-dark);
+  font-weight: 700;
+  font-family: var(--ccs-font-mono);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  border-radius: var(--ccs-r-xs);
+  transition: all 0.12s ease;
+}
+
+.ccs2-link-vn:hover {
+  background: var(--ccs-surface-accent);
+  color: var(--ccs-accent);
+}
+
+.ccs2-link-vn:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+  outline-offset: 1px;
+}
+
+/* ── 9. Pagination Toolbar ── */
+.ccs2-table-footer {
+  padding: var(--ccs-s3) var(--ccs-s4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ccs-s3);
+  flex-wrap: wrap;
+  background: var(--ccs-surface-2);
+  border-top: 1px solid var(--ccs-hairline);
+  font-size: var(--ccs-text-sm);
+  color: var(--ccs-ink-2);
+}
+
+.ccs2-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--ccs-s1);
+}
+
+.ccs2-page-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--ccs-r-sm);
+  border: 1px solid var(--ccs-hairline-strong);
+  background: var(--ccs-surface);
+  color: var(--ccs-ink);
+  font-size: var(--ccs-text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+}
+
+.ccs2-page-btn:hover:not(:disabled):not(.is-active) {
+  background: var(--ccs-surface-3);
+  border-color: var(--ccs-ink-2);
+}
+
+.ccs2-page-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ccs2-page-btn:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+  outline-offset: 1px;
+}
+
+.ccs2-page-btn.is-active {
+  background: var(--ccs-accent);
+  color: var(--ccs-accent-ink);
+  border-color: var(--ccs-accent-dark);
+}
+
+.ccs2-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 10. Patient Inspection Modal (Backdrop Blur & Clinical Timeline) ── */
+.ccs2-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--ccs-backdrop);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ccs-s4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.ccs2-modal-window {
+  background: var(--ccs-surface);
+  border-radius: var(--ccs-r-lg);
+  box-shadow: var(--ccs-shadow-active);
+  width: 100%;
+  max-width: 980px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--ccs-hairline);
+  animation: ccs2-modal-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ccs2-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ccs2-modal-header {
+  padding: var(--ccs-s4) var(--ccs-s5);
+  border-bottom: 1px solid var(--ccs-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--ccs-surface-2);
+}
+
+.ccs2-modal-title {
+  margin: 0;
+  font-size: var(--ccs-text-lg);
+  font-weight: 700;
+  font-style: normal;
+  color: var(--ccs-ink);
+}
+
+.ccs2-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--ccs-hairline);
+  padding: 0 var(--ccs-s5);
+  background: var(--ccs-surface);
+  gap: var(--ccs-s2);
+}
+
+.ccs2-modal-tab-btn {
+  padding: var(--ccs-s3) var(--ccs-s4);
+  font-size: var(--ccs-text-sm);
+  font-weight: 600;
+  font-style: normal;
+  border: none;
+  background: transparent;
+  color: var(--ccs-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s ease;
+}
+
+.ccs2-modal-tab-btn:hover:not(.is-active) {
+  color: var(--ccs-ink);
+}
+
+.ccs2-modal-tab-btn:focus-visible {
+  outline: 2px solid var(--ccs-accent);
+}
+
+.ccs2-modal-tab-btn.is-active {
+  color: var(--ccs-accent-dark);
+  border-bottom-color: var(--ccs-accent);
+}
+
+.ccs2-modal-body {
+  padding: var(--ccs-s5);
+  overflow-y: auto;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ccs-s4);
+}
+
+.ccs2-desc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--ccs-s3);
+}
+
+.ccs2-desc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ccs2-desc-label {
+  font-size: var(--ccs-text-xs);
+  color: var(--ccs-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ccs2-desc-value {
+  font-size: var(--ccs-text-sm);
+  color: var(--ccs-ink);
+  font-weight: 500;
+}
+
+.ccs2-modal-footer {
+  padding: var(--ccs-s3) var(--ccs-s5);
+  border-top: 1px solid var(--ccs-hairline);
+  display: flex;
+  justify-content: flex-end;
+  background: var(--ccs-surface-2);
+}
+
+.ccs2-empty-state {
+  padding: var(--ccs-s8);
+  text-align: center;
+  color: var(--ccs-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ccs-s2);
+}
+
+.ccs2-skeleton-line {
+  height: 16px;
+  background: linear-gradient(90deg, #E5E7EB 25%, #F3F4F6 50%, #E5E7EB 75%);
+  background-size: 200% 100%;
+  animation: ccs2-skeleton-loading 1.5s infinite;
+  border-radius: var(--ccs-r-xs);
+}
+
+@keyframes ccs2-skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── 11. Mobile & Viewport Responsiveness (320 / 375 / 414 / 768 / 1024 px) ── */
+@media (max-width: 768px) {
+  .ccs2-page {
+    padding: var(--ccs-s4) var(--ccs-s3) var(--ccs-s8);
+    gap: var(--ccs-s3);
+  }
+
+  .ccs2-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ccs2-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ccs2-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ccs2-date-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ccs2-filter-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ccs2-search-box {
+    width: 100%;
+  }
+
+  .ccs2-table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

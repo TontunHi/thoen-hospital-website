@@ -1,0 +1,895 @@
+/* Hallmark & UI-Style-Brief · pre-emit critique: P5 H5 E5 S5 R5 V5 · archetype: Clinical Audit Ledger · theme: Thoen Emerald */
+
+/* ==========================================================================
+   ANC 2.3 Ultrasound - Oral Exam - Scaling — Stylesheet
+   Hospital Emerald Design System · Sarabun · Tabular Figures · Breathing Room
+   ========================================================================== */
+
+.anc3-page {
+  /* ── 1. Color Palette (Thoen Hospital Emerald Theme Preserved) ── */
+  --anc-bg: var(--bg-main, #F0F4F2);
+  --anc-surface: var(--bg-surface, #FFFFFF);
+  --anc-surface-2: var(--bg-subtle, #F6F9F7);
+  --anc-surface-3: #EDF3F0;
+  --anc-surface-accent: var(--primary-subtle, #E6F3ED);
+  --anc-surface-accent-strong: var(--primary-light, #BFE1D2);
+  --anc-ink: var(--gray-900, #14221A);
+  --anc-ink-2: var(--gray-700, #33443B);
+  --anc-muted: var(--gray-500, #5C7065);
+  --anc-hairline: var(--gray-200, #DCE4DF);
+  --anc-hairline-soft: var(--gray-100, #EFF3F1);
+  --anc-hairline-strong: var(--gray-400, #9FB3A7);
+  --anc-accent: var(--primary, #0D7446);
+  --anc-accent-hover: var(--primary-hover, #0A5C37);
+  --anc-accent-active: #08482B;
+  --anc-accent-dark: var(--primary-dark, #063C24);
+  --anc-accent-ink: var(--white, #FFFFFF);
+  --anc-focus-ring: color-mix(in srgb, var(--primary, #0D7446) 24%, transparent);
+  --anc-backdrop: rgba(15, 23, 20, 0.55);
+
+  /* Semantic feedback tokens */
+  --anc-ok: var(--success, #0F6B3A);
+  --anc-ok-bg: #EAF6EF;
+  --anc-ok-border: #BCE2CE;
+  --anc-warn: var(--warning, #92400E);
+  --anc-warn-bg: #FEF6E7;
+  --anc-warn-border: #FCD34D;
+  --anc-err: var(--danger, #991B1B);
+  --anc-err-bg: #FEEBEB;
+  --anc-err-border: #FCA5A5;
+  --anc-info: var(--info, #1E40AF);
+  --anc-info-bg: #EBF3FE;
+  --anc-info-border: #93C5FD;
+
+  /* Typography */
+  --anc-font: var(--font-family, 'Sarabun', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  --anc-font-mono: var(--font-mono, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace);
+  --anc-text-xs: 0.75rem;
+  --anc-text-sm: 0.875rem;
+  --anc-text-base: 1rem;
+  --anc-text-lg: 1.125rem;
+  --anc-text-xl: 1.25rem;
+  --anc-text-2xl: 1.5rem;
+
+  /* Spacing Scale (Comfortable breathing room) */
+  --anc-s1: 4px;
+  --anc-s2: 8px;
+  --anc-s3: 12px;
+  --anc-s4: 16px;
+  --anc-s5: 20px;
+  --anc-s6: 24px;
+  --anc-s8: 32px;
+  --anc-s10: 40px;
+
+  /* Radii */
+  --anc-r-xs: 3px;
+  --anc-r-sm: 6px;
+  --anc-r-md: 8px;
+  --anc-r-lg: 12px;
+  --anc-r-full: 9999px;
+
+  /* Shadows */
+  --anc-shadow-sm: 0 1px 2px rgba(20, 34, 26, 0.04);
+  --anc-shadow-card: 0 1px 3px rgba(20, 34, 26, 0.05), 0 1px 2px rgba(20, 34, 26, 0.03);
+  --anc-shadow-elevated: 0 6px 16px -2px rgba(20, 34, 26, 0.08), 0 2px 4px -1px rgba(20, 34, 26, 0.04);
+  --anc-shadow-active: 0 16px 36px -4px rgba(20, 34, 26, 0.16);
+
+  /* Layout container */
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--anc-s5) var(--anc-s6) var(--anc-s10);
+  color: var(--anc-ink);
+  font-family: var(--anc-font);
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s4);
+  min-width: 0;
+  overflow-x: clip;
+}
+
+/* ── 2. Header Bar ── */
+.anc3-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--anc-s4);
+  flex-wrap: wrap;
+  padding-bottom: var(--anc-s4);
+  border-bottom: 1px solid var(--anc-hairline);
+}
+
+.anc3-title-group {
+  min-width: 0;
+  flex: 1 1 440px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s1);
+}
+
+.anc3-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--anc-accent);
+  background: var(--anc-surface-accent);
+  border: 1px solid var(--anc-surface-accent-strong);
+  padding: 2px 8px;
+  border-radius: var(--anc-r-xs);
+  margin-bottom: 2px;
+}
+
+.anc3-title {
+  font-size: var(--anc-text-2xl);
+  font-weight: 700;
+  font-style: normal;
+  color: var(--anc-ink);
+  line-height: 1.35;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.anc3-subtitle {
+  font-size: var(--anc-text-sm);
+  color: var(--anc-ink-2);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.anc3-actions-group {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  flex-wrap: wrap;
+}
+
+/* ── 3. Buttons & Controls ── */
+.anc3-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--anc-s2);
+  min-height: 44px;
+  padding: 0 var(--anc-s4);
+  font-size: var(--anc-text-sm);
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--anc-r-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.anc3-btn:focus-visible {
+  outline: 2px solid var(--anc-accent);
+  outline-offset: 2px;
+}
+
+.anc3-btn-primary {
+  background: var(--anc-accent);
+  color: var(--anc-accent-ink);
+  border-color: var(--anc-accent);
+  box-shadow: 0 1px 2px rgba(13, 116, 70, 0.2);
+}
+
+.anc3-btn-primary:hover:not(:disabled) {
+  background: var(--anc-accent-hover);
+  border-color: var(--anc-accent-hover);
+}
+
+.anc3-btn-secondary {
+  background: var(--anc-surface);
+  color: var(--anc-ink);
+  border-color: var(--anc-hairline);
+  box-shadow: var(--anc-shadow-sm);
+}
+
+.anc3-btn-secondary:hover:not(:disabled) {
+  background: var(--anc-surface-2);
+  border-color: var(--anc-hairline-strong);
+}
+
+.anc3-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── 4. Filter Panel (Card) ── */
+.anc3-filter-panel {
+  background: var(--anc-surface);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-lg);
+  padding: var(--anc-s5);
+  box-shadow: var(--anc-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s4);
+}
+
+.anc3-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s4);
+  flex-wrap: wrap;
+}
+
+.anc3-mode-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: var(--anc-surface-2);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.anc3-tab-btn {
+  min-height: 38px;
+  padding: 0 var(--anc-s4);
+  font-size: var(--anc-text-sm);
+  font-weight: 500;
+  border-radius: var(--anc-r-sm);
+  background: transparent;
+  border: none;
+  color: var(--anc-ink-2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.anc3-tab-btn:hover {
+  color: var(--anc-ink);
+}
+
+.anc3-tab-btn.is-active {
+  background: var(--anc-surface);
+  color: var(--anc-accent);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.anc3-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  flex-wrap: wrap;
+}
+
+.anc3-label {
+  font-size: var(--anc-text-sm);
+  font-weight: 600;
+  color: var(--anc-ink-2);
+  white-space: nowrap;
+}
+
+.anc3-select {
+  min-height: 44px;
+  padding: 0 var(--anc-s4);
+  font-size: var(--anc-text-sm);
+  font-family: inherit;
+  color: var(--anc-ink);
+  background: var(--anc-surface);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-md);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.anc3-select:focus {
+  outline: none;
+  border-color: var(--anc-accent);
+  box-shadow: 0 0 0 3px var(--anc-focus-ring);
+}
+
+/* Secondary Filters (Search & Selects) */
+.anc3-secondary-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s3);
+  flex-wrap: wrap;
+  padding-top: var(--anc-s3);
+  border-top: 1px dashed var(--anc-hairline);
+}
+
+.anc3-search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  flex: 1 1 300px;
+  min-width: 240px;
+  position: relative;
+}
+
+.anc3-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--anc-s4) 0 38px;
+  font-size: var(--anc-text-sm);
+  font-family: inherit;
+  color: var(--anc-ink);
+  background: var(--anc-surface);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-md);
+  transition: border-color 0.15s ease;
+}
+
+.anc3-input:focus {
+  outline: none;
+  border-color: var(--anc-accent);
+  box-shadow: 0 0 0 3px var(--anc-focus-ring);
+}
+
+.anc3-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--anc-muted);
+  pointer-events: none;
+}
+
+.anc3-clear-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--anc-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--anc-r-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.anc3-clear-btn:hover {
+  color: var(--anc-ink);
+}
+
+/* ── 5. KPI Summary Cards (Filterable!) ── */
+.anc3-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--anc-s3);
+}
+
+.anc3-kpi-card {
+  background: var(--anc-surface);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-lg);
+  padding: var(--anc-s4);
+  box-shadow: var(--anc-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s2);
+  cursor: pointer;
+  transition: all 0.18s ease-in-out;
+  position: relative;
+  text-align: left;
+  user-select: none;
+}
+
+.anc3-kpi-card:hover {
+  border-color: var(--anc-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--anc-shadow-elevated);
+}
+
+.anc3-kpi-card.is-active {
+  border-color: var(--anc-accent);
+  background: var(--anc-surface-accent);
+  box-shadow: 0 0 0 2px var(--anc-accent), var(--anc-shadow-elevated);
+}
+
+.anc3-kpi-card.is-active::after {
+  content: 'เลือกอยู่';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--anc-accent-ink);
+  background: var(--anc-accent);
+  padding: 1px 6px;
+  border-radius: var(--anc-r-full);
+}
+
+.anc3-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--anc-s2);
+}
+
+.anc3-kpi-label {
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+  color: var(--anc-muted);
+  letter-spacing: 0.02em;
+}
+
+.anc3-kpi-icon {
+  color: var(--anc-accent);
+  opacity: 0.85;
+}
+
+.anc3-kpi-value {
+  font-size: var(--anc-text-2xl);
+  font-weight: 700;
+  color: var(--anc-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.anc3-kpi-sub {
+  font-size: var(--anc-text-xs);
+  color: var(--anc-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Special card tints */
+.anc3-kpi-warn .anc3-kpi-value {
+  color: var(--anc-warn);
+}
+.anc3-kpi-ok .anc3-kpi-value {
+  color: var(--anc-ok);
+}
+
+/* ── 6. Data Table Section ── */
+.anc3-table-container {
+  background: var(--anc-surface);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-lg);
+  box-shadow: var(--anc-shadow-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.anc3-table-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--anc-s3) var(--anc-s5);
+  background: var(--anc-surface-2);
+  border-bottom: 1px solid var(--anc-hairline);
+  flex-wrap: wrap;
+  gap: var(--anc-s2);
+}
+
+.anc3-table-count {
+  font-size: var(--anc-text-sm);
+  font-weight: 600;
+  color: var(--anc-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.anc3-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  min-height: 320px;
+}
+
+.anc3-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--anc-text-sm);
+  text-align: left;
+}
+
+/* Multi-tier / grouped headers */
+.anc3-table th {
+  background: var(--anc-surface-3);
+  color: var(--anc-ink);
+  font-weight: 600;
+  font-size: var(--anc-text-xs);
+  padding: 10px 12px;
+  border: 1px solid var(--anc-hairline);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.anc3-table th.is-group-head {
+  text-align: center;
+  background: #E3ECE7;
+  color: var(--anc-accent-dark);
+  font-weight: 700;
+  font-size: var(--anc-text-xs);
+}
+
+.anc3-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+
+.anc3-th-sortable:hover {
+  background: var(--anc-surface-accent);
+}
+
+.anc3-sort-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Table body */
+.anc3-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--anc-hairline-soft);
+  color: var(--anc-ink);
+  line-height: 1.45;
+  vertical-align: middle;
+  min-height: 52px;
+}
+
+.anc3-table tbody tr {
+  transition: background 0.1s ease;
+}
+
+.anc3-table tbody tr:hover {
+  background: var(--anc-surface-2);
+}
+
+/* Row states */
+.anc3-row-ok {
+  background: rgba(234, 246, 239, 0.45);
+}
+
+.anc3-row-warn {
+  background: rgba(254, 246, 231, 0.65);
+}
+
+/* Cell alignment & styling */
+.anc3-cell-center {
+  text-align: center;
+}
+
+.anc3-cell-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.anc3-cell-mono {
+  font-family: var(--anc-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+}
+
+.anc3-cell-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Badges */
+.anc3-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+  border-radius: var(--anc-r-full);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.anc3-badge-ok {
+  background: var(--anc-ok-bg);
+  color: var(--anc-ok);
+  border: 1px solid var(--anc-ok-border);
+}
+
+.anc3-badge-warn {
+  background: var(--anc-warn-bg);
+  color: var(--anc-warn);
+  border: 1px solid var(--anc-warn-border);
+}
+
+.anc3-badge-err {
+  background: var(--anc-err-bg);
+  color: var(--anc-err);
+  border: 1px solid var(--anc-err-border);
+}
+
+.anc3-badge-info {
+  background: var(--anc-info-bg);
+  color: var(--anc-info);
+  border: 1px solid var(--anc-info-border);
+}
+
+.anc3-badge-subtle {
+  background: var(--anc-surface-2);
+  color: var(--anc-ink-2);
+  border: 1px solid var(--anc-hairline);
+}
+
+/* Service indicators (Y / S) */
+.anc3-indicator-y {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--anc-ok);
+  background: var(--anc-ok-bg);
+  border: 1px solid var(--anc-ok-border);
+  padding: 2px 6px;
+  border-radius: var(--anc-r-xs);
+  font-size: 0.75rem;
+}
+
+.anc3-indicator-s {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--anc-info);
+  background: var(--anc-info-bg);
+  border: 1px solid var(--anc-info-border);
+  padding: 2px 6px;
+  border-radius: var(--anc-r-xs);
+  font-size: 0.75rem;
+}
+
+.anc3-indicator-dash {
+  color: var(--anc-muted);
+}
+
+/* Inspect button */
+.anc3-inspect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+  color: var(--anc-accent);
+  background: var(--anc-surface-accent);
+  border: 1px solid var(--anc-surface-accent-strong);
+  border-radius: var(--anc-r-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.anc3-inspect-btn:hover {
+  background: var(--anc-accent);
+  color: var(--anc-accent-ink);
+}
+
+/* ── 7. Pagination Bar ── */
+.anc3-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--anc-s3) var(--anc-s5);
+  background: var(--anc-surface-2);
+  border-top: 1px solid var(--anc-hairline);
+  flex-wrap: wrap;
+  gap: var(--anc-s3);
+}
+
+.anc3-page-size-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  font-size: var(--anc-text-sm);
+  color: var(--anc-ink-2);
+}
+
+.anc3-page-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+}
+
+.anc3-page-info {
+  font-size: var(--anc-text-sm);
+  font-weight: 600;
+  color: var(--anc-ink);
+  font-variant-numeric: tabular-nums;
+  margin: 0 var(--anc-s2);
+}
+
+/* ── 8. Empty & Loading States ── */
+.anc3-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--anc-s10) var(--anc-s5);
+  gap: var(--anc-s3);
+  color: var(--anc-muted);
+}
+
+.anc3-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--anc-s10) var(--anc-s5);
+  gap: var(--anc-s3);
+  color: var(--anc-accent);
+}
+
+.anc3-spinner {
+  animation: anc3-spin 0.9s linear infinite;
+}
+
+@keyframes anc3-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 9. Patient Inspection Modal ── */
+.anc3-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--anc-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: var(--anc-s4);
+  backdrop-filter: blur(2px);
+}
+
+.anc3-modal {
+  background: var(--anc-surface);
+  border-radius: var(--anc-r-lg);
+  box-shadow: var(--anc-shadow-active);
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: anc3-modal-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes anc3-modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.anc3-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--anc-s4) var(--anc-s5);
+  background: var(--anc-surface-2);
+  border-bottom: 1px solid var(--anc-hairline);
+}
+
+.anc3-modal-title {
+  font-size: var(--anc-text-lg);
+  font-weight: 700;
+  color: var(--anc-ink);
+  margin: 0;
+}
+
+.anc3-modal-tabs {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--anc-hairline);
+  background: var(--anc-surface);
+  padding: 0 var(--anc-s5);
+}
+
+.anc3-modal-tab {
+  min-height: 44px;
+  padding: 0 var(--anc-s4);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: var(--anc-text-sm);
+  font-weight: 600;
+  color: var(--anc-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.anc3-modal-tab:hover {
+  color: var(--anc-ink);
+}
+
+.anc3-modal-tab.is-active {
+  color: var(--anc-accent);
+  border-bottom-color: var(--anc-accent);
+}
+
+.anc3-modal-body {
+  padding: var(--anc-s5);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s4);
+}
+
+.anc3-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--anc-s3);
+}
+
+.anc3-info-tile {
+  background: var(--anc-surface-2);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-md);
+  padding: var(--anc-s3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.anc3-info-label {
+  font-size: var(--anc-text-xs);
+  color: var(--anc-muted);
+  font-weight: 600;
+}
+
+.anc3-info-value {
+  font-size: var(--anc-text-sm);
+  color: var(--anc-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.anc3-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--anc-s3) var(--anc-s5);
+  background: var(--anc-surface-2);
+  border-top: 1px solid var(--anc-hairline);
+}
+
+/* ── 10. Responsive Breakpoints ── */
+@media (max-width: 768px) {
+  .anc3-page {
+    padding: var(--anc-s3);
+  }
+
+  .anc3-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .anc3-title {
+    font-size: var(--anc-text-xl);
+  }
+
+  .anc3-filter-panel {
+    padding: var(--anc-s3);
+  }
+
+  .anc3-mode-tabs {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .anc3-tab-btn {
+    flex: 1;
+    text-align: center;
+    padding: 0 var(--anc-s2);
+  }
+
+  .anc3-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .anc3-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   RefreshCw,
@@ -157,8 +157,18 @@ export default function RepFundsClient() {
     setDs2(`${ceYear}-${mStr}-${String(lastDay).padStart(2, '0')}`)
   }
 
+  // Request Cancellation
+  const abortSummaryRef = useRef<AbortController | null>(null)
+  const abortCasesRef = useRef<AbortController | null>(null)
+
   // 1. Fetch Summary Data (KPI Metrics & Fund Matrix)
   const fetchSummaryData = useCallback(async () => {
+    if (abortSummaryRef.current) {
+      abortSummaryRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortSummaryRef.current = controller
+
     setIsLoadingSummary(true)
     setSummaryError(null)
 
@@ -176,7 +186,9 @@ export default function RepFundsClient() {
       if (selectedStatus && selectedStatus !== 'ALL') q.set('status', selectedStatus)
       if (searchTerm.trim()) q.set('search', searchTerm.trim())
 
-      const res = await fetch(`/api/service/dashboard-rcm/rep-funds?${q.toString()}`)
+      const res = await fetch(`/api/service/dashboard-rcm/rep-funds?${q.toString()}`, {
+        signal: controller.signal,
+      })
       const json = await res.json()
 
       if (!res.ok || !json.success) {
@@ -203,9 +215,12 @@ export default function RepFundsClient() {
         setAvailableFunds(json.availableFunds)
       }
     } catch (err: any) {
+      if (err?.name === 'AbortError') return
       setSummaryError(err.message || 'ไม่สามารถโหลดข้อมูลสรุป Rep ได้')
     } finally {
-      setIsLoadingSummary(false)
+      if (!controller.signal.aborted) {
+        setIsLoadingSummary(false)
+      }
     }
   }, [
     dateMode,
@@ -221,6 +236,12 @@ export default function RepFundsClient() {
 
   // 2. Fetch Multi-Rep, Multi-HN Statement Cases
   const fetchStatementCases = useCallback(async () => {
+    if (abortCasesRef.current) {
+      abortCasesRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortCasesRef.current = controller
+
     setIsCasesLoading(true)
     setCasesError(null)
 
@@ -239,7 +260,9 @@ export default function RepFundsClient() {
       if (searchTerm.trim()) q.set('search', searchTerm.trim())
       q.set('limit', String(recordLimit))
 
-      const res = await fetch(`/api/service/dashboard-rcm/rep-funds/cases?${q.toString()}`)
+      const res = await fetch(`/api/service/dashboard-rcm/rep-funds/cases?${q.toString()}`, {
+        signal: controller.signal,
+      })
       const json = await res.json()
 
       if (!res.ok || !json.success) {
@@ -248,9 +271,12 @@ export default function RepFundsClient() {
 
       setStatementCases(json.cases || [])
     } catch (err: any) {
+      if (err?.name === 'AbortError') return
       setCasesError(err.message || 'ไม่สามารถโหลดรายการข้อมูลเคสใน Rep ได้')
     } finally {
-      setIsCasesLoading(false)
+      if (!controller.signal.aborted) {
+        setIsCasesLoading(false)
+      }
     }
   }, [
     dateMode,
@@ -267,10 +293,16 @@ export default function RepFundsClient() {
 
   useEffect(() => {
     fetchSummaryData()
+    return () => {
+      abortSummaryRef.current?.abort()
+    }
   }, [fetchSummaryData])
 
   useEffect(() => {
     fetchStatementCases()
+    return () => {
+      abortCasesRef.current?.abort()
+    }
   }, [fetchStatementCases])
 
   // Extract distinct subFunds from fundGroups when a specific fund is selected

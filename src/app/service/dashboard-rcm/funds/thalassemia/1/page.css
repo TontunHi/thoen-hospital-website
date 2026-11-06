@@ -1,0 +1,741 @@
+/* ── 3.1 Thalassemia in Pregnancy Styles (ui-style-brief + hallmark) ── */
+
+:root {
+  --thal-bg: #f8fafc;
+  --thal-surface: #ffffff;
+  --thal-surface-2: #f1f5f9;
+  --thal-surface-3: #e2e8f0;
+  --thal-border: #e2e8f0;
+  --thal-border-strong: #cbd5e1;
+  --thal-text-main: #0f172a;
+  --thal-text-sub: #475569;
+  --thal-text-muted: #64748b;
+
+  /* 1 Color = 1 Semantic Meaning */
+  --thal-accent: #0284c7;       /* Primary Blue for Thalassemia / Lab */
+  --thal-accent-soft: #e0f2fe;
+  --thal-accent-hover: #0369a1;
+
+  --thal-ok: #059669;           /* Emerald Green for Normal / Negative */
+  --thal-ok-soft: #ecfdf5;
+  --thal-ok-border: #a7f3d0;
+
+  --thal-danger: #dc2626;       /* Crimson Red for Positive / Risk */
+  --thal-danger-soft: #fef2f2;
+  --thal-danger-border: #fecaca;
+
+  --thal-warn: #d97706;         /* Amber for Pending / Caution */
+  --thal-warn-soft: #fffbeb;
+  --thal-warn-border: #fde68a;
+
+  --thal-purple: #7c3aed;       /* Purple for Cesarean / Special */
+  --thal-purple-soft: #f5f3ff;
+  --thal-purple-border: #ddd6fe;
+
+  --thal-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --thal-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --thal-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+  --thal-r-sm: 6px;
+  --thal-r-md: 10px;
+  --thal-r-lg: 14px;
+}
+
+/* Page Container - Comfortable Density & Breathing Room */
+.thal31-page {
+  padding: 28px 32px 64px;
+  max-width: 1680px;
+  margin: 0 auto;
+  font-family: var(--font-sarabun, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  color: var(--thal-text-main);
+  background-color: var(--thal-bg);
+  min-height: 100vh;
+}
+
+/* Header Area */
+.thal31-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.thal31-title-group {
+  flex: 1;
+  min-width: 280px;
+}
+
+.thal31-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: var(--thal-accent-soft);
+  color: var(--thal-accent);
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.thal31-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 8px 0;
+  color: var(--thal-text-main);
+  letter-spacing: -0.01em;
+}
+
+.thal31-subtitle {
+  font-size: 14.5px;
+  color: var(--thal-text-sub);
+  margin: 0;
+  line-height: 1.55;
+  max-width: 960px;
+}
+
+.thal31-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Tactile Buttons */
+.thal31-btn-primary,
+.thal31-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--thal-r-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  text-decoration: none;
+  user-select: none;
+}
+
+.thal31-btn-primary {
+  background-color: var(--thal-accent);
+  color: #ffffff;
+  border: 1px solid var(--thal-accent);
+  box-shadow: var(--thal-shadow-sm);
+}
+
+.thal31-btn-primary:hover:not(:disabled) {
+  background-color: var(--thal-accent-hover);
+  border-color: var(--thal-accent-hover);
+}
+
+.thal31-btn-secondary {
+  background-color: var(--thal-surface);
+  color: var(--thal-text-main);
+  border: 1px solid var(--thal-border-strong);
+  box-shadow: var(--thal-shadow-sm);
+}
+
+.thal31-btn-secondary:hover:not(:disabled) {
+  background-color: var(--thal-surface-2);
+  border-color: #94a3b8;
+}
+
+.thal31-btn-primary:disabled,
+.thal31-btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Spin animation */
+.thal31-spin-icon {
+  animation: thal31-spin 1s linear infinite;
+}
+
+@keyframes thal31-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Warning Banner for ADP mapping */
+.thal31-banner {
+  padding: 16px 20px;
+  border-radius: var(--thal-r-lg);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  box-shadow: var(--thal-shadow-sm);
+}
+
+.thal31-banner-warn {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.thal31-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.thal31-banner-content code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+/* Interactive Summary KPI Cards Grid */
+.thal31-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.thal31-summary-card {
+  background-color: var(--thal-surface);
+  border: 1.5px solid var(--thal-border);
+  border-radius: var(--thal-r-lg);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--thal-shadow-sm);
+  position: relative;
+  min-height: 112px;
+}
+
+.thal31-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--thal-shadow-md);
+  border-color: #cbd5e1;
+}
+
+.thal31-summary-card[aria-pressed="true"] {
+  border-color: var(--thal-accent);
+  background-color: #f0f9ff;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2), var(--thal-shadow-sm);
+}
+
+.thal31-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.thal31-card-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--thal-text-sub);
+}
+
+.thal31-card-val {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--thal-text-main);
+  letter-spacing: -0.02em;
+}
+
+.thal31-card-sub {
+  font-size: 12.5px;
+  color: var(--thal-text-muted);
+}
+
+/* Card badges */
+.thal31-card-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+.thal31-badge-ok {
+  background-color: var(--thal-ok-soft);
+  color: var(--thal-ok);
+  border: 1px solid var(--thal-ok-border);
+}
+
+.thal31-badge-danger {
+  background-color: var(--thal-danger-soft);
+  color: var(--thal-danger);
+  border: 1px solid var(--thal-danger-border);
+}
+
+.thal31-badge-warn {
+  background-color: var(--thal-warn-soft);
+  color: var(--thal-warn);
+  border: 1px solid var(--thal-warn-border);
+}
+
+.thal31-badge-info {
+  background-color: var(--thal-accent-soft);
+  color: var(--thal-accent);
+  border: 1px solid #bae6fd;
+}
+
+.thal31-badge-neutral {
+  background-color: var(--thal-surface-2);
+  color: var(--thal-text-sub);
+  border: 1px solid var(--thal-border);
+}
+
+/* Controls Panel */
+.thal31-controls-card {
+  background-color: var(--thal-surface);
+  border: 1px solid var(--thal-border);
+  border-radius: var(--thal-r-lg);
+  padding: 22px 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--thal-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.thal31-period-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--thal-border);
+}
+
+.thal31-period-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.thal31-field-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--thal-text-sub);
+  white-space: nowrap;
+}
+
+.thal31-mode-tabs {
+  display: inline-flex;
+  background-color: var(--thal-surface-2);
+  padding: 4px;
+  border-radius: var(--thal-r-md);
+  gap: 2px;
+}
+
+.thal31-mode-tab {
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  background: transparent;
+  color: var(--thal-text-sub);
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: var(--thal-r-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.thal31-mode-tab:hover {
+  color: var(--thal-text-main);
+}
+
+.thal31-mode-tab.active {
+  background-color: #ffffff;
+  color: var(--thal-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.thal31-period-selectors {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.thal31-date-range-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.thal31-select {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: var(--thal-r-md);
+  border: 1px solid var(--thal-border-strong);
+  background-color: #ffffff;
+  color: var(--thal-text-main);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.thal31-select:focus-visible {
+  outline: 2px solid var(--thal-accent);
+  outline-offset: 1px;
+}
+
+/* Filter & Search Bar */
+.thal31-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.thal31-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.thal31-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 260px;
+}
+
+.thal31-search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--thal-text-muted);
+  pointer-events: none;
+}
+
+.thal31-search-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 38px 0 40px;
+  border: 1px solid var(--thal-border-strong);
+  border-radius: var(--thal-r-md);
+  background-color: #ffffff;
+  font-size: 14px;
+  color: var(--thal-text-main);
+}
+
+.thal31-search-input:focus-visible {
+  outline: 2px solid var(--thal-accent);
+  outline-offset: 1px;
+  border-color: var(--thal-accent);
+}
+
+.thal31-clear-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--thal-text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.thal31-clear-btn:hover {
+  color: var(--thal-text-main);
+}
+
+/* Table Area */
+.thal31-table-card {
+  background-color: var(--thal-surface);
+  border: 1px solid var(--thal-border);
+  border-radius: var(--thal-r-lg);
+  box-shadow: var(--thal-shadow-sm);
+  overflow: hidden;
+}
+
+.thal31-table-header-meta {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--thal-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  font-size: 13.5px;
+  color: var(--thal-text-sub);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.thal31-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.thal31-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.thal31-table th {
+  background-color: var(--thal-surface-2);
+  color: var(--thal-text-sub);
+  font-weight: 700;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--thal-border);
+  border-right: 1px solid var(--thal-border);
+  white-space: nowrap;
+}
+
+.thal31-table th:last-child {
+  border-right: none;
+}
+
+.thal31-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--thal-border);
+  border-right: 1px solid var(--thal-border);
+  color: var(--thal-text-main);
+  vertical-align: middle;
+}
+
+.thal31-table td:last-child {
+  border-right: none;
+}
+
+.thal31-table tbody tr {
+  transition: background-color 0.1s ease;
+}
+
+.thal31-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.thal31-table-th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.thal31-table-th-sortable:hover {
+  background-color: var(--thal-surface-3);
+  color: var(--thal-text-main);
+}
+
+.thal31-sort-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Pagination Bar */
+.thal31-pagination {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid var(--thal-border);
+  background-color: #ffffff;
+  flex-wrap: wrap;
+}
+
+.thal31-pagination-info {
+  font-size: 13.5px;
+  color: var(--thal-text-muted);
+}
+
+.thal31-pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thal31-page-btn {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--thal-border-strong);
+  background-color: #ffffff;
+  border-radius: var(--thal-r-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--thal-text-main);
+}
+
+.thal31-page-btn:hover:not(:disabled) {
+  background-color: var(--thal-surface-2);
+}
+
+.thal31-page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Detail Modal */
+.thal31-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 999;
+}
+
+.thal31-modal {
+  background-color: #ffffff;
+  border-radius: var(--thal-r-lg);
+  box-shadow: var(--thal-shadow-lg);
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: thal31-modal-in 0.18s ease-out;
+}
+
+@keyframes thal31-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.thal31-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--thal-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.thal31-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--thal-text-main);
+}
+
+.thal31-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.thal31-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--thal-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--thal-surface-2);
+}
+
+.thal31-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.thal31-info-box {
+  background-color: var(--thal-surface-2);
+  border: 1px solid var(--thal-border);
+  padding: 12px 14px;
+  border-radius: var(--thal-r-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.thal31-info-lbl {
+  font-size: 12px;
+  color: var(--thal-text-muted);
+}
+
+.thal31-info-val {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--thal-text-main);
+}
+
+/* Empty / Loading States */
+.thal31-empty-state,
+.thal31-loading-state {
+  padding: 64px 24px;
+  text-align: center;
+  color: var(--thal-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+/* Utility Classes */
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.text-ok { color: var(--thal-ok); }
+.text-danger { color: var(--thal-danger); }
+.text-warn { color: var(--thal-warn); }
+.text-muted { color: var(--thal-text-muted); }
+
+/* Responsive Breakpoints */
+@media (max-width: 768px) {
+  .thal31-page {
+    padding: 16px 14px 48px;
+  }
+
+  .thal31-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .thal31-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .thal31-period-row,
+  .thal31-filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .thal31-info-grid {
+    grid-template-columns: 1fr;
+  }
+}

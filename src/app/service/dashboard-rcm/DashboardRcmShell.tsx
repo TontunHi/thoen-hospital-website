@@ -11,19 +11,32 @@ import {
   ReceiptText,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Menu,
   X,
   ArrowLeft,
   TrendingUp,
   HeartHandshake,
   HeartPulse,
+  ShieldCheck,
+  Baby,
+  Droplet,
+  TestTube2,
+  Heart,
 } from 'lucide-react'
+
+export interface NavSubItem {
+  href: string
+  label: string
+  badge: string
+}
 
 export interface NavItem {
   href: string
   label: string
   badge: string
   icon: React.ComponentType<{ size?: number; className?: string }>
+  children?: NavSubItem[]
 }
 
 export interface NavGroup {
@@ -117,7 +130,126 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
+  {
+    id: 'funds',
+    title: 'กองทุน',
+    items: [
+      {
+        href: '/service/dashboard-rcm/funds/ccs',
+        label: 'คัดกรองมะเร็งปากมดลูก (CCS)',
+        badge: 'CCS',
+        icon: ShieldCheck,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/ccs/2',
+            label: 'รายชื่อผู้รับบริการคัดกรองมะเร็งปากมดลูก',
+            badge: '1.2',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/ccs/10',
+            label: 'บริการ 1B005',
+            badge: '1.10',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/anc',
+        label: 'บริการฝากครรภ์ (ANC)',
+        badge: 'ANC',
+        icon: Baby,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/anc/3',
+            label: '2.3 US - ตรวจช่องปาก - ขัดฟัน',
+            badge: '2.3',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/anc/4',
+            label: 'บริการ 30011',
+            badge: '2.4',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/thalassemia',
+        label: 'ธาลัสซีเมียในหญิงตั้งครรภ์',
+        badge: 'THAL',
+        icon: Droplet,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/thalassemia/1',
+            label: '3.1 คัดกรองธาลัสซีเมีย',
+            badge: '3.1',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/postpartum',
+        label: 'การตรวจหลังคลอด',
+        badge: 'PNC',
+        icon: HeartPulse,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/postpartum/2',
+            label: '7.2 การตรวจหลังคลอด ADP',
+            badge: '7.2',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/postpartum/3',
+            label: '7.3 การจ่ายยา Triforine ADP',
+            badge: '7.3',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/pregnancy-test',
+        label: 'การทดสอบการตั้งครรภ์',
+        badge: '8.1',
+        icon: TestTube2,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/pregnancy-test/1',
+            label: '8.1 การทดสอบการตั้งครรภ์',
+            badge: '8.1',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/family-planning',
+        label: 'วางแผนครอบครัว & คุมกำเนิด (FP)',
+        badge: 'FP',
+        icon: Heart,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/1',
+            label: '9.1 วางแผนครอบครัวและการป้องกันการตั้งครรภ์',
+            badge: '9.1',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/2',
+            label: '9.2 บริการใส่ห่วงอนามัย',
+            badge: '9.2',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/9-3-1',
+            label: '9.3.1 รายการฝังยาคุม',
+            badge: '9.3.1',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/family-planning/9-3-2',
+            label: '9.3.2 รายการถอดยาคุม',
+            badge: '9.3.2',
+          },
+        ],
+      },
+    ],
+  },
 ]
+
+function isPathMatch(pathname: string | null, targetHref: string): boolean {
+  if (!pathname) return false
+  return pathname === targetHref || pathname.startsWith(targetHref + '/')
+}
 
 interface DashboardRcmShellProps {
   children: React.ReactNode
@@ -126,25 +258,110 @@ interface DashboardRcmShellProps {
 
 export default function DashboardRcmShell({
   children,
-  userRole,
 }: DashboardRcmShellProps) {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false)
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false)
-  const [mounted, setMounted] = useState<boolean>(false)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    for (const group of RCM_NAV_GROUPS) {
+      initial[group.id] = true
+    }
+    return initial
+  })
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {}
+    for (const group of RCM_NAV_GROUPS) {
+      for (const item of group.items) {
+        if (item.children && item.children.length > 0) {
+          initial[item.href] =
+            isPathMatch(pathname, item.href) ||
+            item.children.some((c) => isPathMatch(pathname, c.href)) ||
+            true
+        }
+      }
+    }
+    return initial
+  })
 
-  // Hydrate collapsed state from localStorage
+  // Hydrate collapsed & expanded group/submenu states from localStorage
   useEffect(() => {
-    setMounted(true)
     try {
-      const saved = localStorage.getItem('rcm_sidebar_collapsed')
-      if (saved !== null) {
-        setIsCollapsed(saved === 'true')
+      const savedCollapsed = localStorage.getItem('rcm_sidebar_collapsed')
+      if (savedCollapsed !== null) {
+        setIsCollapsed(savedCollapsed === 'true')
+      }
+
+      const savedGroups = localStorage.getItem('rcm_sidebar_expanded_groups')
+      if (savedGroups) {
+        const parsed = JSON.parse(savedGroups) as Record<string, boolean>
+        if (parsed && typeof parsed === 'object') {
+          setExpandedGroups((prev) => {
+            const next = { ...prev, ...parsed }
+            for (const group of RCM_NAV_GROUPS) {
+              const hasActiveChild = group.items.some(
+                (item) =>
+                  isPathMatch(pathname, item.href) ||
+                  Boolean(item.children?.some((c) => isPathMatch(pathname, c.href)))
+              )
+              if (hasActiveChild) {
+                next[group.id] = true
+              }
+            }
+            return next
+          })
+        }
+      }
+
+      const savedMenus = localStorage.getItem('rcm_sidebar_expanded_menus')
+      if (savedMenus) {
+        const parsedMenus = JSON.parse(savedMenus) as Record<string, boolean>
+        if (parsedMenus && typeof parsedMenus === 'object') {
+          setExpandedMenus((prev) => {
+            const next = { ...prev, ...parsedMenus }
+            for (const group of RCM_NAV_GROUPS) {
+              for (const item of group.items) {
+                if (
+                  item.children &&
+                  (isPathMatch(pathname, item.href) ||
+                    item.children.some((c) => isPathMatch(pathname, c.href)))
+                ) {
+                  next[item.href] = true
+                }
+              }
+            }
+            return next
+          })
+        }
       }
     } catch {
       // Ignore localStorage read errors in private browsing
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Auto-expand active main group and submenu if user navigates into one of its routes
+  useEffect(() => {
+    for (const group of RCM_NAV_GROUPS) {
+      const groupHasActive = group.items.some(
+        (item) =>
+          isPathMatch(pathname, item.href) ||
+          Boolean(item.children?.some((c) => isPathMatch(pathname, c.href)))
+      )
+      if (groupHasActive) {
+        setExpandedGroups((prev) => (prev[group.id] ? prev : { ...prev, [group.id]: true }))
+      }
+
+      for (const item of group.items) {
+        if (
+          item.children &&
+          (isPathMatch(pathname, item.href) || item.children.some((c) => isPathMatch(pathname, c.href)))
+        ) {
+          setExpandedMenus((prev) => (prev[item.href] ? prev : { ...prev, [item.href]: true }))
+        }
+      }
+    }
+  }, [pathname])
 
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
@@ -158,13 +375,50 @@ export default function DashboardRcmShell({
     })
   }
 
-  // Find active item & group for breadcrumbs
-  const activeItem = RCM_NAV_GROUPS.flatMap((g) => g.items).find(
-    (item) => pathname === item.href || pathname?.startsWith(item.href + '/')
-  )
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = {
+        ...prev,
+        [groupId]: !(prev[groupId] ?? true),
+      }
+      try {
+        localStorage.setItem('rcm_sidebar_expanded_groups', JSON.stringify(next))
+      } catch {
+        // Ignore localStorage write errors
+      }
+      return next
+    })
+  }
+
+  const toggleSubmenu = (href: string) => {
+    setExpandedMenus((prev) => {
+      const next = {
+        ...prev,
+        [href]: !prev[href],
+      }
+      try {
+        localStorage.setItem('rcm_sidebar_expanded_menus', JSON.stringify(next))
+      } catch {
+        // Ignore localStorage write errors
+      }
+      return next
+    })
+  }
+
+  // Find active group, item, and sub-item for breadcrumbs
   const activeGroup = RCM_NAV_GROUPS.find((g) =>
-    g.items.some((item) => pathname === item.href || pathname?.startsWith(item.href + '/'))
+    g.items.some(
+      (item) =>
+        isPathMatch(pathname, item.href) ||
+        (item.children && item.children.some((c) => isPathMatch(pathname, c.href)))
+    )
   )
+  const activeItem = activeGroup?.items.find(
+    (item) =>
+      isPathMatch(pathname, item.href) ||
+      (item.children && item.children.some((c) => isPathMatch(pathname, c.href)))
+  )
+  const activeSubItem = activeItem?.children?.find((c) => isPathMatch(pathname, c.href))
 
   return (
     <div className={`rcm-layout-shell ${isCollapsed ? 'is-collapsed' : ''}`}>
@@ -218,43 +472,137 @@ export default function DashboardRcmShell({
 
         {/* Navigation Categories */}
         <nav className="rcm-sidebar-nav">
-          {RCM_NAV_GROUPS.map((group) => (
-            <div key={group.id} className="rcm-nav-group">
-              {!isCollapsed && (
-                <div className="rcm-nav-group-title">
-                  <span>{group.title}</span>
-                </div>
-              )}
-              {isCollapsed && <div className="rcm-nav-divider" />}
-              <ul className="rcm-nav-list">
-                {group.items.map((item) => {
-                  const Icon = item.icon
-                  const isActive =
-                    pathname === item.href || pathname?.startsWith(item.href + '/')
-                  return (
-                    <li key={item.href} className="rcm-nav-list-item">
-                      <Link
-                        href={item.href}
-                        onClick={() => setIsMobileOpen(false)}
-                        className={`rcm-nav-link ${isActive ? 'active' : ''}`}
-                        title={isCollapsed ? `${item.badge} ${item.label}` : undefined}
-                      >
-                        <div className="rcm-nav-icon-wrapper">
-                          <Icon size={18} />
-                        </div>
-                        {!isCollapsed && (
-                          <div className="rcm-nav-label-wrapper">
-                            <span className="rcm-nav-label">{item.label}</span>
-                            <span className="rcm-nav-badge">{item.badge}</span>
-                          </div>
-                        )}
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
+          {RCM_NAV_GROUPS.map((group) => {
+            const isGroupExpanded = expandedGroups[group.id] ?? true
+            const isGroupActive = group.items.some(
+              (item) =>
+                isPathMatch(pathname, item.href) ||
+                Boolean(item.children?.some((c) => isPathMatch(pathname, c.href)))
+            )
+
+            return (
+              <div
+                key={group.id}
+                className={`rcm-nav-group ${
+                  !isCollapsed && !isGroupExpanded ? 'is-group-collapsed' : ''
+                }`}
+              >
+                {!isCollapsed && (
+                  <button
+                    type="button"
+                    className={`rcm-nav-group-toggle ${
+                      isGroupActive && !isGroupExpanded ? 'has-active' : ''
+                    }`}
+                    onClick={() => toggleGroup(group.id)}
+                    aria-expanded={isGroupExpanded}
+                    aria-controls={`rcm-group-${group.id}`}
+                  >
+                    <span className="rcm-nav-group-title-text">{group.title}</span>
+                    <span className="rcm-nav-group-chevron" aria-hidden="true">
+                      {isGroupExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                  </button>
+                )}
+                {isCollapsed && <div className="rcm-nav-divider" />}
+                {(isCollapsed || isGroupExpanded) && (
+                  <ul id={`rcm-group-${group.id}`} className="rcm-nav-list">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      const hasChildren = Boolean(item.children && item.children.length > 0)
+                      const isBranchActive =
+                        isPathMatch(pathname, item.href) ||
+                        Boolean(item.children?.some((c) => isPathMatch(pathname, c.href)))
+                      const isExpanded = Boolean(expandedMenus[item.href])
+
+                      if (hasChildren && item.children) {
+                        const firstChildHref = item.children[0].href
+
+                        if (isCollapsed) {
+                          return (
+                            <li key={item.href} className="rcm-nav-list-item">
+                              <Link
+                                href={firstChildHref}
+                                onClick={() => setIsMobileOpen(false)}
+                                className={`rcm-nav-link ${isBranchActive ? 'active' : ''}`}
+                                title={`${item.label} — ${item.children[0].badge} ${item.children[0].label}`}
+                              >
+                                <div className="rcm-nav-icon-wrapper">
+                                  <Icon size={18} />
+                                </div>
+                              </Link>
+                            </li>
+                          )
+                        }
+
+                        return (
+                          <li key={item.href} className="rcm-nav-list-item">
+                            <button
+                              type="button"
+                              onClick={() => toggleSubmenu(item.href)}
+                              aria-expanded={isExpanded}
+                              className={`rcm-nav-link rcm-nav-parent-btn ${
+                                isBranchActive ? 'branch-active' : ''
+                              }`}
+                            >
+                              <div className="rcm-nav-icon-wrapper">
+                                <Icon size={18} />
+                              </div>
+                              <div className="rcm-nav-label-wrapper">
+                                <span className="rcm-nav-label">{item.label}</span>
+                                <span className="rcm-nav-chevron">
+                                  {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                                </span>
+                              </div>
+                            </button>
+                            {isExpanded && (
+                              <ul className="rcm-nav-sublist">
+                                {item.children.map((sub) => {
+                                  const isSubActive = isPathMatch(pathname, sub.href)
+                                  return (
+                                    <li key={sub.href}>
+                                      <Link
+                                        href={sub.href}
+                                        onClick={() => setIsMobileOpen(false)}
+                                        className={`rcm-nav-sublink ${isSubActive ? 'active' : ''}`}
+                                      >
+                                        <span className="rcm-nav-subbadge">{sub.badge}</span>
+                                        <span className="rcm-nav-sublabel">{sub.label}</span>
+                                      </Link>
+                                    </li>
+                                  )
+                                })}
+                              </ul>
+                            )}
+                          </li>
+                        )
+                      }
+
+                      return (
+                        <li key={item.href} className="rcm-nav-list-item">
+                          <Link
+                            href={item.href}
+                            onClick={() => setIsMobileOpen(false)}
+                            className={`rcm-nav-link ${isBranchActive ? 'active' : ''}`}
+                            title={isCollapsed ? `${item.badge} ${item.label}` : undefined}
+                          >
+                            <div className="rcm-nav-icon-wrapper">
+                              <Icon size={18} />
+                            </div>
+                            {!isCollapsed && (
+                              <div className="rcm-nav-label-wrapper">
+                                <span className="rcm-nav-label">{item.label}</span>
+                                <span className="rcm-nav-badge">{item.badge}</span>
+                              </div>
+                            )}
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            )
+          })}
         </nav>
 
         {/* Sidebar Footer */}
@@ -298,7 +646,17 @@ export default function DashboardRcmShell({
               {activeItem && (
                 <>
                   <span className="rcm-crumb-sep">/</span>
-                  <span className="rcm-crumb-active">{activeItem.label}</span>
+                  <span className={activeSubItem ? 'rcm-crumb-subtle' : 'rcm-crumb-active'}>
+                    {activeItem.label}
+                  </span>
+                </>
+              )}
+              {activeSubItem && (
+                <>
+                  <span className="rcm-crumb-sep">/</span>
+                  <span className="rcm-crumb-active">
+                    {activeSubItem.badge} {activeSubItem.label}
+                  </span>
                 </>
               )}
             </nav>

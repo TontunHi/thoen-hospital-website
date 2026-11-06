@@ -7,6 +7,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/lib/__tests__/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    restoreMocks: true,
   },
   resolve: {
     alias: {

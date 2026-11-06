@@ -1,0 +1,1003 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 */
+/* Hallmark · macrostructure: workbench-command-ledger · tone: modern-clinical-warm · anchor hue: emerald (--primary) */
+
+/* ── Design Tokens Scope for ANC 2.4 (30011) ── */
+.anc4-page {
+  --anc-bg: var(--bg-main);
+  --anc-surface: var(--bg-surface);
+  --anc-surface-2: var(--bg-subtle);
+  --anc-surface-accent: var(--primary-subtle);
+  --anc-surface-accent-strong: var(--primary-light);
+  --anc-ink: var(--gray-900);
+  --anc-ink-2: var(--gray-700);
+  --anc-muted: var(--gray-500);
+  --anc-hairline: var(--gray-200);
+  --anc-hairline-soft: var(--gray-100);
+  --anc-hairline-strong: var(--gray-400);
+  --anc-accent: var(--primary);
+  --anc-accent-hover: var(--primary-hover);
+  --anc-accent-dark: var(--primary-dark);
+  --anc-accent-ink: var(--white);
+  --anc-focus-ring: color-mix(in srgb, var(--primary) 22%, transparent);
+  --anc-sticky-divide: color-mix(in srgb, var(--gray-900) 6%, transparent);
+  --anc-backdrop: color-mix(in srgb, var(--gray-900) 52%, transparent);
+
+  --anc-ok: var(--success);
+  --anc-ok-bg: var(--success-bg);
+  --anc-ok-border: var(--success-border);
+  --anc-warn: var(--warning);
+  --anc-warn-bg: var(--warning-bg);
+  --anc-warn-border: var(--warning-border);
+  --anc-err: var(--danger);
+  --anc-err-bg: var(--danger-bg);
+  --anc-err-border: var(--danger-border);
+  --anc-info: var(--info);
+  --anc-info-bg: var(--info-bg);
+  --anc-info-border: var(--info-border);
+
+  --anc-font: var(--font-family);
+  --anc-text-xs: var(--font-size-xs);
+  --anc-text-sm: var(--font-size-sm);
+  --anc-text-base: var(--font-size-base);
+  --anc-text-lg: var(--font-size-lg);
+  --anc-text-xl: var(--font-size-xl);
+  --anc-text-2xl: var(--font-size-2xl);
+
+  --anc-s1: var(--space-1);
+  --anc-s2: var(--space-2);
+  --anc-s3: var(--space-3);
+  --anc-s4: var(--space-4);
+  --anc-s5: var(--space-5);
+  --anc-s6: var(--space-6);
+  --anc-s8: var(--space-8);
+  --anc-s10: var(--space-10);
+
+  --anc-r-sm: var(--radius-sm);
+  --anc-r-md: var(--radius);
+  --anc-r-lg: var(--radius-lg);
+  --anc-r-xl: var(--radius-xl);
+  --anc-r-full: var(--radius-full);
+
+  --anc-shadow-card: var(--shadow-card);
+  --anc-shadow-hover: var(--shadow-hover);
+  --anc-shadow-sm: var(--shadow-sm);
+  --anc-shadow-md: var(--shadow-md);
+
+  --anc-dur-fast: var(--duration-fast, 150ms);
+  --anc-dur-med: var(--duration-normal, 220ms);
+  --anc-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  padding: var(--anc-s6) var(--anc-s8) var(--anc-s10);
+  background-color: var(--anc-bg);
+  color: var(--anc-ink);
+  font-family: var(--anc-font);
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s6);
+  min-width: 0;
+}
+
+/* ── 1. Header Bar ── */
+.anc4-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--anc-s4);
+  flex-wrap: wrap;
+}
+
+.anc4-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s2);
+  min-width: 0;
+}
+
+.anc4-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  align-self: flex-start;
+  padding: 4px 10px;
+  background-color: var(--anc-surface-accent-strong);
+  color: var(--anc-accent-dark);
+  border: 1px solid color-mix(in srgb, var(--anc-accent) 25%, transparent);
+  border-radius: var(--anc-r-full);
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+}
+
+.anc4-title {
+  font-size: var(--anc-text-2xl);
+  font-weight: 700;
+  color: var(--anc-ink);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.anc4-subtitle {
+  font-size: var(--anc-text-sm);
+  color: var(--anc-ink-2);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.anc4-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s3);
+  flex-wrap: wrap;
+}
+
+/* ── Buttons ── */
+.anc4-btn-primary,
+.anc4-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--anc-r-md);
+  font-size: var(--anc-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--anc-dur-fast) var(--anc-ease-out);
+  white-space: nowrap;
+}
+
+.anc4-btn-primary {
+  background-color: var(--anc-accent);
+  color: var(--anc-accent-ink);
+  border: 1px solid var(--anc-accent);
+  box-shadow: var(--anc-shadow-card);
+}
+
+.anc4-btn-primary:hover:not(:disabled) {
+  background-color: var(--anc-accent-hover);
+  border-color: var(--anc-accent-hover);
+  box-shadow: var(--anc-shadow-hover);
+}
+
+.anc4-btn-primary:active:not(:disabled) {
+  background-color: var(--anc-accent-dark);
+}
+
+.anc4-btn-secondary {
+  background-color: var(--anc-surface);
+  color: var(--anc-ink);
+  border: 1px solid var(--anc-hairline);
+  box-shadow: var(--anc-shadow-sm);
+}
+
+.anc4-btn-secondary:hover:not(:disabled) {
+  background-color: var(--anc-surface-2);
+  border-color: var(--anc-hairline-strong);
+}
+
+.anc4-btn-primary:disabled,
+.anc4-btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.anc4-spin-icon {
+  animation: anc4-spin 1s linear infinite;
+}
+
+@keyframes anc4-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 2. Warning / Info Banners ── */
+.anc4-banner {
+  padding: 14px 18px;
+  border-radius: var(--anc-r-lg);
+  border: 1px solid transparent;
+  font-size: var(--anc-text-sm);
+  line-height: 1.6;
+}
+
+.anc4-banner-warn {
+  background-color: var(--anc-warn-bg);
+  color: var(--anc-warn);
+  border-color: var(--anc-warn-border);
+}
+
+.anc4-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--anc-s3);
+}
+
+.anc4-banner-content code {
+  font-family: monospace;
+  background-color: color-mix(in srgb, var(--anc-warn) 12%, transparent);
+  padding: 2px 6px;
+  border-radius: var(--anc-r-sm);
+  font-size: 0.9em;
+}
+
+/* ── 3. Interactive KPI Summary Cards (Breathing Room Grid) ── */
+.anc4-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--anc-s4);
+}
+
+.anc4-summary-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background-color: var(--anc-surface);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-lg);
+  box-shadow: var(--anc-shadow-card);
+  text-align: left;
+  transition: all var(--anc-dur-fast) var(--anc-ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+button.anc4-summary-card {
+  cursor: pointer;
+  width: 100%;
+}
+
+button.anc4-summary-card:hover {
+  border-color: var(--anc-accent);
+  box-shadow: var(--anc-shadow-hover);
+  transform: translateY(-2px);
+}
+
+button.anc4-summary-card[aria-pressed='true'] {
+  border-color: var(--anc-accent);
+  background-color: var(--anc-surface-accent);
+  box-shadow: 0 0 0 2px var(--anc-accent), var(--anc-shadow-hover);
+}
+
+.anc4-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--anc-s2);
+  margin-bottom: var(--anc-s2);
+}
+
+.anc4-card-label {
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+  color: var(--anc-muted);
+}
+
+.anc4-card-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--anc-r-full);
+  font-weight: 600;
+}
+
+.anc4-card-val {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--anc-ink);
+  line-height: 1.2;
+  margin: var(--anc-s1) 0;
+}
+
+.anc4-card-sub {
+  font-size: var(--anc-text-xs);
+  color: var(--anc-muted);
+  line-height: 1.4;
+}
+
+.text-success {
+  color: var(--anc-ok) !important;
+}
+
+.text-danger {
+  color: var(--anc-err) !important;
+}
+
+.text-accent {
+  color: var(--accent-gold-dark, #8c6d1f) !important;
+}
+
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 4. Filter & Search Controls (Card with Breathing Room) ── */
+.anc4-controls-card {
+  padding: 20px 24px;
+  background-color: var(--anc-surface);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-lg);
+  box-shadow: var(--anc-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s4);
+}
+
+.anc4-period-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--anc-s4);
+  flex-wrap: wrap;
+}
+
+.anc4-period-left {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s3);
+  flex-wrap: wrap;
+}
+
+.anc4-field-label {
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+  color: var(--anc-muted);
+  white-space: nowrap;
+}
+
+.anc4-mode-tabs {
+  display: inline-flex;
+  padding: 3px;
+  background-color: var(--anc-surface-2);
+  border-radius: var(--anc-r-md);
+  border: 1px solid var(--anc-hairline-soft);
+  gap: 2px;
+}
+
+.anc4-mode-tab {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: calc(var(--anc-r-md) - 2px);
+  border: none;
+  background: transparent;
+  font-size: var(--anc-text-sm);
+  font-weight: 500;
+  color: var(--anc-ink-2);
+  cursor: pointer;
+  transition: all var(--anc-dur-fast) var(--anc-ease-out);
+}
+
+.anc4-mode-tab:hover {
+  color: var(--anc-ink);
+}
+
+.anc4-mode-tab.active {
+  background-color: var(--anc-surface);
+  color: var(--anc-accent);
+  font-weight: 600;
+  box-shadow: var(--anc-shadow-sm);
+}
+
+.anc4-period-selectors {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s3);
+  flex-wrap: wrap;
+}
+
+.anc4-select {
+  min-height: 44px;
+  padding: 0 32px 0 12px;
+  background-color: var(--anc-surface);
+  color: var(--anc-ink);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-md);
+  font-size: var(--anc-text-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--anc-dur-fast);
+  appearance: auto;
+}
+
+.anc4-select:focus-visible {
+  outline: 3px solid var(--anc-focus-ring);
+  border-color: var(--anc-accent);
+}
+
+.anc4-date-range-box {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+}
+
+/* ── Search & Filter Bar ── */
+.anc4-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--anc-s3);
+  flex-wrap: wrap;
+  padding-top: var(--anc-s3);
+  border-top: 1px solid var(--anc-hairline-soft);
+}
+
+.anc4-search-group {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  flex: 1;
+  min-width: 280px;
+  max-width: 600px;
+}
+
+.anc4-search-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.anc4-search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--anc-muted);
+  pointer-events: none;
+}
+
+.anc4-search-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 40px 0 40px;
+  background-color: var(--anc-surface);
+  color: var(--anc-ink);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-md);
+  font-size: var(--anc-text-sm);
+  font-family: inherit;
+  transition: all var(--anc-dur-fast);
+}
+
+.anc4-search-input:focus-visible {
+  outline: 3px solid var(--anc-focus-ring);
+  border-color: var(--anc-accent);
+}
+
+.anc4-search-clear {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  padding: 6px;
+  color: var(--anc-muted);
+  cursor: pointer;
+  border-radius: var(--anc-r-full);
+}
+
+.anc4-search-clear:hover {
+  color: var(--anc-ink);
+  background-color: var(--anc-surface-2);
+}
+
+.anc4-active-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--anc-s2);
+  padding: 6px 12px;
+  background-color: var(--anc-surface-accent);
+  color: var(--anc-accent-dark);
+  border: 1px solid color-mix(in srgb, var(--anc-accent) 30%, transparent);
+  border-radius: var(--anc-r-full);
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+}
+
+.anc4-active-filter-clear {
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  color: var(--anc-accent-dark);
+  cursor: pointer;
+}
+
+/* ── 5. Data Table Section ── */
+.anc4-table-card {
+  background-color: var(--anc-surface);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-lg);
+  box-shadow: var(--anc-shadow-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.anc4-table-header-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--anc-hairline);
+  background-color: var(--anc-surface);
+  gap: var(--anc-s3);
+  flex-wrap: wrap;
+}
+
+.anc4-table-count {
+  font-size: var(--anc-text-sm);
+  color: var(--anc-ink-2);
+}
+
+.anc4-table-count strong {
+  color: var(--anc-ink);
+}
+
+.anc4-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.anc4-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--anc-text-sm);
+  text-align: left;
+}
+
+/* Merged Table Headers */
+.anc4-table thead tr:first-child th {
+  background-color: var(--anc-surface-2);
+  color: var(--anc-ink);
+  font-weight: 700;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--anc-hairline);
+  border-right: 1px solid var(--anc-hairline-soft);
+  white-space: nowrap;
+  font-size: var(--anc-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.anc4-table thead tr:last-child th {
+  background-color: var(--anc-surface-2);
+  color: var(--anc-muted);
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--anc-hairline);
+  border-right: 1px solid var(--anc-hairline-soft);
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.anc4-th-group {
+  text-align: center;
+  background-color: color-mix(in srgb, var(--anc-accent) 8%, var(--anc-surface-2)) !important;
+  color: var(--anc-accent-dark) !important;
+}
+
+.anc4-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--anc-dur-fast);
+}
+
+.anc4-th-sortable:hover {
+  background-color: color-mix(in srgb, var(--anc-accent) 6%, var(--anc-surface-2));
+  color: var(--anc-ink);
+}
+
+.anc4-th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.anc4-sort-idle {
+  opacity: 0.35;
+}
+
+.anc4-sort-active {
+  color: var(--anc-accent);
+}
+
+/* Table Body Rows (Spacious 52-56px height) */
+.anc4-table tbody tr {
+  transition: background-color var(--anc-dur-fast);
+  cursor: pointer;
+}
+
+.anc4-table tbody tr:hover {
+  background-color: var(--anc-surface-accent);
+}
+
+.anc4-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--anc-hairline-soft);
+}
+
+.anc4-table td {
+  padding: 14px 14px;
+  color: var(--anc-ink);
+  vertical-align: middle;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.anc4-td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.anc4-td-center {
+  text-align: center;
+}
+
+.anc4-ptname {
+  font-weight: 600;
+  color: var(--anc-ink);
+}
+
+.anc4-pt-sub {
+  font-size: var(--anc-text-xs);
+  color: var(--anc-muted);
+}
+
+/* Pill Badges */
+.anc4-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--anc-r-full);
+  font-size: var(--anc-text-xs);
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.anc4-badge-ok {
+  background-color: var(--anc-ok-bg);
+  color: var(--anc-ok);
+  border-color: var(--anc-ok-border);
+}
+
+.anc4-badge-warn {
+  background-color: var(--anc-warn-bg);
+  color: var(--anc-warn);
+  border-color: var(--anc-warn-border);
+}
+
+.anc4-badge-danger {
+  background-color: var(--anc-err-bg);
+  color: var(--anc-err);
+  border-color: var(--anc-err-border);
+}
+
+.anc4-badge-info {
+  background-color: var(--anc-info-bg);
+  color: var(--anc-info);
+  border-color: var(--anc-info-border);
+}
+
+.anc4-badge-neutral {
+  background-color: var(--anc-surface-2);
+  color: var(--anc-ink-2);
+  border-color: var(--anc-hairline);
+}
+
+.anc4-code-chip {
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: var(--anc-surface-2);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-sm);
+  font-size: 11px;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+/* ── 6. Pagination Footer ── */
+.anc4-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--anc-hairline);
+  background-color: var(--anc-surface);
+  flex-wrap: wrap;
+  gap: var(--anc-s3);
+}
+
+.anc4-page-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+}
+
+.anc4-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--anc-hairline);
+  background-color: var(--anc-surface);
+  border-radius: var(--anc-r-md);
+  font-size: var(--anc-text-sm);
+  cursor: pointer;
+  transition: all var(--anc-dur-fast);
+}
+
+.anc4-page-btn:hover:not(:disabled) {
+  background-color: var(--anc-surface-2);
+  border-color: var(--anc-hairline-strong);
+}
+
+.anc4-page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── 7. Detail Modal ── */
+.anc4-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: var(--anc-backdrop);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--anc-s4);
+}
+
+.anc4-modal-card {
+  width: 100%;
+  max-width: 840px;
+  max-height: 90vh;
+  background-color: var(--anc-surface);
+  border-radius: var(--anc-r-xl);
+  box-shadow: var(--shadow-2xl);
+  border: 1px solid var(--anc-hairline);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: anc4-scale-in var(--anc-dur-med) var(--anc-ease-out);
+}
+
+@keyframes anc4-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.anc4-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--anc-hairline);
+  background-color: var(--anc-surface-2);
+}
+
+.anc4-modal-title-area {
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s3);
+}
+
+.anc4-modal-title {
+  font-size: var(--anc-text-lg);
+  font-weight: 700;
+  margin: 0;
+}
+
+.anc4-modal-close {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  color: var(--anc-muted);
+  cursor: pointer;
+  border-radius: var(--anc-r-full);
+}
+
+.anc4-modal-close:hover {
+  background-color: var(--anc-hairline);
+  color: var(--anc-ink);
+}
+
+.anc4-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--anc-s5);
+}
+
+.anc4-modal-tabs {
+  display: flex;
+  gap: var(--anc-s2);
+  border-bottom: 1px solid var(--anc-hairline);
+  padding-bottom: var(--anc-s2);
+}
+
+.anc4-modal-tab-btn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: var(--anc-text-sm);
+  font-weight: 600;
+  color: var(--anc-muted);
+  border-radius: var(--anc-r-md);
+  cursor: pointer;
+}
+
+.anc4-modal-tab-btn.active {
+  background-color: var(--anc-surface-accent);
+  color: var(--anc-accent-dark);
+}
+
+.anc4-copy-chip-row {
+  display: flex;
+  gap: var(--anc-s2);
+  flex-wrap: wrap;
+}
+
+.anc4-copy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: var(--anc-surface-2);
+  border: 1px solid var(--anc-hairline);
+  border-radius: var(--anc-r-md);
+  font-size: var(--anc-text-xs);
+  cursor: pointer;
+  transition: all var(--anc-dur-fast);
+}
+
+.anc4-copy-chip:hover {
+  background-color: var(--anc-surface-accent);
+  border-color: var(--anc-accent);
+}
+
+.anc4-modal-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--anc-s3);
+  padding: 16px;
+  background-color: var(--anc-surface-2);
+  border-radius: var(--anc-r-lg);
+  border: 1px solid var(--anc-hairline-soft);
+}
+
+.anc4-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.anc4-field-sub {
+  font-size: 11px;
+  color: var(--anc-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.anc4-field-val {
+  font-size: var(--anc-text-sm);
+  color: var(--anc-ink);
+  font-weight: 500;
+}
+
+.anc4-modal-section-title {
+  font-size: var(--anc-text-sm);
+  font-weight: 700;
+  color: var(--anc-ink);
+  margin-bottom: var(--anc-s2);
+  display: flex;
+  align-items: center;
+  gap: var(--anc-s2);
+}
+
+.anc4-chips-wrap {
+  display: flex;
+  gap: var(--anc-s2);
+  flex-wrap: wrap;
+}
+
+.anc4-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid var(--anc-hairline);
+  background-color: var(--anc-surface-2);
+}
+
+/* ── 8. Empty & Loading States ── */
+.anc4-empty-state,
+.anc4-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  text-align: center;
+  gap: var(--anc-s3);
+}
+
+.anc4-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--anc-r-full);
+  background-color: var(--anc-surface-2);
+  color: var(--anc-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.anc4-empty-title {
+  font-size: var(--anc-text-base);
+  font-weight: 600;
+  color: var(--anc-ink);
+  margin: 0;
+}
+
+.anc4-empty-desc {
+  font-size: var(--anc-text-sm);
+  color: var(--anc-muted);
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Responsive adjustment */
+@media (max-width: 768px) {
+  .anc4-page {
+    padding: var(--anc-s4);
+    gap: var(--anc-s4);
+  }
+
+  .anc4-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .anc4-header-actions {
+    justify-content: stretch;
+  }
+
+  .anc4-header-actions button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .anc4-period-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .anc4-period-selectors {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .anc4-search-group {
+    max-width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .anc4-table th,
+  .anc4-table td {
+    padding: 10px 10px;
+    font-size: 13px;
+  }
+}

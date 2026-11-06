@@ -1,5 +1,6 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import { RcmDashboardService, getDefaultFiscalYearDateRange, type OpdDepartmentSummaryItem } from '@/lib/clinical/rcmDashboardService'
 import OpdClient from './OpdClient'
 
 export const metadata = {
@@ -17,5 +18,16 @@ export default async function OpdPage() {
     redirect('/service')
   }
 
-  return <OpdClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData: OpdDepartmentSummaryItem[] = []
+  try {
+    initialData = await RcmDashboardService.getOpdDepartmentSummary({
+      startDate: defaultRange.startDate,
+      endDate: defaultRange.endDate,
+    })
+  } catch {
+    initialData = []
+  }
+
+  return <OpdClient initialData={initialData} initialRange={defaultRange} />
 }

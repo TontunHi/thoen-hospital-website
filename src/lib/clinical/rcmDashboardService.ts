@@ -63,6 +63,21 @@ export function resolveFiscalDateRange(params?: FiscalDateRangeParams): { startD
   return { startDate, endDate }
 }
 
+/**
+ * Standardize sex code into UTF-8 Thai representation ('ชาย' | 'หญิง' | 'ไม่ระบุ')
+ * Resilient against TIS-620 / UTF-8 encoding or collation mismatches.
+ */
+export function formatThaiSex(sexCode?: string | null, fallback?: string): string {
+  if (sexCode === '1') return 'ชาย'
+  if (sexCode === '2') return 'หญิง'
+  if (fallback && fallback.trim()) {
+    const f = fallback.trim()
+    if (f === 'ชาย' || f === '1') return 'ชาย'
+    if (f === 'หญิง' || f === '2') return 'หญิง'
+  }
+  return 'ไม่ระบุ'
+}
+
 // ── 0.1 Specialty Classification Domain ──────────────────────
 
 export type ClinicalDepartmentKey =
@@ -882,6 +897,7 @@ export class RcmDashboardService {
               o.hn,
               IFNULL(pt.cid, '') AS cid,
               CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+              IFNULL(pt.sex, '') AS sex_code,
               CASE pt.sex WHEN '1' THEN 'ชาย' WHEN '2' THEN 'หญิง' ELSE 'ไม่ระบุ' END AS sex,
               IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
               DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
@@ -909,7 +925,10 @@ export class RcmDashboardService {
             LIMIT 1000
           `
           const vRows = await executor(visitQuery, visitParams)
-          visitsData = vRows as DentalPatientVisitItem[]
+          visitsData = (vRows as any[]).map((r) => ({
+            ...r,
+            sex: formatThaiSex(r.sex_code, r.sex),
+          })) as DentalPatientVisitItem[]
         }
 
         return {
@@ -1084,6 +1103,7 @@ export class RcmDashboardService {
             IFNULL(o.an, '') AS an,
             IFNULL(pt.cid, '') AS cid,
             CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+            IFNULL(pt.sex, '') AS sex_code,
             CASE pt.sex WHEN '1' THEN 'ชาย' WHEN '2' THEN 'หญิง' ELSE 'ไม่ระบุ' END AS sex,
             IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
             DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
@@ -1126,7 +1146,10 @@ export class RcmDashboardService {
 
         const queryParams = pttype ? [ds1, ds2, pttype] : [ds1, ds2]
         const rows = await executor(query, queryParams)
-        return rows as OPDRecord[]
+        return (rows as any[]).map((r) => ({
+          ...r,
+          sex: formatThaiSex(r.sex_code, r.sex),
+        })) as OPDRecord[]
       },
       30000
     )
@@ -1154,6 +1177,7 @@ export class RcmDashboardService {
             i.hn,
             IFNULL(pt.cid, '') AS cid,
             CONCAT(IFNULL(pt.pname,''), IFNULL(pt.fname,''), ' ', IFNULL(pt.lname,'')) AS ptname,
+            IFNULL(pt.sex, '') AS sex_code,
             CASE pt.sex WHEN '1' THEN 'ชาย' WHEN '2' THEN 'หญิง' ELSE 'ไม่ระบุ' END AS sex,
             IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, i.regdate), 0) AS age,
             DATE_FORMAT(i.regdate, '%Y-%m-%d') AS admdate,
@@ -1211,7 +1235,10 @@ export class RcmDashboardService {
 
         const queryParams = pttype ? [ds1, ds2, pttype] : [ds1, ds2]
         const rows = await executor(query, queryParams)
-        return rows as IPDRecord[]
+        return (rows as any[]).map((r) => ({
+          ...r,
+          sex: formatThaiSex(r.sex_code, r.sex),
+        })) as IPDRecord[]
       },
       30000
     )

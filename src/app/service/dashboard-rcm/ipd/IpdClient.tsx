@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   BedDouble,
   Users,
@@ -253,12 +253,21 @@ export default function IpdClient() {
     setDs2(`${fiscalYear}-09-30`)
   }
 
+  const abortReportRef = useRef<AbortController | null>(null)
+  const abortDeptRef = useRef<AbortController | null>(null)
+
   const fetchData = useCallback(async (start = ds1, end = ds2) => {
+    if (abortReportRef.current) {
+      abortReportRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortReportRef.current = controller
+
     setLoading(true)
     setError(null)
     try {
       const url = `/api/service/dashboard-rcm/ipd-report?ds1=${start}&ds2=${end}`
-      const res = await fetch(url, { cache: 'no-store' })
+      const res = await fetch(url, { cache: 'no-store', signal: controller.signal })
       const json = await res.json()
       if (json.success) {
         setData(json.data || [])
@@ -266,18 +275,27 @@ export default function IpdClient() {
         setError(json.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
       }
     } catch (err: any) {
+      if (err?.name === 'AbortError') return
       setError(err?.message || 'ไม่สามารถเชื่อมต่อ API ได้')
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
     }
   }, [ds1, ds2])
 
   const fetchDeptAdjrwData = useCallback(async (start = ds1, end = ds2) => {
+    if (abortDeptRef.current) {
+      abortDeptRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortDeptRef.current = controller
+
     setDeptAdjrwLoading(true)
     setDeptAdjrwError(null)
     try {
       const url = `/api/service/dashboard-rcm/ipd-dept-adjrw?ds1=${start}&ds2=${end}`
-      const res = await fetch(url, { cache: 'no-store' })
+      const res = await fetch(url, { cache: 'no-store', signal: controller.signal })
       const json = await res.json()
       if (json.success) {
         setDeptAdjrwData(json.data || [])
@@ -285,15 +303,22 @@ export default function IpdClient() {
         setDeptAdjrwError(json.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล SumAdjRW แยกรายแผนก')
       }
     } catch (err: any) {
+      if (err?.name === 'AbortError') return
       setDeptAdjrwError(err?.message || 'ไม่สามารถเชื่อมต่อ API ได้')
     } finally {
-      setDeptAdjrwLoading(false)
+      if (!controller.signal.aborted) {
+        setDeptAdjrwLoading(false)
+      }
     }
   }, [ds1, ds2])
 
   useEffect(() => {
     fetchData(ds1, ds2)
     fetchDeptAdjrwData(ds1, ds2)
+    return () => {
+      abortReportRef.current?.abort()
+      abortDeptRef.current?.abort()
+    }
   }, [ds1, ds2, fetchData, fetchDeptAdjrwData])
 
   // Wards and Doctors options

@@ -224,6 +224,8 @@ export function checkIndicatorDueStatus(
 
 export interface IndicatorAnswerableEntry {
   periodKey?: string
+  numeratorValue?: number | null
+  denominatorValue?: number | null
   resultValue?: number | null
   resultText?: string | null
   status?: string | null
@@ -243,24 +245,30 @@ export function isIndicatorAnsweredForPeriod(
 ): boolean {
   if (!periodKey) return false
 
+  const isEntryAnswered = (entry: IndicatorAnswerableEntry): boolean => {
+    const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
+    const hasText = Boolean(entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
+    const hasNumDen = entry.numeratorValue !== null && entry.denominatorValue !== null && entry.numeratorValue !== undefined && entry.denominatorValue !== undefined
+    const isNotPending = Boolean(entry.status && entry.status !== 'PENDING')
+    return (hasValue || hasText || hasNumDen) && (isNotPending || hasNumDen)
+  }
+
+  const matchKey = (key?: string) => {
+    if (!key) return false
+    return key === periodKey || key.endsWith('-' + periodKey) || periodKey.endsWith('-' + key)
+  }
+
   // 1. Check in entries list if present
   if (ind.entries && ind.entries.length > 0) {
-    const entry = ind.entries.find(e => e.periodKey === periodKey)
+    const entry = ind.entries.find(e => matchKey(e.periodKey))
     if (entry) {
-      const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
-      const hasText = Boolean(entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
-      const isNotPending = Boolean(entry.status && entry.status !== 'PENDING')
-      return (hasValue || hasText) && isNotPending
+      return isEntryAnswered(entry)
     }
   }
 
   // 2. Fallback to currentEntry if it matches this periodKey
-  if (ind.currentEntry && ind.currentEntry.periodKey === periodKey) {
-    const entry = ind.currentEntry
-    const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
-    const hasText = Boolean(entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
-    const isNotPending = Boolean(entry.status && entry.status !== 'PENDING')
-    return (hasValue || hasText) && isNotPending
+  if (ind.currentEntry && matchKey(ind.currentEntry.periodKey)) {
+    return isEntryAnswered(ind.currentEntry)
   }
 
   return false

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Activity,
   Users,
@@ -41,12 +41,17 @@ const cleanDeptName = (name: string): string => {
   return name.replace(/^\d+[\.\s\-]+/, '').trim()
 }
 
-export default function OpdClient() {
+export interface OpdClientProps {
+  initialData?: OpdDepartmentSummaryItem[]
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function OpdClient({ initialData, initialRange }: OpdClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const currentCalYear = today.getFullYear()
   const defaultFiscalYear = today.getMonth() + 1 >= 10 ? currentCalYear + 1 : currentCalYear
-  const defaultDs1 = `${defaultFiscalYear - 1}-10-01`
-  const defaultDs2 = `${defaultFiscalYear}-09-30`
+  const defaultDs1 = initialRange?.startDate || `${defaultFiscalYear - 1}-10-01`
+  const defaultDs2 = initialRange?.endDate || `${defaultFiscalYear}-09-30`
 
   // Dates & Modes: Default dynamically to ongoing fiscal year bounds
   const [dateMode, setDateMode] = useState<'custom' | 'month' | 'year'>('year')
@@ -60,9 +65,13 @@ export default function OpdClient() {
   const [hideZeroRows, setHideZeroRows] = useState<boolean>(false)
 
   // Data States
-  const [data, setData] = useState<OpdDepartmentSummaryItem[]>([])
+  const [data, setData] = useState<OpdDepartmentSummaryItem[]>(initialData || [])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Request Cancellation
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   const availableYears = useMemo(() => {
     const list = []
@@ -80,7 +89,6 @@ export default function OpdClient() {
     const endDate = `${currentCalYear}-${mStr}-${String(lastDay).padStart(2, '0')}`
     setDs1(startDate)
     setDs2(endDate)
-    fetchData(startDate, endDate)
   }
 
   const handleSelectFiscalYear = (year: number) => {
@@ -89,19 +97,26 @@ export default function OpdClient() {
     const endDate = `${year}-09-30`
     setDs1(startDate)
     setDs2(endDate)
-    fetchData(startDate, endDate)
   }
 
   const fetchData = useCallback(
     async (d1?: string, d2?: string) => {
       const startDate = d1 || ds1
       const endDate = d2 || ds2
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       setLoading(true)
       setError(null)
 
       try {
         const res = await fetch(
-          `/api/service/dashboard-rcm/opd-dept-summary?ds1=${encodeURIComponent(startDate)}&ds2=${encodeURIComponent(endDate)}`
+          `/api/service/dashboard-rcm/opd-dept-summary?ds1=${encodeURIComponent(startDate)}&ds2=${encodeURIComponent(endDate)}`,
+          { signal: controller.signal }
         )
         const json = await res.json()
         if (json.success && Array.isArray(json.data)) {
@@ -110,17 +125,29 @@ export default function OpdClient() {
           setError(json.error || 'ไม่สามารถดึงข้อมูลสรุปผู้ป่วยนอกแยกรายแผนกได้')
         }
       } catch (err: any) {
+        if (err.name === 'AbortError') return
         setError(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
       }
     },
     [ds1, ds2]
   )
 
   useEffect(() => {
-    fetchData('2024-10-01', '2025-09-30')
-  }, [fetchData])
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData && initialData.length > 0) {
+        return
+      }
+    }
+    fetchData(ds1, ds2)
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [ds1, ds2, fetchData, initialData])
 
   // Separate individual departments from the summary row
   const totalRow = useMemo(() => {

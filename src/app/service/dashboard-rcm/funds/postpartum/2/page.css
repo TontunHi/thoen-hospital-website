@@ -1,0 +1,919 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 */
+/* Hallmark · macrostructure: workbench-command-ledger · tone: modern-clinical-warm · anchor hue: emerald (--primary) */
+
+/* ── Design Tokens Scope for Postpartum 7.2 (30015) ── */
+.pnc72-page {
+  --pnc-bg: var(--bg-main);
+  --pnc-surface: var(--bg-surface);
+  --pnc-surface-2: var(--bg-subtle);
+  --pnc-surface-accent: var(--primary-subtle);
+  --pnc-surface-accent-strong: var(--primary-light);
+  --pnc-ink: var(--gray-900);
+  --pnc-ink-2: var(--gray-700);
+  --pnc-muted: var(--gray-500);
+  --pnc-hairline: var(--gray-200);
+  --pnc-hairline-soft: var(--gray-100);
+  --pnc-hairline-strong: var(--gray-400);
+  --pnc-accent: var(--primary);
+  --pnc-accent-hover: var(--primary-hover);
+  --pnc-accent-dark: var(--primary-dark);
+  --pnc-accent-ink: var(--white);
+  --pnc-focus-ring: color-mix(in srgb, var(--primary) 22%, transparent);
+  --pnc-sticky-divide: color-mix(in srgb, var(--gray-900) 6%, transparent);
+  --pnc-backdrop: color-mix(in srgb, var(--gray-900) 52%, transparent);
+
+  --pnc-ok: var(--success);
+  --pnc-ok-bg: var(--success-bg);
+  --pnc-ok-border: var(--success-border);
+  --pnc-warn: var(--warning);
+  --pnc-warn-bg: var(--warning-bg);
+  --pnc-warn-border: var(--warning-border);
+  --pnc-err: var(--danger);
+  --pnc-err-bg: var(--danger-bg);
+  --pnc-err-border: var(--danger-border);
+  --pnc-info: var(--info);
+  --pnc-info-bg: var(--info-bg);
+  --pnc-info-border: var(--info-border);
+
+  --pnc-font: var(--font-family);
+  --pnc-text-xs: var(--font-size-xs);
+  --pnc-text-sm: var(--font-size-sm);
+  --pnc-text-base: var(--font-size-base);
+  --pnc-text-lg: var(--font-size-lg);
+  --pnc-text-xl: var(--font-size-xl);
+  --pnc-text-2xl: var(--font-size-2xl);
+
+  --pnc-s1: var(--space-1);
+  --pnc-s2: var(--space-2);
+  --pnc-s3: var(--space-3);
+  --pnc-s4: var(--space-4);
+  --pnc-s5: var(--space-5);
+  --pnc-s6: var(--space-6);
+  --pnc-s8: var(--space-8);
+  --pnc-s10: var(--space-10);
+
+  --pnc-r-sm: var(--radius-sm);
+  --pnc-r-md: var(--radius);
+  --pnc-r-lg: var(--radius-lg);
+  --pnc-r-xl: var(--radius-xl);
+  --pnc-r-full: var(--radius-full);
+
+  --pnc-shadow-card: var(--shadow-card);
+  --pnc-shadow-hover: var(--shadow-hover);
+  --pnc-shadow-sm: var(--shadow-sm);
+  --pnc-shadow-md: var(--shadow-md);
+
+  --pnc-dur-fast: var(--duration-fast, 150ms);
+  --pnc-dur-med: var(--duration-normal, 220ms);
+  --pnc-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  padding: var(--pnc-s6) var(--pnc-s8) var(--pnc-s10);
+  background-color: var(--pnc-bg);
+  color: var(--pnc-ink);
+  font-family: var(--pnc-font);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pnc-s6);
+  min-width: 0;
+}
+
+/* ── 1. Header Bar ── */
+.pnc72-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pnc-s4);
+  flex-wrap: wrap;
+}
+
+.pnc72-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pnc-s2);
+  min-width: 0;
+}
+
+.pnc72-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+  align-self: flex-start;
+  padding: 4px 10px;
+  background-color: var(--pnc-surface-accent-strong);
+  color: var(--pnc-accent-dark);
+  border: 1px solid color-mix(in srgb, var(--pnc-accent) 25%, transparent);
+  border-radius: var(--pnc-r-full);
+  font-size: var(--pnc-text-xs);
+  font-weight: 600;
+}
+
+.pnc72-title {
+  font-size: var(--pnc-text-2xl);
+  font-weight: 700;
+  color: var(--pnc-ink);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.pnc72-subtitle {
+  font-size: var(--pnc-text-sm);
+  color: var(--pnc-ink-2);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.pnc72-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s3);
+  flex-wrap: wrap;
+}
+
+/* ── Buttons ── */
+.pnc72-btn-primary,
+.pnc72-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--pnc-r-md);
+  font-size: var(--pnc-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--pnc-dur-fast) var(--pnc-ease-out);
+  white-space: nowrap;
+}
+
+.pnc72-btn-primary {
+  background-color: var(--pnc-accent);
+  color: var(--pnc-accent-ink);
+  border: 1px solid var(--pnc-accent);
+  box-shadow: var(--pnc-shadow-sm);
+}
+
+.pnc72-btn-primary:hover:not(:disabled) {
+  background-color: var(--pnc-accent-hover);
+  border-color: var(--pnc-accent-hover);
+}
+
+.pnc72-btn-secondary {
+  background-color: var(--pnc-surface);
+  color: var(--pnc-ink);
+  border: 1px solid var(--pnc-hairline);
+  box-shadow: var(--pnc-shadow-sm);
+}
+
+.pnc72-btn-secondary:hover:not(:disabled) {
+  background-color: var(--pnc-surface-2);
+  border-color: var(--pnc-hairline-strong);
+}
+
+.pnc72-btn-primary:focus-visible,
+.pnc72-btn-secondary:focus-visible {
+  outline: 2px solid var(--pnc-accent);
+  outline-offset: 2px;
+}
+
+.pnc72-btn-primary:disabled,
+.pnc72-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── 2. ADP Mapping Alert Banner ── */
+.pnc72-alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pnc-s4);
+  padding: var(--pnc-s4) var(--pnc-s5);
+  border-radius: var(--pnc-r-lg);
+  font-size: var(--pnc-text-sm);
+}
+
+.pnc72-alert-banner.warning {
+  background-color: var(--pnc-warn-bg);
+  border: 1px solid var(--pnc-warn-border);
+  color: var(--pnc-ink);
+}
+
+.pnc72-alert-banner.info {
+  background-color: var(--pnc-surface);
+  border: 1px solid var(--pnc-hairline);
+  color: var(--pnc-ink-2);
+}
+
+.pnc72-alert-content {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s3);
+  flex-wrap: wrap;
+}
+
+/* ── 3. Date Filter Section ── */
+.pnc72-date-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pnc-s4);
+  padding: var(--pnc-s5);
+  background-color: var(--pnc-surface);
+  border: 1px solid var(--pnc-hairline);
+  border-radius: var(--pnc-r-xl);
+  box-shadow: var(--pnc-shadow-card);
+}
+
+.pnc72-date-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+  border-bottom: 1px solid var(--pnc-hairline-soft);
+  padding-bottom: var(--pnc-s3);
+  overflow-x: auto;
+}
+
+.pnc72-date-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--pnc-r-md);
+  font-size: var(--pnc-text-sm);
+  font-weight: 500;
+  color: var(--pnc-ink-2);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--pnc-dur-fast) var(--pnc-ease-out);
+}
+
+.pnc72-date-tab:hover {
+  background-color: var(--pnc-surface-2);
+  color: var(--pnc-ink);
+}
+
+.pnc72-date-tab.active {
+  background-color: var(--pnc-surface-accent-strong);
+  color: var(--pnc-accent-dark);
+  font-weight: 600;
+  border-color: color-mix(in srgb, var(--pnc-accent) 20%, transparent);
+}
+
+.pnc72-date-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s4);
+  flex-wrap: wrap;
+}
+
+.pnc72-control-group {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+}
+
+.pnc72-control-label {
+  font-size: var(--pnc-text-sm);
+  color: var(--pnc-ink-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pnc72-select,
+.pnc72-input {
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: var(--pnc-r-md);
+  border: 1px solid var(--pnc-hairline);
+  background-color: var(--pnc-surface);
+  color: var(--pnc-ink);
+  font-size: var(--pnc-text-sm);
+  font-family: inherit;
+  transition: border-color var(--pnc-dur-fast) var(--pnc-ease-out), box-shadow var(--pnc-dur-fast) var(--pnc-ease-out);
+}
+
+.pnc72-select:focus,
+.pnc72-input:focus {
+  outline: none;
+  border-color: var(--pnc-accent);
+  box-shadow: 0 0 0 3px var(--pnc-focus-ring);
+}
+
+.pnc72-date-display-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+  padding: 6px 12px;
+  background-color: var(--pnc-surface-2);
+  border: 1px solid var(--pnc-hairline);
+  border-radius: var(--pnc-r-md);
+  font-size: var(--pnc-text-xs);
+  color: var(--pnc-ink-2);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+/* ── 4. Interactive Summary Cards Grid ── */
+.pnc72-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--pnc-s4);
+}
+
+.pnc72-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 22px;
+  background-color: var(--pnc-surface);
+  border: 1px solid var(--pnc-hairline);
+  border-radius: var(--pnc-r-xl);
+  box-shadow: var(--pnc-shadow-card);
+  cursor: pointer;
+  text-align: left;
+  transition: transform var(--pnc-dur-fast) var(--pnc-ease-out),
+              box-shadow var(--pnc-dur-fast) var(--pnc-ease-out),
+              border-color var(--pnc-dur-fast) var(--pnc-ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+.pnc72-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pnc-shadow-hover);
+  border-color: var(--pnc-hairline-strong);
+}
+
+.pnc72-card.active {
+  border-color: var(--pnc-accent);
+  box-shadow: 0 0 0 2px var(--pnc-accent), var(--pnc-shadow-hover);
+  background-color: color-mix(in srgb, var(--pnc-surface-accent) 40%, var(--pnc-surface));
+}
+
+.pnc72-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--pnc-s2);
+}
+
+.pnc72-card-title {
+  font-size: var(--pnc-text-xs);
+  font-weight: 600;
+  color: var(--pnc-ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pnc72-card-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--pnc-r-full);
+}
+
+.pnc72-card-badge.all {
+  background-color: var(--pnc-surface-2);
+  color: var(--pnc-ink-2);
+}
+
+.pnc72-card-badge.success {
+  background-color: var(--pnc-ok-bg);
+  color: var(--pnc-ok);
+  border: 1px solid var(--pnc-ok-border);
+}
+
+.pnc72-card-badge.warning {
+  background-color: var(--pnc-warn-bg);
+  color: var(--pnc-warn);
+  border: 1px solid var(--pnc-warn-border);
+}
+
+.pnc72-card-badge.info {
+  background-color: var(--pnc-info-bg);
+  color: var(--pnc-info);
+  border: 1px solid var(--pnc-info-border);
+}
+
+.pnc72-card-value {
+  font-size: var(--pnc-text-2xl);
+  font-weight: 700;
+  color: var(--pnc-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.pnc72-card-sub {
+  font-size: var(--pnc-text-xs);
+  color: var(--pnc-muted);
+  margin-top: var(--pnc-s2);
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s1);
+  font-variant-numeric: tabular-nums;
+}
+
+.pnc72-card-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: transparent;
+}
+
+.pnc72-card.active .pnc72-card-indicator {
+  background-color: var(--pnc-accent);
+}
+
+/* ── 5. Search & Table Controls ── */
+.pnc72-tools-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pnc-s4);
+  flex-wrap: wrap;
+}
+
+.pnc72-search-group {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+  flex: 1;
+  max-width: 620px;
+}
+
+.pnc72-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.pnc72-search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--pnc-muted);
+  pointer-events: none;
+}
+
+.pnc72-search-input {
+  width: 100%;
+  min-height: 44px;
+  padding-left: 42px;
+  padding-right: 38px;
+  border-radius: var(--pnc-r-md);
+  border: 1px solid var(--pnc-hairline);
+  background-color: var(--pnc-surface);
+  color: var(--pnc-ink);
+  font-size: var(--pnc-text-sm);
+  font-family: inherit;
+  transition: all var(--pnc-dur-fast) var(--pnc-ease-out);
+}
+
+.pnc72-search-input:focus {
+  outline: none;
+  border-color: var(--pnc-accent);
+  box-shadow: 0 0 0 3px var(--pnc-focus-ring);
+}
+
+.pnc72-search-clear {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--pnc-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--pnc-r-full);
+}
+
+.pnc72-search-clear:hover {
+  color: var(--pnc-ink);
+  background-color: var(--pnc-surface-2);
+}
+
+.pnc72-tools-meta {
+  font-size: var(--pnc-text-sm);
+  color: var(--pnc-ink-2);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s3);
+}
+
+/* ── 6. Data Table ── */
+.pnc72-table-wrapper {
+  background-color: var(--pnc-surface);
+  border: 1px solid var(--pnc-hairline);
+  border-radius: var(--pnc-r-xl);
+  box-shadow: var(--pnc-shadow-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pnc72-table-scroll {
+  overflow-x: auto;
+  min-height: 320px;
+}
+
+.pnc72-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--pnc-text-sm);
+  text-align: left;
+}
+
+.pnc72-table th {
+  background-color: var(--pnc-surface-2);
+  color: var(--pnc-ink-2);
+  font-weight: 600;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--pnc-hairline);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pnc72-table th.sortable {
+  cursor: pointer;
+  transition: background-color var(--pnc-dur-fast) var(--pnc-ease-out);
+}
+
+.pnc72-table th.sortable:hover {
+  background-color: color-mix(in srgb, var(--pnc-surface-accent) 25%, var(--pnc-surface-2));
+}
+
+.pnc72-th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+}
+
+.pnc72-sort-idle {
+  color: var(--pnc-muted);
+  opacity: 0.5;
+}
+
+.pnc72-sort-active {
+  color: var(--pnc-accent);
+}
+
+.pnc72-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--pnc-hairline-soft);
+  color: var(--pnc-ink);
+  vertical-align: middle;
+  min-height: 52px;
+}
+
+.pnc72-table tr:last-child td {
+  border-bottom: none;
+}
+
+.pnc72-table tbody tr {
+  transition: background-color var(--pnc-dur-fast) var(--pnc-ease-out);
+}
+
+.pnc72-table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--pnc-surface-accent) 15%, transparent);
+}
+
+.pnc72-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.pnc72-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--pnc-r-md);
+  font-size: var(--pnc-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pnc72-tag.success {
+  background-color: var(--pnc-ok-bg);
+  color: var(--pnc-ok);
+  border: 1px solid var(--pnc-ok-border);
+}
+
+.pnc72-tag.warning {
+  background-color: var(--pnc-warn-bg);
+  color: var(--pnc-warn);
+  border: 1px solid var(--pnc-warn-border);
+}
+
+.pnc72-tag.danger {
+  background-color: var(--pnc-err-bg);
+  color: var(--pnc-err);
+  border: 1px solid var(--pnc-err-border);
+}
+
+.pnc72-tag.neutral {
+  background-color: var(--pnc-surface-2);
+  color: var(--pnc-ink-2);
+  border: 1px solid var(--pnc-hairline);
+}
+
+.pnc72-patient-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pnc72-patient-name {
+  font-weight: 600;
+  color: var(--pnc-ink);
+}
+
+.pnc72-patient-sub {
+  font-size: var(--pnc-text-xs);
+  color: var(--pnc-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+}
+
+/* ── 7. Pagination ── */
+.pnc72-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pnc-s4) var(--pnc-s5);
+  background-color: var(--pnc-surface-2);
+  border-top: 1px solid var(--pnc-hairline);
+  font-size: var(--pnc-text-sm);
+  color: var(--pnc-ink-2);
+  flex-wrap: wrap;
+  gap: var(--pnc-s3);
+}
+
+.pnc72-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+}
+
+.pnc72-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: var(--pnc-r-md);
+  border: 1px solid var(--pnc-hairline);
+  background-color: var(--pnc-surface);
+  color: var(--pnc-ink);
+  font-size: var(--pnc-text-sm);
+  cursor: pointer;
+  transition: all var(--pnc-dur-fast) var(--pnc-ease-out);
+}
+
+.pnc72-page-btn:hover:not(:disabled) {
+  background-color: var(--pnc-surface-2);
+  border-color: var(--pnc-hairline-strong);
+}
+
+.pnc72-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 8. Empty & Loading States ── */
+.pnc72-empty-state,
+.pnc72-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pnc-s10) var(--pnc-s6);
+  text-align: center;
+  gap: var(--pnc-s3);
+  color: var(--pnc-ink-2);
+}
+
+.pnc72-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--pnc-hairline);
+  border-top-color: var(--pnc-accent);
+  border-radius: 50%;
+  animation: pncSpin 0.8s linear infinite;
+}
+
+@keyframes pncSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 9. Clinical Details Modal ── */
+.pnc72-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: var(--pnc-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pnc-s4);
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.pnc72-modal-dialog {
+  background-color: var(--pnc-surface);
+  border-radius: var(--pnc-r-xl);
+  box-shadow: var(--pnc-shadow-hover);
+  border: 1px solid var(--pnc-hairline);
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: pncModalPop 0.2s var(--pnc-ease-out);
+}
+
+@keyframes pncModalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.pnc72-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pnc-s5) var(--pnc-s6);
+  border-bottom: 1px solid var(--pnc-hairline);
+  background-color: var(--pnc-surface-2);
+}
+
+.pnc72-modal-title {
+  font-size: var(--pnc-text-lg);
+  font-weight: 700;
+  color: var(--pnc-ink);
+  margin: 0;
+}
+
+.pnc72-modal-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+}
+
+.pnc72-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--pnc-r-md);
+  border: 1px solid var(--pnc-hairline);
+  background-color: var(--pnc-surface);
+  color: var(--pnc-ink-2);
+  cursor: pointer;
+  transition: all var(--pnc-dur-fast) var(--pnc-ease-out);
+}
+
+.pnc72-icon-btn:hover:not(:disabled) {
+  background-color: var(--pnc-surface-2);
+  color: var(--pnc-ink);
+  border-color: var(--pnc-hairline-strong);
+}
+
+.pnc72-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pnc72-modal-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s4);
+  padding: 0 var(--pnc-s6);
+  border-bottom: 1px solid var(--pnc-hairline);
+  background-color: var(--pnc-surface);
+}
+
+.pnc72-modal-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+  min-height: 44px;
+  padding: 0 var(--pnc-s2);
+  border: none;
+  background: none;
+  font-size: var(--pnc-text-sm);
+  font-weight: 500;
+  color: var(--pnc-ink-2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all var(--pnc-dur-fast) var(--pnc-ease-out);
+}
+
+.pnc72-modal-tab-btn.active {
+  color: var(--pnc-accent);
+  font-weight: 600;
+  border-bottom-color: var(--pnc-accent);
+}
+
+.pnc72-modal-body {
+  padding: var(--pnc-s6);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pnc-s5);
+}
+
+.pnc72-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--pnc-s4);
+}
+
+.pnc72-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pnc72-detail-label {
+  font-size: var(--pnc-text-xs);
+  color: var(--pnc-muted);
+  font-weight: 500;
+}
+
+.pnc72-detail-val {
+  font-size: var(--pnc-text-sm);
+  font-weight: 600;
+  color: var(--pnc-ink);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: var(--pnc-s2);
+}
+
+.pnc72-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--pnc-s4) var(--pnc-s6);
+  border-top: 1px solid var(--pnc-hairline);
+  background-color: var(--pnc-surface-2);
+}
+
+/* ── 10. Responsive Breakpoints ── */
+@media (max-width: 768px) {
+  .pnc72-page {
+    padding: var(--pnc-s4) var(--pnc-s4) var(--pnc-s8);
+    gap: var(--pnc-s4);
+  }
+
+  .pnc72-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pnc72-header-actions {
+    justify-content: flex-start;
+  }
+
+  .pnc72-cards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pnc72-search-group {
+    max-width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .pnc72-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pnc72-pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pnc72-pagination-controls {
+    justify-content: center;
+  }
+}

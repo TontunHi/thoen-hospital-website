@@ -146,10 +146,15 @@ export class KpiService {
   static evaluateTarget(
     resultValue: number | null | undefined,
     operator: string | null | undefined,
-    targetValue: number | null | undefined
+    targetValue: number | null | undefined,
+    options?: { isZeroDenominator?: boolean }
   ): 'PASS' | 'FAIL' | 'WAITING_TARGET' | 'PENDING' {
     if (resultValue === null || resultValue === undefined) {
       return 'PENDING'
+    }
+
+    if (options?.isZeroDenominator) {
+      return 'PASS'
     }
 
     if (!operator && (targetValue === null || targetValue === undefined)) {
@@ -391,17 +396,34 @@ export class KpiService {
       }
 
       if (r.entryId) {
+        const numVal = r.entryNumeratorValue !== null ? parseFloat(r.entryNumeratorValue) : null
+        const denVal = r.entryDenominatorValue !== null ? parseFloat(r.entryDenominatorValue) : null
+        let resVal = r.entryResultValue !== null ? parseFloat(r.entryResultValue) : null
+        let entryStatus = r.entryStatus
+
+        // Handle case where resultValue was null but 0/0 or num/den was recorded
+        if (resVal === null && numVal !== null && denVal !== null) {
+          if (denVal > 0) {
+            resVal = parseFloat(((numVal / denVal) * 100).toFixed(2))
+          } else if (denVal === 0 && numVal === 0) {
+            resVal = 0
+            if (entryStatus === 'PENDING') {
+              entryStatus = 'PASS'
+            }
+          }
+        }
+
         const entryItem: KpiEntryItem = {
           id: r.entryId,
           indicatorId: r.id,
           fiscalYear: filters.fiscalYear || '',
           periodKey: r.entryPeriodKey,
           periodLabel: cleanPeriodLabel(r.entryPeriodLabel, r.entryPeriodKey, r.frequency),
-          numeratorValue: r.entryNumeratorValue !== null ? parseFloat(r.entryNumeratorValue) : null,
-          denominatorValue: r.entryDenominatorValue !== null ? parseFloat(r.entryDenominatorValue) : null,
-          resultValue: r.entryResultValue !== null ? parseFloat(r.entryResultValue) : null,
+          numeratorValue: numVal,
+          denominatorValue: denVal,
+          resultValue: resVal,
           resultText: r.entryResultText,
-          status: r.entryStatus,
+          status: entryStatus,
           note: r.entryNote,
           recordedById: r.entryRecordedById ?? null,
           recordedByName: cleanAuthorName(r.entryRecordedByName),
@@ -509,23 +531,41 @@ export class KpiService {
       responsibleName: r.responsibleName,
       indicatorType: r.indicatorType,
       displayOrder: r.displayOrder,
-      entries: entriesRows.map((e: any) => ({
-        id: e.id,
-        indicatorId: e.indicatorId,
-        fiscalYear: e.fiscalYear,
-        periodKey: e.periodKey,
-        periodLabel: cleanPeriodLabel(e.periodLabel, e.periodKey, r.frequency),
-        numeratorValue: e.numeratorValue !== null ? parseFloat(e.numeratorValue) : null,
-        denominatorValue: e.denominatorValue !== null ? parseFloat(e.denominatorValue) : null,
-        resultValue: e.resultValue !== null ? parseFloat(e.resultValue) : null,
-        resultText: e.resultText,
-        status: e.status,
-        note: e.note,
-        recordedById: e.recordedById,
-        recordedByName: cleanAuthorName(e.recordedByName),
-        recordedAt: e.recordedAt,
-        updatedAt: e.updatedAt,
-      })),
+      entries: entriesRows.map((e: any) => {
+        const numVal = e.numeratorValue !== null ? parseFloat(e.numeratorValue) : null
+        const denVal = e.denominatorValue !== null ? parseFloat(e.denominatorValue) : null
+        let resVal = e.resultValue !== null ? parseFloat(e.resultValue) : null
+        let entryStatus = e.status
+
+        if (resVal === null && numVal !== null && denVal !== null) {
+          if (denVal > 0) {
+            resVal = parseFloat(((numVal / denVal) * 100).toFixed(2))
+          } else if (denVal === 0 && numVal === 0) {
+            resVal = 0
+            if (entryStatus === 'PENDING') {
+              entryStatus = 'PASS'
+            }
+          }
+        }
+
+        return {
+          id: e.id,
+          indicatorId: e.indicatorId,
+          fiscalYear: e.fiscalYear,
+          periodKey: e.periodKey,
+          periodLabel: cleanPeriodLabel(e.periodLabel, e.periodKey, r.frequency),
+          numeratorValue: numVal,
+          denominatorValue: denVal,
+          resultValue: resVal,
+          resultText: e.resultText,
+          status: entryStatus,
+          note: e.note,
+          recordedById: e.recordedById,
+          recordedByName: cleanAuthorName(e.recordedByName),
+          recordedAt: e.recordedAt,
+          updatedAt: e.updatedAt,
+        }
+      }),
     }
   }
 
@@ -586,26 +626,29 @@ export class KpiService {
 
     // Auto-calculate percentage if numerator and denominator provided and resultValue not set
     let computedResult = input.resultValue
-    if (
-      computedResult === undefined ||
-      computedResult === null
-    ) {
-      if (
-        input.numeratorValue !== undefined &&
-        input.numeratorValue !== null &&
-        input.denominatorValue !== undefined &&
-        input.denominatorValue !== null &&
-        input.denominatorValue > 0
-      ) {
-        computedResult = parseFloat(((input.numeratorValue / input.denominatorValue) * 100).toFixed(2))
+    let isZeroDenominator = false
+    const hasNum = input.numeratorValue !== undefined && input.numeratorValue !== null
+    const hasDen = input.denominatorValue !== undefined && input.denominatorValue !== null
+
+    if (hasNum && hasDen) {
+      if (input.denominatorValue! > 0) {
+        if (computedResult === undefined || computedResult === null) {
+          computedResult = parseFloat(((input.numeratorValue! / input.denominatorValue!) * 100).toFixed(2))
+        }
+      } else if (input.denominatorValue === 0 && input.numeratorValue === 0) {
+        computedResult = 0
+        isZeroDenominator = true
       }
+    } else if (computedResult === 0 && input.numeratorValue === 0 && input.denominatorValue === 0) {
+      isZeroDenominator = true
     }
 
     // Evaluate target status
     const status = this.evaluateTarget(
       computedResult,
       indicator.targetOperator,
-      indicator.targetValue
+      indicator.targetValue,
+      { isZeroDenominator }
     )
 
     // Check if entry already exists

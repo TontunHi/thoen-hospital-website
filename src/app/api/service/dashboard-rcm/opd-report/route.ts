@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyMemberSession } from '@/lib/memberAuth'
-import { RcmDashboardService } from '@/lib/clinical/rcmDashboardService'
+import { RcmDashboardService, getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
+import { validateSearchParams, opdReportQuerySchema } from '@/lib/clinical/rcmValidation'
 import { logThrottledAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 
@@ -22,9 +23,18 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const ds1 = searchParams.get('ds1') || '2026-09-10'
-    const ds2 = searchParams.get('ds2') || '2026-09-10'
-    const pttype = searchParams.get('pttype') || ''
+    const validation = validateSearchParams(opdReportQuerySchema, searchParams)
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      )
+    }
+
+    const defaultRange = getDefaultFiscalYearDateRange()
+    const ds1 = validation.data.ds1 || defaultRange.startDate
+    const ds2 = validation.data.ds2 || defaultRange.endDate
+    const pttype = validation.data.pttype || ''
     const isAll = searchParams.get('all') === 'true'
 
     logThrottledAudit(

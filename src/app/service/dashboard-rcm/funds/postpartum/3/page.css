@@ -1,0 +1,910 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 */
+/* Hallmark · macrostructure: workbench-command-ledger · tone: modern-clinical-warm · anchor hue: emerald (--primary) */
+
+/* ── Design Tokens Scope for Postpartum 7.3 (30016) ── */
+.pp3-page {
+  --pp-bg: var(--bg-main);
+  --pp-surface: var(--bg-surface);
+  --pp-surface-2: var(--bg-subtle);
+  --pp-surface-accent: var(--primary-subtle);
+  --pp-surface-accent-strong: var(--primary-light);
+  --pp-ink: var(--gray-900);
+  --pp-ink-2: var(--gray-700);
+  --pp-muted: var(--gray-500);
+  --pp-hairline: var(--gray-200);
+  --pp-hairline-soft: var(--gray-100);
+  --pp-hairline-strong: var(--gray-400);
+  --pp-accent: var(--primary);
+  --pp-accent-hover: var(--primary-hover);
+  --pp-accent-dark: var(--primary-dark);
+  --pp-accent-ink: var(--white);
+  --pp-focus-ring: color-mix(in srgb, var(--primary) 22%, transparent);
+  --pp-sticky-divide: color-mix(in srgb, var(--gray-900) 6%, transparent);
+  --pp-backdrop: color-mix(in srgb, var(--gray-900) 52%, transparent);
+
+  --pp-ok: var(--success);
+  --pp-ok-bg: var(--success-bg);
+  --pp-ok-border: var(--success-border);
+  --pp-warn: var(--warning);
+  --pp-warn-bg: var(--warning-bg);
+  --pp-warn-border: var(--warning-border);
+  --pp-err: var(--danger);
+  --pp-err-bg: var(--danger-bg);
+  --pp-err-border: var(--danger-border);
+  --pp-info: var(--info);
+  --pp-info-bg: var(--info-bg);
+  --pp-info-border: var(--info-border);
+
+  --pp-font: var(--font-family);
+  --pp-text-xs: var(--font-size-xs);
+  --pp-text-sm: var(--font-size-sm);
+  --pp-text-base: var(--font-size-base);
+  --pp-text-lg: var(--font-size-lg);
+  --pp-text-xl: var(--font-size-xl);
+  --pp-text-2xl: var(--font-size-2xl);
+
+  --pp-s1: var(--space-1);
+  --pp-s2: var(--space-2);
+  --pp-s3: var(--space-3);
+  --pp-s4: var(--space-4);
+  --pp-s5: var(--space-5);
+  --pp-s6: var(--space-6);
+  --pp-s8: var(--space-8);
+  --pp-s10: var(--space-10);
+
+  --pp-r-sm: var(--radius-sm);
+  --pp-r-md: var(--radius);
+  --pp-r-lg: var(--radius-lg);
+  --pp-r-xl: var(--radius-xl);
+  --pp-r-full: var(--radius-full);
+
+  --pp-shadow-card: var(--shadow-card);
+  --pp-shadow-hover: var(--shadow-hover);
+  --pp-shadow-sm: var(--shadow-sm);
+  --pp-shadow-md: var(--shadow-md);
+
+  --pp-dur-fast: var(--duration-fast, 150ms);
+  --pp-dur-med: var(--duration-normal, 220ms);
+  --pp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  padding: var(--pp-s6) var(--pp-s8) var(--pp-s10);
+  background-color: var(--pp-bg);
+  color: var(--pp-ink);
+  font-family: var(--pp-font);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pp-s6);
+  min-width: 0;
+}
+
+/* ── 1. Header Bar ── */
+.pp3-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pp-s4);
+  flex-wrap: wrap;
+}
+
+.pp3-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pp-s2);
+  min-width: 0;
+}
+
+.pp3-title-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pp-s2);
+  align-self: flex-start;
+  padding: 4px 10px;
+  background-color: var(--pp-surface-accent-strong);
+  color: var(--pp-accent-dark);
+  border: 1px solid color-mix(in srgb, var(--pp-accent) 25%, transparent);
+  border-radius: var(--pp-r-full);
+  font-size: var(--pp-text-xs);
+  font-weight: 600;
+}
+
+.pp3-title {
+  font-size: var(--pp-text-2xl);
+  font-weight: 700;
+  color: var(--pp-ink);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.pp3-subtitle {
+  font-size: var(--pp-text-sm);
+  color: var(--pp-ink-2);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.pp3-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--pp-s3);
+  flex-wrap: wrap;
+}
+
+/* ── Buttons ── */
+.pp3-btn-primary,
+.pp3-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pp-s2);
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--pp-r-md);
+  font-size: var(--pp-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--pp-dur-fast) var(--pp-ease-out);
+  white-space: nowrap;
+}
+
+.pp3-btn-primary {
+  background-color: var(--pp-accent);
+  color: var(--pp-accent-ink);
+  border: 1px solid var(--pp-accent);
+  box-shadow: var(--pp-shadow-card);
+}
+
+.pp3-btn-primary:hover:not(:disabled) {
+  background-color: var(--pp-accent-hover);
+  border-color: var(--pp-accent-hover);
+  box-shadow: var(--pp-shadow-hover);
+}
+
+.pp3-btn-primary:active:not(:disabled) {
+  background-color: var(--pp-accent-dark);
+}
+
+.pp3-btn-secondary {
+  background-color: var(--pp-surface);
+  color: var(--pp-ink);
+  border: 1px solid var(--pp-hairline);
+  box-shadow: var(--pp-shadow-sm);
+}
+
+.pp3-btn-secondary:hover:not(:disabled) {
+  background-color: var(--pp-surface-2);
+  border-color: var(--pp-hairline-strong);
+}
+
+.pp3-btn-primary:disabled,
+.pp3-btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pp3-spin-icon {
+  animation: pp3-spin 1s linear infinite;
+}
+
+@keyframes pp3-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 2. Warning / Info Banners ── */
+.pp3-banner {
+  padding: 14px 18px;
+  border-radius: var(--pp-r-lg);
+  border: 1px solid transparent;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pp-s3);
+  font-size: var(--pp-text-sm);
+  line-height: 1.5;
+}
+
+.pp3-banner-warn {
+  background-color: var(--pp-warn-bg);
+  color: var(--pp-ink);
+  border-color: var(--pp-warn-border);
+}
+
+.pp3-banner-warn strong {
+  color: #854d0e;
+}
+
+.pp3-banner-info {
+  background-color: var(--pp-info-bg);
+  color: var(--pp-ink);
+  border-color: var(--pp-info-border);
+}
+
+.pp3-banner-err {
+  background-color: var(--pp-err-bg);
+  color: #991b1b;
+  border-color: var(--pp-err-border);
+}
+
+.pp3-banner-chips {
+  display: flex;
+  gap: var(--pp-s2);
+  flex-wrap: wrap;
+  margin-top: var(--pp-s2);
+}
+
+.pp3-banner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--pp-surface);
+  padding: 3px 10px;
+  border-radius: var(--pp-r-full);
+  border: 1px solid var(--pp-hairline);
+  font-size: var(--pp-text-xs);
+  font-family: monospace;
+}
+
+/* ── 3. Date Range Controls ── */
+.pp3-date-panel {
+  background-color: var(--pp-surface);
+  border: 1px solid var(--pp-hairline);
+  border-radius: var(--pp-r-lg);
+  padding: 16px 20px;
+  box-shadow: var(--pp-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pp-s3);
+}
+
+.pp3-date-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--pp-s2);
+  border-bottom: 1px solid var(--pp-hairline-soft);
+  padding-bottom: var(--pp-s2);
+}
+
+.pp3-date-tab {
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  border-radius: var(--pp-r-md);
+  font-size: var(--pp-text-sm);
+  font-weight: 500;
+  color: var(--pp-muted);
+  cursor: pointer;
+  transition: all var(--pp-dur-fast) var(--pp-ease-out);
+}
+
+.pp3-date-tab:hover {
+  color: var(--pp-ink);
+  background-color: var(--pp-surface-2);
+}
+
+.pp3-date-tab.active {
+  color: var(--pp-accent-dark);
+  background-color: var(--pp-surface-accent-strong);
+  font-weight: 600;
+}
+
+.pp3-date-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--pp-s4);
+  flex-wrap: wrap;
+}
+
+.pp3-input-group {
+  display: flex;
+  align-items: center;
+  gap: var(--pp-s2);
+}
+
+.pp3-label {
+  font-size: var(--pp-text-sm);
+  font-weight: 500;
+  color: var(--pp-ink-2);
+}
+
+.pp3-select {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--pp-hairline);
+  border-radius: var(--pp-r-md);
+  background-color: var(--pp-surface);
+  color: var(--pp-ink);
+  font-size: var(--pp-text-sm);
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--pp-dur-fast) var(--pp-ease-out);
+}
+
+.pp3-select:focus {
+  border-color: var(--pp-accent);
+  box-shadow: 0 0 0 3px var(--pp-focus-ring);
+}
+
+.pp3-date-range-hint {
+  font-size: var(--pp-text-xs);
+  color: var(--pp-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 4. Interactive KPI Cards ── */
+.pp3-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--pp-s4);
+}
+
+.pp3-kpi-card {
+  background-color: var(--pp-surface);
+  border: 1px solid var(--pp-hairline);
+  border-radius: var(--pp-r-lg);
+  padding: 16px 20px;
+  box-shadow: var(--pp-shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pp-s2);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--pp-dur-fast) var(--pp-ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+.pp3-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pp-shadow-hover);
+  border-color: var(--pp-hairline-strong);
+}
+
+.pp3-kpi-card.active {
+  border-color: var(--pp-accent);
+  background-color: color-mix(in srgb, var(--pp-surface-accent) 40%, var(--pp-surface));
+  box-shadow: 0 0 0 2px var(--pp-accent);
+}
+
+.pp3-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pp-s2);
+}
+
+.pp3-kpi-title {
+  font-size: var(--pp-text-xs);
+  font-weight: 600;
+  color: var(--pp-ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pp3-kpi-icon {
+  color: var(--pp-muted);
+}
+
+.pp3-kpi-value {
+  font-size: var(--pp-text-2xl);
+  font-weight: 700;
+  color: var(--pp-ink);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp3-kpi-subtext {
+  font-size: var(--pp-text-xs);
+  color: var(--pp-muted);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.pp3-kpi-subtext strong {
+  color: var(--pp-ink-2);
+}
+
+/* ── 5. Search & Filters Bar ── */
+.pp3-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pp-s4);
+  flex-wrap: wrap;
+  background-color: var(--pp-surface);
+  border: 1px solid var(--pp-hairline);
+  border-radius: var(--pp-r-lg);
+  padding: 12px 18px;
+  box-shadow: var(--pp-shadow-card);
+}
+
+.pp3-filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--pp-s3);
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 280px;
+}
+
+.pp3-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
+}
+
+.pp3-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--pp-muted);
+  pointer-events: none;
+}
+
+.pp3-search-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 36px 0 38px;
+  border: 1px solid var(--pp-hairline);
+  border-radius: var(--pp-r-md);
+  font-size: var(--pp-text-sm);
+  font-family: inherit;
+  outline: none;
+  background-color: var(--pp-bg);
+  transition: all var(--pp-dur-fast) var(--pp-ease-out);
+}
+
+.pp3-search-input:focus {
+  border-color: var(--pp-accent);
+  background-color: var(--pp-surface);
+  box-shadow: 0 0 0 3px var(--pp-focus-ring);
+}
+
+.pp3-clear-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--pp-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--pp-r-sm);
+  display: flex;
+}
+
+.pp3-clear-btn:hover {
+  color: var(--pp-ink);
+}
+
+/* ── 6. Ledger Table Container ── */
+.pp3-table-wrapper {
+  background-color: var(--pp-surface);
+  border: 1px solid var(--pp-hairline);
+  border-radius: var(--pp-r-lg);
+  box-shadow: var(--pp-shadow-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp3-table-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+  position: relative;
+}
+
+.pp3-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--pp-text-sm);
+  text-align: left;
+}
+
+.pp3-table th {
+  background-color: var(--pp-surface-2);
+  color: var(--pp-ink-2);
+  font-weight: 600;
+  font-size: var(--pp-text-xs);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--pp-hairline);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pp3-table th.merged-header {
+  text-align: center;
+  background-color: color-mix(in srgb, var(--pp-surface-2) 80%, var(--pp-surface-accent));
+  border-bottom: 1px solid var(--pp-hairline);
+  font-weight: 700;
+  color: var(--pp-accent-dark);
+}
+
+.pp3-table th.sortable {
+  cursor: pointer;
+  transition: background-color var(--pp-dur-fast) var(--pp-ease-out);
+}
+
+.pp3-table th.sortable:hover {
+  background-color: var(--pp-surface-accent-strong);
+  color: var(--pp-accent-dark);
+}
+
+.pp3-th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pp3-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--pp-hairline-soft);
+  color: var(--pp-ink);
+  vertical-align: middle;
+  min-height: 52px;
+}
+
+.pp3-table tbody tr {
+  transition: background-color var(--pp-dur-fast) var(--pp-ease-out);
+}
+
+.pp3-table tbody tr:hover {
+  background-color: var(--pp-surface-accent);
+}
+
+.pp3-table tbody tr.row-compensated {
+  background-color: color-mix(in srgb, var(--pp-ok-bg) 25%, transparent);
+}
+
+.pp3-table tbody tr.row-compensated:hover {
+  background-color: color-mix(in srgb, var(--pp-ok-bg) 45%, transparent);
+}
+
+/* Sticky Columns */
+.pp3-sticky-col-no {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: inherit;
+  width: 48px;
+  text-align: center;
+}
+
+.pp3-sticky-col-ptname {
+  position: sticky;
+  left: 48px;
+  z-index: 2;
+  background-color: inherit;
+  min-width: 170px;
+  box-shadow: 2px 0 4px -2px var(--pp-sticky-divide);
+}
+
+.pp3-table th.pp3-sticky-col-no,
+.pp3-table th.pp3-sticky-col-ptname {
+  background-color: var(--pp-surface-2);
+  z-index: 3;
+}
+
+/* ── Badges & Chips inside Table ── */
+.pp3-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--pp-r-full);
+  font-size: var(--pp-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pp3-badge-success {
+  background-color: var(--pp-ok-bg);
+  color: #166534;
+  border: 1px solid var(--pp-ok-border);
+}
+
+.pp3-badge-neutral {
+  background-color: var(--pp-surface-2);
+  color: var(--pp-muted);
+  border: 1px solid var(--pp-hairline);
+}
+
+.pp3-badge-primary {
+  background-color: var(--pp-surface-accent-strong);
+  color: var(--pp-accent-dark);
+  border: 1px solid color-mix(in srgb, var(--pp-accent) 25%, transparent);
+}
+
+.pp3-badge-diag {
+  background-color: #f3f4f6;
+  color: #374151;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin: 1px 2px;
+}
+
+.pp3-badge-pdx {
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+}
+
+.pp3-badge-op {
+  background-color: #fdf4ff;
+  color: #86198f;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin: 1px 2px;
+}
+
+.pp3-cell-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: monospace;
+  font-size: var(--pp-text-xs);
+}
+
+.pp3-copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--pp-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: inline-flex;
+}
+
+.pp3-copy-btn:hover {
+  color: var(--pp-accent);
+}
+
+.pp3-action-link {
+  color: var(--pp-accent);
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--pp-text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pp3-action-link:hover {
+  color: var(--pp-accent-dark);
+}
+
+/* ── 7. Pagination Bar ── */
+.pp3-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-top: 1px solid var(--pp-hairline);
+  background-color: var(--pp-surface);
+  gap: var(--pp-s3);
+  flex-wrap: wrap;
+}
+
+.pp3-pagination-info {
+  font-size: var(--pp-text-xs);
+  color: var(--pp-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pp3-pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--pp-s2);
+}
+
+.pp3-page-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--pp-hairline);
+  background-color: var(--pp-surface);
+  color: var(--pp-ink);
+  border-radius: var(--pp-r-md);
+  font-size: var(--pp-text-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--pp-dur-fast) var(--pp-ease-out);
+}
+
+.pp3-page-btn:hover:not(:disabled) {
+  background-color: var(--pp-surface-2);
+  border-color: var(--pp-hairline-strong);
+}
+
+.pp3-page-btn.active {
+  background-color: var(--pp-accent);
+  color: var(--pp-accent-ink);
+  border-color: var(--pp-accent);
+  font-weight: 600;
+}
+
+.pp3-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 8. Empty / Loading State ── */
+.pp3-empty-state {
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--pp-s3);
+  color: var(--pp-muted);
+}
+
+.pp3-empty-title {
+  font-size: var(--pp-text-lg);
+  font-weight: 600;
+  color: var(--pp-ink);
+}
+
+/* ── 9. Modal Drawer / Dialog ── */
+.pp3-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: var(--pp-backdrop);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--pp-s4);
+}
+
+.pp3-modal-dialog {
+  background-color: var(--pp-surface);
+  border-radius: var(--pp-r-xl);
+  box-shadow: var(--pp-shadow-md);
+  width: 100%;
+  max-width: 840px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--pp-hairline);
+}
+
+.pp3-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--pp-hairline);
+  background-color: var(--pp-surface-2);
+}
+
+.pp3-modal-title {
+  font-size: var(--pp-text-lg);
+  font-weight: 700;
+  color: var(--pp-ink);
+  margin: 0;
+}
+
+.pp3-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--pp-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--pp-r-sm);
+  display: flex;
+}
+
+.pp3-modal-close:hover {
+  color: var(--pp-ink);
+  background-color: var(--pp-hairline);
+}
+
+.pp3-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--pp-hairline);
+  padding: 0 22px;
+  background-color: var(--pp-surface);
+}
+
+.pp3-modal-tab {
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  font-size: var(--pp-text-sm);
+  font-weight: 500;
+  color: var(--pp-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.pp3-modal-tab.active {
+  color: var(--pp-accent-dark);
+  border-bottom-color: var(--pp-accent);
+  font-weight: 600;
+}
+
+.pp3-modal-body {
+  padding: 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pp-s5);
+}
+
+.pp3-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--pp-s4);
+}
+
+@media (max-width: 640px) {
+  .pp3-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pp3-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pp3-info-label {
+  font-size: var(--pp-text-xs);
+  color: var(--pp-muted);
+  font-weight: 500;
+}
+
+.pp3-info-val {
+  font-size: var(--pp-text-sm);
+  color: var(--pp-ink);
+  font-weight: 600;
+}
+
+.pp3-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 14px 22px;
+  border-top: 1px solid var(--pp-hairline);
+  background-color: var(--pp-surface-2);
+}
+
+/* ── Responsive adjustments ── */
+@media (max-width: 768px) {
+  .pp3-page {
+    padding: var(--pp-s4);
+    gap: var(--pp-s4);
+  }
+
+  .pp3-header {
+    flex-direction: column;
+  }
+
+  .pp3-header-actions {
+    width: 100%;
+  }
+
+  .pp3-btn-primary,
+  .pp3-btn-secondary {
+    flex: 1;
+    justify-content: center;
+  }
+}

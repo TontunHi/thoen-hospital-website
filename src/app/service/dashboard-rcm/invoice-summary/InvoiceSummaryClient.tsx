@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   ReceiptText,
   Activity,
@@ -154,13 +154,24 @@ export default function InvoiceSummaryClient() {
     setPage(1)
   }
 
+  // Request Cancellation
+  const abortSummaryRef = useRef<AbortController | null>(null)
+  const abortDetailRef = useRef<AbortController | null>(null)
+
   // ── Fetch Summary Data ─────────────────────────────────────
   const fetchSummary = useCallback(async () => {
+    if (abortSummaryRef.current) {
+      abortSummaryRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortSummaryRef.current = controller
+
     setSummaryLoading(true)
     setSummaryError(null)
     try {
       const res = await fetch(
-        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=summary`
+        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=summary`,
+        { signal: controller.signal }
       )
       const json = await res.json()
       if (!res.ok || json.success === false) {
@@ -168,21 +179,31 @@ export default function InvoiceSummaryClient() {
       }
       setSummaryData(json.data)
     } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') return
       setSummaryError((err as Error).message || 'เกิดข้อผิดพลาดในการโหลดข้อมูลสรุป')
     } finally {
-      setSummaryLoading(false)
+      if (!controller.signal.aborted) {
+        setSummaryLoading(false)
+      }
     }
   }, [department, ds1, ds2, dateType])
 
   // ── Fetch Detail Data ──────────────────────────────────────
   const fetchDetails = useCallback(async () => {
+    if (abortDetailRef.current) {
+      abortDetailRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortDetailRef.current = controller
+
     setDetailLoading(true)
     setDetailError(null)
     try {
       const pttypeParam = selectedPttype ? `&pttype=${encodeURIComponent(selectedPttype)}` : ''
       const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''
       const res = await fetch(
-        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=detail&page=${page}&pageSize=${pageSize}${pttypeParam}${searchParam}`
+        `/api/service/dashboard-rcm/invoice-summary?department=${department}&ds1=${encodeURIComponent(ds1)}&ds2=${encodeURIComponent(ds2)}&dateType=${dateType}&mode=detail&page=${page}&pageSize=${pageSize}${pttypeParam}${searchParam}`,
+        { signal: controller.signal }
       )
       const json = await res.json()
       if (!res.ok || json.success === false) {
@@ -190,19 +211,28 @@ export default function InvoiceSummaryClient() {
       }
       setDetailData(json.data)
     } catch (err: unknown) {
+      if ((err as Error)?.name === 'AbortError') return
       setDetailError((err as Error).message || 'เกิดข้อผิดพลาดในการโหลดรายละเอียดผู้ป่วย')
     } finally {
-      setDetailLoading(false)
+      if (!controller.signal.aborted) {
+        setDetailLoading(false)
+      }
     }
   }, [department, ds1, ds2, dateType, selectedPttype, debouncedSearch, page, pageSize])
 
   // Trigger data fetches on filter changes
   useEffect(() => {
     fetchSummary()
+    return () => {
+      abortSummaryRef.current?.abort()
+    }
   }, [fetchSummary])
 
   useEffect(() => {
     fetchDetails()
+    return () => {
+      abortDetailRef.current?.abort()
+    }
   }, [fetchDetails])
 
   // When clicking a row in Summary table

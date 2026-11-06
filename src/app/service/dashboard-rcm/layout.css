@@ -134,20 +134,72 @@
 }
 
 .rcm-nav-group {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.95rem;
 }
 
-.rcm-nav-group-title {
-  font-size: 0.72rem;
+.rcm-nav-group.is-group-collapsed {
+  margin-bottom: 0.35rem;
+}
+
+.rcm-nav-group-toggle {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   color: #a7f3d0;
-  padding: 0.35rem 0.5rem;
+  padding: 0.35rem 0.6rem;
   margin-bottom: 0.25rem;
-  white-space: nowrap;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rcm-nav-group.is-group-collapsed .rcm-nav-group-toggle {
+  margin-bottom: 0;
+}
+
+.rcm-nav-group-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.rcm-nav-group-toggle:active {
+  transform: translateY(1px);
+}
+
+.rcm-nav-group-toggle:focus-visible {
+  outline: 2px solid #a7f3d0;
+  outline-offset: 2px;
+}
+
+.rcm-nav-group-toggle.has-active {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(167, 243, 208, 0.35);
+  color: #ffffff;
+}
+
+.rcm-nav-group-title-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rcm-nav-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a7f3d0;
+  flex-shrink: 0;
 }
 
 .rcm-nav-divider {
@@ -249,6 +301,91 @@
 .rcm-nav-link.active .rcm-nav-badge {
   background-color: #ecfdf5;
   color: #064e3b;
+}
+
+/* Nested Submenus (e.g. กองทุน -> คัดกรองมะเร็งปากมดลูก (CCS) -> 1.) */
+.rcm-nav-parent-btn {
+  width: 100%;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+}
+
+.rcm-nav-parent-btn.branch-active {
+  background-color: rgba(255, 255, 255, 0.13);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.rcm-nav-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a7f3d0;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.rcm-nav-sublist {
+  list-style: none;
+  margin: 0.25rem 0 0.35rem 1.35rem;
+  padding: 0.15rem 0 0.15rem 0.65rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.rcm-nav-sublink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-size: 0.825rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  line-height: 1.35;
+}
+
+.rcm-nav-sublink:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.rcm-nav-sublink.active {
+  background-color: #ffffff;
+  color: #064e3b;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.rcm-nav-subbadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.1rem 0.38rem;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #d1fae5;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.rcm-nav-sublink.active .rcm-nav-subbadge {
+  background-color: #ecfdf5;
+  color: #064e3b;
+}
+
+.rcm-nav-sublabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 

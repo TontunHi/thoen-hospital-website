@@ -336,7 +336,8 @@ describe('RepFundsClient Component (3.1.1 Live Data)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringMatching(/\/api\/service\/dashboard-rcm\/rep-funds\?.*ds1=.*&ds2=/)
+        expect.stringMatching(/\/api\/service\/dashboard-rcm\/rep-funds\?.*ds1=.*&ds2=/),
+        expect.anything()
       )
     })
   })

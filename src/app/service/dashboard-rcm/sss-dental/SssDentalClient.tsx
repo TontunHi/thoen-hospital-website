@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Stethoscope,
   Users,
@@ -149,8 +149,16 @@ export default function SssDentalClient() {
     setDs2(`${fiscalYear}-09-30`)
   }
 
+  const abortDentalRef = useRef<AbortController | null>(null)
+
   const fetchData = useCallback(
     async (start = ds1, end = ds2, docFilter = selectedDoctorCode) => {
+      if (abortDentalRef.current) {
+        abortDentalRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortDentalRef.current = controller
+
       setLoading(true)
       setError(null)
       try {
@@ -158,7 +166,7 @@ export default function SssDentalClient() {
         if (docFilter) {
           url += `&doctor=${encodeURIComponent(docFilter)}`
         }
-        const res = await fetch(url, { cache: 'no-store' })
+        const res = await fetch(url, { cache: 'no-store', signal: controller.signal })
         const json = await res.json()
         if (json.success) {
           setDoctors(json.doctors || [])
@@ -178,9 +186,12 @@ export default function SssDentalClient() {
           setError(json.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
         }
       } catch (err: any) {
+        if (err?.name === 'AbortError') return
         setError(err?.message || 'ไม่สามารถเชื่อมต่อ API ได้')
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
       }
     },
     [ds1, ds2, selectedDoctorCode]
@@ -188,6 +199,9 @@ export default function SssDentalClient() {
 
   useEffect(() => {
     fetchData(ds1, ds2, selectedDoctorCode)
+    return () => {
+      abortDentalRef.current?.abort()
+    }
   }, [ds1, ds2, selectedDoctorCode, fetchData])
 
   // Sorting Handler
