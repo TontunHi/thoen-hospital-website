@@ -1,0 +1,889 @@
+/* ==========================================================================
+   UI Style Brief & $unslop: 17.1 บริการคัดกรองโลหิตจางจากขาดธาตุเหล็ก อายุ 13-24 ปี ADP
+   Modern, Clean, Purposeful Density, Center-Aligned Table Standard, 1 Color = 1 Meaning
+   ========================================================================== */
+
+.as-page {
+  --as-bg: var(--bg-main, #f8fafc);
+  --as-surface: #ffffff;
+  --as-surface-subtle: #f1f5f9;
+  --as-ink: #0f172a;
+  --as-ink-secondary: #334155;
+  --as-muted: #64748b;
+  --as-hairline: #e2e8f0;
+  --as-hairline-subtle: #f1f5f9;
+  --as-hairline-strong: #94a3b8;
+
+  /* Hospital Emerald / Brand Primary */
+  --as-accent: #0d7446;
+  --as-accent-hover: #0a5c37;
+  --as-accent-subtle: #e8f5e9;
+  --as-accent-text: #064026;
+  --as-focus-ring: color-mix(in srgb, var(--as-accent) 25%, transparent);
+
+  /* Status Tokens */
+  --as-ok: #16a34a;
+  --as-ok-bg: #f0fdf4;
+  --as-ok-border: #bbf7d0;
+  --as-warn: #d97706;
+  --as-warn-bg: #fffbeb;
+  --as-warn-border: #fef3c7;
+  --as-err: #dc2626;
+  --as-err-bg: #fef2f2;
+  --as-err-border: #fecaca;
+  --as-info: #0284c7;
+  --as-info-bg: #f0f9ff;
+  --as-info-border: #bae6fd;
+
+  --as-radius-sm: 8px;
+  --as-radius-md: 12px;
+  --as-radius-lg: 16px;
+  --as-radius-full: 9999px;
+
+  --as-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --as-shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --as-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --as-shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+
+  padding: 24px 32px 48px;
+  background-color: var(--as-bg);
+  color: var(--as-ink);
+  font-family: var(--font-sarabun, var(--font-family, system-ui, -apple-system, sans-serif));
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* ── 1. Breadcrumb (Clean & Flat, No Pill Eyebrows) ── */
+.as-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--as-muted);
+  flex-wrap: wrap;
+}
+
+.as-breadcrumb a {
+  color: var(--as-muted);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.as-breadcrumb a:hover {
+  color: var(--as-accent);
+}
+
+.as-breadcrumb-sep {
+  color: var(--as-hairline-strong);
+  user-select: none;
+}
+
+.as-breadcrumb-current {
+  color: var(--as-ink);
+  font-weight: 500;
+}
+
+/* ── 2. Header & Action Bar ── */
+.as-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.as-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.as-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--as-ink);
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.as-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--as-muted);
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.as-subtitle-dot {
+  color: var(--as-hairline-strong);
+}
+
+.as-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.as-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--as-radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.as-btn-primary {
+  background-color: var(--as-accent);
+  color: #ffffff;
+}
+
+.as-btn-primary:hover:not(:disabled) {
+  background-color: var(--as-accent-hover);
+}
+
+.as-btn-secondary {
+  background-color: var(--as-surface);
+  color: var(--as-ink-secondary);
+  border-color: var(--as-hairline);
+  box-shadow: var(--as-shadow-sm);
+}
+
+.as-btn-secondary:hover:not(:disabled) {
+  background-color: var(--as-surface-subtle);
+  border-color: var(--as-hairline-strong);
+}
+
+.as-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── 3. Date Selection Card (Single Unified Row) ── */
+.as-date-card {
+  background-color: var(--as-surface);
+  border: 1px solid var(--as-hairline);
+  border-radius: var(--as-radius-lg);
+  padding: 12px 18px;
+  box-shadow: var(--as-shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.as-date-segmented {
+  display: inline-flex;
+  background-color: var(--as-surface-subtle);
+  padding: 4px;
+  border-radius: var(--as-radius-md);
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.as-date-divider {
+  width: 1px;
+  height: 28px;
+  background-color: var(--as-hairline);
+  flex-shrink: 0;
+}
+
+.as-segmented-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--as-muted);
+  border-radius: var(--as-radius-sm);
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+}
+
+.as-segmented-btn:hover {
+  color: var(--as-ink);
+}
+
+.as-segmented-btn.is-active {
+  background-color: var(--as-surface);
+  color: var(--as-accent);
+  font-weight: 600;
+  box-shadow: var(--as-shadow-sm);
+}
+
+.as-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.as-control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.as-control-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--as-muted);
+  white-space: nowrap;
+}
+
+.as-select {
+  min-height: 40px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--as-ink);
+  background-color: var(--as-surface);
+  border: 1px solid var(--as-hairline);
+  border-radius: var(--as-radius-md);
+  transition: border-color 150ms ease;
+  outline: none;
+}
+
+.as-select:focus {
+  border-color: var(--as-accent);
+  box-shadow: 0 0 0 3px var(--as-focus-ring);
+}
+
+/* ── 4. KPI Summary Cards Grid (แถวละ 4 ใบเท่าๆ กัน สองแถวสมมาตร 8 ใบ) ── */
+.as-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.as-kpi-card {
+  background-color: var(--as-surface);
+  border: 1px solid var(--as-hairline);
+  border-radius: var(--as-radius-lg);
+  padding: 16px 18px;
+  box-shadow: var(--as-shadow-card);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+
+.as-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--as-shadow-hover);
+  border-color: var(--as-hairline-strong);
+}
+
+.as-kpi-card.is-active {
+  border-color: var(--as-accent);
+  box-shadow: 0 0 0 2px var(--as-accent);
+  background: linear-gradient(180deg, #ffffff 0%, var(--as-accent-subtle) 100%);
+}
+
+.as-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.as-kpi-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--as-muted);
+  text-transform: none;
+}
+
+.as-kpi-card.is-active .as-kpi-title {
+  color: var(--as-accent-text);
+}
+
+.as-kpi-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--as-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--as-surface-subtle);
+  color: var(--as-muted);
+  flex-shrink: 0;
+}
+
+.as-kpi-card.is-active .as-kpi-icon {
+  background-color: var(--as-accent);
+  color: #ffffff;
+}
+
+.as-kpi-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.as-kpi-val {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--as-ink);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.as-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--as-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 5. Search & Filter Bar ── */
+.as-toolbar {
+  background-color: var(--as-surface);
+  border: 1px solid var(--as-hairline);
+  border-radius: var(--as-radius-lg);
+  padding: 14px 18px;
+  box-shadow: var(--as-shadow-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.as-search-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.as-search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.as-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--as-muted);
+  pointer-events: none;
+}
+
+.as-search-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 36px 8px 38px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--as-ink);
+  background-color: var(--as-surface-subtle);
+  border: 1px solid var(--as-hairline);
+  border-radius: var(--as-radius-md);
+  transition: all 150ms ease;
+  outline: none;
+}
+
+.as-search-input:focus {
+  background-color: #ffffff;
+  border-color: var(--as-accent);
+  box-shadow: 0 0 0 3px var(--as-focus-ring);
+}
+
+.as-search-clear {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--as-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--as-radius-full);
+}
+
+.as-search-clear:hover {
+  color: var(--as-ink);
+  background-color: var(--as-hairline);
+}
+
+.as-toolbar-info {
+  font-size: 0.875rem;
+  color: var(--as-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 6. Alert & Mapping Warning Banner ── */
+.as-banner-warn {
+  background-color: var(--as-warn-bg);
+  border: 1px solid var(--as-warn-border);
+  border-radius: var(--as-radius-md);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #92400e;
+  font-size: 0.875rem;
+}
+
+.as-banner-warn-icon {
+  color: var(--as-warn);
+  flex-shrink: 0;
+}
+
+/* ── 7. Clean Patient Ledger Table ── */
+.as-table-card {
+  background-color: var(--as-surface);
+  border: 1px solid var(--as-hairline);
+  border-radius: var(--as-radius-lg);
+  box-shadow: var(--as-shadow-card);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.as-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.as-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.as-table th {
+  background-color: var(--as-surface-subtle);
+  color: var(--as-ink-secondary);
+  font-weight: 600;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--as-hairline);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.as-table td {
+  padding: 14px;
+  border-bottom: 1px solid var(--as-hairline-subtle);
+  color: var(--as-ink);
+  transition: background-color 120ms ease;
+  vertical-align: middle;
+}
+
+/* Row-clickable records: clicking any row opens modal */
+.as-row-clickable {
+  cursor: pointer;
+}
+
+.as-row-clickable:hover td {
+  background-color: #f8fafc;
+}
+
+/* Table Column Alignment Standard */
+.col-center {
+  text-align: center !important;
+}
+
+.col-left {
+  text-align: left !important;
+}
+
+.col-right {
+  text-align: right !important;
+}
+
+.as-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.as-table-sort-btn {
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+}
+
+.as-table-sort-btn:hover {
+  color: var(--as-accent);
+}
+
+/* Cell Badges */
+.as-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--as-radius-full);
+  line-height: 1.2;
+  white-space: nowrap;
+  margin: 0 auto;
+}
+
+.as-badge-ok {
+  background-color: var(--as-ok-bg);
+  color: #15803d;
+  border: 1px solid var(--as-ok-border);
+}
+
+.as-badge-warn {
+  background-color: var(--as-warn-bg);
+  color: #b45309;
+  border: 1px solid var(--as-warn-border);
+}
+
+.as-badge-err {
+  background-color: var(--as-err-bg);
+  color: #b91c1c;
+  border: 1px solid var(--as-err-border);
+}
+
+.as-badge-info {
+  background-color: var(--as-info-bg);
+  color: #0369a1;
+  border: 1px solid var(--as-info-border);
+}
+
+.as-badge-neutral {
+  background-color: var(--as-surface-subtle);
+  color: var(--as-muted);
+  border: 1px solid var(--as-hairline);
+}
+
+/* Target age indicator pill */
+.as-target-age-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--as-radius-full);
+  background-color: var(--as-accent-subtle);
+  color: var(--as-accent-text);
+  border: 1px solid color-mix(in srgb, var(--as-accent) 20%, transparent);
+}
+
+/* Empty & Loading states */
+.as-state-box {
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--as-muted);
+}
+
+.as-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--as-hairline);
+  border-top-color: var(--as-accent);
+  border-radius: 50%;
+  animation: as-spin 800ms linear infinite;
+}
+
+@keyframes as-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 8. Pagination ── */
+.as-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--as-hairline);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.as-pagination-info {
+  font-size: 0.875rem;
+  color: var(--as-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.as-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.as-page-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--as-hairline);
+  background-color: var(--as-surface);
+  color: var(--as-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--as-radius-md);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 120ms ease;
+  user-select: none;
+}
+
+.as-page-btn:hover:not(:disabled) {
+  background-color: var(--as-surface-subtle);
+  border-color: var(--as-hairline-strong);
+}
+
+.as-page-btn.is-active {
+  background-color: var(--as-accent);
+  color: #ffffff;
+  border-color: var(--as-accent);
+}
+
+.as-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 9. Clinical Detail Modal (Slide/Pop Inspector) ── */
+.as-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+  animation: as-fade-in 180ms ease-out;
+}
+
+@keyframes as-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.as-modal-content {
+  background-color: #ffffff;
+  border-radius: var(--as-radius-lg);
+  box-shadow: var(--as-shadow-modal);
+  width: 100%;
+  max-width: 780px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: as-slide-up 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes as-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.as-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--as-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.as-modal-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.as-modal-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--as-ink);
+}
+
+.as-modal-subtitle {
+  font-size: 0.8125rem;
+  color: var(--as-muted);
+}
+
+.as-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--as-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--as-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 120ms ease;
+}
+
+.as-modal-close:hover {
+  background-color: var(--as-surface-subtle);
+  color: var(--as-ink);
+}
+
+.as-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--as-hairline);
+  background-color: var(--as-surface-subtle);
+  padding: 0 24px;
+  gap: 8px;
+}
+
+.as-modal-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 12px 14px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--as-muted);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.as-modal-tab-btn.is-active {
+  color: var(--as-accent);
+  border-bottom-color: var(--as-accent);
+  font-weight: 600;
+}
+
+.as-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.as-modal-section-title {
+  margin: 0 0 10px 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--as-ink-secondary);
+}
+
+.as-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.as-detail-card {
+  background-color: var(--as-surface-subtle);
+  border: 1px solid var(--as-hairline);
+  border-radius: var(--as-radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.as-detail-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--as-muted);
+}
+
+.as-detail-val {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--as-ink);
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
+.as-modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--as-hairline);
+  background-color: var(--as-surface-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1180px) {
+  .as-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .as-page {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .as-date-divider {
+    display: none;
+  }
+
+  .as-search-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 580px) {
+  .as-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}

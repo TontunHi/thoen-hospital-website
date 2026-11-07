@@ -42,6 +42,8 @@ yarn-error.log*
 .env.production.local
 .env.production
 .env.development
+# dev tunnel state (PIDs, logs with public URLs)
+.tunnel/
 
 # vercel
 .vercel

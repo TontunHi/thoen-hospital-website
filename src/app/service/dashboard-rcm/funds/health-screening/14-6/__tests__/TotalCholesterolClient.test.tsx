@@ -151,4 +151,42 @@ describe('TotalCholesterolClient Component (14.6 ADP 12004)', () => {
       expect(screen.getByText('รายละเอียดการรับบริการ Total Cholesterol (12004)')).toBeInTheDocument()
     })
   })
+
+  it('hydrates immediately from SSR initialData without redundant mount fetch', async () => {
+    render(
+      <TotalCholesterolClient
+        initialData={{
+          adpCode: '12004',
+          title: '14.6 Total Cholesterol / HDL',
+          ds1: '2025-10-01',
+          ds2: '2026-09-30',
+          fiscalStartYear: '2025-10-01',
+          adpMapping: { adpCode: '12004', isMapped: true, mappedCount: 1, items: [] },
+          cardFilter: 'ALL',
+          ucOnly: false,
+          targetAgeOnly: false,
+          searchField: 'ALL',
+          search: '',
+          sortBy: 'vstdate',
+          sortOrder: 'desc',
+          summary: mockSummary,
+          totalCount: 1,
+          page: 1,
+          pageSize: 50,
+          totalPages: 1,
+          items: [mockItem],
+        }}
+      />
+    )
+
+    expect(screen.getByText('นางสมศรี มีสุข')).toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalled()
+
+    const targetAgeBtn = screen.getByRole('button', { name: /ตัวกรอง: กลุ่มเป้าหมายอายุ 45-59 ปี/ })
+    fireEvent.click(targetAgeBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+    })
+  })
 })

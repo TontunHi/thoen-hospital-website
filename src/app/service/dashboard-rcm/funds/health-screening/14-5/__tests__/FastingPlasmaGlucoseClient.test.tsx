@@ -154,4 +154,42 @@ describe('FastingPlasmaGlucoseClient Component (14.5 ADP 12003)', () => {
       expect(screen.getByText('รายละเอียดการรับบริการ FPG (12003)')).toBeInTheDocument()
     })
   })
+
+  it('hydrates immediately from SSR initialData without redundant mount fetch', async () => {
+    render(
+      <FastingPlasmaGlucoseClient
+        initialData={{
+          adpCode: '12003',
+          title: '14.5 Fasting Plasma Glucose',
+          ds1: '2025-10-01',
+          ds2: '2026-09-30',
+          fiscalStartYear: '2025-10-01',
+          adpMapping: { adpCode: '12003', isMapped: true, mappedCount: 1, items: [] },
+          cardFilter: 'ALL',
+          ucOnly: false,
+          targetAgeOnly: false,
+          searchField: 'ALL',
+          search: '',
+          sortBy: 'vstdate',
+          sortOrder: 'desc',
+          summary: mockSummary,
+          totalCount: 1,
+          page: 1,
+          pageSize: 50,
+          totalPages: 1,
+          items: [mockItem],
+        }}
+      />
+    )
+
+    expect(screen.getByText('นายสมชาย ใจดี')).toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalled()
+
+    const repeatClaimBtn = screen.getByRole('button', { name: /ตัวกรอง: เคยเคลมในปีงบประมาณ/ })
+    fireEvent.click(repeatClaimBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(1)
+    })
+  })
 })

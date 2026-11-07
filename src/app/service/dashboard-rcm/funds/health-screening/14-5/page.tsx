@@ -1,6 +1,12 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import {
+  RcmHealthScreeningService,
+  type HealthScreeningReportResult,
+} from '@/lib/clinical/rcmHealthScreeningService'
+import { logThrottledAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 import FastingPlasmaGlucoseClient from './FastingPlasmaGlucoseClient'
 
 export const metadata: Metadata = {
@@ -19,5 +25,21 @@ export default async function FastingPlasmaGlucosePage() {
     redirect('/service')
   }
 
-  return <FastingPlasmaGlucoseClient />
+  logThrottledAudit(
+    'READ',
+    'rcm_funds_health_screening_14_5',
+    'Viewed FPG report (14.5 ADP 12003) (default fiscal year, filter: ALL, export: false)',
+    { username: session.username, email: session.email }
+  ).catch((err) => logger.error({ err }, 'FPG 14.5 SSR audit log failed'))
+
+  let initialData: HealthScreeningReportResult | null = null
+  try {
+    initialData = await RcmHealthScreeningService.getHealthScreeningReport({
+      adpCode: '12003',
+    })
+  } catch (err) {
+    logger.error({ err }, 'Failed to prefetch initial data for FPG 14.5')
+  }
+
+  return <FastingPlasmaGlucoseClient initialData={initialData} />
 }

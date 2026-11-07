@@ -1,6 +1,12 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { verifyMemberSession } from '@/lib/memberAuth'
+import {
+  RcmHealthScreeningService,
+  type HealthScreeningReportResult,
+} from '@/lib/clinical/rcmHealthScreeningService'
+import { logThrottledAudit } from '@/lib/audit'
+import { logger } from '@/lib/logger'
 import TotalCholesterolClient from './TotalCholesterolClient'
 
 export const metadata: Metadata = {
@@ -20,5 +26,21 @@ export default async function TotalCholesterolPage() {
     redirect('/service')
   }
 
-  return <TotalCholesterolClient />
+  logThrottledAudit(
+    'READ',
+    'rcm_funds_health_screening_14_6',
+    'Viewed Total Cholesterol / HDL report (14.6 ADP 12004) (default fiscal year, filter: ALL, export: false)',
+    { username: session.username, email: session.email }
+  ).catch((err) => logger.error({ err }, 'Total Cholesterol 14.6 SSR audit log failed'))
+
+  let initialData: HealthScreeningReportResult | null = null
+  try {
+    initialData = await RcmHealthScreeningService.getHealthScreeningReport({
+      adpCode: '12004',
+    })
+  } catch (err) {
+    logger.error({ err }, 'Failed to prefetch initial data for Total Cholesterol 14.6')
+  }
+
+  return <TotalCholesterolClient initialData={initialData} />
 }

@@ -27,6 +27,7 @@ import type {
   HealthScreeningSearchField,
   HealthScreeningSortField,
   HealthScreeningAdpMappingCheck,
+  HealthScreeningReportResult,
 } from '@/lib/clinical/rcmHealthScreeningService'
 import type { VnClinicalDetails } from '@/lib/clinical/rcmDashboardService'
 import { formatThaiDate } from '@/lib/formatters'
@@ -53,7 +54,13 @@ function formatMoney(val?: number | null): string {
   return val.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export default function FastingPlasmaGlucoseClient() {
+export interface FastingPlasmaGlucoseClientProps {
+  initialData?: HealthScreeningReportResult | null
+}
+
+export default function FastingPlasmaGlucoseClient({
+  initialData = null,
+}: FastingPlasmaGlucoseClientProps) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -74,53 +81,69 @@ export default function FastingPlasmaGlucoseClient() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${defaultFiscalCeYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(`${defaultFiscalCeYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(
+    initialData?.ds1 ?? `${defaultFiscalCeYear - 1}-10-01`
+  )
+  const [ds2, setDs2] = useState<string>(
+    initialData?.ds2 ?? `${defaultFiscalCeYear}-09-30`
+  )
 
   // Filter & Search states
-  const [cardFilter, setCardFilter] = useState<HealthScreeningCardFilter>('ALL')
-  const [ucOnly, setUcOnly] = useState<boolean>(false)
-  const [searchField, setSearchField] = useState<HealthScreeningSearchField>('ALL')
-  const [search, setSearch] = useState<string>('')
-  const [debouncedSearch, setDebouncedSearch] = useState<string>('')
-  const [sortBy, setSortBy] = useState<HealthScreeningSortField>('vstdate')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(50)
+  const [cardFilter, setCardFilter] = useState<HealthScreeningCardFilter>(
+    initialData?.cardFilter ?? 'ALL'
+  )
+  const [ucOnly, setUcOnly] = useState<boolean>(initialData?.ucOnly ?? false)
+  const [searchField, setSearchField] = useState<HealthScreeningSearchField>(
+    initialData?.searchField ?? 'ALL'
+  )
+  const [search, setSearch] = useState<string>(initialData?.search ?? '')
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(initialData?.search ?? '')
+  const [sortBy, setSortBy] = useState<HealthScreeningSortField>(
+    initialData?.sortBy ?? 'vstdate'
+  )
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(
+    initialData?.sortOrder ?? 'desc'
+  )
+  const [currentPage, setCurrentPage] = useState<number>(initialData?.page ?? 1)
+  const [pageSize, setPageSize] = useState<number>(initialData?.pageSize ?? 50)
 
   // Data fetching states
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<HealthScreeningItem[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [adpMapping, setAdpMapping] = useState<HealthScreeningAdpMappingCheck>({
-    adpCode: '12003',
-    isMapped: true,
-    mappedCount: 0,
-    items: [],
-  })
-  const [summary, setSummary] = useState<HealthScreeningSummary>({
-    totalVisits: 0,
-    uniquePatients: 0,
-    compensatedVisits: 0,
-    uncompensatedVisits: 0,
-    compensationRate: 0,
-    totalCompensated: 0,
-    averageCompensated: 0,
-    repeatClaimCount: 0,
-    repeatClaimRate: 0,
-    withAuthenCount: 0,
-    withoutAuthenCount: 0,
-    authenRate: 0,
-    ucCount: 0,
-    ucRate: 0,
-    targetAgeCount: 0,
-    targetAgeRate: 0,
-    totalIncome: 0,
-  })
+  const [items, setItems] = useState<HealthScreeningItem[]>(initialData?.items ?? [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount ?? 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages ?? 1)
+  const [adpMapping, setAdpMapping] = useState<HealthScreeningAdpMappingCheck>(
+    initialData?.adpMapping ?? {
+      adpCode: '12003',
+      isMapped: true,
+      mappedCount: 0,
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<HealthScreeningSummary>(
+    initialData?.summary ?? {
+      totalVisits: 0,
+      uniquePatients: 0,
+      compensatedVisits: 0,
+      uncompensatedVisits: 0,
+      compensationRate: 0,
+      totalCompensated: 0,
+      averageCompensated: 0,
+      repeatClaimCount: 0,
+      repeatClaimRate: 0,
+      withAuthenCount: 0,
+      withoutAuthenCount: 0,
+      authenRate: 0,
+      ucCount: 0,
+      ucRate: 0,
+      targetAgeCount: 0,
+      targetAgeRate: 0,
+      totalIncome: 0,
+    }
+  )
 
   // Modal Detail states
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -131,15 +154,50 @@ export default function FastingPlasmaGlucoseClient() {
 
   // AbortController to prevent race condition
   const abortRef = useRef<AbortController | null>(null)
+  const initialQueryKeyRef = useRef<string | null>(
+    initialData
+      ? JSON.stringify({
+          ds1: initialData.ds1,
+          ds2: initialData.ds2,
+          cardFilter: initialData.cardFilter,
+          ucOnly: initialData.ucOnly,
+          searchField: initialData.searchField,
+          search: initialData.search,
+          sortBy: initialData.sortBy,
+          sortOrder: initialData.sortOrder,
+          page: initialData.page,
+          pageSize: initialData.pageSize,
+        })
+      : null
+  )
+
+  const currentQueryKey = useMemo(
+    () =>
+      JSON.stringify({
+        ds1,
+        ds2,
+        cardFilter,
+        ucOnly,
+        searchField,
+        search: debouncedSearch,
+        sortBy,
+        sortOrder,
+        page: currentPage,
+        pageSize,
+      }),
+    [ds1, ds2, cardFilter, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
+  )
 
   // Debounce search input (350ms)
   useEffect(() => {
+    const trimmed = search.trim()
+    if (trimmed === debouncedSearch) return
     const timer = setTimeout(() => {
-      setDebouncedSearch(search.trim())
+      setDebouncedSearch(trimmed)
       setCurrentPage(1)
     }, 350)
     return () => clearTimeout(timer)
-  }, [search])
+  }, [search, debouncedSearch])
 
   // Recalculate ds1/ds2 on dateMode changes
   useEffect(() => {
@@ -217,9 +275,13 @@ export default function FastingPlasmaGlucoseClient() {
   )
 
   useEffect(() => {
+    if (initialQueryKeyRef.current && initialQueryKeyRef.current === currentQueryKey) {
+      return
+    }
+    initialQueryKeyRef.current = null
     fetchData()
     return () => abortRef.current?.abort()
-  }, [fetchData])
+  }, [fetchData, currentQueryKey])
 
   // Selected item for modal
   const selectedItem = selectedIndex !== null ? items[selectedIndex] : null

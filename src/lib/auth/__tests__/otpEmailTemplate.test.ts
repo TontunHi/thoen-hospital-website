@@ -43,8 +43,8 @@ describe('otpEmailTemplate', () => {
       expect(html).toContain('โรงพยาบาลเถิน')
       // Must contain security notice
       expect(html).toContain('ห้ามเปิดเผยรหัส OTP ให้แก่ผู้อื่นทราบโดยเด็ดขาด')
-      // Must contain copy hint
-      expect(html).toContain('Ready to Copy')
+      // Must contain quiet context title
+      expect(html).toContain('รหัสยืนยันเข้าสู่ระบบ')
     })
 
     it('renders fallback display name when name is not provided', () => {

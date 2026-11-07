@@ -289,5 +289,54 @@ describe('RcmHealthScreeningService (14. บริการคัดกรอง
       expect(res.items.length).toBe(1)
       expect(res.items[0].ptname).toContain('สมศรี')
     })
+
+    it('uses optimized SQL without unbounded nondrugitems scan or duplicate repdata scan', async () => {
+      const executedSqls: Array<{ sql: string; params: any[] }> = []
+      const mockExecutor = vi.fn().mockImplementation((sql: string, params: any[]) => {
+        executedSqls.push({ sql, params })
+        if (sql.includes('FROM s_drugitems')) {
+          return Promise.resolve([{ icode: '12003', name: 'FPG', strength: null, nhso_adp_code: '12003' }])
+        }
+        return Promise.resolve(mockRows)
+      })
+
+      await RcmHealthScreeningService.getHealthScreeningReport(
+        {
+          adpCode: '12003',
+          startDate: '2026-03-01',
+          endDate: '2026-03-31',
+          refresh: true,
+        },
+        mockExecutor
+      )
+
+      const reportQuery = executedSqls.find((q) => !q.sql.includes('FROM s_drugitems'))!
+      expect(reportQuery).toBeDefined()
+      // 14.5 (12003) does not display listname1, so nondrugitems join is skipped entirely
+      expect(reportQuery.sql).not.toContain('JOIN nondrugitems')
+      // Single rcmdb.repdata scan instead of 2
+      expect(reportQuery.sql.match(/FROM rcmdb\.repdata/g)?.length).toBe(1)
+      // Per-visit repeat-claim check filtered by oo2.vstdate from fiscal year start
+      expect(reportQuery.sql).toContain('prev_claim.camedate < o.vstdate')
+      expect(reportQuery.sql).toContain('oo2.vstdate BETWEEN ? AND ?')
+      expect(reportQuery.params).toContain('2025-10-01')
+
+      executedSqls.length = 0
+      await RcmHealthScreeningService.getHealthScreeningReport(
+        {
+          adpCode: '12004',
+          startDate: '2026-03-01',
+          endDate: '2026-03-31',
+          refresh: true,
+        },
+        mockExecutor
+      )
+
+      const report146Query = executedSqls.find((q) => !q.sql.includes('FROM s_drugitems'))!
+      // 14.6 (12004) scopes nondrugitems strictly to target_vn instead of all hospital visits
+      expect(report146Query.sql).toContain('target_vn')
+      expect(report146Query.sql).toContain('JOIN nondrugitems')
+      expect(report146Query.sql.match(/FROM rcmdb\.repdata/g)?.length).toBe(1)
+    })
   })
 })

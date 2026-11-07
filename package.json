@@ -20,6 +20,9 @@
     "deploy": "scripts\\deploy.bat",
     "card:bridge": "scripts\\smartcard-bridge.bat",
     "storage:migrate": "tsx scripts/migrateStorageToS3.ts",
+    "tunnel:start": "tsx scripts/devTunnel.ts start",
+    "tunnel:stop": "tsx scripts/devTunnel.ts stop",
+    "tunnel:status": "tsx scripts/devTunnel.ts status",
     "precommit": "lint-staged"
   },
   "dependencies": {

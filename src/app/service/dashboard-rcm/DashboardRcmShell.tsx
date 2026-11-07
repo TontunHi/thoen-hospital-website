@@ -21,9 +21,11 @@ import {
   ShieldCheck,
   Baby,
   Droplet,
+  Droplets,
   TestTube2,
   Heart,
   Sparkles,
+  Pill,
 } from 'lucide-react'
 
 export interface NavSubItem {
@@ -302,6 +304,32 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
             href: '/service/dashboard-rcm/funds/health-screening/14-6',
             label: 'Total Cholesterol / HDL (12004)',
             badge: '14.6',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/anemia-screening',
+        label: 'บริการคัดกรองโลหิตจาง (13-24 ปี)',
+        badge: '17',
+        icon: Droplets,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/anemia-screening/17-1',
+            label: 'บริการคัดกรองโลหิตจางจากขาดธาตุเหล็ก อายุ 13-24 ปี ADP',
+            badge: '17.1',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/iron-supplements',
+        label: 'บริการยาเม็ดเสริมธาตุเหล็ก (13-45 ปี)',
+        badge: '18',
+        icon: Pill,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/iron-supplements/18-2',
+            label: 'รายชื่อผู้รับบริการยาเม็ดเสริมธาตุเหล็ก ADP (14001)',
+            badge: '18.2',
           },
         ],
       },

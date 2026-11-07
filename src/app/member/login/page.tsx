@@ -4,82 +4,84 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import LoyKrathongScene from '@/components/seasonal/LoyKrathongScene'
+import { AlertCircle, CheckCircle2, ChevronRight, ArrowLeft, X } from 'lucide-react'
 import './page.css'
 
 function MemberLoginForm() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
-  const [step, setStep] = useState<1 | 2>(1) // 1: Input user/email, 2: Input OTP
+  const [showOtpModal, setShowOtpModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [thaidLoading, setThaidLoading] = useState(false)
   const [healthIdLoading, setHealthIdLoading] = useState(false)
   const [providerIdLoading, setProviderIdLoading] = useState(false)
   const [error, setError] = useState('')
+  const [modalError, setModalError] = useState('')
   const [success, setSuccess] = useState('')
+  const [modalSuccess, setModalSuccess] = useState('')
   const [countdown, setCountdown] = useState(0)
 
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Handle URL error parameters (e.g. from ThaID redirect)
+  const isAnyBusy = loading || thaidLoading || healthIdLoading || providerIdLoading
+
   useEffect(() => {
     const errCode = searchParams.get('error')
     if (errCode) {
       switch (errCode) {
         case 'not_registered':
-          setError('ไม่พบเลขบัตรประชาชนนี้ในระบบบุคลากรโรงพยาบาลเถิน กรุณาติดต่อผู้ดูแลระบบ/งานเทคโนโลยีสารสนเทศ')
+          setError('ไม่พบเลขบัตรประชาชนนี้ในทะเบียนบุคลากรโรงพยาบาลเถิน กรุณาติดต่อกลุ่มงานเทคโนโลยีสารสนเทศ')
           break
         case 'thaid_denied':
-          setError('การยืนยันตัวตนด้วย ThaID ถูกยกเลิก หรือไม่ได้รับความยินยอม กรุณาลองใหม่อีกครั้ง')
+          setError('ยกเลิกการยืนยันตัวตนผ่าน ThaID แล้ว หากต้องการเข้าสู่ระบบกรุณาลองใหม่อีกครั้ง')
           break
         case 'thaid_exchange_failed':
-          setError('ไม่สามารถเชื่อมต่อแลกเปลี่ยนข้อมูลกับระบบ ThaID ได้ กรุณาลองใหม่ หรือใช้วิธี OTP ทางอีเมล')
+          setError('ไม่สามารถเชื่อมต่อข้อมูลกับระบบ ThaID ได้ในขณะนี้ กรุณาลองใหม่หรือรับรหัส OTP ทางอีเมล')
           break
         case 'thaid_invalid_state':
           setError('เซสชันการยืนยันตัวตนหมดอายุ กรุณากดเข้าสู่ระบบด้วย ThaID ใหม่อีกครั้ง')
           break
         case 'thaid_not_configured':
-          setError('ระบบ ThaID ยังไม่ได้กำหนดค่าการเชื่อมต่อ กรุณาติดต่อผู้ดูแลระบบหรือใช้วิธี OTP')
+          setError('ระบบ ThaID ยังไม่พร้อมใช้งานชั่วคราว กรุณาเข้าสู่ระบบด้วยรหัส OTP ทางอีเมล')
           break
         case 'thaid_server_error':
           setError('เกิดข้อผิดพลาดในการตรวจสอบข้อมูลกับเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง')
           break
         case 'health_id_denied':
-          setError('การยืนยันตัวตนด้วย Health ID ถูกยกเลิก หรือไม่ได้รับความยินยอม กรุณาลองใหม่อีกครั้ง')
+          setError('ยกเลิกการยืนยันตัวตนผ่าน Health ID แล้ว หากต้องการเข้าสู่ระบบกรุณาลองใหม่อีกครั้ง')
           break
         case 'health_id_exchange_failed':
-          setError('ไม่สามารถเชื่อมต่อแลกเปลี่ยนข้อมูลกับระบบ Health ID ได้ กรุณาลองใหม่ หรือใช้วิธีอื่น')
+          setError('ไม่สามารถเชื่อมต่อข้อมูลกับระบบ Health ID ได้ในขณะนี้ กรุณาลองใหม่หรือใช้วิธีอื่น')
           break
         case 'health_id_invalid_state':
           setError('เซสชันการยืนยันตัวตนหมดอายุ กรุณากดเข้าสู่ระบบด้วย Health ID ใหม่อีกครั้ง')
           break
         case 'health_id_not_configured':
-          setError('ระบบ Health ID ยังไม่ได้กำหนดค่าการเชื่อมต่อ กรุณาติดต่อผู้ดูแลระบบหรือใช้วิธี OTP')
+          setError('ระบบ Health ID ยังไม่พร้อมใช้งานชั่วคราว กรุณาเข้าสู่ระบบด้วยรหัส OTP ทางอีเมล')
           break
         case 'provider_id_denied':
-          setError('การยืนยันตัวตนด้วย Provider ID ถูกยกเลิก หรือไม่ได้รับความยินยอม กรุณาลองใหม่อีกครั้ง')
+          setError('ยกเลิกการยืนยันตัวตนผ่าน Provider ID แล้ว หากต้องการเข้าสู่ระบบกรุณาลองใหม่อีกครั้ง')
           break
         case 'provider_id_exchange_failed':
-          setError('ไม่สามารถเชื่อมต่อแลกเปลี่ยนข้อมูลกับระบบ Provider ID/Health ID ได้ กรุณาลองใหม่ หรือใช้วิธีอื่น')
+          setError('ไม่สามารถเชื่อมต่อข้อมูลกับระบบ Provider ID ได้ในขณะนี้ กรุณาลองใหม่หรือใช้วิธีอื่น')
           break
         case 'provider_id_invalid_state':
           setError('เซสชันการยืนยันตัวตนหมดอายุ กรุณากดเข้าสู่ระบบด้วย Provider ID ใหม่อีกครั้ง')
           break
         case 'provider_id_not_configured':
-          setError('ระบบ Provider ID ยังไม่ได้กำหนดค่าการเชื่อมต่อ กรุณาติดต่อผู้ดูแลระบบหรือใช้วิธี OTP')
+          setError('ระบบ Provider ID ยังไม่พร้อมใช้งานชั่วคราว กรุณาเข้าสู่ระบบด้วยรหัส OTP ทางอีเมล')
           break
         case 'provider_id_not_provider':
-          setError('ไม่พบข้อมูลการเป็นบุคลากรสาธารณสุขในระบบ Provider ID ของท่าน กรุณาเข้าสู่ระบบด้วย ThaID หรือ OTP')
+          setError('ไม่พบข้อมูลบุคลากรสาธารณสุขในบัญชี Provider ID นี้ กรุณาใช้ ThaID หรือรหัส OTP ทางอีเมล')
           break
         default:
-          setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง')
+          setError('ไม่สามารถเข้าสู่ระบบได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง')
       }
     }
   }, [searchParams])
 
-  // Countdown timer for resending OTP
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
@@ -88,7 +90,7 @@ function MemberLoginForm() {
   }, [countdown])
 
   const handleThaidLogin = async () => {
-    if (thaidLoading || healthIdLoading || providerIdLoading || loading) return
+    if (isAnyBusy) return
     setError('')
     setSuccess('')
     setThaidLoading(true)
@@ -104,13 +106,12 @@ function MemberLoginForm() {
         setThaidLoading(false)
       }
     } catch {
-      // Fallback to top-level navigation if fetch fails
       window.location.href = '/api/auth/thaid/authorize'
     }
   }
 
   const handleHealthIdLogin = async () => {
-    if (healthIdLoading || providerIdLoading || thaidLoading || loading) return
+    if (isAnyBusy) return
     setError('')
     setSuccess('')
     setHealthIdLoading(true)
@@ -131,7 +132,7 @@ function MemberLoginForm() {
   }
 
   const handleProviderIdLogin = async () => {
-    if (providerIdLoading || healthIdLoading || thaidLoading || loading) return
+    if (isAnyBusy) return
     setError('')
     setSuccess('')
     setProviderIdLoading(true)
@@ -147,15 +148,17 @@ function MemberLoginForm() {
         setProviderIdLoading(false)
       }
     } catch {
-      // Fallback to top-level navigation if fetch fails
       window.location.href = '/api/auth/provider-id/authorize'
     }
   }
 
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleRequestOtp = async (e?: React.SyntheticEvent) => {
+    e?.preventDefault()
+    if (isAnyBusy) return
     setError('')
+    setModalError('')
     setSuccess('')
+    setModalSuccess('')
     setLoading(true)
 
     try {
@@ -168,14 +171,14 @@ function MemberLoginForm() {
       const data = await res.json()
 
       if (res.ok) {
-        setStep(2)
-        setSuccess(`รหัส OTP ถูกส่งไปยังอีเมล ${email} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย หรือกล่องจดหมายขยะ`)
-        setCountdown(60) // Cooldown 60s
+        setShowOtpModal(true)
+        setModalSuccess(`ส่งรหัส OTP 6 หลักไปยัง ${email} แล้ว`)
+        setCountdown(60)
       } else {
-        setError(data.error || 'ไม่สามารถขอรหัส OTP ได้ในขณะนี้')
+        setError(data.error || 'ไม่สามารถส่งรหัส OTP ได้ในขณะนี้')
       }
     } catch {
-      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง')
+      setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง')
     } finally {
       setLoading(false)
     }
@@ -183,8 +186,9 @@ function MemberLoginForm() {
 
   const handleVerifyLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setSuccess('')
+    if (isAnyBusy) return
+    setModalError('')
+    setModalSuccess('')
     setLoading(true)
 
     try {
@@ -197,238 +201,322 @@ function MemberLoginForm() {
       const data = await res.json()
 
       if (res.ok) {
-        setSuccess('เข้าสู่ระบบสำเร็จ กำลังนำทางไปหน้าหลักสมาชิก...')
+        setModalSuccess('ยืนยันรหัสสำเร็จ กำลังเข้าสู่ระบบ...')
         setTimeout(() => {
           router.push('/member')
-        }, 1500)
+        }, 1000)
       } else {
-        setError(data.error || 'รหัส OTP ไม่ถูกต้องหรือหมดอายุ')
+        setModalError(data.error || 'รหัส OTP ไม่ถูกต้องหรือหมดอายุ กรุณาตรวจสอบอีกครั้ง')
       }
     } catch {
-      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง')
+      setModalError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleEditInfo = () => {
-    setStep(1)
+  const handleCloseModal = () => {
+    setShowOtpModal(false)
     setOtp('')
-    setError('')
-    setSuccess('')
+    setModalError('')
+    setModalSuccess('')
   }
 
   return (
-    <div className="memberLoginCard">
-      <div className="memberLoginLogo">
-        <Image
-          src="/images/common/logo-website.webp"
-          alt="โรงพยาบาลเถิน"
-          width={80}
-          height={80}
-          priority
-        />
-        <h2>เข้าสู่ระบบบุคลากร</h2>
-        <p>โรงพยาบาลเถิน จังหวัดลำปาง</p>
-      </div>
-
-      {error && <div className="memberAlert alert-danger">{error}</div>}
-      {success && <div className="memberAlert alert-success">{success}</div>}
-
-      {/* Primary Option: Digital ID Login (ThaID on top, Health ID & Provider ID 50/50 below) */}
-      <div className="digitalIdSection">
-        {/* Row 1: ThaID Digital ID (Full width) */}
-        <button
-          type="button"
-          className="thaidLoginBtn"
-          onClick={handleThaidLogin}
-          disabled={loading || thaidLoading || healthIdLoading || providerIdLoading}
-        >
-          <span className="thaidIconWrapper">
-            <Image
-              src="/images/common/logo-thaid.webp"
-              alt="ThaID Logo"
-              width={36}
-              height={36}
-              className="thaidLogoImg"
-              priority
-            />
-          </span>
-          <div className="thaidBtnText">
-            <span className="thaidBtnTitle">
-              {thaidLoading ? 'กำลังเชื่อมต่อไปยัง ThaID...' : 'เข้าสู่ระบบด้วย ThaID'}
-            </span>
-            <span className="thaidBtnSubtitle">บัตรประชาชนดิจิทัล (DOPA Digital ID)</span>
+    <>
+      <div className="memberLoginCard">
+        <header className="memberLoginHeader">
+          <Image
+            src="/images/common/logo-website.webp"
+            alt="ตราสัญลักษณ์โรงพยาบาลเถิน"
+            width={56}
+            height={56}
+            className="memberLoginCrest"
+            priority
+          />
+          <div className="memberLoginTitleGroup">
+            <h1>เข้าสู่ระบบบุคลากร</h1>
+            <p>โรงพยาบาลเถิน จังหวัดลำปาง</p>
           </div>
-        </button>
+        </header>
 
-        {/* Row 2: Health ID and Provider ID (50/50 split) */}
-        <div className="mophIdRow">
-          <button
-            type="button"
-            className="mophIdBtn healthIdLoginBtn"
-            onClick={handleHealthIdLogin}
-            disabled={loading || thaidLoading || healthIdLoading || providerIdLoading}
-          >
-            <span className="healthIdIconWrapper">
-              <Image
-                src="/images/common/logo-Health-ID-g.webp"
-                alt="Health ID Logo"
-                width={34}
-                height={34}
-                className="healthIdLogoImg"
-                priority
-              />
-            </span>
-            <div className="mophIdBtnText">
-              <span className="mophIdBtnTitle">
-                {healthIdLoading ? 'เชื่อมต่อ...' : 'Health ID'}
-              </span>
-              <span className="healthIdBtnSubtitle">กระทรวงสาธารณสุข</span>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            className="mophIdBtn providerIdLoginBtn"
-            onClick={handleProviderIdLogin}
-            disabled={loading || thaidLoading || healthIdLoading || providerIdLoading}
-          >
-            <span className="providerIdIconWrapper">
-              <Image
-                src="/images/common/logo-provider-id.webp"
-                alt="Provider ID Logo"
-                width={34}
-                height={34}
-                className="providerIdLogoImg"
-                priority
-              />
-            </span>
-            <div className="mophIdBtnText">
-              <span className="mophIdBtnTitle">
-                {providerIdLoading ? 'เชื่อมต่อ...' : 'Provider ID'}
-              </span>
-              <span className="providerIdBtnSubtitle">ผู้ให้บริการสุขภาพ</span>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="loginDivider">
-        <span>หรือ เข้าสู่ระบบด้วย OTP (อีเมล)</span>
-      </div>
-
-      {/* Secondary Option: Username + Email + OTP Form */}
-      <form onSubmit={step === 1 ? handleRequestOtp : handleVerifyLogin} className="memberLoginForm">
-        <div className="formGroup">
-          <label htmlFor="username">ชื่อผู้ใช้งาน (Username / เลขบัตรประชาชน)</label>
-          <input
-            id="username"
-            type="text"
-            className="formInput"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="กรอกชื่อผู้ใช้งาน หรือเลขบัตรประชาชน"
-            required
-            disabled={loading || step === 2 || thaidLoading || healthIdLoading || providerIdLoading}
-          />
-        </div>
-
-        <div className="formGroup">
-          <label htmlFor="email">อีเมล (Email)</label>
-          <input
-            id="email"
-            type="email"
-            className="formInput"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="กรอกอีเมลของคุณ"
-            required
-            disabled={loading || step === 2 || thaidLoading || healthIdLoading || providerIdLoading}
-          />
-        </div>
-
-        {step === 2 && (
-          <div className="otpSection">
-            <div className="formGroup">
-              <label htmlFor="otp">รหัส OTP (6 หลัก)</label>
-              <input
-                id="otp"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="one-time-code"
-                maxLength={6}
-                className="formInput otpInput"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="• • • • • •"
-                required
-                disabled={loading}
-                autoFocus
-              />
-            </div>
-
-            <div className="otpActions">
-              <button
-                type="button"
-                className="editInfoBtn"
-                onClick={handleEditInfo}
-                disabled={loading}
-              >
-                แก้ไขชื่อผู้ใช้ / อีเมล
-              </button>
-
-              <button
-                type="button"
-                className="resendBtn"
-                onClick={handleRequestOtp}
-                disabled={loading || countdown > 0}
-              >
-                {countdown > 0 ? `ขอรหัสใหม่ได้ใน (${countdown} วินาที)` : 'ขอรหัส OTP อีกครั้ง'}
-              </button>
-            </div>
+        {error && (
+          <div className="memberAlert alertDanger" role="alert">
+            <AlertCircle size={18} strokeWidth={1.5} className="alertIcon" aria-hidden="true" />
+            <span>{error}</span>
           </div>
         )}
 
-        <button type="submit" className="memberSubmitBtn" disabled={loading || thaidLoading || healthIdLoading || providerIdLoading}>
-          {loading
-            ? 'กำลังดำเนินการ...'
-            : step === 1
-            ? 'ขอรหัส OTP ทางอีเมล'
-            : 'เข้าสู่ระบบ'}
-        </button>
-      </form>
+        {success && (
+          <div className="memberAlert alertSuccess" role="status">
+            <CheckCircle2 size={18} strokeWidth={1.5} className="alertIcon" aria-hidden="true" />
+            <span>{success}</span>
+          </div>
+        )}
 
-      {/* Footer Legal & Navigation Links */}
-      <div className="memberLoginFooter">
-        <div className="legalLinks">
-          <Link href="/policy" target="_blank" rel="noopener noreferrer">
-            นโยบายความเป็นส่วนตัว
-          </Link>
-          <span className="dot">•</span>
-          <Link href="/terms-of-use" target="_blank" rel="noopener noreferrer">
-            ข้อกำหนดการใช้งาน
-          </Link>
+        <section className="digitalIdSection" aria-label="ยืนยันตัวตนด้วย Digital ID">
+          <button
+            type="button"
+            className="thaidLoginBtn"
+            onClick={handleThaidLogin}
+            disabled={isAnyBusy}
+          >
+            <span className="thaidIconFrame">
+              <Image
+                src="/images/common/logo-thaid.webp"
+                alt=""
+                width={36}
+                height={36}
+                className="thaidLogoImg"
+                priority
+              />
+            </span>
+            <span className="digitalIdTextGroup">
+              <span className="digitalIdTitle">
+                {thaidLoading ? 'กำลังเชื่อมต่อระบบ ThaID' : 'เข้าสู่ระบบด้วย ThaID'}
+              </span>
+              <span className="digitalIdSubtitle">บัตรประชาชนดิจิทัล กรมการปกครอง</span>
+            </span>
+            <ChevronRight size={18} strokeWidth={1.5} className="digitalIdChevron" aria-hidden="true" />
+          </button>
+
+          <div className="mophIdRow">
+            <button
+              type="button"
+              className="mophIdBtn"
+              onClick={handleHealthIdLogin}
+              disabled={isAnyBusy}
+            >
+              <span className="mophBrandRow">
+                <span className="mophLogoPlate">
+                  <Image
+                    src="/images/common/logo-Health-ID-g.webp"
+                    alt=""
+                    width={92}
+                    height={40}
+                    className="mophWordmarkImg"
+                    priority
+                  />
+                </span>
+                <ChevronRight size={18} strokeWidth={1.5} className="digitalIdChevron" aria-hidden="true" />
+              </span>
+              <span className="mophCaptionGroup">
+                <span className="mophBtnTitle">
+                  {healthIdLoading ? 'กำลังเชื่อมต่อ Health ID' : 'Health ID'}
+                </span>
+                <span className="mophBtnSubtitle">กระทรวงสาธารณสุข</span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="mophIdBtn"
+              onClick={handleProviderIdLogin}
+              disabled={isAnyBusy}
+            >
+              <span className="mophBrandRow">
+                <span className="mophLogoPlate">
+                  <Image
+                    src="/images/common/logo-provider-id.webp"
+                    alt=""
+                    width={98}
+                    height={40}
+                    className="mophWordmarkImg"
+                    priority
+                  />
+                </span>
+                <ChevronRight size={18} strokeWidth={1.5} className="digitalIdChevron" aria-hidden="true" />
+              </span>
+              <span className="mophCaptionGroup">
+                <span className="mophBtnTitle">
+                  {providerIdLoading ? 'กำลังเชื่อมต่อ Provider ID' : 'Provider ID'}
+                </span>
+                <span className="mophBtnSubtitle">บุคลากรสาธารณสุข</span>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <div className="loginDivider" role="separator">
+          <span>หรือรับรหัส OTP ทางอีเมล</span>
         </div>
-        <div className="backHomeLink">
-          <Link href="/">← กลับสู่หน้าหลักโรงพยาบาลเถิน</Link>
-        </div>
+
+        <form onSubmit={handleRequestOtp} className="memberLoginForm">
+          <div className="formGroup">
+            <label htmlFor="username">ชื่อผู้ใช้งาน หรือเลขบัตรประชาชน</label>
+            <input
+              id="username"
+              type="text"
+              className="formInput tabularNums"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="ชื่อผู้ใช้งาน หรือเลข 13 หลัก"
+              autoComplete="username"
+              required
+              disabled={isAnyBusy}
+            />
+          </div>
+
+          <div className="formGroup">
+            <label htmlFor="email">อีเมลที่ลงทะเบียนไว้</label>
+            <input
+              id="email"
+              type="email"
+              className="formInput"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              autoComplete="email"
+              required
+              disabled={isAnyBusy}
+            />
+          </div>
+
+          <button type="submit" className="memberSubmitBtn" disabled={isAnyBusy}>
+            {loading ? 'กำลังส่งรหัส OTP...' : 'ขอรหัส OTP ทางอีเมล'}
+          </button>
+        </form>
+
+        <footer className="memberLoginFooter">
+          <Link href="/" className="backHomeLink">
+            <ArrowLeft size={18} strokeWidth={1.5} aria-hidden="true" />
+            <span>กลับหน้าหลักโรงพยาบาลเถิน</span>
+          </Link>
+          <div className="legalLinks">
+            <Link href="/policy" target="_blank" rel="noopener noreferrer">
+              นโยบายความเป็นส่วนตัว
+            </Link>
+            <span className="legalDot" aria-hidden="true">·</span>
+            <Link href="/terms-of-use" target="_blank" rel="noopener noreferrer">
+              ข้อกำหนดการใช้งาน
+            </Link>
+          </div>
+        </footer>
       </div>
-    </div>
+
+      {/* OTP Popup Modal */}
+      {showOtpModal && (
+        <div className="otpModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="otpModalTitle">
+          <div className="otpModalPanel">
+            <div className="otpModalHeader">
+              <div className="otpModalTitleWrap">
+                <h2 id="otpModalTitle">กรอกรหัสยืนยัน OTP</h2>
+                <p className="otpModalSubtitle">
+                  ระบบได้ส่งรหัส 6 หลักไปยังอีเมล <strong>{email}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                className="otpModalCloseBtn"
+                onClick={handleCloseModal}
+                aria-label="ปิดหน้าต่างกรอก OTP"
+              >
+                <X size={18} strokeWidth={1.5} />
+              </button>
+            </div>
+
+            {modalError && (
+              <div className="memberAlert alertDanger" role="alert">
+                <AlertCircle size={18} strokeWidth={1.5} className="alertIcon" aria-hidden="true" />
+                <span>{modalError}</span>
+              </div>
+            )}
+
+            {modalSuccess && (
+              <div className="memberAlert alertSuccess" role="status">
+                <CheckCircle2 size={18} strokeWidth={1.5} className="alertIcon" aria-hidden="true" />
+                <span>{modalSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyLogin} className="otpModalForm">
+              <div className="formGroup">
+                <label htmlFor="modalOtp">รหัสยืนยัน OTP 6 หลัก</label>
+                <input
+                  id="modalOtp"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  className="formInput otpInput tabularNums"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  required
+                  disabled={loading}
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="memberSubmitBtn otpModalSubmitBtn"
+                disabled={loading || otp.length < 6}
+              >
+                {loading ? 'กำลังตรวจสอบรหัส...' : 'ยืนยันรหัสเข้าสู่ระบบ'}
+              </button>
+
+              <div className="otpResendRow">
+                <span className="otpResendHint">ยังไม่ได้รับอีเมลใช่หรือไม่</span>
+                <button
+                  type="button"
+                  className="resendBtn tabularNums"
+                  onClick={() => handleRequestOtp()}
+                  disabled={loading || countdown > 0}
+                >
+                  {countdown > 0 ? `ขอรหัสใหม่ใน ${countdown} วินาที` : 'ส่งรหัสอีกครั้ง'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
 export default function MemberLoginPage() {
   return (
     <div className="memberLoginContainer">
-      <Suspense fallback={null}>
-        <LoyKrathongScene />
-      </Suspense>
-      <Suspense fallback={<div className="memberLoginCard"><p style={{ color: '#fff', textAlign: 'center' }}>กำลังโหลด...</p></div>}>
-        <MemberLoginForm />
-      </Suspense>
+      {/* Vibrant Painted Loy Krathong Scene */}
+      <div className="memberSceneArtWrapper">
+        <Image
+          src="/images/seasonal/loy-krathong-vibrant.webp"
+          alt="ภาพวาดทิวทัศน์เทศกาลลอยกระทง สีสันสดใส เปล่งประกายแสงเทียนและโคมลอยเหนือสายน้ำยามพลบค่ำ"
+          width={1376}
+          height={768}
+          priority
+          sizes="100vw"
+          className="memberSceneArtImg"
+        />
+        <div className="memberSceneEdgeMask" aria-hidden="true" />
+
+        {/* Ambient floating lanterns & embers (Delicate, CSS-accelerated) */}
+        <div className="ambientLightsLayer" aria-hidden="true">
+          <span className="floatingEmber ember1" />
+          <span className="floatingEmber ember2" />
+          <span className="floatingEmber ember3" />
+          <span className="floatingEmber ember4" />
+          <span className="floatingEmber ember5" />
+          <span className="floatingEmber ember6" />
+        </div>
+      </div>
+
+      <div className="memberLoginStage memberLoginStageSingle">
+        {/* Authentication Card */}
+        <div className="memberAuthColumn">
+          <Suspense
+            fallback={
+              <div className="memberLoginCard memberLoginSkeleton" aria-busy="true">
+                <p className="skeletonLabel">กำลังเตรียมหน้าเข้าสู่ระบบ</p>
+              </div>
+            }
+          >
+            <MemberLoginForm />
+          </Suspense>
+        </div>
+      </div>
     </div>
   )
 }

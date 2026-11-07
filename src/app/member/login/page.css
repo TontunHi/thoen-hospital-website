@@ -1,892 +1,1151 @@
+/* Thoen Hospital Staff Login — Loy Krathong Edition (Pure Unslop)
+ * Unslop by Damir Sokolovsky (@heydamir), CC BY 4.0
+ * Ramp: Ink Dark (#0a0d14 -> #11141c -> #1a1e28) | Text: #eef0f5 / #a3a9b8 / #7a8296
+ * Primary CTA: #eef0f5 off-white with #0a0d14 ink | World accent: #f59e0b candle amber
+ */
+
 .memberLoginContainer {
-
-  min-height: 100vh;
-
-  display: flex;
-
-  justify-content: center;
-
-  align-items: center;
-
-  background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
-
-  position: relative;
-
-  overflow: hidden;
-
-  padding: 20px;
-
-  font-family: var(--font-ibm-thai), sans-serif;
-
-}
-
-
-
-.memberLoginContainer::before {
-
-  content: '';
-
-  position: absolute;
-
-  width: 350px;
-
-  height: 350px;
-
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, rgba(0, 0, 0, 0) 70%);
-
-  top: 10%;
-
-  left: 10%;
-
-  z-index: 1;
-
-}
-
-
-
-.memberLoginContainer::after {
-
-  content: '';
-
-  position: absolute;
-
-  width: 450px;
-
-  height: 450px;
-
-  background: radial-gradient(circle, rgba(5, 150, 105, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
-
-  bottom: 10%;
-
-  right: 10%;
-
-  z-index: 1;
-
-}
-
-
-
-.memberLoginContainer .memberLoginCard {
-
-  background: rgba(255, 255, 255, 0.08);
-
-  backdrop-filter: blur(16px);
-
-  -webkit-backdrop-filter: blur(16px);
-
-  border: 1px solid rgba(255, 255, 255, 0.14);
-
-  border-radius: 20px;
-
-  padding: 36px 32px;
-
-  width: 100%;
-
-  max-width: 460px;
-
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
-
-  z-index: 10;
+  --ink-bg: #0a0d14;
+  --ink-card: #11141c;
+  --ink-raised: #1a1e28;
+  --ink-raised-hover: #212633;
+  --ink-hairline: rgba(238, 240, 245, 0.08);
+  --ink-hairline-hover: rgba(238, 240, 245, 0.14);
+  --ink-text-primary: #eef0f5;
+  --ink-text-secondary: #a3a9b8;
+  --ink-text-muted: #7a8296;
+  --candle-accent: #f59e0b;
+  --candle-accent-text: #fbbf24;
+  --unslop-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --unslop-fast: 150ms;
+  --unslop-enter: 360ms;
 
   position: relative;
-
-  animation: slideUp 0.6s ease-out;
-
-}
-
-
-
-.memberLoginContainer .memberLoginLogo {
-
-  text-align: center;
-
-  margin-bottom: 24px;
-
-}
-
-
-
-.memberLoginContainer .memberLoginLogo img {
-
-  display: block;
-
-  margin: 0 auto 12px auto;
-
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
-
-}
-
-
-
-.memberLoginContainer .memberLoginLogo h2 {
-
-  color: #ffffff;
-
-  font-size: 22px;
-
-  font-weight: 700;
-
-  margin: 0 0 6px 0;
-
-  letter-spacing: 0.3px;
-
-}
-
-
-
-.memberLoginContainer .memberLoginLogo p {
-
-  color: #a7f3d0;
-
-  font-size: 14px;
-
-  margin: 0;
-
-  opacity: 0.9;
-
-}
-
-
-
-.memberLoginContainer .memberAlert {
-
-  padding: 12px 16px;
-
-  border-radius: 10px;
-
-  margin-bottom: 20px;
-
-  font-size: 13.5px;
-
-  line-height: 1.5;
-
-  display: flex;
-
-  align-items: center;
-
-  gap: 8px;
-
-  animation: fadeIn 0.3s ease;
-
-}
-
-
-
-.memberLoginContainer .alert-danger {
-
-  background: rgba(239, 68, 68, 0.2);
-
-  border: 1px solid rgba(239, 68, 68, 0.4);
-
-  color: #fecaca;
-
-}
-
-
-
-.memberLoginContainer .alert-success {
-
-  background: rgba(16, 185, 129, 0.2);
-
-  border: 1px solid rgba(16, 185, 129, 0.4);
-
-  color: #a7f3d0;
-
-}
-
-
-
-/* Digital ID Section (ThaID on top, Health ID & Provider ID 50/50 below) */
-.memberLoginContainer .digitalIdSection,
-.memberLoginContainer .thaidSection {
+  min-height: calc(100vh - var(--navbar-height, 72px));
+  min-height: calc(100dvh - var(--navbar-height, 72px));
+  background-color: var(--ink-bg);
+  color: var(--ink-text-primary);
+  font-family: var(--font-family);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-/* ThaID Button (Full width top) */
-.memberLoginContainer .thaidLoginBtn {
-  width: 100%;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 14px;
-  background: linear-gradient(135deg, #071233 0%, #0c1d56 50%, #132b7c 100%);
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  border-radius: 12px;
-  padding: 12px 18px;
-  color: #ffffff;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 6px 20px rgba(7, 18, 51, 0.5);
-  text-align: left;
-  font-family: inherit;
-}
-
-.memberLoginContainer .thaidLoginBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 26px rgba(7, 18, 51, 0.65), 0 0 12px rgba(251, 191, 36, 0.25);
-  background: linear-gradient(135deg, #0c1c4f 0%, #112876 50%, #1a389e 100%);
-  border-color: rgba(251, 191, 36, 0.75);
-}
-
-.memberLoginContainer .thaidLoginBtn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.memberLoginContainer .thaidLoginBtn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* 50/50 Grid for Health ID and Provider ID */
-.memberLoginContainer .mophIdRow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  width: 100%;
-}
-
-.memberLoginContainer .mophIdBtn {
-  width: 100%;
-  display: flex;
   align-items: center;
-  gap: 10px;
-  border-radius: 12px;
-  padding: 10px 12px;
-  color: #ffffff;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  text-align: left;
-  font-family: inherit;
-  border: 1px solid transparent;
+  overflow-x: hidden;
+  padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  -webkit-tap-highlight-color: transparent;
 }
 
-.memberLoginContainer .mophIdBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
+@media (min-width: 400px) {
+  .memberLoginContainer {
+    padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
 }
 
-.memberLoginContainer .mophIdBtn:active:not(:disabled) {
-  transform: translateY(0);
+@media (min-width: 480px) {
+  .memberLoginContainer {
+    padding: 24px 20px;
+  }
 }
 
-.memberLoginContainer .mophIdBtn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
+@media (min-width: 960px) {
+  .memberLoginContainer {
+    padding: 40px 48px;
+    align-items: stretch;
+  }
 }
 
-/* Health ID Theme */
-.memberLoginContainer .healthIdLoginBtn {
-  background: linear-gradient(135deg, #082137 0%, #0c3559 50%, #0284c7 100%);
-  border-color: rgba(56, 189, 248, 0.4);
-  box-shadow: 0 4px 16px rgba(8, 33, 55, 0.4);
-}
-
-.memberLoginContainer .healthIdLoginBtn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0a2945 0%, #0f4270 50%, #0369a1 100%);
-  border-color: rgba(56, 189, 248, 0.75);
-  box-shadow: 0 8px 22px rgba(8, 33, 55, 0.55), 0 0 10px rgba(56, 189, 248, 0.25);
-}
-
-/* Provider ID Theme */
-.memberLoginContainer .providerIdLoginBtn {
-  background: linear-gradient(135deg, #063428 0%, #064e3b 50%, #047857 100%);
-  border-color: rgba(52, 211, 153, 0.45);
-  box-shadow: 0 4px 16px rgba(4, 78, 59, 0.4);
-}
-
-.memberLoginContainer .providerIdLoginBtn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #084334 0%, #047857 50%, #059669 100%);
-  border-color: rgba(52, 211, 153, 0.8);
-  box-shadow: 0 8px 22px rgba(4, 78, 59, 0.55), 0 0 10px rgba(52, 211, 153, 0.25);
-}
-
-/* Icon Wrappers */
-.memberLoginContainer .thaidIconWrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  background: #060e28;
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  border-radius: 10px;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  padding: 2px;
-  overflow: hidden;
-}
-
-.memberLoginContainer .healthIdIconWrapper,
-.memberLoginContainer .providerIdIconWrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
-  flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-  padding: 2px;
-  overflow: hidden;
-}
-
-.memberLoginContainer .healthIdIconWrapper {
-  background: #06192a;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-}
-
-.memberLoginContainer .providerIdIconWrapper {
-  background: #032d22;
-  border: 1px solid rgba(52, 211, 153, 0.4);
-}
-
-.memberLoginContainer .thaidLogoImg,
-.memberLoginContainer .healthIdLogoImg,
-.memberLoginContainer .providerIdLogoImg {
+/* Full Painted Loy Krathong Scene Background Across All Screen Sizes */
+.memberSceneArtWrapper {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  border-radius: 6px;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
 }
 
-.memberLoginContainer .thaidBtnText,
-.memberLoginContainer .mophIdBtnText {
+.memberSceneArtImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center bottom;
+  display: block;
+  transform-origin: center center;
+  animation: sceneBreathe 24s ease-in-out infinite alternate;
+}
+
+@keyframes sceneBreathe {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.04);
+  }
+}
+
+/* Blends painted edges gently without turning into total blackness */
+.memberSceneEdgeMask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(14, 18, 32, 0.35) 0%, rgba(14, 18, 32, 0.2) 30%, rgba(14, 18, 32, 0.55) 75%, rgba(14, 18, 32, 0.85) 100%),
+    linear-gradient(90deg, rgba(14, 18, 32, 0.1) 0%, rgba(14, 18, 32, 0.45) 100%);
+}
+
+@media (min-width: 960px) {
+  .memberSceneArtImg {
+    object-position: center center;
+  }
+
+  .memberSceneEdgeMask {
+    background:
+      linear-gradient(90deg, rgba(14, 18, 32, 0) 0%, rgba(14, 18, 32, 0) 35%, rgba(14, 18, 32, 0.4) 65%, rgba(14, 18, 32, 0.65) 90%),
+      linear-gradient(180deg, rgba(14, 18, 32, 0.3) 0%, rgba(14, 18, 32, 0) 25%, rgba(14, 18, 32, 0) 75%, rgba(14, 18, 32, 0.4) 100%);
+  }
+}
+
+/* Stage Split Layout */
+.memberLoginStage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1280px;
+  margin: auto auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (min-width: 960px) {
+  .memberLoginStage {
+    justify-content: flex-end;
+    min-height: calc(100vh - var(--navbar-height, 72px));
+    margin: 0 auto;
+  }
+}
+
+.memberAuthColumn {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+@media (min-width: 960px) {
+  .memberAuthColumn {
+    margin: 0;
+  }
+}
+
+/* Refined Twilight Surface Card */
+.memberLoginCard {
+  width: 100%;
+  background-color: rgba(18, 22, 38, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(238, 240, 245, 0.14);
+  border-radius: 16px;
+  padding: 18px 14px;
+  box-shadow: 0 16px 40px rgba(8, 12, 24, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  animation: loginPanelEnter var(--unslop-enter) var(--unslop-ease);
+}
+
+@media (min-width: 380px) {
+  .memberLoginCard {
+    padding: 22px 18px;
+  }
+}
+
+@media (min-width: 480px) {
+  .memberLoginCard {
+    padding: 32px;
+  }
+}
+
+.memberLoginSkeleton .skeletonLabel {
+  text-align: center;
+  color: var(--ink-text-muted);
+  font-size: 0.875rem;
+  padding: 32px 0;
+  margin: 0;
+}
+
+/* Header */
+.memberLoginHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 480px) {
+  .memberLoginHeader {
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+}
+
+.memberLoginCrest {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+@media (min-width: 380px) {
+  .memberLoginCrest {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media (min-width: 480px) {
+  .memberLoginCrest {
+    width: 56px;
+    height: 56px;
+  }
+}
+
+.memberLoginTitleGroup {
   display: flex;
   flex-direction: column;
+  gap: 2px;
   min-width: 0;
 }
 
-.memberLoginContainer .thaidBtnTitle {
-  font-size: 16px;
-  font-weight: 700;
-  color: #ffffff;
+.memberLoginTitleGroup h1 {
+  font-size: 1.1875rem; /* 19px on small mobile */
   line-height: 1.3;
-}
-
-.memberLoginContainer .thaidBtnSubtitle {
-  font-size: 12px;
-  color: #fde68a;
-  opacity: 0.95;
-  line-height: 1.2;
-}
-
-.memberLoginContainer .mophIdBtnTitle {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: #ffffff;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.memberLoginContainer .healthIdBtnSubtitle {
-  font-size: 11px;
-  color: #bae6fd;
-  opacity: 0.9;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.memberLoginContainer .providerIdBtnSubtitle {
-  font-size: 11px;
-  color: #a7f3d0;
-  opacity: 0.9;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Divider */
-
-.memberLoginContainer .loginDivider {
-
-  display: flex;
-
-  align-items: center;
-
-  text-align: center;
-
-  margin: 22px 0;
-
-}
-
-
-
-.memberLoginContainer .loginDivider::before,
-
-.memberLoginContainer .loginDivider::after {
-
-  content: '';
-
-  flex: 1;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-
-}
-
-
-
-.memberLoginContainer .loginDivider span {
-
-  padding: 0 12px;
-
-  color: #cbd5e1;
-
-  font-size: 12.5px;
-
-  font-weight: 500;
-
-}
-
-
-
-/* OTP Form */
-
-.memberLoginContainer .memberLoginForm {
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 16px;
-
-}
-
-
-
-.memberLoginContainer .formGroup {
-
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 6px;
-
-}
-
-
-
-.memberLoginContainer .formGroup label {
-
-  color: #e2e8f0;
-
-  font-size: 13.5px;
-
-  font-weight: 500;
-
-}
-
-
-
-.memberLoginContainer .formInput {
-
-  background: rgba(255, 255, 255, 0.05);
-
-  border: 1px solid rgba(255, 255, 255, 0.15);
-
-  border-radius: 8px;
-
-  padding: 11px 14px;
-
-  color: #ffffff;
-
-  font-size: 14.5px;
-
-  transition: all 0.25s ease;
-
-  font-family: inherit;
-
-}
-
-
-
-.memberLoginContainer .formInput:focus {
-
-  outline: none;
-
-  background: rgba(255, 255, 255, 0.1);
-
-  border-color: #34d399;
-
-  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25);
-
-}
-
-
-
-.memberLoginContainer .formInput:disabled {
-
-  background: rgba(255, 255, 255, 0.02);
-
-  border-color: rgba(255, 255, 255, 0.08);
-
-  color: #94a3b8;
-
-  cursor: not-allowed;
-
-}
-
-
-
-.memberLoginContainer .otpSection {
-
-  animation: slideUp 0.4s ease-out;
-
-  border-top: 1px dashed rgba(255, 255, 255, 0.15);
-
-  padding-top: 16px;
-
-  margin-top: 4px;
-
-}
-
-
-
-.memberLoginContainer .otpInput {
-
-  text-align: center;
-
-  font-size: 24px;
-
-  font-weight: 700;
-
-  letter-spacing: 10px;
-
-  font-family: 'SFMono-Regular', Consolas, 'Courier New', monospace;
-
-  background: rgba(16, 185, 129, 0.1);
-
-  border-color: rgba(52, 211, 153, 0.4);
-
-  color: #a7f3d0;
-
-  padding: 12px 14px;
-
-}
-
-
-
-.memberLoginContainer .otpInput:focus {
-
-  background: rgba(16, 185, 129, 0.15);
-
-  border-color: #34d399;
-
-  box-shadow: 0 0 15px rgba(52, 211, 153, 0.3);
-
-}
-
-
-
-.memberLoginContainer .otpInput::placeholder {
-
-  letter-spacing: 6px;
-
-  opacity: 0.4;
-
-  color: #94a3b8;
-
-}
-
-
-
-.memberLoginContainer .otpActions {
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: space-between;
-
-  margin-top: 6px;
-
-}
-
-
-
-.memberLoginContainer .resendBtn {
-
-  background: none;
-
-  border: none;
-
-  color: #6ee7b7;
-
-  font-size: 12.5px;
-
-  cursor: pointer;
-
-  padding: 4px 0;
-
-  transition: color 0.2s ease;
-
-  font-family: inherit;
-
-}
-
-
-
-.memberLoginContainer .resendBtn:hover:not(:disabled) {
-
-  color: #34d399;
-
-  text-decoration: underline;
-
-}
-
-
-
-.memberLoginContainer .resendBtn:disabled {
-
-  color: #94a3b8;
-
-  cursor: not-allowed;
-
-}
-
-
-
-.memberLoginContainer .editInfoBtn {
-
-  background: none;
-
-  border: none;
-
-  color: #cbd5e1;
-
-  font-size: 12.5px;
-
-  cursor: pointer;
-
-  padding: 4px 0;
-
-  transition: color 0.2s ease;
-
-  font-family: inherit;
-
-}
-
-
-
-.memberLoginContainer .editInfoBtn:hover {
-
-  color: #ffffff;
-
-  text-decoration: underline;
-
-}
-
-
-
-.memberLoginContainer .memberSubmitBtn {
-
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-
-  border: none;
-
-  border-radius: 8px;
-
-  padding: 13px;
-
-  color: #ffffff;
-
-  font-size: 15px;
-
   font-weight: 600;
-
-  cursor: pointer;
-
-  transition: all 0.25s ease;
-
-  margin-top: 6px;
-
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-
-  font-family: inherit;
-
+  color: var(--ink-text-primary);
+  margin: 0;
 }
 
-
-
-.memberLoginContainer .memberSubmitBtn:hover:not(:disabled) {
-
-  transform: translateY(-1px);
-
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
-
-  background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-
+@media (min-width: 380px) {
+  .memberLoginTitleGroup h1 {
+    font-size: 1.25rem; /* 20px */
+  }
 }
 
-
-
-.memberLoginContainer .memberSubmitBtn:active:not(:disabled) {
-
-  transform: translateY(0);
-
+@media (min-width: 480px) {
+  .memberLoginTitleGroup h1 {
+    font-size: 1.5rem; /* 24px */
+    font-weight: 500;
+  }
 }
 
-
-
-.memberLoginContainer .memberSubmitBtn:disabled {
-
-  background: rgba(255, 255, 255, 0.1);
-
-  color: #94a3b8;
-
-  cursor: not-allowed;
-
-  box-shadow: none;
-
+.memberLoginTitleGroup p {
+  font-size: 0.8125rem; /* 13px on mobile */
+  line-height: 1.45;
+  font-weight: 400;
+  color: var(--ink-text-secondary);
+  margin: 0;
 }
 
+@media (min-width: 480px) {
+  .memberLoginTitleGroup p {
+    font-size: 0.875rem; /* 14px */
+  }
+}
 
-
-/* Footer & Legal Links */
-
-.memberLoginContainer .memberLoginFooter {
-
-  text-align: center;
-
-  margin-top: 24px;
-
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-
-  padding-top: 18px;
-
+/* Semantic Alerts (Toned for Dark Ink Ramp) */
+.memberAlert {
   display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-weight: 400;
+}
 
+.memberAlert .alertIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.alertDanger {
+  background-color: rgba(229, 72, 77, 0.12);
+  border: 1px solid rgba(229, 72, 77, 0.28);
+  color: #f8b4b4;
+}
+
+.alertSuccess {
+  background-color: rgba(76, 195, 138, 0.12);
+  border: 1px solid rgba(76, 195, 138, 0.28);
+  color: #9ce2c1;
+}
+
+/* Digital ID Section — Quiet Chrome Surface Steps */
+.digitalIdSection {
+  display: flex;
   flex-direction: column;
-
-  gap: 10px;
-
-}
-
-
-
-.memberLoginContainer .legalLinks {
-
-  display: flex;
-
-  align-items: center;
-
-  justify-content: center;
-
   gap: 8px;
-
 }
 
-
-
-.memberLoginContainer .legalLinks a {
-
-  color: #a7f3d0;
-
-  text-decoration: none;
-
-  font-size: 13px;
-
-  transition: color 0.2s ease;
-
+.thaidLoginBtn,
+.mophIdBtn {
+  width: 100%;
+  background-color: var(--ink-raised);
+  border: 1px solid var(--ink-hairline);
+  border-radius: 10px;
+  color: var(--ink-text-primary);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--unslop-fast) var(--unslop-ease),
+    border-color var(--unslop-fast) var(--unslop-ease),
+    transform var(--unslop-fast) var(--unslop-ease);
 }
 
+.thaidLoginBtn:hover:not(:disabled),
+.mophIdBtn:hover:not(:disabled) {
+  background-color: var(--ink-raised-hover);
+  border-color: var(--ink-hairline-hover);
+}
 
+.thaidLoginBtn:active:not(:disabled),
+.mophIdBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
 
-.memberLoginContainer .legalLinks a:hover {
+.thaidLoginBtn:focus-visible,
+.mophIdBtn:focus-visible {
+  outline: 2px solid var(--candle-accent-text);
+  outline-offset: 2px;
+}
 
-  color: #ffffff;
+.thaidLoginBtn:disabled,
+.mophIdBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
+/* ThaID Row */
+.thaidLoginBtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
+  padding: 10px 14px;
+}
+
+@media (min-width: 480px) {
+  .thaidLoginBtn {
+    min-height: 60px;
+    padding: 12px 16px;
+  }
+}
+
+.thaidIconFrame {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid var(--ink-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thaidLogoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.digitalIdTextGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.digitalIdTitle {
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--ink-text-primary);
+}
+
+.digitalIdSubtitle {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--ink-text-muted);
+}
+
+.digitalIdChevron {
+  color: var(--ink-text-muted);
+  flex-shrink: 0;
+  transition:
+    transform var(--unslop-fast) var(--unslop-ease),
+    color var(--unslop-fast) var(--unslop-ease);
+}
+
+.thaidLoginBtn:hover:not(:disabled) .digitalIdChevron,
+.mophIdBtn:hover:not(:disabled) .digitalIdChevron {
+  color: var(--ink-text-secondary);
+  transform: translateX(2px);
+}
+
+/* Health ID & Provider ID Grid */
+.mophIdRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 359px) {
+  .mophIdRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mophIdBtn {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 76px;
+  padding: 10px 10px;
+}
+
+@media (min-width: 480px) {
+  .mophIdBtn {
+    gap: 12px;
+    min-height: 84px;
+    padding: 12px 16px;
+  }
+}
+
+.mophBrandRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+
+.mophLogoPlate {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background-color: var(--ink-text-primary);
+  flex-shrink: 0;
+}
+
+@media (min-width: 480px) {
+  .mophLogoPlate {
+    height: 28px;
+    padding: 4px 8px;
+  }
+}
+
+.mophWordmarkImg {
+  height: 16px;
+  width: auto;
+  max-width: 72px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+@media (min-width: 480px) {
+  .mophWordmarkImg {
+    height: 20px;
+    max-width: 96px;
+  }
+}
+
+.mophCaptionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.mophBtnTitle {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--ink-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 480px) {
+  .mophBtnTitle {
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.4;
+  }
+}
+
+.mophBtnSubtitle {
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.3;
+  font-weight: 400;
+  color: var(--ink-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 480px) {
+  .mophBtnSubtitle {
+    font-size: 0.8125rem; /* 13px */
+    line-height: 1.4;
+  }
+}
+
+/* Hairline Divider */
+.loginDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+@media (min-width: 480px) {
+  .loginDivider {
+    margin: 24px 0;
+  }
+}
+
+.loginDivider::before,
+.loginDivider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--ink-hairline);
+}
+
+.loginDivider span {
+  color: var(--ink-text-muted);
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.4;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* Email OTP Form */
+.memberLoginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (min-width: 480px) {
+  .memberLoginForm {
+    gap: 16px;
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+@media (min-width: 480px) {
+  .formGroup {
+    gap: 8px;
+  }
+}
+
+.formGroup label {
+  color: var(--ink-text-secondary);
+  font-size: 0.84375rem; /* 13.5px */
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+@media (min-width: 480px) {
+  .formGroup label {
+    font-size: 0.875rem; /* 14px */
+  }
+}
+
+.formInput {
+  height: 44px;
+  background-color: var(--ink-raised);
+  border: 1px solid var(--ink-hairline);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--ink-text-primary);
+  font-size: 16px; /* 16px prevents iOS Safari auto-zoom on focus */
+  line-height: 1.4;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    border-color var(--unslop-fast) var(--unslop-ease),
+    background-color var(--unslop-fast) var(--unslop-ease),
+    box-shadow var(--unslop-fast) var(--unslop-ease);
+}
+
+.formInput::placeholder {
+  color: var(--ink-text-muted);
+}
+
+.formInput:hover:not(:disabled):not(:focus) {
+  border-color: var(--ink-hairline-hover);
+}
+
+.formInput:focus {
+  outline: none;
+  background-color: var(--ink-raised-hover);
+  border-color: rgba(245, 158, 11, 0.65);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.14);
+}
+
+.formInput:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tabularNums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Step 2: Recipient Summary & 6-Digit OTP Input */
+.otpStepPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.otpRecipientSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: var(--ink-raised);
+  border: 1px solid var(--ink-hairline);
+  border-radius: 10px;
+}
+
+.otpRecipientText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.otpRecipientLabel {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.4;
+  color: var(--ink-text-muted);
+}
+
+.otpRecipientValue {
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--ink-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editInfoBtn {
+  min-height: 36px;
+  padding: 8px 12px;
+  background-color: transparent;
+  border: 1px solid var(--ink-hairline);
+  border-radius: 6px;
+  color: var(--ink-text-secondary);
+  font-size: 0.8125rem; /* 13px */
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  transition:
+    background-color var(--unslop-fast) var(--unslop-ease),
+    border-color var(--unslop-fast) var(--unslop-ease),
+    color var(--unslop-fast) var(--unslop-ease);
+}
+
+.editInfoBtn:hover:not(:disabled) {
+  background-color: var(--ink-raised-hover);
+  border-color: var(--ink-hairline-hover);
+  color: var(--ink-text-primary);
+}
+
+.editInfoBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.otpInput {
+  height: 50px;
+  text-align: center;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: 1.375rem; /* 22px */
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  padding-left: calc(8px + 0.28em);
+}
+
+@media (min-width: 400px) {
+  .otpInput {
+    height: 52px;
+    font-size: 1.5rem; /* 24px */
+    letter-spacing: 0.35em;
+    padding-left: calc(12px + 0.35em);
+  }
+}
+
+.otpInput::placeholder {
+  letter-spacing: 0.28em;
+  color: var(--ink-text-muted);
+  opacity: 0.45;
+}
+
+@media (min-width: 400px) {
+  .otpInput::placeholder {
+    letter-spacing: 0.35em;
+  }
+}
+
+/* Primary Button — Off-White from Ramp with Dark Ink Text (Unslop Dark Primary) */
+.memberSubmitBtn {
+  min-height: 44px;
+  padding: 12px 20px;
+  background-color: var(--ink-text-primary);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--ink-bg);
+  font-size: 0.9375rem; /* 15px */
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition:
+    background-color var(--unslop-fast) var(--unslop-ease),
+    transform var(--unslop-fast) var(--unslop-ease),
+    opacity var(--unslop-fast) var(--unslop-ease);
+}
+
+.memberSubmitBtn:hover:not(:disabled) {
+  background-color: #ffffff;
+}
+
+.memberSubmitBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.memberSubmitBtn:focus-visible {
+  outline: 2px solid var(--candle-accent-text);
+  outline-offset: 2px;
+}
+
+.memberSubmitBtn:disabled {
+  background-color: var(--ink-raised);
+  color: var(--ink-text-muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Resend OTP Row */
+.otpResendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+
+.otpResendHint {
+  font-size: 0.8125rem;
+  color: var(--ink-text-muted);
+}
+
+.resendBtn {
+  min-height: 38px;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  color: var(--candle-accent-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color var(--unslop-fast) var(--unslop-ease);
+}
+
+.resendBtn:hover:not(:disabled) {
+  color: #fde68a;
   text-decoration: underline;
-
 }
 
-
-
-.memberLoginContainer .legalLinks .dot {
-
-  color: rgba(255, 255, 255, 0.3);
-
-  font-size: 12px;
-
+.resendBtn:disabled {
+  color: var(--ink-text-muted);
+  cursor: not-allowed;
 }
 
+/* OTP Popup Modal */
+.otpModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(6, 8, 16, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: modalFadeIn var(--unslop-fast) var(--unslop-ease);
+}
 
+.otpModalPanel {
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+  max-height: calc(100dvh - 32px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: rgba(18, 22, 38, 0.98);
+  border: 1px solid rgba(238, 240, 245, 0.16);
+  border-radius: 16px;
+  padding: 20px 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  animation: modalScaleUp var(--unslop-fast) var(--unslop-ease);
+}
 
-.memberLoginContainer .backHomeLink a {
+@media (min-width: 480px) {
+  .otpModalPanel {
+    padding: 28px;
+  }
+}
 
-  color: #cbd5e1;
+.otpModalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
 
+@media (min-width: 480px) {
+  .otpModalHeader {
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+}
+
+.otpModalTitleWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.otpModalTitleWrap h2 {
+  font-size: 1.1875rem; /* 19px */
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--ink-text-primary);
+  margin: 0;
+}
+
+@media (min-width: 480px) {
+  .otpModalTitleWrap h2 {
+    font-size: 1.25rem; /* 20px */
+  }
+}
+
+.otpModalSubtitle {
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.45;
+  color: var(--ink-text-secondary);
+  margin: 0;
+}
+
+.otpModalSubtitle strong {
+  color: var(--candle-accent-text);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.otpModalCloseBtn {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--ink-raised);
+  border: 1px solid var(--ink-hairline);
+  border-radius: 8px;
+  color: var(--ink-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  transition:
+    background-color var(--unslop-fast) var(--unslop-ease),
+    color var(--unslop-fast) var(--unslop-ease);
+}
+
+.otpModalCloseBtn:hover {
+  background-color: var(--ink-raised-hover);
+  color: var(--ink-text-primary);
+}
+
+.otpModalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.otpModalSubmitBtn {
+  margin-top: 4px;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Footer Links */
+.memberLoginFooter {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ink-hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (min-width: 480px) {
+  .memberLoginFooter {
+    margin-top: 24px;
+    padding-top: 16px;
+    gap: 4px;
+  }
+}
+
+.backHomeLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--ink-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 400;
   text-decoration: none;
-
-  font-size: 13px;
-
-  transition: color 0.2s ease;
-
+  touch-action: manipulation;
+  transition:
+    color var(--unslop-fast) var(--unslop-ease),
+    background-color var(--unslop-fast) var(--unslop-ease);
 }
 
-
-
-.memberLoginContainer .backHomeLink a:hover {
-
-  color: #ffffff;
-
-}
-
-
-
-@keyframes slideUp {
-
-  from {
-
-    opacity: 0;
-
-    transform: translateY(16px);
-
+@media (min-width: 480px) {
+  .backHomeLink {
+    font-size: 0.875rem;
   }
+}
 
+.backHomeLink:hover {
+  color: var(--ink-text-primary);
+  background-color: var(--ink-raised);
+}
+
+.legalLinks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.legalLinks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 4px 6px;
+  color: var(--ink-text-muted);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  touch-action: manipulation;
+  transition: color var(--unslop-fast) var(--unslop-ease);
+}
+
+.legalLinks a:hover {
+  color: var(--ink-text-secondary);
+  text-decoration: underline;
+}
+
+.legalDot {
+  color: var(--ink-text-muted);
+  font-size: 0.8125rem;
+}
+
+@keyframes loginPanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
   to {
-
     opacity: 1;
-
     transform: translateY(0);
-
   }
-
 }
 
+/* Ambient Floating Embers (Subtle, GPU-accelerated motion) */
+.ambientLightsLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
 
+.floatingEmber {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #fffbeb 0%, #fef08a 40%, #f59e0b 80%, rgba(245, 158, 11, 0) 100%);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.65), 0 0 20px rgba(251, 191, 36, 0.4);
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: emberAscend linear infinite;
+}
 
-@keyframes fadeIn {
+.ember1 {
+  width: 5px;
+  height: 5px;
+  left: 12%;
+  bottom: 8%;
+  animation-duration: 18s;
+  animation-delay: 0s;
+}
 
-  from {
+.ember2 {
+  width: 4px;
+  height: 4px;
+  left: 28%;
+  bottom: 12%;
+  animation-duration: 22s;
+  animation-delay: 4s;
+}
 
+.ember3 {
+  width: 6px;
+  height: 6px;
+  left: 45%;
+  bottom: 6%;
+  animation-duration: 16s;
+  animation-delay: 8s;
+}
+
+.ember4 {
+  width: 3.5px;
+  height: 3.5px;
+  left: 20%;
+  bottom: 15%;
+  animation-duration: 24s;
+  animation-delay: 2s;
+}
+
+.ember5 {
+  width: 5px;
+  height: 5px;
+  left: 36%;
+  bottom: 10%;
+  animation-duration: 20s;
+  animation-delay: 10s;
+}
+
+.ember6 {
+  width: 4px;
+  height: 4px;
+  left: 8%;
+  bottom: 18%;
+  animation-duration: 26s;
+  animation-delay: 6s;
+}
+
+@keyframes emberAscend {
+  0% {
+    transform: translate3d(0, 0, 0);
     opacity: 0;
-
   }
-
-  to {
-
-    opacity: 1;
-
+  15% {
+    opacity: 0.85;
   }
-
+  50% {
+    transform: translate3d(14px, -45vh, 0);
+    opacity: 0.95;
+  }
+  85% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate3d(28px, -95vh, 0);
+    opacity: 0;
+  }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .memberSceneArtImg {
+    animation: none;
+  }
 
+  .floatingEmber {
+    display: none;
+  }
 
-.memberLoginContainer ::selection {
+  .memberLoginCard {
+    animation: none;
+  }
 
-  background: rgba(52, 211, 153, 0.35);
-
-  color: #ffffff;
-
+  .thaidLoginBtn,
+  .mophIdBtn,
+  .digitalIdChevron,
+  .formInput,
+  .editInfoBtn,
+  .memberSubmitBtn,
+  .resendBtn,
+  .backHomeLink,
+  .legalLinks a {
+    transition: none;
+  }
 }
-

@@ -291,10 +291,8 @@ export class RcmHealthScreeningService {
     const { rawRows, adpMapping } = await getCachedData(
       cacheKey,
       async () => {
-        const [mappingRes, rows] = await Promise.all([
-          RcmHealthScreeningService.checkAdpMapping(adpCode, executor, Boolean(params.refresh)),
-          executor(
-            `
+        const includeNondrugItems = is146
+        const sql = `
             SELECT 
               o.vn,
               IFNULL(pt.cid, '') AS cid,
@@ -314,24 +312,17 @@ export class RcmHealthScreeningService {
               v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
               IFNULL(v.income, 0) AS income,
               dd.name AS listname,
-              nd.listname1 AS listname1,
-              prev.camedate AS camedate,
+              ${includeNondrugItems ? 'nd.listname1 AS listname1,' : 'NULL AS listname1,'}
+              GROUP_CONCAT(DISTINCT DATE_FORMAT(prev_claim.camedate, '%Y-%m-%d') ORDER BY prev_claim.camedate SEPARATOR ', ') AS camedate,
               COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
               COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
               COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
-              re.agency,
-              re.fund,
-              re.subfund,
-              re.errorcode,
-              re.transactiontype
-            FROM ovst o
-            LEFT JOIN patient pt ON pt.hn = o.hn
-            LEFT JOIN vn_stat v ON v.vn = o.vn
-            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
-            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
-            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
-            LEFT JOIN spclty spc ON spc.spclty = o.spclty
-            JOIN (
+              rep.agency,
+              rep.fund,
+              rep.subfund,
+              rep.errorcode,
+              rep.transactiontype
+            FROM (
               SELECT 
                 oo.vn,
                 GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS name
@@ -341,46 +332,48 @@ export class RcmHealthScreeningService {
                 AND oo.vstdate BETWEEN ? AND ?
                 AND TRIM(d.nhso_adp_code) IN (?)
               GROUP BY oo.vn
-            ) dd ON dd.vn = o.vn
+            ) dd
+            JOIN ovst o ON o.vn = dd.vn
+            LEFT JOIN patient pt ON pt.hn = o.hn
+            LEFT JOIN vn_stat v ON v.vn = o.vn
+            LEFT JOIN nationality nat ON nat.nationality = pt.nationality
+            LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+            LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
+            LEFT JOIN spclty spc ON spc.spclty = o.spclty
+            ${
+              includeNondrugItems
+                ? `
             LEFT JOIN (
               SELECT 
                 a.vn, 
                 GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ') AS listname1
-              FROM opitemrece a
+              FROM (
+                SELECT DISTINCT oo_nd.vn
+                FROM opitemrece oo_nd
+                JOIN s_drugitems d_nd ON d_nd.icode = oo_nd.icode
+                WHERE IFNULL(oo_nd.vn, '') <> ''
+                  AND oo_nd.vstdate BETWEEN ? AND ?
+                  AND TRIM(d_nd.nhso_adp_code) IN (?)
+              ) target_vn
+              JOIN opitemrece a ON a.vn = target_vn.vn
               JOIN nondrugitems b ON b.icode = a.icode
-              WHERE a.vstdate BETWEEN ? AND ?
               GROUP BY a.vn
             ) nd ON nd.vn = o.vn
+            `
+                : ''
+            }
             LEFT JOIN (
-              SELECT 
+              SELECT DISTINCT
                 o2.hn,
                 o2.vstdate AS camedate
-              FROM ovst o2
-              JOIN opitemrece oo2 ON oo2.vn = o2.vn
+              FROM opitemrece oo2
               JOIN s_drugitems d2 ON d2.icode = oo2.icode
-              WHERE o2.vstdate BETWEEN ? AND ?
+              JOIN ovst o2 ON o2.vn = oo2.vn
+              WHERE IFNULL(oo2.vn, '') <> ''
+                AND oo2.vstdate BETWEEN ? AND ?
+                AND o2.vstdate BETWEEN ? AND ?
                 AND TRIM(d2.nhso_adp_code) IN (?)
-              GROUP BY o2.vn
             ) prev_claim ON prev_claim.hn = o.hn AND prev_claim.camedate < o.vstdate
-            LEFT JOIN (
-              SELECT 
-                o3.hn,
-                GROUP_CONCAT(DISTINCT DATE_FORMAT(prev_claim2.camedate, '%Y-%m-%d') ORDER BY prev_claim2.camedate SEPARATOR ', ') AS camedate
-              FROM ovst o3
-              JOIN (
-                SELECT 
-                  o4.hn,
-                  o4.vstdate AS camedate
-                FROM ovst o4
-                JOIN opitemrece oo4 ON oo4.vn = o4.vn
-                JOIN s_drugitems d4 ON d4.icode = oo4.icode
-                WHERE o4.vstdate BETWEEN ? AND ?
-                  AND TRIM(d4.nhso_adp_code) IN (?)
-                GROUP BY o4.vn
-              ) prev_claim2 ON prev_claim2.hn = o3.hn AND prev_claim2.camedate < o3.vstdate
-              WHERE o3.vstdate BETWEEN ? AND ?
-              GROUP BY o3.hn
-            ) prev ON prev.hn = o.hn
             LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
             LEFT JOIN (
               SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
@@ -391,16 +384,10 @@ export class RcmHealthScreeningService {
               GROUP BY vn
             ) nhso ON nhso.vn = o.vn
             LEFT JOIN (
-              SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
-                     'Rep :: มี Rep แล้ว' AS statusname
-              FROM rcmdb.repdata
-              WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
-                AND (errorcode = '' OR errorcode IS NULL)
-              GROUP BY vn
-            ) rep ON rep.vn = o.vn
-            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
-            LEFT JOIN (
-              SELECT vn, 
+              SELECT vn,
+                     GROUP_CONCAT(DISTINCT IF(errorcode = '' OR errorcode IS NULL, rep, NULL)) AS rep,
+                     SUM(IF(errorcode = '' OR errorcode IS NULL, compensated, NULL)) AS compensated,
+                     IF(SUM(IF(errorcode = '' OR errorcode IS NULL, 1, 0)) > 0, 'Rep :: มี Rep แล้ว', NULL) AS statusname,
                      GROUP_CONCAT(DISTINCT agency SEPARATOR ',') AS agency,
                      GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
                      GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund,
@@ -409,7 +396,8 @@ export class RcmHealthScreeningService {
               FROM rcmdb.repdata
               WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate BETWEEN ? AND ?
               GROUP BY vn
-            ) re ON re.vn = o.vn
+            ) rep ON rep.vn = o.vn
+            LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
             LEFT JOIN (
               SELECT m.opdseq AS vn,
                      SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
@@ -423,21 +411,21 @@ export class RcmHealthScreeningService {
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
             ORDER BY o.hn ASC, o.vn ASC;
-            `,
-            [
-              ds1, ds2, adpCode,             // dd
-              ds1, ds2,                      // nd
-              fiscalStartYear, ds2, adpCode, // prev_claim
-              fiscalStartYear, ds2, adpCode, // prev_claim2
-              ds1, ds2,                      // o3
-              ds1, ds2,                      // nhso
-              ds1, ds2,                      // rep
-              ds1, ds2,                      // re
-              ds1, ds2,                      // m
-              ds1, ds2,                      // main ovst o
-            ],
-            { timeoutMs: 90000 }
-          ),
+        `
+
+        const sqlParams: any[] = [
+          ds1, ds2, adpCode, // dd
+          ...(includeNondrugItems ? [ds1, ds2, adpCode] : []), // nd (target_vn)
+          fiscalStartYear, ds2, fiscalStartYear, ds2, adpCode, // prev_claim
+          ds1, ds2, // nhso
+          ds1, ds2, // rep
+          ds1, ds2, // m
+          ds1, ds2, // main ovst o
+        ]
+
+        const [mappingRes, rows] = await Promise.all([
+          RcmHealthScreeningService.checkAdpMapping(adpCode, executor, Boolean(params.refresh)),
+          executor(sql, sqlParams, { timeoutMs: 90000 }),
         ])
 
         return { rawRows: rows as any[], adpMapping: mappingRes }
