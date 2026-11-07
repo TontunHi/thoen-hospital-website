@@ -1,0 +1,1044 @@
+/* ── Colorectal Cancer Screening 21.2 (Fit test ADP 90005) Styles ──
+ * Conforming to $ui-style-brief and $unslop design system:
+ * - 4px spacing scale
+ * - Breathing room (comfortable density)
+ * - Quiet chrome, purposeful visual anchors, semantic colors
+ * - Center-aligned table columns, tabular figures
+ * - Balanced 4x2 KPI grid layout
+ * - Row-clickable table without button clutter
+ */
+
+.crc-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 32px 48px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+  color: var(--gray-800, #1e293b);
+  font-family: var(--font-sarabun, 'Sarabun', sans-serif);
+}
+
+/* ── 1. Header & Breadcrumbs ── */
+.crc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.crc-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.crc-breadcrumb a {
+  color: var(--gray-500, #64748b);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.crc-breadcrumb a:hover {
+  color: var(--primary, #0D7446);
+}
+
+.crc-breadcrumb-sep {
+  color: var(--gray-300, #cbd5e1);
+}
+
+.crc-breadcrumb-cur {
+  color: var(--gray-800, #1e293b);
+  font-weight: 500;
+}
+
+.crc-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+}
+
+.crc-subtitle {
+  font-size: 0.875rem;
+  color: var(--gray-600, #475569);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.crc-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.crc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  background-color: #ffffff;
+  color: var(--gray-700, #334155);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.crc-btn:hover:not(:disabled) {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-400, #94a3b8);
+}
+
+.crc-btn:focus-visible {
+  outline: 2px solid var(--primary, #0D7446);
+  outline-offset: 2px;
+}
+
+.crc-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.crc-btn-primary {
+  background-color: var(--primary, #0D7446);
+  border-color: var(--primary, #0D7446);
+  color: #ffffff;
+}
+
+.crc-btn-primary:hover:not(:disabled) {
+  background-color: #0b613a;
+  border-color: #0b613a;
+}
+
+.crc-btn-primary:focus-visible {
+  outline: 2px solid var(--primary, #0D7446);
+  outline-offset: 2px;
+}
+
+/* ── 2. Warnings & Banner ── */
+.crc-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: 10px;
+  background-color: #fefce8;
+  border: 1px solid #fef08a;
+  color: #854d0e;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.crc-warning-icon {
+  flex-shrink: 0;
+  color: #ca8a04;
+  margin-top: 2px;
+}
+
+.crc-warning-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crc-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: 10px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.crc-error-icon {
+  flex-shrink: 0;
+  color: #ef4444;
+  margin-top: 2px;
+}
+
+/* ── 3. Date Selector Toolbar (Single-Row) ── */
+.crc-date-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  flex-wrap: wrap;
+}
+
+.crc-mode-segmented {
+  display: inline-flex;
+  background-color: var(--gray-100, #f1f5f9);
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+}
+
+.crc-mode-btn {
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--gray-600, #475569);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.crc-mode-btn:hover {
+  color: var(--gray-900, #0f172a);
+}
+
+.crc-mode-btn:focus-visible {
+  outline: 2px solid var(--primary, #0D7446);
+  outline-offset: 1px;
+}
+
+.crc-mode-btn.active {
+  background-color: #ffffff;
+  color: var(--primary, #0D7446);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.crc-date-divider {
+  width: 1px;
+  height: 28px;
+  background-color: var(--gray-200, #e2e8f0);
+}
+
+.crc-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.crc-date-range-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crc-date-range-sep {
+  font-size: 0.875rem;
+  color: var(--gray-400, #94a3b8);
+}
+
+.crc-select {
+  height: 38px;
+  padding: 0 32px 0 12px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--gray-800, #1e293b);
+  background-color: #ffffff;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+}
+
+.crc-select:focus {
+  border-color: var(--primary, #0D7446);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.12);
+}
+
+/* ── 4. KPI Summary Cards Grid (4 columns x 2 rows symmetric) ── */
+.crc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.crc-kpi-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 22px;
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  text-align: left;
+}
+
+.crc-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+  border-color: var(--gray-300, #cbd5e1);
+}
+
+.crc-kpi-card:focus-visible {
+  outline: 2px solid var(--primary, #0D7446);
+  outline-offset: 2px;
+}
+
+.crc-kpi-card.active {
+  border-color: var(--primary, #0D7446);
+  box-shadow: 0 0 0 2px var(--primary, #0D7446), 0 4px 12px rgba(13, 116, 70, 0.15);
+  background-color: #f9fdfa;
+}
+
+.crc-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.crc-kpi-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--gray-600, #475569);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.crc-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-600, #475569);
+}
+
+.crc-kpi-card.active .crc-kpi-icon {
+  background-color: rgba(13, 116, 70, 0.1);
+  color: var(--primary, #0D7446);
+}
+
+.crc-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.crc-kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.crc-kpi-unit {
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+}
+
+.crc-kpi-sub {
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+  margin-top: 4px;
+}
+
+/* ── 5. Search & Filter Bar ── */
+.crc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.crc-search-box {
+  position: relative;
+  flex: 1;
+  max-width: 480px;
+  min-width: 260px;
+}
+
+.crc-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400, #94a3b8);
+  pointer-events: none;
+}
+
+.crc-search-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 40px 0 42px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--gray-800, #1e293b);
+  background-color: #ffffff;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.crc-search-input:focus {
+  border-color: var(--primary, #0D7446);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.12);
+}
+
+.crc-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.crc-search-clear:hover {
+  color: var(--gray-600, #475569);
+  background-color: var(--gray-100, #f1f5f9);
+}
+
+.crc-filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.crc-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: var(--gray-700, #334155);
+  cursor: pointer;
+  user-select: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  transition: all 0.15s ease;
+}
+
+.crc-checkbox-label:hover {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-300, #cbd5e1);
+}
+
+.crc-checkbox-label input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary, #0D7446);
+  cursor: pointer;
+}
+
+.crc-active-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.crc-active-filter-clear {
+  border: none;
+  background: transparent;
+  color: #1d4ed8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+/* ── 6. Table Layout & Harmonized Alignment ── */
+.crc-table-container {
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.crc-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.crc-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.crc-table th {
+  background-color: var(--gray-50, #f8fafc);
+  color: var(--gray-600, #475569);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.crc-table th.sortable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.crc-table th.sortable:hover {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-900, #0f172a);
+}
+
+.crc-th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crc-table td {
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--gray-100, #f1f5f9);
+  color: var(--gray-800, #1e293b);
+  vertical-align: middle;
+  min-height: 52px;
+}
+
+/* Patient Name Wrap Cohesion */
+.crc-name-wrap {
+  display: inline;
+}
+
+.crc-name-part {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Center-aligned columns as required by ui-style-brief */
+.crc-col-center {
+  text-align: center !important;
+}
+
+.crc-col-center .crc-th-content {
+  justify-content: center;
+}
+
+.crc-col-center .crc-badge {
+  margin: 0 auto;
+}
+
+.crc-col-right {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.crc-col-right .crc-th-content {
+  justify-content: flex-end;
+}
+
+.crc-table-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.crc-table-row:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Visual FoxPro Row Highlighting based on Data Quality */
+.crc-row-missing-adp {
+  background-color: #fef8f8;
+}
+
+.crc-row-missing-adp:hover td {
+  background-color: #fee2e2 !important;
+}
+
+.crc-row-missing-pp {
+  background-color: #fffbf5;
+}
+
+.crc-row-missing-pp:hover td {
+  background-color: #ffedd5 !important;
+}
+
+.crc-row-invalid-pp {
+  background-color: #fffef2;
+}
+
+.crc-row-invalid-pp:hover td {
+  background-color: #fef9c3 !important;
+}
+
+.crc-table-row:last-child td {
+  border-bottom: none;
+}
+
+/* ── Badges & Status Indicators ── */
+.crc-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.crc-badge-success {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.crc-badge-warning {
+  background-color: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+.crc-badge-danger {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.crc-badge-yellow {
+  background-color: #fefce8;
+  color: #854d0e;
+  border: 1px solid #fef08a;
+}
+
+.crc-badge-neutral {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-600, #475569);
+  border: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.crc-badge-info {
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+/* ── 7. Pagination Bar ── */
+.crc-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--gray-200, #e2e8f0);
+  background-color: #ffffff;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.crc-pagination-info {
+  font-size: 0.8125rem;
+  color: var(--gray-600, #475569);
+}
+
+.crc-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crc-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  background-color: #ffffff;
+  border-radius: 6px;
+  color: var(--gray-700, #334155);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.crc-page-btn:hover:not(:disabled) {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-300, #cbd5e1);
+}
+
+.crc-page-btn:focus-visible {
+  outline: 2px solid var(--primary, #0D7446);
+  outline-offset: 2px;
+}
+
+.crc-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 8. Empty, Loading & Skeleton States ── */
+.crc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  color: var(--gray-500, #64748b);
+  gap: 12px;
+}
+
+.crc-empty-icon {
+  color: var(--gray-300, #cbd5e1);
+}
+
+.crc-empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-700, #334155);
+  margin: 0;
+}
+
+.crc-empty-desc {
+  font-size: 0.875rem;
+  color: var(--gray-500, #64748b);
+  margin: 0;
+  max-width: 420px;
+  text-align: center;
+}
+
+.crc-table-skeleton-row td {
+  padding: 18px 16px;
+}
+
+.crc-skeleton-box {
+  height: 16px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: crcSkeletonLoading 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes crcSkeletonLoading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── 9. Direct Row-Click Detail Modal ── */
+.crc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 9999;
+  animation: crcFadeIn 0.15s ease-out;
+}
+
+.crc-modal-dialog {
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 840px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  animation: crcScaleUp 0.18s ease-out;
+}
+
+@keyframes crcFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes crcScaleUp {
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.crc-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  background-color: #ffffff;
+}
+
+.crc-modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crc-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  margin: 0;
+}
+
+.crc-modal-subtitle {
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+  margin: 0;
+}
+
+.crc-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.crc-modal-close:hover {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-700, #334155);
+}
+
+.crc-modal-close:focus-visible {
+  outline: 2px solid var(--primary, #0D7446);
+  outline-offset: 2px;
+}
+
+.crc-modal-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  background-color: var(--gray-50, #f8fafc);
+}
+
+.crc-modal-tab-btn {
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--gray-600, #475569);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.crc-modal-tab-btn:hover {
+  color: var(--gray-900, #0f172a);
+}
+
+.crc-modal-tab-btn:focus-visible {
+  outline: 2px solid var(--primary, #0D7446);
+  outline-offset: -2px;
+}
+
+.crc-modal-tab-btn.active {
+  color: var(--primary, #0D7446);
+  border-bottom-color: var(--primary, #0D7446);
+  font-weight: 600;
+}
+
+.crc-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.crc-modal-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--gray-800, #1e293b);
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crc-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.crc-modal-card {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  background-color: var(--gray-50, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crc-modal-card.full-width {
+  grid-column: span 2;
+}
+
+.crc-modal-card-label {
+  font-size: 0.75rem;
+  color: var(--gray-500, #64748b);
+  font-weight: 500;
+}
+
+.crc-modal-card-value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--gray-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crc-modal-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.crc-modal-copy-btn:hover {
+  color: var(--primary, #0D7446);
+  background-color: rgba(13, 116, 70, 0.08);
+  border-color: rgba(13, 116, 70, 0.2);
+}
+
+.crc-modal-copy-btn:focus-visible {
+  outline: 2px solid var(--primary, #0D7446);
+  outline-offset: 1px;
+}
+
+.crc-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--gray-200, #e2e8f0);
+  background-color: var(--gray-50, #f8fafc);
+}
+
+/* ── 10. Responsive Design ── */
+@media (max-width: 1200px) {
+  .crc-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .crc-container {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .crc-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .crc-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .crc-search-box {
+    max-width: 100%;
+  }
+
+  .crc-date-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .crc-date-divider {
+    display: none;
+  }
+
+  .crc-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .crc-modal-card.full-width {
+    grid-column: span 1;
+  }
+}

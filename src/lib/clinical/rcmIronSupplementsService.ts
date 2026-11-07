@@ -330,29 +330,43 @@ export class RcmIronSupplementsService {
             IFNULL(v.income, 0) AS income,
             dd.drugname AS drugname,
             dd.name AS listname,
-            nd.listname1 AS listname1,
+            (
+              SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
+              FROM opitemrece a
+              JOIN nondrugitems b ON b.icode = a.icode
+              WHERE a.vn = o.vn
+            ) AS listname1,
             COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname) AS status,
             COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
             COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
             rep.agency,
-            COALESCE(re.fund, rep.fund) AS fund,
-            COALESCE(re.subfund, rep.subfund) AS subfund,
+            rep.fund AS fund,
+            rep.subfund AS subfund,
             rep.errorcode,
             rep.transactiontype
           FROM (
             SELECT 
               oo.vn,
-              GROUP_CONCAT(DISTINCT CONCAT_WS(' ', d.name, NULLIF(d.strength, '')) SEPARATOR ', ') AS drugname,
-              GROUP_CONCAT(DISTINCT IF(TRIM(dd_sub.nhso_adp_code) = ?, CONCAT_WS(' ', dd_sub.name, NULLIF(dd_sub.strength, '')), NULL) SEPARATOR ', ') AS name
-            FROM opitemrece oo
-            LEFT JOIN drugitems d ON d.icode = oo.icode
-            LEFT JOIN s_drugitems dd_sub ON dd_sub.icode = oo.icode
+              GROUP_CONCAT(DISTINCT target_items.drug_name SEPARATOR ', ') AS drugname,
+              GROUP_CONCAT(DISTINCT target_items.adp_name SEPARATOR ', ') AS name
+            FROM (
+              SELECT 
+                icode, 
+                CONCAT_WS(' ', name, NULLIF(strength, '')) AS drug_name, 
+                NULL AS adp_name
+              FROM drugitems 
+              WHERE did IN (${didPlaceholders})
+              UNION ALL
+              SELECT 
+                icode, 
+                NULL AS drug_name, 
+                CONCAT_WS(' ', s_sub.name, NULLIF(s_sub.strength, '')) AS adp_name
+              FROM s_drugitems s_sub 
+              WHERE TRIM(s_sub.nhso_adp_code) = ?
+            ) target_items
+            JOIN opitemrece oo ON oo.icode = target_items.icode
             WHERE IFNULL(oo.vn, '') <> ''
               AND oo.vstdate BETWEEN ? AND ?
-              AND (
-                d.did IN (${didPlaceholders})
-                OR TRIM(dd_sub.nhso_adp_code) = ?
-              )
             GROUP BY oo.vn
           ) dd
           JOIN ovst o ON o.vn = dd.vn
@@ -362,26 +376,6 @@ export class RcmIronSupplementsService {
           LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
           LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
           LEFT JOIN spclty spc ON spc.spclty = o.spclty
-          LEFT JOIN (
-            SELECT 
-              a.vn, 
-              GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ') AS listname1
-            FROM (
-              SELECT DISTINCT oo_nd.vn
-              FROM opitemrece oo_nd
-              LEFT JOIN drugitems d_nd ON d_nd.icode = oo_nd.icode
-              LEFT JOIN s_drugitems dd_nd ON dd_nd.icode = oo_nd.icode
-              WHERE IFNULL(oo_nd.vn, '') <> ''
-                AND oo_nd.vstdate BETWEEN ? AND ?
-                AND (
-                  d_nd.did IN (${didPlaceholders})
-                  OR TRIM(dd_nd.nhso_adp_code) = ?
-                )
-            ) target_vn
-            JOIN opitemrece a ON a.vn = target_vn.vn
-            JOIN nondrugitems b ON b.icode = a.icode
-            GROUP BY a.vn
-          ) nd ON nd.vn = o.vn
           LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
           LEFT JOIN (
             SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
@@ -416,7 +410,6 @@ export class RcmIronSupplementsService {
             WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> '' AND m.dateadm BETWEEN ? AND ?
             GROUP BY m.opdseq
           ) m ON m.vn = o.vn
-          LEFT JOIN rcmdb.repdata re ON re.vn = o.vn
           WHERE o.vstdate BETWEEN ? AND ?
             AND (v.sex = 2 OR v.sex = '2' OR pt.sex = '2' OR pt.sex = 2)
             AND (
@@ -428,13 +421,9 @@ export class RcmIronSupplementsService {
         `
 
         const sqlParams: any[] = [
-          adpCode, // dd IF(nhso_adp_code = ?)
-          ds1, ds2, // dd vstdate
-          ...IRON_SUPPLEMENT_DIDS, // dd did IN (...)
-          adpCode, // dd nhso_adp_code = ?
-          ds1, ds2, // nd target_vn vstdate
-          ...IRON_SUPPLEMENT_DIDS, // nd did IN (...)
-          adpCode, // nd nhso_adp_code = ?
+          ...IRON_SUPPLEMENT_DIDS, // target_items drugitems did IN (...)
+          adpCode, // target_items s_drugitems TRIM(nhso_adp_code) = ?
+          ds1, ds2, // dd oo.vstdate BETWEEN ? AND ?
           ds1, ds2, // nhso admdate
           ds1, ds2, // rep admdate
           ds1, ds2, // m dateadm
@@ -451,7 +440,7 @@ export class RcmIronSupplementsService {
           adpMapping: mappingRes,
         }
       },
-      300000 // Cache TTL 5 minutes
+      600000 // Cache TTL 10 minutes
     )
 
     // Normalize and map items

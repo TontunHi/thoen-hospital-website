@@ -606,18 +606,6 @@
   border: 1px solid var(--gray-200, #e2e8f0);
 }
 
-.iron-target-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background-color: #ecfdf5;
-  color: #047857;
-  font-weight: 600;
-  font-size: 0.75rem;
-  border: 1px solid #a7f3d0;
-}
-
 /* ── 7. Pagination ── */
 .iron-pagination {
   display: flex;

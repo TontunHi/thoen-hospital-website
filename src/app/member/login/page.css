@@ -73,15 +73,22 @@
   object-position: center bottom;
   display: block;
   transform-origin: center center;
-  animation: sceneBreathe 24s ease-in-out infinite alternate;
+  will-change: transform;
+  animation: sceneCinematicFloat 28s ease-in-out infinite alternate;
 }
 
-@keyframes sceneBreathe {
+@keyframes sceneCinematicFloat {
   0% {
-    transform: scale(1);
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  33% {
+    transform: scale(1.05) translate3d(10px, -6px, 0);
+  }
+  66% {
+    transform: scale(1.04) translate3d(-8px, 4px, 0);
   }
   100% {
-    transform: scale(1.04);
+    transform: scale(1.06) translate3d(6px, -8px, 0);
   }
 }
 
@@ -1030,8 +1037,8 @@
   }
 }
 
-/* Ambient Floating Embers (Subtle, GPU-accelerated motion) */
-.ambientLightsLayer {
+/* Ambient Floating Yee Peng Sky Lanterns (โคมลอยยี่เป็งลอยสู่ท้องฟ้า) */
+.ambientLanternsLayer {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -1039,97 +1046,95 @@
   z-index: 1;
 }
 
-.floatingEmber {
+.floatingLantern {
   position: absolute;
-  border-radius: 9999px;
-  background: radial-gradient(circle, #fffbeb 0%, #fef08a 40%, #f59e0b 80%, rgba(245, 158, 11, 0) 100%);
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.65), 0 0 20px rgba(251, 191, 36, 0.4);
+  bottom: -60px;
   pointer-events: none;
   will-change: transform, opacity;
-  animation: emberAscend linear infinite;
+  animation: lanternAscend linear infinite;
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.45));
 }
 
-.ember1 {
-  width: 5px;
-  height: 5px;
-  left: 12%;
-  bottom: 8%;
-  animation-duration: 18s;
+@keyframes lanternAscend {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.95;
+  }
+  25% {
+    transform: translate3d(14px, -28vh, 0) rotate(2deg);
+  }
+  50% {
+    transform: translate3d(-10px, -55vh, 0) rotate(-2deg);
+    opacity: 0.92;
+  }
+  75% {
+    transform: translate3d(16px, -82vh, 0) rotate(1.5deg);
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(4px, -112vh, 0) rotate(2.5deg);
+    opacity: 0;
+  }
+}
+
+.lantern1 {
+  left: 6%;
+  animation-duration: 22s;
   animation-delay: 0s;
 }
 
-.ember2 {
-  width: 4px;
-  height: 4px;
-  left: 28%;
-  bottom: 12%;
-  animation-duration: 22s;
-  animation-delay: 4s;
-}
-
-.ember3 {
-  width: 6px;
-  height: 6px;
-  left: 45%;
-  bottom: 6%;
-  animation-duration: 16s;
-  animation-delay: 8s;
-}
-
-.ember4 {
-  width: 3.5px;
-  height: 3.5px;
+.lantern2 {
   left: 20%;
-  bottom: 15%;
-  animation-duration: 24s;
+  animation-duration: 28s;
+  animation-delay: 5s;
+}
+
+.lantern3 {
+  left: 34%;
+  animation-duration: 20s;
+  animation-delay: 11s;
+}
+
+.lantern4 {
+  left: 48%;
+  animation-duration: 25s;
   animation-delay: 2s;
 }
 
-.ember5 {
-  width: 5px;
-  height: 5px;
-  left: 36%;
-  bottom: 10%;
-  animation-duration: 20s;
-  animation-delay: 10s;
+.lantern5 {
+  left: 64%;
+  animation-duration: 24s;
+  animation-delay: 9s;
 }
 
-.ember6 {
-  width: 4px;
-  height: 4px;
-  left: 8%;
-  bottom: 18%;
-  animation-duration: 26s;
-  animation-delay: 6s;
+.lantern6 {
+  left: 78%;
+  animation-duration: 27s;
+  animation-delay: 15s;
 }
 
-@keyframes emberAscend {
-  0% {
-    transform: translate3d(0, 0, 0);
-    opacity: 0;
-  }
-  15% {
-    opacity: 0.85;
-  }
-  50% {
-    transform: translate3d(14px, -45vh, 0);
-    opacity: 0.95;
-  }
-  85% {
-    opacity: 0.6;
-  }
-  100% {
-    transform: translate3d(28px, -95vh, 0);
-    opacity: 0;
-  }
+.lantern7 {
+  left: 14%;
+  animation-duration: 19s;
+  animation-delay: 18s;
+}
+
+.lantern8 {
+  left: 88%;
+  animation-duration: 23s;
+  animation-delay: 7s;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .memberSceneArtImg {
     animation: none;
+    transform: none;
   }
 
-  .floatingEmber {
+  .floatingLantern {
     display: none;
   }
 

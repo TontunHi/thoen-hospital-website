@@ -1,0 +1,833 @@
+/* ==========================================================================
+   Thalassemia Fund Page Styles (OPD & IPD)
+   Designed according to ui-style-brief & unslop design standards
+   ========================================================================== */
+
+.th-page {
+  padding: 24px 32px 48px;
+  max-width: 1680px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--background, #f8fafc);
+  color: var(--foreground, #0f172a);
+}
+
+/* ── 1. Clean Breadcrumb (No Eyebrow Pills) ── */
+.th-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted-foreground, #64748b);
+  margin-bottom: 16px;
+}
+
+.th-breadcrumb a {
+  color: var(--muted-foreground, #64748b);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.th-breadcrumb a:hover {
+  color: var(--primary, #0d7446);
+}
+
+.th-breadcrumb-sep {
+  color: var(--border, #cbd5e1);
+  font-size: 11px;
+}
+
+.th-breadcrumb-current {
+  color: var(--foreground, #1e293b);
+  font-weight: 500;
+}
+
+/* ── 2. Header Bar ── */
+.th-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.th-title-group {
+  flex: 1;
+  min-width: 320px;
+}
+
+.th-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--foreground, #0f172a);
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
+}
+
+.th-subtitle {
+  font-size: 14px;
+  color: var(--muted-foreground, #64748b);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.th-subtitle-dot {
+  color: var(--border, #94a3b8);
+}
+
+.th-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.th-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  min-height: 42px;
+}
+
+.th-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.th-btn-secondary {
+  background-color: var(--card, #ffffff);
+  border-color: var(--border, #e2e8f0);
+  color: var(--foreground, #334155);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.th-btn-secondary:hover:not(:disabled) {
+  background-color: var(--hover-bg, #f1f5f9);
+  border-color: var(--border-hover, #cbd5e1);
+  color: var(--foreground, #0f172a);
+}
+
+.th-spin {
+  animation: th-spin 1s linear infinite;
+}
+
+@keyframes th-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 3. Single-Row Unified Date Selection Card ── */
+.th-date-card {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  padding: 12px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+}
+
+.th-date-segmented {
+  display: inline-flex;
+  background-color: var(--muted, #f1f5f9);
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+}
+
+.th-segmented-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-foreground, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.th-segmented-btn:hover {
+  color: var(--foreground, #1e293b);
+}
+
+.th-segmented-btn.is-active {
+  background-color: var(--card, #ffffff);
+  color: var(--primary, #0d7446);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.th-date-divider {
+  width: 1px;
+  height: 28px;
+  background-color: var(--border, #e2e8f0);
+}
+
+.th-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.th-control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.th-control-label {
+  font-size: 13px;
+  color: var(--muted-foreground, #64748b);
+  white-space: nowrap;
+}
+
+.th-select {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background-color: var(--card, #ffffff);
+  color: var(--foreground, #1e293b);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  min-height: 38px;
+}
+
+.th-select:focus {
+  border-color: var(--primary, #0d7446);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.15);
+}
+
+/* ── 4. Equal & Balanced KPI Summary Grid (4 x 2) ── */
+.th-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.th-kpi-card {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 110px;
+}
+
+.th-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-hover, #cbd5e1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.th-kpi-card.is-active {
+  border-color: var(--primary, #0d7446);
+  background-color: var(--active-card-bg, #f4faf6);
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.2), 0 4px 12px rgba(13, 116, 70, 0.08);
+}
+
+.th-kpi-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.th-kpi-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-foreground, #64748b);
+  line-height: 1.3;
+}
+
+.th-kpi-icon {
+  color: var(--muted-foreground, #94a3b8);
+  flex-shrink: 0;
+}
+
+.th-kpi-card.is-active .th-kpi-icon {
+  color: var(--primary, #0d7446);
+}
+
+.th-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.th-kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--foreground, #0f172a);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.th-kpi-sub {
+  font-size: 12px;
+  color: var(--muted-foreground, #64748b);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── 5. Toolbar & Search ── */
+.th-toolbar {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px 14px 0 0;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: none;
+}
+
+.th-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+  max-width: 520px;
+}
+
+.th-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-foreground, #94a3b8);
+  pointer-events: none;
+}
+
+.th-search-input {
+  width: 100%;
+  padding: 9px 36px 9px 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #cbd5e1);
+  background-color: var(--card, #ffffff);
+  color: var(--foreground, #0f172a);
+  font-size: 13.5px;
+  outline: none;
+  transition: all 0.15s ease;
+  min-height: 40px;
+}
+
+.th-search-input:focus {
+  border-color: var(--primary, #0d7446);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.12);
+}
+
+.th-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.th-search-clear:hover {
+  color: var(--foreground, #0f172a);
+}
+
+.th-toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted-foreground, #64748b);
+}
+
+.th-count-badge {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--foreground, #0f172a);
+}
+
+/* ── 6. Data Table ── */
+.th-table-container {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.th-table-scroll {
+  overflow-x: auto;
+}
+
+.th-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.th-table thead {
+  background-color: var(--muted, #f8fafc);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.th-table th {
+  padding: 12px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--foreground, #334155);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+
+.th-table th.col-center,
+.th-table td.col-center {
+  text-align: center;
+}
+
+.th-table th.col-right,
+.th-table td.col-right {
+  text-align: right;
+}
+
+.th-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.th-th-sort:hover {
+  color: var(--primary, #0d7446);
+}
+
+.th-table th.col-center .th-th-sort {
+  justify-content: center;
+}
+
+.th-table tbody tr {
+  border-bottom: 1px solid var(--border-light, #f1f5f9);
+  transition: background-color 0.12s ease;
+  min-height: 52px;
+}
+
+.th-table tbody tr:hover {
+  background-color: var(--hover-bg, #f8fafc);
+}
+
+.th-table td {
+  padding: 12px 14px;
+  color: var(--foreground, #1e293b);
+  vertical-align: middle;
+}
+
+/* Names: Intact wrap & Center-aligned on X axis */
+.th-ptname {
+  min-width: 170px;
+  text-align: center;
+}
+
+.th-name-part {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Tabular codes */
+.th-num {
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+
+.th-cid {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  font-size: 13px;
+  color: var(--foreground, #334155);
+}
+
+.th-age-nowrap {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Badges */
+.th-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.th-badge-success {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.th-badge-neutral {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.th-badge-info {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.th-badge-purple {
+  background-color: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.th-badge-amber {
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+/* Row-click hint */
+.th-row-clickable {
+  cursor: pointer;
+}
+
+.th-row-clickable:active {
+  background-color: #f1f5f9;
+}
+
+/* ── 7. Pagination ── */
+.th-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background-color: var(--card, #ffffff);
+  border-top: 1px solid var(--border, #e2e8f0);
+  font-size: 13px;
+  color: var(--muted-foreground, #64748b);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.th-pagination-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.th-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background-color: var(--card, #ffffff);
+  color: var(--foreground, #334155);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.th-page-btn:hover:not(:disabled) {
+  background-color: var(--hover-bg, #f1f5f9);
+  color: var(--foreground, #0f172a);
+}
+
+.th-page-btn.is-active {
+  background-color: var(--primary, #0d7446);
+  border-color: var(--primary, #0d7446);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.th-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 8. Empty & Loading States ── */
+.th-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted-foreground, #64748b);
+}
+
+.th-empty-icon {
+  margin: 0 auto 12px;
+  color: var(--border, #94a3b8);
+}
+
+.th-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground, #1e293b);
+  margin-bottom: 4px;
+}
+
+.th-empty-desc {
+  font-size: 13px;
+  color: var(--muted-foreground, #64748b);
+}
+
+/* ── 9. Detail Modal ── */
+.th-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.th-modal {
+  background-color: var(--card, #ffffff);
+  border-radius: 16px;
+  max-width: 860px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.th-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.th-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--foreground, #0f172a);
+  margin: 0;
+}
+
+.th-modal-subtitle {
+  font-size: 13px;
+  color: var(--muted-foreground, #64748b);
+  margin: 4px 0 0 0;
+}
+
+.th-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground, #94a3b8);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.th-modal-close:hover {
+  background-color: var(--hover-bg, #f1f5f9);
+  color: var(--foreground, #0f172a);
+}
+
+.th-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  background-color: var(--muted, #f8fafc);
+  padding: 0 24px;
+}
+
+.th-modal-tab {
+  padding: 12px 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--muted-foreground, #64748b);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.th-modal-tab:hover {
+  color: var(--foreground, #0f172a);
+}
+
+.th-modal-tab.is-active {
+  color: var(--primary, #0d7446);
+  border-bottom-color: var(--primary, #0d7446);
+  font-weight: 600;
+  background-color: var(--card, #ffffff);
+}
+
+.th-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.th-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.th-detail-card {
+  background-color: var(--muted, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.th-detail-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground, #334155);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.th-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 13px;
+  border-bottom: 1px dashed var(--border-light, #f1f5f9);
+}
+
+.th-detail-row:last-child {
+  border-bottom: none;
+}
+
+.th-detail-label {
+  color: var(--muted-foreground, #64748b);
+}
+
+.th-detail-value {
+  color: var(--foreground, #0f172a);
+  font-weight: 500;
+  text-align: right;
+}
+
+/* Modal orders table */
+.th-orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.th-orders-table th {
+  padding: 8px 10px;
+  background-color: var(--muted, #f1f5f9);
+  color: var(--foreground, #475569);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  text-align: left;
+}
+
+.th-orders-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-light, #f8fafc);
+  color: var(--foreground, #1e293b);
+}
+
+.th-orders-table tr:hover {
+  background-color: var(--hover-bg, #f8fafc);
+}
+
+.th-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  display: flex;
+  justify-content: flex-end;
+  background-color: var(--card, #ffffff);
+}
+
+/* ── Responsive adjustments ── */
+@media (max-width: 1200px) {
+  .th-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .th-page {
+    padding: 16px;
+  }
+
+  .th-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .th-date-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .th-date-divider {
+    display: none;
+  }
+
+  .th-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

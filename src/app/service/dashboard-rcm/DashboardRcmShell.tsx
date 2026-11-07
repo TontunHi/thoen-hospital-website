@@ -26,6 +26,9 @@ import {
   Heart,
   Sparkles,
   Pill,
+  Leaf,
+  PhoneCall,
+  Home,
 } from 'lucide-react'
 
 export interface NavSubItem {
@@ -277,6 +280,24 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
         ],
       },
       {
+        href: '/service/dashboard-rcm/funds/telemed-drug',
+        label: 'ระบบ Telemedicine & Drug',
+        badge: '11',
+        icon: PhoneCall,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/telemed-drug/telemed',
+            label: 'บริการ Telemed',
+            badge: '11.53',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/telemed-drug/postal-drug',
+            label: 'ส่งยาไปรษณีย์ Drug',
+            badge: '11.52',
+          },
+        ],
+      },
+      {
         href: '/service/dashboard-rcm/funds/oral-cancer',
         label: 'คัดกรองมะเร็งช่องปาก (40 ปี+)',
         badge: '12',
@@ -330,6 +351,117 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
             href: '/service/dashboard-rcm/funds/iron-supplements/18-2',
             label: 'รายชื่อผู้รับบริการยาเม็ดเสริมธาตุเหล็ก ADP (14001)',
             badge: '18.2',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/fluoride-varnish',
+        label: 'บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง)',
+        badge: '20',
+        icon: Sparkles,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/fluoride-varnish/20-1',
+            label: 'บริการเคลือบฟลูออไรด์ (กลุ่มเสี่ยง) อายุ 25-29 ปี ADP (15001)',
+            badge: '20.1',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/colorectal-cancer',
+        label: 'คัดกรองมะเร็งลำไส้ใหญ่ (Fit test)',
+        badge: '21',
+        icon: TestTube2,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/colorectal-cancer/21-2',
+            label: 'รายชื่อผู้รับบริการ ADP (90005)',
+            badge: '21.2',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/viral-hepatitis',
+        label: 'ตรวจคัดกรองไวรัสตับอักเสบ (B & C)',
+        badge: '23',
+        icon: TestTube2,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/viral-hepatitis/23-1',
+            label: 'บริการตรวจคัดกรองไวรัสตับอักเสบ B',
+            badge: '23.1',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/viral-hepatitis/23-2',
+            label: 'บริการตรวจคัดกรองไวรัสตับอักเสบ C',
+            badge: '23.2',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/viral-hepatitis/23-4',
+            label: 'ตรวจยืนยันไวรัสตับ C HCV RNA (36333)',
+            badge: '23.4',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/thalassemia-fund',
+        label: 'กองทุน Thalassemia',
+        badge: 'THAL',
+        icon: Droplet,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/thalassemia-fund/opd',
+            label: 'ผู้ป่วยนอก Thalassemia',
+            badge: '1',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/thalassemia-fund/ipd',
+            label: 'ผู้ป่วยใน Thalassemia',
+            badge: '2',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/t1dm-gdm-pdm',
+        label: 'กองทุน T1DM/GDM/PDM',
+        badge: 'DM',
+        icon: HeartPulse,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/t1dm-gdm-pdm/2',
+            label: 'รายชื่อผู้รับบริการ',
+            badge: '2',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/thai-traditional-medicine',
+        label: 'บริการแพทย์แผนไทย และการแพทย์ทางเลือก',
+        badge: 'แผนไทย',
+        icon: Leaf,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/thai-traditional-medicine/3',
+            label: 'รายชื่อผู้รับบริการแพทย์แผนไทยรวม',
+            badge: '3',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/thai-traditional-medicine/11',
+            label: 'รายชื่อผู้รับบริการรับยาสมุนไพร 32 รายการ',
+            badge: '11',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/amed-homeward',
+        label: 'ระบบ AMed และ Home Ward',
+        badge: 'AMED',
+        icon: Home,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/amed-homeward/homeward',
+            label: 'รายงาน HOMEWARD',
+            badge: 'HW',
           },
         ],
       },

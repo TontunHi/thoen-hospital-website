@@ -184,3 +184,71 @@ useEffect(() => {
   - เจ้าหน้าที่งานประกัน, เวชระเบียน และการเงิน จำเป็นต้องใช้เลขบัตรประชาชน 13 หลักและชื่อ-สกุลในการกระทบยอด (Reconcile) กับระบบ e-Claim สปสช., โปรแกรม FoxPro, และใบตอบรับ REP หากซ่อนข้อมูลจะทำให้เจ้าหน้าที่ทำงานตรวจสอบยอดเงินชดเชยไม่ได้จริง
 - **การคุ้มครองข้อมูลตามมาตรฐาน**:
   - ความปลอดภัยและการปฏิบัติตามมาตรฐาน PDPA ของระบบนี้ควบคุมผ่าน **ระบบจำกัดสิทธิ์เข้าถึง (Role-based Member Auth)** และ **การบันทึกประวัติการเรียกดู (`logThrottledAudit`)** ไว้แล้ว จึงไม่ต้องกังวลเรื่องการแสดงผลข้อมูลแก่เจ้าหน้าที่ผู้มีสิทธิ์ใช้งาน
+
+---
+
+## 11. การปรับปรุงประสิทธิภาพ Query ตารางขนาดใหญ่ (`opitemrece`) ด้วย Driving Subquery Pattern
+
+ตาราง `opitemrece` เป็นตารางบันทึกการใช้ยาและค่าบริการทางการแพทย์ที่มีขนาดใหญ่ที่สุดในระบบ HOSxP (หลักหลายล้านเรคคอร์ดต่อปีงบประมาณ) การเขียนคำสั่งดึงข้อมูลต้องปฏิบัติตามกฎประสิทธิภาพอย่างเคร่งครัด:
+
+1. **ห้ามใช้เงื่อนไข `OR` ข้ามตารางที่ `LEFT JOIN` เข้ามากับ `opitemrece` เด็ดขาด:**
+   - **ปัญหาคิวรีช้า (ระดับ 60–90 วินาที หรือ Gateway Timeout):**
+     ```sql
+     -- ❌ ห้ามเขียนแบบนี้เด็ดขาด:
+     FROM opitemrece oo
+     LEFT JOIN drugitems d ON d.icode = oo.icode
+     LEFT JOIN s_drugitems dd_sub ON dd_sub.icode = oo.icode
+     WHERE oo.vstdate BETWEEN ? AND ?
+       AND (
+         d.did IN (...)
+         OR TRIM(dd_sub.nhso_adp_code) = ?
+       )
+     ```
+     เพราะ MySQL **ไม่สามารถนำ Index ของ `opitemrece` มาใช้กรองได้เลย** เนื่องจากเงื่อนไข `OR` ขึ้นกับ 2 ตารางที่แตกต่างกัน ส่งผลให้ฐานข้อมูลต้องทำ Full-Table Scan ทุกแถวใน `opitemrece` ตลอดทั้งปี (หลายล้านแถว) แล้วนำมาไล่เทียบ B-Tree Lookup เข้าแค็ตตาล็อกทีละเรคคอร์ด
+2. **แก้ด้วย Driving Subquery Pattern (ความเร็วลดลงเหลือ < 0.1 วินาที):**
+   - รวมรหัสยาและค่าบริการที่ต้องการ (`icode`) จากตารางแค็ตตาล็อก (`drugitems` + `s_drugitems`) ผ่าน `UNION ALL` ใน Subquery ชื่อ `target_items` มาล่วงหน้า
+   - จากนั้นใช้ `JOIN opitemrece oo ON oo.icode = target_items.icode`:
+     ```sql
+     --  รูปแบบที่ถูกต้องและโหลดเร็วที่สุด:
+     FROM (
+       SELECT 
+         oo.vn,
+         GROUP_CONCAT(DISTINCT target_items.drug_name SEPARATOR ', ') AS drugname,
+         GROUP_CONCAT(DISTINCT target_items.adp_name SEPARATOR ', ') AS name
+       FROM (
+         SELECT 
+           icode, 
+           CONCAT_WS(' ', name, NULLIF(strength, '')) AS drug_name, 
+           NULL AS adp_name
+         FROM drugitems 
+         WHERE did IN (${didPlaceholders})
+         UNION ALL
+         SELECT 
+           icode, 
+           NULL AS drug_name, 
+           CONCAT_WS(' ', s_sub.name, NULLIF(s_sub.strength, '')) AS adp_name
+         FROM s_drugitems s_sub 
+         WHERE TRIM(s_sub.nhso_adp_code) = ?
+       ) target_items
+       JOIN opitemrece oo ON oo.icode = target_items.icode
+       WHERE IFNULL(oo.vn, '') <> ''
+         AND oo.vstdate BETWEEN ? AND ?
+       GROUP BY oo.vn
+     ) dd
+     ```
+   - ผลลัพธ์: ตาราง `target_items` มีขนาดเพียง 2–5 แถว MySQL จึงใช้ Index `opitemrece(icode, vstdate)` หรือ `opitemrece(icode)` พุ่งตรงไปอ่านเฉพาะแถวที่มีการจ่ายยานั้นๆ ทันที ลดการอ่านข้อมูลจากหลายล้านแถวเหลือเพียงไม่กี่สิบถึงไม่กี่ร้อยแถว
+3. **การดึงข้อมูลรายการประกอบสำหรับ Modal (`listname1`):**
+   - **ห้าม** ทำ Subquery สแกนตาราง `opitemrece` ทั้งปีงบประมาณซ้ำอีกรอบเด็ดขาด
+   - ให้ใช้ Correlated Scalar Subquery ใน `SELECT` list:
+     ```sql
+     (
+       SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
+       FROM opitemrece a
+       JOIN nondrugitems b ON b.icode = a.icode
+       WHERE a.vn = o.vn
+     ) AS listname1,
+     ```
+     เพราะ Subquery นี้จะทำงานผ่าน Index `opitemrece(vn)` เฉพาะผู้ป่วยที่ตรงเงื่อนไขแล้วเท่านั้น (หลักสิบเคส) ใช้เวลาไม่ถึง 2 มิลลิวินาที
+4. **ตัด Cartesian Join ซ้ำซ้อน:**
+   - ตรวจสอบไม่ให้มี `LEFT JOIN rcmdb.repdata re ON re.vn = o.vn` ลอยๆ โดยไม่มี `GROUP BY` หาก Subquery หลักของ `rep` มีการ Aggregate และจัดกลุ่ม `GROUP_CONCAT(DISTINCT fund)` ไว้อยู่แล้ว ป้องกันการคูณแถวในหน่วยความจำ
+

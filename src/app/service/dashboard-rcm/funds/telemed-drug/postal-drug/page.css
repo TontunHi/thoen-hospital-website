@@ -1,0 +1,762 @@
+/* ── Postal Drug 11.52 Dashboard Styles ──
+ * Conforming to $ui-style-brief and $unslop design system:
+ * - 4px spacing scale
+ * - Breathing room (comfortable density)
+ * - Quiet chrome, purposeful visual anchors, semantic colors
+ * - Center-aligned table columns, tabular figures
+ * - Balanced 4x2 KPI grid layout
+ * - Row-clickable table without button clutter
+ */
+
+.postal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 32px 48px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+  color: var(--gray-800, #1e293b);
+  font-family: var(--font-sarabun, 'Sarabun', sans-serif);
+}
+
+/* ── 1. Header & Breadcrumbs ── */
+.postal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.postal-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.postal-breadcrumb a {
+  color: var(--gray-500, #64748b);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.postal-breadcrumb a:hover {
+  color: var(--primary, #0D7446);
+}
+
+.postal-breadcrumb-sep {
+  color: var(--gray-300, #cbd5e1);
+}
+
+.postal-breadcrumb-cur {
+  color: var(--gray-800, #1e293b);
+  font-weight: 500;
+}
+
+.postal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+}
+
+.postal-subtitle {
+  font-size: 0.875rem;
+  color: var(--gray-600, #475569);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.postal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.postal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  background-color: #ffffff;
+  color: var(--gray-700, #334155);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.postal-btn:hover:not(:disabled) {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-400, #94a3b8);
+}
+
+.postal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.postal-btn-primary {
+  background-color: var(--primary, #0D7446);
+  border-color: var(--primary, #0D7446);
+  color: #ffffff;
+}
+
+.postal-btn-primary:hover:not(:disabled) {
+  background-color: #0b613a;
+  border-color: #0b613a;
+}
+
+/* ── 2. Warnings & Banner ── */
+.postal-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: 10px;
+  background-color: #fefce8;
+  border: 1px solid #fef08a;
+  color: #854d0e;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.postal-warning-icon {
+  flex-shrink: 0;
+  color: #ca8a04;
+  margin-top: 2px;
+}
+
+.postal-warning-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── 3. Date Selector Toolbar (Single-Row Unified) ── */
+.postal-date-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  flex-wrap: wrap;
+}
+
+.postal-mode-tabs {
+  display: inline-flex;
+  background-color: var(--gray-100, #f1f5f9);
+  padding: 4px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.postal-mode-tab {
+  padding: 6px 14px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--gray-600, #475569);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.postal-mode-tab.active {
+  background-color: #ffffff;
+  color: var(--primary, #0D7446);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.postal-date-divider {
+  width: 1px;
+  height: 28px;
+  background-color: var(--gray-200, #e2e8f0);
+}
+
+.postal-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.postal-select {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: var(--gray-800, #1e293b);
+  font-size: 0.875rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.postal-select:focus {
+  outline: none;
+  border-color: var(--primary, #0D7446);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.15);
+}
+
+/* ── 4. Equal 4x2 KPI Grid Layout ── */
+.postal-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .postal-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .postal-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.postal-kpi-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 20px;
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+}
+
+.postal-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--gray-300, #cbd5e1);
+}
+
+.postal-kpi-card.active {
+  border-color: var(--primary, #0D7446);
+  background-color: #f7fbf9;
+  box-shadow: 0 0 0 2px var(--primary, #0D7446), 0 4px 12px rgba(13, 116, 70, 0.12);
+}
+
+.postal-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.postal-kpi-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-600, #475569);
+  line-height: 1.4;
+}
+
+.postal-kpi-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-700, #334155);
+  flex-shrink: 0;
+}
+
+.postal-kpi-card.active .postal-kpi-icon-wrap {
+  background-color: rgba(13, 116, 70, 0.12);
+  color: var(--primary, #0D7446);
+}
+
+.postal-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.postal-kpi-main-val {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.postal-kpi-unit {
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+}
+
+.postal-kpi-subtext {
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.postal-kpi-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+/* ── 5. Toolbar & Global Search ── */
+.postal-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+}
+
+.postal-search-wrap {
+  display: flex;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  max-width: 480px;
+  min-width: 260px;
+}
+
+.postal-search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--gray-400, #94a3b8);
+  pointer-events: none;
+}
+
+.postal-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 38px 0 42px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: var(--gray-900, #0f172a);
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.postal-search-input:focus {
+  outline: none;
+  border-color: var(--primary, #0D7446);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.15);
+}
+
+.postal-search-clear {
+  position: absolute;
+  right: 10px;
+  border: none;
+  background: transparent;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.postal-search-clear:hover {
+  color: var(--gray-600, #475569);
+}
+
+.postal-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.postal-count-info {
+  font-size: 0.875rem;
+  color: var(--gray-600, #475569);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 6. Table Section & Column Alignment ── */
+.postal-table-wrapper {
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  overflow-x: auto;
+}
+
+.postal-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.postal-table th {
+  background-color: var(--gray-50, #f8fafc);
+  color: var(--gray-700, #334155);
+  font-weight: 600;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.postal-table th.col-center,
+.postal-table td.col-center {
+  text-align: center;
+}
+
+.postal-th-sort {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.postal-th-sort:hover {
+  color: var(--primary, #0D7446);
+}
+
+.postal-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid var(--gray-100, #f1f5f9);
+  height: 52px;
+}
+
+.postal-table tbody tr:hover {
+  background-color: #f8faf9;
+}
+
+.postal-table td {
+  padding: 12px 16px;
+  color: var(--gray-800, #1e293b);
+  vertical-align: middle;
+}
+
+.postal-num-cell {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-sarabun, sans-serif);
+}
+
+.postal-ptname-cell {
+  text-align: center;
+  min-width: 180px;
+}
+
+.postal-name-part {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* ── 7. Badges & Indicators ── */
+.postal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  justify-content: center;
+}
+
+.postal-badge-success {
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.postal-badge-warning {
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.postal-badge-info {
+  background-color: #f0fdfa;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+}
+
+.postal-badge-gray {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.postal-badge-blue {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+/* ── 8. Pagination ── */
+.postal-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+}
+
+.postal-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.postal-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  background-color: #ffffff;
+  color: var(--gray-700, #334155);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.postal-page-btn:hover:not(:disabled) {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-400, #94a3b8);
+}
+
+.postal-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.postal-page-btn.active {
+  background-color: var(--primary, #0D7446);
+  border-color: var(--primary, #0D7446);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ── 9. Detail Modal ── */
+.postal-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.postal-modal {
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 840px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  animation: postalModalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes postalModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.postal-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.postal-modal-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  margin: 0;
+}
+
+.postal-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--gray-500, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.postal-modal-close:hover {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-800, #1e293b);
+}
+
+.postal-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  padding: 0 24px;
+  background-color: var(--gray-50, #f8fafc);
+}
+
+.postal-modal-tab-btn {
+  padding: 12px 18px;
+  border: none;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--gray-600, #475569);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.postal-modal-tab-btn:hover {
+  color: var(--gray-900, #0f172a);
+}
+
+.postal-modal-tab-btn.active {
+  color: var(--primary, #0D7446);
+  border-bottom-color: var(--primary, #0D7446);
+  font-weight: 600;
+}
+
+.postal-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.postal-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .postal-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.postal-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background-color: var(--gray-50, #f8fafc);
+  border-radius: 8px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.postal-detail-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gray-500, #64748b);
+}
+
+.postal-detail-val {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--gray-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.postal-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.postal-copy-btn:hover {
+  color: var(--primary, #0D7446);
+}
+
+.postal-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--gray-500, #64748b);
+  text-align: center;
+  gap: 12px;
+}

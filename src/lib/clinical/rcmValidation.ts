@@ -91,6 +91,218 @@ export const sssDentalQuerySchema = baseFiscalDateSchema.extend({
 })
 
 /**
+ * Thai Traditional Medicine Topic 3 Query Schema
+ */
+export const ttmTopic3QuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: z
+      .enum([
+        'ALL',
+        'TREATMENT_DRUG',
+        'TREATMENT_MASSAGE',
+        'TREATMENT_COMPRESS',
+        'TREATMENT_OTHER',
+        'COMPENSATED',
+        'UNCOMPENSATED',
+        'WITH_AUTHEN',
+      ])
+      .default('ALL'),
+    place: z.enum(['ALL', 'IN_HOSP', 'OUT_HOSP']).default('ALL'),
+    treatmentType: z.string().max(10).optional(),
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+    sortBy: z
+      .enum([
+        'vstdate',
+        'vsttime',
+        'hn',
+        'cid',
+        'ptname',
+        'age',
+        'income',
+        'compensated',
+        'pdx',
+        'authencode',
+      ])
+      .default('vstdate'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * Thai Traditional Medicine Topic 11 Query Schema
+ */
+export const ttmTopic11QuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: z
+      .enum([
+        'ALL',
+        'COMPENSATED',
+        'UNCOMPENSATED',
+        'WITH_AUTHEN',
+        'NO_AUTHEN',
+        'HIP_UCS',
+        'HIP_WEL',
+        'WITH_INVOICE',
+      ])
+      .default('ALL'),
+    sortBy: z
+      .enum([
+        'vstdate',
+        'vsttime',
+        'hn',
+        'cid',
+        'ptname',
+        'age',
+        'income',
+        'totalQty',
+        'totalDrugAmount',
+        'compensated',
+        'pdx',
+        'authCode',
+      ])
+      .default('vstdate'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * Telemed 11.53 Query Schema
+ */
+export const telemedReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: z
+      .enum([
+        'ALL',
+        'COMPENSATED',
+        'UNCOMPENSATED',
+        'WITH_AUTHEN',
+        'NO_AUTHEN',
+        'UC_ONLY',
+        'WITH_PRICE',
+        'EXPORT_CODE_5',
+      ])
+      .default('ALL'),
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+    searchField: z
+      .enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'DIAG', 'PTTYPE', 'DEPARTMENT', 'CLINIC'])
+      .default('ALL'),
+    sortBy: z
+      .enum([
+        'vstdate',
+        'vsttime',
+        'hn',
+        'cid',
+        'ptname',
+        'income',
+        'sum_price',
+        'compensated',
+        'pdx',
+        'authencode',
+      ])
+      .default('vstdate'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * Postal Drug 11.52 Query Schema (ส่งยาไปรษณีย์)
+ */
+export const postalDrugReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: z
+      .enum([
+        'ALL',
+        'COMPENSATED',
+        'UNCOMPENSATED',
+        'WITH_AUTHEN',
+        'NO_AUTHEN',
+        'UC_ONLY',
+        'WITH_PRICE',
+        'WITHOUT_PRICE',
+      ])
+      .default('ALL'),
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+    searchField: z
+      .enum(['ALL', 'HN', 'CID', 'PTNAME', 'VN', 'DIAG', 'PTTYPE', 'DEPARTMENT', 'CLINIC'])
+      .default('ALL'),
+    sortBy: z
+      .enum([
+        'vstdate',
+        'vsttime',
+        'hn',
+        'cid',
+        'ptname',
+        'income',
+        'sum_price',
+        'compensated',
+        'pdx',
+        'authencode',
+      ])
+      .default('vstdate'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * HOMEWARD Report Query Schema (ระบบ AMed และ Home Ward)
+ */
+export const homewardReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: z
+      .enum([
+        'ALL',
+        'ON_AMED',
+        'NOT_ON_AMED',
+        'WITH_AUTHEN',
+        'NO_AUTHEN',
+        'WITH_REP',
+        'NO_REP',
+        'WITH_DEBIT',
+      ])
+      .default('ALL'),
+    search: z.string().max(120).optional(),
+    sortBy: z
+      .enum([
+        'dchdate',
+        'admdate',
+        'an',
+        'hn',
+        'cid',
+        'ptname',
+        'age',
+        'los',
+        'pdx',
+        'income',
+        'debit',
+        'adjrw',
+      ])
+      .default('dchdate'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
  * Helper to validate URLSearchParams using a Zod schema cleanly
  */
 export function validateSearchParams<T>(
@@ -113,3 +325,4 @@ export function validateSearchParams<T>(
     data: result.data,
   }
 }
+

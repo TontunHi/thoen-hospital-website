@@ -1,0 +1,972 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   11. รายชื่อผู้รับบริการรับยาสมุนไพร 32 รายการ (page.css)
+   Clean, modern, breathable UI following $ui-style-brief and $unslop standards.
+───────────────────────────────────────────────────────────────────────────── */
+
+.ttm11-container {
+  padding: 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  color: var(--foreground, #1e293b);
+  font-family: var(--font-sans, inherit);
+}
+
+/* ── 1. Page Header ── */
+.ttm11-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ttm11-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ttm11-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.ttm11-breadcrumb-link {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.ttm11-breadcrumb-link:hover {
+  color: var(--primary, #0d7446);
+}
+
+.ttm11-breadcrumb-sep {
+  color: #94a3b8;
+}
+
+.ttm11-breadcrumb-current {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.ttm11-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.ttm11-subtitle {
+  font-size: 0.9375rem;
+  color: #475569;
+  margin: 0;
+  max-width: 860px;
+  line-height: 1.5;
+}
+
+.ttm11-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Buttons ── */
+.ttm11-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.ttm11-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ttm11-btn-primary {
+  background: var(--primary, #0d7446);
+  color: #ffffff;
+  border-color: var(--primary, #0d7446);
+  box-shadow: 0 1px 2px rgba(13, 116, 70, 0.15);
+}
+
+.ttm11-btn-primary:hover:not(:disabled) {
+  background: #0a5c37;
+  border-color: #0a5c37;
+}
+
+.ttm11-btn-secondary {
+  background: #ffffff;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.ttm11-btn-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+/* ── 2. Unified Single-Row Date Selector ── */
+.ttm11-date-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.ttm11-date-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.ttm11-date-tabs {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+}
+
+.ttm11-date-tab {
+  padding: 6px 14px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.ttm11-date-tab:hover {
+  color: #0f172a;
+}
+
+.ttm11-date-tab.is-active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+.ttm11-date-divider {
+  width: 1px;
+  height: 28px;
+  background: #e2e8f0;
+}
+
+.ttm11-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ttm11-date-label {
+  font-size: 0.875rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.ttm11-date-select {
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  min-height: 38px;
+}
+
+.ttm11-date-select:focus {
+  border-color: var(--primary, #0d7446);
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.15);
+}
+
+/* ── 3. Symmetrical 4-Column KPI Grid ── */
+.ttm11-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.ttm11-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+  min-height: 110px;
+}
+
+.ttm11-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.ttm11-kpi-card.is-active {
+  border-color: var(--primary, #0d7446);
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.2), 0 4px 12px rgba(13, 116, 70, 0.08);
+  background: #fbfdfc;
+}
+
+.ttm11-kpi-card.is-active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary, #0d7446);
+}
+
+.ttm11-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ttm11-kpi-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.ttm11-kpi-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ttm11-kpi-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ttm11-kpi-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.ttm11-kpi-sub {
+  font-size: 0.8125rem;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 4. Search & Filters Bar ── */
+.ttm11-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ttm11-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+  max-width: 480px;
+}
+
+.ttm11-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.ttm11-search-input {
+  width: 100%;
+  padding: 10px 38px 10px 40px;
+  font-size: 0.875rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.ttm11-search-input:focus {
+  border-color: var(--primary, #0d7446);
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.15);
+}
+
+.ttm11-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ttm11-search-clear:hover {
+  color: #475569;
+}
+
+.ttm11-secondary-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ttm11-active-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #e6f4ea;
+  color: #0d7446;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.ttm11-active-filter-clear {
+  border: none;
+  background: transparent;
+  color: #0d7446;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.ttm11-active-filter-clear:hover {
+  background: rgba(13, 116, 70, 0.15);
+}
+
+/* ── 5. Data Table Section ── */
+.ttm11-table-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.ttm11-table-meta {
+  padding: 14px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.ttm11-row-hint {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.ttm11-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.ttm11-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ttm11-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.ttm11-table td {
+  padding: 14px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.col-center {
+  text-align: center;
+}
+
+.col-left {
+  text-align: left;
+}
+
+.col-right {
+  text-align: right;
+}
+
+.ttm11-row-clickable {
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.ttm11-row-clickable:hover {
+  background-color: #f8fafc;
+}
+
+.ttm11-row-clickable:active {
+  background-color: #f1f5f9;
+}
+
+.ttm11-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.text-muted {
+  color: #94a3b8;
+}
+
+.text-success {
+  color: #059669;
+}
+
+.text-danger {
+  color: #dc2626;
+}
+
+.text-primary {
+  color: var(--primary, #0d7446);
+}
+
+.ttm11-patient-name {
+  display: inline-block;
+  text-align: center;
+}
+
+.ttm11-name-part {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.ttm11-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.ttm11-sort-btn:hover {
+  color: var(--primary, #0d7446);
+}
+
+.ttm11-sort-btn svg {
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.ttm11-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.ttm11-badge-ok {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.ttm11-badge-warn {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.ttm11-badge-danger {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.ttm11-badge-info {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.ttm11-badge-neutral {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* ── Pagination ── */
+.ttm11-pagination {
+  padding: 14px 20px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ttm11-pagination-info {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.ttm11-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ttm11-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #334155;
+  min-height: 32px;
+  transition: all 0.15s ease;
+}
+
+.ttm11-page-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.ttm11-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ttm11-page-status {
+  padding: 0 8px;
+  font-size: 0.875rem;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+.ttm11-page-size-select {
+  padding: 6px 8px;
+  font-size: 0.8125rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+/* ── Empty & Loading States ── */
+.ttm11-empty-state {
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  color: #64748b;
+}
+
+.ttm11-empty-icon {
+  color: #94a3b8;
+}
+
+.ttm11-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.ttm11-empty-desc {
+  font-size: 0.875rem;
+  max-width: 480px;
+  line-height: 1.5;
+}
+
+.ttm11-loading-card {
+  padding: 48px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #475569;
+  font-size: 0.9375rem;
+}
+
+/* ── 6. Patient Detail Modal ── */
+.ttm11-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.ttm11-modal-panel {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  animation: scaleUp 0.18s ease-out;
+}
+
+.ttm11-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background: #f8fafc;
+}
+
+.ttm11-modal-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ttm11-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ttm11-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.ttm11-modal-age {
+  font-size: 0.875rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.ttm11-modal-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.ttm11-modal-close {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.ttm11-modal-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.ttm11-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0 24px;
+  gap: 8px;
+}
+
+.ttm11-modal-tab {
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.ttm11-modal-tab:hover {
+  color: #0f172a;
+}
+
+.ttm11-modal-tab.is-active {
+  color: var(--primary, #0d7446);
+  border-bottom-color: var(--primary, #0d7446);
+  font-weight: 600;
+}
+
+.ttm11-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(90vh - 170px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ttm11-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.ttm11-modal-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ttm11-modal-section.col-span-2 {
+  grid-column: span 2;
+}
+
+.ttm11-section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ttm11-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ttm11-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  gap: 12px;
+}
+
+.ttm11-info-label {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.ttm11-info-val {
+  color: #0f172a;
+  text-align: right;
+  word-break: break-word;
+}
+
+.ttm11-drug-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.ttm11-drug-table th {
+  background: #f1f5f9;
+  padding: 8px 10px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ttm11-drug-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+
+.ttm11-copy-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.ttm11-copy-inline:hover {
+  background: #e2e8f0;
+}
+
+.ttm11-copy-feedback {
+  font-size: 0.6875rem;
+  color: #059669;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+/* ── Keyframe Animations ── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .ttm11-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ttm11-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ttm11-modal-section.col-span-2 {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .ttm11-container {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .ttm11-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ttm11-date-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ttm11-date-divider {
+    display: none;
+  }
+}

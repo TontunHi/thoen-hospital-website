@@ -1045,14 +1045,7 @@ export default function IronSupplements182Client({
                     <td className="col-center iron-num font-mono">{item.hn}</td>
                     <td className="col-center iron-num font-mono">{item.cid}</td>
                     <td className="col-left">{item.ptname}</td>
-                    <td className="col-center iron-num">
-                      {item.age} ปี{' '}
-                      {item.isTargetAge && (
-                        <span className="iron-target-pill" style={{ marginLeft: 4 }}>
-                          13-45
-                        </span>
-                      )}
-                    </td>
+                    <td className="col-center iron-num">{item.age} ปี</td>
                     <td className="col-center">
                       <span className={`iron-badge ${item.isUc ? 'iron-badge-ok' : 'iron-badge-neutral'}`}>
                         {item.pttypename || item.maininscl || '—'}
@@ -1176,9 +1169,6 @@ export default function IronSupplements182Client({
                   <span>VN: {selectedItem.vn}</span>
                   <span>·</span>
                   <span>อายุ {selectedItem.age} ปี</span>
-                  {selectedItem.isTargetAge && (
-                    <span className="iron-target-pill">กลุ่มเป้าหมาย 13-45 ปี</span>
-                  )}
                 </div>
               </div>
               <button
