@@ -81,6 +81,7 @@ describe('DashboardRcmShell Component', () => {
     expect(screen.getByRole('button', { name: /การทดสอบการตั้งครรภ์/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /วางแผนครอบครัว & คุมกำเนิด \(FP\)/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /คัดกรองมะเร็งช่องปาก/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /คัดกรองสุขภาพกาย\/จิต/ })).toBeInTheDocument()
 
     expect(screen.getByTestId('test-content')).toBeInTheDocument()
     expect(screen.getByText('← หน้าบริการ')).toBeInTheDocument()

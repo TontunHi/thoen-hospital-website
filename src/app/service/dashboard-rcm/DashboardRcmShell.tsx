@@ -287,6 +287,24 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
           },
         ],
       },
+      {
+        href: '/service/dashboard-rcm/funds/health-screening',
+        label: 'คัดกรองสุขภาพกาย/จิต (ADP)',
+        badge: '14',
+        icon: Activity,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/health-screening/14-5',
+            label: 'Fasting Plasma Glucose (12003)',
+            badge: '14.5',
+          },
+          {
+            href: '/service/dashboard-rcm/funds/health-screening/14-6',
+            label: 'Total Cholesterol / HDL (12004)',
+            badge: '14.6',
+          },
+        ],
+      },
     ],
   },
 ]
