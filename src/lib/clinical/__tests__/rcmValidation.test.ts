@@ -6,6 +6,8 @@ import {
   opdDeptSummaryQuerySchema,
   ipdReportQuerySchema,
   clopidogrelReportQuerySchema,
+  dentalImplantDensurQuerySchema,
+  walkinFundReportQuerySchema,
   validateSearchParams,
 } from '../rcmValidation'
 
@@ -79,6 +81,44 @@ describe('rcmValidation module', () => {
       expect(parsed.data.search).toBe('สมชาย')
       expect(parsed.data.page).toBe(1)
       expect(parsed.data.pageSize).toBe(50)
+    }
+  })
+
+  it('validates dentalImplantDensurQuerySchema cardFilter and pagination defaults', () => {
+    const parsed = dentalImplantDensurQuerySchema.safeParse({
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+      cardFilter: 'WITH_AUTHEN',
+      search: 'K081',
+      page: '2',
+      pageSize: '50',
+    })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.cardFilter).toBe('WITH_AUTHEN')
+      expect(parsed.data.search).toBe('K081')
+      expect(parsed.data.page).toBe(2)
+      expect(parsed.data.pageSize).toBe(50)
+      expect(parsed.data.sortOrder).toBe('desc')
+    }
+  })
+
+  it('validates walkinFundReportQuerySchema cardFilter and pagination defaults', () => {
+    const parsed = walkinFundReportQuerySchema.safeParse({
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+      cardFilter: 'COMPENSATED',
+      search: 'WALKIN',
+      page: '1',
+      pageSize: '50',
+    })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.cardFilter).toBe('COMPENSATED')
+      expect(parsed.data.search).toBe('WALKIN')
+      expect(parsed.data.page).toBe(1)
+      expect(parsed.data.pageSize).toBe(50)
+      expect(parsed.data.sortOrder).toBe('desc')
     }
   })
 })

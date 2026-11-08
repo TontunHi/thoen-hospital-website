@@ -1,0 +1,793 @@
+/* ==========================================================================
+   Cancer Fund ADP Patients Page Styles - Thoen Hospital RCM UI
+   Adheres to ui-style-brief: Sarabun font, #0D7446 quiet chrome, 4px rhythm
+   ========================================================================== */
+
+.cancer-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px 32px 64px;
+  font-family: var(--font-family, 'Sarabun', sans-serif);
+  color: var(--gray-900, #1e293b);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.cancer-header {
+  margin-bottom: 24px;
+}
+
+.cancer-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--gray-500, #64748b);
+  margin-bottom: 8px;
+}
+
+.cancer-breadcrumb a {
+  color: var(--gray-500, #64748b);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.cancer-breadcrumb a:hover {
+  color: #0d7446;
+}
+
+.cancer-breadcrumb-sep {
+  color: var(--gray-400, #94a3b8);
+}
+
+.cancer-breadcrumb-current {
+  color: var(--gray-700, #334155);
+  font-weight: 500;
+}
+
+.cancer-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.cancer-title-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cancer-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--gray-900, #0f172a);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.cancer-subtitle {
+  font-size: 15px;
+  color: var(--gray-600, #475569);
+  font-weight: 400;
+  margin: 0;
+}
+
+.cancer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.cancer-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  background-color: #ffffff;
+  color: var(--gray-700, #334155);
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  height: 40px;
+  font-family: inherit;
+}
+
+.cancer-btn:hover:not(:disabled) {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-300, #cbd5e1);
+  color: var(--gray-900, #0f172a);
+}
+
+.cancer-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancer-btn-primary {
+  background-color: #0d7446;
+  border-color: #0d7446;
+  color: #ffffff;
+}
+
+.cancer-btn-primary:hover:not(:disabled) {
+  background-color: #0a5c37;
+  border-color: #0a5c37;
+  color: #ffffff;
+}
+
+.cancer-btn-icon-only {
+  padding: 8px;
+  width: 40px;
+}
+
+/* ── ADP Warning Banner ─────────────────────────────────────────────────── */
+
+.cancer-adp-warning {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  color: #92400e;
+  font-size: 14px;
+}
+
+/* ── Filter Bar ─────────────────────────────────────────────────────────── */
+
+.cancer-filter-bar {
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cancer-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.cancer-date-selector {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cancer-date-modes {
+  display: inline-flex;
+  background-color: var(--gray-100, #f1f5f9);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.cancer-date-mode-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--gray-600, #475569);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+  font-family: inherit;
+}
+
+.cancer-date-mode-btn.active {
+  background-color: #ffffff;
+  color: #0d7446;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.cancer-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cancer-select {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 14px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: var(--gray-800, #1e293b);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.cancer-select:focus {
+  border-color: #0d7446;
+}
+
+.cancer-date-sep {
+  color: var(--gray-400, #94a3b8);
+  font-size: 14px;
+}
+
+.cancer-search-box {
+  position: relative;
+  min-width: 280px;
+  flex: 1;
+  max-width: 400px;
+}
+
+.cancer-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400, #94a3b8);
+  pointer-events: none;
+}
+
+.cancer-search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 36px 0 36px;
+  font-size: 14px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  border-radius: 8px;
+  font-family: inherit;
+  color: var(--gray-800, #1e293b);
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.cancer-search-input:focus {
+  border-color: #0d7446;
+}
+
+.cancer-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.cancer-search-clear:hover {
+  color: var(--gray-600, #475569);
+}
+
+/* ── Summary Cards Grid (Clickable Filters) ─────────────────────────────── */
+
+.cancer-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.cancer-card {
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+  position: relative;
+  text-align: left;
+}
+
+.cancer-card:hover {
+  border-color: #0d7446;
+  background-color: #fafcfb;
+}
+
+.cancer-card.active {
+  border-color: #0d7446;
+  background-color: #f2f8f4;
+  box-shadow: 0 0 0 1px #0d7446;
+}
+
+.cancer-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cancer-card-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-600, #475569);
+}
+
+.cancer-card.active .cancer-card-label {
+  color: #0d7446;
+  font-weight: 600;
+}
+
+.cancer-card-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--gray-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.cancer-card.active .cancer-card-value {
+  color: #0d7446;
+}
+
+.cancer-card-sub {
+  font-size: 12px;
+  color: var(--gray-500, #64748b);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cancer-card-non-clickable {
+  cursor: default;
+  background-color: #ffffff;
+}
+
+.cancer-card-non-clickable:hover {
+  border-color: var(--gray-200, #e2e8f0);
+  background-color: #ffffff;
+}
+
+/* ── Table Container & Standards ────────────────────────────────────────── */
+
+.cancer-table-wrapper {
+  background-color: #ffffff;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.cancer-table-toolbar {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  background-color: var(--gray-50, #f8fafc);
+  font-size: 14px;
+}
+
+.cancer-table-info {
+  color: var(--gray-600, #475569);
+  font-weight: 500;
+}
+
+.cancer-active-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  background-color: #e6f4ea;
+  color: #0d7446;
+  font-weight: 500;
+}
+
+.cancer-table-scroll {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.cancer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+/* Vertical and horizontal centering for alignment standard */
+.cancer-table th,
+.cancer-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  vertical-align: middle;
+}
+
+.cancer-table th {
+  background-color: var(--gray-50, #f8fafc);
+  color: var(--gray-700, #334155);
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.cancer-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.cancer-sort-btn:hover {
+  color: #0d7446;
+}
+
+.cancer-table tbody tr {
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.cancer-table tbody tr:hover {
+  background-color: #f7faf8;
+}
+
+.cancer-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Explicit alignment classes */
+.col-center {
+  text-align: center;
+}
+
+.col-left {
+  text-align: left;
+}
+
+.col-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Name and Surname intact wrap */
+.cancer-name-wrap {
+  display: inline-flex;
+  gap: 4px;
+  justify-content: center;
+  text-align: center;
+}
+
+.cancer-name-part {
+  white-space: nowrap;
+}
+
+/* Badges */
+.cancer-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-success {
+  background-color: #e6f4ea;
+  color: #0d7446;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge-neutral {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-600, #475569);
+}
+
+.badge-info {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+
+.cancer-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--gray-200, #e2e8f0);
+  background-color: #ffffff;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cancer-pagination-info {
+  font-size: 13px;
+  color: var(--gray-600, #475569);
+}
+
+.cancer-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cancer-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  background-color: #ffffff;
+  color: var(--gray-700, #334155);
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-family: inherit;
+}
+
+.cancer-page-btn:hover:not(:disabled) {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-300, #cbd5e1);
+}
+
+.cancer-page-btn.active {
+  background-color: #0d7446;
+  border-color: #0d7446;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.cancer-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Loading, Empty & Error States ──────────────────────────────────────── */
+
+.cancer-state-container {
+  padding: 60px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.cancer-state-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gray-800, #1e293b);
+  margin: 0;
+}
+
+.cancer-state-desc {
+  font-size: 14px;
+  color: var(--gray-500, #64748b);
+  max-width: 440px;
+  margin: 0;
+}
+
+/* ── Modal Detail (Opened by clicking record) ───────────────────────────── */
+
+.cancer-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.cancer-modal {
+  background-color: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  animation: cancerModalIn 150ms ease-out;
+}
+
+@keyframes cancerModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.cancer-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #ffffff;
+}
+
+.cancer-modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cancer-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--gray-900, #0f172a);
+  margin: 0;
+}
+
+.cancer-modal-subtitle {
+  font-size: 13px;
+  color: var(--gray-500, #64748b);
+  margin: 0;
+}
+
+.cancer-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 120ms ease;
+}
+
+.cancer-modal-close:hover {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-700, #334155);
+}
+
+.cancer-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  background-color: var(--gray-50, #f8fafc);
+  padding: 0 24px;
+}
+
+.cancer-modal-tab-btn {
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--gray-600, #475569);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 150ms ease;
+  font-family: inherit;
+}
+
+.cancer-modal-tab-btn:hover {
+  color: var(--gray-900, #0f172a);
+}
+
+.cancer-modal-tab-btn.active {
+  color: #0d7446;
+  border-bottom-color: #0d7446;
+  font-weight: 600;
+  background-color: #ffffff;
+}
+
+.cancer-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cancer-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .cancer-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cancer-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cancer-detail-label {
+  font-size: 12.5px;
+  color: var(--gray-500, #64748b);
+  font-weight: 500;
+}
+
+.cancer-detail-value {
+  font-size: 14px;
+  color: var(--gray-800, #1e293b);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.cancer-detail-section-title {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0d7446;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  margin-top: 12px;
+}
+
+.cancer-modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--gray-200, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background-color: var(--gray-50, #f8fafc);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .cancer-container {
+    padding: 16px;
+  }
+  .cancer-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .cancer-cards-grid {
+    grid-template-columns: 1fr;
+  }
+  .cancer-search-box {
+    max-width: 100%;
+  }
+}

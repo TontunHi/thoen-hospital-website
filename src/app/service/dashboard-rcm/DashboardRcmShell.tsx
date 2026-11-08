@@ -31,6 +31,7 @@ import {
   Home,
   Search,
   Accessibility,
+  Footprints,
 } from 'lucide-react'
 
 export interface NavSubItem {
@@ -517,6 +518,45 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
             href: '/service/dashboard-rcm/funds/instrument',
             label: 'รายชื่อผู้รับบริการ อวัยวะเทียมและอุปกรณ์',
             badge: 'รายชื่อ',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/dental-implant',
+        label: 'กองทุนรากฟันเทียม',
+        badge: 'รากฟัน',
+        icon: Sparkles,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/dental-implant/densur',
+            label: 'รายชื่อบริการผ่าตัดใส่รากฟันเทียม DENSUR',
+            badge: 'DENSUR',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/cancer',
+        label: 'กองทุนมะเร็ง',
+        badge: 'CANCER',
+        icon: Activity,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/cancer/adp',
+            label: 'รายชื่อผู้ป่วย จาก ADP (CANCER)',
+            badge: 'ADP',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/walkin',
+        label: 'กองทุน Walkin',
+        badge: 'WALKIN',
+        icon: Footprints,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/walkin/adp',
+            label: 'รายชื่อผู้รับบริการจาก ADP (WALKIN)',
+            badge: 'WALKIN',
           },
         ],
       },

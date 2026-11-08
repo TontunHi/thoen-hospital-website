@@ -295,3 +295,27 @@ Route Handler (`src/app/api/service/dashboard-rcm/**/route.ts`) ต้องบ�
    cmd.exe /c "npm run build"
    ```
    *ต้องผ่านฉลุย Exit Code 0 พร้อม TypeScript strict check*
+
+---
+
+## 12. หลักการพัฒนาและแก้ไขโค้ดอย่างมีเสถียรภาพ (AI Reliability & Atomic Protocol)
+
+เพื่อป้องกันการหลุดโฟกัสหรือแก้ไขโค้ดผิดพลาด (Hallucination) เมื่อทำงานกับระบบ RCM ขนาดใหญ่:
+
+1. **Analyze First, Edit Later (วิเคราะห์ตรรกะก่อนลงมือ):**
+   - อ่านทำความเข้าใจ Data Flow ครบวงจร (Service → API → SSR → Client) ก่อนลงมือแตะต้องไฟล์
+   - ระบุสาเหตุที่แท้จริงและประเมินผลกระทบต่อ 5 เสาหลักเสมอ ห้ามแก้แบบลองสุ่ม
+2. **Atomic Layered Changes (แก้ทีละเลเยอร์ ไม่ข้ามขั้น):**
+   - ลำดับการทำอย่างเป็นระเบียบ:
+     1. Service Layer & Type Definition (`src/lib/clinical/**`)
+     2. API Route & Zod Validation (`src/app/api/service/dashboard-rcm/**`)
+     3. SSR Page & Prefetch (`src/app/service/dashboard-rcm/**/page.tsx`)
+     4. Client State & Double-Fetch Guard (`*Client.tsx`)
+     5. Lazy Modal / Table UI Presentation
+   - หลีกเลี่ยงการแก้ทุกเลเยอร์พร้อมกันในคำสั่งเดียว ให้ตรวจเช็คความถูกต้องทีละชั้น
+3. **Strict Scope Pinning (ล็อคไฟล์เป้าหมายให้ชัดเจน):**
+   - เจาะจงทำงานเฉพาะไฟล์ที่เกี่ยวข้องโดยตรง หลีกเลี่ยงการสแกนหรือแก้ไฟล์อื่นนอกเหนือ scope เพื่อรักษา Context ให้สะอาด
+4. **Preserve Business Logic & Defensive Guards (รักษาตรรกะเดิม):**
+   - ห้ามลบ comment คำอธิบายทางธุรกิจ, ห้ามตัดเงื่อนไข SQL ของ HOSxP ที่ถูกต้องอยู่แล้ว, และคง Defensive Rendering (`?? 0`, `?.toFixed(1)`) ไว้อย่างเคร่งครัด
+5. **Continuous Verification (ตรวจสอบผลลัพธ์ทันที):**
+   - หลังแก้ไข ให้รัน Unit Test เฉพาะไฟล์นั้นทันทีก่อนข้ามไปทำจุดถัดไป เพื่อตรวจจับข้อผิดพลาดตั้งแต่เนิ่นๆ

@@ -52,7 +52,10 @@ $routes = @(
     @{ Name = "funds/thalassemia-fund/ipd"; Route = "src/app/service/dashboard-rcm/funds/thalassemia-fund/ipd"; Client = "ThalassemiaIpdClient.tsx"; Service = "rcmThalassemiaFundService.ts"; Api = "src/app/api/service/dashboard-rcm/funds/thalassemia-fund/ipd/route.ts" },
     @{ Name = "funds/viral-hepatitis/23-1"; Route = "src/app/service/dashboard-rcm/funds/viral-hepatitis/23-1"; Client = "ViralHepatitis231Client.tsx"; Service = "rcmViralHepatitisService.ts"; Api = "src/app/api/service/dashboard-rcm/funds/viral-hepatitis/service-23-1/route.ts" },
     @{ Name = "funds/instrument"; Route = "src/app/service/dashboard-rcm/funds/instrument"; Client = "InstrumentFundClient.tsx"; Service = "rcmInstrumentFundService.ts"; Api = "src/app/api/service/dashboard-rcm/funds/instrument/route.ts" },
-    @{ Name = "funds/rehabilitation/imc/eligible-patients"; Route = "src/app/service/dashboard-rcm/funds/rehabilitation/imc/eligible-patients"; Client = "ImcEligiblePatientsClient.tsx"; Service = "rcmImcService.ts"; Api = "src/app/api/service/dashboard-rcm/funds/rehabilitation/imc/eligible-patients/route.ts" }
+    @{ Name = "funds/rehabilitation/imc/eligible-patients"; Route = "src/app/service/dashboard-rcm/funds/rehabilitation/imc/eligible-patients"; Client = "ImcEligiblePatientsClient.tsx"; Service = "rcmImcService.ts"; Api = "src/app/api/service/dashboard-rcm/funds/rehabilitation/imc/eligible-patients/route.ts" },
+    @{ Name = "funds/cancer/adp"; Route = "src/app/service/dashboard-rcm/funds/cancer/adp"; Client = "CancerFundAdpClient.tsx"; Service = "rcmCancerFundService.ts"; Api = "src/app/api/service/dashboard-rcm/funds/cancer/adp/route.ts" },
+    @{ Name = "funds/dental-implant/densur"; Route = "src/app/service/dashboard-rcm/funds/dental-implant/densur"; Client = "DentalImplantDensurClient.tsx"; Service = "rcmDentalImplantService.ts"; Api = "src/app/api/service/dashboard-rcm/funds/dental-implant/densur/route.ts" },
+    @{ Name = "funds/walkin/adp"; Route = "src/app/service/dashboard-rcm/funds/walkin/adp"; Client = "WalkinFundClient.tsx"; Service = "rcmWalkinFundService.ts"; Api = "src/app/api/service/dashboard-rcm/funds/walkin/route.ts" }
 )
 
 $detailedResults = @()

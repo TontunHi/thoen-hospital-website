@@ -101,3 +101,20 @@ description: Thoen Hospital UI design system, anti-AI-slop craft workflow, and c
    - **หน้าสาธารณะ / ผู้ป่วย / งานทั่วไป (`/check-date`, พอร์ทัล `/member` ทั่วไป):** Mask เลขบัตรประชาชนและ HN แสดงเฉพาะ **4 หลักท้าย** (`x-xxxx-xxxxx-xx-1` หรือ `•••1234`)
    - **หน้าตรวจสอบภายในระบบ RCM (`/service/dashboard-rcm/**`):** เป็นพอร์ทัลเฉพาะเจ้าหน้าที่การเงิน/เวชระเบียนที่ยืนยันสิทธิ์ Role-based Auth และบันทึก `logThrottledAudit('READ', ...)` แล้ว — แสดงเลขบัตรประชาชน **ครบ 13 หลัก** และ HN/VN เต็มเพื่อใช้กระทบยอด e-Claim/REP สปสช. ได้ทันทีโดยไม่ต้องทำปุ่มซ่อน/แสดงให้รก UI
 3. **เกณฑ์ตรวจคุณภาพ:** อ่าน [references/review-checklist.md](references/review-checklist.md) และทำ **"Template Test"** ทุกครั้ง — *ถ้าเอาชื่อโรงพยาบาลออก หน้านี้ยังดูเป็นเทมเพลตทั่วไปหรือไม่?* ถ้าใช่ ให้ปรับ Direction, Hierarchy และ Copy ให้ชัดขึ้นอีก
+
+---
+
+## หลักการแก้ไข UI อย่างแม่นยำและไม่หลุดโฟกัส (AI Craft & Precision Protocol)
+
+เพื่อป้องกันการหลุดสไตล์หรือทำลายโครงสร้างและฟังก์ชันของหน้าจอ:
+
+1. **Pinning Target Components (ล็อคเฉพาะคอมโพเนนต์เป้าหมาย):**
+   - เจาะจงระบุไฟล์คอมโพเนนต์และจุดที่ต้องการปรับปรุงให้ชัดเจน (เช่น `DateSelector.tsx`, `SummaryCards.tsx`) หลีกเลี่ยงการสั่งแก้ทั้งหน้าจอพร้อมกัน
+2. **Sequential Passes (ทำตามลำดับ Passes ไม่ข้ามขั้น):**
+   - ไล่แก้ทีละประเด็นตามลำดับ 9 Passes (จัด Spacing/Grid → ปรับ Token สี → จัด Typography/Alignment) เพื่อป้องกันการใส่คลาส CSS ตีกันหรือเลย์เอาต์พัง
+3. **Preserve Interactive State & Logic (คงตรรกะและฟังก์ชันเดิม):**
+   - เมื่อปรับแต่งสไตล์ CSS Modules หรือ Tailwind ต้องรักษา Event Handler (`onClick`, `onChange`), State Hooks, Sorting/Filter Logic, และการรองรับ Accessibility ไว้อย่างครบถ้วน
+4. **Anti-Slop Restraint (คุมโทนโรงพยาบาลอย่างเคร่งครัด):**
+   - ยึดหลัก *Quiet Chrome, Rich Content* ตัดสิ่งเกินจำเป็น (ห้ามใส่ Emoji ในระบบ, ห้ามใส่การ์ด Gradient แฟนซี, ห้ามใช้ Pill Badge ลอยซ้ำซ้อน)
+5. **Visual Verification (ตรวจสอบบนหน้าจอจริงทันที):**
+   - ใช้เครื่องมือ Browser Preview (`preview_*`) ตรวจสอบผลลัพธ์จริงทั้งบนเดสก์ท็อปและมุมมองอุปกรณ์พกพาหลังแก้เสร็จ

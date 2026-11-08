@@ -1,0 +1,953 @@
+/* Dental Implant DENSUR Report - Hospital Design System */
+
+.densur-container {
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+  font-family: var(--font-sarabun, 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif);
+  color: #1f2937;
+  background-color: #fafcfb;
+  min-height: 100vh;
+}
+
+/* ── 1. Header & Breadcrumbs ── */
+.densur-header {
+  margin-bottom: 24px;
+}
+
+.densur-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.densur-breadcrumb a {
+  color: #6b7280;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.densur-breadcrumb a:hover {
+  color: #0d7446;
+}
+
+.densur-breadcrumb-separator {
+  color: #9ca3af;
+}
+
+.densur-breadcrumb-current {
+  color: #111827;
+  font-weight: 500;
+}
+
+.densur-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.densur-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.densur-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: -0.01em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.densur-title-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0d7446;
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 4px;
+}
+
+.densur-subtitle {
+  font-size: 14px;
+  color: #4b5563;
+  margin: 0;
+}
+
+.densur-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.densur-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  white-space: nowrap;
+}
+
+.densur-btn-primary {
+  background-color: #0d7446;
+  color: #ffffff;
+  border: 1px solid #0d7446;
+}
+
+.densur-btn-primary:hover:not(:disabled) {
+  background-color: #0a5c37;
+  border-color: #0a5c37;
+}
+
+.densur-btn-secondary {
+  background-color: #ffffff;
+  color: #374151;
+  border: 1px solid #e2e8e4;
+}
+
+.densur-btn-secondary:hover:not(:disabled) {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.densur-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── 2. Warnings & Banner ── */
+.densur-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  color: #92400e;
+  font-size: 14px;
+}
+
+.densur-warning-icon {
+  flex-shrink: 0;
+  color: #d97706;
+  margin-top: 1px;
+}
+
+.densur-warning-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── 3. Date Selector Toolbar ── */
+.densur-date-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #ffffff;
+  border: 1px solid #e2e8e4;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.densur-date-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.densur-segmented-tabs {
+  display: inline-flex;
+  background-color: #f3f4f6;
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.densur-tab-btn {
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.densur-tab-btn.active {
+  background-color: #ffffff;
+  color: #0d7446;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+}
+
+.densur-date-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #e5e7eb;
+}
+
+.densur-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.densur-date-range-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.densur-date-range-to {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.densur-select {
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #374151;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.densur-select:focus {
+  border-color: #0d7446;
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.15);
+}
+
+/* ── 4. KPI Summary Cards Grid ── */
+.densur-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1200px) {
+  .densur-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .densur-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .densur-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.densur-kpi-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8e4;
+  border-radius: 8px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.densur-kpi-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.densur-kpi-card.active {
+  border-color: #0d7446;
+  background-color: #fafffc;
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.15);
+}
+
+.densur-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.densur-kpi-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.densur-kpi-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  background-color: #f3f4f6;
+}
+
+.densur-kpi-icon-all {
+  color: #0d7446;
+  background-color: #ecfdf5;
+}
+
+.densur-kpi-icon-success {
+  color: #059669;
+  background-color: #ecfdf5;
+}
+
+.densur-kpi-icon-warning {
+  color: #d97706;
+  background-color: #fffbeb;
+}
+
+.densur-kpi-icon-info {
+  color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.densur-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.densur-kpi-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.densur-kpi-unit {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.densur-kpi-sub {
+  font-size: 11px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+/* ── 5. Search Bar & Toolbar ── */
+.densur-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.densur-search-box {
+  position: relative;
+  flex: 1;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+}
+
+.densur-search-icon {
+  position: absolute;
+  left: 12px;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.densur-search-input {
+  width: 100%;
+  padding: 8px 36px 8px 36px;
+  font-size: 13px;
+  color: #1f2937;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.densur-search-input:focus {
+  border-color: #0d7446;
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.15);
+}
+
+.densur-search-clear {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.densur-search-clear:hover {
+  color: #4b5563;
+}
+
+.densur-toolbar-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.densur-stat-highlight {
+  font-weight: 600;
+  color: #111827;
+}
+
+.densur-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 4px;
+}
+
+.densur-chip-clear {
+  background: transparent;
+  border: none;
+  color: #065f46;
+  cursor: pointer;
+  padding: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── 6. Table & Card (100% Alignment Horizontal & Vertical) ── */
+.densur-table-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8e4;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.densur-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.densur-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: center; /* Horizontally centered */
+  vertical-align: middle; /* Vertically centered */
+}
+
+/* All Table Headers & Cells Centered */
+.densur-table th,
+.densur-table td {
+  text-align: center;
+  vertical-align: middle;
+  padding: 10px 8px;
+  border: 1px solid #e2e8e4;
+  line-height: 1.5;
+}
+
+.densur-table th {
+  background-color: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.densur-table thead tr:first-child th {
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.densur-th-sort {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 150ms ease;
+  width: 100%;
+}
+
+.densur-th-sort:hover {
+  background-color: #e2e8f0;
+}
+
+.densur-table tbody tr {
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.densur-table tbody tr:hover {
+  background-color: #f0fdf4 !important; /* Soft mint highlight on hover */
+}
+
+.densur-table tbody tr:nth-child(even) {
+  background-color: #fbfdfc;
+}
+
+.densur-table td {
+  color: #1e293b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Column Specific Constraints */
+.densur-col-no {
+  width: 50px;
+}
+
+.densur-col-date {
+  width: 95px;
+  white-space: nowrap;
+}
+
+.densur-col-time {
+  width: 75px;
+  white-space: nowrap;
+}
+
+.densur-col-hn {
+  width: 80px;
+  font-weight: 500;
+}
+
+.densur-col-cid {
+  width: 135px;
+  white-space: nowrap;
+  font-family: monospace, monospace;
+}
+
+.densur-col-name {
+  min-width: 160px;
+  white-space: nowrap;
+}
+
+.densur-col-age {
+  width: 60px;
+}
+
+.densur-col-pttype {
+  min-width: 140px;
+}
+
+.densur-col-authen {
+  width: 110px;
+  font-family: monospace, monospace;
+}
+
+.densur-col-code {
+  width: 55px;
+  font-family: monospace, monospace;
+  font-size: 12px;
+}
+
+.densur-col-listname {
+  min-width: 180px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.densur-col-status {
+  width: 120px;
+}
+
+.densur-col-rep {
+  width: 90px;
+  font-family: monospace, monospace;
+}
+
+.densur-col-compensated {
+  width: 100px;
+  font-weight: 600;
+}
+
+/* Badge Styles */
+.densur-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.densur-badge-success {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.densur-badge-warning {
+  background-color: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.densur-badge-neutral {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+
+.densur-badge-authen {
+  background-color: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  font-family: monospace, monospace;
+}
+
+/* ── 7. Pagination ── */
+.densur-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: #ffffff;
+  border-top: 1px solid #e2e8e4;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.densur-page-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.densur-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.densur-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.densur-page-btn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.densur-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.densur-page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.densur-page-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #374151;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.densur-page-num.active {
+  background-color: #0d7446;
+  color: #ffffff;
+  border-color: #0d7446;
+  font-weight: 600;
+}
+
+/* ── 8. Empty & Loading States ── */
+.densur-loading-state,
+.densur-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.densur-spinner {
+  animation: densur-spin 1s linear infinite;
+  color: #0d7446;
+  margin-bottom: 12px;
+}
+
+@keyframes densur-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.densur-empty-icon {
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.densur-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 6px 0;
+}
+
+.densur-empty-desc {
+  font-size: 13px;
+  color: #6b7280;
+  max-width: 400px;
+  margin: 0;
+}
+
+/* ── 9. Detail Modal (Clickable Record View) ── */
+.densur-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.densur-modal-dialog {
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e2e8e4;
+}
+
+.densur-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f8fafc;
+}
+
+.densur-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.densur-modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.densur-modal-close {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+}
+
+.densur-modal-close:hover {
+  background-color: #e2e8f0;
+  color: #111827;
+}
+
+.densur-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.densur-modal-section {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background-color: #fafcfb;
+}
+
+.densur-modal-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.densur-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .densur-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.densur-modal-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.densur-modal-item-label {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.densur-modal-item-value {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.densur-copy-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.densur-copy-btn:hover {
+  color: #0d7446;
+}
+
+.densur-code-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.densur-code-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace, monospace;
+  color: #374151;
+}
+
+.densur-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 20px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f8fafc;
+}

@@ -579,6 +579,122 @@ export const instrumentReportQuerySchema = baseFiscalDateSchema
   .merge(paginationSchema.partial())
 
 /**
+ * Dental Implant DENSUR Report Query Schema (กองทุนรากฟันเทียม - DENSUR)
+ */
+export const dentalImplantCardFilterSchema = z
+  .enum(['ALL', 'COMPENSATED', 'UNCOMPENSATED', 'WITH_AUTHEN', 'NO_AUTHEN', 'UC_ONLY'])
+  .default('ALL')
+
+export const dentalImplantSortFieldSchema = z
+  .enum([
+    'vstdate',
+    'vsttime',
+    'hn',
+    'cid',
+    'ptname',
+    'age',
+    'pttypename',
+    'authencode',
+    'pdx',
+    'listname',
+    'status',
+    'rep',
+    'compensated',
+  ])
+  .default('vstdate')
+
+export const dentalImplantDensurQuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: dentalImplantCardFilterSchema,
+    search: z.string().max(120).optional(),
+    sortBy: dentalImplantSortFieldSchema,
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * Cancer Fund ADP Query Schema (กองทุนมะเร็ง - CANCER ADP)
+ */
+export const cancerFundCardFilterSchema = z
+  .enum(['ALL', 'COMPENSATED', 'UNCOMPENSATED', 'WITH_AUTHEN', 'NO_AUTHEN', 'INVOICE', 'UC_ONLY'])
+  .default('ALL')
+
+export const cancerFundSortFieldSchema = z
+  .enum([
+    'vstdate',
+    'vsttime',
+    'hn',
+    'cid',
+    'ptname',
+    'age',
+    'pttypename',
+    'authencode',
+    'pdx',
+    'listname',
+    'status_eclaim',
+    'rep',
+    'compensated',
+  ])
+  .default('vstdate')
+
+export const cancerFundAdpQuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: cancerFundCardFilterSchema,
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+    search: z.string().max(120).optional(),
+    sortBy: cancerFundSortFieldSchema,
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * Walkin Fund Report Query Schema (กองทุน Walkin - ADP WALKIN)
+ */
+export const walkinFundCardFilterSchema = z
+  .enum(['ALL', 'WITH_AUTHEN', 'NO_AUTHEN', 'COMPENSATED', 'INVOICE', 'UNSENT', 'UC_ONLY'])
+  .default('ALL')
+
+export const walkinFundSortFieldSchema = z
+  .enum([
+    'vstdate',
+    'vsttime',
+    'hn',
+    'cid',
+    'ptname',
+    'age',
+    'income',
+    'compensated',
+    'pdx',
+    'authencode',
+    'pttypename',
+  ])
+  .default('vstdate')
+
+export const walkinFundReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: walkinFundCardFilterSchema,
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+    search: z.string().max(120).optional(),
+    sortBy: walkinFundSortFieldSchema,
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+
+/**
  * Helper to validate URLSearchParams using a Zod schema cleanly
  */
 export function validateSearchParams<T>(
