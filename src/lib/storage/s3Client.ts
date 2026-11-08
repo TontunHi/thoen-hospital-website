@@ -73,6 +73,9 @@ export function getS3Client(): S3Client {
  * Check if S3 / MinIO storage is enabled.
  */
 export function isS3Configured(): boolean {
+  if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
+    return Boolean(process.env.ENABLE_TEST_S3)
+  }
   return Boolean(S3_CONFIG.endpoint && S3_CONFIG.accessKeyId && S3_CONFIG.secretAccessKey)
 }
 
