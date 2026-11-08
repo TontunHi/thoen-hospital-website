@@ -1,14 +1,15 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import { RcmFamilyPlanningService } from '@/lib/clinical/rcmFamilyPlanningService'
+import { getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
 import ImplantRemovalClient from './ImplantRemovalClient'
 
 export const metadata = {
-  title: '9.3.1.2 รายการถอดยาคุม (FP002_2) | กองทุนบริการวางแผนครอบครัว Dashboard-RCM',
-  description:
-    'รายงานหัวข้อที่ 9.3.1.2 รายการถอดยาคุมกำเนิด รหัส ADP: FP002_2 ตรวจสอบการลงรหัส Dx Z308 ค่าบริการ และสถานะการชดเชยค่าบริการ E-Claim / สปสช. โรงพยาบาลเถิน',
+  title: '9.3.1.2 รายการถอดยาคุม | Dashboard-RCM โรงพยาบาลเถิน',
+  description: 'รายงานการให้บริการถอดยาคุมกำเนิด โรงพยาบาลเถิน',
 }
 
-export default async function FamilyPlanningService9312Page() {
+export default async function ImplantRemovalPage() {
   const session = await verifyMemberSession()
   if (!session) {
     redirect('/member/login')
@@ -18,5 +19,17 @@ export default async function FamilyPlanningService9312Page() {
     redirect('/service')
   }
 
-  return <ImplantRemovalClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData = null
+  try {
+    initialData = await RcmFamilyPlanningService.getFamilyPlanning93Report({
+      reportType: '9.3.1.2',
+      startDate: defaultRange.startDate,
+      endDate: defaultRange.endDate,
+    })
+  } catch {
+    initialData = null
+  }
+
+  return <ImplantRemovalClient initialData={initialData} initialRange={defaultRange} />
 }

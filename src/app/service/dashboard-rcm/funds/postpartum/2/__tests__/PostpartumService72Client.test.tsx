@@ -156,7 +156,8 @@ describe('PostpartumService72Client (Postpartum 7.2 ADP 30015)', () => {
     fireEvent.click(compCard)
 
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('compensationFilter=COMPENSATED')
+      expect.stringContaining('compensationFilter=COMPENSATED'),
+      expect.anything()
     )
   })
 

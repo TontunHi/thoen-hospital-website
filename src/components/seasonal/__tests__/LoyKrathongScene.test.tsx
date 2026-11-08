@@ -1,5 +1,23 @@
-import { describe, it, expect } from 'vitest'
-import { isLoyKrathongSeason } from '../LoyKrathongScene'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render } from '@testing-library/react'
+import LoyKrathongScene, { isLoyKrathongSeason } from '../LoyKrathongScene'
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: vi.fn(() => ({
+    get: (param: string) => (param === 'theme' ? 'loy-krathong' : null),
+  })),
+}))
+
+vi.mock('next/image', () => ({
+  default: ({
+    fill: _fill,
+    priority: _priority,
+    ...props
+  }: React.ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; priority?: boolean }) => {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img {...props} alt={props.alt || ''} />
+  },
+}))
 
 describe('LoyKrathongScene - isLoyKrathongSeason', () => {
   it('returns true when date is within the Loy Krathong season (Nov 1 to Nov 30 in Asia/Bangkok)', () => {
@@ -32,5 +50,21 @@ describe('LoyKrathongScene - isLoyKrathongSeason', () => {
     // Songkran in April
     const april = new Date('2026-04-13T05:00:00Z')
     expect(isLoyKrathongSeason(april)).toBe(false)
+  })
+})
+
+describe('LoyKrathongScene Component', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders the animated Loy Krathong elements and artwork when active', () => {
+    const { container } = render(<LoyKrathongScene />)
+    const wrapper = container.querySelector('[aria-hidden="true"]')
+    expect(wrapper).toBeTruthy()
+
+    // Verifies SVG krathongs, lanterns and fireworks exist in the DOM
+    const svgs = container.querySelectorAll('svg')
+    expect(svgs.length).toBeGreaterThanOrEqual(10) // 8 lanterns + 5 krathongs + 3 fireworks
   })
 })

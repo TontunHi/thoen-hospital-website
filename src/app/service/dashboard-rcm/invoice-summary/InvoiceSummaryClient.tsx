@@ -44,7 +44,17 @@ const THAI_MONTH_SHORT = [
   'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
 ]
 
-export default function InvoiceSummaryClient() {
+export interface InvoiceSummaryClientProps {
+  initialSummary?: InvoiceSummaryResult | null
+  initialDetail?: InvoiceDetailResult | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function InvoiceSummaryClient({
+  initialSummary,
+  initialDetail,
+  initialRange,
+}: InvoiceSummaryClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const currentCalYear = today.getFullYear()
   const currentMonth = today.getMonth() + 1
@@ -53,8 +63,8 @@ export default function InvoiceSummaryClient() {
   // Default to ongoing calendar month
   const initialMStr = String(currentMonth).padStart(2, '0')
   const initialLastDay = new Date(currentCalYear, currentMonth, 0).getDate()
-  const defaultDs1 = `${currentCalYear}-${initialMStr}-01`
-  const defaultDs2 = `${currentCalYear}-${initialMStr}-${String(initialLastDay).padStart(2, '0')}`
+  const defaultDs1 = initialRange?.startDate || `${currentCalYear}-${initialMStr}-01`
+  const defaultDs2 = initialRange?.endDate || `${currentCalYear}-${initialMStr}-${String(initialLastDay).padStart(2, '0')}`
 
   // ── Filters & Controls State ───────────────────────────────
   const [department, setDepartment] = useState<'OP' | 'IP'>('OP')
@@ -69,11 +79,11 @@ export default function InvoiceSummaryClient() {
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
 
   // ── Data States ───────────────────────────────────────────
-  const [summaryData, setSummaryData] = useState<InvoiceSummaryResult | null>(null)
+  const [summaryData, setSummaryData] = useState<InvoiceSummaryResult | null>(initialSummary || null)
   const [summaryLoading, setSummaryLoading] = useState<boolean>(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
 
-  const [detailData, setDetailData] = useState<InvoiceDetailResult | null>(null)
+  const [detailData, setDetailData] = useState<InvoiceDetailResult | null>(initialDetail || null)
   const [detailLoading, setDetailLoading] = useState<boolean>(false)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [page, setPage] = useState<number>(1)
@@ -157,6 +167,8 @@ export default function InvoiceSummaryClient() {
   // Request Cancellation
   const abortSummaryRef = useRef<AbortController | null>(null)
   const abortDetailRef = useRef<AbortController | null>(null)
+  const isFirstMountSummary = useRef(true)
+  const isFirstMountDetail = useRef(true)
 
   // ── Fetch Summary Data ─────────────────────────────────────
   const fetchSummary = useCallback(async () => {
@@ -222,18 +234,26 @@ export default function InvoiceSummaryClient() {
 
   // Trigger data fetches on filter changes
   useEffect(() => {
+    if (isFirstMountSummary.current) {
+      isFirstMountSummary.current = false
+      if (initialSummary) return
+    }
     fetchSummary()
     return () => {
       abortSummaryRef.current?.abort()
     }
-  }, [fetchSummary])
+  }, [fetchSummary, initialSummary])
 
   useEffect(() => {
+    if (isFirstMountDetail.current) {
+      isFirstMountDetail.current = false
+      if (initialDetail) return
+    }
     fetchDetails()
     return () => {
       abortDetailRef.current?.abort()
     }
-  }, [fetchDetails])
+  }, [fetchDetails, initialDetail])
 
   // When clicking a row in Summary table
   const handlePttypeClick = (code: string) => {

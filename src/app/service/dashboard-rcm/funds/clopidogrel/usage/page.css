@@ -1,0 +1,995 @@
+/* ── Clopidogrel Fund Dashboard Styles ──
+ * Conforming to $ui-style-brief and $unslop design system:
+ * - 4px spacing scale
+ * - Breathing room (comfortable density)
+ * - Quiet chrome, purposeful visual anchors, semantic colors
+ * - Center-aligned table columns, tabular figures
+ * - Balanced 4x2 KPI grid layout
+ * - Row-clickable table without button clutter
+ */
+
+.clop-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 32px 48px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+  color: var(--gray-800, #1e293b);
+  font-family: var(--font-sarabun, 'Sarabun', sans-serif);
+}
+
+/* ── 1. Header & Breadcrumbs ── */
+.clop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.clop-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.clop-breadcrumb a {
+  color: var(--gray-500, #64748b);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.clop-breadcrumb a:hover {
+  color: var(--primary, #0D7446);
+}
+
+.clop-breadcrumb-sep {
+  color: var(--gray-300, #cbd5e1);
+}
+
+.clop-breadcrumb-cur {
+  color: var(--gray-800, #1e293b);
+  font-weight: 500;
+}
+
+.clop-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+}
+
+.clop-subtitle {
+  font-size: 0.875rem;
+  color: var(--gray-600, #475569);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.clop-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.clop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  background-color: #ffffff;
+  color: var(--gray-700, #334155);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.clop-btn:hover:not(:disabled) {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-400, #94a3b8);
+}
+
+.clop-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.clop-btn-primary {
+  background-color: var(--primary, #0D7446);
+  border-color: var(--primary, #0D7446);
+  color: #ffffff;
+}
+
+.clop-btn-primary:hover:not(:disabled) {
+  background-color: #0b613a;
+  border-color: #0b613a;
+}
+
+/* ── 2. Warnings & Banner ── */
+.clop-warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: 10px;
+  background-color: #fefce8;
+  border: 1px solid #fef08a;
+  color: #854d0e;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.clop-warning-icon {
+  flex-shrink: 0;
+  color: #ca8a04;
+  margin-top: 2px;
+}
+
+.clop-warning-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── 3. Date Selector Toolbar (Single-Row) ── */
+.clop-date-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.clop-date-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.clop-segmented-tabs {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--gray-100, #f1f5f9);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.clop-tab-btn {
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--gray-600, #475569);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.clop-tab-btn:hover:not(.active) {
+  color: var(--gray-900, #0f172a);
+}
+
+.clop-tab-btn.active {
+  background-color: #ffffff;
+  color: var(--primary, #0D7446);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.clop-date-divider {
+  width: 1px;
+  height: 28px;
+  background-color: var(--gray-200, #e2e8f0);
+}
+
+.clop-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.clop-date-range-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clop-date-range-to {
+  font-size: 0.875rem;
+  color: var(--gray-500, #64748b);
+}
+
+.clop-select {
+  height: 38px;
+  padding: 0 32px 0 12px;
+  font-size: 0.875rem;
+  color: var(--gray-800, #1e293b);
+  border-radius: 8px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+}
+
+.clop-select:focus {
+  outline: none;
+  border-color: var(--primary, #0D7446);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.15);
+}
+
+/* ── 4. Equal 4x2 Balanced KPI Grid ── */
+.clop-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.clop-kpi-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 18px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  min-height: 104px;
+}
+
+.clop-kpi-card:hover {
+  border-color: var(--gray-300, #cbd5e1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.clop-kpi-card.active {
+  border-color: var(--primary, #0D7446);
+  background-color: #f7fbf9;
+  box-shadow: 0 0 0 1.5px var(--primary, #0D7446);
+}
+
+.clop-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.clop-kpi-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--gray-600, #475569);
+  line-height: 1.3;
+}
+
+.clop-kpi-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-500, #64748b);
+  transition: all 0.15s ease;
+}
+
+.clop-kpi-icon-all {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-600, #475569);
+}
+
+.clop-kpi-icon-success {
+  background-color: #f0fdf4;
+  color: #15803d;
+}
+
+.clop-kpi-icon-warning {
+  background-color: #fffbeb;
+  color: #b45309;
+}
+
+.clop-kpi-icon-teal {
+  background-color: #f0fdfa;
+  color: #0f766e;
+}
+
+.clop-kpi-icon-indigo {
+  background-color: var(--gray-100, #f1f5f9);
+  color: var(--gray-600, #475569);
+}
+
+.clop-kpi-icon-danger {
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.clop-kpi-card:hover .clop-kpi-icon-wrap {
+  color: var(--gray-800, #1e293b);
+}
+
+.clop-kpi-card.active .clop-kpi-icon-wrap {
+  background-color: #e6f4ea;
+  color: var(--primary, #0D7446);
+}
+
+.clop-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.clop-kpi-value {
+  font-size: 1.625rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.clop-kpi-unit {
+  font-size: 0.8125rem;
+  color: var(--gray-500, #64748b);
+}
+
+.clop-kpi-sub {
+  font-size: 0.75rem;
+  color: var(--gray-500, #64748b);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 5. Search Bar & Toolbar ── */
+.clop-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background-color: #ffffff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+}
+
+.clop-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+  max-width: 520px;
+}
+
+.clop-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400, #94a3b8);
+  pointer-events: none;
+}
+
+.clop-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 36px 0 38px;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  background-color: #ffffff;
+  color: var(--gray-800, #1e293b);
+  transition: all 0.15s ease;
+}
+
+.clop-search-input:focus {
+  outline: none;
+  border-color: var(--primary, #0D7446);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.15);
+}
+
+.clop-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.clop-search-clear:hover {
+  color: var(--gray-600, #475569);
+  background-color: var(--gray-100, #f1f5f9);
+}
+
+.clop-toolbar-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.875rem;
+  color: var(--gray-600, #475569);
+}
+
+.clop-stat-highlight {
+  font-weight: 600;
+  color: var(--primary, #0D7446);
+  font-variant-numeric: tabular-nums;
+}
+
+.clop-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 10px;
+  background-color: #e6f4ea;
+  color: var(--primary, #0D7446);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border: 1px solid #b7e1cd;
+}
+
+.clop-chip-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--primary, #0D7446);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.clop-chip-clear:hover {
+  background-color: rgba(13, 116, 70, 0.15);
+}
+
+/* ── 6. Table Layout (Centered, Breathing Room, Row Clickable) ── */
+.clop-table-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.clop-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.clop-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.clop-table th {
+  background-color: var(--gray-50, #f8fafc);
+  color: var(--gray-700, #334155);
+  font-weight: 600;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.clop-th-sort {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.clop-th-sort:hover {
+  color: var(--primary, #0D7446);
+}
+
+.clop-th-sort svg {
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.clop-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--gray-100, #f1f5f9);
+  color: var(--gray-800, #1e293b);
+  height: 54px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.clop-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.clop-table tbody tr:hover {
+  background-color: #f7fbf9;
+}
+
+/* Cell alignment helpers */
+.clop-col-center {
+  text-align: center !important;
+}
+
+.clop-col-right {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.clop-col-left {
+  text-align: left !important;
+}
+
+/* Patient Name Centered on X-Axis & Intact Wrap */
+.clop-name-cell {
+  text-align: center;
+  min-width: 180px;
+}
+
+.clop-name-wrap {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Tabular figures for numbers */
+.clop-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Badges */
+.clop-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.clop-badge-success {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.clop-badge-warning {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.clop-badge-info {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.clop-badge-gray {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.clop-badge-uc {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+/* ── 7. Pagination ── */
+.clop-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border-top: 1px solid var(--gray-200, #e2e8f0);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.clop-pagination-info {
+  font-size: 0.875rem;
+  color: var(--gray-600, #475569);
+  font-variant-numeric: tabular-nums;
+}
+
+.clop-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clop-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-300, #cbd5e1);
+  background-color: #ffffff;
+  color: var(--gray-700, #334155);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+}
+
+.clop-page-btn:hover:not(:disabled) {
+  background-color: var(--gray-50, #f8fafc);
+  border-color: var(--gray-400, #94a3b8);
+}
+
+.clop-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.clop-page-current {
+  font-size: 0.875rem;
+  color: var(--gray-700, #334155);
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 8. Empty & Loading States ── */
+.clop-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 20px;
+  text-align: center;
+  color: var(--gray-500, #64748b);
+}
+
+.clop-empty-icon {
+  color: var(--gray-400, #94a3b8);
+  margin-bottom: 16px;
+}
+
+.clop-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--gray-800, #1e293b);
+  margin: 0 0 8px 0;
+}
+
+.clop-empty-desc {
+  font-size: 0.875rem;
+  color: var(--gray-500, #64748b);
+  max-width: 420px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.clop-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 20px;
+  color: var(--gray-500, #64748b);
+  gap: 12px;
+}
+
+.clop-spinner {
+  animation: clopSpin 1s linear infinite;
+  color: var(--primary, #0D7446);
+}
+
+@keyframes clopSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 9. Detail Modal (Interactive Record View) ── */
+.clop-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.clop-modal-container {
+  background-color: #ffffff;
+  border-radius: 16px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  animation: clopModalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes clopModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.clop-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.clop-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900, #0f172a);
+  margin: 0 0 4px 0;
+}
+
+.clop-modal-subtitle {
+  font-size: 0.875rem;
+  color: var(--gray-500, #64748b);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.clop-modal-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  color: var(--gray-600, #475569);
+  margin-top: 4px;
+}
+
+.clop-modal-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clop-modal-meta-sep {
+  color: var(--gray-300, #cbd5e1);
+}
+
+.clop-copy-btn {
+  background: none;
+  border: none;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.clop-copy-btn:hover {
+  color: var(--primary, #0D7446);
+  background-color: var(--gray-100, #f1f5f9);
+}
+
+.clop-modal-close {
+  border: none;
+  background: transparent;
+  color: var(--gray-400, #94a3b8);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.clop-modal-close:hover {
+  color: var(--gray-700, #334155);
+  background-color: var(--gray-100, #f1f5f9);
+}
+
+.clop-modal-tabs {
+  display: flex;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--gray-200, #e2e8f0);
+  background-color: var(--gray-50, #f8fafc);
+  gap: 8px;
+}
+
+.clop-modal-tab-btn {
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--gray-600, #475569);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.clop-modal-tab-btn.active {
+  color: var(--primary, #0D7446);
+  border-bottom-color: var(--primary, #0D7446);
+  font-weight: 600;
+  background-color: #ffffff;
+}
+
+.clop-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.clop-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.clop-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--gray-900, #0f172a);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clop-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 20px;
+  background-color: var(--gray-50, #f8fafc);
+  padding: 16px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.clop-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.clop-detail-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gray-500, #64748b);
+}
+
+.clop-detail-val {
+  font-size: 0.875rem;
+  color: var(--gray-900, #0f172a);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.clop-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid var(--gray-200, #e2e8f0);
+  background-color: var(--gray-50, #f8fafc);
+}
+
+/* ── 10. Responsive Breakpoints ── */
+@media (max-width: 1200px) {
+  .clop-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .clop-container {
+    padding: 16px 16px 36px;
+    gap: 16px;
+  }
+
+  .clop-date-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clop-date-left {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clop-date-divider {
+    display: none;
+  }
+
+  .clop-date-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clop-date-range-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clop-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .clop-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .clop-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}

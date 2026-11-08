@@ -137,7 +137,8 @@ describe('ThalassemiaService31Client Component', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=RISK')
+        expect.stringContaining('cardFilter=RISK'),
+        expect.anything()
       )
     })
   })

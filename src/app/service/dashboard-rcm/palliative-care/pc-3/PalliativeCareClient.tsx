@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { PalliativeCareItem, PalliativeCareSummary } from '@/lib/clinical/rcmDashboardService'
 import { VnDetailModal } from '../components/VnDetailModal'
 import { formatThaiDate } from '@/lib/formatters'
@@ -24,7 +24,15 @@ const THAI_MONTHS = [
 
 const YEAR_OPTIONS = [2572, 2571, 2570, 2569, 2568, 2567, 2566, 2565]
 
-export default function PalliativeCareClient() {
+export interface PalliativeCareClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function PalliativeCareClient({
+  initialData,
+  initialRange,
+}: PalliativeCareClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -51,34 +59,43 @@ export default function PalliativeCareClient() {
     }
   }, [curCalYear, curMonth])
 
-  const [ds1, setDs1] = useState<string>(initialMonthlyRange.start)
-  const [ds2, setDs2] = useState<string>(initialMonthlyRange.end)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || initialMonthlyRange.start)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || initialMonthlyRange.end)
 
   // Filter states
   const [ucOnly, setUcOnly] = useState<boolean>(true)
   const [filterType, setFilterType] = useState<'ALL' | 'Chronic' | 'Opioid' | 'Death'>('ALL')
   const [deathStatus, setDeathStatus] = useState<'ALL' | 'Y' | 'N'>('ALL')
+  const [z515Filter, setZ515Filter] = useState<'ALL' | 'Y' | 'N'>('ALL')
   const [compensatedFilter, setCompensatedFilter] = useState<string>('ALL')
-  const [availableCompensations, setAvailableCompensations] = useState<number[]>([
-    750, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000,
-  ])
+  const [availableCompensations, setAvailableCompensations] = useState<number[]>(
+    initialData?.availableCompensations || [
+      750, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000,
+    ]
+  )
   const [search, setSearch] = useState<string>('')
+  const [baseSummary, setBaseSummary] = useState<PalliativeCareSummary | null>(initialData?.summary || null)
 
   // Data states
-  const [loading, setLoading] = useState<boolean>(true)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<PalliativeCareItem[]>([])
-  const [summary, setSummary] = useState<PalliativeCareSummary>({
-    totalVisits: 0,
-    totalPatients: 0,
-    advanceCarePlanCount: 0,
-    opioidCount: 0,
-    hasZ515Count: 0,
-    missingZ515Count: 0,
-    paidCount: 0,
-    totalCompensated: 0,
-    deceasedCount: 0,
-  })
+  const [items, setItems] = useState<PalliativeCareItem[]>(initialData?.items || [])
+  const [summary, setSummary] = useState<PalliativeCareSummary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      totalPatients: 0,
+      advanceCarePlanCount: 0,
+      opioidCount: 0,
+      hasZ515Count: 0,
+      missingZ515Count: 0,
+      paidCount: 0,
+      totalCompensated: 0,
+      deceasedCount: 0,
+    }
+  )
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -87,6 +104,79 @@ export default function PalliativeCareClient() {
   // Selected row for detail modal
   const [selectedItem, setSelectedItem] = useState<PalliativeCareItem | null>(null)
   const [selectedVn, setSelectedVn] = useState<string | null>(null)
+
+  // Reset base summary when date range or UC changes
+  useEffect(() => {
+    setBaseSummary(null)
+  }, [ds1, ds2, ucOnly])
+
+  // Active Card Filter flags
+  const isTotalActive = filterType === 'ALL' && deathStatus === 'ALL' && compensatedFilter === 'ALL' && z515Filter === 'ALL'
+  const isAcpActive = filterType === 'Chronic'
+  const isOpioidActive = filterType === 'Opioid'
+  const isZ515Active = z515Filter === 'Y'
+  const isNoZ515Active = z515Filter === 'N'
+  const isPaidActive = compensatedFilter === 'PAID'
+  const isDeathActive = deathStatus === 'Y'
+
+  // Card filter click handler
+  const handleCardClick = (card: 'ALL' | 'ACP' | 'OPIOID' | 'Z515' | 'NO_Z515' | 'PAID' | 'DEATH') => {
+    setCurrentPage(1)
+    if (card === 'ALL') {
+      setFilterType('ALL')
+      setDeathStatus('ALL')
+      setCompensatedFilter('ALL')
+      setZ515Filter('ALL')
+    } else if (card === 'ACP') {
+      const next = isAcpActive ? 'ALL' : 'Chronic'
+      setFilterType(next)
+      if (next !== 'ALL') {
+        setDeathStatus('ALL')
+        setCompensatedFilter('ALL')
+        setZ515Filter('ALL')
+      }
+    } else if (card === 'OPIOID') {
+      const next = isOpioidActive ? 'ALL' : 'Opioid'
+      setFilterType(next)
+      if (next !== 'ALL') {
+        setDeathStatus('ALL')
+        setCompensatedFilter('ALL')
+        setZ515Filter('ALL')
+      }
+    } else if (card === 'Z515') {
+      const next = isZ515Active ? 'ALL' : 'Y'
+      setZ515Filter(next)
+      if (next !== 'ALL') {
+        setFilterType('ALL')
+        setDeathStatus('ALL')
+        setCompensatedFilter('ALL')
+      }
+    } else if (card === 'NO_Z515') {
+      const next = isNoZ515Active ? 'ALL' : 'N'
+      setZ515Filter(next)
+      if (next !== 'ALL') {
+        setFilterType('ALL')
+        setDeathStatus('ALL')
+        setCompensatedFilter('ALL')
+      }
+    } else if (card === 'PAID') {
+      const next = isPaidActive ? 'ALL' : 'PAID'
+      setCompensatedFilter(next)
+      if (next !== 'ALL') {
+        setFilterType('ALL')
+        setDeathStatus('ALL')
+        setZ515Filter('ALL')
+      }
+    } else if (card === 'DEATH') {
+      const next = isDeathActive ? 'ALL' : 'Y'
+      setDeathStatus(next)
+      if (next !== 'ALL') {
+        setFilterType('ALL')
+        setCompensatedFilter('ALL')
+        setZ515Filter('ALL')
+      }
+    }
+  }
 
   // Handle Date Mode Changes
   const handleModeChange = (mode: 'custom' | 'monthly' | 'fiscal') => {
@@ -125,6 +215,12 @@ export default function PalliativeCareClient() {
 
   // Fetch report data
   const fetchData = useCallback(async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setLoading(true)
     setError(null)
     try {
@@ -135,6 +231,9 @@ export default function PalliativeCareClient() {
         filterType,
         deathStatus,
       })
+      if (z515Filter !== 'ALL') {
+        q.set('z515Status', z515Filter)
+      }
       if (compensatedFilter && compensatedFilter !== 'ALL') {
         q.set('compensated', compensatedFilter)
       }
@@ -142,7 +241,9 @@ export default function PalliativeCareClient() {
         q.set('search', search.trim())
       }
 
-      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/pc-3?${q.toString()}`)
+      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/pc-3?${q.toString()}`, {
+        signal: controller.signal,
+      })
       const data = await res.json()
 
       if (!res.ok || !data.success) {
@@ -153,31 +254,46 @@ export default function PalliativeCareClient() {
       if (Array.isArray(data.availableCompensations) && data.availableCompensations.length > 0) {
         setAvailableCompensations(data.availableCompensations)
       }
-      setSummary(
-        data.summary || {
-          totalVisits: 0,
-          totalPatients: 0,
-          advanceCarePlanCount: 0,
-          opioidCount: 0,
-          hasZ515Count: 0,
-          missingZ515Count: 0,
-          paidCount: 0,
-          totalCompensated: 0,
-          deceasedCount: 0,
-        }
-      )
+      const newSummary = data.summary || {
+        totalVisits: 0,
+        totalPatients: 0,
+        advanceCarePlanCount: 0,
+        opioidCount: 0,
+        hasZ515Count: 0,
+        missingZ515Count: 0,
+        paidCount: 0,
+        totalCompensated: 0,
+        deceasedCount: 0,
+      }
+      setSummary(newSummary)
+      if (isTotalActive && !search.trim()) {
+        setBaseSummary(newSummary)
+      }
       setCurrentPage(1)
     } catch (err: unknown) {
       const errorObj = err as Error
-      setError(errorObj.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+      if (errorObj.name !== 'AbortError') {
+        setError(errorObj.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+      }
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
     }
-  }, [ds1, ds2, ucOnly, filterType, deathStatus, compensatedFilter, search])
+  }, [ds1, ds2, ucOnly, filterType, deathStatus, z515Filter, compensatedFilter, search, isTotalActive])
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
 
   // Paginated items
   const paginatedItems = useMemo(() => {
@@ -315,73 +431,115 @@ export default function PalliativeCareClient() {
       </div>
 
       {/* 2. Vibrant Metric Cards Bar */}
-      <div className="pc3-metric-bar">
-        <div className="pc3-metric-card pc3-card-total">
+      <div className="pc3-metric-bar" role="region" aria-label="สรุปสถิติและตัวกรองด่วนผ่านการ์ด">
+        <button
+          type="button"
+          className={`pc3-metric-card pc3-card-total pc3-metric-card-btn ${isTotalActive ? 'is-active is-active-total' : ''}`}
+          onClick={() => handleCardClick('ALL')}
+          aria-pressed={isTotalActive}
+          title={isTotalActive ? 'แสดงผู้ป่วยทั้งหมด' : 'คลิกเพื่อดูผู้ป่วยทั้งหมด'}
+        >
           <div className="pc3-metric-label">ผู้ป่วย Palliative ทั้งหมด</div>
           <div className="pc3-metric-val">
-            {summary.totalPatients.toLocaleString()}
+            {(baseSummary || summary).totalPatients.toLocaleString()}
             <span className="pc3-metric-unit">คน</span>
           </div>
           <div className="pc3-metric-sub">
-            จำนวนรับบริการ: {summary.totalVisits.toLocaleString()} ครั้ง
+            จำนวนรับบริการ: {(baseSummary || summary).totalVisits.toLocaleString()} ครั้ง
           </div>
-        </div>
+        </button>
 
-        <div className="pc3-metric-card pc3-card-acp">
+        <button
+          type="button"
+          className={`pc3-metric-card pc3-card-acp pc3-metric-card-btn ${isAcpActive ? 'is-active is-active-acp' : ''}`}
+          onClick={() => handleCardClick('ACP')}
+          aria-pressed={isAcpActive}
+          title={isAcpActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วย Advance Care Plan (Dx + Z718)'}
+        >
           <div className="pc3-metric-label">Advance Care Plan</div>
           <div className="pc3-metric-val" style={{ color: '#0f766e' }}>
-            {summary.advanceCarePlanCount.toLocaleString()}
+            {(baseSummary || summary).advanceCarePlanCount.toLocaleString()}
             <span className="pc3-metric-unit">ครั้ง</span>
           </div>
           <div className="pc3-metric-sub">เกณฑ์ Dx + Z718</div>
-        </div>
+        </button>
 
-        <div className="pc3-metric-card pc3-card-opioid">
+        <button
+          type="button"
+          className={`pc3-metric-card pc3-card-opioid pc3-metric-card-btn ${isOpioidActive ? 'is-active is-active-opioid' : ''}`}
+          onClick={() => handleCardClick('OPIOID')}
+          aria-pressed={isOpioidActive}
+          title={isOpioidActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ได้รับยา Opioid'}
+        >
           <div className="pc3-metric-label">Opioid</div>
           <div className="pc3-metric-val" style={{ color: '#7e22ce' }}>
-            {summary.opioidCount.toLocaleString()}
+            {(baseSummary || summary).opioidCount.toLocaleString()}
             <span className="pc3-metric-unit">ครั้ง</span>
           </div>
           <div className="pc3-metric-sub">Cancer + ยา Opioid</div>
-        </div>
+        </button>
 
-        <div className="pc3-metric-card pc3-card-z515">
+        <button
+          type="button"
+          className={`pc3-metric-card pc3-card-z515 pc3-metric-card-btn ${isZ515Active ? 'is-active is-active-z515' : ''}`}
+          onClick={() => handleCardClick('Z515')}
+          aria-pressed={isZ515Active}
+          title={isZ515Active ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่มีรหัส Z515'}
+        >
           <div className="pc3-metric-label">มีรหัส Z515</div>
           <div className="pc3-metric-val" style={{ color: '#15803d' }}>
-            {summary.hasZ515Count.toLocaleString()}
+            {(baseSummary || summary).hasZ515Count.toLocaleString()}
             <span className="pc3-metric-unit">ครั้ง</span>
           </div>
           <div className="pc3-metric-sub">ลงรหัสครบถ้วน</div>
-        </div>
+        </button>
 
-        <div className="pc3-metric-card pc3-card-noz515">
+        <button
+          type="button"
+          className={`pc3-metric-card pc3-card-noz515 pc3-metric-card-btn ${isNoZ515Active ? 'is-active is-active-noz515' : ''}`}
+          onClick={() => handleCardClick('NO_Z515')}
+          aria-pressed={isNoZ515Active}
+          title={isNoZ515Active ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ไม่พบรหัส Z515'}
+        >
           <div className="pc3-metric-label">ไม่พบรหัส Z515 (ส้ม)</div>
           <div className="pc3-metric-val pc3-val-warn">
-            {summary.missingZ515Count.toLocaleString()}
+            {(baseSummary || summary).missingZ515Count.toLocaleString()}
             <span className="pc3-metric-unit">ครั้ง</span>
           </div>
           <div className="pc3-metric-sub">ต้องบันทึกรหัสเพิ่ม</div>
-        </div>
+        </button>
 
-        <div className="pc3-metric-card pc3-card-paid">
+        <button
+          type="button"
+          className={`pc3-metric-card pc3-card-paid pc3-metric-card-btn ${isPaidActive ? 'is-active is-active-paid' : ''}`}
+          onClick={() => handleCardClick('PAID')}
+          aria-pressed={isPaidActive}
+          title={isPaidActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่ได้รับชดเชยแล้ว'}
+        >
           <div className="pc3-metric-label">ชดเชยแล้ว (เขียว)</div>
           <div className="pc3-metric-val pc3-val-paid">
-            {summary.paidCount.toLocaleString()}
+            {(baseSummary || summary).paidCount.toLocaleString()}
             <span className="pc3-metric-unit">ครั้ง</span>
           </div>
           <div className="pc3-metric-sub">
-            {summary.totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
+            {(baseSummary || summary).totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
           </div>
-        </div>
+        </button>
 
-        <div className="pc3-metric-card pc3-card-death">
+        <button
+          type="button"
+          className={`pc3-metric-card pc3-card-death pc3-metric-card-btn ${isDeathActive ? 'is-active is-active-death' : ''}`}
+          onClick={() => handleCardClick('DEATH')}
+          aria-pressed={isDeathActive}
+          title={isDeathActive ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะผู้ป่วยที่เสียชีวิต'}
+        >
           <div className="pc3-metric-label">เสียชีวิต (ชมพู)</div>
           <div className="pc3-metric-val pc3-val-risk">
-            {summary.deceasedCount.toLocaleString()}
+            {(baseSummary || summary).deceasedCount.toLocaleString()}
             <span className="pc3-metric-unit">คน</span>
           </div>
           <div className="pc3-metric-sub">สถานะจำหน่าย</div>
-        </div>
+        </button>
       </div>
 
       {/* 3. Toolbar & Filters Card */}
@@ -455,10 +613,6 @@ export default function PalliativeCareClient() {
                   </option>
                 ))}
               </select>
-
-              <span style={{ fontSize: '0.8rem', color: 'var(--pc-muted)' }}>
-                ({formatThaiDate(ds1)} ถึง {formatThaiDate(ds2)})
-              </span>
             </div>
           )}
 
@@ -475,10 +629,6 @@ export default function PalliativeCareClient() {
                   </option>
                 ))}
               </select>
-
-              <span style={{ fontSize: '0.8rem', color: 'var(--pc-muted)' }}>
-                (1 ต.ค. {selectedFiscalYear - 1} - 30 ก.ย. {selectedFiscalYear})
-              </span>
             </div>
           )}
         </div>
@@ -548,11 +698,31 @@ export default function PalliativeCareClient() {
             <select
               className="pc3-select"
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value as 'ALL' | 'Chronic' | 'Opioid' | 'Death')}
+              onChange={(e) => {
+                setFilterType(e.target.value as 'ALL' | 'Chronic' | 'Opioid' | 'Death')
+                setCurrentPage(1)
+              }}
             >
               <option value="ALL">กลุ่มโรค: ทั้งหมด</option>
               <option value="Chronic">Chronic (Dx + Z718)</option>
               <option value="Opioid">Opioid (Cancer + Drug)</option>
+            </select>
+          </div>
+
+          {/* Filter รหัส Z515 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--pc-muted)' }}>รหัส Z515:</span>
+            <select
+              className="pc3-select"
+              value={z515Filter}
+              onChange={(e) => {
+                setZ515Filter(e.target.value as 'ALL' | 'Y' | 'N')
+                setCurrentPage(1)
+              }}
+            >
+              <option value="ALL">รหัส Z515: ทั้งหมด</option>
+              <option value="Y">มีรหัส Z515</option>
+              <option value="N">ไม่พบรหัส Z515</option>
             </select>
           </div>
 

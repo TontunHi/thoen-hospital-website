@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -63,7 +63,15 @@ function renderResultBadge(result?: string | null) {
   return <span className="ccs2-badge ccs2-badge-success">{result}</span>
 }
 
-export default function CcsScreenedRecipientsClient() {
+export interface CcsScreenedRecipientsClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function CcsScreenedRecipientsClient({
+  initialData,
+  initialRange,
+}: CcsScreenedRecipientsClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -84,9 +92,9 @@ export default function CcsScreenedRecipientsClient() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
   const [ds2, setDs2] = useState<string>(
-    `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    initialRange?.endDate || `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   )
 
   // Filter & Search states (FoxPro cshow combobox + criteria)
@@ -102,25 +110,30 @@ export default function CcsScreenedRecipientsClient() {
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data fetching states
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<CcsScreenedRecipientItem[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [summary, setSummary] = useState<CcsScreenedRecipientsSummary>({
-    totalVisits: 0,
-    uniquePatients: 0,
-    okCount: 0,
-    notOkCount: 0,
-    papCount: 0,
-    viaCount: 0,
-    hpvCount: 0,
-    colposcopyCount: 0,
-    abnormalCount: 0,
-    totalSeamlessCompensated: 0,
-    totalNhsoCompensated: 0,
-  })
+  const [items, setItems] = useState<CcsScreenedRecipientItem[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [summary, setSummary] = useState<CcsScreenedRecipientsSummary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      uniquePatients: 0,
+      okCount: 0,
+      notOkCount: 0,
+      papCount: 0,
+      viaCount: 0,
+      hpvCount: 0,
+      colposcopyCount: 0,
+      abnormalCount: 0,
+      totalSeamlessCompensated: 0,
+      totalNhsoCompensated: 0,
+    }
+  )
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Modal inspection states
   const [selectedItem, setSelectedItem] = useState<CcsScreenedRecipientItem | null>(null)
@@ -162,6 +175,12 @@ export default function CcsScreenedRecipientsClient() {
   // Fetch Report Data
   const fetchData = useCallback(
     async (isManualRefresh = false) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       if (isManualRefresh) setIsRefreshing(true)
       else setLoading(true)
       setError(null)
@@ -183,7 +202,9 @@ export default function CcsScreenedRecipientsClient() {
           pageSize: String(pageSize),
         })
 
-        const res = await fetch(`/api/service/dashboard-rcm/funds/ccs/screened-recipients?${q.toString()}`)
+        const res = await fetch(`/api/service/dashboard-rcm/funds/ccs/screened-recipients?${q.toString()}`, {
+          signal: controller.signal,
+        })
         const json = await res.json()
 
         if (!res.ok || !json.success) {
@@ -199,10 +220,14 @@ export default function CcsScreenedRecipientsClient() {
         }
       } catch (err: unknown) {
         const e = err as Error
-        setError(e.message || 'ไม่สามารถโหลดข้อมูลได้')
+        if (e.name !== 'AbortError') {
+          setError(e.message || 'ไม่สามารถโหลดข้อมูลได้')
+        }
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [
@@ -221,8 +246,17 @@ export default function CcsScreenedRecipientsClient() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
 
   // Quick Filter via KPI Cards
   const handleCardClick = (filterType: 'ALL' | 'OK' | 'NOT_OK' | 'ABNORMAL' | 'COMPENSATED') => {

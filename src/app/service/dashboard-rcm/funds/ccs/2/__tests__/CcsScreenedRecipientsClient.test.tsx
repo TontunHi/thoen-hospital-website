@@ -201,7 +201,8 @@ describe('CcsScreenedRecipientsClient (CCS 1.2 — UI Style Brief)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('okFilter=NOT_OK')
+        expect.stringContaining('okFilter=NOT_OK'),
+        expect.anything()
       )
     })
   })
@@ -218,7 +219,8 @@ describe('CcsScreenedRecipientsClient (CCS 1.2 — UI Style Brief)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('methodFilter=PapSmear')
+        expect.stringContaining('methodFilter=PapSmear'),
+        expect.anything()
       )
     })
   })

@@ -1,4 +1,5 @@
 import { apiGateway } from '@/lib/apiGateway'
+import { getCachedData } from '@/lib/cache'
 
 export interface PatientClaimRecord {
   id: string
@@ -183,18 +184,20 @@ export class RcmRepFundsService {
    * Get list of available fiscal years from rcmdb.repdata
    */
   static async getAvailableYears(): Promise<string[]> {
-    try {
-      const rows = await apiGateway.clinical.query<{ YearBudget: string }>(`
-        SELECT DISTINCT YearBudget 
-        FROM rcmdb.repdata 
-        WHERE YearBudget IS NOT NULL AND YearBudget != '' 
-        ORDER BY YearBudget DESC
-      `)
-      const list = rows.map((r) => String(r.YearBudget).trim()).filter(Boolean)
-      return list.length > 0 ? list : ['2570', '2569', '2568', '2567']
-    } catch {
-      return ['2570', '2569', '2568', '2567']
-    }
+    return getCachedData('rcm-rep-available-years', async () => {
+      try {
+        const rows = await apiGateway.clinical.query<{ YearBudget: string }>(`
+          SELECT DISTINCT YearBudget 
+          FROM rcmdb.repdata 
+          WHERE YearBudget IS NOT NULL AND YearBudget != '' 
+          ORDER BY YearBudget DESC
+        `)
+        const list = rows.map((r) => String(r.YearBudget).trim()).filter(Boolean)
+        return list.length > 0 ? list : ['2570', '2569', '2568', '2567']
+      } catch {
+        return ['2570', '2569', '2568', '2567']
+      }
+    }, 60000)
   }
 
   /**
@@ -208,7 +211,10 @@ export class RcmRepFundsService {
     const subFund = params.subFund && params.subFund !== 'ALL' ? params.subFund : null
     const search = params.search ? params.search.trim() : null
 
-    // Base filters
+    const cacheKey = `rcm-rep-summary-${fiscalYear}-${department}-${fund || ''}-${subFund || ''}-${search || ''}-${params.ds1 || ''}-${params.ds2 || ''}`
+
+    return getCachedData(cacheKey, async () => {
+      // Base filters
     const whereClauses: string[] = []
     const queryParams: any[] = []
 
@@ -456,14 +462,15 @@ export class RcmRepFundsService {
       availableErrorCodes = []
     }
 
-    return {
-      metrics,
-      fundGroups,
-      repList,
-      availableYears,
-      availableFunds,
-      availableErrorCodes,
-    }
+      return {
+        metrics,
+        fundGroups,
+        repList,
+        availableYears,
+        availableFunds,
+        availableErrorCodes,
+      }
+    }, 30000)
   }
 
   /**

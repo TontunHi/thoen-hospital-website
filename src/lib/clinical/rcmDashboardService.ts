@@ -576,6 +576,7 @@ export interface PalliativeCareReportParams {
   compensated?: number[] | string
   paidStatus?: 'ALL' | 'PAID' | 'UNPAID'
   deathStatus?: 'ALL' | 'Y' | 'N'
+  z515Status?: 'ALL' | 'Y' | 'N'
   hn?: string
   filterType?: 'ALL' | 'Chronic' | 'Opioid' | 'Death'
   search?: string
@@ -589,6 +590,7 @@ export interface PalliativeCareResult {
   compensated?: number[] | string
   paidStatus?: 'ALL' | 'PAID' | 'UNPAID'
   deathStatus?: 'ALL' | 'Y' | 'N'
+  z515Status?: 'ALL' | 'Y' | 'N'
   hn?: string
   filterType: 'ALL' | 'Chronic' | 'Opioid' | 'Death'
   summary: PalliativeCareSummary
@@ -650,13 +652,13 @@ export interface PalliativeCarePc1ReportParams {
   ds1?: string
   ds2?: string
   search?: string
-  paidStatus?: 'ALL' | 'PAID' | 'UNPAID'
+  paidStatus?: 'ALL' | 'PAID' | 'UNPAID' | 'INVOICE'
 }
 
 export interface PalliativeCarePc1Result {
   ds1: string
   ds2: string
-  paidStatus?: 'ALL' | 'PAID' | 'UNPAID'
+  paidStatus?: 'ALL' | 'PAID' | 'UNPAID' | 'INVOICE'
   summary: PalliativeCarePc1Summary
   items: PalliativeCarePc1Item[]
 }
@@ -696,6 +698,7 @@ export type VnOrderCategoryGroup = 'DRUG' | 'LAB' | 'XRAY' | 'PROCEDURE_SERVICE'
 export interface VnOrderItem {
   icode: string
   item_name: string
+  name?: string
   strength: string | null
   units: string | null
   qty: number
@@ -2393,6 +2396,13 @@ export class RcmDashboardService {
       mapped = mapped.filter((item) => item.death === 'N')
     }
 
+    const z515Status = params.z515Status || 'ALL'
+    if (z515Status === 'Y') {
+      mapped = mapped.filter((item) => item.z515 === 'Y')
+    } else if (z515Status === 'N') {
+      mapped = mapped.filter((item) => !item.z515 || item.z515 !== 'Y')
+    }
+
     if (hnFilter) {
       mapped = mapped.filter((item) => item.hn.toLowerCase().includes(hnFilter))
     }
@@ -2450,6 +2460,7 @@ export class RcmDashboardService {
       compensated: params.compensated,
       paidStatus,
       deathStatus,
+      z515Status,
       hn: hnFilter,
       filterType,
       summary,
@@ -2573,6 +2584,8 @@ export class RcmDashboardService {
       mapped = mapped.filter((item) => item.compensated > 0)
     } else if (paidStatus === 'UNPAID') {
       mapped = mapped.filter((item) => item.compensated === 0)
+    } else if (paidStatus === 'INVOICE') {
+      mapped = mapped.filter((item) => item.invoice_compensated > 0 || Boolean(item.invoice && item.invoice.trim()))
     }
 
     if (search) {

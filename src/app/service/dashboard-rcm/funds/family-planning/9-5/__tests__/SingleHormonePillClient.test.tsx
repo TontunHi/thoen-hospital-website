@@ -91,7 +91,7 @@ describe('SingleHormonePillClient Component (9.5)', () => {
     render(<SingleHormonePillClient />)
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      '9.5 ยาเม็ดคุมกำเนิดชนิดฮอร์โมนเดียว (Single Hormone Oral Contraceptive)'
+      '9.5 ยาเม็ดคุมกำเนิดชนิดฮอร์โมนเดี่ยว (Progestin-Only Pills)'
     )
     expect(screen.getAllByText(/FP003_2/).length).toBeGreaterThan(0)
     expect(screen.getByText(/ไม่พบ Dx Z304/)).toBeInTheDocument()
@@ -113,10 +113,12 @@ describe('SingleHormonePillClient Component (9.5)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/service/dashboard-rcm/funds/family-planning/single-hormone-pill')
+        expect.stringContaining('/api/service/dashboard-rcm/funds/family-planning/single-hormone-pill'),
+        expect.anything()
       )
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('patientType=IPD')
+        expect.stringContaining('patientType=IPD'),
+        expect.anything()
       )
     })
   })
@@ -129,7 +131,8 @@ describe('SingleHormonePillClient Component (9.5)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=COMPENSATED')
+        expect.stringContaining('cardFilter=COMPENSATED'),
+        expect.anything()
       )
     })
   })

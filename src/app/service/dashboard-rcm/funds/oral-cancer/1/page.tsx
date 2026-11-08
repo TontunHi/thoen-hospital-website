@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { verifyMemberSession } from '@/lib/memberAuth'
 import OralCancerScreeningClient from './OralCancerScreeningClient'
+import { RcmOralCancerService } from '@/lib/clinical/rcmOralCancerService'
+import { getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
 
 export const metadata: Metadata = {
   title: '12.1 คัดกรองรอยโรคมะเร็งช่องปาก (40 ปี+) | ระบบบริหารการเงินและกองทุน RCM โรงพยาบาลเถิน',
@@ -19,5 +21,24 @@ export default async function OralCancerScreeningPage() {
     redirect('/service')
   }
 
-  return <OralCancerScreeningClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData = null
+
+  try {
+    initialData = await RcmOralCancerService.getOralCancerReport({
+      startDate: defaultRange.startDate,
+      endDate: defaultRange.endDate,
+      cardFilter: 'ALL',
+      ucOnly: false,
+      searchField: 'ALL',
+      sortBy: 'vstdate',
+      sortOrder: 'desc',
+      page: 1,
+      pageSize: 50,
+    })
+  } catch (error) {
+    console.error('Failed to prefetch Oral Cancer SSR data:', error)
+  }
+
+  return <OralCancerScreeningClient initialData={initialData} initialRange={defaultRange} />
 }

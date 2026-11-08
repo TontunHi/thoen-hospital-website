@@ -209,7 +209,8 @@ describe('FamilyPlanning91Client Component', () => {
     // Should re-fetch with cardFilter=COMPENSATED
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=COMPENSATED')
+        expect.stringContaining('cardFilter=COMPENSATED'),
+        expect.anything()
       )
     })
 
@@ -217,7 +218,8 @@ describe('FamilyPlanning91Client Component', () => {
     fireEvent.click(compensatedCard)
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=ALL')
+        expect.stringContaining('cardFilter=ALL'),
+        expect.anything()
       )
     })
   })

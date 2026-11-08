@@ -339,4 +339,28 @@ describe('RcmDashboardService.getPalliativeCareReport', () => {
     expect(result.summary.totalPatients).toBe(0)
     expect(result.summary.totalCompensated).toBe(0)
   })
+
+  it('filters by z515Status Y and N properly', async () => {
+    const mockExecutor = vi.fn().mockResolvedValue(mockRows)
+
+    // Filter z515Status: 'Y' -> only row 1 (ธวัชชัย)
+    const z515YResult = await RcmDashboardService.getPalliativeCareReport(
+      { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, z515Status: 'Y' },
+      mockExecutor
+    )
+    expect(z515YResult.items.length).toBe(1)
+    expect(z515YResult.items[0].hn).toBe('0000063')
+    expect(z515YResult.items[0].z515).toBe('Y')
+    expect(z515YResult.z515Status).toBe('Y')
+
+    // Filter z515Status: 'N' -> only row 2 (สมใจ, z515 is empty)
+    const z515NResult = await RcmDashboardService.getPalliativeCareReport(
+      { ds1: '2025-10-01', ds2: '2025-10-31', ucOnly: false, z515Status: 'N' },
+      mockExecutor
+    )
+    expect(z515NResult.items.length).toBe(1)
+    expect(z515NResult.items[0].hn).toBe('0000064')
+    expect(z515NResult.items[0].z515).toBe('')
+    expect(z515NResult.z515Status).toBe('N')
+  })
 })

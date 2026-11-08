@@ -112,7 +112,8 @@ describe('ImplantInsertionClient Component (9.3.1)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('patientType=IPD')
+        expect.stringContaining('patientType=IPD'),
+        expect.anything()
       )
     })
   })
@@ -125,7 +126,8 @@ describe('ImplantInsertionClient Component (9.3.1)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=COMPENSATED')
+        expect.stringContaining('cardFilter=COMPENSATED'),
+        expect.anything()
       )
     })
   })

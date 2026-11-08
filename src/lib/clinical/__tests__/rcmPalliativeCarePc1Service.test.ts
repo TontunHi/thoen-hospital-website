@@ -127,6 +127,25 @@ describe('RcmDashboardService.getPalliativeCarePc1Report', () => {
     )
     expect(unpaidResult.items.length).toBe(1)
     expect(unpaidResult.items[0].hn).toBe('0000207')
+
+    // INVOICE
+    const invoiceRows = [
+      ...mockRows,
+      {
+        ...mockRows[1],
+        vn: '691021131645',
+        hn: '0000208',
+        invoice: 'INV001',
+        invoice_compensated: 500,
+      },
+    ]
+    const invExecutor = vi.fn().mockResolvedValue(invoiceRows)
+    const invResult = await RcmDashboardService.getPalliativeCarePc1Report(
+      { ds1: '2026-10-01', ds2: '2026-10-31', paidStatus: 'INVOICE' },
+      invExecutor
+    )
+    expect(invResult.items.length).toBe(1)
+    expect(invResult.items[0].hn).toBe('0000208')
   })
 
   it('filters by search keyword correctly', async () => {

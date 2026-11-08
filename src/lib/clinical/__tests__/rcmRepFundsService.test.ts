@@ -8,6 +8,7 @@ import {
   formatFundLabel,
 } from '../rcmRepFundsService'
 import { apiGateway } from '@/lib/apiGateway'
+import { clearMemoryCache } from '@/lib/cache'
 
 vi.mock('@/lib/apiGateway', () => ({
   apiGateway: {
@@ -51,6 +52,7 @@ describe('RcmRepFundsService helpers', () => {
 describe('RcmRepFundsService queries', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    clearMemoryCache()
   })
 
   it('fetches available fiscal years', async () => {

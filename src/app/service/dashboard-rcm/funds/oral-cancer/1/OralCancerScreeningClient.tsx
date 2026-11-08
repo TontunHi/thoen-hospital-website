@@ -163,7 +163,15 @@ export function parsePhysicalExam(text?: string | null): PhysicalExamSection[] {
   return sections
 }
 
-export default function OralCancerScreeningClient() {
+export interface OralCancerScreeningClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function OralCancerScreeningClient({
+  initialData,
+  initialRange,
+}: OralCancerScreeningClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -184,8 +192,8 @@ export default function OralCancerScreeningClient() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${defaultFiscalCeYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(`${defaultFiscalCeYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalCeYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalCeYear}-09-30`)
 
   // Filter & Search States
   const [cardFilter, setCardFilter] = useState<OralCancerCardFilter>('ALL')
@@ -199,33 +207,37 @@ export default function OralCancerScreeningClient() {
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data Fetching States
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<OralCancerItem[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [adpMapping, setAdpMapping] = useState<OralCancerAdpMappingCheck>({
-    isMapped: true,
-    mappedCount: 0,
-    items: [],
-  })
-  const [summary, setSummary] = useState<OralCancerSummary>({
-    totalVisits: 0,
-    uniquePatients: 0,
-    compensatedVisits: 0,
-    uncompensatedVisits: 0,
-    compensationRate: 0,
-    totalCompensated: 0,
-    averageCompensated: 0,
-    withAuthenCount: 0,
-    withoutAuthenCount: 0,
-    authenRate: 0,
-    ucCount: 0,
-    ucRate: 0,
-    totalIncome: 0,
-  })
+  const [items, setItems] = useState<OralCancerItem[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [adpMapping, setAdpMapping] = useState<OralCancerAdpMappingCheck>(
+    initialData?.adpMapping || {
+      isMapped: true,
+      mappedCount: 0,
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<OralCancerSummary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      uniquePatients: 0,
+      compensatedVisits: 0,
+      uncompensatedVisits: 0,
+      compensationRate: 0,
+      totalCompensated: 0,
+      averageCompensated: 0,
+      withAuthenCount: 0,
+      withoutAuthenCount: 0,
+      authenRate: 0,
+      ucCount: 0,
+      ucRate: 0,
+      totalIncome: 0,
+    }
+  )
 
   // Modal Detail States
   const [selectedItem, setSelectedItem] = useState<OralCancerItem | null>(null)
@@ -241,6 +253,7 @@ export default function OralCancerScreeningClient() {
   )
 
   const abortRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Debounce search input
   useEffect(() => {
@@ -333,11 +346,15 @@ export default function OralCancerScreeningClient() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData(false)
     return () => {
       abortRef.current?.abort()
     }
-  }, [fetchData])
+  }, [fetchData, initialData])
 
   // Sorting Handler
   const handleSort = (field: OralCancerSortField) => {

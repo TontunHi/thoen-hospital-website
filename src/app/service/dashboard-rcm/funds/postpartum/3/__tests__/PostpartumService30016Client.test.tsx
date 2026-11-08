@@ -158,7 +158,8 @@ describe('PostpartumService30016Client (7.3 การจ่ายยา Triforin
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('compensationFilter=COMPENSATED')
+        expect.stringContaining('compensationFilter=COMPENSATED'),
+        expect.anything()
       )
     })
   })

@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const ds1 = searchParams.get('ds1') || undefined
     const ds2 = searchParams.get('ds2') || undefined
-    const paidStatus = (searchParams.get('paidStatus') as 'ALL' | 'PAID' | 'UNPAID') || undefined
+    const paidStatus = (searchParams.get('paidStatus') as 'ALL' | 'PAID' | 'UNPAID' | 'INVOICE') || undefined
     const search = searchParams.get('search') || undefined
 
     logThrottledAudit(

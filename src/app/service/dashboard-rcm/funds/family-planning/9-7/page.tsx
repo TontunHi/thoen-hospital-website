@@ -1,14 +1,15 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import { RcmFamilyPlanningService } from '@/lib/clinical/rcmFamilyPlanningService'
+import { getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
 import InjectableContraceptivesClient from './InjectableContraceptivesClient'
 
 export const metadata = {
-  title: '9.7 ยาฉีดคุมกำเนิด (FP003_4) | กองทุนบริการวางแผนครอบครัว Dashboard-RCM',
-  description:
-    'รายงานหัวข้อที่ 9.7 ยาฉีดคุมกำเนิด รหัส ADP: FP003_4 ตรวจสอบการลงรหัส Dx Z304 ค่าบริการ และสถานะการชดเชยค่าบริการ E-Claim / สปสช. โรงพยาบาลเถิน',
+  title: '9.7 ยาฉีดคุมกำเนิด | Dashboard-RCM โรงพยาบาลเถิน',
+  description: 'รายงานการให้บริการยาฉีดคุมกำเนิด โรงพยาบาลเถิน',
 }
 
-export default async function FamilyPlanningService97Page() {
+export default async function InjectableContraceptivesPage() {
   const session = await verifyMemberSession()
   if (!session) {
     redirect('/member/login')
@@ -18,5 +19,17 @@ export default async function FamilyPlanningService97Page() {
     redirect('/service')
   }
 
-  return <InjectableContraceptivesClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData = null
+  try {
+    initialData = await RcmFamilyPlanningService.getFamilyPlanningReport({
+      reportType: '9.7',
+      startDate: defaultRange.startDate,
+      endDate: defaultRange.endDate,
+    })
+  } catch {
+    initialData = null
+  }
+
+  return <InjectableContraceptivesClient initialData={initialData} initialRange={defaultRange} />
 }

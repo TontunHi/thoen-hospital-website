@@ -26,9 +26,10 @@ import {
 import { formatThaiDate } from '@/lib/formatters'
 import './page.css'
 
-interface PalliativeRegistryClientProps {
+export interface PalliativeRegistryClientProps {
   userRole?: string
   username?: string
+  initialData?: any | null
 }
 
 const PROJECT_CODE_PRESETS = [
@@ -316,35 +317,42 @@ function EditableDeathCell({
 export default function PalliativeRegistryClient({
   userRole = 'staff',
   username = '',
+  initialData,
 }: PalliativeRegistryClientProps) {
   // Data state
-  const [items, setItems] = useState<PalliativeRegistryItem[]>([])
-  const [stats, setStats] = useState<RegistryStats>({
-    total: 0,
-    registered: 0,
-    pendingRegistration: 0,
-    claimed: 0,
-    paid: 0,
-    waitingComp: 0,
-    deceased: 0,
-    deny: 0,
-  })
-  const [colorCounts, setColorCounts] = useState<ColorCounts>({
-    total: 0,
-    green: 0,
-    orange: 0,
-    orangeWaitingRep: 0,
-    pink: 0,
-  })
-  const [serverFiscalYears, setServerFiscalYears] = useState<number[]>([])
+  const [items, setItems] = useState<PalliativeRegistryItem[]>(initialData?.items || [])
+  const [stats, setStats] = useState<RegistryStats>(
+    initialData?.stats || {
+      total: 0,
+      registered: 0,
+      pendingRegistration: 0,
+      claimed: 0,
+      paid: 0,
+      waitingComp: 0,
+      deceased: 0,
+      deny: 0,
+    }
+  )
+  const [colorCounts, setColorCounts] = useState<ColorCounts>(
+    initialData?.colorCounts || {
+      total: 0,
+      green: 0,
+      orange: 0,
+      orangeWaitingRep: 0,
+      pink: 0,
+    }
+  )
+  const [serverFiscalYears, setServerFiscalYears] = useState<number[]>(initialData?.availableFiscalYears || [])
   const [isExporting, setIsExporting] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
-  const [permissions, setPermissions] = useState({
-    canView: true,
-    canEdit: userRole === 'admin',
-    canManage: userRole === 'admin',
-  })
+  const [permissions, setPermissions] = useState(
+    initialData?.permissions || {
+      canView: true,
+      canEdit: userRole === 'admin',
+      canManage: userRole === 'admin',
+    }
+  )
 
   // Filter & Search states
   const [search, setSearch] = useState('')
@@ -354,8 +362,9 @@ export default function PalliativeRegistryClient({
   const [filterCompAmount, setFilterCompAmount] = useState('ALL')
   const [filterCompVisits, setFilterCompVisits] = useState('ALL')
   const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(initialData?.totalPages || 1)
+  const [totalCount, setTotalCount] = useState(initialData?.total || 0)
+  const isFirstMount = useRef(true)
 
   // Modal 1: Add New Patient (Initial Intake Fields)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -693,9 +702,13 @@ export default function PalliativeRegistryClient({
   }, [search, filterFiscalYear, filterRegStatus, filterColor, filterCompAmount, filterCompVisits, page])
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
     return () => abortRef.current?.abort()
-  }, [fetchData])
+  }, [fetchData, initialData])
 
   // Active Thai Fiscal Year (e.g., Nov 2026 -> 2570)
   const activeFiscalYear = useMemo(() => {

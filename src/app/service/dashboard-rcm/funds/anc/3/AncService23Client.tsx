@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -63,7 +63,15 @@ function formatCidDisplay(cid?: string | null): string {
   return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`
 }
 
-export default function AncService23Client() {
+export interface AncService23ClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function AncService23Client({
+  initialData,
+  initialRange,
+}: AncService23ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -84,9 +92,9 @@ export default function AncService23Client() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
   const [ds2, setDs2] = useState<string>(
-    `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    initialRange?.endDate || `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   )
 
   // Filter & Search states
@@ -94,7 +102,7 @@ export default function AncService23Client() {
   const [serviceFilter, setServiceFilter] = useState<'ALL' | 'OK' | 'NOT_OK'>('ALL')
   const [ucFilter, setUcFilter] = useState<'ALL' | 'UC' | 'NON_UC'>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
-  const [statusOptions, setStatusOptions] = useState<string[]>([])
+  const [statusOptions, setStatusOptions] = useState<string[]>(initialData?.statusOptions || [])
   const [searchField, setSearchField] = useState<AncService23SearchField>('ALL')
   const [search, setSearch] = useState<string>('')
   const [debouncedSearch, setDebouncedSearch] = useState<string>('')
@@ -104,28 +112,33 @@ export default function AncService23Client() {
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data fetching states
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<AncService23Item[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [summary, setSummary] = useState<AncService23Summary>({
-    totalVisits: 0,
-    uniquePatients: 0,
-    serviceOkCount: 0,
-    checkupCount: 0,
-    scallingCount: 0,
-    ultrasoundCount: 0,
-    ucCount: 0,
-    compensatedCount: 0,
-    uncompensatedCount: 0,
-    compensationRate: 0,
-    totalCompensated: 0,
-    averageCompensated: 0,
-    warningCount: 0,
-  })
+  const [items, setItems] = useState<AncService23Item[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [summary, setSummary] = useState<AncService23Summary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      uniquePatients: 0,
+      serviceOkCount: 0,
+      checkupCount: 0,
+      scallingCount: 0,
+      ultrasoundCount: 0,
+      ucCount: 0,
+      compensatedCount: 0,
+      uncompensatedCount: 0,
+      compensationRate: 0,
+      totalCompensated: 0,
+      averageCompensated: 0,
+      warningCount: 0,
+    }
+  )
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Modal Detail states
   const [selectedItem, setSelectedItem] = useState<AncService23Item | null>(null)
@@ -166,6 +179,12 @@ export default function AncService23Client() {
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       setLoading(true)
       if (refresh) setIsRefreshing(true)
       setError(null)
@@ -189,7 +208,8 @@ export default function AncService23Client() {
         if (refresh) q.set('refresh', 'true')
 
         const res = await fetch(
-          `/api/service/dashboard-rcm/funds/anc/service-2-3?${q.toString()}`
+          `/api/service/dashboard-rcm/funds/anc/service-2-3?${q.toString()}`,
+          { signal: controller.signal }
         )
         const json = await res.json()
 
@@ -207,10 +227,14 @@ export default function AncService23Client() {
         }
       } catch (err: unknown) {
         const e = err as Error
-        setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
+        if (e.name !== 'AbortError') {
+          setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
+        }
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [
@@ -230,8 +254,17 @@ export default function AncService23Client() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
 
   // Fetch VN Clinical Details for Inspection Modal
   const fetchClinicalDetails = useCallback(async (vn: string) => {

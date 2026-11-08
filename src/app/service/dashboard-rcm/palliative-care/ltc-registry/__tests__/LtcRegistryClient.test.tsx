@@ -159,4 +159,34 @@ describe('LtcRegistryClient Component', () => {
     expect(screen.getByRole('heading', { name: 'ยืนยันการลบข้อมูล' })).toBeInTheDocument()
     expect(screen.getByText(/คุณต้องการลบข้อมูลผู้ป่วย/)).toBeInTheDocument()
   })
+
+  it('filters table rows when clicking stat cards for Homebound and Bedridden groups', async () => {
+    render(<LtcRegistryClient userRole="admin" username="admin" isAdmin={true} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('0001234')).toBeInTheDocument()
+      expect(screen.getByText('0005678')).toBeInTheDocument()
+    })
+
+    // Click Homebound card (ADL 5-11)
+    const homeboundBtn = screen.getByRole('button', { name: /กลุ่มติดบ้าน \(ADL 5-11\)/ })
+    fireEvent.click(homeboundBtn)
+
+    // Should only show HN 0001234 (ADL 8), HN 0005678 (ADL 3) should be filtered out
+    expect(screen.getByText('0001234')).toBeInTheDocument()
+    expect(screen.queryByText('0005678')).not.toBeInTheDocument()
+
+    // Click Bedridden card (ADL 0-4)
+    const bedriddenBtn = screen.getByRole('button', { name: /กลุ่มติดเตียง \(ADL 0-4\)/ })
+    fireEvent.click(bedriddenBtn)
+
+    // Should only show HN 0005678 (ADL 3), HN 0001234 (ADL 8) should be filtered out
+    expect(screen.getByText('0005678')).toBeInTheDocument()
+    expect(screen.queryByText('0001234')).not.toBeInTheDocument()
+
+    // Clicking active bedridden card again toggles back to ALL
+    fireEvent.click(bedriddenBtn)
+    expect(screen.getByText('0001234')).toBeInTheDocument()
+    expect(screen.getByText('0005678')).toBeInTheDocument()
+  })
 })

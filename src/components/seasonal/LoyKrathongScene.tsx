@@ -175,7 +175,7 @@ function KrathongSVG({ width = 110 }: { width?: number }) {
 }
 
 /**
- * Organic Spark Particles Data for Fireworks (กระจายตัวแบบดาวประกายไฟ ไร้เส้นตรงแข็ง)
+ * Organic Spark Particles Data for Fireworks
  */
 const FIREWORK_SPARKS = [
   // Outer layer - 12 glowing spark points with natural radius variance
@@ -216,7 +216,7 @@ const FIREWORK_SPARKS = [
 ]
 
 /**
- * Firework (พลุเฉลิมฉลองทรงพุ่มดอกไม้ไฟ) SVG - Organic Particle Sparks & Trails
+ * Firework SVG - Organic Particle Sparks & Trails
  */
 function FireworkBurst({
   id,
@@ -238,7 +238,6 @@ function FireworkBurst({
       aria-hidden="true"
     >
       <defs>
-        {/* Soft core burst bloom */}
         <radialGradient id={`fwGlow-${id}`} cx="85" cy="85" r="50" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
           <stop offset="25%" stopColor={secondaryColor} stopOpacity="0.75" />
@@ -251,32 +250,26 @@ function FireworkBurst({
       <circle cx="85" cy="85" r="26" fill={`url(#fwGlow-${id})`} />
       <circle cx="85" cy="85" r="4" fill="#ffffff" />
 
-      {/* Scattered Organic Spark Particles and Trails (No straight spoke lines!) */}
+      {/* Scattered Organic Spark Particles and Trails */}
       {FIREWORK_SPARKS.map((spark, idx) => {
         const rad = (spark.deg * Math.PI) / 180
         const cos = Math.cos(rad)
         const sin = Math.sin(rad)
 
-        // Main outer spark position
         const x = 85 + spark.r * cos
         const y = 85 + spark.r * sin
-
-        // Trailing ember 1 (slightly closer to center)
         const xTrail1 = 85 + spark.r * 0.74 * cos
         const yTrail1 = 85 + spark.r * 0.74 * sin - 1
-
-        // Trailing ember 2
         const xTrail2 = 85 + spark.r * 0.5 * cos
         const yTrail2 = 85 + spark.r * 0.5 * sin - 1.5
 
         return (
           <g key={idx}>
-            {/* Outer main glowing spark with halo */}
             <circle cx={x} cy={y} r={spark.size * 1.9} fill={color} opacity="0.4" />
             <circle cx={x} cy={y} r={spark.size} fill={secondaryColor} />
             <circle cx={x} cy={y} r={spark.size * 0.55} fill="#ffffff" />
 
-            {/* Trailing embers (ละอองประกายดาวทิ้งหาง) */}
+            {/* Trailing embers */}
             <circle cx={xTrail1} cy={yTrail1} r={spark.size * 0.6} fill={color} opacity="0.75" />
             <circle cx={xTrail2} cy={yTrail2} r={spark.size * 0.4} fill={secondaryColor} opacity="0.5" />
           </g>
@@ -287,8 +280,37 @@ function FireworkBurst({
 }
 
 /**
+ * Distant Riverbank Silhouette
+ * Subtle landscape horizon separating the starry night sky and the river
+ */
+function RiverbankSilhouette() {
+  return (
+    <div className={styles.horizonSilhouette} aria-hidden="true">
+      <svg
+        viewBox="0 0 1440 90"
+        preserveAspectRatio="none"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={styles.horizonSvg}
+      >
+        {/* Soft mountain ridge & tree line in deep twilight hue */}
+        <path
+          d="M0 64 Q140 38 300 52 T640 44 T980 54 T1240 38 T1440 48 L1440 90 L0 90 Z"
+          fill="#060d1b"
+          opacity="0.8"
+        />
+        <path
+          d="M0 72 Q180 54 380 64 T780 58 T1180 64 T1440 60 L1440 90 L0 90 Z"
+          fill="#030812"
+        />
+      </svg>
+    </div>
+  )
+}
+
+/**
  * LoyKrathongScene Component
- * Renders full festive atmosphere if within festival date window (Nov 10-30) or override `?theme=loy-krathong`.
+ * Renders full festive atmosphere if within festival date window (Nov 1-30) or override `?theme=loy-krathong`.
  * Returns null when not in season (zero DOM footprint & pure fallback to original UI).
  */
 export default function LoyKrathongScene() {
@@ -318,61 +340,82 @@ export default function LoyKrathongScene() {
 
   return (
     <div className={styles.seasonWrapper} aria-hidden="true">
-      {/* 1. Full Moon in top right */}
+      {/* 1. Full Moon in upper sky */}
       <div className={styles.moonContainer}>
         <div className={styles.moon} />
       </div>
 
-      {/* 2. Twinkling Stars (8 points across the night sky) */}
-      <span className={styles.star} style={{ top: '12%', left: '15%', width: 3, height: 3, animationDuration: '3.2s', animationDelay: '0.2s' }} />
-      <span className={styles.star} style={{ top: '22%', left: '32%', width: 2, height: 2, animationDuration: '4.1s', animationDelay: '1.1s' }} />
-      <span className={styles.star} style={{ top: '8%', left: '48%', width: 2.5, height: 2.5, animationDuration: '3.6s', animationDelay: '0.7s' }} />
-      <span className={styles.star} style={{ top: '28%', left: '68%', width: 3, height: 3, animationDuration: '4.8s', animationDelay: '1.9s' }} />
-      <span className={styles.star} style={{ top: '18%', left: '88%', width: 2, height: 2, animationDuration: '2.9s', animationDelay: '0.4s' }} />
-      <span className={styles.star} style={{ top: '38%', left: '10%', width: 2, height: 2, animationDuration: '3.8s', animationDelay: '2.2s' }} />
-      <span className={styles.star} style={{ top: '15%', left: '76%', width: 2.5, height: 2.5, animationDuration: '4.3s', animationDelay: '1.4s' }} />
-      <span className={styles.star} style={{ top: '42%', left: '84%', width: 2, height: 2, animationDuration: '3.5s', animationDelay: '0.8s' }} />
+      {/* 2. Twinkling Stars across the sky */}
+      <span className={styles.star} style={{ top: '10%', left: '12%', width: 3, height: 3, animationDuration: '3.2s', animationDelay: '-0.5s' }} />
+      <span className={styles.star} style={{ top: '20%', left: '28%', width: 2, height: 2, animationDuration: '4.1s', animationDelay: '-1.4s' }} />
+      <span className={styles.star} style={{ top: '8%', left: '46%', width: 2.5, height: 2.5, animationDuration: '3.6s', animationDelay: '-0.8s' }} />
+      <span className={styles.star} style={{ top: '26%', left: '64%', width: 3, height: 3, animationDuration: '4.8s', animationDelay: '-2.1s' }} />
+      <span className={styles.star} style={{ top: '16%', left: '84%', width: 2, height: 2, animationDuration: '2.9s', animationDelay: '-0.3s' }} />
+      <span className={styles.star} style={{ top: '34%', left: '18%', width: 2, height: 2, animationDuration: '3.8s', animationDelay: '-1.9s' }} />
+      <span className={styles.star} style={{ top: '14%', left: '72%', width: 2.5, height: 2.5, animationDuration: '4.3s', animationDelay: '-2.7s' }} />
+      <span className={styles.star} style={{ top: '38%', left: '88%', width: 2, height: 2, animationDuration: '3.5s', animationDelay: '-1.1s' }} />
 
-      {/* 2.5. Festive Fireworks in upper sky (พลุละอองดาวกระจายตัวตามแรงโน้มถ่วง ไร้เส้นตรงแข็ง) */}
-      <div className={styles.firework} style={{ top: '15%', left: '18%', animationDuration: '5.5s', animationDelay: '0.8s' }}>
+      {/* 3. Festive Fireworks in upper sky (Negative delays start them immediately) */}
+      <div className={styles.firework} style={{ top: '14%', left: '16%', animationDuration: '6s', animationDelay: '-1.2s' }}>
         <FireworkBurst id="fw1" color="#f59e0b" secondaryColor="#fef08a" />
       </div>
-      <div className={styles.firework} style={{ top: '23%', left: '80%', animationDuration: '6.8s', animationDelay: '2.8s' }}>
+      <div className={styles.firework} style={{ top: '22%', left: '38%', animationDuration: '7.2s', animationDelay: '-3.8s' }}>
         <FireworkBurst id="fw2" color="#f43f5e" secondaryColor="#fed7aa" />
       </div>
-      <div className={styles.firework} style={{ top: '30%', left: '26%', animationDuration: '7.4s', animationDelay: '4.8s' }}>
+      <div className={styles.firework} style={{ top: '18%', left: '56%', animationDuration: '8s', animationDelay: '-5.5s' }}>
         <FireworkBurst id="fw3" color="#10b981" secondaryColor="#a7f3d0" />
       </div>
 
-      {/* 3. Floating Yee Peng Lanterns (4 lanterns rising into the sky) */}
-      <div className={styles.lantern} style={{ left: '8%', animationDuration: '24s', animationDelay: '0s' }}>
-        <YeePengLantern size={30} />
-      </div>
-      <div className={styles.lantern} style={{ left: '26%', animationDuration: '19s', animationDelay: '6s' }}>
+      {/* 4. Ascending Yee Peng Lanterns (8 lanterns in diverse altitudes with negative delays) */}
+      <div className={styles.lantern} style={{ left: '6%', animationDuration: '22s', animationDelay: '-3s' }}>
         <YeePengLantern size={24} />
       </div>
-      <div className={styles.lantern} style={{ left: '72%', animationDuration: '22s', animationDelay: '11s' }}>
-        <YeePengLantern size={28} />
-      </div>
-      <div className={styles.lantern} style={{ left: '88%', animationDuration: '17s', animationDelay: '3s' }}>
+      <div className={styles.lantern} style={{ left: '19%', animationDuration: '26s', animationDelay: '-11s' }}>
         <YeePengLantern size={34} />
       </div>
+      <div className={styles.lantern} style={{ left: '32%', animationDuration: '20s', animationDelay: '-6s' }}>
+        <YeePengLantern size={20} />
+      </div>
+      <div className={styles.lantern} style={{ left: '46%', animationDuration: '28s', animationDelay: '-17s' }}>
+        <YeePengLantern size={38} />
+      </div>
+      <div className={styles.lantern} style={{ left: '60%', animationDuration: '24s', animationDelay: '-9s' }}>
+        <YeePengLantern size={26} />
+      </div>
+      <div className={styles.lantern} style={{ left: '74%', animationDuration: '25s', animationDelay: '-15s' }}>
+        <YeePengLantern size={30} />
+      </div>
+      <div className={styles.lantern} style={{ left: '86%', animationDuration: '19s', animationDelay: '-2s' }}>
+        <YeePengLantern size={22} />
+      </div>
+      <div className={styles.lantern} style={{ left: '94%', animationDuration: '23s', animationDelay: '-13s' }}>
+        <YeePengLantern size={28} />
+      </div>
 
-      {/* 4. River Water Layer & Reflections */}
+      {/* 5. Riverbank Horizon Silhouette */}
+      <RiverbankSilhouette />
+
+      {/* 6. River Water Layer & Reflections */}
       <div className={styles.riverLayer}>
         <div className={styles.riverWave} />
         <div className={styles.riverWave2} />
       </div>
 
-      {/* 5. Floating Krathongs (3 krathongs drifting gently across water) */}
-      <div className={styles.krathong} style={{ bottom: '16px', animationDuration: '32s', animationDelay: '0s' }}>
-        <KrathongSVG width={118} />
+      {/* 7. Floating Krathongs drifting across water (Varied depths & negative delays) */}
+      <div className={styles.krathong} style={{ bottom: '14px', animationDuration: '28s', animationDelay: '-4s' }}>
+        <KrathongSVG width={124} />
       </div>
-      <div className={styles.krathong} style={{ bottom: '26px', animationDuration: '24s', animationDelay: '9s', opacity: 0.85 }}>
-        <KrathongSVG width={88} />
+      <div className={styles.krathong} style={{ bottom: '26px', animationDuration: '34s', animationDelay: '-14s', opacity: 0.92 }}>
+        <KrathongSVG width={96} />
       </div>
-      <div className={styles.krathong} style={{ bottom: '8px', animationDuration: '38s', animationDelay: '18s' }}>
-        <KrathongSVG width={135} />
+      <div className={styles.krathong} style={{ bottom: '40px', animationDuration: '40s', animationDelay: '-24s', opacity: 0.82 }}>
+        <KrathongSVG width={76} />
+      </div>
+      <div className={styles.krathong} style={{ bottom: '18px', animationDuration: '30s', animationDelay: '-19s' }}>
+        <KrathongSVG width={112} />
+      </div>
+      <div className={styles.krathong} style={{ bottom: '48px', animationDuration: '44s', animationDelay: '-33s', opacity: 0.72 }}>
+        <KrathongSVG width={66} />
       </div>
     </div>
   )

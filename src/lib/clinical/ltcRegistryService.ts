@@ -1,6 +1,7 @@
 import { apiGateway } from '@/lib/apiGateway'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
+import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 
 export interface LongTermCareRecord {
   id: number

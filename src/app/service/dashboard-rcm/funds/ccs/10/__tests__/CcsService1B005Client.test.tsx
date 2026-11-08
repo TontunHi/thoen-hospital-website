@@ -193,7 +193,8 @@ describe('CcsService1B005Client (CCS 1.10 — UI Style Brief)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('compensationFilter=COMPENSATED')
+        expect.stringContaining('compensationFilter=COMPENSATED'),
+        expect.anything()
       )
     })
   })

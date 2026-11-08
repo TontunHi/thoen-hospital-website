@@ -66,7 +66,15 @@ function formatCidDisplay(cid?: string | null): string {
   return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`
 }
 
-export default function FamilyPlanning932Client() {
+export interface FamilyPlanning932ClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function FamilyPlanning932Client({
+  initialData,
+  initialRange,
+}: FamilyPlanning932ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -87,10 +95,8 @@ export default function FamilyPlanning932Client() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
-  const [ds2, setDs2] = useState<string>(
-    `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  )
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalCeYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalCeYear}-09-30`)
 
   // Format state: NEW_ECLAIM (FP001, FP002) vs KRUNGTHAI (20003, 20004)
   const [format, setFormat] = useState<FamilyPlanning932Format>('NEW_ECLAIM')
@@ -105,12 +111,12 @@ export default function FamilyPlanning932Client() {
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data states
-  const [items, setItems] = useState<FamilyPlanning932Item[]>([])
-  const [summary, setSummary] = useState<FamilyPlanning932Summary | null>(null)
-  const [adpMapping, setAdpMapping] = useState<FamilyPlanning932AdpMappingCheck | null>(null)
-  const [totalItems, setTotalItems] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [loading, setLoading] = useState<boolean>(true)
+  const [items, setItems] = useState<FamilyPlanning932Item[]>(initialData?.items || [])
+  const [summary, setSummary] = useState<FamilyPlanning932Summary | null>(initialData?.summary || null)
+  const [adpMapping, setAdpMapping] = useState<FamilyPlanning932AdpMappingCheck | null>(initialData?.adpMapping || null)
+  const [totalItems, setTotalItems] = useState<number>(initialData?.pagination?.totalItems || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.pagination?.totalPages || 1)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [error, setError] = useState<string | null>(null)
 
   // Clinical Modal states
@@ -122,6 +128,7 @@ export default function FamilyPlanning932Client() {
 
   // AbortController ref for race condition prevention
   const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Handle Date Mode Changes
   const handleDateModeChange = (mode: 'custom' | 'monthly' | 'fiscal') => {
@@ -233,13 +240,17 @@ export default function FamilyPlanning932Client() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
     }
-  }, [fetchData])
+  }, [fetchData, initialData])
 
   // Sorting Handler
   const handleSort = (field: FamilyPlanning932SortField) => {

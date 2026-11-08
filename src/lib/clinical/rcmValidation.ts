@@ -19,6 +19,8 @@ export const baseFiscalDateSchema = z.object({
     .optional(),
 })
 
+export const dateRangeSchema = baseFiscalDateSchema
+
 /**
  * Pagination & search query parameters schema
  */
@@ -303,6 +305,280 @@ export const homewardReportQuerySchema = baseFiscalDateSchema
   .merge(paginationSchema.partial())
 
 /**
+ * ADP Search Report Query Schema (OPD & IPD by NHSO ADP Code)
+ */
+export const adpSearchQuerySchema = baseFiscalDateSchema
+  .extend({
+    patientType: z.enum(['OPD', 'IPD']).default('OPD'),
+    adpCode: z.string().max(1000).optional(),
+    cardFilter: z
+      .enum([
+        'ALL',
+        'COMPENSATED',
+        'UNCOMPENSATED',
+        'WITH_AUTHEN',
+        'NO_AUTHEN',
+        'UC_ONLY',
+        'WITH_OPERATION',
+      ])
+      .optional(),
+    sortBy: z.string().max(50).optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+
+/**
+ * Clopidogrel Drug Usage Report Query Schema (กองทุนยา Clopidogrel)
+ */
+export const clopidogrelReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    cardFilter: z
+      .enum([
+        'ALL',
+        'COMPENSATED',
+        'UNCOMPENSATED',
+        'UC_ONLY',
+        'WITH_AUTHEN',
+        'NO_AUTHEN',
+        'INVOICE',
+        'NOT_SENT',
+      ])
+      .default('ALL'),
+    ucOnly: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+    search: z.string().max(120).optional(),
+    sortBy: z
+      .enum([
+        'vstdate',
+        'vsttime',
+        'hn',
+        'cid',
+        'ptname',
+        'age',
+        'qty',
+        'money',
+        'hosxp_money',
+        'compensated',
+        'pdx',
+        'authencode',
+      ])
+      .default('vstdate'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * Streptokinase Drug Fund Report Query Schema (กองทุนยา Streptokinase)
+ */
+export const streptokinaseReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    patientType: z.enum(['OPD', 'IPD']).default('OPD'),
+    cardFilter: z
+      .enum([
+        'ALL',
+        'AUDIT_PASS',
+        'AUDIT_ERROR',
+        'COMPENSATED',
+        'UNCOMPENSATED',
+        'WITH_INVOICE',
+        'WITH_REP',
+        'NOT_SENT',
+      ])
+      .default('ALL'),
+    search: z.string().max(120).optional(),
+    sortBy: z
+      .enum([
+        'date',
+        'time',
+        'hn',
+        'cid',
+        'ptname',
+        'age',
+        'drugname',
+        'money_hosxp',
+        'debit',
+        'money_eclaim',
+        'money_rep',
+        'money_invoice',
+        'rep',
+        'status',
+      ])
+      .default('date'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * กองทุนการให้บริการฟื้นฟูสมรรถภาพและเบิกอุปกรณ์ (Rehabilitation & Disability Fund)
+ * หัวข้อย่อย: รายการการให้บริการฟื้นฟูสมรรถภาพ
+ * หัวข้อย่อยอีกที: รายชื่อการให้บริการฟื้นฟูสมรรถภาพจากเว็บ Disability (11.47.3)
+ */
+export const rehabCardFilterSchema = z
+  .enum([
+    'ALL',
+    'MATCHED',
+    'NOT_IN_WEB',
+    'NO_REHAB_CODE',
+    'NO_VN',
+    'COMPENSATED',
+    'UNCOMPENSATED',
+    'WITH_AUTHEN',
+    'NO_AUTHEN',
+    'UC_ONLY',
+  ])
+  .default('ALL')
+
+export const rehabSortFieldSchema = z
+  .enum([
+    'vstdate',
+    'vsttime',
+    'vn',
+    'hn',
+    'cid',
+    'ptname',
+    'income',
+    'compensated',
+    'rehab_name',
+    'rehab_code',
+    'match_status',
+  ])
+  .default('vstdate')
+
+export const rehabReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    startDate: z.string().regex(rcmDateRegex).optional(),
+    endDate: z.string().regex(rcmDateRegex).optional(),
+    cardFilter: rehabCardFilterSchema,
+    search: z.string().max(120).optional(),
+    sortBy: rehabSortFieldSchema,
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * IMC Eligible Patients Report Query Schema (กองทุนฟื้นฟูสมรรถภาพ: รายงานบริการผู้ป่วย IMC)
+ */
+export const imcCardFilterSchema = z
+  .enum([
+    'ALL',
+    'CHRONIC',
+    'NOT_CHRONIC',
+    'IN_WEB',
+    'NOT_IN_WEB',
+    'COMPENSATED',
+    'UNCOMPENSATED',
+    'WITH_AUTHEN',
+    'NO_AUTHEN',
+  ])
+  .default('ALL')
+
+export const imcSortFieldSchema = z
+  .enum([
+    'date',
+    'an',
+    'vn',
+    'hn',
+    'cid',
+    'ptname',
+    'age',
+    'income',
+    'getprice',
+    'compensated',
+    'chronic',
+    'web',
+    'status',
+    'rep',
+  ])
+  .default('date')
+
+export const imcReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    startDate: z.string().regex(rcmDateRegex).optional(),
+    endDate: z.string().regex(rcmDateRegex).optional(),
+    patientType: z.enum(['IPD', 'OPD']).default('IPD'),
+    cardFilter: imcCardFilterSchema,
+    search: z.string().max(120).optional(),
+    sortBy: imcSortFieldSchema,
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
+ * กองทุนอวัยวะเทียมและอุปกรณ์ (Instrument Fund - 11.29)
+ * กองทุน -> กองทุนอวัยวะเทียมและอุปกรณ์ -> รายชื่อผู้รับบริการ อวัยวะเทียมและอุปกรณ์
+ */
+export const instrumentCardFilterSchema = z
+  .enum([
+    'ALL',
+    'OA',
+    'DM',
+    'OTHER',
+    'COMPENSATED',
+    'INVOICE',
+    'REP',
+    'UNSENT',
+    'DISCREPANCY',
+    'WITH_AUTHEN',
+    'NO_AUTHEN',
+    'UC_ONLY',
+  ])
+  .default('ALL')
+
+export const instrumentSortFieldSchema = z
+  .enum([
+    'date',
+    'time',
+    'hn',
+    'cid',
+    'ptname',
+    'vn',
+    'an',
+    'room',
+    'ward',
+    'pttypename',
+    'instrument',
+    'money_hosxp',
+    'debit',
+    'money_eclaim',
+    'money_rep',
+    'money_invoice',
+    'diff_money',
+    'status',
+    'authencode',
+  ])
+  .default('date')
+
+export const instrumentReportQuerySchema = baseFiscalDateSchema
+  .extend({
+    patientType: z.enum(['OPD', 'IPD']).default('OPD'),
+    cardFilter: instrumentCardFilterSchema,
+    search: z.string().max(120).optional(),
+    sortBy: instrumentSortFieldSchema,
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    refresh: z
+      .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true'), z.literal('1').transform(() => true)])
+      .optional(),
+  })
+  .merge(paginationSchema.partial())
+
+/**
  * Helper to validate URLSearchParams using a Zod schema cleanly
  */
 export function validateSearchParams<T>(
@@ -325,4 +601,5 @@ export function validateSearchParams<T>(
     data: result.data,
   }
 }
+
 

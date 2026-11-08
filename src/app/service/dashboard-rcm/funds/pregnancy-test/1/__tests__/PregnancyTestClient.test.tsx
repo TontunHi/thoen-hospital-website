@@ -172,7 +172,8 @@ describe('PregnancyTestClient Component (8.1)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=POSITIVE')
+        expect.stringContaining('cardFilter=POSITIVE'),
+        expect.anything()
       )
     })
   })
@@ -230,7 +231,8 @@ describe('PregnancyTestClient Component (8.1)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('ucOnly=true')
+        expect.stringContaining('ucOnly=true'),
+        expect.anything()
       )
     })
   })

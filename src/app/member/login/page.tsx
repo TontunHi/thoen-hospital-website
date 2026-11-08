@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { AlertCircle, CheckCircle2, ChevronRight, ArrowLeft, X } from 'lucide-react'
+import LoyKrathongScene from '@/components/seasonal/LoyKrathongScene'
+import HalloweenScene from '@/components/seasonal/HalloweenScene'
 import './page.css'
 
 function MemberLoginForm() {
@@ -476,88 +478,16 @@ function MemberLoginForm() {
   )
 }
 
-function YeePengLantern({ size = 32 }: { size?: number }) {
-  const width = size
-  const height = size * 1.3
-  return (
-    <svg
-      width={width}
-      height={height}
-      viewBox="0 0 32 42"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="yeePengGrad" x1="16" y1="2" x2="16" y2="38" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#fffbeb" stopOpacity="0.95" />
-          <stop offset="40%" stopColor="#fed7aa" stopOpacity="0.9" />
-          <stop offset="85%" stopColor="#f97316" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="#c2410c" stopOpacity="0.9" />
-        </linearGradient>
-        <radialGradient id="yeePengFire" cx="16" cy="35" r="7" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="45%" stopColor="#fef08a" />
-          <stop offset="90%" stopColor="#ea580c" />
-        </radialGradient>
-      </defs>
-
-      {/* Outer Halo Glow */}
-      <circle cx="16" cy="24" r="14" fill="#fbbf24" fillOpacity="0.25" />
-
-      {/* Main Lantern Silhouette */}
-      <path
-        d="M8 7C8 4.2 11.5 2 16 2C20.5 2 24 4.2 24 7L26 31C26 34 21.5 36 16 36C10.5 36 6 34 6 31L8 7Z"
-        fill="url(#yeePengGrad)"
-        stroke="#fdba74"
-        strokeWidth="0.8"
-      />
-
-      {/* Traditional Frame Rims */}
-      <ellipse cx="16" cy="7" rx="8" ry="2" stroke="#ea580c" strokeWidth="0.7" fill="none" opacity="0.6" />
-      <ellipse cx="16" cy="20" rx="9.5" ry="2.2" stroke="#ea580c" strokeWidth="0.6" fill="none" opacity="0.4" />
-      <ellipse cx="16" cy="31" rx="10" ry="2.5" stroke="#9a3412" strokeWidth="0.8" fill="none" opacity="0.7" />
-
-      {/* Bamboo Rim at the base */}
-      <ellipse cx="16" cy="35.5" rx="7.5" ry="1.8" fill="#78350f" />
-
-      {/* Flame Light Source */}
-      <circle cx="16" cy="34" r="4.5" fill="url(#yeePengFire)" />
-      <ellipse cx="16" cy="35" rx="2" ry="1" fill="#ffffff" />
-    </svg>
-  )
-}
-
 export default function MemberLoginPage() {
   return (
     <div className="memberLoginContainer">
-      {/* Vibrant Painted Loy Krathong Scene */}
-      <div className="memberSceneArtWrapper">
-        <Image
-          src="/images/seasonal/loy-krathong-vibrant.webp"
-          alt="ภาพวาดทิวทัศน์เทศกาลลอยกระทง สีสันสดใส เปล่งประกายแสงเทียนและโคมลอยเหนือสายน้ำยามพลบค่ำ"
-          width={1376}
-          height={768}
-          priority
-          sizes="100vw"
-          className="memberSceneArtImg"
-        />
-        <div className="memberSceneEdgeMask" aria-hidden="true" />
+      {/* Seasonal Atmosphere Layers */}
+      <Suspense fallback={null}>
+        <HalloweenScene />
+        <LoyKrathongScene />
+      </Suspense>
 
-        {/* Ambient floating Yee Peng lanterns ascending into the night sky */}
-        <div className="ambientLanternsLayer" aria-hidden="true">
-          <span className="floatingLantern lantern1"><YeePengLantern size={26} /></span>
-          <span className="floatingLantern lantern2"><YeePengLantern size={34} /></span>
-          <span className="floatingLantern lantern3"><YeePengLantern size={20} /></span>
-          <span className="floatingLantern lantern4"><YeePengLantern size={38} /></span>
-          <span className="floatingLantern lantern5"><YeePengLantern size={24} /></span>
-          <span className="floatingLantern lantern6"><YeePengLantern size={30} /></span>
-          <span className="floatingLantern lantern7"><YeePengLantern size={18} /></span>
-          <span className="floatingLantern lantern8"><YeePengLantern size={22} /></span>
-        </div>
-      </div>
-
-      <div className="memberLoginStage memberLoginStageSingle">
+      <div className="memberLoginStage">
         {/* Authentication Card */}
         <div className="memberAuthColumn">
           <Suspense

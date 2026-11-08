@@ -170,7 +170,8 @@ describe('FamilyPlanning92Client Component', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('patientType=IPD')
+        expect.stringContaining('patientType=IPD'),
+        expect.anything()
       )
     })
   })
@@ -189,7 +190,8 @@ describe('FamilyPlanning92Client Component', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=COMPENSATED')
+        expect.stringContaining('cardFilter=COMPENSATED'),
+        expect.anything()
       )
     })
   })

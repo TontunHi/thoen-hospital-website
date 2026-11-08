@@ -1,0 +1,831 @@
+/* ==========================================================================
+   กองทุนการให้บริการฟื้นฟูสมรรถภาพและเบิกอุปกรณ์
+   หัวข้อย่อย: รายงานบริการผู้ป่วย IMC
+   หัวข้อย่อยอีก: รายชื่อผู้รับบริการตามเกณฑ์ IMC
+   
+   UI Style Brief:
+   - Modern, calm hospital design (#0D7446 quiet chrome, Sarabun font)
+   - Thai Buddhist Era (พ.ศ.), unmasked 13-digit CID for internal RCM
+   - Single-row Date Selector (กำหนดเอง | เดือน | ปีงบประมาณ) without ()
+   - Clickable KPI Cards for instant filtering
+   - Row-clickable table without "ดูข้อมูล" button
+   - Responsive layout with zero AI slop
+   ========================================================================== */
+
+.imc-page {
+  padding: 24px 32px 48px;
+  max-width: 1720px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--background, #f8fafc);
+  color: var(--foreground, #0f172a);
+  font-family: var(--font-sarabun, system-ui, -apple-system, sans-serif);
+}
+
+/* ── 1. Clean Breadcrumb ── */
+.imc-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted-foreground, #64748b);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.imc-breadcrumb a {
+  color: var(--muted-foreground, #64748b);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.imc-breadcrumb a:hover {
+  color: var(--primary, #0d7446);
+}
+
+.imc-breadcrumb-sep {
+  color: var(--border, #cbd5e1);
+  font-size: 11px;
+}
+
+.imc-breadcrumb-current {
+  color: var(--foreground, #1e293b);
+  font-weight: 500;
+}
+
+/* ── 2. Header Bar ── */
+.imc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.imc-title-group {
+  flex: 1;
+  min-width: 320px;
+}
+
+.imc-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--foreground, #0f172a);
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
+}
+
+.imc-subtitle {
+  font-size: 14px;
+  color: var(--muted-foreground, #64748b);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.imc-subtitle-dot {
+  color: var(--border, #94a3b8);
+}
+
+.imc-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.imc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  border: 1px solid transparent;
+  min-height: 42px;
+  font-family: inherit;
+}
+
+.imc-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.imc-btn-secondary {
+  background-color: var(--card, #ffffff);
+  border-color: var(--border, #e2e8f0);
+  color: var(--foreground, #1e293b);
+}
+
+.imc-btn-secondary:hover:not(:disabled) {
+  background-color: var(--muted, #f1f5f9);
+  border-color: var(--border-hover, #cbd5e1);
+}
+
+.imc-btn-primary {
+  background-color: var(--primary, #0d7446);
+  color: #ffffff;
+}
+
+.imc-btn-primary:hover:not(:disabled) {
+  background-color: #0a5c37;
+}
+
+.imc-spin {
+  animation: imc-spin 1s linear infinite;
+}
+
+@keyframes imc-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 3. Patient Type Toggle Bar ── */
+.imc-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.imc-patient-type-tabs {
+  display: inline-flex;
+  align-items: center;
+  background-color: #eef2f6;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 4px;
+}
+
+.imc-type-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.imc-type-tab-btn.active {
+  background-color: #ffffff;
+  color: var(--primary, #0d7446);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ── 4. Single-Row Date Selector ── */
+.imc-date-selector-card {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  padding: 12px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.imc-date-tabs {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f1f5f9;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.imc-date-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.imc-date-tab.active {
+  background-color: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.imc-date-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #e2e8f0;
+}
+
+.imc-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.imc-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background-color: #ffffff;
+  font-size: 13px;
+  color: #1e293b;
+  font-family: inherit;
+  outline: none;
+  min-height: 36px;
+}
+
+.imc-select:focus {
+  border-color: var(--primary, #0d7446);
+  ring: 2px rgba(13, 116, 70, 0.15);
+}
+
+.imc-date-range-display {
+  font-size: 13px;
+  color: #64748b;
+  margin-left: auto;
+  font-weight: 500;
+}
+
+.imc-date-range-display span {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* ── 5. Interactive KPI Filter Cards ── */
+.imc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1200px) {
+  .imc-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .imc-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.imc-kpi-card {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 18px 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.imc-kpi-card:hover {
+  border-color: #cbd5e1;
+  background-color: #fafbfc;
+}
+
+.imc-kpi-card.active {
+  border-color: var(--primary, #0d7446);
+  background-color: #f0fdf4;
+  box-shadow: 0 0 0 1px var(--primary, #0d7446);
+}
+
+.imc-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.imc-kpi-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.imc-kpi-card.active .imc-kpi-title {
+  color: #0d7446;
+  font-weight: 600;
+}
+
+.imc-kpi-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.imc-kpi-card.active .imc-kpi-icon {
+  background-color: #dcfce7;
+  color: #0d7446;
+}
+
+.imc-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.imc-kpi-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.imc-kpi-card.active .imc-kpi-value {
+  color: #0d7446;
+}
+
+.imc-kpi-unit {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.imc-kpi-meta {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 6px;
+}
+
+/* ── 6. Unified Global Search Bar & Table Header ── */
+.imc-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.imc-search-box {
+  position: relative;
+  min-width: 340px;
+  flex: 1;
+  max-width: 480px;
+}
+
+.imc-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.imc-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 8px 36px 8px 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #cbd5e1);
+  background-color: #ffffff;
+  font-size: 14px;
+  color: #0f172a;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.imc-search-input:focus {
+  border-color: var(--primary, #0d7446);
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.12);
+}
+
+.imc-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.imc-search-clear:hover {
+  color: #0f172a;
+}
+
+.imc-toolbar-info {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.imc-toolbar-info strong {
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 7. Table Styling & Alignment Standards ── */
+.imc-table-wrapper {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.imc-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.imc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.imc-table th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: center;
+  user-select: none;
+}
+
+.imc-table th.col-left {
+  text-align: left;
+}
+
+.imc-table th.col-right {
+  text-align: right;
+}
+
+.imc-th-sortable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.imc-th-sortable:hover {
+  background-color: #f1f5f9;
+}
+
+.imc-th-sort-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.imc-th-sort-inner svg {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.imc-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.imc-table td.col-center {
+  text-align: center;
+}
+
+.imc-table td.col-left {
+  text-align: left;
+}
+
+.imc-table td.col-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.imc-table .tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clickable Row without View Button */
+.imc-row {
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.imc-row:hover {
+  background-color: #f8fafc;
+}
+
+.imc-row:active {
+  background-color: #f1f5f9;
+}
+
+/* Patient Name Centered on X-axis with Intact Surname Wrap */
+.patient-name-container {
+  display: inline-block;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.patient-first {
+  display: inline-block;
+}
+
+.patient-last {
+  display: inline-block;
+}
+
+/* Badges */
+.imc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.imc-badge-success {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.imc-badge-warning {
+  background-color: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fef08a;
+}
+
+.imc-badge-danger {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.imc-badge-neutral {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.imc-badge-info {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+/* Empty & Error States */
+.imc-empty-state {
+  padding: 64px 24px;
+  text-align: center;
+  color: #64748b;
+}
+
+.imc-empty-icon {
+  margin: 0 auto 12px;
+  color: #94a3b8;
+}
+
+.imc-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 6px 0;
+}
+
+/* Pagination */
+.imc-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.imc-page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.imc-page-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.imc-page-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  font-size: 13px;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 34px;
+  font-family: inherit;
+}
+
+.imc-page-btn:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.imc-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 8. Patient Detail Modal (0ms first paint on row click) ── */
+.imc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: imc-fade-in 0.15s ease;
+}
+
+@keyframes imc-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.imc-modal-card {
+  background-color: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 820px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.imc-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background-color: #f8fafc;
+}
+
+.imc-modal-header-info {
+  flex: 1;
+}
+
+.imc-modal-patient-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.imc-modal-patient-meta {
+  font-size: 13px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.imc-modal-close-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.imc-modal-close-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.imc-modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.imc-modal-section {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.imc-modal-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.imc-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 20px;
+}
+
+@media (max-width: 600px) {
+  .imc-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.imc-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.imc-modal-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.imc-modal-val {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.imc-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background-color: #f8fafc;
+}

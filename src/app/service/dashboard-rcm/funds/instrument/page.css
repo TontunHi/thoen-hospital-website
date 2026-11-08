@@ -1,0 +1,986 @@
+/* ==========================================================================
+   กองทุนอวัยวะเทียมและอุปกรณ์
+   หัวข้อย่อย: รายชื่อผู้รับบริการ อวัยวะเทียมและอุปกรณ์ (11.29)
+   
+   UI Style Brief & Anti-AI-Slop Craft:
+   - Quiet Chrome, Rich Content (#0D7446 brand green)
+   - Sarabun font with tabular-nums for HN, CID, currency, dates
+   - 8 Clickable KPI cards in balanced grid (repeat(4, 1fr))
+   - Single-row date selector (กำหนดเอง | เดือน | ปีงบประมาณ) without parentheses ()
+   - Patient Type Toggle (ผู้ป่วยนอก OPD / ผู้ป่วยใน IPD)
+   - Row-clickable records without redundant view buttons
+   - Clean alignment matching Pass 6 of ui-style-brief
+   ========================================================================== */
+
+.inst-page {
+  padding: 24px 32px 48px;
+  max-width: 1720px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--background, #f8fafc);
+  color: var(--foreground, #0f172a);
+  font-family: var(--font-sarabun, system-ui, -apple-system, sans-serif);
+}
+
+/* ── 1. Clean Breadcrumb ── */
+.inst-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted-foreground, #64748b);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.inst-breadcrumb a {
+  color: var(--muted-foreground, #64748b);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.inst-breadcrumb a:hover {
+  color: var(--primary, #0d7446);
+}
+
+.inst-breadcrumb-sep {
+  color: var(--border, #cbd5e1);
+  font-size: 11px;
+}
+
+.inst-breadcrumb-current {
+  color: var(--foreground, #1e293b);
+  font-weight: 500;
+}
+
+/* ── 2. Header Bar ── */
+.inst-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.inst-title-group {
+  flex: 1;
+  min-width: 320px;
+}
+
+.inst-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--foreground, #0f172a);
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
+}
+
+.inst-subtitle {
+  font-size: 14px;
+  color: var(--muted-foreground, #64748b);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inst-subtitle-dot {
+  color: var(--border, #94a3b8);
+}
+
+.inst-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inst-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  min-height: 42px;
+  font-family: inherit;
+}
+
+.inst-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.inst-btn-refresh {
+  background: #ffffff;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+
+.inst-btn-refresh:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.inst-btn-export {
+  background: #0d7446;
+  color: #ffffff;
+}
+
+.inst-btn-export:hover:not(:disabled) {
+  background: #0a5c37;
+}
+
+/* ── 3. Single Row Date & Type Toolbar ── */
+.inst-toolbar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.inst-type-selector {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.inst-type-tab {
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inst-type-tab.active {
+  background: #ffffff;
+  color: #0d7446;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.inst-date-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.inst-date-tabs {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.inst-date-tab {
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.inst-date-tab.active {
+  background: #ffffff;
+  color: #0d7446;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.inst-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inst-select,
+.inst-input {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1e293b;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.inst-select:focus,
+.inst-input:focus {
+  border-color: #0d7446;
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.12);
+}
+
+/* ── 4. Clickable KPI Cards (8-Card Grid) ── */
+.inst-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.inst-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 110px;
+  position: relative;
+  font-family: inherit;
+}
+
+.inst-kpi-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+}
+
+.inst-kpi-card.active {
+  border-color: #0d7446;
+  background: #f8fbf9;
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.2);
+}
+
+.inst-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.inst-kpi-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.inst-kpi-card.active .inst-kpi-label {
+  color: #0d7446;
+  font-weight: 600;
+}
+
+.inst-kpi-pill {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.inst-pill-default {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.inst-pill-oa {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.inst-pill-dm {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.inst-pill-invoice {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.inst-pill-rep {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.inst-pill-unsent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.inst-pill-discrepancy {
+  background: #fef08a;
+  color: #854d0e;
+}
+
+.inst-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.inst-kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.inst-kpi-unit {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.inst-kpi-subvalue {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 5. Search & Filter Bar ── */
+.inst-filter-bar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.inst-search-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+  max-width: 520px;
+}
+
+.inst-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.inst-search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 36px 0 38px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.inst-search-input:focus {
+  border-color: #0d7446;
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.12);
+}
+
+.inst-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.inst-search-clear:hover {
+  color: #475569;
+}
+
+.inst-filter-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.inst-count-badge {
+  font-weight: 600;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.inst-active-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.inst-active-filter-badge button {
+  background: none;
+  border: none;
+  color: #166534;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* ── 6. Alert & Mapping Banner ── */
+.inst-warning-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #92400e;
+  font-size: 13px;
+}
+
+.inst-warning-banner a {
+  color: #b45309;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+/* ── 7. Clean Table Styling ── */
+.inst-table-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.inst-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.inst-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  min-width: 1280px;
+}
+
+.inst-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.inst-table th.sortable {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.inst-table th.sortable:hover {
+  color: #0d7446;
+  background: #f1f5f9;
+}
+
+.inst-sort-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.inst-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.inst-table-row {
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.inst-table-row:hover {
+  background-color: #f8fafc;
+}
+
+/* Row-Level Highlights based on Foxpro Rules */
+.inst-row-unsent {
+  background-color: #fffbfb;
+}
+
+.inst-row-discrepancy {
+  background-color: #fffef2;
+}
+
+/* Column Alignments strictly matching ui-style-brief Pass 6 */
+.col-center {
+  text-align: center;
+}
+
+.col-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.col-left {
+  text-align: left;
+}
+
+/* Patient Name Wrap Protection */
+.inst-ptname {
+  min-width: 160px;
+  white-space: nowrap;
+  display: inline-block;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.inst-tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+}
+
+/* Status Badges */
+.inst-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.inst-badge-invoice {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.inst-badge-rep {
+  background: #ccfbf1;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+}
+
+.inst-badge-eclaim {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.inst-badge-unsent {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.inst-tag-oa {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.inst-tag-dm {
+  background: #fef3c7;
+  color: #b45309;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── 8. Pagination ── */
+.inst-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  font-size: 13px;
+  color: #64748b;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.inst-page-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inst-page-btn {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.inst-page-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.inst-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.inst-page-btn.active {
+  background: #0d7446;
+  border-color: #0d7446;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ── 9. Detail Modal (0ms Paint + Full Ledger Breakdown) ── */
+.inst-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.inst-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 780px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  animation: instModalFadeIn 0.15s ease-out;
+}
+
+@keyframes instModalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.inst-modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #f8fafc;
+}
+
+.inst-modal-title-group {
+  flex: 1;
+}
+
+.inst-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.inst-modal-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inst-modal-close-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inst-modal-close-btn:hover {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.inst-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.inst-modal-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inst-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.inst-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inst-detail-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.inst-detail-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+/* Financial Comparison Box inside Modal */
+.inst-finance-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.inst-finance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+
+.inst-finance-row:last-child {
+  border-bottom: none;
+}
+
+.inst-finance-row.highlight {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.inst-finance-diff {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.inst-diff-match {
+  color: #15803d;
+}
+
+.inst-diff-mismatch {
+  color: #b91c1c;
+}
+
+/* Items List Table inside Modal */
+.inst-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.inst-items-table th {
+  background: #f1f5f9;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+}
+
+.inst-items-table td {
+  padding: 8px 12px;
+  border-top: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.inst-modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #f8fafc;
+}
+
+/* ── 10. Empty & Skeleton States ── */
+.inst-empty-card {
+  padding: 60px 24px;
+  text-align: center;
+  color: #64748b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.inst-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0;
+}
+
+.inst-empty-text {
+  font-size: 13px;
+  margin: 0;
+  max-width: 420px;
+}
+
+.inst-skeleton-card {
+  height: 110px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  animation: instPulse 1.5s infinite ease-in-out;
+}
+
+.inst-skeleton-row {
+  height: 48px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+@keyframes instPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ── 11. Responsive Layout ── */
+@media (max-width: 1200px) {
+  .inst-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .inst-page {
+    padding: 16px;
+  }
+  
+  .inst-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inst-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inst-actions {
+    justify-content: flex-start;
+  }
+
+  .inst-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inst-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

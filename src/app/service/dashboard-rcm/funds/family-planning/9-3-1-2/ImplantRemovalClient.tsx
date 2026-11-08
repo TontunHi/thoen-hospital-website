@@ -3,7 +3,13 @@
 import React from 'react'
 import FamilyPlanningReportClient from '../FamilyPlanningReportClient'
 
-export default function ImplantRemovalClient() {
+export default function ImplantRemovalClient({
+  initialData,
+  initialRange,
+}: {
+  initialData?: any
+  initialRange?: any
+}) {
   return (
     <FamilyPlanningReportClient
       reportType="9.3.1.2"
@@ -11,6 +17,8 @@ export default function ImplantRemovalClient() {
       title="9.3.1.2 รายการถอดยาคุม (Contraceptive Implant Removal)"
       subtitle="รายงานการให้บริการถอดยาคุมกำเนิด รหัส ADP: FP002_2 ตรวจสอบการลงรหัสการวินิจฉัยโรค (Dx Z308), การคิดค่าบริการ/สั่งยา, และการชดเชยค่าบริการ E-Claim / สปสช. ทั้งผู้ป่วยนอก (OPD) และผู้ป่วยใน (IPD)"
       adpCode="FP002_2"
+      initialData={initialData}
+      initialRange={initialRange}
     />
   )
 }

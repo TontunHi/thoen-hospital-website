@@ -93,7 +93,7 @@ describe('InjectableContraceptivesClient Component (9.7)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
       '9.7 ยาฉีดคุมกำเนิด (Injectable Contraceptives)'
     )
-    expect(screen.getAllByText(/FP003_4/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/FP004/).length).toBeGreaterThan(0)
 
     await waitFor(() => {
       expect(screen.getByText('นางสาว สมใจ มุ่งมั่น')).toBeInTheDocument()
@@ -102,7 +102,7 @@ describe('InjectableContraceptivesClient Component (9.7)', () => {
     expect(screen.getByText('0098765')).toBeInTheDocument()
     expect(screen.getByText('AUTH998877')).toBeInTheDocument()
     expect(screen.getByText(/24 คน · รายรับ/)).toBeInTheDocument()
-    expect(screen.getByText('ไม่พบ Dx Z304')).toBeInTheDocument()
+    expect(screen.getByText('ไม่พบ Dx Z300')).toBeInTheDocument()
   })
 
   it('switches patient type between OPD and IPD', async () => {
@@ -113,7 +113,8 @@ describe('InjectableContraceptivesClient Component (9.7)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('patientType=IPD')
+        expect.stringContaining('patientType=IPD'),
+        expect.anything()
       )
     })
   })
@@ -126,7 +127,8 @@ describe('InjectableContraceptivesClient Component (9.7)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=COMPENSATED')
+        expect.stringContaining('cardFilter=COMPENSATED'),
+        expect.anything()
       )
     })
   })

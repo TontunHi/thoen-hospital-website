@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -65,7 +65,15 @@ function formatCidDisplay(cid?: string | null): string {
   return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`
 }
 
-export default function FamilyPlanning91Client() {
+export interface FamilyPlanning91ClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function FamilyPlanning91Client({
+  initialData,
+  initialRange,
+}: FamilyPlanning91ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -86,8 +94,8 @@ export default function FamilyPlanning91Client() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${defaultFiscalCeYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(`${defaultFiscalCeYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalCeYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalCeYear}-09-30`)
 
   // Filter States
   const [format, setFormat] = useState<FamilyPlanningFormat>('NEW_ECLAIM')
@@ -108,33 +116,41 @@ export default function FamilyPlanning91Client() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<FamilyPlanningItem[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
+  const [items, setItems] = useState<FamilyPlanningItem[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
   const [statusOptions, setStatusOptions] = useState<string[]>([])
   const [errorOptions, setErrorOptions] = useState<string[]>([])
-  const [adpMapping, setAdpMapping] = useState<FamilyPlanningAdpMappingCheck>({
-    isMapped: true,
-    mappedCount: 0,
-    format: 'NEW_ECLAIM',
-    items: [],
-  })
-  const [summary, setSummary] = useState<FamilyPlanningSummary>({
-    totalVisits: 0,
-    uniquePatients: 0,
-    serviceOnlyCount: 0,
-    compensatedVisits: 0,
-    uncompensatedVisits: 0,
-    compensationRate: 0,
-    totalCompensated: 0,
-    averageCompensated: 0,
-    errorCount: 0,
-    authenCount: 0,
-    noAuthenCount: 0,
-    withDxCount: 0,
-    withDrugCount: 0,
-    totalIncome: 0,
-  })
+  const [adpMapping, setAdpMapping] = useState<FamilyPlanningAdpMappingCheck>(
+    initialData?.adpMapping || {
+      isMapped: true,
+      mappedCount: 0,
+      format: 'NEW_ECLAIM',
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<FamilyPlanningSummary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      uniquePatients: 0,
+      serviceOnlyCount: 0,
+      compensatedVisits: 0,
+      uncompensatedVisits: 0,
+      compensationRate: 0,
+      totalCompensated: 0,
+      averageCompensated: 0,
+      errorCount: 0,
+      authenCount: 0,
+      withoutAuthenCount: 0,
+      noAuthenCount: 0,
+      withDxCount: 0,
+      withDrugCount: 0,
+      totalIncome: 0,
+      totalDiscount: 0,
+      totalPaidMoney: 0,
+      totalRemain: 0,
+    }
+  )
 
   // Inspection Modal States
   const [selectedItem, setSelectedItem] = useState<FamilyPlanningItem | null>(null)
@@ -170,9 +186,18 @@ export default function FamilyPlanning91Client() {
     }
   }, [dateMode, selectedFiscalYear, selectedMonth, selectedBeYear])
 
+  const abortRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
+
   // Fetch Report Data
   const fetchData = useCallback(
     async (forceRefresh = false) => {
+      if (abortRef.current) {
+        abortRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortRef.current = controller
+
       if (forceRefresh) setIsRefreshing(true)
       else setLoading(true)
       setError(null)
@@ -199,7 +224,8 @@ export default function FamilyPlanning91Client() {
         }
 
         const res = await fetch(
-          `/api/service/dashboard-rcm/funds/family-planning/service-9-1?${q.toString()}`
+          `/api/service/dashboard-rcm/funds/family-planning/service-9-1?${q.toString()}`,
+          { signal: controller.signal }
         )
         const json = await res.json()
 
@@ -216,11 +242,14 @@ export default function FamilyPlanning91Client() {
         if (data.statusOptions) setStatusOptions(data.statusOptions)
         if (data.errorOptions) setErrorOptions(data.errorOptions)
       } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') return
         const e = err as Error
         setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [
@@ -241,8 +270,15 @@ export default function FamilyPlanning91Client() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [fetchData, initialData])
 
   // Fetch Clinical Visit Details for Modal
   const fetchClinicalDetails = useCallback(async (vn: string) => {

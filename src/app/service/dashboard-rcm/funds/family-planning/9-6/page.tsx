@@ -1,14 +1,15 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import { RcmFamilyPlanningService } from '@/lib/clinical/rcmFamilyPlanningService'
+import { getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
 import EmergencyContraceptiveClient from './EmergencyContraceptiveClient'
 
 export const metadata = {
-  title: '9.6 ยาเม็ดคุมกำเนิดชนิดฉุกเฉิน (FP003_3) | กองทุนบริการวางแผนครอบครัว Dashboard-RCM',
-  description:
-    'รายงานหัวข้อที่ 9.6 ยาเม็ดคุมกำเนิดชนิดฉุกเฉิน รหัส ADP: FP003_3 ตรวจสอบการลงรหัส Dx Z304 ค่าบริการ และสถานะการชดเชยค่าบริการ E-Claim / สปสช. โรงพยาบาลเถิน',
+  title: '9.6 ยาเม็ดคุมกำเนิดชนิดฉุกเฉิน | Dashboard-RCM โรงพยาบาลเถิน',
+  description: 'รายงานการให้บริการยาเม็ดคุมกำเนิดฉุกเฉิน โรงพยาบาลเถิน',
 }
 
-export default async function FamilyPlanningService96Page() {
+export default async function EmergencyContraceptivePage() {
   const session = await verifyMemberSession()
   if (!session) {
     redirect('/member/login')
@@ -18,5 +19,17 @@ export default async function FamilyPlanningService96Page() {
     redirect('/service')
   }
 
-  return <EmergencyContraceptiveClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData = null
+  try {
+    initialData = await RcmFamilyPlanningService.getFamilyPlanningReport({
+      reportType: '9.6',
+      startDate: defaultRange.startDate,
+      endDate: defaultRange.endDate,
+    })
+  } catch {
+    initialData = null
+  }
+
+  return <EmergencyContraceptiveClient initialData={initialData} initialRange={defaultRange} />
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -72,6 +72,8 @@ export interface FamilyPlanningClientProps {
   subtitle: string
   adpCode: string
   expectedDx?: string
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
 }
 
 export default function FamilyPlanningReportClient({
@@ -81,6 +83,8 @@ export default function FamilyPlanningReportClient({
   subtitle,
   adpCode,
   expectedDx = 'Z308',
+  initialData,
+  initialRange,
 }: FamilyPlanningClientProps) {
   const today = useMemo(() => new Date(), [])
   const expectedDxRegex = useMemo(() => new RegExp(expectedDx, 'i'), [expectedDx])
@@ -103,9 +107,9 @@ export default function FamilyPlanningReportClient({
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
   const [ds2, setDs2] = useState<string>(
-    `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    initialRange?.endDate || `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   )
 
   // Patient Type State: 'OPD' (default) | 'IPD'
@@ -126,19 +130,22 @@ export default function FamilyPlanningReportClient({
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<FamilyPlanningItem[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [adpMapping, setAdpMapping] = useState<FamilyPlanningAdpMappingCheck>({
-    isMapped: true,
-    mappedCount: 0,
-    adpCode,
-    items: [],
-  })
-  const [summary, setSummary] = useState<FamilyPlanningSummary>({
-    totalCases: 0,
-    uniquePatients: 0,
-    compensatedCases: 0,
+  const [items, setItems] = useState<FamilyPlanningItem[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [adpMapping, setAdpMapping] = useState<FamilyPlanningAdpMappingCheck>(
+    initialData?.adpMapping || {
+      isMapped: true,
+      mappedCount: 0,
+      adpCode,
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<FamilyPlanningSummary>(
+    initialData?.summary || {
+      totalCases: 0,
+      uniquePatients: 0,
+      compensatedCases: 0,
     eclaimSentCases: 0,
     unsentCases: 0,
     compensationRate: 0,
@@ -180,9 +187,18 @@ export default function FamilyPlanningReportClient({
     }
   }, [dateMode, selectedFiscalYear, selectedMonth, selectedBeYear])
 
+  const abortRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
+
   // Fetch Report Data
   const fetchData = useCallback(
     async (forceRefresh = false) => {
+      if (abortRef.current) {
+        abortRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortRef.current = controller
+
       setLoading(true)
       setError(null)
       try {
@@ -203,7 +219,7 @@ export default function FamilyPlanningReportClient({
           query.set('refresh', 'true')
         }
 
-        const res = await fetch(`${apiEndpoint}?${query.toString()}`)
+        const res = await fetch(`${apiEndpoint}?${query.toString()}`, { signal: controller.signal })
         const json = await res.json()
 
         if (!res.ok || !json.success) {
@@ -221,19 +237,29 @@ export default function FamilyPlanningReportClient({
           setAdpMapping(data.adpMapping)
         }
       } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') return
         const e = err as Error
         setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [apiEndpoint, ds1, ds2, patientType, cardFilter, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [fetchData, initialData])
 
   // Handle Sort column click
   const handleSort = (field: FamilyPlanningSortField) => {

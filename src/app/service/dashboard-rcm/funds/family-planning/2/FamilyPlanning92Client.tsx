@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -65,7 +65,15 @@ function formatCidDisplay(cid?: string | null): string {
   return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`
 }
 
-export default function FamilyPlanning92Client() {
+export interface FamilyPlanning92ClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function FamilyPlanning92Client({
+  initialData,
+  initialRange,
+}: FamilyPlanning92ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -86,10 +94,8 @@ export default function FamilyPlanning92Client() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
-  const [ds2, setDs2] = useState<string>(
-    `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  )
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalCeYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalCeYear}-09-30`)
 
   // Patient Type State: 'OPD' (default) | 'IPD'
   const [patientType, setPatientType] = useState<IudPatientType>('OPD')
@@ -111,37 +117,41 @@ export default function FamilyPlanning92Client() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<IudItem[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [adpMapping, setAdpMapping] = useState<IudAdpMappingCheck>({
-    isMapped: true,
-    mappedCount: 0,
-    adpCodes: ['20003', 'FP001', '71681', '71682'],
-    items: [],
-  })
-  const [summary, setSummary] = useState<IudSummary>({
-    totalCases: 0,
-    uniquePatients: 0,
-    compensatedCases: 0,
-    uncompensatedCases: 0,
-    eclaimSentCases: 0,
-    unsentCases: 0,
-    compensationRate: 0,
-    totalCompensated: 0,
-    totalIncome: 0,
-    totalMoneyEclaim: 0,
-    totalMoneyRep: 0,
-    totalMoneyInvoice: 0,
-    errorDxCount: 0,
-    errorOpCount: 0,
-    errorDrugCount: 0,
-    hasErrorCount: 0,
-    completeCount: 0,
-    withAuthenCount: 0,
-    withoutAuthenCount: 0,
-    authenRate: 0,
-  })
+  const [items, setItems] = useState<IudItem[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [adpMapping, setAdpMapping] = useState<IudAdpMappingCheck>(
+    initialData?.adpMapping || {
+      isMapped: true,
+      mappedCount: 0,
+      adpCodes: ['20003', 'FP001', '71681', '71682'],
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<IudSummary>(
+    initialData?.summary || {
+      totalCases: 0,
+      uniquePatients: 0,
+      compensatedCases: 0,
+      uncompensatedCases: 0,
+      eclaimSentCases: 0,
+      unsentCases: 0,
+      compensationRate: 0,
+      totalCompensated: 0,
+      totalIncome: 0,
+      totalMoneyEclaim: 0,
+      totalMoneyRep: 0,
+      totalMoneyInvoice: 0,
+      errorDxCount: 0,
+      errorOpCount: 0,
+      errorDrugCount: 0,
+      hasErrorCount: 0,
+      completeCount: 0,
+      withAuthenCount: 0,
+      withoutAuthenCount: 0,
+      authenRate: 0,
+    }
+  )
 
   // Inspection Modal States
   const [selectedItem, setSelectedItem] = useState<IudItem | null>(null)
@@ -177,9 +187,18 @@ export default function FamilyPlanning92Client() {
     }
   }, [dateMode, selectedFiscalYear, selectedMonth, selectedBeYear])
 
+  const abortRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
+
   // Fetch Report Data from API
   const fetchData = useCallback(
     async (forceRefresh = false) => {
+      if (abortRef.current) {
+        abortRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortRef.current = controller
+
       if (forceRefresh) setIsRefreshing(true)
       else setLoading(true)
       setError(null)
@@ -203,7 +222,8 @@ export default function FamilyPlanning92Client() {
         }
 
         const res = await fetch(
-          `/api/service/dashboard-rcm/funds/family-planning/service-9-2?${q.toString()}`
+          `/api/service/dashboard-rcm/funds/family-planning/service-9-2?${q.toString()}`,
+          { signal: controller.signal }
         )
         const json = await res.json()
 
@@ -218,11 +238,14 @@ export default function FamilyPlanning92Client() {
         if (data.summary) setSummary(data.summary)
         if (data.adpMapping) setAdpMapping(data.adpMapping)
       } catch (err: unknown) {
+        if ((err as Error)?.name === 'AbortError') return
         const e = err as Error
         setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [
@@ -240,8 +263,15 @@ export default function FamilyPlanning92Client() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [fetchData, initialData])
 
   // Fetch Clinical Visit Details for Modal
   const fetchClinicalDetails = useCallback(async (vn: string) => {
@@ -855,7 +885,7 @@ export default function FamilyPlanning92Client() {
             {summary.withAuthenCount.toLocaleString('th-TH')}
           </div>
           <div className="fp-kpi-sub">
-            {summary.authenRate.toFixed(1)}% · ขอรหัสยืนยันตัวตนแล้ว
+            {(summary.authenRate ?? 0).toFixed(1)}% · ขอรหัสยืนยันตัวตนแล้ว
           </div>
         </div>
       </div>

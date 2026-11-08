@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -56,7 +56,15 @@ function formatCidDisplay(cid?: string | null): string {
   return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`
 }
 
-export default function ThalassemiaService31Client() {
+export interface ThalassemiaService31ClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function ThalassemiaService31Client({
+  initialData,
+  initialRange,
+}: ThalassemiaService31ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -77,8 +85,8 @@ export default function ThalassemiaService31Client() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${defaultFiscalCeYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(`${defaultFiscalCeYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalCeYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalCeYear}-09-30`)
 
   // Filter & Search states
   const [cardFilter, setCardFilter] = useState<ThalassemiaCardFilter>('ALL')
@@ -92,32 +100,39 @@ export default function ThalassemiaService31Client() {
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data fetching states
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<ThalassemiaItem[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [adpMapping, setAdpMapping] = useState<ThalassemiaAdpMappingCheck>({
-    isMapped: true,
-    mappedCount: 0,
-    items: [],
-  })
-  const [summary, setSummary] = useState<ThalassemiaSummary>({
-    totalMothers: 0,
-    screenedCount: 0,
-    unscreenedCount: 0,
-    screeningRate: 0,
-    normalCount: 0,
-    riskCount: 0,
-    pendingCount: 0,
-    thoenHospitalCount: 0,
-    otherHospitalCount: 0,
-    normalLaborCount: 0,
-    cesareanLaborCount: 0,
-    otherLaborCount: 0,
-  })
+  const [items, setItems] = useState<ThalassemiaItem[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [adpMapping, setAdpMapping] = useState<ThalassemiaAdpMappingCheck>(
+    initialData?.adpMapping || {
+      isMapped: true,
+      mappedCount: 0,
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<ThalassemiaSummary>(
+    initialData?.summary || {
+      totalMothers: 0,
+      screenedCount: 0,
+      unscreenedCount: 0,
+      screeningRate: 0,
+      normalCount: 0,
+      riskCount: 0,
+      pendingCount: 0,
+      thoenHospitalCount: 0,
+      otherHospitalCount: 0,
+      normalLaborCount: 0,
+      cesareanLaborCount: 0,
+      otherLaborCount: 0,
+    }
+  )
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Modal inspection states
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -152,6 +167,12 @@ export default function ThalassemiaService31Client() {
   // Fetch report data
   const fetchData = useCallback(
     async (forceRefresh = false) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       if (forceRefresh) setIsRefreshing(true)
       else setLoading(true)
       setError(null)
@@ -175,7 +196,8 @@ export default function ThalassemiaService31Client() {
         }
 
         const res = await fetch(
-          `/api/service/dashboard-rcm/funds/thalassemia/service-31?${q.toString()}`
+          `/api/service/dashboard-rcm/funds/thalassemia/service-31?${q.toString()}`,
+          { signal: controller.signal }
         )
         const json = await res.json()
 
@@ -190,10 +212,14 @@ export default function ThalassemiaService31Client() {
         if (json.data.adpMapping) setAdpMapping(json.data.adpMapping)
       } catch (err: unknown) {
         const e = err as Error
-        setError(e.message)
+        if (e.name !== 'AbortError') {
+          setError(e.message)
+        }
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [
@@ -211,8 +237,17 @@ export default function ThalassemiaService31Client() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
 
   // Selected item for modal
   const selectedItem = selectedIndex !== null ? items[selectedIndex] : null

@@ -1,0 +1,1429 @@
+/* ==========================================================================
+   Streptokinase Fund Page Styles (OPD & IPD)
+   Strictly engineered per Thoen Hospital UI Style Brief:
+   - Quiet Chrome, Rich Content (Calm hospital surfaces, green accent #0D7446)
+   - Sarabun font with generous line-height for Thai legibility
+   - Strict 4px spacing rhythm (4, 8, 12, 16, 20, 24, 32px)
+   - 100% Alignment parity between <th> and <td> (col-center / col-right)
+   - Sort icon inline cohesion & intact surname wrapping
+   - Tabular numerals (tabular-nums) for all clinical & financial metrics
+   - Row-clickable table without action button clutter
+   - 4 Complete UI states: Empty, No Search Results, Loading, Error
+   ========================================================================== */
+
+:root {
+  --stk-bg-main: var(--bg-main, #fafcfb);
+  --stk-bg-surface: var(--bg-surface, #ffffff);
+  --stk-bg-subtle: var(--bg-subtle, #f4f7f5);
+  --stk-gray-900: var(--gray-900, #111e14);
+  --stk-gray-700: var(--gray-700, #334237);
+  --stk-gray-500: var(--gray-500, #6b7b70);
+  --stk-gray-200: var(--gray-200, #e2e8e4);
+  --stk-gray-100: var(--gray-100, #f1f5f3);
+  --stk-primary: var(--primary, #0d7446);
+  --stk-primary-hover: var(--primary-hover, #0b633c);
+  --stk-primary-subtle: var(--primary-subtle, #f0fdf4);
+  --stk-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stk-page {
+  padding: 24px 32px 48px;
+  max-width: 1680px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--stk-bg-main);
+  color: var(--stk-gray-900);
+  font-family: var(--font-family, 'Sarabun', -apple-system, BlinkMacSystemFont, sans-serif);
+}
+
+/* ── 1. Clean Breadcrumb (No Eyebrow Pills) ── */
+.stk-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--stk-gray-500);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.stk-breadcrumb a {
+  color: var(--stk-gray-500);
+  text-decoration: none;
+  transition: color 150ms var(--stk-ease-out);
+}
+
+.stk-breadcrumb a:hover {
+  color: var(--stk-primary);
+}
+
+.stk-breadcrumb-sep {
+  color: var(--stk-gray-200);
+  font-size: 11px;
+}
+
+.stk-breadcrumb-current {
+  color: var(--stk-gray-700);
+  font-weight: 500;
+}
+
+/* ── 2. Header Bar ── */
+.stk-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.stk-title-group {
+  flex: 1;
+  min-width: 320px;
+}
+
+.stk-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--stk-gray-900);
+  letter-spacing: -0.015em;
+  margin: 0 0 4px 0;
+  line-height: 1.35;
+}
+
+.stk-subtitle {
+  font-size: 14px;
+  color: var(--stk-gray-500);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.stk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms var(--stk-ease-out), border-color 150ms var(--stk-ease-out), color 150ms var(--stk-ease-out);
+  border: 1px solid transparent;
+  min-height: 40px;
+  line-height: 1.4;
+}
+
+.stk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stk-btn-secondary {
+  background-color: var(--stk-bg-surface);
+  border-color: var(--stk-gray-200);
+  color: var(--stk-gray-700);
+  box-shadow: 0 1px 2px rgba(17, 30, 20, 0.04);
+}
+
+.stk-btn-secondary:hover:not(:disabled) {
+  background-color: var(--stk-bg-subtle);
+  border-color: var(--stk-gray-500);
+  color: var(--stk-gray-900);
+}
+
+.stk-spin {
+  animation: stk-spin 1s linear infinite;
+}
+
+@keyframes stk-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 3. Warning Banner for Unmapped ADP ── */
+.stk-warning-banner {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.stk-warning-icon {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.stk-warning-text {
+  flex: 1;
+}
+
+/* ── 4. Single-Row Unified Date & Patient Type Selection Bar ── */
+.stk-date-card {
+  background-color: var(--stk-bg-surface);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 12px;
+  padding: 8px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 1px 3px rgba(13, 116, 70, 0.03);
+  flex-wrap: wrap;
+  min-height: 52px;
+}
+
+.stk-type-segmented {
+  display: inline-flex;
+  background-color: var(--stk-bg-subtle);
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+}
+
+.stk-type-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--stk-gray-700);
+  cursor: pointer;
+  transition: background-color 150ms var(--stk-ease-out), color 150ms var(--stk-ease-out);
+}
+
+.stk-type-btn:hover {
+  color: var(--stk-gray-900);
+}
+
+.stk-type-btn.is-active {
+  background-color: var(--stk-bg-surface);
+  color: var(--stk-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(17, 30, 20, 0.08);
+}
+
+.stk-date-segmented {
+  display: inline-flex;
+  background-color: var(--stk-bg-subtle);
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+}
+
+.stk-segmented-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--stk-gray-500);
+  cursor: pointer;
+  transition: background-color 150ms var(--stk-ease-out), color 150ms var(--stk-ease-out);
+}
+
+.stk-segmented-btn:hover {
+  color: var(--stk-gray-900);
+}
+
+.stk-segmented-btn.is-active {
+  background-color: var(--stk-bg-surface);
+  color: var(--stk-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(17, 30, 20, 0.08);
+}
+
+.stk-date-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--stk-gray-200);
+}
+
+.stk-date-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.stk-control-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stk-control-label {
+  font-size: 13px;
+  color: var(--stk-gray-500);
+  white-space: nowrap;
+}
+
+.stk-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--stk-gray-200);
+  background-color: var(--stk-bg-surface);
+  color: var(--stk-gray-900);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  min-height: 38px;
+  transition: border-color 150ms var(--stk-ease-out);
+}
+
+.stk-select:focus {
+  border-color: var(--stk-primary);
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.15);
+}
+
+/* ── 5. Equal & Balanced KPI Summary Grid (4 x 2) ── */
+.stk-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stk-kpi-card {
+  background-color: var(--stk-bg-surface);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(13, 116, 70, 0.03);
+  cursor: pointer;
+  transition: background-color 150ms var(--stk-ease-out), border-color 150ms var(--stk-ease-out);
+  position: relative;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 104px;
+}
+
+.stk-kpi-card:hover {
+  border-color: var(--stk-gray-500);
+  background-color: #fafdfb;
+}
+
+.stk-kpi-card.is-active {
+  border-color: var(--stk-primary);
+  background-color: var(--stk-primary-subtle);
+  box-shadow: inset 0 0 0 1px var(--stk-primary);
+}
+
+.stk-kpi-card.is-active.is-error {
+  border-color: #b91c1c;
+  background-color: #fee2e2;
+  box-shadow: inset 0 0 0 1px #b91c1c;
+}
+
+.stk-kpi-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.stk-kpi-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--stk-gray-700);
+  line-height: 1.35;
+}
+
+.stk-kpi-icon {
+  color: var(--stk-gray-500);
+  flex-shrink: 0;
+}
+
+.stk-kpi-card.is-active .stk-kpi-icon {
+  color: var(--stk-primary);
+}
+
+.stk-kpi-card.is-active.is-error .stk-kpi-icon {
+  color: #b91c1c;
+}
+
+.stk-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stk-kpi-value {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--stk-gray-900);
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1.2;
+}
+
+.stk-kpi-sub {
+  font-size: 12.5px;
+  color: var(--stk-gray-500);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  white-space: nowrap;
+}
+
+/* ── 6. Toolbar & Unified Global Search (No Field Dropdown) ── */
+.stk-toolbar {
+  background-color: var(--stk-bg-surface);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 12px 12px 0 0;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: none;
+}
+
+.stk-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+  max-width: 520px;
+}
+
+.stk-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--stk-gray-500);
+  pointer-events: none;
+}
+
+.stk-search-input {
+  width: 100%;
+  padding: 8px 36px 8px 38px;
+  border-radius: 8px;
+  border: 1px solid var(--stk-gray-200);
+  background-color: var(--stk-bg-surface);
+  color: var(--stk-gray-900);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 150ms var(--stk-ease-out), box-shadow 150ms var(--stk-ease-out);
+  min-height: 40px;
+}
+
+.stk-search-input:focus {
+  border-color: var(--stk-primary);
+  box-shadow: 0 0 0 2px rgba(13, 116, 70, 0.15);
+}
+
+.stk-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--stk-gray-500);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.stk-search-clear:hover {
+  color: var(--stk-gray-900);
+}
+
+.stk-toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--stk-gray-500);
+}
+
+.stk-count-badge {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-weight: 600;
+  color: var(--stk-gray-900);
+}
+
+/* ── 7. Data Table (Row-Clickable, No Action Button Column) ── */
+.stk-table-container {
+  background-color: var(--stk-bg-surface);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(13, 116, 70, 0.03);
+}
+
+.stk-table-scroll {
+  overflow-x: auto;
+}
+
+.stk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.stk-table thead {
+  background-color: var(--stk-bg-subtle);
+  border-bottom: 1px solid var(--stk-gray-200);
+}
+
+.stk-table th {
+  padding: 12px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--stk-gray-700);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  user-select: none;
+}
+
+.stk-table th.col-center,
+.stk-table td.col-center {
+  text-align: center;
+}
+
+.stk-table th.col-right,
+.stk-table td.col-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Sort header inline cohesion per components.md */
+.stk-th-sort {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.stk-th-sort:hover {
+  color: var(--stk-primary);
+}
+
+.th-sort-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.stk-table thead th button svg {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.stk-table tbody tr {
+  border-bottom: 1px solid var(--stk-gray-100);
+  transition: background-color 150ms var(--stk-ease-out);
+  min-height: 52px;
+}
+
+.stk-table tbody tr:hover {
+  background-color: var(--stk-primary-subtle);
+}
+
+.stk-table td {
+  padding: 12px 14px;
+  color: var(--stk-gray-900);
+  vertical-align: middle;
+}
+
+/* Row-click behavior */
+.stk-row-clickable {
+  cursor: pointer;
+}
+
+.stk-row-clickable:active {
+  background-color: var(--stk-bg-subtle);
+}
+
+/* Patient Name: Centered on X-axis & Intact Surname Wrap per components.md */
+.stk-ptname {
+  min-width: 170px;
+  text-align: center;
+}
+
+.pt-first-name,
+.pt-last-name {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Number, date, code formatters */
+.stk-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.stk-cid {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  letter-spacing: 0.02em;
+  font-size: 13px;
+  color: var(--stk-gray-700);
+}
+
+.stk-age-nowrap {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Status Badges per tokens.md (1 color = 1 meaning, no emoji) */
+.stk-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.stk-badge-success {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.stk-badge-danger {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.stk-badge-warning {
+  background-color: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.stk-badge-neutral {
+  background-color: var(--stk-bg-subtle);
+  color: var(--stk-gray-700);
+  border: 1px solid var(--stk-gray-200);
+}
+
+.stk-badge-info {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.stk-badge-purple {
+  background-color: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #d8b4fe;
+}
+
+/* ── 8. Pagination ── */
+.stk-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background-color: var(--stk-bg-surface);
+  border-top: 1px solid var(--stk-gray-200);
+  font-size: 13px;
+  color: var(--stk-gray-500);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stk-pagination-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stk-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--stk-gray-200);
+  background-color: var(--stk-bg-surface);
+  color: var(--stk-gray-700);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 150ms var(--stk-ease-out), color 150ms var(--stk-ease-out);
+}
+
+.stk-page-btn:hover:not(:disabled) {
+  background-color: var(--stk-bg-subtle);
+  color: var(--stk-gray-900);
+}
+
+.stk-page-btn.is-active {
+  background-color: var(--stk-primary);
+  border-color: var(--stk-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.stk-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 9. Empty & Loading States (per components.md) ── */
+.stk-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--stk-gray-500);
+}
+
+.stk-empty-icon {
+  margin: 0 auto 12px;
+  color: #9ca89e;
+}
+
+.stk-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--stk-gray-900);
+  margin-bottom: 4px;
+}
+
+.stk-empty-desc {
+  font-size: 13px;
+  color: var(--stk-gray-500);
+}
+
+.stk-empty-action {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+}
+
+/* ── 10. Detail Modal (Quiet Hospital Record Overview) ── */
+.stk-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(17, 30, 20, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.stk-modal {
+  background-color: var(--stk-bg-surface);
+  border-radius: 16px;
+  max-width: 980px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 25px -5px rgba(17, 30, 20, 0.12), 0 8px 10px -6px rgba(17, 30, 20, 0.06);
+  border: 1px solid var(--stk-gray-200);
+  overflow: hidden;
+}
+
+.stk-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--stk-gray-200);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  background-color: var(--stk-bg-surface);
+}
+
+.stk-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--stk-gray-900);
+  margin: 0 0 4px 0;
+}
+
+.stk-modal-sub {
+  font-size: 13px;
+  color: var(--stk-gray-500);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stk-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--stk-gray-500);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 150ms var(--stk-ease-out), color 150ms var(--stk-ease-out);
+}
+
+.stk-modal-close:hover {
+  background-color: var(--stk-bg-subtle);
+  color: var(--stk-gray-900);
+}
+
+.stk-modal-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--stk-gray-200);
+  padding: 0 24px;
+  background-color: var(--stk-bg-subtle);
+  gap: 8px;
+}
+
+.stk-modal-tab {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--stk-gray-500);
+  cursor: pointer;
+  transition: color 150ms var(--stk-ease-out);
+}
+
+.stk-modal-tab:hover {
+  color: var(--stk-gray-900);
+}
+
+.stk-modal-tab.is-active {
+  color: var(--stk-primary);
+  border-bottom-color: var(--stk-primary);
+  font-weight: 600;
+  background-color: var(--stk-bg-surface);
+}
+
+.stk-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Detail info cards in modal */
+.stk-modal-section {
+  margin-bottom: 24px;
+}
+
+.stk-modal-section:last-child {
+  margin-bottom: 0;
+}
+
+.stk-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--stk-gray-900);
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stk-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stk-detail-card {
+  background-color: var(--stk-bg-subtle);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.stk-detail-label {
+  font-size: 12px;
+  color: var(--stk-gray-500);
+  margin-bottom: 4px;
+}
+
+.stk-detail-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--stk-gray-900);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Audit check box per tokens.md */
+.stk-audit-box {
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.stk-audit-box.is-pass {
+  background-color: #dcfce7;
+  border: 1px solid #86efac;
+  color: #15803d;
+}
+
+.stk-audit-box.is-fail {
+  background-color: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+}
+
+.stk-audit-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.stk-audit-content {
+  flex: 1;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.stk-audit-title {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.stk-modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--stk-gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background-color: var(--stk-bg-subtle);
+}
+
+/* ── 11. Modal Orders Tab (Clinical Spotlight & Order Matrix) ── */
+.stk-orders-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Target Drug Clinical Spotlight Card */
+.stk-order-target-card {
+  background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%);
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(13, 116, 70, 0.05);
+}
+
+.stk-order-target-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(13, 116, 70, 0.12);
+  flex-wrap: wrap;
+}
+
+.stk-order-target-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--stk-primary);
+}
+
+.stk-order-target-status {
+  font-size: 12.5px;
+  color: var(--stk-gray-700);
+}
+
+.stk-order-target-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.stk-order-target-main {
+  flex: 1;
+  min-width: 240px;
+}
+
+.stk-order-target-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #064e3b;
+  line-height: 1.35;
+}
+
+.stk-order-target-strength {
+  font-weight: 500;
+  color: #047857;
+  margin-left: 6px;
+}
+
+.stk-order-target-sub {
+  font-size: 12.5px;
+  color: var(--stk-gray-500);
+  margin-top: 4px;
+}
+
+.stk-order-target-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.stk-order-stat-pill {
+  background-color: #ffffff;
+  border: 1px solid #d1fae5;
+  border-radius: 8px;
+  padding: 6px 12px;
+  text-align: right;
+  min-width: 90px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.stk-order-stat-pill-label {
+  display: block;
+  font-size: 11px;
+  color: var(--stk-gray-500);
+  margin-bottom: 2px;
+}
+
+.stk-order-stat-pill-val {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--stk-gray-900);
+}
+
+.stk-order-stat-pill-highlight {
+  background-color: #ecfdf5;
+  border-color: #86efac;
+}
+
+/* Orders Summary Grid (4 Symmetrical Metrics) */
+.stk-order-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stk-order-summary-card {
+  background-color: var(--stk-bg-surface);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.stk-order-summary-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--stk-gray-500);
+  margin-bottom: 4px;
+}
+
+.stk-order-summary-num {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--stk-gray-900);
+  line-height: 1.2;
+}
+
+.stk-order-summary-unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--stk-gray-500);
+  margin-left: 3px;
+}
+
+.stk-order-summary-sub {
+  font-size: 11.5px;
+  color: var(--stk-gray-500);
+  margin-top: 4px;
+}
+
+.stk-order-summary-card-total {
+  background-color: #f0fdf4;
+  border-color: #86efac;
+}
+
+/* Order Filters & Search Toolbar */
+.stk-order-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stk-order-chips {
+  display: inline-flex;
+  background-color: var(--stk-bg-subtle);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.stk-order-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--stk-gray-700);
+  cursor: pointer;
+  transition: all 150ms var(--stk-ease-out);
+}
+
+.stk-order-chip:hover:not(.is-active) {
+  color: var(--stk-gray-900);
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.stk-order-chip.is-active {
+  background-color: var(--stk-bg-surface);
+  color: var(--stk-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.stk-order-chip-count {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background-color: rgba(0, 0, 0, 0.05);
+  color: var(--stk-gray-700);
+}
+
+.stk-order-chip.is-active .stk-order-chip-count {
+  background-color: #dcfce7;
+  color: var(--stk-primary);
+}
+
+.stk-order-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 250px;
+}
+
+.stk-order-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--stk-gray-400);
+  pointer-events: none;
+}
+
+.stk-order-search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 30px 0 34px;
+  font-size: 13px;
+  color: var(--stk-gray-900);
+  background-color: var(--stk-bg-surface);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 150ms var(--stk-ease-out), box-shadow 150ms var(--stk-ease-out);
+}
+
+.stk-order-search-input:focus {
+  border-color: var(--stk-primary);
+  box-shadow: 0 0 0 3px rgba(13, 116, 70, 0.1);
+}
+
+.stk-order-search-input::placeholder {
+  color: var(--stk-gray-400);
+}
+
+.stk-order-search-clear {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--stk-gray-400);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.stk-order-search-clear:hover {
+  color: var(--stk-gray-700);
+}
+
+/* Orders Table */
+.stk-order-table-container {
+  background-color: var(--stk-bg-surface);
+  border: 1px solid var(--stk-gray-200);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(13, 116, 70, 0.03);
+}
+
+.stk-order-table-scroll {
+  overflow-x: auto;
+  max-height: 400px;
+}
+
+.stk-order-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.stk-order-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--stk-bg-subtle);
+  border-bottom: 1px solid var(--stk-gray-200);
+}
+
+.stk-order-table th {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--stk-gray-700);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.stk-order-table th.col-center,
+.stk-order-table td.col-center {
+  text-align: center;
+}
+
+.stk-order-table th.col-right,
+.stk-order-table td.col-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.stk-order-table th.col-left,
+.stk-order-table td.col-left {
+  text-align: left;
+}
+
+.stk-order-table tbody tr {
+  border-bottom: 1px solid var(--stk-gray-100);
+  transition: background-color 120ms var(--stk-ease-out);
+}
+
+.stk-order-table tbody tr:hover {
+  background-color: var(--stk-primary-subtle);
+}
+
+.stk-order-table td {
+  padding: 10px 12px;
+  color: var(--stk-gray-900);
+  vertical-align: middle;
+}
+
+/* Target STEMI drug row highlight */
+.stk-order-table tbody tr.stk-order-row-target {
+  background-color: #f0fdf4 !important;
+  border-left: 3px solid var(--stk-primary) !important;
+}
+
+.stk-order-table tbody tr.stk-order-row-target:hover {
+  background-color: #dcfce7 !important;
+}
+
+/* Badges and Labels inside Table */
+.stk-order-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stk-order-badge-drug {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.stk-order-badge-service {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.stk-order-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: var(--stk-gray-500);
+}
+
+.stk-order-item-col {
+  min-width: 200px;
+}
+
+.stk-order-item-name {
+  font-weight: 500;
+  color: var(--stk-gray-900);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stk-order-strength {
+  font-weight: 400;
+  color: var(--stk-gray-500);
+  font-size: 12px;
+}
+
+.stk-target-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  background-color: var(--stk-primary);
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.stk-order-income {
+  font-size: 12px;
+}
+
+.stk-order-paidst {
+  font-size: 11.5px;
+  color: #475569;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.stk-order-table tfoot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background-color: var(--stk-bg-subtle);
+  border-top: 2px solid var(--stk-gray-200);
+}
+
+.stk-order-tfoot-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--stk-gray-700);
+}
+
+.stk-empty-search-order {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Responsive queries */
+@media (max-width: 1200px) {
+  .stk-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stk-order-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .stk-page {
+    padding: 16px;
+  }
+  .stk-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .stk-order-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .stk-order-target-body {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .stk-order-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .stk-order-search-box {
+    width: 100%;
+  }
+  .stk-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .stk-date-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

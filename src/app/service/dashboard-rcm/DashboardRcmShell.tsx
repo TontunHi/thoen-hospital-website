@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -29,12 +29,15 @@ import {
   Leaf,
   PhoneCall,
   Home,
+  Search,
+  Accessibility,
 } from 'lucide-react'
 
 export interface NavSubItem {
   href: string
   label: string
   badge: string
+  children?: NavSubItem[]
 }
 
 export interface NavItem {
@@ -465,6 +468,90 @@ export const RCM_NAV_GROUPS: NavGroup[] = [
           },
         ],
       },
+      {
+        href: '/service/dashboard-rcm/funds/adp-search',
+        label: 'ค้นจากรหัส ADP',
+        badge: 'ADP',
+        icon: Search,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/adp-search/adpcode',
+            label: 'ค้นหาจากรหัส ADPCODE',
+            badge: 'ADPCODE',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/clopidogrel',
+        label: 'กองทุนยา Clopidogrel',
+        badge: 'CLOP',
+        icon: Pill,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/clopidogrel/usage',
+            label: 'รายชื่อการใช้ยา Clopidogrel',
+            badge: 'ยา',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/streptokinase',
+        label: 'กองทุนยา Streptokinase',
+        badge: 'STK',
+        icon: HeartPulse,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/streptokinase/recipients',
+            label: 'รายชื่อรับยา Streptokinase',
+            badge: 'ยา',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/instrument',
+        label: 'กองทุนอวัยวะเทียมและอุปกรณ์',
+        badge: 'รายชื่อ',
+        icon: Activity,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/instrument',
+            label: 'รายชื่อผู้รับบริการ อวัยวะเทียมและอุปกรณ์',
+            badge: 'รายชื่อ',
+          },
+        ],
+      },
+      {
+        href: '/service/dashboard-rcm/funds/rehabilitation',
+        label: 'กองทุนการให้บริการฟื้นฟูสมรรถภาพและเบิกอุปกรณ์',
+        badge: '11.47',
+        icon: Accessibility,
+        children: [
+          {
+            href: '/service/dashboard-rcm/funds/rehabilitation/services',
+            label: 'รายการการให้บริการฟื้นฟูสมรรถภาพ',
+            badge: 'ฟื้นฟู',
+            children: [
+              {
+                href: '/service/dashboard-rcm/funds/rehabilitation/services/disability-services',
+                label: 'รายชื่อการให้บริการฟื้นฟูสมรรถภาพจากเว็บ Disability',
+                badge: 'รายชื่อ',
+              },
+            ],
+          },
+          {
+            href: '/service/dashboard-rcm/funds/rehabilitation/imc',
+            label: 'รายงานบริการผู้ป่วย IMC',
+            badge: 'IMC',
+            children: [
+              {
+                href: '/service/dashboard-rcm/funds/rehabilitation/imc/eligible-patients',
+                label: 'รายชื่อผู้รับบริการตามเกณฑ์ IMC',
+                badge: 'รายชื่อ',
+              },
+            ],
+          },
+        ],
+      },
     ],
   },
 ]
@@ -479,22 +566,187 @@ interface DashboardRcmShellProps {
   userRole?: string
 }
 
+const DEFAULT_SIDEBAR_WIDTH = 260
+const MIN_SIDEBAR_WIDTH = 200
+const MAX_SIDEBAR_WIDTH = 480
+
 export default function DashboardRcmShell({
   children,
 }: DashboardRcmShellProps) {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false)
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(DEFAULT_SIDEBAR_WIDTH)
+  const [isResizing, setIsResizing] = useState<boolean>(false)
+  const sidebarWidthRef = useRef<number>(DEFAULT_SIDEBAR_WIDTH)
+  const isResizingRef = useRef<boolean>(false)
+
   // เริ่มต้น: ซ่อนให้หมดทุกกลุ่ม (Default collapsed/hidden ตามมาตรฐาน UI สะอาด สบายตา)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [hoveredTooltip, setHoveredTooltip] = useState<{
+    label: string
+    top: number
+  } | null>(null)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
 
-  // Hydrate collapsed & expanded group/submenu states from localStorage
+  // Flatten all navigable endpoints for real-time search indexing
+  const allSearchableItems = useMemo(() => {
+    const list: Array<{
+      href: string
+      label: string
+      badge: string
+      groupTitle: string
+      parentLabel?: string
+      icon: React.ComponentType<{ size?: number; className?: string }>
+    }> = []
+
+    RCM_NAV_GROUPS.forEach((group) => {
+      group.items.forEach((item) => {
+        if (!item.children || item.children.length === 0) {
+          list.push({
+            href: item.href,
+            label: item.label,
+            badge: item.badge,
+            groupTitle: group.title,
+            icon: item.icon,
+          })
+        } else {
+          item.children.forEach((sub) => {
+            if (!sub.children || sub.children.length === 0) {
+              list.push({
+                href: sub.href,
+                label: sub.label,
+                badge: sub.badge,
+                groupTitle: group.title,
+                parentLabel: item.label,
+                icon: item.icon,
+              })
+            } else {
+              sub.children.forEach((subSub) => {
+                list.push({
+                  href: subSub.href,
+                  label: subSub.label,
+                  badge: subSub.badge,
+                  groupTitle: group.title,
+                  parentLabel: `${item.label} › ${sub.label}`,
+                  icon: item.icon,
+                })
+              })
+            }
+          })
+        }
+      })
+    })
+
+    return list
+  }, [])
+
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return []
+    return allSearchableItems.filter((entry) => {
+      const labelMatch = entry.label.toLowerCase().includes(query)
+      const badgeMatch = entry.badge ? entry.badge.toLowerCase().includes(query) : false
+      const groupMatch = entry.groupTitle.toLowerCase().includes(query)
+      const parentMatch = entry.parentLabel ? entry.parentLabel.toLowerCase().includes(query) : false
+      return labelMatch || badgeMatch || groupMatch || parentMatch
+    })
+  }, [searchQuery, allSearchableItems])
+
+  // Global keyboard shortcut (Ctrl+K / Cmd+K) to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        if (isCollapsed) {
+          setIsCollapsed(false)
+          try {
+            localStorage.setItem('rcm_sidebar_collapsed', 'false')
+          } catch {
+            // ignore
+          }
+        }
+        setTimeout(() => searchInputRef.current?.focus(), 100)
+      } else if (e.key === 'Escape' && searchQuery) {
+        setSearchQuery('')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isCollapsed, searchQuery])
+
+  const handleMouseEnterTooltip = (label: string, el: HTMLElement) => {
+    const rect = el.getBoundingClientRect()
+    setHoveredTooltip({ label, top: rect.top })
+  }
+
+  const handleMouseLeaveTooltip = () => {
+    setHoveredTooltip(null)
+  }
+
+  const startResizing = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (isCollapsed) return
+    isResizingRef.current = true
+    setIsResizing(true)
+  }
+
+  const resetWidth = () => {
+    if (isCollapsed) return
+    setSidebarWidth(DEFAULT_SIDEBAR_WIDTH)
+    sidebarWidthRef.current = DEFAULT_SIDEBAR_WIDTH
+    try {
+      localStorage.setItem('rcm_sidebar_width', String(DEFAULT_SIDEBAR_WIDTH))
+    } catch {
+      // Ignore localStorage write errors
+    }
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return
+      const newWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(e.clientX, MAX_SIDEBAR_WIDTH))
+      setSidebarWidth(newWidth)
+      sidebarWidthRef.current = newWidth
+    }
+
+    const handleMouseUp = () => {
+      if (isResizingRef.current) {
+        isResizingRef.current = false
+        setIsResizing(false)
+        try {
+          localStorage.setItem('rcm_sidebar_width', String(sidebarWidthRef.current))
+        } catch {
+          // Ignore localStorage write errors
+        }
+      }
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
+
+  // Hydrate collapsed & expanded group/submenu states & custom width from localStorage
   useEffect(() => {
     try {
       const savedCollapsed = localStorage.getItem('rcm_sidebar_collapsed')
       if (savedCollapsed !== null) {
         setIsCollapsed(savedCollapsed === 'true')
+      }
+
+      const savedWidth = localStorage.getItem('rcm_sidebar_width')
+      if (savedWidth) {
+        const parsedWidth = parseInt(savedWidth, 10)
+        if (!isNaN(parsedWidth) && parsedWidth >= MIN_SIDEBAR_WIDTH && parsedWidth <= MAX_SIDEBAR_WIDTH) {
+          setSidebarWidth(parsedWidth)
+          sidebarWidthRef.current = parsedWidth
+        }
       }
 
       const savedGroups = localStorage.getItem('rcm_sidebar_expanded_groups')
@@ -564,18 +816,37 @@ export default function DashboardRcmShell({
     g.items.some(
       (item) =>
         isPathMatch(pathname, item.href) ||
-        (item.children && item.children.some((c) => isPathMatch(pathname, c.href)))
+        (item.children &&
+          item.children.some(
+            (c) =>
+              isPathMatch(pathname, c.href) ||
+              Boolean(c.children?.some((cc) => isPathMatch(pathname, cc.href)))
+          ))
     )
   )
   const activeItem = activeGroup?.items.find(
     (item) =>
       isPathMatch(pathname, item.href) ||
-      (item.children && item.children.some((c) => isPathMatch(pathname, c.href)))
+      (item.children &&
+        item.children.some(
+          (c) =>
+            isPathMatch(pathname, c.href) ||
+            Boolean(c.children?.some((cc) => isPathMatch(pathname, cc.href)))
+        ))
   )
-  const activeSubItem = activeItem?.children?.find((c) => isPathMatch(pathname, c.href))
+  const activeSubItem = activeItem?.children?.find(
+    (c) =>
+      isPathMatch(pathname, c.href) ||
+      Boolean(c.children?.some((cc) => isPathMatch(pathname, cc.href)))
+  )
+  const activeSubSubItem = activeSubItem?.children?.find((cc) => isPathMatch(pathname, cc.href))
 
   return (
-    <div className={`rcm-layout-shell ${isCollapsed ? 'is-collapsed' : ''}`}>
+    <div
+      className={`rcm-layout-shell ${isCollapsed ? 'is-collapsed' : ''} ${
+        isResizing ? 'is-resizing' : ''
+      }`}
+    >
       {/* Mobile Backdrop */}
       {isMobileOpen && (
         <div
@@ -589,7 +860,8 @@ export default function DashboardRcmShell({
       <aside
         className={`rcm-sidebar ${isCollapsed ? 'collapsed' : ''} ${
           isMobileOpen ? 'mobile-open' : ''
-        }`}
+        } ${isResizing ? 'is-resizing' : ''}`}
+        style={!isCollapsed ? { width: `${sidebarWidth}px` } : undefined}
         aria-label="Dashboard RCM Navigation"
       >
         {/* Sidebar Header */}
@@ -624,139 +896,362 @@ export default function DashboardRcmShell({
           </button>
         </div>
 
+        {/* Quick Search Bar */}
+        {!isCollapsed && (
+          <div className="rcm-search-box">
+            <div className="rcm-search-input-wrapper">
+              <Search size={14} className="rcm-search-icon" aria-hidden="true" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ค้นหาเมนู (OPD, กองทุน, ยา, รหัส)..."
+                className="rcm-search-input"
+                aria-label="ค้นหาเมนูใน RCM Dashboard"
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="rcm-search-clear-btn"
+                  aria-label="ล้างคำค้นหา"
+                >
+                  <X size={13} />
+                </button>
+              ) : (
+                <span className="rcm-search-kbd">Ctrl K</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isCollapsed && (
+          <div className="rcm-collapsed-search-trigger">
+            <button
+              type="button"
+              onClick={() => {
+                setIsCollapsed(false)
+                try {
+                  localStorage.setItem('rcm_sidebar_collapsed', 'false')
+                } catch {
+                  // ignore
+                }
+                setTimeout(() => searchInputRef.current?.focus(), 120)
+              }}
+              className="rcm-collapsed-search-btn"
+              title="ค้นหาเมนู (Ctrl+K)"
+              aria-label="ค้นหาเมนู"
+            >
+              <Search size={16} />
+            </button>
+          </div>
+        )}
+
         {/* Navigation Categories */}
         <nav className="rcm-sidebar-nav">
-          {RCM_NAV_GROUPS.map((group) => {
-            const isGroupExpanded = Boolean(expandedGroups[group.id])
-            const isGroupActive = group.items.some(
-              (item) =>
-                isPathMatch(pathname, item.href) ||
-                Boolean(item.children?.some((c) => isPathMatch(pathname, c.href)))
-            )
+          {searchQuery.trim().length > 0 ? (
+            <div className="rcm-search-results">
+              <div className="rcm-search-results-header">
+                <span className="rcm-search-count">ผลการค้นหา ({searchResults.length})</span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="rcm-search-reset-link"
+                >
+                  ล้างคำค้น
+                </button>
+              </div>
 
-            return (
-              <div
-                key={group.id}
-                className={`rcm-nav-group ${
-                  !isCollapsed && !isGroupExpanded ? 'is-group-collapsed' : ''
-                }`}
-              >
-                {!isCollapsed && (
-                  <button
-                    type="button"
-                    className={`rcm-nav-group-toggle ${
-                      isGroupActive && !isGroupExpanded ? 'has-active' : ''
-                    }`}
-                    onClick={() => toggleGroup(group.id)}
-                    aria-expanded={isGroupExpanded}
-                    aria-controls={`rcm-group-${group.id}`}
-                  >
-                    <span className="rcm-nav-group-title-text">{group.title}</span>
-                    <span className="rcm-nav-group-chevron" aria-hidden="true">
-                      {isGroupExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </span>
-                  </button>
-                )}
-                {isCollapsed && <div className="rcm-nav-divider" />}
-                {(isCollapsed || isGroupExpanded) && (
-                  <ul id={`rcm-group-${group.id}`} className="rcm-nav-list">
-                    {group.items.map((item) => {
-                      const Icon = item.icon
-                      const hasChildren = Boolean(item.children && item.children.length > 0)
-                      const isBranchActive =
-                        isPathMatch(pathname, item.href) ||
-                        Boolean(item.children?.some((c) => isPathMatch(pathname, c.href)))
-                      const isExpanded = Boolean(expandedMenus[item.href])
+              {searchResults.length === 0 ? (
+                <div className="rcm-search-empty">
+                  <p className="rcm-search-empty-text">ไม่พบเมนูที่ตรงกับ &ldquo;{searchQuery}&rdquo;</p>
+                  <span className="rcm-search-empty-sub">
+                    ลองค้นหาด้วยชื่อบริการ กองทุน หรือรหัส ADP เช่น OPD, 1B005, ฟลูออไรด์
+                  </span>
+                </div>
+              ) : (
+                <ul className="rcm-search-list">
+                  {searchResults.map((result) => {
+                    const Icon = result.icon
+                    const isResultActive = isPathMatch(pathname, result.href)
+                    return (
+                      <li key={result.href} className="rcm-search-item">
+                        <Link
+                          href={result.href}
+                          onClick={() => {
+                            setIsMobileOpen(false)
+                            setSearchQuery('')
+                          }}
+                          className={`rcm-search-link ${isResultActive ? 'active' : ''}`}
+                        >
+                          <div className="rcm-search-icon-cell">
+                            <Icon size={16} />
+                          </div>
+                          <div className="rcm-search-meta">
+                            <div className="rcm-search-trail">
+                              <span>{result.groupTitle}</span>
+                              {result.parentLabel && (
+                                <>
+                                  <span className="rcm-search-trail-sep">›</span>
+                                  <span>{result.parentLabel}</span>
+                                </>
+                              )}
+                            </div>
+                            <div className="rcm-search-title-row">
+                              <span className="rcm-search-title">{result.label}</span>
+                              {result.badge && (
+                                <span className="rcm-nav-subbadge">{result.badge}</span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          ) : (
+            RCM_NAV_GROUPS.map((group) => {
+              const isGroupExpanded = Boolean(expandedGroups[group.id])
+              const isGroupActive = group.items.some(
+                (item) =>
+                  isPathMatch(pathname, item.href) ||
+                  Boolean(
+                    item.children?.some(
+                      (c) =>
+                        isPathMatch(pathname, c.href) ||
+                        Boolean(c.children?.some((cc) => isPathMatch(pathname, cc.href)))
+                    )
+                  )
+              )
 
-                      if (hasChildren && item.children) {
-                        const firstChildHref = item.children[0].href
+              return (
+                <div
+                  key={group.id}
+                  className={`rcm-nav-group ${
+                    !isCollapsed && !isGroupExpanded ? 'is-group-collapsed' : ''
+                  }`}
+                >
+                  {!isCollapsed && (
+                    <button
+                      type="button"
+                      className={`rcm-nav-group-toggle ${
+                        isGroupActive && !isGroupExpanded ? 'has-active' : ''
+                      }`}
+                      onClick={() => toggleGroup(group.id)}
+                      aria-expanded={isGroupExpanded}
+                      aria-controls={`rcm-group-${group.id}`}
+                    >
+                      <span className="rcm-nav-group-title-text">{group.title}</span>
+                      <span className="rcm-nav-group-chevron" aria-hidden="true">
+                        {isGroupExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </span>
+                    </button>
+                  )}
+                  {isCollapsed && <div className="rcm-nav-divider" />}
+                  {(isCollapsed || isGroupExpanded) && (
+                    <ul id={`rcm-group-${group.id}`} className="rcm-nav-list">
+                      {group.items.map((item) => {
+                        const Icon = item.icon
+                        const hasChildren = Boolean(item.children && item.children.length > 0)
+                        const isBranchActive =
+                          isPathMatch(pathname, item.href) ||
+                          Boolean(
+                            item.children?.some(
+                              (c) =>
+                                isPathMatch(pathname, c.href) ||
+                                Boolean(c.children?.some((cc) => isPathMatch(pathname, cc.href)))
+                            )
+                          )
+                        const isExpanded = Boolean(expandedMenus[item.href])
 
-                        if (isCollapsed) {
+                        if (hasChildren && item.children) {
+                          const firstChildHref =
+                            item.children[0].children?.[0]?.href ?? item.children[0].href
+
+                          if (isCollapsed) {
+                            return (
+                              <li
+                                key={item.href}
+                                className="rcm-nav-list-item"
+                                onMouseEnter={(e) =>
+                                  handleMouseEnterTooltip(item.label, e.currentTarget)
+                                }
+                                onMouseLeave={handleMouseLeaveTooltip}
+                              >
+                                <Link
+                                  href={firstChildHref}
+                                  onClick={() => setIsMobileOpen(false)}
+                                  className={`rcm-nav-link ${isBranchActive ? 'active' : ''}`}
+                                >
+                                  <div className="rcm-nav-icon-wrapper">
+                                    <Icon size={18} />
+                                  </div>
+                                </Link>
+                              </li>
+                            )
+                          }
+
                           return (
                             <li key={item.href} className="rcm-nav-list-item">
-                              <Link
-                                href={firstChildHref}
-                                onClick={() => setIsMobileOpen(false)}
-                                className={`rcm-nav-link ${isBranchActive ? 'active' : ''}`}
-                                title={`${item.label} — ${item.children[0].badge} ${item.children[0].label}`}
+                              <button
+                                type="button"
+                                onClick={() => toggleSubmenu(item.href)}
+                                aria-expanded={isExpanded}
+                                className={`rcm-nav-link rcm-nav-parent-btn ${
+                                  isBranchActive ? 'branch-active' : ''
+                                }`}
                               >
                                 <div className="rcm-nav-icon-wrapper">
                                   <Icon size={18} />
                                 </div>
-                              </Link>
+                                <div className="rcm-nav-label-wrapper">
+                                  <span className="rcm-nav-label">{item.label}</span>
+                                  <span className="rcm-nav-chevron">
+                                    {isExpanded ? (
+                                      <ChevronDown size={14} />
+                                    ) : (
+                                      <ChevronRight size={14} />
+                                    )}
+                                  </span>
+                                </div>
+                              </button>
+                              {isExpanded && (
+                                <ul className="rcm-nav-sublist">
+                                  {item.children.map((sub) => {
+                                    const hasSubChildren = Boolean(
+                                      sub.children && sub.children.length > 0
+                                    )
+                                    const isSubBranchActive =
+                                      isPathMatch(pathname, sub.href) ||
+                                      Boolean(
+                                        sub.children?.some((cc) => isPathMatch(pathname, cc.href))
+                                      )
+                                    const isSubExpanded = Boolean(expandedMenus[sub.href])
+
+                                    if (hasSubChildren && sub.children) {
+                                      return (
+                                        <li key={sub.href} className="rcm-nav-subgroup-item">
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleSubmenu(sub.href)}
+                                            aria-expanded={isSubExpanded}
+                                            className={`rcm-nav-sublink rcm-nav-subparent-btn ${
+                                              isSubBranchActive ? 'branch-active' : ''
+                                            }`}
+                                          >
+                                            <div
+                                              style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                minWidth: 0,
+                                                flex: 1,
+                                              }}
+                                            >
+                                              <span className="rcm-nav-subbadge">{sub.badge}</span>
+                                              <span className="rcm-nav-sublabel">{sub.label}</span>
+                                            </div>
+                                            <span className="rcm-nav-subchevron">
+                                              {isSubExpanded ? (
+                                                <ChevronDown size={13} />
+                                              ) : (
+                                                <ChevronRight size={13} />
+                                              )}
+                                            </span>
+                                          </button>
+                                          {isSubExpanded && (
+                                            <ul className="rcm-nav-subsublist">
+                                              {sub.children.map((subSub) => {
+                                                const isSubSubActive = isPathMatch(
+                                                  pathname,
+                                                  subSub.href
+                                                )
+                                                return (
+                                                  <li key={subSub.href}>
+                                                    <Link
+                                                      href={subSub.href}
+                                                      onClick={() => setIsMobileOpen(false)}
+                                                      className={`rcm-nav-subsublink ${
+                                                        isSubSubActive ? 'active' : ''
+                                                      }`}
+                                                    >
+                                                      <span className="rcm-nav-subsubbadge">
+                                                        {subSub.badge}
+                                                      </span>
+                                                      <span className="rcm-nav-subsublabel">
+                                                        {subSub.label}
+                                                      </span>
+                                                    </Link>
+                                                  </li>
+                                                )
+                                              })}
+                                            </ul>
+                                          )}
+                                        </li>
+                                      )
+                                    }
+
+                                    const isSubActive = isPathMatch(pathname, sub.href)
+                                    return (
+                                      <li key={sub.href}>
+                                        <Link
+                                          href={sub.href}
+                                          onClick={() => setIsMobileOpen(false)}
+                                          className={`rcm-nav-sublink ${
+                                            isSubActive ? 'active' : ''
+                                          }`}
+                                        >
+                                          <span className="rcm-nav-subbadge">{sub.badge}</span>
+                                          <span className="rcm-nav-sublabel">{sub.label}</span>
+                                        </Link>
+                                      </li>
+                                    )
+                                  })}
+                                </ul>
+                              )}
                             </li>
                           )
                         }
 
                         return (
-                          <li key={item.href} className="rcm-nav-list-item">
-                            <button
-                              type="button"
-                              onClick={() => toggleSubmenu(item.href)}
-                              aria-expanded={isExpanded}
-                              className={`rcm-nav-link rcm-nav-parent-btn ${
-                                isBranchActive ? 'branch-active' : ''
-                              }`}
+                          <li
+                            key={item.href}
+                            className="rcm-nav-list-item"
+                            onMouseEnter={(e) => {
+                              if (isCollapsed)
+                                handleMouseEnterTooltip(item.label, e.currentTarget)
+                            }}
+                            onMouseLeave={() => {
+                              if (isCollapsed) handleMouseLeaveTooltip()
+                            }}
+                          >
+                            <Link
+                              href={item.href}
+                              onClick={() => setIsMobileOpen(false)}
+                              className={`rcm-nav-link ${isBranchActive ? 'active' : ''}`}
                             >
                               <div className="rcm-nav-icon-wrapper">
                                 <Icon size={18} />
                               </div>
-                              <div className="rcm-nav-label-wrapper">
-                                <span className="rcm-nav-label">{item.label}</span>
-                                <span className="rcm-nav-chevron">
-                                  {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                                </span>
-                              </div>
-                            </button>
-                            {isExpanded && (
-                              <ul className="rcm-nav-sublist">
-                                {item.children.map((sub) => {
-                                  const isSubActive = isPathMatch(pathname, sub.href)
-                                  return (
-                                    <li key={sub.href}>
-                                      <Link
-                                        href={sub.href}
-                                        onClick={() => setIsMobileOpen(false)}
-                                        className={`rcm-nav-sublink ${isSubActive ? 'active' : ''}`}
-                                      >
-                                        <span className="rcm-nav-subbadge">{sub.badge}</span>
-                                        <span className="rcm-nav-sublabel">{sub.label}</span>
-                                      </Link>
-                                    </li>
-                                  )
-                                })}
-                              </ul>
-                            )}
+                              {!isCollapsed && (
+                                <div className="rcm-nav-label-wrapper">
+                                  <span className="rcm-nav-label">{item.label}</span>
+                                  <span className="rcm-nav-badge">{item.badge}</span>
+                                </div>
+                              )}
+                            </Link>
                           </li>
                         )
-                      }
-
-                      return (
-                        <li key={item.href} className="rcm-nav-list-item">
-                          <Link
-                            href={item.href}
-                            onClick={() => setIsMobileOpen(false)}
-                            className={`rcm-nav-link ${isBranchActive ? 'active' : ''}`}
-                            title={isCollapsed ? `${item.badge} ${item.label}` : undefined}
-                          >
-                            <div className="rcm-nav-icon-wrapper">
-                              <Icon size={18} />
-                            </div>
-                            {!isCollapsed && (
-                              <div className="rcm-nav-label-wrapper">
-                                <span className="rcm-nav-label">{item.label}</span>
-                                <span className="rcm-nav-badge">{item.badge}</span>
-                              </div>
-                            )}
-                          </Link>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </div>
-            )
-          })}
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )
+            })
+          )}
         </nav>
 
         {/* Sidebar Footer */}
@@ -770,6 +1265,32 @@ export default function DashboardRcmShell({
             {!isCollapsed && <span>กลับหน้าบริการ</span>}
           </Link>
         </div>
+
+        {/* Floating Tooltip when Collapsed (Clean & Short) */}
+        {isCollapsed && hoveredTooltip && (
+          <div
+            className="rcm-collapsed-tooltip"
+            style={{
+              top: hoveredTooltip.top + 8,
+              left: 76,
+            }}
+          >
+            <span>{hoveredTooltip.label}</span>
+          </div>
+        )}
+
+        {/* Drag Resize Handle (Desktop Only) */}
+        {!isCollapsed && (
+          <div
+            className={`rcm-resize-handle ${isResizing ? 'is-active' : ''}`}
+            onMouseDown={startResizing}
+            onDoubleClick={resetWidth}
+            title="ลากเพื่อปรับขนาด (ดับเบิ้ลคลิกเพื่อรีเซ็ต 260px)"
+            aria-label="Resize sidebar"
+            role="separator"
+            aria-orientation="vertical"
+          />
+        )}
       </aside>
 
       {/* Main Content Area */}
@@ -808,8 +1329,20 @@ export default function DashboardRcmShell({
               {activeSubItem && (
                 <>
                   <span className="rcm-crumb-sep">/</span>
+                  <span className={activeSubSubItem ? 'rcm-crumb-subtle' : 'rcm-crumb-active'}>
+                    {activeSubSubItem
+                      ? activeSubItem.label
+                      : activeSubItem.badge && !activeSubItem.label.startsWith(activeSubItem.badge)
+                      ? `${activeSubItem.badge} ${activeSubItem.label}`
+                      : activeSubItem.label}
+                  </span>
+                </>
+              )}
+              {activeSubSubItem && (
+                <>
+                  <span className="rcm-crumb-sep">/</span>
                   <span className="rcm-crumb-active">
-                    {activeSubItem.badge} {activeSubItem.label}
+                    {activeSubSubItem.label}
                   </span>
                 </>
               )}

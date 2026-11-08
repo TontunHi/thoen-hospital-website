@@ -17,17 +17,26 @@ import type {
   FundSummaryGroup,
   RepStatementSummary,
   RepFundsSummaryMetrics,
+  RepFundsSummaryResult,
 } from '@/lib/clinical/rcmRepFundsService'
 import './page.css'
 
-export type { PatientClaimRecord, FundSummaryGroup, RepStatementSummary, RepFundsSummaryMetrics }
+export type { PatientClaimRecord, FundSummaryGroup, RepStatementSummary, RepFundsSummaryMetrics, RepFundsSummaryResult }
 
 const THAI_MONTH_NAMES = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
 ]
 
-export default function RepFundsClient() {
+export interface RepFundsClientProps {
+  initialSummary?: RepFundsSummaryResult | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function RepFundsClient({
+  initialSummary,
+  initialRange,
+}: RepFundsClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const currentCalYear = today.getFullYear()
   const currentMonth = today.getMonth() + 1
@@ -50,8 +59,8 @@ export default function RepFundsClient() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<string>(defaultFiscalYearStr)
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth)
   const [selectedMonthYear, setSelectedMonthYear] = useState<number>(currentCalYear + 543)
-  const [ds1, setDs1] = useState<string>(`${defaultFiscalYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(`${defaultFiscalYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalYear}-09-30`)
 
   // Report Dimension Filters:
   // 2. กองทุนหลัก (Fund)
@@ -67,21 +76,27 @@ export default function RepFundsClient() {
   const [recordLimit, setRecordLimit] = useState<number>(250)
 
   // Summary Data States
-  const [isLoadingSummary, setIsLoadingSummary] = useState<boolean>(true)
+  const [isLoadingSummary, setIsLoadingSummary] = useState<boolean>(!initialSummary)
   const [summaryError, setSummaryError] = useState<string | null>(null)
-  const [metrics, setMetrics] = useState<RepFundsSummaryMetrics>({
-    totalCases: 0,
-    totalReps: 0,
-    totalIncome: 0,
-    totalCompensated: 0,
-    rate: '0.0',
-    totalDiff: 0,
-    pendingAppeals: 0,
-    errorCount: 0,
-  })
-  const [fundGroups, setFundGroups] = useState<FundSummaryGroup[]>([])
-  const [availableYears, setAvailableYears] = useState<string[]>(['2570', '2569', '2568', '2567'])
-  const [availableFunds, setAvailableFunds] = useState<Array<{ key: string; label: string; count: number }>>([])
+  const [metrics, setMetrics] = useState<RepFundsSummaryMetrics>(
+    initialSummary?.metrics || {
+      totalCases: 0,
+      totalReps: 0,
+      totalIncome: 0,
+      totalCompensated: 0,
+      rate: '0.0',
+      totalDiff: 0,
+      pendingAppeals: 0,
+      errorCount: 0,
+    }
+  )
+  const [fundGroups, setFundGroups] = useState<FundSummaryGroup[]>(initialSummary?.fundGroups || [])
+  const [availableYears, setAvailableYears] = useState<string[]>(
+    initialSummary?.availableYears || ['2570', '2569', '2568', '2567']
+  )
+  const [availableFunds, setAvailableFunds] = useState<Array<{ key: string; label: string; count: number }>>(
+    initialSummary?.availableFunds || []
+  )
 
   // Multi-Rep, Multi-HN Statement Cases Data States
   const [statementCases, setStatementCases] = useState<PatientClaimRecord[]>([])
@@ -160,6 +175,7 @@ export default function RepFundsClient() {
   // Request Cancellation
   const abortSummaryRef = useRef<AbortController | null>(null)
   const abortCasesRef = useRef<AbortController | null>(null)
+  const isFirstMountSummary = useRef(true)
 
   // 1. Fetch Summary Data (KPI Metrics & Fund Matrix)
   const fetchSummaryData = useCallback(async () => {
@@ -292,11 +308,15 @@ export default function RepFundsClient() {
   ])
 
   useEffect(() => {
+    if (isFirstMountSummary.current) {
+      isFirstMountSummary.current = false
+      if (initialSummary) return
+    }
     fetchSummaryData()
     return () => {
       abortSummaryRef.current?.abort()
     }
-  }, [fetchSummaryData])
+  }, [fetchSummaryData, initialSummary])
 
   useEffect(() => {
     fetchStatementCases()

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -61,7 +61,15 @@ function formatCidDisplay(cid?: string | null): string {
   return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`
 }
 
-export default function CcsService1B005Client() {
+export interface CcsService1B005ClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function CcsService1B005Client({
+  initialData,
+  initialRange,
+}: CcsService1B005ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -82,9 +90,9 @@ export default function CcsService1B005Client() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${curCalYear}-${String(curMonth).padStart(2, '0')}-01`)
   const [ds2, setDs2] = useState<string>(
-    `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    initialRange?.endDate || `${curCalYear}-${String(curMonth).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   )
 
   // Filter & Search states
@@ -99,31 +107,38 @@ export default function CcsService1B005Client() {
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data fetching states
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<CcsService1B005Item[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [adpMapping, setAdpMapping] = useState<CcsAdpMappingCheck>({
-    isMapped: true,
-    mappedCount: 0,
-    items: [],
-  })
-  const [summary, setSummary] = useState<CcsService1B005Summary>({
-    totalVisits: 0,
-    uniquePatients: 0,
-    compensatedVisits: 0,
-    uncompensatedVisits: 0,
-    compensationRate: 0,
-    totalCompensated: 0,
-    averageCompensated: 0,
-    withAuthenCount: 0,
-    withoutAuthenCount: 0,
-    withPdxCount: 0,
-    withOpCount: 0,
-  })
+  const [items, setItems] = useState<CcsService1B005Item[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [adpMapping, setAdpMapping] = useState<CcsAdpMappingCheck>(
+    initialData?.adpMapping || {
+      isMapped: true,
+      mappedCount: 0,
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<CcsService1B005Summary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      uniquePatients: 0,
+      compensatedVisits: 0,
+      uncompensatedVisits: 0,
+      compensationRate: 0,
+      totalCompensated: 0,
+      averageCompensated: 0,
+      withAuthenCount: 0,
+      withoutAuthenCount: 0,
+      withPdxCount: 0,
+      withOpCount: 0,
+    }
+  )
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Modal Detail states
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -162,6 +177,12 @@ export default function CcsService1B005Client() {
   // Fetch report data
   const fetchData = useCallback(
     async (refresh = false) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       setLoading(true)
       if (refresh) setIsRefreshing(true)
       setError(null)
@@ -182,7 +203,8 @@ export default function CcsService1B005Client() {
         if (refresh) q.set('refresh', 'true')
 
         const res = await fetch(
-          `/api/service/dashboard-rcm/funds/ccs/service-1b005?${q.toString()}`
+          `/api/service/dashboard-rcm/funds/ccs/service-1b005?${q.toString()}`,
+          { signal: controller.signal }
         )
         const json = await res.json()
 
@@ -198,10 +220,14 @@ export default function CcsService1B005Client() {
         setAdpMapping(data.adpMapping)
       } catch (err: unknown) {
         const e = err as Error
-        setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
+        if (e.name !== 'AbortError') {
+          setError(e.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
+        }
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [
@@ -218,8 +244,17 @@ export default function CcsService1B005Client() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
 
   // Fetch VN Clinical Details for Inspection Modal
   const fetchClinicalDetails = useCallback(async (vn: string) => {

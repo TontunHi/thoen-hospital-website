@@ -1,14 +1,15 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import { RcmFamilyPlanningService } from '@/lib/clinical/rcmFamilyPlanningService'
+import { getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
 import SingleHormonePillClient from './SingleHormonePillClient'
 
 export const metadata = {
-  title: '9.5 ยาเม็ดคุมกำเนิดชนิดฮอร์โมนเดียว (FP003_2) | กองทุนบริการวางแผนครอบครัว Dashboard-RCM',
-  description:
-    'รายงานหัวข้อที่ 9.5 ยาเม็ดคุมกำเนิดชนิดฮอร์โมนเดียว รหัส ADP: FP003_2 ตรวจสอบการลงรหัส Dx Z304 ค่าบริการ และสถานะการชดเชยค่าบริการ E-Claim / สปสช. โรงพยาบาลเถิน',
+  title: '9.5 ยาเม็ดคุมกำเนิดชนิดฮอร์โมนเดี่ยว | Dashboard-RCM โรงพยาบาลเถิน',
+  description: 'รายงานการให้บริการยาเม็ดคุมกำเนิดชนิดฮอร์โมนเดี่ยว โรงพยาบาลเถิน',
 }
 
-export default async function FamilyPlanningService95Page() {
+export default async function SingleHormonePillPage() {
   const session = await verifyMemberSession()
   if (!session) {
     redirect('/member/login')
@@ -18,5 +19,17 @@ export default async function FamilyPlanningService95Page() {
     redirect('/service')
   }
 
-  return <SingleHormonePillClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData = null
+  try {
+    initialData = await RcmFamilyPlanningService.getFamilyPlanningReport({
+      reportType: '9.5',
+      startDate: defaultRange.startDate,
+      endDate: defaultRange.endDate,
+    })
+  } catch {
+    initialData = null
+  }
+
+  return <SingleHormonePillClient initialData={initialData} initialRange={defaultRange} />
 }

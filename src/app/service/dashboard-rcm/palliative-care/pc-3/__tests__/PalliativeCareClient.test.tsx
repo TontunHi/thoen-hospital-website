@@ -119,7 +119,7 @@ describe('PalliativeCareClient PC.3 Component', () => {
     // Metric bar items
     expect(screen.getAllByText('Advance Care Plan').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Opioid').length).toBeGreaterThan(0)
-    expect(screen.getByText('มีรหัส Z515')).toBeInTheDocument()
+    expect(screen.getAllByText(/มีรหัส Z515/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/ไม่พบรหัส Z515/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/ชดเชยแล้ว/).length).toBeGreaterThan(0)
   })
@@ -152,7 +152,7 @@ describe('PalliativeCareClient PC.3 Component', () => {
     expect(ucCheckbox.checked).toBe(false)
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('ucOnly=false'))
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('ucOnly=false'), expect.anything())
     })
   })
 
@@ -208,7 +208,7 @@ describe('PalliativeCareClient PC.3 Component', () => {
     fireEvent.change(deathSelect, { target: { value: 'Y' } })
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('deathStatus=Y'))
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('deathStatus=Y'), expect.anything())
     })
 
     // Filter dropdown for compensatedFilter
@@ -216,14 +216,60 @@ describe('PalliativeCareClient PC.3 Component', () => {
     fireEvent.change(paidSelect, { target: { value: 'PAID' } })
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('compensated=PAID'))
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('compensated=PAID'), expect.anything())
     })
 
     // Filter by threshold >=750
     fireEvent.change(paidSelect, { target: { value: '>=750' } })
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringMatching(/compensated=(?:%3E%3D750|>=750)/))
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringMatching(/compensated=(?:%3E%3D750|>=750)/),
+        expect.anything()
+      )
+    })
+  })
+
+  it('filters data when clicking on metric cards in PC.3', async () => {
+    render(<PalliativeCareClient />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นายธวัชชัย คำมา')).toBeInTheDocument()
+    })
+
+    // Click 'Advance Care Plan' card
+    const acpCard = screen.getByRole('button', { name: /Advance Care Plan/ })
+    fireEvent.click(acpCard)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('filterType=Chronic'), expect.anything())
+      expect(acpCard).toHaveClass('is-active')
+    })
+
+    // Click 'มีรหัส Z515' card
+    const z515Card = screen.getByRole('button', { name: /มีรหัส Z515/ })
+    fireEvent.click(z515Card)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('z515Status=Y'), expect.anything())
+      expect(z515Card).toHaveClass('is-active')
+    })
+
+    // Click 'เสียชีวิต (ชมพู)' card
+    const deathCard = screen.getByRole('button', { name: /เสียชีวิต \(ชมพู\)/ })
+    fireEvent.click(deathCard)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('deathStatus=Y'), expect.anything())
+      expect(deathCard).toHaveClass('is-active')
+    })
+
+    // Click 'ผู้ป่วย Palliative ทั้งหมด' card to reset
+    const allCard = screen.getByRole('button', { name: /ผู้ป่วย Palliative ทั้งหมด/ })
+    fireEvent.click(allCard)
+
+    await waitFor(() => {
+      expect(allCard).toHaveClass('is-active')
     })
   })
 })

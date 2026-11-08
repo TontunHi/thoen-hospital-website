@@ -105,27 +105,38 @@ function SheetInput({
   )
 }
 
-interface LtcRegistryClientProps {
+export interface LtcRegistryClientProps {
   userRole: string
   username: string
   isAdmin: boolean
+  initialData?: any | null
 }
 
-export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRegistryClientProps) {
+export default function LtcRegistryClient({
+  userRole,
+  username,
+  isAdmin,
+  initialData,
+}: LtcRegistryClientProps) {
   // Data state
-  const [items, setItems] = useState<LongTermCareRecord[]>([])
-  const [total, setTotal] = useState(0)
+  const [items, setItems] = useState<LongTermCareRecord[]>(initialData?.items || [])
+  const [total, setTotal] = useState(initialData?.total || 0)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(50)
-  const [totalPages, setTotalPages] = useState(1)
-  const [availableAreaZones, setAvailableAreaZones] = useState<string[]>([])
-  const [stats, setStats] = useState({
-    total: 0,
-    avgAdl: 0,
-    zoneCounts: {} as Record<string, number>,
-  })
-  const [loading, setLoading] = useState(true)
+  const [totalPages, setTotalPages] = useState(initialData?.totalPages || 1)
+  const [availableAreaZones, setAvailableAreaZones] = useState<string[]>(initialData?.availableAreaZones || [])
+  const [stats, setStats] = useState(
+    initialData?.stats || {
+      total: 0,
+      avgAdl: 0,
+      zoneCounts: {} as Record<string, number>,
+    }
+  )
+  const [loading, setLoading] = useState(!initialData)
   const [error, setError] = useState<string | null>(null)
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Filters state
   const [search, setSearch] = useState('')
@@ -188,6 +199,12 @@ export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRe
 
   // Fetch data
   const fetchData = useCallback(async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setLoading(true)
     setError(null)
     try {
@@ -197,7 +214,9 @@ export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRe
       q.set('page', String(page))
       q.set('limit', String(limit))
 
-      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/ltc-registry?${q.toString()}`)
+      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/ltc-registry?${q.toString()}`, {
+        signal: controller.signal,
+      })
       const data = await res.json()
 
       if (!res.ok || !data.success) {
@@ -210,15 +229,31 @@ export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRe
       setAvailableAreaZones(data.availableAreaZones || [])
       if (data.stats) setStats(data.stats)
     } catch (err: any) {
-      setError(err?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
+      if (err?.name !== 'AbortError') {
+        setError(err?.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล')
+      }
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
     }
   }, [search, selectedZone, page, limit])
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
+
+  // Filter state for ADL group card filter
+  const [adlFilter, setAdlFilter] = useState<'ALL' | 'HOMEBOUND' | 'BEDRIDDEN'>('ALL')
 
   // Computed ADL groups
   const adlBreakdown = useMemo(() => {
@@ -235,6 +270,25 @@ export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRe
     }
     return { bedridden, homebound, independent }
   }, [items])
+
+  // Filtered items based on ADL card filter
+  const displayedItems = useMemo(() => {
+    if (adlFilter === 'BEDRIDDEN') {
+      return items.filter(
+        (it) => it.adlScore !== null && it.adlScore !== undefined && Number(it.adlScore) <= 4
+      )
+    }
+    if (adlFilter === 'HOMEBOUND') {
+      return items.filter(
+        (it) =>
+          it.adlScore !== null &&
+          it.adlScore !== undefined &&
+          Number(it.adlScore) >= 5 &&
+          Number(it.adlScore) <= 11
+      )
+    }
+    return items
+  }, [items, adlFilter])
 
   // Lookup HN from HOSxP
   const handleLookupHn = async (rawHn?: string) => {
@@ -665,12 +719,19 @@ export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRe
       </div>
 
       {/* 2. Stats Cards */}
-      <div className="ltc-stats-grid">
-        <div className="ltc-stat-card">
+      <div className="ltc-stats-grid" role="region" aria-label="สรุปสถิติผู้ป่วยและตัวกรองด่วนผ่านการ์ด">
+        <button
+          type="button"
+          className={`ltc-stat-card ltc-stat-card-btn ${adlFilter === 'ALL' ? 'is-active is-active-total' : ''}`}
+          onClick={() => setAdlFilter('ALL')}
+          aria-pressed={adlFilter === 'ALL'}
+          title={adlFilter === 'ALL' ? 'แสดงผู้ป่วยทั้งหมด' : 'คลิกเพื่อดูผู้ป่วยทั้งหมด'}
+        >
           <div className="ltc-stat-label">ผู้ป่วยในทะเบียน LTC ทั้งหมด</div>
           <div className="ltc-stat-val">{stats.total.toLocaleString('th-TH')}</div>
           <div className="ltc-stat-sub">รายชื่อที่ขึ้นทะเบียนในระบบ</div>
-        </div>
+        </button>
+
         <div className="ltc-stat-card">
           <div className="ltc-stat-label">คะแนน ADL เฉลี่ย</div>
           <div className="ltc-stat-val" style={{ color: '#0369a1' }}>
@@ -678,20 +739,34 @@ export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRe
           </div>
           <div className="ltc-stat-sub">จากคะแนนเต็ม 20 คะแนน</div>
         </div>
-        <div className="ltc-stat-card">
+
+        <button
+          type="button"
+          className={`ltc-stat-card ltc-stat-card-btn ${adlFilter === 'HOMEBOUND' ? 'is-active is-active-homebound' : ''}`}
+          onClick={() => setAdlFilter((prev) => (prev === 'HOMEBOUND' ? 'ALL' : 'HOMEBOUND'))}
+          aria-pressed={adlFilter === 'HOMEBOUND'}
+          title={adlFilter === 'HOMEBOUND' ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะกลุ่มติดบ้าน (ADL 5-11)'}
+        >
           <div className="ltc-stat-label">กลุ่มติดบ้าน (ADL 5-11)</div>
           <div className="ltc-stat-val" style={{ color: '#b45309' }}>
             {adlBreakdown.homebound.toLocaleString('th-TH')}
           </div>
           <div className="ltc-stat-sub">ช่วยเหลือตนเองได้ปานกลาง</div>
-        </div>
-        <div className="ltc-stat-card">
+        </button>
+
+        <button
+          type="button"
+          className={`ltc-stat-card ltc-stat-card-btn ${adlFilter === 'BEDRIDDEN' ? 'is-active is-active-bedridden' : ''}`}
+          onClick={() => setAdlFilter((prev) => (prev === 'BEDRIDDEN' ? 'ALL' : 'BEDRIDDEN'))}
+          aria-pressed={adlFilter === 'BEDRIDDEN'}
+          title={adlFilter === 'BEDRIDDEN' ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะกลุ่มติดเตียง (ADL 0-4)'}
+        >
           <div className="ltc-stat-label">กลุ่มติดเตียง (ADL 0-4)</div>
           <div className="ltc-stat-val" style={{ color: '#be123c' }}>
             {adlBreakdown.bedridden.toLocaleString('th-TH')}
           </div>
           <div className="ltc-stat-sub">พึ่งพาผู้อื่นอย่างสมบูรณ์</div>
-        </div>
+        </button>
       </div>
 
       {/* 3. Filters & Search */}
@@ -754,7 +829,7 @@ export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRe
           <span style={{ marginRight: '0.75rem', color: 'var(--ltc-accent)', fontWeight: 600 }}>
             • แก้ไขข้อมูลในช่องตารางแล้วกด Enter หรือคลิกออกเพื่อบันทึกอัตโนมัติ
           </span>
-          แสดง {items.length} จากทั้งหมด {total} รายการ
+          แสดง {displayedItems.length} จากทั้งหมด {adlFilter === 'ALL' ? total : displayedItems.length} รายการ
         </div>
       </div>
 
@@ -794,14 +869,14 @@ export default function LtcRegistryClient({ userRole, username, isAdmin }: LtcRe
                     {error}
                   </td>
                 </tr>
-              ) : items.length === 0 ? (
+              ) : displayedItems.length === 0 ? (
                 <tr>
                   <td colSpan={11} style={{ textAlign: 'center', padding: '3rem', color: 'var(--ltc-muted)' }}>
                     ไม่พบข้อมูลผู้ป่วยในทะเบียน Long Term Care (LTC) ตามเงื่อนไขที่เลือก
                   </td>
                 </tr>
               ) : (
-                items.map((item, index) => (
+                displayedItems.map((item, index) => (
                   <tr
                     key={item.id}
                     onDoubleClick={() => handleOpenEdit(item)}

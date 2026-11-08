@@ -1,5 +1,6 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import { RcmDashboardService, getDefaultFiscalYearDateRange, type SssDentalResult } from '@/lib/clinical/rcmDashboardService'
 import SssDentalClient from './SssDentalClient'
 
 export const metadata = {
@@ -17,5 +18,17 @@ export default async function SssDentalPage() {
     redirect('/service')
   }
 
-  return <SssDentalClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData: SssDentalResult | null = null
+  try {
+    initialData = await RcmDashboardService.getSssDentalReport({
+      startDate: defaultRange.startDate,
+      endDate: defaultRange.endDate,
+      fetchVisits: false,
+    })
+  } catch {
+    initialData = null
+  }
+
+  return <SssDentalClient initialData={initialData} initialRange={defaultRange} />
 }

@@ -1,5 +1,7 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import { RcmRepFundsService, type RepFundsSummaryResult } from '@/lib/clinical/rcmRepFundsService'
+import { getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
 import RepFundsClient from './RepFundsClient'
 
 export const metadata = {
@@ -17,5 +19,18 @@ export default async function RepFundsPage() {
     redirect('/service')
   }
 
-  return <RepFundsClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData: RepFundsSummaryResult | null = null
+
+  try {
+    const years = await RcmRepFundsService.getAvailableYears()
+    initialData = await RcmRepFundsService.getRepFundsSummary({
+      fiscalYear: years[0] || '2570',
+      department: 'ALL',
+    })
+  } catch {
+    initialData = null
+  }
+
+  return <RepFundsClient initialSummary={initialData} initialRange={defaultRange} />
 }

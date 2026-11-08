@@ -63,23 +63,27 @@ const IPD_DEPARTMENTS: {
   { key: 'psychiatry', name: 'จิตเวช', color: '#9333ea', bg: '#faf5ff', border: '#f3e8ff' },
 ]
 
-export default function IpdClient() {
+export interface IpdClientProps {
+  initialReportData?: IPDRecord[] | null
+  initialDeptData?: IpdDepartmentAdjrwItem[] | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function IpdClient({
+  initialReportData,
+  initialDeptData,
+  initialRange,
+}: IpdClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const currentCalYear = today.getFullYear()
   const defaultFiscalYear = today.getMonth() + 1 >= 10 ? currentCalYear + 1 : currentCalYear
 
   // Dates & Modes
-  const [dateMode, setDateMode] = useState<'custom' | 'month' | 'year'>('custom')
+  const [dateMode, setDateMode] = useState<'custom' | 'month' | 'year'>('year')
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState<number>(defaultFiscalYear)
-  const [ds1, setDs1] = useState<string>(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
-  })
-  const [ds2, setDs2] = useState<string>(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  })
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalYear}-09-30`)
 
   // Subtab within IPD: 5 tabs
   const [subTab, setSubTab] = useState<'list' | 'doctor' | 'doctor_dc' | 'department' | 'overview'>('list')
@@ -93,12 +97,12 @@ export default function IpdClient() {
   const [delayGroupFilter, setDelayGroupFilter] = useState<string>('all')
 
   // Data States
-  const [data, setData] = useState<IPDRecord[]>([])
+  const [data, setData] = useState<IPDRecord[]>(initialReportData || [])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
 
   // Department SumAdjRW States
-  const [deptAdjrwData, setDeptAdjrwData] = useState<IpdDepartmentAdjrwItem[]>([])
+  const [deptAdjrwData, setDeptAdjrwData] = useState<IpdDepartmentAdjrwItem[]>(initialDeptData || [])
   const [deptAdjrwLoading, setDeptAdjrwLoading] = useState<boolean>(false)
   const [deptAdjrwError, setDeptAdjrwError] = useState<string | null>(null)
   const [selectedDeptMonth, setSelectedDeptMonth] = useState<string>('all')
@@ -255,6 +259,7 @@ export default function IpdClient() {
 
   const abortReportRef = useRef<AbortController | null>(null)
   const abortDeptRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   const fetchData = useCallback(async (start = ds1, end = ds2) => {
     if (abortReportRef.current) {
@@ -313,13 +318,17 @@ export default function IpdClient() {
   }, [ds1, ds2])
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialReportData && initialDeptData) return
+    }
     fetchData(ds1, ds2)
     fetchDeptAdjrwData(ds1, ds2)
     return () => {
       abortReportRef.current?.abort()
       abortDeptRef.current?.abort()
     }
-  }, [ds1, ds2, fetchData, fetchDeptAdjrwData])
+  }, [ds1, ds2, fetchData, fetchDeptAdjrwData, initialReportData, initialDeptData])
 
   // Wards and Doctors options
   const wardOptions = useMemo(() => {

@@ -39,7 +39,12 @@ type SortField =
 
 type SortOrder = 'asc' | 'desc'
 
-export default function SssDentalClient() {
+export interface SssDentalClientProps {
+  initialData?: SssDentalResult | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function SssDentalClient({ initialData, initialRange }: SssDentalClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const currentCalYear = today.getFullYear()
   const defaultFiscalYear = today.getMonth() + 1 >= 10 ? currentCalYear + 1 : currentCalYear
@@ -48,8 +53,8 @@ export default function SssDentalClient() {
   const [dateMode, setDateMode] = useState<'custom' | 'month' | 'year'>('year')
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState<number>(defaultFiscalYear)
-  const [ds1, setDs1] = useState<string>(`${defaultFiscalYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(`${defaultFiscalYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalYear}-09-30`)
 
   // Filter & Sort States
   const [searchDoctor, setSearchDoctor] = useState<string>('')
@@ -60,17 +65,21 @@ export default function SssDentalClient() {
   // Data States
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [doctors, setDoctors] = useState<DentalDoctorSummaryItem[]>([])
-  const [months, setMonths] = useState<string[]>([])
-  const [grandTotal, setGrandTotal] = useState<SssDentalResult['grandTotal']>({
-    visits: 0,
-    income: 0,
-    uc_money: 0,
-    rcpt_money: 0,
-    discount: 0,
-    debit: 0,
-  })
-  const [monthlyTotals, setMonthlyTotals] = useState<Record<string, { income: number; visits: number }>>({})
+  const [doctors, setDoctors] = useState<DentalDoctorSummaryItem[]>(initialData?.doctors || [])
+  const [months, setMonths] = useState<string[]>(initialData?.months || [])
+  const [grandTotal, setGrandTotal] = useState<SssDentalResult['grandTotal']>(
+    initialData?.grandTotal || {
+      visits: 0,
+      income: 0,
+      uc_money: 0,
+      rcpt_money: 0,
+      discount: 0,
+      debit: 0,
+    }
+  )
+  const [monthlyTotals, setMonthlyTotals] = useState<Record<string, { income: number; visits: number }>>(
+    initialData?.monthlyTotals || {}
+  )
 
   // 12 Fiscal Month columns grouped into 4 Quarters
   const fiscalQuarters = useMemo(() => {
@@ -150,6 +159,7 @@ export default function SssDentalClient() {
   }
 
   const abortDentalRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   const fetchData = useCallback(
     async (start = ds1, end = ds2, docFilter = selectedDoctorCode) => {
@@ -198,11 +208,15 @@ export default function SssDentalClient() {
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData(ds1, ds2, selectedDoctorCode)
     return () => {
       abortDentalRef.current?.abort()
     }
-  }, [ds1, ds2, selectedDoctorCode, fetchData])
+  }, [ds1, ds2, selectedDoctorCode, fetchData, initialData])
 
   // Sorting Handler
   const handleSort = (field: SortField) => {

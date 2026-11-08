@@ -1,68 +1,142 @@
 ---
 name: rcm-data-flow
-description: Architecture and data-fetching patterns for RCM clinical dashboards, reports, and financial summaries (/service/dashboard-rcm). Read before building, editing, or refactoring data fetching, state flow, API routes, or UI components for dashboards and patient ledgers.
+description: End-to-end data flow architecture for /service/dashboard-rcm clinical dashboards, fund reports, and financial ledgers (SSR prefetch, atomic client state, AbortController, SWR server cache, Zod validation, lazy modal details, CSV export, and HOSxP SQL rules). Read before building, editing, or refactoring any RCM page, client component, API route, or clinical service.
 ---
 
 # RCM Dashboard Data Flow & Architecture
 
-ชุดหลักการและรูปแบบมาตรฐานในการดึง ส่ง และแสดงผลข้อมูลสำหรับหน้า Dashboard RCM และรายงานคลินิกโรงพยาบาลเถิน (`/service/dashboard-rcm/...`) เพื่อให้หน้าเว็บโหลดเร็ว ปลอดภัย ป้องกัน Race Condition และไม่ทำให้ฐานข้อมูลทำงานหนักเกินไป
+สถาปัตยกรรมมาตรฐานสำหรับการไหลของข้อมูลตั้งแต่ HOSxP/Gateway → Service Layer → API Route → SSR → Client State → Modal/Export ในระบบ `/service/dashboard-rcm/**` เพื่อให้หน้าเว็บตอบสนองทันที ป้องกัน Race Condition, หลีกเลี่ยง Waterfall และไม่ทำให้ฐานข้อมูลโรงพยาบาลทำงานหนักเกินไป
 
 ---
 
-## 1. การแบ่งชั้นข้อมูล 2 ระดับ (Two-Tier Query Architecture)
+## 5 เสาหลักมาตรฐาน Performance (The 5 Pillars of RCM Performance)
 
-**ห้ามส่งข้อมูลรายคนทั้งหมดทั้งปี (Unbounded Bulk Fetch) มาที่บราวเซอร์เด็ดขาด**
+ทุก Route ภายใต้ `/service/dashboard-rcm/**` (ปัจจุบันมี 50 routes) ต้องผ่านเกณฑ์มาตรฐาน 5 เสาหลักอย่างเคร่งครัด:
 
-- **Tier 1: Aggregated Summary (ขนาดเล็ก ~2–5 KB)**
-  - ยอดรวมผู้ป่วย, สถิติ CMI, AdjRW รวม, ยอดเงินชดเชย, และข้อมูลพล็อตของกราฟ ให้คำนวณแบบ Group By จาก SQL/Gateway มาล่วงหน้า
-  - ฝั่ง Client นำมาแสดงผลบน KPI Cards และกราฟได้ทันทีโดยไม่ต้องโหลดรายชื่อผู้ป่วยทั้งหมด
-- **Tier 2: Paginated Patient Ledger (50 รายการ/หน้า)**
-  - ตารางรายชื่อผู้ป่วยต้องทำ Server-side Pagination เสมอ (`page`, `pageSize`, `search`, `pttype`, `ward`, `doctor`)
-  - ส่งข้อมูลเฉพาะหน้าที่กำลังเปิดดูเท่านั้น
-- **Export Mode**:
-  - เมื่อผู้ใช้กดปุ่มดาวน์โหลด CSV หรือ Excel ให้ส่ง `exportAll=true` เพื่อดึงข้อมูลเต็มเฉพาะจังหวะที่ส่งออกไฟล์
-  - สำหรับไฟล์ CSV ต้องใส่ UTF-8 BOM (`\uFEFF`) นำหน้าเสมอ เพื่อให้เปิดใน Microsoft Excel บน Windows ภาษาไทยได้ถูกต้องโดยไม่เป็นต่างดาว
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                      5 Pillars of RCM Performance                      │
+├──────────────────┬──────────────────┬──────────────────┬───────────────┤
+│ 1. SSR Prefetch  │ 2. Mount Guard   │ 3. AbortController│ 4. Pagination │
+│  (Zero Waterfall)│ (No Double Fetch)│ (Race Defense)   │  (Bounded 50) │
+├──────────────────┴──────────────────┴──────────────────┴───────────────┤
+│ 5. SWR In-Memory Caching (Single-Flight Deduplication & Test Isolation) │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
----
-
-## 2. ลด Waterfall ด้วย Server Component Initial Data
-
-อย่าปล่อยให้ Client Component เมานต์แบบว่างเปล่าแล้วหมุน Skeleton รอ Client ยิง API รอบแรก:
-
-1. ใน `page.tsx` (Server Component) ตรวจ Session และดึง Initial Data ประจำปีงบประมาณปัจจุบันส่งผ่าน Props (หรือให้ Client ดึงด้วย default fiscal range ทันที)
-2. ใน `*Client.tsx` กำหนด `useState(initialData || [])`
-3. ใน `useEffect` ครั้งแรก (First Mount) ให้ข้ามการยิง API ถ้ามี Initial Data อยู่แล้ว หน้าเว็บจะ **แสดงผลตัวเลขทันทีตั้งแต่ First Paint (Zero Skeleton)**
-4. การยิง `fetch()` ใน Client จะทำงานเฉพาะเมื่อผู้ใช้เปลี่ยน Filter หรือเปลี่ยนวันที่
+1. **Zero-Waterfall SSR Prefetch (`page.tsx`):** ดึงข้อมูลรอบแรกที่ Server Component เสมอ โดยใช้ `getDefaultFiscalYearDateRange()` จาก `@/lib/clinical/rcmDashboardService` แล้วส่ง `initialData` + `initialRange` ให้ Client ทันที
+2. **Double-Fetch Mount Guard (`*Client.tsx`):** Client Component ต้องมี `isFirstMount = useRef(true)` (หรือ `initialQueryKeyRef`) ข้ามการ `fetch()` ในรอบแรกหาก SSR ส่ง `initialData` มาแล้ว ป้องกันการยิง API 2 รอบติด
+3. **Race Condition Prevention (`AbortController`):** ทุก Client Fetch ต้องมี `abortRef = useRef<AbortController | null>(null)` สั่ง `abort()` รอบเก่าก่อนเริ่มรอบใหม่ และส่ง `{ signal: controller.signal }` ไปยัง `fetch()` เสมอ
+4. **Server-Side Bounded Pagination & Defensive State:** ล็อค `pageSize: 50` เสมอ (ห้าม Unbounded Array) พร้อมตั้งค่า Default State ครบทุกฟิลด์ตัวเลข และใช้ Defensive Rendering `(summary.authenRate ?? 0).toFixed(1)` เสมอ
+5. **In-Memory SWR Cache & Test Isolation:** Service ต้องหุ้ม Query ด้วย `getCachedData` หรือ `getSwrCachedData` จาก `@/lib/cache` และใน Unit Test ต้องมี `clearMemoryCache()` ใน `beforeEach` เสมอ
 
 ---
 
-## 3. ปีงบประมาณแบบไดนามิกและการจัดเรียงตัวเลือกช่วงเวลา
+## 1. End-to-End Flow & Tier Decision Matrix
 
-ปีงบประมาณไทยเริ่ม **1 ตุลาคม ถึง 30 กันยายน** ของปีถัดไป:
+**กฎเหล็ก: ห้ามส่งรายการผู้ป่วยทั้งปี (Unbounded Bulk Array) ไปยัง Browser เด็ดขาด** (ยกเว้นจังหวะกดส่งออกไฟล์ `exportAll=true`)
 
-- ใช้ `getDefaultFiscalYearDateRange()` จาก `@/lib/clinical/rcmDashboardService` เป็น Single Source of Truth
-- **ห้าม** เขียนสตริงวันที่แบบระบุปีตายตัว เช่น `'2024-10-01'` หรือ `'2025-09-30'` ใน `useEffect` หรือใน API Route
-- ใน API Route ให้ fallback วันที่ด้วย:
-  ```typescript
-  const defaultRange = getDefaultFiscalYearDateRange()
-  const ds1 = params.ds1 || defaultRange.startDate
-  const ds2 = params.ds2 || defaultRange.endDate
-  ```
-- **ลำดับมาตรฐานของแท็บช่วงเวลา (Date Selector Tab Order):**
-  เรียงแท็บตามลำดับนี้เสมอ: **1. กำหนดเอง (Custom)** &rarr; **2. เดือน (Monthly)** &rarr; **3. ปีงบประมาณ (Fiscal Year)**
+เลือกกลยุทธ์ฝั่ง Server ให้เหมาะกับขนาดข้อมูลของรายงาน:
+
+| รูปแบบ | ใช้เมื่อ | วิธีการทำงาน |
+|---|---|---|
+| **Pattern A: True SQL Two-Tier** | รายงานขนาดใหญ่ทั้ง รพ. (`> 5,000` แถว/ปี เช่น OPD, IPD, REP Funds) | แยก Query 2 ชุดรันคู่ขนาน (`Promise.all`):<br>1. **Tier 1 (Summary):** SQL `GROUP BY` คำนวณ KPI + ข้อมูลกราฟ (`~2–5 KB`)<br>2. **Tier 2 (Ledger):** SQL `LIMIT ? OFFSET ?` ส่งเฉพาะหน้าปัจจุบัน (`50` แถว) |
+| **Pattern B: Bounded Cohort SWR** | รายงานกองทุนเฉพาะโรค/ยา (`< 5,000` แถว/ปี) ที่ต้อง Reconcile ข้ามตารางและสลับ KPI Card Filter ทันที | ดึงเฉพาะคอลัมน์จำเป็น (Projection Pruning) เข้า `getSwrCachedData()` ใน `@/lib/cache` แล้วทำ `cardFilter` + `search` + `sort` + `slice()` บน Server เพื่อส่งกลับ **เฉพาะ 50 แถวของหน้านั้น + Summary** |
+
+- **Parallel Server Calls:** งานอิสระ (เช่น `checkAdpMapping` กับ Query หลัก, หรือ Tier 1 กับ Tier 2) ให้รันพร้อมกันด้วย `Promise.all(...)` ห้าม `await` ต่อคิวทีละตัว
+- **SWR + Single-Flight Deduplication:** ใช้ `getSwrCachedData(key, fetcher, { staleTtlMs, maxTtlMs })` หรือ `getCachedData(key, fetcher, ttlMs)` จาก `@/lib/cache` เพื่อกัน Cache Stampede (เช่น ช่วงเช้าเปิดพร้อมกันหลายคน Gateway จะถูกยิงเพียงครั้งเดียว); เมื่อผู้ใช้กดปุ่มรีเฟรช (`refresh=true`) ให้เรียก `invalidateCacheKey(key)` ก่อนเสมอ
 
 ---
 
-## 4. ป้องกัน Race Condition ด้วย `AbortController`
+## 2. Zero-Waterfall SSR & Clean Hydration Hand-off
 
-ผู้ใช้มักจะคลิกเปลี่ยนเดือนหรือสลับฟิลเตอร์อย่างรวดเร็ว ทุกฟังก์ชันการดึงข้อมูลบน Client ต้องตัด Request เดิมทิ้ง:
-
+### 1. `page.tsx` (Server Component Standard Pattern)
 ```tsx
-// *Client.tsx
-const abortRef = useRef<AbortController | null>(null)
+import { verifyMemberSession } from '@/lib/auth/MemberAuthService'
+import { redirect } from 'next/navigation'
+import { logThrottledAudit } from '@/lib/audit'
+import { getDefaultFiscalYearDateRange } from '@/lib/clinical/rcmDashboardService'
+import { MyClinicalService } from '@/lib/clinical/myClinicalService'
+import MyReportClient from './MyReportClient'
 
-const fetchData = useCallback(async (refresh = false) => {
-  // 1. ตัด Request ก่อนหน้าที่ยังค้างอยู่
+export default async function Page() {
+  const session = await verifyMemberSession()
+  if (!session) {
+    redirect('/member/login?returnUrl=/service/dashboard-rcm/my-report')
+  }
+
+  logThrottledAudit('READ', 'RCM_MY_REPORT', session.user.id).catch(() => {})
+
+  const initialRange = getDefaultFiscalYearDateRange()
+  let initialData = null
+  let initialError: string | null = null
+
+  try {
+    initialData = await MyClinicalService.getReportData({
+      ds1: initialRange.startDate,
+      ds2: initialRange.endDate,
+      page: 1,
+      pageSize: 50,
+    })
+  } catch (err: unknown) {
+    console.error('SSR Prefetch Error:', err)
+    initialError = 'ไม่สามารถโหลดข้อมูลเริ่มต้นได้ กรุณากดปุ่มรีเฟรชเพื่อลองใหม่'
+  }
+
+  return (
+    <MyReportClient
+      initialData={initialData}
+      initialRange={initialRange}
+      initialError={initialError}
+    />
+  )
+}
+```
+
+> [!IMPORTANT]
+> **Canonical Date Export:** ฟังก์ชัน `getDefaultFiscalYearDateRange` และ `resolveFiscalDateRange` ต้อง import จาก `@/lib/clinical/rcmDashboardService` เท่านั้น (ห้าม import จาก path อื่นที่อาจไม่มีหรือเป็น mock)
+
+### 2. `*Client.tsx` (Double-Fetch Guard)
+```tsx
+const isFirstMount = useRef(true)
+
+useEffect(() => {
+  if (isFirstMount.current) {
+    isFirstMount.current = false
+    if (initialData) return // ข้ามการ fetch ซ้ำรอบแรก เพราะ SSR ส่งมาให้แล้ว
+  }
+  fetchData()
+  return () => {
+    abortRef.current?.abort()
+  }
+}, [fetchData, initialData])
+```
+
+---
+
+## 3. Atomic Client Query State & Date Calculation
+
+ป้องกัน Double-Fetch Cascade (เช่น `useEffect` ลูกโซ่ที่แก้ `ds1` แล้วค่อยแก้ `page = 1` ในอีกรอบจนยิง API 2 ครั้งติด):
+
+- **Atomic Filter Updates:** รวมสถานะ Query หลัก (`dateMode`, `ds1`, `ds2`, `cardFilter`, `ucOnly`, `search`, `sortBy`, `sortOrder`, `page`, `pageSize`) หรือสร้าง Handler เดียวต่อการเปลี่ยนเงื่อนไข เพื่อรีเซ็ต `page: 1` **ใน State Transition เดียวกัน** ทันทีที่เปลี่ยนวันที่, เปลี่ยนแท็บช่วงเวลา, คลิก KPI Card, หรือ Commit คำค้นหา
+- **Single Source of Truth สำหรับปีงบประมาณ:** ใช้ `getDefaultFiscalYearDateRange()` และ `resolveFiscalDateRange()` จาก `@/lib/clinical/rcmDashboardService` (1 ต.ค. ถึง 30 ก.ย.) **ห้าม Hardcode ปี** เช่น `'2025-10-01'`
+- **คำนวณโหมดรายเดือนจากปีที่ผู้ใช้เลือกเสมอ:**
+  ```typescript
+  const ceYear = selectedBeYear - 543 // ❌ ห้ามใช้ today.getFullYear() แทนปีที่ผู้ใช้เลือก
+  ```
+- **ลำดับแท็บช่วงเวลา (Date Selector):** `กำหนดเอง` | `เดือน` | `ปีงบประมาณ` (ไม่มีเลขลำดับนำหน้าและไม่มีวงเล็บช่วงวันที่)
+- **Unified Global Search:** ส่งพารามิเตอร์ `search` เดี่ยว (Debounce `300–350ms`) ค้นครอบคลุม HN, CID, ชื่อ-สกุล, VN/AN, `pdx`, สิทธิ, `authencode` พร้อมกันโดยไม่ต้องมีดรอปดาวน์เลือกฟิลด์ใน UI
+
+---
+
+## 4. Stale-While-Revalidate UX & Race Condition Defense
+
+### 1. การจัดการ AbortController ใน Client
+```tsx
+const abortRef = useRef<AbortController | null>(null)
+const [hasLoadedOnce, setHasLoadedOnce] = useState(Boolean(initialData))
+
+const fetchData = useCallback(async (forceRefresh = false) => {
   abortRef.current?.abort()
   const controller = new AbortController()
   abortRef.current = controller
@@ -70,185 +144,154 @@ const fetchData = useCallback(async (refresh = false) => {
   setLoading(true)
   setError(null)
   try {
-    const res = await fetch(`/api/...`, { signal: controller.signal })
-    const json = await res.json()
-    if (json.success) setData(json.data)
-  } catch (err: any) {
-    if (err?.name === 'AbortError') return // ยกเลิกตามปกติ ไม่แสดง Error
-    setError(err.message)
-  } finally {
-    if (!controller.signal.aborted) setLoading(false)
-  }
-}, [ds1, ds2, cardFilter, search, sortBy, sortOrder, currentPage, pageSize])
+    const q = new URLSearchParams({
+      ds1,
+      ds2,
+      page: String(currentPage),
+      pageSize: String(pageSize),
+      // ... filters
+    })
+    if (forceRefresh) q.set('refresh', 'true')
 
-useEffect(() => {
-  return () => abortRef.current?.abort() // Cleanup เมื่อ unmount
-}, [])
+    const res = await fetch(`/api/service/dashboard-rcm/my-report?${q.toString()}`, {
+      signal: controller.signal,
+    })
+    const json = await res.json()
+    if (!res.ok || !json.success) {
+      throw new Error(json.error?.message || json.error || 'ไม่สามารถดึงข้อมูลรายงานได้')
+    }
+    setData(json.data)
+    setHasLoadedOnce(true)
+  } catch (err: unknown) {
+    if ((err as Error)?.name === 'AbortError') return
+    setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')
+  } finally {
+    if (!controller.signal.aborted) {
+      setLoading(false)
+      setIsRefreshing(false)
+    }
+  }
+}, [ds1, ds2, currentPage, pageSize, /* other dependencies */])
 ```
 
----
-
-## 5. รวมศูนย์ Validation ด้วย Zod ทุก Endpoint
-
-ทุก API Route ใน `/api/service/dashboard-rcm/...` ต้องใช้ Shared Validation จาก `@/lib/clinical/rcmValidation.ts`:
-
-- ตรวจรูปแบบวันที่ `rcmDateRegex` (`YYYY-MM-DD`)
-- ตรวจ bounds ของตัวเลข (`page >= 1`, `pageSize` 10–500)
-- ตรวจ enum สำหรับ `cardFilter`, `searchField`, `sortBy`, `sortOrder`
-- หาก Validation ไม่ผ่าน ให้ return HTTP 400 พร้อมข้อความแจ้งเตือนทันที
-
----
-
-## 6. ข้อควรระวังในการแปลงคำสั่ง FoxPro เป็น MySQL Gateway (FoxPro Migration Rules)
-
-ระบบเดิมของโรงพยาบาลรันด้วย Visual FoxPro ซึ่งมีฟังก์ชันเฉพาะตัวและตารางชั่วคราว เมื่อแปลงมาเป็น SQL บน MySQL/MariaDB API Gateway ต้องปฏิบัติตามกฎดังนี้:
-
-1. **Authen Code ฟิลด์จริงคือ `cc.AuthenCode`:**
-   - ในสคริปต์ FoxPro จะเขียน `cc.claimcode authencode` เพราะสร้างตารางชั่วคราวชื่อ `tmpClaimCode`
-   - แต่ในฐานข้อมูลจริง ตารางคือ `rcmdb.authencode` และฟิลด์คือ **`cc.AuthenCode`**
-   - **ห้าม** ใช้ `cc.claimcode` เพราะจะเกิดข้อผิดพลาด `Unknown column 'cc.claimcode' in 'field list'` ทันที
-2. **การแปลงฟังก์ชัน Lookup และคำนวณอายุ:**
-   - `thaiage(pt.birthday, o.vstdate)` &rarr; `IFNULL(v.age_y, TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate))`
-   - `seeknames(pt.nationality, 'nation')` &rarr; `LEFT JOIN nationality nat ON nat.nationality = pt.nationality` แล้วใช้ `IFNULL(nat.name, pt.nationality)`
-   - `seeknames(o.pttype, 'pttype')` &rarr; `LEFT JOIN pttype ptt ON ptt.pttype = o.pttype`
-   - `seekname(o.main_dep, 'kskdepartment')` &rarr; `LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep`
-   - `seekname(o.spclty, 'spclty')` &rarr; `LEFT JOIN spclty spc ON spc.spclty = o.spclty`
-3. **การแปลงตารางสถานะการชดเชย (NHSO, REP, eClaim):**
-   - แปลงคำสั่ง `call createtempnhso(...)` / `call createtemprep(...)` / `call createtempeclaim(...)` เป็น Subquery JOIN:
-     - `rcmdb.repeclaim` (สถานะ 'NHSO :: มี Invoice แล้ว')
-     - `rcmdb.repdata` (สถานะ 'Rep :: มี Rep แล้ว' พร้อมดึง `fund`, `subfund`)
-     - `rcmdb.neweclaim nn ON nn.Seq = o.vn`
-     - `eclaimdb.m_registerdata m` พร้อม join `rcmdb.eclaimstatus ecs`
-   - รวมค่าชดเชยและสถานะด้วย:
-     `COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname)`
-     `COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep)`
-     `COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0)`
-4. **Timeout สำหรับรายงานกองทุน (90 วินาที):**
-   - การ Query ที่มีการ Join ข้อมูล `opitemrece` ข้ามช่วงเวลาหลายเดือนพร้อมตารางตอบรับ ต้องส่งออปชัน `{ timeoutMs: 90000 }` (90 วินาที) เสมอ เพื่อป้องกัน Gateway ตัดการเชื่อมต่อก่อนดึงข้อมูลเสร็จ
-5. **การตรวจสอบการ Map รหัส ADP (NHSO ADP Pre-Check):**
-   - ก่อนแสดงผลรายงานกองทุน ให้ตรวจตาราง `s_drugitems` เสมอ:
-     `SELECT icode, name, strength, nhso_adp_code FROM s_drugitems WHERE TRIM(nhso_adp_code) IN (...)`
-   - ฟังก์ชันตรวจสอบต้องรับพารามิเตอร์ `refresh?: boolean` เพื่อให้สามารถ Invalidate Cache ได้เมื่อกดรีเฟรช
-   - หากพบว่า `isMapped === false` ให้แสดง Warning Banner แจ้งเตือนเจ้าหน้าที่อย่างชัดเจนในหน้าเว็บ
+### 2. ข้อควรระวังในการเขียน Unit Test สำหรับ Fetch With AbortController
+เมื่อ Client Component เรียก `fetch(url, { signal: controller.signal })` ตัว Mock ใน Vitest/Jest จะได้รับ **2 Arguments**:
+- **การทดสอบ `fetchData` หลัก:**
+  ```tsx
+  // ✅ ถูกต้อง: ใส่ expect.anything() เป็น argument ที่ 2
+  expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining('page=1'),
+    expect.anything()
+  )
+  // ❌ ผิด: toHaveBeenCalledWith(singleArg) จะ fail ทันทีเพราะมี 2 arguments
+  ```
+- **การทดสอบ Endpoint ย่อย (`vn-details` / `an-details`):**
+  ฟังก์ชัน Modal รายละเอียดที่เรียก `fetch(url)` แบบ argument เดียว (ไม่มี signal) ให้ assert ด้วย argument เดียวตามเดิม
 
 ---
 
-## 7. ขจัด Mojibake & Encoding ใน SQL
+## 5. Defensive State & Rendering Standards
 
-ฐานข้อมูล HOSxP ใช้ Charset `tis620` แต่ไฟล์ Node.js/TypeScript เป็น `utf8`:
+เพื่อป้องกัน `TypeError: Cannot read properties of undefined (reading 'toFixed')` หรือ `Cannot read properties of undefined (reading 'toLocaleString')`:
 
-- **ห้าม** เขียนตัวอักษรภาษาไทยใน SQL `CASE WHEN ... THEN 'ชาย'` เพราะเสี่ยงต่อ Collation Mismatch และตัวอักษรกลายเป็นต่างดาว
-- ใน SQL ให้ดึงรหัสเป็นกลาง: `IFNULL(pt.sex, '') AS sex_code`
-- ใน Service Layer (TypeScript) ให้แปลงเป็นภาษาไทยด้วย `formatThaiSex()` จาก `@/lib/clinical/rcmDashboardService`:
-  ```typescript
-  sex: formatThaiSex(row.sex_code, row.sex) // คืนค่า 'ชาย' | 'หญิง' | 'ไม่ระบุ'
+1. **Default State ต้องมีฟิลด์ตัวเลขครบทุกตัว:**
+   ```tsx
+   const [summary, setSummary] = useState<ReportSummary>(
+     initialData?.summary || {
+       totalCases: 0,
+       compensatedCases: 0,
+       compensationRate: 0,
+       totalCompensated: 0,
+       totalIncome: 0,
+       withAuthenCount: 0,
+       authenRate: 0,
+     }
+   )
+   ```
+2. **Defensive Rendering ใน JSX:**
+   - ใช้ `(summary.authenRate ?? 0).toFixed(1)` หรือ `summary.authenRate?.toFixed(1) ?? '0.0'`
+   - ใช้ `(summary.totalCases ?? 0).toLocaleString('th-TH')`
+   - ห้ามเรียก `.toFixed()` หรือ `.toLocaleString()` บนฟิลด์ที่อาจเป็น `undefined` โดยไม่มี Fallback
+
+---
+
+## 6. Lazy Detail Modal & Client Cache
+
+เมื่อผู้ใช้คลิกแถว (`<tr>`) เพื่อเปิดดูรายละเอียดใน Modal:
+1. **0ms First Paint:** แสดงข้อมูลสรุปของแถวนั้นทันทีจาก State ตารางที่มีอยู่แล้ว
+2. **Lazy Clinical Fetch + Map Cache:** ดึงข้อมูลเชิงลึก (`/api/.../vn-details?vn=...` หรือ `an-details`) เฉพาะตอนเปิด Modal หรือเปลี่ยนแท็บข้อมูลคลินิก โดย:
+   - ใช้ `detailAbortRef` แยกต่างหาก (ยกเลิกทันทีเมื่อปิด Modal หรือกดเลื่อนไปคนถัดไป)
+   - เก็บผลลัพธ์ลง `useRef(new Map<string, VnClinicalDetails>())` (จำกัดขนาดไม่เกิน ~50 รายการ) เพื่อให้การกดย้อนดูคนเดิม (Prev/Next) ไม่ยิง API ซ้ำ
+
+---
+
+## 7. Thin API Route, Zod Validation & Error Contract
+
+Route Handler (`src/app/api/service/dashboard-rcm/**/route.ts`) ต้องบาง (`~25–40` บรรทัด) ทำเฉพาะ:
+1. `verifyMemberSession()` → 401 ถ้าไม่มี Session, 403 ถ้า Role ไม่ใช่ `admin | staff | member`
+2. `validateSearchParams(schema, searchParams)` จาก `@/lib/clinical/rcmValidation.ts` (ตรวจ `rcmDateRegex`, `page >= 1`, `pageSize` 10–500, enum) → 400 ถ้าไม่ผ่าน (หมายเหตุ: `searchField` ให้เป็น optional/deprecated เพื่อรองรับ Unified Global Search)
+3. `logThrottledAudit('READ', ...)` (non-blocking)
+4. เรียก Domain Service ใน `src/lib/clinical/` และคืนรูปทรงมาตรฐาน:
+   - `200`: `{ success: true, data }` (หรือ field ตามสัญญาเดิมของ endpoint นั้น)
+   - `503`: `GatewayUnavailableError` → `"ไม่สามารถเชื่อมต่อ API Gateway ของโรงพยาบาลได้ในขณะนี้"`
+   - `504` / Timeout → `"การดึงข้อมูลใช้เวลานานเกินกำหนด กรุณาลองเลือกช่วงเวลาเป็นรายเดือน"`
+   - `500`: Log รายละเอียดผ่าน `logger.error()` เท่านั้น **ห้ามส่ง Raw SQL Error หรือ PHI ออกไปใน JSON**
+
+---
+
+## 8. Safe CSV Export (`exportAll=true`)
+
+- ดึงข้อมูลเต็มเฉพาะเมื่อกดส่งออก (`exportAll=true`) โดยใช้สถานะ `isExporting` แยกต่างหาก
+- ใส่ UTF-8 BOM (`\uFEFF`) นำหน้าไฟล์เสมอ เพื่อให้เปิดใน Excel บน Windows ภาษาไทยได้ไม่เพี้ยน
+- **CSV Formula Injection Guard:** ค่าข้อความที่ขึ้นต้นด้วย `=`, `+`, `-`, `@`, `\t`, `\r` ต้องเติม `'` นำหน้าก่อน Quote เป็น CSV cell เพื่อป้องกัน Excel Macro/Formula Injection
+
+---
+
+## 9. Internal RCM Full-Data & Testability Contract
+
+- **แสดงผลข้อมูลเต็มในพอร์ทัล RCM:** หน้า `/service/dashboard-rcm/**` เป็นระบบงานภายในที่คุมสิทธิ์ด้วย Member Role Auth และ `logThrottledAudit('READ', ...)` แล้ว — **แสดงเลขบัตรประชาชนครบ 13 หลัก** และ HN/VN/ชื่อ-สกุลเต็มเพื่อใช้กระทบยอด e-Claim/REP สปสช. ได้ทันที โดยไม่ต้อง Mask ดอกจันหรือทำปุ่มสลับซ่อน/แสดง
+- **Zero-DB & Dependency Injection:** ห้ามต่อ MySQL ตรงจาก Next.js; ทุก Service Function ต้องรับ `executor: QueryExecutor = queryClinicalDb` เป็นพารามิเตอร์ตัวสุดท้าย เพื่อให้เขียน Unit Test บน Vitest ได้ 100% โดยไม่ต้องต่อ DB จริง
+- **Test Isolation Rule สำหรับ In-Memory Cache:**
+  Service ทุกตัวที่มีการหุ้ม Cache (`getCachedData`) ใน Unit Test (`*.test.ts`) **ต้องเรียก `clearMemoryCache()` ใน `beforeEach` เสมอ**:
+  ```ts
+  import { describe, it, expect, vi, beforeEach } from 'vitest'
+  import { clearMemoryCache } from '@/lib/cache'
+
+  describe('MyClinicalService', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+      clearMemoryCache() // ป้องกัน Cache ค้างข้าม Test cases
+    })
+  })
   ```
 
 ---
 
-## 8. การกรองข้อมูลผ่าน KPI Summary Cards (Card Filtering)
+## 10. กฎ SQL, FoxPro Migration & Performance SLA
 
-หน้าจอรายงานกองทุนต้องออกแบบให้ผู้ใช้สามารถคลิกที่การ์ดสรุปยอดเพื่อกรองตารางได้ทันที:
-
-- **การ์ดมาตรฐานที่ต้องมี:**
-  1. ผู้รับบริการทั้งหมด (`ALL`)
-  2. ชดเชยแล้ว (`COMPENSATED`)
-  3. ยังไม่ชดเชย / รอชดเชย (`UNCOMPENSATED`)
-  4. มี Authen Code (`WITH_AUTHEN`)
-  5. ไม่มี Authen Code (`NO_AUTHEN`)
-  6. สิทธิบัตรทอง (`UC_ONLY`)
-- **พฤติกรรม UI:**
-  - การ์ดที่ถูกเลือกต้องมี Active Ring และตัวบอกสถานะ (Indicator line/color) อย่างชัดเจน
-  - เมื่อคลิกการ์ด ให้รีเซ็ตหน้าตารางกลับไปที่หน้าที่ 1 (`setCurrentPage(1)`) และส่ง `cardFilter` ไปยัง API หรือกรองใน Client
+เมื่อต้องเขียนหรือแก้ไข SQL ใน Service Layer (`src/lib/clinical/**`) ให้เปิดอ่านคู่มือเฉพาะทางใน [references/sql-optimization.md](references/sql-optimization.md) ทุกครั้ง — ครอบคลุม:
+- `cc.AuthenCode` (ห้ามใช้ `cc.claimcode`), Lookup Join และลำดับ `COALESCE` ของ NHSO/REP/eClaim
+- TIS-620 Safety (`formatThaiSex` ใน TypeScript แทนข้อความไทยใน SQL)
+- Driving Subquery Pattern สำหรับ `opitemrece` (ห้าม `OR` ข้ามตาราง, ห้ามสแกน `opitemrece` ซ้ำหลายรอบใน Query เดียว)
+- Checklist Refactor SQL ต้นทาง 6 ข้อ และเกณฑ์ SLA (`< 500ms` Tier 1, `< 1,000ms` Tier 2, `{ timeoutMs: 90000 }` สำหรับรายงานกองทุนข้ามเดือน)
 
 ---
 
-## 9. ความปลอดภัย & Audit Logging (PHI Compliance)
+## 11. Automated Verification Checklist
 
-- **Zero-DB**: ห้ามต่อ MySQL ตรงจาก Next.js ให้เรียกผ่าน Centralized API Gateway เสมอ
-- **Auth Double-Check**: ตรวจ Session และสิทธิ์ (`verifyMemberSession()`) ทั้งใน `page.tsx` และใน API `route.ts`
-- **Audit Logging**: ทุกการเปิดอ่านข้อมูลผู้ป่วย (HN, CID, ค่ารักษา, รายรับ) ต้องเรียก `logThrottledAudit('READ', ...)` เสมอ
-- **No PHI in Errors**: เมื่อเกิด Exception ภายใน ห้ามส่ง Raw SQL Error หรือข้อมูลเวชระเบียนออกไปใน JSON Client ให้ Log ผ่าน `logger.error()` และส่งข้อความภาษาไทยทั่วไปกลับไป
-
----
-
-## 10. การแสดงผลข้อมูลเต็มรูปแบบ (ไม่ต้องซ่อนหรือ Mask ข้อมูล)
-
-ระบบในกลุ่ม Dashboard RCM เป็นระบบงานภายในเฉพาะเจ้าหน้าที่โรงพยาบาล (Internal Hospital Staff & Claim Auditors) ที่ผ่านการยืนยันตัวตนแล้ว:
-
-- **แสดงผลข้อมูลจริงได้เลย ไม่ต้องซ่อนใดๆ และไม่ต้องกลัวผิด PDPA**:
-  - แสดงเลขบัตรประชาชนครบ 13 หลัก (Full Thai Citizen ID: `x-xxxx-xxxxx-xx-x`) โดย**ไม่ต้อง Mask ดอกจัน (`***`)**
-  - **ไม่ต้องทำปุ่มสลับซ่อน/แสดง (Toggle Masking)** ให้รก UI
-  - แสดงชื่อ-สกุลจริง, HN, AN, ที่อยู่, เบอร์โทร, สิทธิ์, และรหัสโรคเต็มรูปแบบ
-- **ความจำเป็นในการปฏิบัติงาน**:
-  - เจ้าหน้าที่งานประกัน, เวชระเบียน และการเงิน จำเป็นต้องใช้เลขบัตรประชาชน 13 หลักและชื่อ-สกุลในการกระทบยอด (Reconcile) กับระบบ e-Claim สปสช., โปรแกรม FoxPro, และใบตอบรับ REP หากซ่อนข้อมูลจะทำให้เจ้าหน้าที่ทำงานตรวจสอบยอดเงินชดเชยไม่ได้จริง
-- **การคุ้มครองข้อมูลตามมาตรฐาน**:
-  - ความปลอดภัยและการปฏิบัติตามมาตรฐาน PDPA ของระบบนี้ควบคุมผ่าน **ระบบจำกัดสิทธิ์เข้าถึง (Role-based Member Auth)** และ **การบันทึกประวัติการเรียกดู (`logThrottledAudit`)** ไว้แล้ว จึงไม่ต้องกังวลเรื่องการแสดงผลข้อมูลแก่เจ้าหน้าที่ผู้มีสิทธิ์ใช้งาน
-
----
-
-## 11. การปรับปรุงประสิทธิภาพ Query ตารางขนาดใหญ่ (`opitemrece`) ด้วย Driving Subquery Pattern
-
-ตาราง `opitemrece` เป็นตารางบันทึกการใช้ยาและค่าบริการทางการแพทย์ที่มีขนาดใหญ่ที่สุดในระบบ HOSxP (หลักหลายล้านเรคคอร์ดต่อปีงบประมาณ) การเขียนคำสั่งดึงข้อมูลต้องปฏิบัติตามกฎประสิทธิภาพอย่างเคร่งครัด:
-
-1. **ห้ามใช้เงื่อนไข `OR` ข้ามตารางที่ `LEFT JOIN` เข้ามากับ `opitemrece` เด็ดขาด:**
-   - **ปัญหาคิวรีช้า (ระดับ 60–90 วินาที หรือ Gateway Timeout):**
-     ```sql
-     -- ❌ ห้ามเขียนแบบนี้เด็ดขาด:
-     FROM opitemrece oo
-     LEFT JOIN drugitems d ON d.icode = oo.icode
-     LEFT JOIN s_drugitems dd_sub ON dd_sub.icode = oo.icode
-     WHERE oo.vstdate BETWEEN ? AND ?
-       AND (
-         d.did IN (...)
-         OR TRIM(dd_sub.nhso_adp_code) = ?
-       )
-     ```
-     เพราะ MySQL **ไม่สามารถนำ Index ของ `opitemrece` มาใช้กรองได้เลย** เนื่องจากเงื่อนไข `OR` ขึ้นกับ 2 ตารางที่แตกต่างกัน ส่งผลให้ฐานข้อมูลต้องทำ Full-Table Scan ทุกแถวใน `opitemrece` ตลอดทั้งปี (หลายล้านแถว) แล้วนำมาไล่เทียบ B-Tree Lookup เข้าแค็ตตาล็อกทีละเรคคอร์ด
-2. **แก้ด้วย Driving Subquery Pattern (ความเร็วลดลงเหลือ < 0.1 วินาที):**
-   - รวมรหัสยาและค่าบริการที่ต้องการ (`icode`) จากตารางแค็ตตาล็อก (`drugitems` + `s_drugitems`) ผ่าน `UNION ALL` ใน Subquery ชื่อ `target_items` มาล่วงหน้า
-   - จากนั้นใช้ `JOIN opitemrece oo ON oo.icode = target_items.icode`:
-     ```sql
-     --  รูปแบบที่ถูกต้องและโหลดเร็วที่สุด:
-     FROM (
-       SELECT 
-         oo.vn,
-         GROUP_CONCAT(DISTINCT target_items.drug_name SEPARATOR ', ') AS drugname,
-         GROUP_CONCAT(DISTINCT target_items.adp_name SEPARATOR ', ') AS name
-       FROM (
-         SELECT 
-           icode, 
-           CONCAT_WS(' ', name, NULLIF(strength, '')) AS drug_name, 
-           NULL AS adp_name
-         FROM drugitems 
-         WHERE did IN (${didPlaceholders})
-         UNION ALL
-         SELECT 
-           icode, 
-           NULL AS drug_name, 
-           CONCAT_WS(' ', s_sub.name, NULLIF(s_sub.strength, '')) AS adp_name
-         FROM s_drugitems s_sub 
-         WHERE TRIM(s_sub.nhso_adp_code) = ?
-       ) target_items
-       JOIN opitemrece oo ON oo.icode = target_items.icode
-       WHERE IFNULL(oo.vn, '') <> ''
-         AND oo.vstdate BETWEEN ? AND ?
-       GROUP BY oo.vn
-     ) dd
-     ```
-   - ผลลัพธ์: ตาราง `target_items` มีขนาดเพียง 2–5 แถว MySQL จึงใช้ Index `opitemrece(icode, vstdate)` หรือ `opitemrece(icode)` พุ่งตรงไปอ่านเฉพาะแถวที่มีการจ่ายยานั้นๆ ทันที ลดการอ่านข้อมูลจากหลายล้านแถวเหลือเพียงไม่กี่สิบถึงไม่กี่ร้อยแถว
-3. **การดึงข้อมูลรายการประกอบสำหรับ Modal (`listname1`):**
-   - **ห้าม** ทำ Subquery สแกนตาราง `opitemrece` ทั้งปีงบประมาณซ้ำอีกรอบเด็ดขาด
-   - ให้ใช้ Correlated Scalar Subquery ใน `SELECT` list:
-     ```sql
-     (
-       SELECT GROUP_CONCAT(DISTINCT CONCAT(a.icode, ':', b.name) SEPARATOR ', ')
-       FROM opitemrece a
-       JOIN nondrugitems b ON b.icode = a.icode
-       WHERE a.vn = o.vn
-     ) AS listname1,
-     ```
-     เพราะ Subquery นี้จะทำงานผ่าน Index `opitemrece(vn)` เฉพาะผู้ป่วยที่ตรงเงื่อนไขแล้วเท่านั้น (หลักสิบเคส) ใช้เวลาไม่ถึง 2 มิลลิวินาที
-4. **ตัด Cartesian Join ซ้ำซ้อน:**
-   - ตรวจสอบไม่ให้มี `LEFT JOIN rcmdb.repdata re ON re.vn = o.vn` ลอยๆ โดยไม่มี `GROUP BY` หาก Subquery หลักของ `rep` มีการ Aggregate และจัดกลุ่ม `GROUP_CONCAT(DISTINCT fund)` ไว้อยู่แล้ว ป้องกันการคูณแถวในหน่วยความจำ
-
+ก่อนส่งมอบงานหรือเปิด PR ทุกครั้ง ให้รันคำสั่งตรวจสอบ:
+1. **Audit 5 เสาหลักทั่วทั้ง 50 Routes:**
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .agents/skills/rcm-data-flow/scripts/audit_rcm_performance.ps1
+   ```
+   *ต้องได้ผลลัพธ์ **PASS 100%** ครบทั้ง 50 routes*
+2. **Vitest Unit Test Suite:**
+   ```powershell
+   cmd.exe /c "npm run test -- --run"
+   ```
+   *ต้องผ่าน 100% ทุกไฟล์ (ปัจจุบัน 235 test files / 1,569 tests)*
+3. **Next.js Production Build:**
+   ```powershell
+   cmd.exe /c "npm run build"
+   ```
+   *ต้องผ่านฉลุย Exit Code 0 พร้อม TypeScript strict check*

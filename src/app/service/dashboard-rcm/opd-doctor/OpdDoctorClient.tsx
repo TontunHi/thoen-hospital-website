@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Users,
   DollarSign,
@@ -30,26 +30,25 @@ const THAI_MONTH_NAMES = [
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
 ]
 
-export default function OpdDoctorClient() {
+export interface OpdDoctorClientProps {
+  initialData?: OpdDoctorSummaryResult | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function OpdDoctorClient({ initialData, initialRange }: OpdDoctorClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const currentCalYear = today.getFullYear()
   const defaultFiscalYear = today.getMonth() + 1 >= 10 ? currentCalYear + 1 : currentCalYear
 
   // Date controls
-  const [dateMode, setDateMode] = useState<'custom' | 'month' | 'year'>('custom')
+  const [dateMode, setDateMode] = useState<'custom' | 'month' | 'year'>('year')
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState<number>(defaultFiscalYear)
-  const [ds1, setDs1] = useState<string>(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
-  })
-  const [ds2, setDs2] = useState<string>(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  })
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalYear}-09-30`)
 
   // 37 Pttype Multi-select
-  const [allPttypes, setAllPttypes] = useState<PttypeOption[]>([])
+  const [allPttypes, setAllPttypes] = useState<PttypeOption[]>(initialData?.allPttypeOptions || [])
   const [selectedPttypes, setSelectedPttypes] = useState<string[]>([]) // Empty means "All 37 สิทธิ์"
   const [pttypeDropdownOpen, setPttypeDropdownOpen] = useState<boolean>(false)
   const [pttypeSearch, setPttypeSearch] = useState<string>('')
@@ -60,17 +59,21 @@ export default function OpdDoctorClient() {
   // Data States
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [doctors, setDoctors] = useState<DoctorSummaryItem[]>([])
-  const [months, setMonths] = useState<string[]>([])
-  const [grandTotal, setGrandTotal] = useState<OpdDoctorSummaryResult['grandTotal']>({
-    visits: 0,
-    income: 0,
-    uc_money: 0,
-    rcpt_money: 0,
-    discount: 0,
-    debit: 0,
-  })
-  const [monthlyTotals, setMonthlyTotals] = useState<Record<string, { income: number; visits: number }>>({})
+  const [doctors, setDoctors] = useState<DoctorSummaryItem[]>(initialData?.doctors || [])
+  const [months, setMonths] = useState<string[]>(initialData?.months || [])
+  const [grandTotal, setGrandTotal] = useState<OpdDoctorSummaryResult['grandTotal']>(
+    initialData?.grandTotal || {
+      visits: 0,
+      income: 0,
+      uc_money: 0,
+      rcpt_money: 0,
+      discount: 0,
+      debit: 0,
+    }
+  )
+  const [monthlyTotals, setMonthlyTotals] = useState<Record<string, { income: number; visits: number }>>(
+    initialData?.monthlyTotals || {}
+  )
 
   // 12 Fiscal Month columns
   const fiscalMonthColumns = useMemo(() => {
@@ -115,8 +118,17 @@ export default function OpdDoctorClient() {
     setDs2(`${fiscalYear}-09-30`)
   }
 
+  const abortDoctorRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
+
   const fetchData = useCallback(
     async (start = ds1, end = ds2, pttypes = selectedPttypes) => {
+      if (abortDoctorRef.current) {
+        abortDoctorRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortDoctorRef.current = controller
+
       setLoading(true)
       setError(null)
       try {
@@ -124,7 +136,7 @@ export default function OpdDoctorClient() {
         if (pttypes.length > 0) {
           url += `&eclaims=${encodeURIComponent(pttypes.join(','))}`
         }
-        const res = await fetch(url, { cache: 'no-store' })
+        const res = await fetch(url, { signal: controller.signal })
         const json = await res.json()
         if (json.success) {
           setDoctors(json.doctors || [])
@@ -147,17 +159,27 @@ export default function OpdDoctorClient() {
           setError(json.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
         }
       } catch (err: any) {
+        if (err?.name === 'AbortError') return
         setError(err?.message || 'ไม่สามารถเชื่อมต่อ API ได้')
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
       }
     },
     [ds1, ds2, selectedPttypes, allPttypes.length]
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData(ds1, ds2, selectedPttypes)
-  }, [ds1, ds2, selectedPttypes, fetchData])
+    return () => {
+      abortDoctorRef.current?.abort()
+    }
+  }, [ds1, ds2, selectedPttypes, fetchData, initialData])
 
   // Pttype Selection Toggles
   const togglePttype = (code: string) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -60,7 +60,15 @@ function maskIdentifier(val?: string | null): string {
   return `•••${trimmed.slice(-4)}`
 }
 
-export default function PostpartumService30016Client() {
+export interface PostpartumService30016ClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function PostpartumService30016Client({
+  initialData,
+  initialRange,
+}: PostpartumService30016ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -81,8 +89,8 @@ export default function PostpartumService30016Client() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${defaultFiscalCeYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(`${defaultFiscalCeYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalCeYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalCeYear}-09-30`)
 
   // Filter & Search states
   const [compensationFilter, setCompensationFilter] = useState<PostpartumCompensationFilter>('ALL')
@@ -95,31 +103,38 @@ export default function PostpartumService30016Client() {
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data fetching states
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<PostpartumService30016Item[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [adpMapping, setAdpMapping] = useState<PostpartumAdpMappingCheck>({
-    isMapped: true,
-    mappedCount: 0,
-    items: [],
-  })
-  const [summary, setSummary] = useState<PostpartumService30016Summary>({
-    totalVisits: 0,
-    uniquePatients: 0,
-    compensatedVisits: 0,
-    uncompensatedVisits: 0,
-    compensationRate: 0,
-    totalCompensated: 0,
-    averageCompensated: 0,
-    withAuthenCount: 0,
-    withoutAuthenCount: 0,
-    withPdxCount: 0,
-    withOpCount: 0,
-  })
+  const [items, setItems] = useState<PostpartumService30016Item[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [adpMapping, setAdpMapping] = useState<PostpartumAdpMappingCheck>(
+    initialData?.adpMapping || {
+      isMapped: true,
+      mappedCount: 0,
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<PostpartumService30016Summary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      uniquePatients: 0,
+      compensatedVisits: 0,
+      uncompensatedVisits: 0,
+      compensationRate: 0,
+      totalCompensated: 0,
+      averageCompensated: 0,
+      withAuthenCount: 0,
+      withoutAuthenCount: 0,
+      withPdxCount: 0,
+      withOpCount: 0,
+    }
+  )
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Modal Detail states
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
@@ -158,6 +173,12 @@ export default function PostpartumService30016Client() {
   // Fetch report data
   const fetchData = useCallback(
     async (forceRefresh = false) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       if (forceRefresh) setIsRefreshing(true)
       else setLoading(true)
       setError(null)
@@ -180,7 +201,8 @@ export default function PostpartumService30016Client() {
         }
 
         const res = await fetch(
-          `/api/service/dashboard-rcm/funds/postpartum/service-30016?${q.toString()}`
+          `/api/service/dashboard-rcm/funds/postpartum/service-30016?${q.toString()}`,
+          { signal: controller.signal }
         )
         const json = await res.json()
 
@@ -195,18 +217,31 @@ export default function PostpartumService30016Client() {
         if (json.data.adpMapping) setAdpMapping(json.data.adpMapping)
       } catch (err: unknown) {
         const e = err as Error
-        setError(e.message)
+        if (e.name !== 'AbortError') {
+          setError(e.message)
+        }
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [ds1, ds2, compensationFilter, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
 
   // Selected item for modal
   const selectedItem = selectedIndex !== null ? items[selectedIndex] : null

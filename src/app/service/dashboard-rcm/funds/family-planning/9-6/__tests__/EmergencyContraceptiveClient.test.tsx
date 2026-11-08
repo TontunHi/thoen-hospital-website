@@ -91,7 +91,7 @@ describe('EmergencyContraceptiveClient Component (9.6)', () => {
     render(<EmergencyContraceptiveClient />)
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      '9.6 ยาเม็ดคุมกำเนิดชนิดฉุกเฉิน (Emergency Contraceptive Pills)'
+      '9.6 ยาเม็ดคุมกำเนิดฉุกเฉิน (Emergency Contraceptive Pills)'
     )
     expect(screen.getAllByText(/FP003_3/).length).toBeGreaterThan(0)
 
@@ -113,7 +113,8 @@ describe('EmergencyContraceptiveClient Component (9.6)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('patientType=IPD')
+        expect.stringContaining('patientType=IPD'),
+        expect.anything()
       )
     })
   })
@@ -126,7 +127,8 @@ describe('EmergencyContraceptiveClient Component (9.6)', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=COMPENSATED')
+        expect.stringContaining('cardFilter=COMPENSATED'),
+        expect.anything()
       )
     })
   })

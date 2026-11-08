@@ -3,6 +3,7 @@ import { queryClinicalDb } from '@/lib/clinicalDb'
 import { logAudit } from '@/lib/audit'
 import { logger } from '@/lib/logger'
 import { LtcRegistryService } from './ltcRegistryService'
+import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 
 export type QueryExecutor = (sql: string, params?: any[]) => Promise<any[]>
 

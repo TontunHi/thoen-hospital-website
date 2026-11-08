@@ -169,7 +169,7 @@ describe('PalliativeCarePc1Client Component', () => {
     fireEvent.change(select, { target: { value: 'PAID' } })
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('paidStatus=PAID'))
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('paidStatus=PAID'), expect.anything())
     })
   })
 
@@ -186,6 +186,40 @@ describe('PalliativeCarePc1Client Component', () => {
     await waitFor(() => {
       expect(screen.getByText(/รายละเอียดผู้ป่วย: นางจันทนา ตันมา/)).toBeInTheDocument()
       expect(screen.getAllByText('บัตรทอง ผู้สูงอายุ ในเขต').length).toBeGreaterThan(1)
+    })
+  })
+
+  it('filters data when clicking on metric cards', async () => {
+    render(<PalliativeCarePc1Client />)
+
+    await waitFor(() => {
+      expect(screen.getByText('นางจันทนา ตันมา')).toBeInTheDocument()
+    })
+
+    // Click 'ชดเชยแล้ว' card button
+    const paidCardBtn = screen.getByRole('button', { name: /ชดเชยแล้ว/ })
+    fireEvent.click(paidCardBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('paidStatus=PAID'), expect.anything())
+      expect(paidCardBtn).toHaveClass('is-active')
+    })
+
+    // Click 'ยังไม่ชดเชย' card button
+    const unpaidCardBtn = screen.getByRole('button', { name: /ยังไม่ชดเชย/ })
+    fireEvent.click(unpaidCardBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('paidStatus=UNPAID'), expect.anything())
+      expect(unpaidCardBtn).toHaveClass('is-active')
+    })
+
+    // Click 'ผู้ป่วยทั้งหมด' to reset
+    const allCardBtn = screen.getByRole('button', { name: /ผู้ป่วยทั้งหมด/ })
+    fireEvent.click(allCardBtn)
+
+    await waitFor(() => {
+      expect(allCardBtn).toHaveClass('is-active')
     })
   })
 })

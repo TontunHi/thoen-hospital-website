@@ -5,6 +5,7 @@ import {
   paginationSchema,
   opdDeptSummaryQuerySchema,
   ipdReportQuerySchema,
+  clopidogrelReportQuerySchema,
   validateSearchParams,
 } from '../rcmValidation'
 
@@ -62,4 +63,23 @@ describe('rcmValidation module', () => {
     const validResult = validateSearchParams(opdDeptSummaryQuerySchema, validParams)
     expect(validResult.success).toBe(true)
   })
+
+  it('validates clopidogrelReportQuerySchema cardFilter and pagination defaults', () => {
+    const parsed = clopidogrelReportQuerySchema.safeParse({
+      ds1: '2026-10-01',
+      ds2: '2026-10-31',
+      cardFilter: 'COMPENSATED',
+      search: 'สมชาย',
+      page: '1',
+      pageSize: '50',
+    })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.cardFilter).toBe('COMPENSATED')
+      expect(parsed.data.search).toBe('สมชาย')
+      expect(parsed.data.page).toBe(1)
+      expect(parsed.data.pageSize).toBe(50)
+    }
+  })
 })
+

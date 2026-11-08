@@ -27,6 +27,7 @@ export async function GET(request: Request) {
     const ucOnly = searchParams.has('ucOnly') ? searchParams.get('ucOnly') === 'true' : true
     const filterType = (searchParams.get('filterType') as 'ALL' | 'Chronic' | 'Opioid' | 'Death') || 'ALL'
     const deathStatus = (searchParams.get('deathStatus') as 'ALL' | 'Y' | 'N') || undefined
+    const z515Status = (searchParams.get('z515Status') as 'ALL' | 'Y' | 'N') || undefined
     const paidStatus = (searchParams.get('paidStatus') as 'ALL' | 'PAID' | 'UNPAID') || undefined
     const compensated = searchParams.get('compensated') || undefined
     const hasRepInvoice = searchParams.has('hasRepInvoice') ? searchParams.get('hasRepInvoice') === 'true' : undefined
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
     logThrottledAudit(
       'READ',
       'palliative_care_pc3',
-      `Viewed Palliative Care PC.3 report (date: ${ds1 || 'default'} to ${ds2 || 'default'}, ucOnly: ${ucOnly}, filter: ${filterType}, death: ${deathStatus || 'ALL'}, paid: ${paidStatus || 'ALL'}, comp: ${compensated || 'ALL'})`,
+      `Viewed Palliative Care PC.3 report (date: ${ds1 || 'default'} to ${ds2 || 'default'}, ucOnly: ${ucOnly}, filter: ${filterType}, death: ${deathStatus || 'ALL'}, z515: ${z515Status || 'ALL'}, paid: ${paidStatus || 'ALL'}, comp: ${compensated || 'ALL'})`,
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'Palliative care PC.3 audit log failed'))
 
@@ -45,6 +46,7 @@ export async function GET(request: Request) {
       ucOnly,
       filterType,
       deathStatus,
+      z515Status,
       paidStatus,
       compensated,
       hasRepInvoice,

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   PalliativeCarePc1Item,
   PalliativeCarePc1Summary,
@@ -26,7 +26,15 @@ const THAI_MONTHS = [
 
 const YEAR_OPTIONS = [2572, 2571, 2570, 2569, 2568, 2567, 2566, 2565]
 
-export default function PalliativeCarePc1Client() {
+export interface PalliativeCarePc1ClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function PalliativeCarePc1Client({
+  initialData,
+  initialRange,
+}: PalliativeCarePc1ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -53,25 +61,31 @@ export default function PalliativeCarePc1Client() {
     }
   }, [curCalYear, curMonth])
 
-  const [ds1, setDs1] = useState<string>(initialMonthlyRange.start)
-  const [ds2, setDs2] = useState<string>(initialMonthlyRange.end)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || initialMonthlyRange.start)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || initialMonthlyRange.end)
 
   // Filter states
-  const [paidStatus, setPaidStatus] = useState<'ALL' | 'PAID' | 'UNPAID'>('ALL')
+  const [paidStatus, setPaidStatus] = useState<'ALL' | 'PAID' | 'UNPAID' | 'INVOICE'>('ALL')
   const [search, setSearch] = useState<string>('')
+  const [baseSummary, setBaseSummary] = useState<PalliativeCarePc1Summary | null>(initialData?.summary || null)
 
   // Data states
-  const [loading, setLoading] = useState<boolean>(true)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<PalliativeCarePc1Item[]>([])
-  const [summary, setSummary] = useState<PalliativeCarePc1Summary>({
-    totalVisits: 0,
-    totalPatients: 0,
-    paidCount: 0,
-    unpaidCount: 0,
-    totalCompensated: 0,
-    totalInvoiceCompensated: 0,
-  })
+  const [items, setItems] = useState<PalliativeCarePc1Item[]>(initialData?.items || [])
+  const [summary, setSummary] = useState<PalliativeCarePc1Summary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      totalPatients: 0,
+      paidCount: 0,
+      unpaidCount: 0,
+      totalCompensated: 0,
+      totalInvoiceCompensated: 0,
+    }
+  )
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -79,6 +93,11 @@ export default function PalliativeCarePc1Client() {
 
   // Selected row for detail modal
   const [selectedItem, setSelectedItem] = useState<PalliativeCarePc1Item | null>(null)
+
+  // Reset baseSummary when date range changes
+  useEffect(() => {
+    setBaseSummary(null)
+  }, [ds1, ds2])
 
   // Handle Date Mode Changes
   const handleModeChange = (mode: 'custom' | 'monthly' | 'fiscal') => {
@@ -115,8 +134,24 @@ export default function PalliativeCarePc1Client() {
     setDs2(`${ceFiscalYear}-09-30`)
   }
 
+  // Handle Card Filter click
+  const handleCardClick = (target: 'ALL' | 'PAID' | 'UNPAID' | 'INVOICE') => {
+    setCurrentPage(1)
+    if (target === 'ALL') {
+      setPaidStatus('ALL')
+    } else {
+      setPaidStatus((prev) => (prev === target ? 'ALL' : target))
+    }
+  }
+
   // Fetch report data
   const fetchData = useCallback(async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     setLoading(true)
     setError(null)
     try {
@@ -131,7 +166,9 @@ export default function PalliativeCarePc1Client() {
         q.set('search', search.trim())
       }
 
-      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/pc-1?${q.toString()}`)
+      const res = await fetch(`/api/service/dashboard-rcm/palliative-care/pc-1?${q.toString()}`, {
+        signal: controller.signal,
+      })
       const data = await res.json()
 
       if (!res.ok || !data.success) {
@@ -139,28 +176,43 @@ export default function PalliativeCarePc1Client() {
       }
 
       setItems(data.items || [])
-      setSummary(
-        data.summary || {
-          totalVisits: 0,
-          totalPatients: 0,
-          paidCount: 0,
-          unpaidCount: 0,
-          totalCompensated: 0,
-          totalInvoiceCompensated: 0,
-        }
-      )
+      const newSummary = data.summary || {
+        totalVisits: 0,
+        totalPatients: 0,
+        paidCount: 0,
+        unpaidCount: 0,
+        totalCompensated: 0,
+        totalInvoiceCompensated: 0,
+      }
+      setSummary(newSummary)
+      if (paidStatus === 'ALL' && !search.trim()) {
+        setBaseSummary(newSummary)
+      }
       setCurrentPage(1)
     } catch (err: unknown) {
       const errorObj = err as Error
-      setError(errorObj.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+      if (errorObj.name !== 'AbortError') {
+        setError(errorObj.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+      }
     } finally {
-      setLoading(false)
+      if (!controller.signal.aborted) {
+        setLoading(false)
+      }
     }
   }, [ds1, ds2, paidStatus, search])
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
 
   // Paginated items
   const paginatedItems = useMemo(() => {
@@ -300,54 +352,90 @@ export default function PalliativeCarePc1Client() {
       </div>
 
       {/* Metric Bar */}
-      <div className="pc1-metric-bar">
-        <div className="pc1-metric-card pc1-card-total">
+      <div className="pc1-metric-bar" role="region" aria-label="สรุปสถิติและตัวกรองด่วนผ่านการ์ด">
+        <button
+          type="button"
+          className={`pc1-metric-card pc1-card-total pc1-metric-card-btn ${paidStatus === 'ALL' ? 'is-active is-active-total' : ''}`}
+          onClick={() => handleCardClick('ALL')}
+          aria-pressed={paidStatus === 'ALL'}
+          title={paidStatus === 'ALL' ? 'แสดงผู้ป่วยทั้งหมด' : 'คลิกเพื่อดูผู้ป่วยทั้งหมด'}
+        >
           <div className="pc1-metric-label">ผู้ป่วยทั้งหมด</div>
           <div className="pc1-metric-val">
-            {summary.totalPatients.toLocaleString()}
+            {(baseSummary || summary).totalPatients.toLocaleString()}
             <span className="pc1-metric-unit">คน</span>
           </div>
-        </div>
+        </button>
 
-        <div className="pc1-metric-card pc1-card-visits">
+        <button
+          type="button"
+          className={`pc1-metric-card pc1-card-visits pc1-metric-card-btn ${paidStatus === 'ALL' ? 'is-active is-active-visits' : ''}`}
+          onClick={() => handleCardClick('ALL')}
+          aria-pressed={paidStatus === 'ALL'}
+          title={paidStatus === 'ALL' ? 'แสดงการรับบริการทั้งหมด' : 'คลิกเพื่อดูการรับบริการทั้งหมด'}
+        >
           <div className="pc1-metric-label">รับบริการทั้งหมด</div>
           <div className="pc1-metric-val">
-            {summary.totalVisits.toLocaleString()}
+            {(baseSummary || summary).totalVisits.toLocaleString()}
             <span className="pc1-metric-unit">ครั้ง</span>
           </div>
-        </div>
+        </button>
 
-        <div className="pc1-metric-card pc1-card-paid">
+        <button
+          type="button"
+          className={`pc1-metric-card pc1-card-paid pc1-metric-card-btn ${paidStatus === 'PAID' ? 'is-active is-active-paid' : ''}`}
+          onClick={() => handleCardClick('PAID')}
+          aria-pressed={paidStatus === 'PAID'}
+          title={paidStatus === 'PAID' ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะรายการที่ชดเชยแล้ว'}
+        >
           <div className="pc1-metric-label">ชดเชยแล้ว</div>
           <div className="pc1-metric-val" style={{ color: '#059669' }}>
-            {summary.paidCount.toLocaleString()}
+            {(baseSummary || summary).paidCount.toLocaleString()}
             <span className="pc1-metric-unit">ครั้ง</span>
           </div>
-        </div>
+        </button>
 
-        <div className="pc1-metric-card pc1-card-comp">
+        <button
+          type="button"
+          className={`pc1-metric-card pc1-card-comp pc1-metric-card-btn ${paidStatus === 'PAID' ? 'is-active is-active-comp' : ''}`}
+          onClick={() => handleCardClick('PAID')}
+          aria-pressed={paidStatus === 'PAID'}
+          title={paidStatus === 'PAID' ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะรายการที่มีเงินชดเชย'}
+        >
           <div className="pc1-metric-label">ยอดชดเชยรวม (Rep)</div>
           <div className="pc1-metric-val" style={{ color: '#047857' }}>
-            {summary.totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+            {(baseSummary || summary).totalCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
             <span className="pc1-metric-unit">฿</span>
           </div>
-        </div>
+        </button>
 
-        <div className="pc1-metric-card pc1-card-unpaid">
+        <button
+          type="button"
+          className={`pc1-metric-card pc1-card-unpaid pc1-metric-card-btn ${paidStatus === 'UNPAID' ? 'is-active is-active-unpaid' : ''}`}
+          onClick={() => handleCardClick('UNPAID')}
+          aria-pressed={paidStatus === 'UNPAID'}
+          title={paidStatus === 'UNPAID' ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะรายการที่ยังไม่ชดเชย'}
+        >
           <div className="pc1-metric-label">ยังไม่ชดเชย</div>
           <div className="pc1-metric-val" style={{ color: '#d97706' }}>
-            {summary.unpaidCount.toLocaleString()}
+            {(baseSummary || summary).unpaidCount.toLocaleString()}
             <span className="pc1-metric-unit">ครั้ง</span>
           </div>
-        </div>
+        </button>
 
-        <div className="pc1-metric-card pc1-card-inv">
+        <button
+          type="button"
+          className={`pc1-metric-card pc1-card-inv pc1-metric-card-btn ${paidStatus === 'INVOICE' ? 'is-active is-active-inv' : ''}`}
+          onClick={() => handleCardClick('INVOICE')}
+          aria-pressed={paidStatus === 'INVOICE'}
+          title={paidStatus === 'INVOICE' ? 'คลิกเพื่อยกเลิกการกรอง' : 'คลิกเพื่อกรองเฉพาะรายการชดเชย Invoice'}
+        >
           <div className="pc1-metric-label">ชดเชย Invoice</div>
           <div className="pc1-metric-val" style={{ color: '#4f46e5' }}>
-            {summary.totalInvoiceCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+            {(baseSummary || summary).totalInvoiceCompensated.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
             <span className="pc1-metric-unit">฿</span>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Toolbar */}
@@ -421,10 +509,6 @@ export default function PalliativeCarePc1Client() {
                   </option>
                 ))}
               </select>
-
-              <span style={{ fontSize: '0.8rem', color: 'var(--pc1-muted)' }}>
-                ({formatThaiDate(ds1)} ถึง {formatThaiDate(ds2)})
-              </span>
             </div>
           )}
 
@@ -441,10 +525,6 @@ export default function PalliativeCarePc1Client() {
                   </option>
                 ))}
               </select>
-
-              <span style={{ fontSize: '0.8rem', color: 'var(--pc1-muted)' }}>
-                (1 ต.ค. {selectedFiscalYear - 1} - 30 ก.ย. {selectedFiscalYear})
-              </span>
             </div>
           )}
         </div>
@@ -458,11 +538,15 @@ export default function PalliativeCarePc1Client() {
             <select
               className="pc1-select"
               value={paidStatus}
-              onChange={(e) => setPaidStatus(e.target.value as 'ALL' | 'PAID' | 'UNPAID')}
+              onChange={(e) => {
+                setPaidStatus(e.target.value as 'ALL' | 'PAID' | 'UNPAID' | 'INVOICE')
+                setCurrentPage(1)
+              }}
             >
               <option value="ALL">การชดเชย: ทั้งหมด</option>
               <option value="PAID">ชดเชยแล้ว</option>
               <option value="UNPAID">ยังไม่ได้รับชดเชย</option>
+              <option value="INVOICE">ชดเชย Invoice</option>
             </select>
           </div>
 

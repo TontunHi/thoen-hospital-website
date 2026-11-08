@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   Search,
   ArrowUpDown,
@@ -62,7 +62,15 @@ function maskIdentifier(val?: string | null): string {
   return `•••${trimmed.slice(-4)}`
 }
 
-export default function PregnancyTestClient() {
+export interface PregnancyTestClientProps {
+  initialData?: any | null
+  initialRange?: { startDate: string; endDate: string }
+}
+
+export default function PregnancyTestClient({
+  initialData,
+  initialRange,
+}: PregnancyTestClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
   const curBeYear = curCalYear + 543
@@ -83,8 +91,8 @@ export default function PregnancyTestClient() {
   const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(defaultFiscalBeYear)
   const [selectedMonth, setSelectedMonth] = useState<number>(curMonth)
   const [selectedBeYear, setSelectedBeYear] = useState<number>(curBeYear)
-  const [ds1, setDs1] = useState<string>(`${defaultFiscalCeYear - 1}-10-01`)
-  const [ds2, setDs2] = useState<string>(`${defaultFiscalCeYear}-09-30`)
+  const [ds1, setDs1] = useState<string>(initialRange?.startDate || `${defaultFiscalCeYear - 1}-10-01`)
+  const [ds2, setDs2] = useState<string>(initialRange?.endDate || `${defaultFiscalCeYear}-09-30`)
 
   // Filter & Search States
   const [cardFilter, setCardFilter] = useState<PregnancyTestCardFilter>('ALL')
@@ -98,39 +106,46 @@ export default function PregnancyTestClient() {
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data Fetching States
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(!initialData)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [items, setItems] = useState<PregnancyTestItem[]>([])
-  const [totalCount, setTotalCount] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [adpMapping, setAdpMapping] = useState<PregnancyTestAdpMappingCheck>({
-    isMapped: true,
-    mappedCount: 0,
-    items: [],
-  })
-  const [summary, setSummary] = useState<PregnancyTestSummary>({
-    totalVisits: 0,
-    uniquePatients: 0,
-    compensatedVisits: 0,
-    uncompensatedVisits: 0,
-    compensationRate: 0,
-    totalCompensated: 0,
-    averageCompensated: 0,
-    withAuthenCount: 0,
-    withoutAuthenCount: 0,
-    authenRate: 0,
-    positiveCount: 0,
-    positiveRate: 0,
-    negativeCount: 0,
-    negativeRate: 0,
-    pendingCount: 0,
-    noLabCount: 0,
-    ucCount: 0,
-    ucRate: 0,
-    totalIncome: 0,
-  })
+  const [items, setItems] = useState<PregnancyTestItem[]>(initialData?.items || [])
+  const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
+  const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
+  const [adpMapping, setAdpMapping] = useState<PregnancyTestAdpMappingCheck>(
+    initialData?.adpMapping || {
+      isMapped: true,
+      mappedCount: 0,
+      items: [],
+    }
+  )
+  const [summary, setSummary] = useState<PregnancyTestSummary>(
+    initialData?.summary || {
+      totalVisits: 0,
+      uniquePatients: 0,
+      compensatedVisits: 0,
+      uncompensatedVisits: 0,
+      compensationRate: 0,
+      totalCompensated: 0,
+      averageCompensated: 0,
+      withAuthenCount: 0,
+      withoutAuthenCount: 0,
+      authenRate: 0,
+      positiveCount: 0,
+      positiveRate: 0,
+      negativeCount: 0,
+      negativeRate: 0,
+      pendingCount: 0,
+      noLabCount: 0,
+      ucCount: 0,
+      ucRate: 0,
+      totalIncome: 0,
+    }
+  )
+
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFirstMount = useRef(true)
 
   // Modal Detail States
   const [selectedItem, setSelectedItem] = useState<PregnancyTestItem | null>(null)
@@ -169,6 +184,12 @@ export default function PregnancyTestClient() {
   // Fetch report data
   const fetchData = useCallback(
     async (forceRefresh = false) => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       if (forceRefresh) setIsRefreshing(true)
       else setLoading(true)
       setError(null)
@@ -191,7 +212,9 @@ export default function PregnancyTestClient() {
           q.set('refresh', 'true')
         }
 
-        const res = await fetch(`/api/service/dashboard-rcm/funds/pregnancy-test/service-81?${q.toString()}`)
+        const res = await fetch(`/api/service/dashboard-rcm/funds/pregnancy-test/service-81?${q.toString()}`, {
+          signal: controller.signal,
+        })
         const json = await res.json()
 
         if (!res.ok || !json.success) {
@@ -206,18 +229,31 @@ export default function PregnancyTestClient() {
         if (data.adpMapping) setAdpMapping(data.adpMapping)
       } catch (err: unknown) {
         const e = err as Error
-        setError(e.message || 'ไม่สามารถโหลดข้อมูลรายงานได้')
+        if (e.name !== 'AbortError') {
+          setError(e.message || 'ไม่สามารถโหลดข้อมูลรายงานได้')
+        }
       } finally {
-        setLoading(false)
-        setIsRefreshing(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       }
     },
     [ds1, ds2, cardFilter, ucOnly, searchField, debouncedSearch, sortBy, sortOrder, currentPage, pageSize]
   )
 
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      if (initialData) return
+    }
     fetchData()
-  }, [fetchData])
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [fetchData, initialData])
 
   // Fetch clinical details for Modal
   const fetchClinicalDetails = async (vn: string) => {

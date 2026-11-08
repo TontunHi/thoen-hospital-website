@@ -1,5 +1,6 @@
 import { verifyMemberSession } from '@/lib/memberAuth'
 import { redirect } from 'next/navigation'
+import { RcmDashboardService, getDefaultFiscalYearDateRange, type IPDRecord, type IpdDepartmentAdjrwItem } from '@/lib/clinical/rcmDashboardService'
 import IpdClient from './IpdClient'
 
 export const metadata = {
@@ -17,5 +18,29 @@ export default async function IpdPage() {
     redirect('/service')
   }
 
-  return <IpdClient />
+  const defaultRange = getDefaultFiscalYearDateRange()
+  let initialData = null
+  let initialReportData: IPDRecord[] | null = null
+  let initialDeptData: IpdDepartmentAdjrwItem[] | null = null
+
+  try {
+    const [reportRes, deptRes] = await Promise.all([
+      RcmDashboardService.getIpdReport({ startDate: defaultRange.startDate, endDate: defaultRange.endDate }),
+      RcmDashboardService.getIpdDepartmentAdjrw({ startDate: defaultRange.startDate, endDate: defaultRange.endDate }),
+    ])
+    initialReportData = reportRes
+    initialDeptData = deptRes
+    initialData = reportRes
+  } catch {
+    initialReportData = null
+    initialDeptData = null
+  }
+
+  return (
+    <IpdClient
+      initialReportData={initialReportData}
+      initialDeptData={initialDeptData}
+      initialRange={defaultRange}
+    />
+  )
 }

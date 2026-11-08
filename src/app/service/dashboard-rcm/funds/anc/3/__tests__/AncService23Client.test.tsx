@@ -239,7 +239,8 @@ describe('AncService23Client Component', () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('cardFilter=CHECKUP')
+        expect.stringContaining('cardFilter=CHECKUP'),
+        expect.anything()
       )
     })
   })
