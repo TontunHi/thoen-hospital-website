@@ -206,7 +206,7 @@ export class RcmPregnancyTestService {
       async () => {
         if (executor === queryClinicalDb) {
           try {
-            const gwRes = await apiGateway.clinical.getAdpMapping('31101')
+            const gwRes = await apiGateway.clinical.getAdpMapping('31101,30014')
             if (gwRes && typeof gwRes.isMapped === 'boolean') {
               return {
                 isMapped: gwRes.isMapped,
@@ -281,7 +281,7 @@ export class RcmPregnancyTestService {
     const sortBy: PregnancyTestSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-pregnancy-test-report-${ds1}-${ds2}`
@@ -404,7 +404,7 @@ export class RcmPregnancyTestService {
               apiGateway.clinical.getRcmFundData('pregnancy-test', { ds1, ds2 }),
             ])
             mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
               rows = gwRes.data.rawRows as Record<string, unknown>[]
               fetchedViaNamedApi = true
             }

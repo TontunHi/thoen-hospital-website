@@ -50,7 +50,7 @@ const colorectalCancerParamsSchema = z.object({
     .optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
   page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().min(1).max(500).optional(),
+  pageSize: z.coerce.number().int().min(1).optional(),
   exportAll: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),

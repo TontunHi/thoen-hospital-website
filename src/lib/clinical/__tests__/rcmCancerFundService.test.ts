@@ -115,6 +115,7 @@ describe('RcmCancerFundService', () => {
         op4: null,
         op5: null,
         listname: 'Paclitaxel 100 mg injection',
+        income: 5000,
         rep: 'REP-C01',
         compensated: 4500,
         transactiontype: 'OP',
@@ -160,6 +161,7 @@ describe('RcmCancerFundService', () => {
         op4: null,
         op5: null,
         listname: 'Tamoxifen 20 mg',
+        income: 2000,
         rep: null,
         compensated: 0,
         transactiontype: null,
@@ -211,6 +213,9 @@ describe('RcmCancerFundService', () => {
       expect(res.summary.uncompensatedVisits).toBe(1)
       expect(res.summary.compensationRate).toBe(50)
       expect(res.summary.totalCompensated).toBe(4500)
+      expect(res.summary.totalIncome).toBe(7000)
+      expect(res.items[0].income).toBe(2000)
+      expect(res.items[1].income).toBe(5000)
       expect(res.summary.withAuthenCount).toBe(1)
       expect(res.summary.withoutAuthenCount).toBe(1)
       expect(res.summary.authenRate).toBe(50)
@@ -269,6 +274,17 @@ describe('RcmCancerFundService', () => {
 
       expect(res.items.length).toBe(1)
       expect(res.items[0].ptname).toContain('สมศรี')
+    })
+
+    it('filters correctly by search query with rep', async () => {
+      const executor = createMockExecutor()
+      const res = await RcmCancerFundService.getCancerPatientsReport(
+        { search: 'REP-C01', refresh: true },
+        executor
+      )
+
+      expect(res.items.length).toBe(1)
+      expect(res.items[0].rep).toBe('REP-C01')
     })
 
     it('supports sorting by different fields', async () => {

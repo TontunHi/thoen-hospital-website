@@ -11,6 +11,14 @@ vi.mock('@/lib/clinicalDb', () => ({
   queryClinicalDb: vi.fn(),
 }))
 
+vi.mock('@/lib/apiGateway', () => ({
+  apiGateway: {
+    clinical: {
+      getAppointmentsByCid: vi.fn().mockRejectedValue(new Error('Gateway fallback')),
+    },
+  },
+}))
+
 vi.mock('@/lib/rateLimit', () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
 }))

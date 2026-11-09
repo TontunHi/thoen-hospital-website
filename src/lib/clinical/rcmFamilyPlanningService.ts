@@ -688,27 +688,6 @@ export class RcmFamilyPlanningService {
     return getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping('FAMILY_PLANNING')
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                format,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || '').trim(),
-                  name: String(r.name || '').trim(),
-                  strength: r.strength ? String(r.strength).trim() : null,
-                  nhso_adp_code: String(r.nhso_adp_code || '').trim(),
-                })),
-              }
-            }
-          } catch {
-            // Fallback
-          }
-        }
-
         try {
           const placeholders = codes.map(() => '?').join(', ')
           const sql = `
@@ -865,7 +844,7 @@ export class RcmFamilyPlanningService {
     const sortBy = params.sortBy || 'vstdate'
     const sortOrder = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-fp-9-1-${format}-${ds1}-${ds2}`
@@ -878,21 +857,6 @@ export class RcmFamilyPlanningService {
       getCachedData(
         cacheKey,
         async () => {
-          if (executor === queryClinicalDb) {
-            try {
-              const gwRes = await apiGateway.clinical.getRcmFundData('family-planning', {
-                ds1,
-                ds2,
-                format,
-              } as any)
-              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-                return gwRes.data.rawRows
-              }
-            } catch {
-              // Fallback
-            }
-          }
-
           const sql = `
             SELECT 
               o.vn,
@@ -1198,7 +1162,13 @@ export class RcmFamilyPlanningService {
           i.vn.toLowerCase().includes(search) ||
           (i.drugname && i.drugname.toLowerCase().includes(search)) ||
           (i.listname && i.listname.toLowerCase().includes(search)) ||
-          (i.errorname && i.errorname.toLowerCase().includes(search))
+          (i.errorname && i.errorname.toLowerCase().includes(search)) ||
+          (i.rep && i.rep.toLowerCase().includes(search)) ||
+          (i.authencode && i.authencode.toLowerCase().includes(search)) ||
+          (i.pdx && i.pdx.toLowerCase().includes(search)) ||
+          (i.icd10 && i.icd10.toLowerCase().includes(search)) ||
+          (i.doctorname && i.doctorname.toLowerCase().includes(search)) ||
+          (i.pttypename && i.pttypename.toLowerCase().includes(search))
       )
     }
 
@@ -1267,7 +1237,7 @@ export class RcmFamilyPlanningService {
     const sortBy: FamilyPlanningSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-fp-report-${reportType}-${patientType}-${ds1}-${ds2}`
@@ -1366,11 +1336,30 @@ export class RcmFamilyPlanningService {
       const moneyEclaim = Number(r.money_eclaim || 0)
       const moneyRep = Number(r.money_rep || 0)
       const moneyInvoice = Number(r.money_invoice || 0)
-      const compensated = moneyInvoice > 0 ? moneyInvoice : moneyRep > 0 ? moneyRep : moneyEclaim
-      const isCompensated = moneyInvoice > 0 || moneyRep > 0
+      const compensatedVal = Number(r.compensated || 0)
+      const compensated =
+        moneyInvoice > 0
+          ? moneyInvoice
+          : moneyRep > 0
+          ? moneyRep
+          : moneyEclaim > 0
+          ? moneyEclaim
+          : compensatedVal
+      const isCompensated =
+        moneyInvoice > 0 ||
+        moneyRep > 0 ||
+        compensatedVal > 0 ||
+        (Boolean(r.status) && String(r.status).toLowerCase().includes('rep')) ||
+        (Boolean(r.rep) && String(r.rep).trim() !== '' && String(r.rep).trim() !== 'null')
 
-      const dx = r.dx ? String(r.dx).trim() : null
-      const drug = r.drug ? String(r.drug).trim() : null
+      const rawDx = r.dx ?? r.pdx ?? (r.icd10 ? String(r.icd10) : null)
+      const dx = rawDx ? String(rawDx).trim() : null
+      const rawOp = r.op ?? r.op0 ?? (r.oper ? String(r.oper) : null)
+      const op = rawOp ? String(rawOp).trim() : null
+      const rawDrug = r.drug ?? r.listname ?? r.drugname
+      const drug = rawDrug ? String(rawDrug).trim() : null
+      const rawClaimCode = r.claimcode ?? r.authencode
+      const claimcode = rawClaimCode ? String(rawClaimCode).trim() : null
 
       // FoxPro Validation Rules:
       // if(dx regexp '<<expectedDx>>', null, 'ไม่พบ Dx <<expectedDx>>') ErrorDx
@@ -1388,6 +1377,16 @@ export class RcmFamilyPlanningService {
         status = '- :: ยังไม่ส่งเข้าโปรแกรม E-Claim'
       }
 
+      const rawSex = r.sex ?? (r.sex_code === '1' ? 'ชาย' : r.sex_code === '2' ? 'หญิง' : '—')
+      const sex = String(rawSex || '—').trim()
+
+      const pttypename = String(r.pttypename || '—').trim()
+      const pttype_eclaim_id = r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null
+      const isUc =
+        typeof r.isUc === 'boolean'
+          ? r.isUc
+          : isUcEclaimCode(pttype_eclaim_id) || r.maininscl === 'UCS'
+
       return {
         no: idx + 1,
         vn: String(r.vn || ''),
@@ -1395,22 +1394,22 @@ export class RcmFamilyPlanningService {
         hn: String(r.hn || '').trim(),
         cid: String(r.cid || '').trim(),
         ptname: String(r.ptname || '').trim(),
-        sex: String(r.sex || '—').trim(),
+        sex,
         age: Number(r.age || 0),
         vstdate: String(r.vstdate || ''),
         vsttime: String(r.vsttime || '00:00:00'),
         admdate: r.admdate ? String(r.admdate).trim() : null,
         dchdate: r.dchdate ? String(r.dchdate).trim() : null,
-        pttypename: String(r.pttypename || '—').trim(),
-        pttype_eclaim_id: r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null,
-        isUc: isUcEclaimCode(r.pttype_eclaim_id ? String(r.pttype_eclaim_id).trim() : null),
-        claimcode: r.claimcode ? String(r.claimcode).trim() : null,
+        pttypename,
+        pttype_eclaim_id,
+        isUc,
+        claimcode,
         department: r.department ? String(r.department).trim() : null,
         clinic: r.clinic ? String(r.clinic).trim() : null,
         cc: r.cc ? String(r.cc).trim() : null,
         income: Number(r.income || 0),
         dx,
-        op: r.op ? String(r.op).trim() : null,
+        op,
         drug,
         money_eclaim: moneyEclaim,
         money_rep: moneyRep,
@@ -2052,7 +2051,7 @@ export class RcmFamilyPlanningService {
     const sortBy: IudSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-fp-9-2-iud-${patientType}-${ds1}-${ds2}`
@@ -2700,7 +2699,7 @@ export class RcmFamilyPlanningService {
     const sortBy: FamilyPlanning932SortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-fp-932-${format}-${ds1}-${ds2}`

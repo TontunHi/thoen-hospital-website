@@ -390,7 +390,7 @@ export class RcmAdpSearchService {
     const sortBy = params.sortBy || (patientType === 'IPD' ? 'dchdate' : 'vstdate')
     const sortOrder = params.sortOrder === 'asc' ? 'asc' : 'desc'
     const page = Math.max(1, params.page || 1)
-    const pageSize = Math.min(500, Math.max(10, params.pageSize || 50))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
     const refresh = Boolean(params.refresh)
 

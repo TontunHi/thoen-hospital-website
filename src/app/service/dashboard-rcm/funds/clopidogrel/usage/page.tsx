@@ -26,6 +26,7 @@ export default async function ClopidogrelUsagePage() {
     initialData = await RcmClopidogrelService.getClopidogrelReport({
       page: 1,
       pageSize: 50,
+      refresh: true,
     })
   } catch {
     // Graceful fallback to client fetch if gateway is momentarily busy

@@ -122,8 +122,8 @@ export default function FamilyPlanning91Client({
   const [items, setItems] = useState<FamilyPlanningItem[]>(initialData?.items || [])
   const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
   const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
-  const [statusOptions, setStatusOptions] = useState<string[]>([])
-  const [errorOptions, setErrorOptions] = useState<string[]>([])
+  const [statusOptions, setStatusOptions] = useState<string[]>(initialData?.statusOptions || [])
+  const [errorOptions, setErrorOptions] = useState<string[]>(initialData?.errorOptions || [])
   const [adpMapping, setAdpMapping] = useState<FamilyPlanningAdpMappingCheck>(
     initialData?.adpMapping || {
       isMapped: true,

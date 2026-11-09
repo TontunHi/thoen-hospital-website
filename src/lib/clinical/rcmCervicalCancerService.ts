@@ -864,7 +864,7 @@ export class RcmCervicalCancerService {
     const sortBy: CcsTargetSortField = params.sortBy || 'hn'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'asc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-ccs-p1-target-${ds1}-${ds2}`
@@ -1499,7 +1499,7 @@ export class RcmCervicalCancerService {
     const sortBy: CcsScreenedSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-ccs-p2-recipients-${ds1}-${ds2}`
@@ -1874,7 +1874,7 @@ export class RcmCervicalCancerService {
     const sortBy: CcsService1B004NSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-ccs-p3-1b004n-${ds1}-${ds2}`
@@ -2194,7 +2194,7 @@ export class RcmCervicalCancerService {
     const sortBy: CcsService1B004PSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-ccs-p4-1b004p-${ds1}-${ds2}`
@@ -2564,7 +2564,7 @@ export class RcmCervicalCancerService {
     const sortBy: CcsService1B004_0NSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-ccs-p5-1b004-0n-${ds1}-${ds2}`
@@ -2884,7 +2884,7 @@ export class RcmCervicalCancerService {
     const sortBy: CcsService1B005SortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-ccs-p10-1b005-${ds1}-${ds2}`

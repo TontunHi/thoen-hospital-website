@@ -139,7 +139,7 @@ fastify.get('/api/v1/clinical/appointments', {
     else if (cid) { sql += ' AND pt.cid = ?'; params.push(cid) }
     else if (date) { sql += ' AND o.nextdate = ?'; params.push(date) }
     else { sql += ' AND o.nextdate = CURRENT_DATE' }
-    sql += ' ORDER BY o.nexttime ASC, o.hn ASC LIMIT 300'
+    sql += ' ORDER BY o.nexttime ASC, o.hn ASC'
     const [rows] = await hosPool.query(sql, params)
     return { success: true, count: rows.length, data: rows }
   } catch (err) {
@@ -177,7 +177,6 @@ fastify.get('/api/v1/clinical/appointments/by-cid/:cid', {
       WHERE pt.cid = ?
         AND (ap.app_no IS NULL OR ap.app_no != 'C')
       ORDER BY ap.nextdate DESC, ap.nexttime DESC
-      LIMIT 100
     `
     const [rows] = await hosPool.query(sql, [cid])
     return { success: true, count: rows.length, data: rows }
@@ -233,7 +232,7 @@ fastify.get('/api/v1/clinical/lab/tracker', {
     if (vn) { sql += ' AND lh.vn = ?'; params.push(vn) }
     else if (hn) { sql += ' AND lh.hn = ?'; params.push(hn) }
     else { sql += ' AND lh.order_date = ?'; params.push(date || new Date().toISOString().slice(0, 10)) }
-    sql += ' ORDER BY lh.order_time DESC LIMIT 200'
+    sql += ' ORDER BY lh.order_time DESC'
     const [rows] = await hosPool.query(sql, params)
     return { success: true, count: rows.length, data: rows }
   } catch (err) {
@@ -307,7 +306,7 @@ fastify.get('/api/v1/clinical/drugs/status', {
           AND o.vn IS NOT NULL
           AND (st.service12_dep IS NULL OR st.service12_dep NOT IN ('028', '029', '042', '037', '045', '098'))
         GROUP BY o.hn, pt.pname, pt.fname, pt.lname, st.service7, k.department
-        ORDER BY TIMEDIFF(CURRENT_TIME(), st.service7) DESC LIMIT 50
+        ORDER BY TIMEDIFF(CURRENT_TIME(), st.service7) DESC
       `
       const queryPrinted = `
         SELECT pt.hn, TRIM(CONCAT(COALESCE(pt.pname, ''), COALESCE(pt.fname, ''), ' ', COALESCE(pt.lname, ''))) AS ptname,
@@ -318,7 +317,7 @@ fastify.get('/api/v1/clinical/drugs/status', {
         LEFT JOIN service_time st ON o.vn = st.vn
         WHERE o.vstdate = CURRENT_DATE() AND o.icode LIKE '1%' AND (st.service6 IS NOT NULL AND st.service7 IS NOT NULL AND st.service16 IS NULL)
         GROUP BY o.hn, pt.pname, pt.fname, pt.lname, st.service6
-        ORDER BY TIMEDIFF(CURRENT_TIME(), st.service6) DESC LIMIT 50
+        ORDER BY TIMEDIFF(CURRENT_TIME(), st.service6) DESC
       `
       const [paid] = await hosPool.query(queryPaid)
       const [printed] = await hosPool.query(queryPrinted)
@@ -358,7 +357,7 @@ fastify.get('/api/v1/clinical/drugs/loratadine', {
       LEFT JOIN doctor d ON o.doctor = d.code
       LEFT JOIN kskdepartment k ON o.dep_code = k.depcode
       WHERE o.icode = '1460211' AND o.vstdate = CURDATE() ${ageClause}
-      ORDER BY o.rxtime DESC LIMIT 200
+      ORDER BY o.rxtime DESC
     `
     const [rows] = await hosPool.query(sql)
     return { success: true, count: rows.length, data: rows }
@@ -1024,7 +1023,7 @@ fastify.get('/api/v1/clinical/rcm/invoice-details', {
   const cleanPttype = String(pttype || '').trim()
   const cleanSearch = String(search || '').trim()
   const pageNum = Math.max(1, Number(page || 1))
-  const limitNum = exportAll ? 10000 : Math.max(1, Math.min(200, Number(pageSize || 50)))
+  const limitNum = exportAll ? 1000000 : Math.max(1, Number(pageSize || 50))
   const offsetNum = (pageNum - 1) * limitNum
 
   const pttypeClause = cleanPttype ? 'AND ptt.pttype_eclaim_id = ?' : ''
@@ -1296,7 +1295,6 @@ fastify.get('/api/v1/clinical/records/visits', {
       left outer join ovstost ovs on ov.ovstost=ovs.ovstost 
       WHERE (pt.cid = ? or pt.hn = ?) 
       ORDER BY o.vn DESC
-      LIMIT 100
     `
     const [rows] = await hosPool.query(sql, [trimmed, trimmed])
     const items = (rows || []).map(row => ({

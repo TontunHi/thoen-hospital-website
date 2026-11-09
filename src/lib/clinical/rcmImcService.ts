@@ -162,7 +162,7 @@ export class RcmImcService {
     const sortBy: ImcSortField = params.sortBy || 'date'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(1, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-fund-imc-${patientType}-${ds1}-${ds2}`
@@ -188,7 +188,7 @@ export class RcmImcService {
         if (executor === queryClinicalDb) {
           try {
             const gwRes = await apiGateway.clinical.getRcmFundData('imc', { ds1, ds2, patientType })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
               return gwRes.data.rawRows
             }
           } catch {
@@ -580,6 +580,8 @@ export class RcmImcService {
     const newEclaimMap = new Map((newEclaimRes as any[] || []).map((r: any) => [String(r.an), r]))
     const eclaimMap = new Map((eclaimRes as any[] || []).map((r: any) => [String(r.an), r]))
 
+    const hosxpAnSet = new Set(hosxpRows.map((r: any) => String(r.an || '').trim()))
+
     return detailRows.map((row: any) => {
       const anStr = String(row.an)
       const nhso = nhsoMap.get(anStr)
@@ -591,13 +593,14 @@ export class RcmImcService {
       const repNo = nhso?.rep || rep?.rep || nn?.rep || m?.rep || null
       const comp = Number(nhso?.compensated ?? rep?.compensated ?? nn?.compensated ?? m?.compensated ?? 0)
 
+      const inHosxp = hosxpAnSet.has(anStr)
       const inWeb = webPriceMap.has(anStr)
       const getprice = webPriceMap.get(anStr) ?? 0
 
       return {
         ...row,
         web: inWeb ? 'Y' : null,
-        filetype: inWeb ? 'ตรงกันทั้ง 2 ระบบ' : 'HOSxP',
+        filetype: inHosxp && inWeb ? 'ตรงกันทั้ง 2 ระบบ' : inWeb ? 'Web' : 'HOSxP',
         getprice,
         status,
         rep: repNo,
@@ -779,6 +782,8 @@ export class RcmImcService {
     const newEclaimMap = new Map((newEclaimRes as any[] || []).map((r: any) => [String(r.vn), r]))
     const eclaimMap = new Map((eclaimRes as any[] || []).map((r: any) => [String(r.vn), r]))
 
+    const hosxpVnSet = new Set(hosxpRows.map((r: any) => String(r.vn || '').trim()))
+
     return detailRows.map((row: any) => {
       const vnStr = String(row.vn)
       const nhso = nhsoMap.get(vnStr)
@@ -790,13 +795,14 @@ export class RcmImcService {
       const repNo = nhso?.rep || rep?.rep || nn?.rep || m?.rep || null
       const comp = Number(nhso?.compensated ?? rep?.compensated ?? nn?.compensated ?? m?.compensated ?? 0)
 
+      const inHosxp = hosxpVnSet.has(vnStr)
       const inWeb = webPriceMap.has(vnStr)
       const getprice = webPriceMap.get(vnStr) ?? 0
 
       return {
         ...row,
         web: inWeb ? 'Y' : null,
-        filetype: inWeb ? 'ตรงกันทั้ง 2 ระบบ' : 'HOSxP',
+        filetype: inHosxp && inWeb ? 'ตรงกันทั้ง 2 ระบบ' : inWeb ? 'Web' : 'HOSxP',
         getprice,
         status,
         rep: repNo,

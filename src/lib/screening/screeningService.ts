@@ -395,11 +395,7 @@ export class ScreeningQueueService {
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : ''
-    const limitClause = options.limit
-      ? `LIMIT ${Number(options.limit)}`
-      : isAll
-      ? 'LIMIT 500'
-      : ''
+    const limitClause = options.limit ? `LIMIT ${Number(options.limit)}` : ''
     const sql = `SELECT ${selectFields.join(', ')} FROM screening_queues ${whereSql} ORDER BY created_at DESC ${limitClause}`.trim()
     const rawItems = await this.queryExecutor(sql, params)
 

@@ -41,7 +41,7 @@ const familyPlanningParamsSchema = z.object({
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),
   page: z.coerce.number().int().min(1).optional(),
-  pageSize: z.coerce.number().int().min(10).max(500).optional(),
+  pageSize: z.coerce.number().int().min(1).optional(),
   exportAll: z
     .union([z.boolean(), z.enum(['true', 'false']).transform((v) => v === 'true')])
     .optional(),
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
       { username: session.username, email: session.email }
     ).catch((err) => logger.error({ err }, 'Family Planning 9.1 audit log failed'))
 
-    const result = await RcmFamilyPlanningService.getFamilyPlanningReport(params)
+    const result = await RcmFamilyPlanningService.getFamilyPlanning91Report(params)
 
     return NextResponse.json({
       success: true,

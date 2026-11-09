@@ -115,7 +115,7 @@ describe('GET /api/service/dashboard-rcm/funds/family-planning/service-9-1', () 
       items: [],
     }
 
-    vi.spyOn(RcmFamilyPlanningService, 'getFamilyPlanningReport').mockResolvedValue(mockData as any)
+    vi.spyOn(RcmFamilyPlanningService, 'getFamilyPlanning91Report').mockResolvedValue(mockData as any)
 
     const req = new Request(
       'http://localhost/api/service/dashboard-rcm/funds/family-planning/service-9-1?ds1=2024-10-01&ds2=2024-10-31&format=NEW_ECLAIM'

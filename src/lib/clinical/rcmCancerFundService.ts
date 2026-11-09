@@ -29,6 +29,7 @@ export type CancerFundSortField =
   | 'cid'
   | 'ptname'
   | 'age'
+  | 'income'
   | 'pttypename'
   | 'authencode'
   | 'pdx'
@@ -98,6 +99,7 @@ export interface CancerFundPatientItem {
   op3: string | null
   op4: string | null
   op5: string | null
+  income: number
   listname: string
   rep: string | null
   compensated: number
@@ -106,9 +108,11 @@ export interface CancerFundPatientItem {
   invoice: string | null
   invoice_compensated: number
   resource: string | null
+  fund: string | null
   subfund: string | null
   remark: string | null
   projectcode: string | null
+  status: string
   status_eclaim: string
 }
 
@@ -121,6 +125,7 @@ export interface CancerFundSummary {
   totalCompensated: number
   averageCompensated: number
   totalInvoiceCompensated: number
+  totalIncome: number
   withAuthenCount: number
   withoutAuthenCount: number
   authenRate: number
@@ -292,7 +297,7 @@ export class RcmCancerFundService {
     const sortBy: CancerFundSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(1, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-cancer-fund-adp-report-${ds1}-${ds2}`
@@ -327,9 +332,10 @@ export class RcmCancerFundService {
             v.pdx,
             v.dx0, v.dx1, v.dx2, v.dx3, v.dx4, v.dx5,
             v.op0, v.op1, v.op2, v.op3, v.op4, v.op5,
+            IFNULL(v.income, 0) AS income,
             dd.listname,
-            rd.rep AS rep,
-            IFNULL(rd.compensated, 0) AS compensated,
+            COALESCE(rd.rep, nn.Rep, m.rep) AS rep,
+            COALESCE(rd.compensated, nn.Income, m.compensated, 0) AS compensated,
             rd.transactiontype,
             re.invoice AS invoice,
             IFNULL(re.invoice_compensated, 0) AS invoice_compensated,
@@ -337,6 +343,7 @@ export class RcmCancerFundService {
             rd.subfund,
             rd.remark,
             rd.projectcode,
+            COALESCE(re.statusname, rd.statusname, nn.StatusName, m.statusname, '- :: ยังไม่ได้ส่ง') AS status,
             COALESCE(re.statusname, rd.statusname, nn.StatusName, m.statusname, '- :: ยังไม่ได้ส่ง') AS status_eclaim
           FROM (
             SELECT 
@@ -438,7 +445,7 @@ export class RcmCancerFundService {
               apiGateway.clinical.getRcmFundData('cancer', { ds1, ds2, adpCode: CANCER_ADP_CODE }),
             ])
             mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
               rows = gwRes.data.rawRows
               fetchedViaNamedApi = true
             }
@@ -476,10 +483,19 @@ export class RcmCancerFundService {
       const isUc = isUniversalCoverageScheme(maininscl, pttypename, pttypeEclaimId)
       const age = Number(r.age) || 0
       const sex = formatThaiSex(r.sex_code, r.sex)
+      const income = Number(r.income) || 0
 
       const ptname = String(r.ptname || '').trim()
-      const rawFirstName = String(r.firstName || '').trim()
-      const rawLastName = String(r.lastName || '').trim()
+      let rawFirstName = String(r.firstName || '').trim()
+      let rawLastName = String(r.lastName || '').trim()
+      if (!rawFirstName && ptname) {
+        const parts = ptname.split(/\s+/)
+        rawFirstName = parts[0] || ptname
+        rawLastName = parts.slice(1).join(' ')
+      }
+
+      const statusStr = String(r.status || r.status_eclaim || '- :: ยังไม่ได้ส่ง').trim()
+      const rep = r.rep ? String(r.rep).trim() : null
 
       return {
         no: idx + 1,
@@ -515,18 +531,21 @@ export class RcmCancerFundService {
         op3: r.op3 ? String(r.op3).trim() : null,
         op4: r.op4 ? String(r.op4).trim() : null,
         op5: r.op5 ? String(r.op5).trim() : null,
+        income,
         listname: String(r.listname || '').trim(),
-        rep: r.rep ? String(r.rep).trim() : null,
+        rep,
         compensated,
         isCompensated,
         transactiontype: r.transactiontype ? String(r.transactiontype).trim() : null,
         invoice: r.invoice ? String(r.invoice).trim() : null,
         invoice_compensated: invoiceCompensated,
         resource: r.resource ? String(r.resource).trim() : null,
+        fund: r.fund ? String(r.fund).trim() : null,
         subfund: r.subfund ? String(r.subfund).trim() : null,
         remark: r.remark ? String(r.remark).trim() : null,
         projectcode: r.projectcode ? String(r.projectcode).trim() : null,
-        status_eclaim: String(r.status_eclaim || '- :: ยังไม่ได้ส่ง').trim(),
+        status: statusStr,
+        status_eclaim: statusStr,
       }
     })
 
@@ -547,6 +566,7 @@ export class RcmCancerFundService {
     let compensatedVisits = 0
     let totalCompensated = 0
     let totalInvoiceCompensated = 0
+    let totalIncome = 0
     let withAuthenCount = 0
     let invoiceCount = 0
     let repCount = 0
@@ -556,6 +576,7 @@ export class RcmCancerFundService {
       if (item.isCompensated) compensatedVisits++
       totalCompensated += item.compensated
       totalInvoiceCompensated += item.invoice_compensated
+      totalIncome += item.income
       if (item.authencode) withAuthenCount++
       if (item.invoice) invoiceCount++
       if (item.rep) repCount++
@@ -580,6 +601,7 @@ export class RcmCancerFundService {
       totalCompensated,
       averageCompensated,
       totalInvoiceCompensated,
+      totalIncome,
       withAuthenCount,
       withoutAuthenCount,
       authenRate,
@@ -623,6 +645,7 @@ export class RcmCancerFundService {
           i.ptname.toLowerCase().includes(search) ||
           i.vn.toLowerCase().includes(search) ||
           (i.authencode && i.authencode.toLowerCase().includes(search)) ||
+          (i.rep && i.rep.toLowerCase().includes(search)) ||
           (i.pdx && i.pdx.toLowerCase().includes(search)) ||
           (i.listname && i.listname.toLowerCase().includes(search)) ||
           (i.pttypename && i.pttypename.toLowerCase().includes(search))
@@ -635,10 +658,7 @@ export class RcmCancerFundService {
       let valA: any = a[sortBy] ?? ''
       let valB: any = b[sortBy] ?? ''
 
-      if (sortBy === 'compensated') {
-        valA = Number(valA) || 0
-        valB = Number(valB) || 0
-      } else if (sortBy === 'age') {
+      if (sortBy === 'compensated' || sortBy === 'income' || sortBy === 'age') {
         valA = Number(valA) || 0
         valB = Number(valB) || 0
       } else {

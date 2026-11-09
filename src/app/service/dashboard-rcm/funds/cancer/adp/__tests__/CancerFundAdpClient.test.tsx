@@ -12,6 +12,7 @@ const mockSummary = {
   totalCompensated: 45000,
   averageCompensated: 6428.57,
   totalInvoiceCompensated: 45000,
+  totalIncome: 50000,
   withAuthenCount: 9,
   withoutAuthenCount: 1,
   authenRate: 90.0,
@@ -57,6 +58,7 @@ const mockItem = {
   op3: null,
   op4: null,
   op5: null,
+  income: 5000,
   listname: 'Paclitaxel 100 mg injection',
   rep: 'REP-C01',
   compensated: 4500,
@@ -65,9 +67,11 @@ const mockItem = {
   invoice: 'INV-001',
   invoice_compensated: 4500,
   resource: 'NHSO',
+  fund: 'CANCER',
   subfund: 'CANCER',
   remark: null,
   projectcode: 'CA01',
+  status: 'ชดเชยแล้ว',
   status_eclaim: 'NHSO :: ได้รับ Invoice แล้ว',
 }
 

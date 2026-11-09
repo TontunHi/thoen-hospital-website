@@ -230,7 +230,7 @@ const fetchData = useCallback(async (forceRefresh = false) => {
 
 Route Handler (`src/app/api/service/dashboard-rcm/**/route.ts`) ต้องบาง (`~25–40` บรรทัด) ทำเฉพาะ:
 1. `verifyMemberSession()` → 401 ถ้าไม่มี Session, 403 ถ้า Role ไม่ใช่ `admin | staff | member`
-2. `validateSearchParams(schema, searchParams)` จาก `@/lib/clinical/rcmValidation.ts` (ตรวจ `rcmDateRegex`, `page >= 1`, `pageSize` 10–500, enum) → 400 ถ้าไม่ผ่าน (หมายเหตุ: `searchField` ให้เป็น optional/deprecated เพื่อรองรับ Unified Global Search)
+2. `validateSearchParams(schema, searchParams)` จาก `@/lib/clinical/rcmValidation.ts` (ตรวจ `rcmDateRegex`, `page >= 1`, `pageSize >= 1` ไม่จำกัดเพดาน, enum) → 400 ถ้าไม่ผ่าน (หมายเหตุ: `searchField` ให้เป็น optional/deprecated เพื่อรองรับ Unified Global Search)
 3. `logThrottledAudit('READ', ...)` (non-blocking)
 4. เรียก Domain Service ใน `src/lib/clinical/` และคืนรูปทรงมาตรฐาน:
    - `200`: `{ success: true, data }` (หรือ field ตามสัญญาเดิมของ endpoint นั้น)

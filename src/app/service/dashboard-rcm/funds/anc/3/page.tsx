@@ -22,6 +22,7 @@ export default async function AncService23Page() {
 
   const defaultRange = getDefaultFiscalYearDateRange()
   let initialData = null
+  let initialError: string | null = null
 
   try {
     initialData = await RcmAncService.getAncService23Report({
@@ -38,7 +39,14 @@ export default async function AncService23Page() {
     })
   } catch (error) {
     console.error('Failed to prefetch ANC 2.3 SSR data:', error)
+    initialError = 'ไม่สามารถโหลดข้อมูลเริ่มต้นได้ กรุณากดปุ่มรีเฟรชเพื่อลองใหม่'
   }
 
-  return <AncService23Client initialData={initialData} initialRange={defaultRange} />
+  return (
+    <AncService23Client
+      initialData={initialData}
+      initialRange={defaultRange}
+      initialError={initialError}
+    />
+  )
 }

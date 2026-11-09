@@ -492,7 +492,6 @@ export class RcmRepFundsService {
       WHERE ${whereSql}
       GROUP BY Fund, SubFund, Department
       ORDER BY totalCompensated DESC
-      LIMIT 150
     `
     const fundGroupRows = await apiGateway.clinical.query<any>(fundGroupsSql, queryParams)
     const fundGroups: FundSummaryGroup[] = fundGroupRows.map((r) => {
@@ -534,7 +533,6 @@ export class RcmRepFundsService {
       WHERE ${whereSql}
       GROUP BY Rep, YearBudget, Department, Fund
       ORDER BY totalCompensated DESC
-      LIMIT 100
     `
     const repListRows = await apiGateway.clinical.query<any>(repListSql, queryParams)
     const repList: RepStatementSummary[] = repListRows.map((r) => {
@@ -572,7 +570,6 @@ export class RcmRepFundsService {
         WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ?
         GROUP BY Fund
         ORDER BY cnt DESC
-        LIMIT 50
       `
       fundsQueryParams = [`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`]
     } else {
@@ -580,7 +577,6 @@ export class RcmRepFundsService {
         WHERE YearBudget = ?
         GROUP BY Fund
         ORDER BY cnt DESC
-        LIMIT 50
       `
       fundsQueryParams = [fiscalYear]
     }
@@ -604,7 +600,6 @@ export class RcmRepFundsService {
         WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0
         GROUP BY ErrorCode
         ORDER BY cnt DESC
-        LIMIT 50
       `
       errQueryParams = [`${params.ds1} 00:00:00`, `${params.ds2} 23:59:59`]
     } else {
@@ -612,7 +607,6 @@ export class RcmRepFundsService {
         WHERE YearBudget = ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0
         GROUP BY ErrorCode
         ORDER BY cnt DESC
-        LIMIT 50
       `
       errQueryParams = [fiscalYear]
     }
@@ -737,7 +731,8 @@ export class RcmRepFundsService {
       queryParams.push('2570')
     }
 
-    const limit = Math.min(Math.max(Number(params.limit || 200), 1), 1000)
+    const hasLimit = params.limit !== undefined ? Number(params.limit) > 0 : true
+    const limit = hasLimit ? Math.max(Number(params.limit || 200), 1) : null
     const offset = Math.max(Number(params.offset || 0), 0)
 
     const sql = `
@@ -747,10 +742,12 @@ export class RcmRepFundsService {
       FROM rcmdb.repdata
       WHERE ${whereClauses.join(' AND ')}
       ORDER BY AdmDate DESC, ID DESC
-      LIMIT ? OFFSET ?
+      ${limit !== null ? 'LIMIT ? OFFSET ?' : ''}
     `
 
-    queryParams.push(limit, offset)
+    if (limit !== null) {
+      queryParams.push(limit, offset)
+    }
 
     const rows = await apiGateway.clinical.query<any>(sql, queryParams)
 
@@ -804,7 +801,6 @@ export class RcmRepFundsService {
       FROM rcmdb.repdata
       WHERE ${whereClauses.join(' AND ')}
       ORDER BY AdmDate DESC
-      LIMIT 50
     `
 
     const rows = await apiGateway.clinical.query<any>(sql, queryParams)

@@ -42,7 +42,7 @@ describe('RcmClopidogrelService', () => {
 
   describe('Constants', () => {
     it('defines standard Clopidogrel ADP code and DID prefix', () => {
-      expect(CLOPIDOGREL_ADP_CODE).toBe('3799977101')
+      expect(CLOPIDOGREL_ADP_CODE).toBe('37999771001')
       expect(CLOPIDOGREL_DID_PREFIX).toBe('1248460000039721217')
     })
   })
@@ -54,18 +54,18 @@ describe('RcmClopidogrelService', () => {
           icode: '1540099',
           name: 'Clopidogrel 75 mg',
           strength: '75 mg',
-          nhso_adp_code: '3799977101',
+          nhso_adp_code: '37999771001',
         },
       ])
 
       const result = await RcmClopidogrelService.checkAdpMapping(mockExecutor, true)
-      expect(result.adpCode).toBe('3799977101')
+      expect(result.adpCode).toBe('37999771001')
       expect(result.isMapped).toBe(true)
       expect(result.mappedCount).toBe(1)
       expect(result.items[0].icode).toBe('1540099')
       expect(mockExecutor).toHaveBeenCalledWith(
         expect.stringContaining('FROM s_drugitems'),
-        ['3799977101', '3799977101'],
+        ['37999771001', '3799977101', '37999771001', '3799977101'],
         expect.any(Object)
       )
     })

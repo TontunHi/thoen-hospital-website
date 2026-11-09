@@ -11,7 +11,9 @@ import {
 
 // ── 1. Domain Types: กองทุนยา Clopidogrel ─────────────────────────────────────
 
-export const CLOPIDOGREL_ADP_CODE = '3799977101'
+export const CLOPIDOGREL_ADP_CODE = '37999771001'
+export const CLOPIDOGREL_ADP_CODE_LEGACY = '3799977101'
+export const CLOPIDOGREL_ADP_CODES = [CLOPIDOGREL_ADP_CODE, CLOPIDOGREL_ADP_CODE_LEGACY]
 export const CLOPIDOGREL_DID_PREFIX = '1248460000039721217'
 
 export type ClopidogrelCardFilter =
@@ -188,16 +190,17 @@ export function isUniversalCoverageScheme(
 
 export class RcmClopidogrelService {
   /**
-   * Check if Clopidogrel ADP code '3799977101' is mapped in s_drugitems or drugitems.
+   * Check if Clopidogrel ADP code '37999771001' (or legacy '3799977101') is mapped in s_drugitems or drugitems.
    */
   static async checkAdpMapping(
     executor: QueryExecutor = queryClinicalDb,
     refresh?: boolean
   ): Promise<ClopidogrelAdpMappingCheck> {
     const adpCode = CLOPIDOGREL_ADP_CODE
-    const cacheKey = `rcm-clopidogrel-adp-mapping-check-${adpCode}`
+    const cacheKey = `rcm-clopidogrel-adp-mapping-check-v2-${adpCode}`
     if (refresh) {
       invalidateCacheKey(cacheKey)
+      invalidateCacheKey(`rcm-clopidogrel-adp-mapping-check-v2-${CLOPIDOGREL_ADP_CODE_LEGACY}`)
     }
 
     return getCachedData(
@@ -205,10 +208,13 @@ export class RcmClopidogrelService {
       async () => {
         if (executor === queryClinicalDb) {
           try {
-            const gwRes = await apiGateway.clinical.getAdpMapping(adpCode)
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
+            let gwRes = await apiGateway.clinical.getAdpMapping(CLOPIDOGREL_ADP_CODE)
+            if (!gwRes?.isMapped) {
+              gwRes = await apiGateway.clinical.getAdpMapping(CLOPIDOGREL_ADP_CODE_LEGACY)
+            }
+            if (gwRes && typeof gwRes.isMapped === 'boolean' && gwRes.isMapped) {
               return {
-                adpCode,
+                adpCode: gwRes.adpCode || CLOPIDOGREL_ADP_CODE,
                 isMapped: gwRes.isMapped,
                 mappedCount: gwRes.mappedCount,
                 items: (gwRes.items || []).map((r: any) => ({
@@ -232,7 +238,7 @@ export class RcmClopidogrelService {
               strength, 
               nhso_adp_code
             FROM s_drugitems 
-            WHERE TRIM(nhso_adp_code) IN (?, '37999771001') OR TRIM(nhso_adp_code) LIKE '379997710%'
+            WHERE TRIM(nhso_adp_code) IN (?, ?) OR TRIM(nhso_adp_code) LIKE '379997710%'
             UNION
             SELECT 
               icode, 
@@ -240,10 +246,14 @@ export class RcmClopidogrelService {
               strength, 
               nhso_adp_code
             FROM drugitems 
-            WHERE TRIM(nhso_adp_code) IN (?, '37999771001') OR TRIM(nhso_adp_code) LIKE '379997710%'
+            WHERE TRIM(nhso_adp_code) IN (?, ?) OR TRIM(nhso_adp_code) LIKE '379997710%'
             ORDER BY icode ASC;
           `
-          const rows = (await executor(sql, [adpCode, adpCode], { timeoutMs: 15000 })) as any[]
+          const rows = (await executor(
+            sql,
+            [CLOPIDOGREL_ADP_CODE, CLOPIDOGREL_ADP_CODE_LEGACY, CLOPIDOGREL_ADP_CODE, CLOPIDOGREL_ADP_CODE_LEGACY],
+            { timeoutMs: 15000 }
+          )) as any[]
           const items: ClopidogrelAdpMappingItem[] = (rows || []).map((r) => ({
             icode: String(r.icode || '').trim(),
             name: String(r.name || '').trim(),
@@ -252,14 +262,14 @@ export class RcmClopidogrelService {
           }))
 
           return {
-            adpCode,
+            adpCode: CLOPIDOGREL_ADP_CODE,
             isMapped: items.length > 0,
             mappedCount: items.length,
             items,
           }
         } catch {
           return {
-            adpCode,
+            adpCode: CLOPIDOGREL_ADP_CODE,
             isMapped: false,
             mappedCount: 0,
             items: [],
@@ -292,13 +302,13 @@ export class RcmClopidogrelService {
     const sortBy: ClopidogrelSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(1, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
-    const cacheKey = `rcm-clopidogrel-usage-${ds1}-${ds2}`
+    const cacheKey = `rcm-clopidogrel-usage-v2-${ds1}-${ds2}`
     if (params.refresh) {
       invalidateCacheKey(cacheKey)
-      invalidateCacheKey(`rcm-clopidogrel-adp-mapping-check-${CLOPIDOGREL_ADP_CODE}`)
+      invalidateCacheKey(`rcm-clopidogrel-adp-mapping-check-v2-${CLOPIDOGREL_ADP_CODE}`)
     }
 
     const { rawRows, adpMapping } = await getCachedData(
@@ -365,7 +375,7 @@ export class RcmClopidogrelService {
               FROM drugitems d 
               WHERE (
                 d.name REGEXP 'Clopidrogrel|Clopidogrel' 
-                OR TRIM(d.nhso_adp_code) IN (?, '37999771001')
+                OR TRIM(d.nhso_adp_code) IN (?, ?)
                 OR TRIM(d.nhso_adp_code) LIKE '379997710%'
                 OR d.did LIKE ?
               )
@@ -423,7 +433,8 @@ export class RcmClopidogrelService {
         `
 
         const sqlParams: any[] = [
-          CLOPIDOGREL_ADP_CODE, // TRIM(d.nhso_adp_code) = ?
+          CLOPIDOGREL_ADP_CODE,
+          CLOPIDOGREL_ADP_CODE_LEGACY,
           `${CLOPIDOGREL_DID_PREFIX}%`, // d.did LIKE ?
           ds1, ds2, // dd oo.vstdate BETWEEN ? AND ?
           ds1, ds2, // nhso admdate
@@ -447,9 +458,13 @@ export class RcmClopidogrelService {
               apiGateway.clinical.getRcmFundData('clopidogrel', { ds1, ds2, adpCode: CLOPIDOGREL_ADP_CODE }),
             ])
             mappingRes = mRes
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              rows = gwRes.data.rawRows
-              fetchedViaNamedApi = true
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
+              const firstRow = gwRes.data.rawRows[0]
+              // Check that Named API returned rich drug item fields (drugname or qty)
+              if (firstRow && ('drugname' in firstRow || 'qty' in firstRow)) {
+                rows = gwRes.data.rawRows
+                fetchedViaNamedApi = true
+              }
             }
           } catch {
             // Fallback to executor query
@@ -463,6 +478,10 @@ export class RcmClopidogrelService {
           ])
           rows = (dbRows as any[]) || []
           mappingRes = mRes
+        }
+
+        if (!rows || rows.length === 0) {
+          invalidateCacheKey(cacheKey)
         }
 
         return {
@@ -518,16 +537,16 @@ export class RcmClopidogrelService {
         dx4: r.dx4 ? String(r.dx4).trim() : null,
         dx5: r.dx5 ? String(r.dx5).trim() : null,
         icode: String(r.icode || '').trim(),
-        drugname: String(r.drugname || '').trim(),
+        drugname: String(r.drugname || r.listname || r.name || '').trim(),
         units: r.units ? String(r.units).trim() : null,
-        adpcode: r.adpcode ? String(r.adpcode).trim() : null,
-        adpname: r.adpcode === CLOPIDOGREL_ADP_CODE ? 'ยา Clopidogrel' : null,
+        adpcode: r.adpcode ? String(r.adpcode).trim() : (r.nhso_adp_code ? String(r.nhso_adp_code).trim() : null),
+        adpname: r.adpcode && CLOPIDOGREL_ADP_CODES.includes(String(r.adpcode).trim()) ? 'ยา Clopidogrel' : null,
         tmt: r.tmt ? String(r.tmt).trim() : null,
         did: r.did ? String(r.did).trim() : null,
         qty: Number(r.qty) || 0,
         money: Number(r.money) || 0,
-        hosxp_money: Number(r.hosxp_money) || 0,
-        status_eclaim: String(r.status_eclaim || '- :: ยังไม่ได้ส่ง').trim(),
+        hosxp_money: Number(r.hosxp_money ?? r.income) || 0,
+        status_eclaim: String(r.status_eclaim || r.status || '- :: ยังไม่ได้ส่ง').trim(),
         rep: r.rep ? String(r.rep).trim() : null,
         compensated,
         isCompensated,

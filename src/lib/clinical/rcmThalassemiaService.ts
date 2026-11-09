@@ -170,26 +170,6 @@ export class RcmThalassemiaService {
     return getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping('30313')
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || ''),
-                  name: String(r.name || ''),
-                  strength: r.strength ? String(r.strength) : null,
-                  nhso_adp_code: String(r.nhso_adp_code || ''),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
         const sql = `
           SELECT 
             icode, 
@@ -235,7 +215,7 @@ export class RcmThalassemiaService {
     const sortBy: ThalassemiaSortField = params.sortBy || 'labor_date'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-thalassemia-report-${ds1}-${ds2}`
@@ -249,17 +229,6 @@ export class RcmThalassemiaService {
       getCachedData(
         cacheKey,
         async () => {
-          if (executor === queryClinicalDb) {
-            try {
-              const gwRes = await apiGateway.clinical.getRcmFundData('thalassemia', { ds1, ds2 })
-              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-                return gwRes.data.rawRows
-              }
-            } catch {
-              // Fallback to executor query
-            }
-          }
-
           const sql = `
             SELECT 
               p.person_id,

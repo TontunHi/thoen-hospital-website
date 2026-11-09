@@ -31,13 +31,15 @@ export default async function rcmFundsRoutes(fastify, options) {
     try {
       const cacheKey = `rcm-adp-mapping-${cleanAdpCode}`
       const data = await getCached(cacheKey, 3600000, async () => {
+        const codes = cleanAdpCode.split(',').map(s => s.trim()).filter(Boolean)
+        const placeholders = codes.map(() => '?').join(',')
         const [rows] = await hosPool.query(`
           SELECT d.icode, d.name, d.strength, d.nhso_adp_code
           FROM s_drugitems d
-          WHERE d.nhso_adp_code = ?
+          WHERE d.nhso_adp_code IN (${placeholders})
             AND (d.istatus = 'Y' OR d.istatus IS NULL)
-          ORDER BY d.name ASC;
-        `, [cleanAdpCode])
+          ORDER BY d.nhso_adp_code ASC, d.name ASC;
+        `, codes)
 
         return {
           adpCode: cleanAdpCode,
@@ -738,6 +740,134 @@ export default async function rcmFundsRoutes(fastify, options) {
   })
 
   // ------------------------------------------------------------------
+  // 5.1. Pregnancy Test (8.1 การทดสอบการตั้งครรภ์ ADP 31101, 30014)
+  // ------------------------------------------------------------------
+  fastify.get('/api/v1/clinical/rcm/funds/pregnancy-test', {
+    schema: {
+      tags: ['1. Clinical Services (HOSxP)'],
+      summary: 'รายงานบริการการทดสอบการตั้งครรภ์ (8.1) ADP 31101, 30014',
+      querystring: {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string' },
+          endDate: { type: 'string' },
+          ds1: { type: 'string' },
+          ds2: { type: 'string' }
+        }
+      }
+    }
+  }, async (req, reply) => {
+    const { ds1, ds2 } = getRange(req.query)
+    const cacheKey = `rcm-fund-pregnancy-test-${ds1}-${ds2}`
+
+    try {
+      const data = await getCached(cacheKey, 300000, async () => {
+        const sql = `
+          SELECT 
+            o.vn,
+            IFNULL(pt.cid, '') AS cid,
+            o.hn,
+            CONCAT(IFNULL(pt.pname, ''), IFNULL(pt.fname, ''), ' ', IFNULL(pt.lname, '')) AS ptname,
+            IFNULL(TIMESTAMPDIFF(YEAR, pt.birthday, o.vstdate), 0) AS age,
+            DATE_FORMAT(o.vstdate, '%Y-%m-%d') AS vstdate,
+            TIME_FORMAT(o.vsttime, '%H:%i:%s') AS vsttime,
+            COALESCE(NULLIF(TRIM(cc.AuthenCode), ''), NULLIF(TRIM(vt.auth_code), ''), NULLIF(TRIM(vt.claim_code), '')) AS authencode,
+            IFNULL(ptt.hipdata_code, '') AS maininscl,
+            CONCAT_WS(':', o.pttype, ptt.name) AS pttypename,
+            ptt.pttype_eclaim_id AS pttype_eclaim_id,
+            dep.department AS department,
+            spc.name AS clinic,
+            v.pdx,
+            CONCAT_WS(', ', NULLIF(v.dx0, ''), NULLIF(v.dx1, ''), NULLIF(v.dx2, ''), NULLIF(v.dx3, ''), NULLIF(v.dx4, ''), NULLIF(v.dx5, '')) AS sdx,
+            IFNULL(v.income, 0) AS income,
+            dd.labname AS drug_labname,
+            dd.name AS listname,
+            lo.lab_order_result AS lab_order_result,
+            COALESCE(nhso.statusname, rep.statusname, nn.StatusName, m.statusname, '-:ยังไม่ได้ส่ง') AS status,
+            COALESCE(nhso.rep, rep.rep, nn.Rep, m.rep) AS rep,
+            COALESCE(nhso.compensated, rep.compensated, nn.Income, m.compensated, 0) AS compensated,
+            re.fund,
+            re.subfund
+          FROM ovst o
+          LEFT JOIN patient pt ON pt.hn = o.hn
+          LEFT JOIN vn_stat v ON v.vn = o.vn
+          LEFT JOIN pttype ptt ON ptt.pttype = o.pttype
+          LEFT JOIN kskdepartment dep ON dep.depcode = o.main_dep
+          LEFT JOIN spclty spc ON spc.spclty = o.spclty
+          JOIN (
+            SELECT 
+              oo.vn,
+              GROUP_CONCAT(IF(TRIM(d.nhso_adp_code) = '31101', CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS labname,
+              GROUP_CONCAT(IF(TRIM(d.nhso_adp_code) = '30014', CONCAT_WS(' ', d.name, NULLIF(d.strength, '')), NULL) SEPARATOR ', ') AS name
+            FROM opitemrece oo
+            JOIN s_drugitems d ON d.icode = oo.icode
+            WHERE IFNULL(oo.vn, '') <> ''
+              AND oo.vstdate BETWEEN ? AND ?
+              AND TRIM(d.nhso_adp_code) IN ('31101', '30014')
+            GROUP BY oo.vn
+          ) dd ON dd.vn = o.vn
+          LEFT JOIN rcmdb.authencode cc ON cc.vn = o.vn
+          LEFT JOIN visit_pttype vt ON vt.vn = o.vn
+          LEFT JOIN (
+            SELECT 
+              lh.vn,
+              GROUP_CONCAT(DISTINCT lo.lab_order_result SEPARATOR ', ') AS lab_order_result
+            FROM lab_head lh
+            JOIN lab_order lo ON lo.lab_order_number = lh.lab_order_number
+            WHERE lh.order_date BETWEEN ? AND ?
+              AND (lo.lab_items_name_ref REGEXP 'preg|UPT' OR lo.lab_items_name_ref LIKE '%pregnancy%')
+            GROUP BY lh.vn
+          ) lo ON lo.vn = o.vn
+          LEFT JOIN (
+            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
+                   'NHSO :: มี Invoice แล้ว' AS statusname
+            FROM rcmdb.repeclaim
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+              AND (errorcode = '' OR errorcode IS NULL)
+            GROUP BY vn
+          ) nhso ON nhso.vn = o.vn
+          LEFT JOIN (
+            SELECT vn, GROUP_CONCAT(DISTINCT rep) AS rep, SUM(compensated) AS compensated,
+                   'Rep :: มี Rep แล้ว' AS statusname
+            FROM rcmdb.repdata
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+              AND (errorcode = '' OR errorcode IS NULL)
+            GROUP BY vn
+          ) rep ON rep.vn = o.vn
+          LEFT JOIN rcmdb.neweclaim nn ON nn.Seq = o.vn
+          LEFT JOIN (
+            SELECT vn, GROUP_CONCAT(DISTINCT fund SEPARATOR ',') AS fund,
+                   GROUP_CONCAT(DISTINCT subfund SEPARATOR ',') AS subfund
+            FROM rcmdb.repdata
+            WHERE department = 'OP' AND IFNULL(vn,'') <> '' AND admdate >= ? AND admdate < DATE_ADD(?, INTERVAL 1 DAY)
+            GROUP BY vn
+          ) re ON re.vn = o.vn
+          LEFT JOIN (
+            SELECT m.opdseq AS vn,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.rep ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
+                   SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
+                   SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname
+            FROM eclaimdb.m_registerdata m
+            LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
+            WHERE m.person_type = '1' AND IFNULL(m.opdseq,'') <> ''
+            GROUP BY m.opdseq
+          ) m ON m.vn = o.vn
+          WHERE o.vstdate BETWEEN ? AND ?
+          GROUP BY o.vn
+          ORDER BY o.vstdate DESC, o.vsttime DESC;
+        `
+        const sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
+        const [rows] = await hosPool.query(sql, sqlParams)
+        return rows || []
+      })
+
+      return { success: true, fundKey: 'pregnancy-test', data: { rawRows: data } }
+    } catch (err) {
+      reply.code(500); return { success: false, error: err.message }
+    }
+  })
+
+  // ------------------------------------------------------------------
   // 6. Generic Dispatcher for All Other RCM Funds
   // Allows any RCM fund to be fetched cleanly by fundKey
   // ------------------------------------------------------------------
@@ -771,18 +901,16 @@ export default async function rcmFundsRoutes(fastify, options) {
       'anemia-screening': '13001',
       'iron-supplements': '14001',
       'postpartum': '30015',
-      'pregnancy-test': '11004',
       't1dm-gdm-pdm': '11005',
       'telemed-drug': 'TELMED',
       'drug-post': 'DRUGP',
       'thai-traditional-medicine': 'TTM',
       'thalassemia-fund': 'THAL',
-      'thalassemia': 'THAL_TRANS',
       'viral-hepatitis': 'HEPB',
       'hepatitis-c': 'HEPC',
       'health-screening': 'SCREEN',
       'colorectal-cancer': 'FIT',
-      'clopidogrel': 'CLOP',
+      'clopidogrel': '37999771001',
       'cancer': 'CANCER',
       'walkin': 'WALKIN',
       'instrument': 'INST',
@@ -887,8 +1015,7 @@ export default async function rcmFundsRoutes(fastify, options) {
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
-            ORDER BY o.hn ASC, o.vn ASC
-            LIMIT 1000;
+            ORDER BY o.hn ASC, o.vn ASC;
           `
           sqlParams = [ds1, ds2, resolvedAdp, ds1, ds2, ds1, ds2, ds1, ds2]
         } else {
@@ -944,8 +1071,7 @@ export default async function rcmFundsRoutes(fastify, options) {
             ) m ON m.vn = o.vn
             WHERE o.vstdate BETWEEN ? AND ?
             GROUP BY o.vn
-            ORDER BY o.hn ASC, o.vn ASC
-            LIMIT 1000;
+            ORDER BY o.hn ASC, o.vn ASC;
           `
           sqlParams = [ds1, ds2, ds1, ds2, ds1, ds2, ds1, ds2]
         }
@@ -1140,7 +1266,6 @@ export default async function rcmFundsRoutes(fastify, options) {
           WHERE ${whereSql}
           GROUP BY Fund, SubFund, Department
           ORDER BY totalCompensated DESC
-          LIMIT 150
         `
         const [fundGroupRows] = await hosPool.query(fundGroupsSql, queryParams)
 
@@ -1162,7 +1287,6 @@ export default async function rcmFundsRoutes(fastify, options) {
           WHERE ${whereSql}
           GROUP BY Rep, YearBudget, Department, Fund
           ORDER BY totalCompensated DESC
-          LIMIT 100
         `
         const [repListRows] = await hosPool.query(repListSql, queryParams)
 
@@ -1172,10 +1296,10 @@ export default async function rcmFundsRoutes(fastify, options) {
         `
         let fundsQueryParams = []
         if (ds1 && ds2) {
-          availableFundsSql += ` WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? GROUP BY Fund ORDER BY cnt DESC LIMIT 50`
+          availableFundsSql += ` WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? GROUP BY Fund ORDER BY cnt DESC`
           fundsQueryParams = [`${ds1} 00:00:00`, `${ds2} 23:59:59`]
         } else {
-          availableFundsSql += ` WHERE YearBudget = ? GROUP BY Fund ORDER BY cnt DESC LIMIT 50`
+          availableFundsSql += ` WHERE YearBudget = ? GROUP BY Fund ORDER BY cnt DESC`
           fundsQueryParams = [fiscalYear]
         }
         const [fundRows] = await hosPool.query(availableFundsSql, fundsQueryParams)
@@ -1186,10 +1310,10 @@ export default async function rcmFundsRoutes(fastify, options) {
         `
         let errQueryParams = []
         if (ds1 && ds2) {
-          availableErrorCodesSql += ` WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0 GROUP BY ErrorCode ORDER BY cnt DESC LIMIT 50`
+          availableErrorCodesSql += ` WHERE COALESCE(AdmDate, DchDate) BETWEEN ? AND ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0 GROUP BY ErrorCode ORDER BY cnt DESC`
           errQueryParams = [`${ds1} 00:00:00`, `${ds2} 23:59:59`]
         } else {
-          availableErrorCodesSql += ` WHERE YearBudget = ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0 GROUP BY ErrorCode ORDER BY cnt DESC LIMIT 50`
+          availableErrorCodesSql += ` WHERE YearBudget = ? AND ErrorCode IS NOT NULL AND LENGTH(ErrorCode) > 0 GROUP BY ErrorCode ORDER BY cnt DESC`
           errQueryParams = [fiscalYear]
         }
         let errRows = []
@@ -1324,7 +1448,8 @@ export default async function rcmFundsRoutes(fastify, options) {
         queryParams.push('2570')
       }
 
-      const limit = Math.min(Math.max(Number(q.limit || 200), 1), 1000)
+      const hasLimit = q.limit !== undefined ? Number(q.limit) > 0 : true
+      const limit = hasLimit ? Math.max(Number(q.limit || 200), 1) : null
       const offset = Math.max(Number(q.offset || 0), 0)
 
       const sql = `
@@ -1334,9 +1459,11 @@ export default async function rcmFundsRoutes(fastify, options) {
         FROM rcmdb.repdata
         WHERE ${whereClauses.join(' AND ')}
         ORDER BY AdmDate DESC, ID DESC
-        LIMIT ? OFFSET ?
+        ${limit !== null ? 'LIMIT ? OFFSET ?' : ''}
       `
-      queryParams.push(limit, offset)
+      if (limit !== null) {
+        queryParams.push(limit, offset)
+      }
 
       const [rows] = await hosPool.query(sql, queryParams)
       return { success: true, data: rows || [] }
@@ -1394,7 +1521,6 @@ export default async function rcmFundsRoutes(fastify, options) {
         FROM rcmdb.repdata
         WHERE ${whereClauses.join(' AND ')}
         ORDER BY AdmDate DESC
-        LIMIT 50
       `
       const [rows] = await hosPool.query(sql, queryParams)
       return { success: true, data: rows || [] }

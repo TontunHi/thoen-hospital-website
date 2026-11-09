@@ -227,26 +227,6 @@ export class RcmInstrumentFundService {
     return getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getAdpMapping('INSTRUMENT')
-            if (gwRes && typeof gwRes.isMapped === 'boolean') {
-              return {
-                isMapped: gwRes.isMapped,
-                mappedCount: gwRes.mappedCount,
-                items: (gwRes.items || []).map((r: any) => ({
-                  icode: String(r.icode || ''),
-                  name: String(r.name || ''),
-                  nhso_adp_code: String(r.nhso_adp_code || ''),
-                  nhso_adp_type_id: Number(r.nhso_adp_type_id || 2),
-                })),
-              }
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
-
         try {
           const sql = `
             SELECT icode, name, nhso_adp_code, nhso_adp_type_id
@@ -289,7 +269,7 @@ export class RcmInstrumentFundService {
     const { startDate: ds1, endDate: ds2 } = resolveFiscalDateRange(params)
     const patientType: InstrumentPatientType = params.patientType === 'IPD' ? 'IPD' : 'OPD'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const cardFilter: InstrumentCardFilter = params.cardFilter || 'ALL'
     const search = params.search ? params.search.trim().toLowerCase() : ''
     const sortBy: InstrumentSortField = params.sortBy || 'date'
@@ -310,7 +290,7 @@ export class RcmInstrumentFundService {
           if (executor === queryClinicalDb) {
             try {
               const gwRes = await apiGateway.clinical.getRcmFundData('instrument', { ds1, ds2, patientType })
-              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+              if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
                 return gwRes.data.rawRows
               }
             } catch {

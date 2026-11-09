@@ -26,7 +26,7 @@ export const dateRangeSchema = baseFiscalDateSchema
  */
 export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(10).max(500).default(50),
+  pageSize: z.coerce.number().int().min(1).default(50),
   search: z.string().max(120).optional(),
   pttypes: z.string().max(300).optional(),
   exportAll: z
@@ -646,6 +646,7 @@ export const cancerFundSortFieldSchema = z
     'cid',
     'ptname',
     'age',
+    'income',
     'pttypename',
     'authencode',
     'pdx',

@@ -1040,6 +1040,8 @@ export default function RepFundsClient({
                   <option value={250}>แสดง 250 รายการ</option>
                   <option value={500}>แสดง 500 รายการ</option>
                   <option value={1000}>แสดง 1,000 รายการ</option>
+                  <option value={5000}>แสดง 5,000 รายการ</option>
+                  <option value={0}>แสดงทั้งหมด (ไม่จำกัด)</option>
                 </select>
               )}
             </div>

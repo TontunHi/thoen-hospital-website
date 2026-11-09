@@ -162,6 +162,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
       totalCompensated: 0,
       averageCompensated: 0,
       totalInvoiceCompensated: 0,
+      totalIncome: 0,
       withAuthenCount: 0,
       withoutAuthenCount: 0,
       authenRate: 0,
@@ -438,6 +439,7 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
         'รายการ ADP (CANCER)',
         'เลข Rep',
         'ยอดชดเชย (บาท)',
+        'ยอดเรียกเก็บ (บาท)',
         'เลข Invoice',
         'ยอด Invoice (บาท)',
         'สถานะ e-Claim',
@@ -470,9 +472,10 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
           item.listname,
           item.rep || '',
           item.compensated,
+          item.income || 0,
           item.invoice || '',
           item.invoice_compensated,
-          item.status_eclaim,
+          item.status_eclaim || item.status || '',
         ]
       })
 
@@ -682,7 +685,13 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
             {(summary.totalVisits ?? 0).toLocaleString('th-TH')}
           </div>
           <div className="cancer-card-sub">
-            {(summary.uniquePatients ?? 0).toLocaleString('th-TH')} คน
+            <span>{(summary.uniquePatients ?? 0).toLocaleString('th-TH')} คน</span>
+            {(summary.totalIncome ?? 0) > 0 && (
+              <>
+                <span> • </span>
+                <span>รวม ฿{formatMoney(summary.totalIncome)}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -1050,17 +1059,24 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
                       {item.listname || '—'}
                     </td>
                     <td className="col-center">
-                      <span
-                        className={`cancer-badge ${
-                          item.isCompensated
-                            ? 'badge-success'
-                            : item.status_eclaim.includes('ยังไม่ได้ส่ง')
-                            ? 'badge-neutral'
-                            : 'badge-info'
-                        }`}
-                      >
-                        {item.status_eclaim}
-                      </span>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span
+                          className={`cancer-badge ${
+                            item.isCompensated
+                              ? 'badge-success'
+                              : (item.status_eclaim || item.status || '').includes('ยังไม่ได้ส่ง')
+                              ? 'badge-neutral'
+                              : 'badge-info'
+                          }`}
+                        >
+                          {item.status_eclaim || item.status || '- :: ยังไม่ได้ส่ง'}
+                        </span>
+                        {item.rep && (
+                          <span className="font-mono text-xs text-slate-500 font-medium">
+                            Rep: {item.rep}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="col-center font-semibold tabular-nums">
                       {formatMoney(item.compensated)}
@@ -1240,13 +1256,19 @@ export default function CancerFundAdpClient({ initialData = null }: CancerFundAd
 
                   <div className="cancer-detail-section-title">ข้อมูลการชดเชยและ e-Claim</div>
                   <div className="cancer-detail-item">
-                    <span className="cancer-detail-label">สถานะ e-Claim</span>
-                    <span className="cancer-detail-value">{selectedItem.status_eclaim}</span>
+                    <span className="cancer-detail-label">สถานะ e-Claim / REP</span>
+                    <span className="cancer-detail-value">{selectedItem.status_eclaim || selectedItem.status}</span>
                   </div>
                   <div className="cancer-detail-item">
-                    <span className="cancer-detail-label">เลข Rep / Subfund</span>
-                    <span className="cancer-detail-value">
-                      {selectedItem.rep || '—'} {selectedItem.subfund ? `(${selectedItem.subfund})` : ''}
+                    <span className="cancer-detail-label">เลข Rep / Fund</span>
+                    <span className="cancer-detail-value font-mono">
+                      {selectedItem.rep || '—'} {selectedItem.subfund ? `(${selectedItem.subfund})` : selectedItem.fund ? `(${selectedItem.fund})` : ''}
+                    </span>
+                  </div>
+                  <div className="cancer-detail-item">
+                    <span className="cancer-detail-label">ยอดค่ารักษาเรียกเก็บ (บาท)</span>
+                    <span className="cancer-detail-value font-semibold">
+                      {formatMoney(selectedItem.income)}
                     </span>
                   </div>
                   <div className="cancer-detail-item">

@@ -201,8 +201,8 @@ export class RcmAncService {
     const sortBy: AncSortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
     const exportAll = Boolean(params.exportAll)
+    const pageSize = exportAll ? 1_000_000 : Math.max(1, Number(params.pageSize || 50))
 
     const cacheKey = `rcm-anc-2-4-30011-${ds1}-${ds2}`
     if (params.refresh) {
@@ -558,8 +558,8 @@ export class RcmAncService {
     const sortBy: AncService23SortField = params.sortBy || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(10, Number(params.pageSize || 50)))
     const exportAll = Boolean(params.exportAll)
+    const pageSize = exportAll ? 1_000_000 : Math.max(1, Number(params.pageSize || 50))
 
     const cacheKey = `rcm-anc-service-2-3-${ds1}-${ds2}`
     if (params.refresh) {
@@ -572,7 +572,7 @@ export class RcmAncService {
         if (executor === queryClinicalDb) {
           try {
             const gwRes = await apiGateway.clinical.getRcmFundData('anc', { ds1, ds2, serviceType: '2.3' })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
+            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows) && gwRes.data.rawRows.length > 0) {
               return gwRes.data.rawRows as unknown as AncService23Item[]
             }
           } catch {
@@ -669,7 +669,13 @@ export class RcmAncService {
             LEFT JOIN vn_stat v ON v.vn = oo.vn
             WHERE oo.vstdate BETWEEN ? AND ?
               AND IFNULL(oo.vn, '') <> ''
-              AND (d.name LIKE '%ultrasound%' OR d.name LIKE '%อัลตราซาวด์%' OR d.name LIKE '%อัลตร้าซาวด์%' OR d.billcode LIKE '%887%')
+              AND (
+                d.billcode IN ('30010', '52612')
+                OR d.icode IN ('3002551', '3002605', '3000516', '3002083')
+                OR d.name LIKE '%ทารก%'
+                OR d.name LIKE '%สูติ%'
+                OR d.billcode LIKE '%887%'
+              )
               AND (v.sex = '2' OR v.sex IS NULL)
               
             UNION
@@ -720,7 +726,13 @@ export class RcmAncService {
             FROM opitemrece oo
             JOIN nondrugitems d ON d.icode = oo.icode
             WHERE oo.vstdate BETWEEN ? AND ?
-              AND (d.name LIKE '%ultrasound%' OR d.name LIKE '%อัลตราซาวด์%' OR d.name LIKE '%อัลตร้าซาวด์%' OR d.billcode LIKE '%887%')
+              AND (
+                d.billcode IN ('30010', '52612')
+                OR d.icode IN ('3002551', '3002605', '3000516', '3002083')
+                OR d.name LIKE '%ทารก%'
+                OR d.name LIKE '%สูติ%'
+                OR d.billcode LIKE '%887%'
+              )
             GROUP BY oo.vn
           ) srv ON srv.vn = o.vn
 
@@ -771,8 +783,9 @@ export class RcmAncService {
                    SUBSTRING_INDEX(GROUP_CONCAT(IF(m.status = '4', m.rep, NULL) ORDER BY m.eclaim_no DESC), ',', 1) AS rep,
                    SUBSTRING_INDEX(GROUP_CONCAT(m.sums_serviceitem ORDER BY m.eclaim_no DESC), ',', 1) AS compensated,
                    SUBSTRING_INDEX(GROUP_CONCAT(COALESCE(ecs.name, m.status) ORDER BY m.eclaim_no DESC), ',', 1) AS statusname,
-                   MAX(IF(m.code_id = '30008' OR m.code_id = '30009', 'Y', NULL)) AS service
+                   MAX(IF(pp.itemname REGEXP '30008|30009|30010' OR m.code_id = '30008' OR m.code_id = '30009', 'Y', NULL)) AS service
             FROM eclaimdb.m_registerdata m
+            LEFT JOIN eclaimdb.m_ppcom pp ON pp.eclaim_no = m.eclaim_no
             LEFT JOIN rcmdb.eclaimstatus ecs ON ecs.code = m.status
             WHERE m.person_type = '1' AND IFNULL(m.opdseq, '') <> ''
             GROUP BY m.opdseq

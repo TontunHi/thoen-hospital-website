@@ -130,7 +130,7 @@ export default function ClopidogrelUsageClient({
   const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages ?? 1)
   const [adpMapping, setAdpMapping] = useState<ClopidogrelAdpMappingCheck>(
     initialData?.adpMapping ?? {
-      adpCode: '3799977101',
+      adpCode: '37999771001',
       isMapped: true,
       mappedCount: 0,
       items: [],
@@ -246,7 +246,7 @@ export default function ClopidogrelUsageClient({
   useEffect(() => {
     if (isFirstMount.current) {
       isFirstMount.current = false
-      if (initialData) return
+      if (initialData && initialData.items && initialData.items.length > 0) return
     }
     fetchData()
   }, [fetchData, initialData])

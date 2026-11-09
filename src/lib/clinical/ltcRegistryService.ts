@@ -202,7 +202,7 @@ export class LtcRegistryService {
    */
   static async listRegistries(params: LtcListParams = {}): Promise<LtcListResult> {
     const page = Math.max(1, Number(params.page) || 1)
-    const limit = Math.max(1, Math.min(1000, Number(params.limit) || 20))
+    const limit = Math.max(1, Number(params.limit) || 20)
     const search = (params.search || '').trim().toLowerCase()
     const areaZone = (params.areaZone || '').trim()
 

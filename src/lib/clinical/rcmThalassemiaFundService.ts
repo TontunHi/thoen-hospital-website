@@ -1,5 +1,4 @@
 import { queryClinicalDb } from '@/lib/clinicalDb'
-import { apiGateway } from '@/lib/apiGateway'
 import { getCachedData, invalidateCacheKey } from '@/lib/cache'
 import {
   resolveFiscalDateRange,
@@ -254,7 +253,7 @@ export class RcmThalassemiaFundService {
     const sortBy = (params.sortBy as ThalassemiaOpdSortField) || 'vstdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(1, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-thalassemia-fund-opd-${ds1}-${ds2}`
@@ -265,16 +264,6 @@ export class RcmThalassemiaFundService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getRcmFundData('thalassemia-fund-opd', { ds1, ds2 })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              return gwRes.data.rawRows
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
 
         const sql = `
           SELECT 
@@ -585,7 +574,7 @@ export class RcmThalassemiaFundService {
     const sortBy = (params.sortBy as ThalassemiaIpdSortField) || 'dchdate'
     const sortOrder: 'asc' | 'desc' = params.sortOrder || 'desc'
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = Math.min(500, Math.max(1, Number(params.pageSize || 50)))
+    const pageSize = Math.max(1, Number(params.pageSize || 50))
     const exportAll = Boolean(params.exportAll)
 
     const cacheKey = `rcm-thalassemia-fund-ipd-${ds1}-${ds2}`
@@ -596,16 +585,6 @@ export class RcmThalassemiaFundService {
     const rawRows = await getCachedData(
       cacheKey,
       async () => {
-        if (executor === queryClinicalDb) {
-          try {
-            const gwRes = await apiGateway.clinical.getRcmFundData('thalassemia-fund-ipd', { ds1, ds2 })
-            if (gwRes && gwRes.data && Array.isArray(gwRes.data.rawRows)) {
-              return gwRes.data.rawRows
-            }
-          } catch {
-            // Fallback to executor query
-          }
-        }
 
         const sql = `
           SELECT 

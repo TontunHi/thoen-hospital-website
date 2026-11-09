@@ -926,7 +926,6 @@ export class RcmDashboardService {
             LEFT JOIN doctor d ON d.code = o.doctor
             WHERE ${visitWhere.join(' AND ')}
             ORDER BY o.vstdate DESC, o.vsttime DESC
-            LIMIT 1000
           `
           const vRows = await executor(visitQuery, visitParams)
           visitsData = (vRows as any[]).map((r) => ({
@@ -1145,7 +1144,6 @@ export class RcmDashboardService {
           ${pttype ? 'AND o.pttype = ?' : ''}
           GROUP BY o.vn
           ORDER BY o.vstdate DESC, o.vsttime DESC
-          LIMIT 1000
         `
 
         const queryParams = pttype ? [ds1, ds2, pttype] : [ds1, ds2]
@@ -1930,7 +1928,7 @@ export class RcmDashboardService {
     const pttype = (params.pttype || '').trim()
     const search = (params.search || '').trim()
     const page = Math.max(1, Number(params.page || 1))
-    const pageSize = params.exportAll ? 10000 : Math.max(1, Math.min(200, Number(params.pageSize || 50)))
+    const pageSize = params.exportAll ? 1000000 : Math.max(1, Number(params.pageSize || 50))
     const offset = (page - 1) * pageSize
 
     // In production with default queryClinicalDb executor, use dedicated Gateway endpoint

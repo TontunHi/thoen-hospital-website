@@ -69,11 +69,13 @@ function formatCidDisplay(cid?: string | null): string {
 export interface AncService23ClientProps {
   initialData?: any | null
   initialRange?: { startDate: string; endDate: string }
+  initialError?: string | null
 }
 
 export default function AncService23Client({
   initialData,
   initialRange,
+  initialError = null,
 }: AncService23ClientProps = {}) {
   const today = useMemo(() => new Date(), [])
   const curCalYear = today.getFullYear()
@@ -124,10 +126,10 @@ export default function AncService23Client({
   const [pageSize, setPageSize] = useState<number>(50)
 
   // Data fetching states
-  const [loading, setLoading] = useState<boolean>(!initialData)
+  const [loading, setLoading] = useState<boolean>(!initialData && !initialError)
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const [isExporting, setIsExporting] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(initialError)
   const [items, setItems] = useState<AncService23Item[]>(initialData?.items || [])
   const [totalCount, setTotalCount] = useState<number>(initialData?.totalCount || 0)
   const [totalPages, setTotalPages] = useState<number>(initialData?.totalPages || 1)
