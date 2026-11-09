@@ -307,35 +307,78 @@ export interface IndicatorMetricMeta {
 /**
  * Determines whether a KPI indicator's numerator/denominator formula
  * should be calculated as a percentage (x 100) or as a direct division/average/ratio (num / den).
+ *
+ * Rules:
+ * 1. If targetUnit is '%' -> true
+ * 2. If title contains 'ร้อยละ' or '%' -> true
+ * 3. If explicit unit exists (and not '%') -> false (e.g. วัน, นาที, ชั่วโมง, ครั้ง, เท่า, คะแนน, บาท, ราย, ต่อพัน)
+ * 4. If title contains 'อัตรา', 'อัตราส่วน', 'สัดส่วน', 'Ratio', 'ค่าเฉลี่ย', 'ระยะเวลาเฉลี่ย' -> false
+ * 5. If numerator name implies unit duration/currency -> false
+ * 6. Default fallback -> true
  */
 export function isPercentageIndicator(ind?: IndicatorMetricMeta | null): boolean {
   if (!ind) return true
-  const unit = (ind.targetUnit ?? ind.target_unit ?? '').trim()
-  if (unit === '%') return true
-  if (unit && unit !== '%') return false // e.g. วัน, นาที, ชั่วโมง, ครั้ง, เท่า, คะแนน, บาท
-
   const title = (ind.title || '').trim()
+  const unit = (ind.targetUnit ?? ind.target_unit ?? '').trim()
+
+  // 1. If title explicitly has 'อัตราส่วน', 'สัดส่วน', 'Ratio' (and does not say 'ร้อยละ') -> ALWAYS false (Ratio)
   if (
-    title.includes('ค่าเฉลี่ย') || 
-    title.includes('ระยะเวลาเฉลี่ย') ||
-    title.includes('Ratio') ||
     title.includes('อัตราส่วน') ||
-    title.includes('สัดส่วน')
+    title.includes('สัดส่วน') ||
+    title.includes('Ratio')
   ) {
     if (!title.includes('ร้อยละ') && !title.includes('%')) {
       return false
     }
   }
 
+  // 2. If explicit unit exists (and not '%') -> false (e.g. เท่า, วัน, นาที, ชั่วโมง, ครั้ง, คะแนน, บาท, ราย, ต่อพัน)
+  if (unit && unit !== '%') return false
+
+  // 3. If title explicitly has 'ร้อยละ' or '%' -> true
+  if (title.includes('ร้อยละ') || title.includes('%')) return true
+
+  // 4. If targetUnit is '%' (and not a ratio title) -> true
+  if (unit === '%') return true
+
+  // 5. If title has 'อัตรา', 'ค่าเฉลี่ย', 'ระยะเวลาเฉลี่ย' -> false
+  if (
+    title.includes('ค่าเฉลี่ย') || 
+    title.includes('ระยะเวลาเฉลี่ย') ||
+    title.includes('อัตรา')
+  ) {
+    return false
+  }
+
   const numName = (ind.numeratorName ?? ind.numerator_name ?? '').trim()
   if (
-    (numName.includes('นาที') || numName.includes('วัน') || numName.includes('ชั่วโมง') || numName.includes('บาท')) &&
-    !title.includes('ร้อยละ') && !title.includes('%')
+    (numName.includes('นาที') || numName.includes('วัน') || numName.includes('ชั่วโมง') || numName.includes('บาท'))
   ) {
     return false
   }
 
   return true
+}
+
+/**
+ * Determines whether an indicator is a Rate/Ratio indicator (displays fixed 2 decimals e.g. 0.90)
+ */
+export function isRateIndicator(ind?: IndicatorMetricMeta | null): boolean {
+  if (!ind) return false
+  const title = (ind.title || '').trim()
+  const unit = (ind.targetUnit ?? ind.target_unit ?? '').trim()
+
+  if (title.includes('ร้อยละ') || title.includes('%')) return false
+
+  return (
+    title.includes('อัตราส่วน') ||
+    title.includes('สัดส่วน') ||
+    title.includes('Ratio') ||
+    title.includes('อัตรา') ||
+    unit === 'เท่า' ||
+    unit === 'อัตรา' ||
+    unit.includes('ต่อ')
+  )
 }
 
 /**
@@ -352,6 +395,50 @@ export function calculateIndicatorResult(
     return null
   }
   const raw = isPercentage ? (num / den) * 100 : (num / den)
-  return parseFloat(raw.toFixed(2))
+  return parseFloat(raw.toFixed(4))
+}
+
+/**
+ * Formats a number with Thai comma separators (e.g. 15000 -> 15,000)
+ */
+export function formatKpiNumber(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(Number(val))) return '-'
+  return Number(val).toLocaleString('th-TH')
+}
+
+/**
+ * Formats the KPI result display based on indicator type:
+ * - Percentage: trimmed decimals (up to 2 places) + '%' e.g. 85%, 92.5%, 78.25%
+ * - Rate: fixed 2 decimals e.g. 0.90, 1.00, 2.50
+ * - Other: trimmed decimals + custom unit (if any)
+ */
+export function formatKpiResultValue(
+  val: number | null | undefined,
+  ind?: IndicatorMetricMeta | null,
+  fallbackText?: string | null
+): string {
+  if (val === null || val === undefined || isNaN(Number(val))) {
+    return fallbackText || '-'
+  }
+
+  const num = Number(val)
+  const isPct = isPercentageIndicator(ind)
+  const isRate = isRateIndicator(ind)
+  const unit = (ind?.targetUnit ?? ind?.target_unit ?? '').trim()
+
+  if (isPct) {
+    const trimmed = parseFloat(num.toFixed(2))
+    return `${trimmed}%`
+  }
+
+  if (isRate) {
+    const rateFmt = num.toFixed(2)
+    const customUnit = unit && unit !== '%' && unit !== 'อัตรา' ? ` ${unit}` : ''
+    return `${rateFmt}${customUnit}`
+  }
+
+  const trimmed = parseFloat(num.toFixed(2))
+  const customUnit = unit ? ` ${unit}` : ''
+  return `${trimmed}${customUnit}`
 }
 

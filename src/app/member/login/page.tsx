@@ -345,14 +345,14 @@ function MemberLoginForm() {
 
         <form onSubmit={handleRequestOtp} className="memberLoginForm">
           <div className="formGroup">
-            <label htmlFor="username">ชื่อผู้ใช้งาน หรือเลขบัตรประชาชน</label>
+            <label htmlFor="username">เลขบัตรประชาชน</label>
             <input
               id="username"
               type="text"
               className="formInput tabularNums"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="ชื่อผู้ใช้งาน หรือเลข 13 หลัก"
+              placeholder="เลขบัตรประชาชน 13 หลัก"
               autoComplete="username"
               required
               disabled={isAnyBusy}

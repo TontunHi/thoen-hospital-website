@@ -17,7 +17,8 @@ import {
   ExternalLink,
   ChevronRight,
   Target,
-  Coins
+  Coins,
+  HeartPulse
 } from 'lucide-react'
 import './page.css'
 
@@ -110,6 +111,14 @@ export default async function ServicePage() {
       btnText: 'ติดตามการทำ CXR',
       category: 'clinical',
       icon: ScanLine,
+    },
+    {
+      title: 'หมออนามัยครอบครัว (มอค.)',
+      desc: 'ระบบสืบค้นและติดตามทะเบียนผู้ป่วยกลุ่มเสี่ยง โรคเรื้อรัง และกลุ่มเป้าหมายในและนอกเขตรับผิดชอบ โรงพยาบาลเถิน (17 กลุ่มโรค)',
+      link: '/service/mok',
+      btnText: 'เข้าสู่ระบบ มอค.',
+      category: 'clinical',
+      icon: HeartPulse,
     },
 
     // Administrative & Management

@@ -264,6 +264,47 @@ describe('ApiGatewayClient (Ticket 01)', () => {
         expect.objectContaining({ method: 'GET' })
       )
     })
+
+    it('clinical.getMokList calls /api/v1/clinical/mok/list with params', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          count: 1,
+          data: [{ cid: '1529900000000', hn: '0001234', ptname: 'นายทดสอบ หมอครอบครัว' }]
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.clinical.getMokList({ category: 'asthma', catchment: 'in_catchment' })
+
+      expect(res).toHaveLength(1)
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/clinical/mok/list?category=asthma&catchment=in_catchment'),
+        expect.objectContaining({ method: 'GET' })
+      )
+    })
+
+    it('clinical.getMokSummary calls /api/v1/clinical/mok/summary', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: { asthma: 30, ca: 12, dm: 150 }
+        })
+      })
+
+      const client = createApiGatewayClient({ fetchFn: mockFetch as unknown as typeof fetch })
+      const res = await client.clinical.getMokSummary({ catchment: 'in_catchment' })
+
+      expect(res).toEqual({ asthma: 30, ca: 12, dm: 150 })
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/clinical/mok/summary?catchment=in_catchment'),
+        expect.objectContaining({ method: 'GET' })
+      )
+    })
   })
 
 

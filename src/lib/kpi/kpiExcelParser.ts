@@ -71,6 +71,8 @@ export function parseTarget(raw?: string | null): { operator: string | null; val
     unit = '%'
   } else if (text.includes('ต่อพัน') || text.includes('/1,000') || text.includes('/1000')) {
     unit = 'ต่อพัน'
+  } else if (text.includes('เท่า')) {
+    unit = 'เท่า'
   } else if (text.includes('วัน')) {
     unit = 'วัน'
   } else if (text.includes('ครั้ง')) {

@@ -822,6 +822,126 @@ describe('KpiTrackerClient - Dynamic Stats Summary based on Filters', () => {
     // Check reassurance text about keeping answers
     expect(screen.getByText(/ระบบจะดึงคำตอบของแต่ละคำถาม \(ตัวตั้ง ตัวหาร ผลงาน และสถานะประเมิน\) ติดมาด้วยในไฟล์ Excel/)).toBeInTheDocument()
   })
+
+  it('formats percentage with % and rate indicators with 2 decimal places (e.g. 0.90)', async () => {
+    const rateIndicators = [
+      {
+        id: 10,
+        topicId: 1,
+        sequence: '1',
+        category: 'งานคลินิก',
+        subcategory: null,
+        code: 'CL-01',
+        oldCode: null,
+        title: 'อัตราส่วนการใช้เตียงผู้ป่วยหนัก',
+        targetValue: 0.8,
+        targetOperator: '<=',
+        targetUnit: null,
+        frequency: 'ราย 6 เดือน',
+        indicatorType: 'HA',
+        isAutoCalc: true,
+        numeratorName: 'จำนวนวันครองเตียง',
+        denominatorName: 'จำนวนวันเปิดให้บริการ',
+        responsibleName: 'พว.สุดใจ มีสุข',
+        displayOrder: 1,
+        currentEntry: {
+          id: 501,
+          indicatorId: 10,
+          periodKey: 'H1',
+          numeratorValue: 18000,
+          denominatorValue: 20000,
+          resultValue: 0.9,
+          status: 'FAIL',
+        },
+      },
+      {
+        id: 11,
+        topicId: 1,
+        sequence: '2',
+        category: 'งานบริการ',
+        subcategory: null,
+        code: 'SR-01',
+        oldCode: null,
+        title: 'ร้อยละผู้ป่วยได้รับบริการตามเวลา',
+        targetValue: 80,
+        targetOperator: '>=',
+        targetUnit: null,
+        frequency: 'ราย 6 เดือน',
+        indicatorType: 'HA',
+        isAutoCalc: true,
+        numeratorName: 'จำนวนผู้ป่วยทันเวลา',
+        denominatorName: 'จำนวนผู้ป่วยทั้งหมด',
+        responsibleName: 'พว.วิภาดา บริการดี',
+        displayOrder: 2,
+        currentEntry: {
+          id: 502,
+          indicatorId: 11,
+          periodKey: 'H1',
+          numeratorValue: 8550,
+          denominatorValue: 10000,
+          resultValue: 85.5,
+          status: 'PASS',
+        },
+      },
+    ]
+
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/kpi/topics')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              fiscalYears: ['2569'],
+              defaultYear: '2569',
+              topics: [
+                { id: 1, title: 'ตัวชี้วัด 2569', fiscalYear: '2569', isCurrent: true }
+              ]
+            }
+          })
+        }
+      }
+      if (url.includes('/api/kpi/indicators')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              indicators: rateIndicators,
+              categories: ['งานคลินิก', 'งานบริการ']
+            }
+          })
+        }
+      }
+      if (url.includes('/api/kpi/stats')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: { total: 2, pass: 1, fail: 1, pending: 0, noReport: 0 }
+          })
+        }
+      }
+      return { ok: true, json: async () => ({ success: true }) }
+    }))
+
+    render(<KpiTrackerClient currentUser={mockUser} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('อัตราส่วนการใช้เตียงผู้ป่วยหนัก')).toBeInTheDocument()
+      expect(screen.getByText('ร้อยละผู้ป่วยได้รับบริการตามเวลา')).toBeInTheDocument()
+    })
+
+    // Rate indicator should show 0.90 with 2 decimals
+    expect(screen.getAllByText('0.90').length).toBeGreaterThanOrEqual(1)
+    // Percentage indicator should show 85.5%
+    expect(screen.getAllByText('85.5%').length).toBeGreaterThanOrEqual(1)
+
+    // Numerator / Denominator should be formatted with commas
+    expect(screen.getAllByText('(18,000/20,000)').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('(8,550/10,000)').length).toBeGreaterThanOrEqual(1)
+  })
 })
 
 

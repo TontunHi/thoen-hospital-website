@@ -397,14 +397,16 @@ export class KpiService {
         let resVal = r.entryResultValue !== null ? parseFloat(r.entryResultValue) : null
         let entryStatus = r.entryStatus
 
-        // Handle case where resultValue was null but 0/0 or num/den was recorded
-        if (resVal === null && numVal !== null && denVal !== null) {
+        const isPct = isPercentageIndicator({
+          title: ind.title,
+          targetUnit: ind.targetUnit,
+          numeratorName: ind.numeratorName,
+        })
+
+        // Handle case where resultValue was null or miscalculated as percentage for ratio indicator
+        const isMiscalcedRatio = !isPct && resVal !== null && numVal !== null && denVal !== null && denVal > 0 && numVal < denVal && resVal > 1
+        if ((resVal === null || isMiscalcedRatio) && numVal !== null && denVal !== null) {
           if (denVal > 0) {
-            const isPct = isPercentageIndicator({
-              title: ind.title,
-              targetUnit: ind.targetUnit,
-              numeratorName: ind.numeratorName,
-            })
             resVal = calculateIndicatorResult(numVal, denVal, isPct)
           } else if (denVal === 0 && numVal === 0) {
             resVal = 0
@@ -544,13 +546,15 @@ export class KpiService {
         let resVal = e.resultValue !== null ? parseFloat(e.resultValue) : null
         let entryStatus = e.status
 
-        if (resVal === null && numVal !== null && denVal !== null) {
+        const isPct = isPercentageIndicator({
+          title: r.title,
+          targetUnit: r.targetUnit,
+          numeratorName: r.numeratorName,
+        })
+
+        const isMiscalcedRatio = !isPct && resVal !== null && numVal !== null && denVal !== null && denVal > 0 && numVal < denVal && resVal > 1
+        if ((resVal === null || isMiscalcedRatio) && numVal !== null && denVal !== null) {
           if (denVal > 0) {
-            const isPct = isPercentageIndicator({
-              title: r.title,
-              targetUnit: r.targetUnit,
-              numeratorName: r.numeratorName,
-            })
             resVal = calculateIndicatorResult(numVal, denVal, isPct)
           } else if (denVal === 0 && numVal === 0) {
             resVal = 0

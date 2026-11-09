@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { KpiService } from '@/lib/kpi/kpiService'
-import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, isPercentageIndicator, calculateIndicatorResult } from '@/lib/kpi/kpiTimeUtils'
+import { checkPeriodStatus, getPeriodsForFrequency, checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiNumber } from '@/lib/kpi/kpiTimeUtils'
 
 // Mock audit logging
 vi.mock('@/lib/audit', () => ({
@@ -412,9 +412,14 @@ describe('KpiService with Mock QueryExecutor', () => {
 
   it('correctly identifies percentage vs non-percentage (average/ratio) indicators', () => {
     // Percentage indicators
-    expect(isPercentageIndicator({ title: 'ร้อยละการผ่าตัดคลอด', targetUnit: '%' })).toBe(true)
-    expect(isPercentageIndicator({ title: 'อัตราการติดเชื้อ', targetUnit: null })).toBe(true)
+    expect(isPercentageIndicator({ title: 'ร้อยละการผ่าตัดคลอด', targetUnit: null })).toBe(true)
+    expect(isPercentageIndicator({ title: 'อัตราการติดเชื้อ', targetUnit: '%' })).toBe(true)
     expect(isPercentageIndicator({ title: 'ร้อยละความพึงพอใจ', targetUnit: null })).toBe(true)
+
+    // Rate / Ratio indicators (title with อัตรา and no %)
+    expect(isPercentageIndicator({ title: 'อัตราการติดเชื้อ', targetUnit: null })).toBe(false)
+    expect(isRateIndicator({ title: 'อัตราการติดเชื้อ', targetUnit: null })).toBe(true)
+    expect(isRateIndicator({ title: 'อัตราการครองเตียง', targetUnit: null })).toBe(true)
 
     // Non-percentage indicators (average / duration / ratio)
     expect(isPercentageIndicator({
@@ -433,6 +438,41 @@ describe('KpiService with Mock QueryExecutor', () => {
       title: 'อัตราส่วนการขอใช้โลหิตต่อการใช้โลหิตจริง (Crossmatch-to-Transfusion Ratio: C:T Ratio)',
       targetUnit: null
     })).toBe(false)
+
+    // Financial ratio indicators (e.g. FR-LQR-0101 อัตราส่วนทุนหมุนเวียน CR)
+    expect(isPercentageIndicator({
+      title: 'อัตราส่วนทุนหมุนเวียน CR',
+      targetUnit: 'เท่า'
+    })).toBe(false)
+    expect(isPercentageIndicator({
+      title: 'อัตราส่วนทุนหมุนเวียน CR',
+      targetUnit: '%' // Even if legacy targetUnit was mistakenly '%'
+    })).toBe(false)
+    expect(isRateIndicator({
+      title: 'อัตราส่วนทุนหมุนเวียน CR',
+      targetUnit: 'เท่า'
+    })).toBe(true)
+    expect(formatKpiResultValue(0.98, { title: 'อัตราส่วนทุนหมุนเวียน CR', targetUnit: 'เท่า' })).toBe('0.98 เท่า')
+  })
+
+  it('correctly formats KPI results for percentage (%) and rate (2 decimals)', () => {
+    // Percentage: trims trailing zeros, adds %
+    expect(formatKpiResultValue(85, { title: 'ร้อยละความพึงพอใจ' })).toBe('85%')
+    expect(formatKpiResultValue(85.5, { title: 'ร้อยละความพึงพอใจ' })).toBe('85.5%')
+    expect(formatKpiResultValue(78.25, { title: 'ร้อยละความพึงพอใจ' })).toBe('78.25%')
+    expect(formatKpiResultValue(85.5, { title: 'อัตราการรอดชีวิต', targetUnit: '%' })).toBe('85.5%')
+
+    // Rate: fixed 2 decimals
+    expect(formatKpiResultValue(0.9, { title: 'อัตราการติดเชื้อ' })).toBe('0.90')
+    expect(formatKpiResultValue(1, { title: 'อัตราส่วนการใช้เตียง' })).toBe('1.00')
+    expect(formatKpiResultValue(0, { title: 'อัตราความผิดพลาด' })).toBe('0.00')
+    expect(formatKpiResultValue(1.234, { title: 'อัตราการเกิดเหตุการณ์' })).toBe('1.23')
+
+    // Number with comma formatting
+    expect(formatKpiNumber(15000)).toBe('15,000')
+    expect(formatKpiNumber(1250000)).toBe('1,250,000')
+    expect(formatKpiNumber(0)).toBe('0')
+    expect(formatKpiNumber(null)).toBe('-')
   })
 
   it('correctly calculates results without multiplying by 100 for average indicators', async () => {

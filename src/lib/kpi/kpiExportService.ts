@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs'
 import { queryMemberDb } from '@/lib/memberDb'
 import { KpiService, KpiIndicatorItem, QueryExecutor, cleanPeriodLabel } from './kpiService'
-import { checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, getPeriodsForFrequency, matchesPeriodKey, isPercentageIndicator, calculateIndicatorResult } from './kpiTimeUtils'
+import { checkIndicatorDueStatus, isIndicatorAnsweredForPeriod, getPeriodsForFrequency, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiNumber } from './kpiTimeUtils'
 
 export interface KpiExportOptions {
   topicId: number
@@ -230,6 +230,13 @@ function renderWorksheetData(
 
     // Col 14: Result Display (Clean formatted value)
     let resultDisplay: string | number = '-'
+    const indMeta = {
+      title: ind.title,
+      targetUnit: ind.targetUnit,
+      numeratorName: ind.numeratorName,
+    }
+    const isPct = isPercentageIndicator(indMeta)
+    const isRate = isRateIndicator(indMeta)
     const hasNumDen = Boolean(
       (ind.numeratorName || ind.denominatorName) &&
       entry?.numeratorValue !== null &&
@@ -241,24 +248,17 @@ function renderWorksheetData(
     if (entry && hasNumDen) {
       const num = Number(entry.numeratorValue)
       const den = Number(entry.denominatorValue)
-      const isPct = isPercentageIndicator({
-        title: ind.title,
-        targetUnit: ind.targetUnit,
-        numeratorName: ind.numeratorName,
-      })
-      const defaultUnit = isPct ? '%' : ''
-      const unitStr = ind.targetUnit || defaultUnit
 
       if (num === 0 && den === 0) {
-        resultDisplay = isPct ? '0% (ไม่มีเคส)' : '0 (ไม่มีเคส)'
-      } else if (entry.resultValue !== null && entry.resultValue !== undefined) {
-        resultDisplay = `${entry.resultValue}${unitStr}`
+        resultDisplay = isPct ? '0% (ไม่มีเคส)' : (isRate ? '0.00 (ไม่มีเคส)' : '0 (ไม่มีเคส)')
       } else if (den > 0) {
         const val = calculateIndicatorResult(num, den, isPct)
-        resultDisplay = `${val}${unitStr}`
+        resultDisplay = formatKpiResultValue(val, indMeta)
+      } else if (entry.resultValue !== null && entry.resultValue !== undefined) {
+        resultDisplay = formatKpiResultValue(entry.resultValue, indMeta)
       }
     } else if (entry?.resultValue !== null && entry?.resultValue !== undefined) {
-      resultDisplay = `${entry.resultValue}${ind.targetUnit || ''}`
+      resultDisplay = formatKpiResultValue(entry.resultValue, indMeta)
     } else if (entry?.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน') {
       resultDisplay = entry.resultText
     }
@@ -301,29 +301,25 @@ function renderWorksheetData(
         if (match && matchHasNumDen) {
           const num = Number(match.numeratorValue)
           const den = Number(match.denominatorValue)
-          const numFmt = num.toLocaleString('en-US')
-          const denFmt = den.toLocaleString('en-US')
+          const numFmt = formatKpiNumber(num)
+          const denFmt = formatKpiNumber(den)
 
-          const isPct = isPercentageIndicator({
-            title: ind.title,
-            targetUnit: ind.targetUnit,
-            numeratorName: ind.numeratorName,
-          })
-          const defaultUnit = isPct ? '%' : ''
-          const unitStr = ind.targetUnit || defaultUnit
+          const isPct = isPercentageIndicator(indMeta)
+          const isRate = isRateIndicator(indMeta)
 
           if (num === 0 && den === 0) {
-            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${isPct ? '0% (ไม่มีเคส)' : '0 (ไม่มีเคส)'}`
+            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${isPct ? '0% (ไม่มีเคส)' : (isRate ? '0.00 (ไม่มีเคส)' : '0 (ไม่มีเคส)')}`
           } else {
             const calcVal = match.resultValue !== null && match.resultValue !== undefined
               ? match.resultValue
               : (den > 0 ? (calculateIndicatorResult(num, den, isPct) ?? 0) : 0)
-            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${calcVal}${unitStr}`
+            const valDisplay = formatKpiResultValue(calcVal, indMeta)
+            ansText = `ตัวตั้ง = ${numFmt} | ตัวหาร = ${denFmt} | ผลงาน = ${valDisplay}`
           }
         } else {
           let valDisplay = '-'
           if (match.resultValue !== null && match.resultValue !== undefined) {
-            valDisplay = `${match.resultValue}${ind.targetUnit || ''}`
+            valDisplay = formatKpiResultValue(match.resultValue, indMeta)
           } else if (match.resultText && match.resultText.trim() !== '' && match.resultText !== 'ไม่มีรายงาน') {
             valDisplay = match.resultText
           }

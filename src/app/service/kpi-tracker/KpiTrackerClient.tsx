@@ -33,7 +33,7 @@ import {
 import readXlsxFile from 'read-excel-file/universal'
 import { parseKpiRows, ParsedKpiRow } from '@/lib/kpi/kpiExcelParser'
 import { KpiIndicatorItem, KpiTopicItem, KpiDashboardStats } from '@/lib/kpi/kpiService'
-import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, calculateIndicatorResult, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
+import { getPeriodsForFrequency, checkPeriodStatus, checkIndicatorDueStatus, IndicatorDueStatus, isIndicatorAnsweredForPeriod, matchesPeriodKey, isPercentageIndicator, isRateIndicator, calculateIndicatorResult, formatKpiResultValue, formatKpiNumber, IndicatorMetricMeta } from '@/lib/kpi/kpiTimeUtils'
 import './kpi-tracker.css'
 
 interface CurrentUser {
@@ -83,7 +83,7 @@ function formatAnswerDisplay(
   entry: any,
   unit?: string | null,
   ind?: IndicatorMetricMeta | null
-): { main: string; sub?: string } | null {
+): { main: string; sub?: string; fullSub?: string } | null {
   if (!entry) return null
   const hasValue = entry.resultValue !== null && entry.resultValue !== undefined
   const hasText = Boolean(entry.resultText && entry.resultText.trim() !== '' && entry.resultText !== 'ไม่มีรายงาน')
@@ -91,25 +91,36 @@ function formatAnswerDisplay(
 
   if (!hasValue && !hasText && !hasNumDen) return null
 
+  const isPct = isPercentageIndicator(ind)
+
   let main = ''
   if (hasText) {
     main = entry.resultText
-  } else if (hasValue) {
-    main = `${entry.resultValue}${unit || ''}`
-  } else if (hasNumDen) {
-    const isPct = isPercentageIndicator(ind)
-    const val = entry.denominatorValue > 0
-      ? calculateIndicatorResult(entry.numeratorValue, entry.denominatorValue, isPct)
-      : 0
-    main = `${val}${unit || ''}`
+  } else {
+    let rawVal: number | null = null
+    if (hasNumDen && Number(entry.denominatorValue) > 0) {
+      rawVal = calculateIndicatorResult(Number(entry.numeratorValue), Number(entry.denominatorValue), isPct)
+    } else if (hasNumDen && Number(entry.denominatorValue) === 0 && Number(entry.numeratorValue) === 0) {
+      rawVal = 0
+    } else if (hasValue) {
+      rawVal = Number(entry.resultValue)
+    }
+
+    if (rawVal !== null && !isNaN(rawVal)) {
+      main = formatKpiResultValue(rawVal, ind)
+    }
   }
 
   let sub: string | undefined = undefined
+  let fullSub: string | undefined = undefined
   if (hasNumDen) {
-    sub = `(${entry.numeratorValue}/${entry.denominatorValue})`
+    const numFmt = formatKpiNumber(entry.numeratorValue)
+    const denFmt = formatKpiNumber(entry.denominatorValue)
+    sub = `(${numFmt}/${denFmt})`
+    fullSub = `ตัวตั้ง: ${numFmt} / ตัวหาร: ${denFmt}`
   }
 
-  return { main, sub }
+  return { main, sub, fullSub }
 }
 
 function evaluateTargetClient(
@@ -1932,9 +1943,13 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                   const userCanDelete = canDeleteIndicator(ind)
 
                   const isPctInd = isPercentageIndicator(ind)
+                  const isRateInd = isRateIndicator(ind)
                   const defaultTargetUnit = isPctInd ? '%' : ''
-                  const targetText = ind.targetValue !== null && ind.targetValue !== undefined
-                    ? `${ind.targetOperator || '>='} ${ind.targetValue}${ind.targetUnit || defaultTargetUnit}`
+                  const formattedTargetVal = ind.targetValue !== null && ind.targetValue !== undefined
+                    ? (isRateInd ? Number(ind.targetValue).toFixed(2) : parseFloat(Number(ind.targetValue).toFixed(2)))
+                    : null
+                  const targetText = formattedTargetVal !== null
+                    ? `${ind.targetOperator || '>='} ${formattedTargetVal}${ind.targetUnit || defaultTargetUnit}`
                     : (ind.targetRaw || '-')
 
                   return (
@@ -2011,12 +2026,22 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         {targetText}
                       </div>
 
-                      {/* Col 5: ผลงาน (108px) */}
+                      {/* Col 5: ผลงาน (124px) */}
                       <div className="kpiColResult desktopOnly" role="cell">
                         {answerDisplay ? (
-                          <div className="kpiResultBlock">
+                          <div
+                            className="kpiResultBlock"
+                            title={answerDisplay.fullSub ? `${answerDisplay.main} (${answerDisplay.fullSub})` : answerDisplay.main}
+                          >
                             <span className="kpiResultValue">{answerDisplay.main}</span>
-                            {answerDisplay.sub && <span className="kpiResultSub">{answerDisplay.sub}</span>}
+                            {answerDisplay.sub && (
+                              <span
+                                className="kpiResultSub"
+                                title={answerDisplay.fullSub || answerDisplay.sub}
+                              >
+                                {answerDisplay.sub}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="kpiResultEmpty">-</span>
@@ -2032,8 +2057,12 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                         )}
                       </div>
 
-                      {/* Col 6: ผู้รับผิดชอบ (116px) */}
-                      <div className="kpiColResp desktopOnly" role="cell">
+                      {/* Col 6: ผู้รับผิดชอบ (120px) */}
+                      <div
+                        className="kpiColResp desktopOnly"
+                        role="cell"
+                        title={ind.responsibleName || undefined}
+                      >
                         {ind.responsibleName || '-'}
                       </div>
 
@@ -2265,11 +2294,11 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                           {computedPercentage !== null 
                             ? (parseFloat(formNumerator) === 0 && parseFloat(formDenominator) === 0
                                 ? (formCalcMode === 'percentage'
-                                    ? `${formNumerator} ÷ ${formDenominator} = 0% (ไม่มีเคสในรอบนี้)`
-                                    : `${formNumerator} ÷ ${formDenominator} = 0 (ไม่มีเคสในรอบนี้)`)
+                                    ? `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = 0% (ไม่มีเคสในรอบนี้)`
+                                    : `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = 0.00 (ไม่มีเคสในรอบนี้)`)
                                 : (formCalcMode === 'percentage'
-                                    ? `${formNumerator} ÷ ${formDenominator} × 100 = ${computedPercentage}%`
-                                    : `${formNumerator} ÷ ${formDenominator} = ${computedPercentage}${activeIndicator.targetUnit ? ` ${activeIndicator.targetUnit}` : ''}`))
+                                    ? `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} × 100 = ${parseFloat(computedPercentage.toFixed(2))}%`
+                                    : `${formatKpiNumber(parseFloat(formNumerator))} ÷ ${formatKpiNumber(parseFloat(formDenominator))} = ${computedPercentage.toFixed(2)}${activeIndicator.targetUnit && activeIndicator.targetUnit !== '%' && activeIndicator.targetUnit !== 'อัตรา' ? ` ${activeIndicator.targetUnit}` : ''}`))
                             : formNumerator.trim() !== '' && formDenominator.trim() === '0'
                               ? 'ตัวหารเป็น 0 ไม่สามารถคำนวณได้'
                               : 'กรอกตัวตั้งและตัวหารเพื่อคำนวณผลลัพธ์'}
@@ -2533,22 +2562,24 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                               <div className="kpiHistoryAnswerBox">
                                 <span className="kpiHistoryAnswerLabel">คำตอบตัวตั้ง (Numerator):</span>
                                 <span className="kpiHistoryAnswerVal">
-                                  {entry?.numeratorValue !== null && entry?.numeratorValue !== undefined ? entry.numeratorValue : '-'}
+                                  {entry?.numeratorValue !== null && entry?.numeratorValue !== undefined ? formatKpiNumber(entry.numeratorValue) : '-'}
                                 </span>
                               </div>
                               <div className="kpiHistoryAnswerBox">
                                 <span className="kpiHistoryAnswerLabel">คำตอบตัวหาร (Denominator):</span>
                                 <span className="kpiHistoryAnswerVal">
-                                  {entry?.denominatorValue !== null && entry?.denominatorValue !== undefined ? entry.denominatorValue : '-'}
+                                  {entry?.denominatorValue !== null && entry?.denominatorValue !== undefined ? formatKpiNumber(entry.denominatorValue) : '-'}
                                 </span>
                               </div>
                               <div className="kpiHistoryAnswerBox">
                                 <span className="kpiHistoryAnswerLabel">
-                                  {isPercentageIndicator(historyIndicator) ? 'ผลงานคำนวณ (%):' : 'ผลงานคำนวณ:'}
+                                  {isPercentageIndicator(historyIndicator)
+                                    ? 'ผลงานคำนวณ (%):'
+                                    : (isRateIndicator(historyIndicator) ? 'ผลงานคำนวณ (อัตรา):' : 'ผลงานคำนวณ:')}
                                 </span>
                                 <span className="kpiHistoryAnswerVal highlight">
                                   {entry?.resultValue !== null && entry?.resultValue !== undefined
-                                    ? `${entry.resultValue}${historyIndicator.targetUnit || (isPercentageIndicator(historyIndicator) ? '%' : '')}`
+                                    ? formatKpiResultValue(entry.resultValue, historyIndicator, entry?.resultText)
                                     : (entry?.resultText || '-')}
                                 </span>
                               </div>
@@ -2558,7 +2589,7 @@ export function KpiTrackerClient({ currentUser }: { currentUser: CurrentUser }) 
                               <span className="kpiHistoryAnswerLabel">คำตอบผลการดำเนินงาน:</span>
                               <span className="kpiHistoryAnswerVal highlight">
                                 {entry?.resultValue !== null && entry?.resultValue !== undefined
-                                  ? `${entry.resultValue}${historyIndicator.targetUnit || ''}`
+                                  ? formatKpiResultValue(entry.resultValue, historyIndicator, entry?.resultText)
                                   : (entry?.resultText || '-')}
                               </span>
                             </div>

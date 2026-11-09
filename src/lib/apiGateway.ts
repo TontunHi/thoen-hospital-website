@@ -418,6 +418,29 @@ export class ApiGatewayClient {
       if (params?.search) q.set('search', params.search)
       const qs = q.toString() ? `?${q.toString()}` : ''
       return this.get<any>(`/api/v1/clinical/rcm/palliative-care${qs}`)
+    },
+
+    getMokList: <T = Record<string, unknown>>(params: {
+      category: string
+      catchment?: 'in_catchment' | 'out_catchment'
+      hospcode?: string
+    }) => {
+      const q = new URLSearchParams()
+      q.set('category', params.category)
+      if (params.catchment) q.set('catchment', params.catchment)
+      if (params.hospcode) q.set('hospcode', params.hospcode)
+      return this.get<T[]>(`/api/v1/clinical/mok/list?${q.toString()}`)
+    },
+
+    getMokSummary: (params?: {
+      catchment?: 'in_catchment' | 'out_catchment'
+      hospcode?: string
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.catchment) q.set('catchment', params.catchment)
+      if (params?.hospcode) q.set('hospcode', params.hospcode)
+      const qs = q.toString() ? `?${q.toString()}` : ''
+      return this.get<Record<string, number>>(`/api/v1/clinical/mok/summary${qs}`)
     }
   }
 

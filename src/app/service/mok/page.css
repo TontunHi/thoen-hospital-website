@@ -1,0 +1,596 @@
+/* ==========================================
+   หมออนามัยครอบครัว (มอค.) Page Styles
+   Thoen Hospital UI Style System
+   ========================================== */
+
+.mokPage {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 1.5rem;
+  font-family: var(--font-ibm-thai), 'IBM Plex Sans Thai', 'Sarabun', sans-serif;
+  color: #1e293b;
+}
+
+.mokContainer {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* Header Card */
+.mokHeaderCard {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.mokHeaderTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.mokTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.mokIconBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #059669, #10b981);
+  border-radius: 14px;
+  color: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+}
+
+.mokTitleSection h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.mokSubtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0.2rem 0 0 0;
+}
+
+/* Catchment Toggle Pills */
+.catchmentToggleWrapper {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 12px;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.catchmentBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.catchmentBtn:hover {
+  color: #1e293b;
+}
+
+.catchmentBtn.active {
+  background: #ffffff;
+  color: #059669;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Category Selector Bar (Dropdown Style) */
+.mokCategorySelectorBar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .mokCategorySelectorBar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.categorySelectWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  max-width: 540px;
+}
+
+@media (min-width: 640px) {
+  .categorySelectWrapper {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+  }
+}
+
+.categorySelectLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.categorySelectFieldWrapper {
+  flex: 1;
+}
+
+.mokCategorySelect {
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mokCategorySelect:focus {
+  background: #ffffff;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.mokCategorySelect optgroup {
+  font-weight: 700;
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.mokCategorySelect option {
+  font-weight: 500;
+  color: #1e293b;
+  background: #ffffff;
+  padding: 0.4rem;
+}
+
+.categoryMetaBadge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+}
+
+.categoryMetaInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.categoryMetaTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #166534;
+}
+
+.categoryMetaDesc {
+  font-size: 0.78rem;
+  color: #15803d;
+}
+
+.badgeCountTotal {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: #059669;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+/* Toolbar & Filter Bar */
+.mokToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.searchBox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 260px;
+  max-width: 380px;
+  flex: 1;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.45rem 0.75rem 0.45rem 2.2rem;
+  font-size: 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.searchInput:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.1);
+}
+
+.filterSelect {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  outline: none;
+  color: #334155;
+  cursor: pointer;
+}
+
+.filterSelect:focus {
+  border-color: #059669;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btnSecondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.btnExport {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: #059669;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
+}
+
+.btnExport:hover {
+  background: #047857;
+}
+
+/* Table Container */
+.tableCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.tableHeaderBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.tableTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.tableCount {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.tableResponsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.mokTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.mokTable th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.mokTable td {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.mokTable tr:hover td {
+  background: #f8fafc;
+}
+
+.cidCell {
+  font-family: monospace;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+
+.hnBadge {
+  display: inline-block;
+  font-family: monospace;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: #e0f2fe;
+  color: #0284c7;
+  font-size: 0.82rem;
+}
+
+.patientName {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.badgeStage {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.badgeStage.danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.badgeStage.warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.badgeStage.info {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+/* Pagination Bar */
+.paginationBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.paginationInfo {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.paginationButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pageBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.pageBtn.active {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.pageBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Loading & Empty States */
+.stateBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1.5rem;
+  color: #64748b;
+  gap: 0.75rem;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #059669;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Quick Filter Chips */
+.quickChipsContainer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed #e2e8f0;
+  width: 100%;
+}
+
+.quickChipLabel {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.quickChip {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quickChip:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.quickChip.active {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+}
+
+/* Sortable Headers */
+.sortableTh {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s;
+}
+
+.sortableTh:hover {
+  background-color: #f1f5f9 !important;
+}
+
+.sortThContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sortIcon {
+  color: #94a3b8;
+  transition: color 0.15s;
+}
+
+.sortIcon.active {
+  color: #059669;
+}
